@@ -12,6 +12,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/credit"
+	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
@@ -81,6 +82,10 @@ type HTTPPorts struct {
 	// the composition root supplies the run starter and store.
 	Runs      agent.RunService
 	RunAccess agent.RunAccess
+	// Payments and PaymentProposals serve POST /payments/{payment_id}/allocations and
+	// /refunds (HTTP-15); both open their gates on Gates.
+	Payments         payment.Service
+	PaymentProposals payment.Proposals
 }
 
 // TxRunner runs fn in one transaction; kernel/db implements it.
@@ -160,6 +165,13 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	if m := runMount(p, p.Runs, p.RunAccess); m != nil {
 		add(true, m)
 	}
+	add(p.Payments != nil && p.PaymentProposals != nil && p.DB != nil && p.Gates != nil && p.Idem != nil,
+		(&payment.Gated{HTTP: payment.HTTP{Payments: p.Payments, Access: p.Access, Cursors: p.Cursors, Idem: p.Idem,
+			Problems: p.Problems, Principal: p.Principal}, DB: p.DB, Gates: p.Gates, Proposals: p.PaymentProposals,
+			MinApprovers: approvers}).Routes)
+	wg, canWithdraw := p.Gates.(credit.GateWithdrawer)
+	add(canWithdraw && p.DB != nil && p.Idem != nil, (&credit.WithdrawHTTP{Store: credit.PGWriteOffs{}, Gates: wg,
+		DB: p.DB, Access: p.Access, Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
 	return out, nil
 }
 
@@ -209,4 +221,20 @@ func newRouteFilter(r registry.Registry, wired []mount) routeFilter {
 		f.wired[routeKey(m)] = true
 	}
 	return f
+}
+
+// rejectFilter is the registry the gate kinds register into: a kind with a rejection hook
+// gets it as GateKind.OnReject, so the kernel calls it in the deciding tx. Every other call
+// passes through.
+type rejectFilter struct {
+	registry.Registry
+	hooks map[string]registry.RejectFunc
+}
+
+// GateKind sets k.OnReject from the hooks when k has none.
+func (f rejectFilter) GateKind(k registry.GateKind) {
+	if h := f.hooks[k.Slug]; h != nil && k.OnReject == nil {
+		k.OnReject = h
+	}
+	f.Registry.GateKind(k)
 }

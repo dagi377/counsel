@@ -2,6 +2,7 @@ package withdraw
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/app/legal/trust"
+	"github.com/dagi377/counsel/kernel/gate"
 )
 
 // LedgerLocker locks a client ledger in the caller's tx and returns its balance and the sum of
@@ -22,10 +24,14 @@ type LedgerLocker interface {
 // PGService is Service over trust.withdrawal_request. It records requests and reads them; it
 // never authorizes or executes. Authorization is the trust.withdrawal gate's effect (Effect.Apply,
 // a signatory other than the preparer) and execution is Execution.Record, so Authorize and
-// RecordExecution here always refuse. It does not open the gate: the request route does.
+// RecordExecution here always refuse. With Gates set it opens the withdrawal's gate
+// (GateKind, or GateFeeKind for a withdrawal that pays a bill) in the request's tx and
+// stores its id, so every caller (the route and the agent tool) gets a gated withdrawal.
 type PGService struct {
 	DB      TxRunner
 	Ledgers LedgerLocker
+	// Gates, when set, opens the gate in the request tx. Nil leaves opening to the caller.
+	Gates Gates
 }
 
 var _ Service = PGService{}
@@ -35,20 +41,22 @@ var _ Service = PGService{}
 var ErrEffectOnly = errors.New("withdraw: authorize and execute run only through the gate effect")
 
 // dbPurpose maps the openapi purpose_category (Request.Reason) onto the stored one. A fee
-// withdrawal needs its bill (fees_to_operating requires bill_id) and Request carries none, so
-// fees are refused here rather than stored without one.
+// withdrawal is stored with its bill (fees_to_operating requires bill_id); one that names no
+// bill is refused here, and the effect re-checks the bill at authorization.
 var dbPurpose = map[string]string{
-	"disbursement":   "disbursement",
-	"third_party":    "third_party",
-	"client_payment": "client_refund",
-	"refund":         "client_refund",
+	"fees":              "fees_to_operating",
+	"fees_to_operating": "fees_to_operating",
+	"disbursement":      "disbursement",
+	"third_party":       "third_party",
+	"client_payment":    "client_refund",
+	"refund":            "client_refund",
 }
 
 const ledgerOfSQL = `SELECT id::text FROM trust.client_ledger WHERE account_id = $1::uuid AND matter_id = $2::uuid`
 
 const insertRequestSQL = `INSERT INTO trust.withdrawal_request
-  (ledger_id, purpose_category, payee, amount_cents, method, form_9a_doc_id, initiated_by, status)
-VALUES ($1::uuid, $2, $3, $4, $5, NULLIF($6, '')::uuid, $7::uuid, 'pending_authorization')
+  (ledger_id, purpose_category, payee, amount_cents, method, form_9a_doc_id, initiated_by, bill_id, status)
+VALUES ($1::uuid, $2, $3, $4, $5, NULLIF($6, '')::uuid, $7::uuid, NULLIF($8, '')::uuid, 'pending_authorization')
 RETURNING id::text`
 
 // ledgerOf returns the client ledger of the matter on the account, or ErrNotFound.
@@ -104,6 +112,17 @@ func (s PGService) Request(ctx context.Context, r Request) (Withdrawal, error) {
 	if !ok {
 		return Withdrawal{}, fmt.Errorf("request withdrawal: purpose %q: %w", r.Reason, ErrInvalid)
 	}
+	// rule: ARC-I-027
+	// The preparer is a person: for an agent request, the user the run acts for. A request
+	// with no preparer could later be authorized by anyone, so it is refused.
+	if r.PreparedBy == "" {
+		return Withdrawal{}, fmt.Errorf("request withdrawal: no preparer: %w", ErrInvalid)
+	}
+	// rule: BIL-L-035 (verify)
+	// A fee withdrawal names its bill; the effect re-checks it at authorization.
+	if purpose == "fees_to_operating" && r.BillID == "" {
+		return Withdrawal{}, fmt.Errorf("request withdrawal: %w: %w", ErrBillMatter, ErrInvalid)
+	}
 	out := Withdrawal{Request: r, Status: StatusRequested}
 	err := s.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		ledger, f, err := s.funds(ctx, tx, r.TrustAccountID, r.MatterID)
@@ -113,8 +132,19 @@ func (s PGService) Request(ctx context.Context, r Request) (Withdrawal, error) {
 		if err := Validate(ctx, r, f); err != nil {
 			return err
 		}
-		return tx.QueryRow(ctx, insertRequestSQL, string(ledger), purpose, r.Payee, r.AmountCents, string(r.Method),
-			r.EFTAuthorizationID, r.PreparedBy).Scan(&out.ID)
+		if err := tx.QueryRow(ctx, insertRequestSQL, string(ledger), purpose, r.Payee, r.AmountCents, string(r.Method),
+			r.EFTAuthorizationID, r.PreparedBy, r.BillID).Scan(&out.ID); err != nil {
+			return err
+		}
+		if s.Gates == nil {
+			return nil
+		}
+		gid, err := openRequestGate(ctx, tx, s.Gates, out.ID, string(ledger), r)
+		if err != nil {
+			return err
+		}
+		out.GateID = gid
+		return nil
 	})
 	if err != nil {
 		return Withdrawal{}, fmt.Errorf("request withdrawal: %w", err)
@@ -163,4 +193,49 @@ func (PGService) Authorize(_ context.Context, id, _ string, _ time.Time) (Withdr
 // Execution.Record, which re-checks the balance under lock.
 func (PGService) RecordExecution(_ context.Context, id, _ string, _ time.Time) (Withdrawal, error) {
 	return Withdrawal{}, fmt.Errorf("execute withdrawal %s: %w: %w", id, ErrEffectOnly, ErrNotAuthorized)
+}
+
+// RequestGateKind is the gate a withdrawal request opens: GateFeeKind when it pays a bill,
+// GateKind otherwise.
+func RequestGateKind(r Request) string {
+	// rule: BIL-L-035 (verify)
+	// A withdrawal that pays a bill is a fee transfer and opens the fee gate.
+	if r.BillID != "" {
+		return GateFeeKind
+	}
+	return GateKind
+}
+
+// RequestGatePayload is the gate payload of withdrawal id on ledger for r.
+func RequestGatePayload(id, ledger string, r Request) (json.RawMessage, error) {
+	p := map[string]any{"withdrawal_id": id, "ledger_id": ledger, "matter_id": r.MatterID,
+		"amount_cents": r.AmountCents, "payee": r.Payee, "method": string(r.Method), "purpose_category": r.Reason}
+	if r.BillID != "" {
+		p["bill_id"] = r.BillID
+	}
+	raw, err := json.Marshal(p)
+	if err != nil {
+		return nil, fmt.Errorf("withdrawal gate payload: %w", err)
+	}
+	return raw, nil
+}
+
+// openRequestGate opens the gate of withdrawal id in tx, prepared by r.PreparedBy (for an
+// agent, the user it acts for), and stores the gate id on the row.
+func openRequestGate(ctx context.Context, tx pgx.Tx, g Gates, id, ledger string, r Request) (string, error) {
+	payload, err := RequestGatePayload(id, ledger, r)
+	if err != nil {
+		return "", err
+	}
+	// rule: ARC-I-019
+	// The preparer is a person and is recorded as the gate's requester, so they never decide it.
+	gid, err := g.Open(ctx, tx, RequestGateKind(r), gate.Subject{Kind: SubjectWithdrawal, ID: id}, payload,
+		gate.Principal{Kind: gate.PrincipalUser, UserID: r.PreparedBy})
+	if err != nil {
+		return "", fmt.Errorf("open withdrawal gate: %w", err)
+	}
+	if _, err := tx.Exec(ctx, recordGateSQL, id, string(gid)); err != nil {
+		return "", fmt.Errorf("record withdrawal gate: %w", err)
+	}
+	return string(gid), nil
 }

@@ -110,6 +110,31 @@ type GateKind struct {
 	// Preparers returns more users in the gate's preparer set: every editor of the
 	// underlying item. Nil adds nobody; the gate's own requesters always count.
 	Preparers PreparersFunc
+	// OnReject, when set, runs in the deciding tx right after a decision rejects the gate,
+	// so the module can close the item the gate decided. Nil does nothing. Additive (BOOT-REST-2a).
+	OnReject RejectFunc
+}
+
+// Rejected is a gate a decider has just rejected, as its kind's OnReject sees it.
+type Rejected struct {
+	GateID     string
+	Kind       string
+	Version    int
+	Subject    Subject
+	Payload    json.RawMessage
+	Preparer   Principal
+	RejectedBy Principal
+	Reason     string
+}
+
+// RejectFunc closes the item of a rejected gate. It runs inside the deciding tx; an error
+// rolls the decision back.
+type RejectFunc func(ctx context.Context, tx pgx.Tx, g Rejected) error
+
+// RejectHook is implemented by an effect that also acts on rejection. Boot sets the kind's
+// OnReject from it.
+type RejectHook interface {
+	OnReject(ctx context.Context, tx pgx.Tx, g Rejected) error
 }
 
 // PreparersFunc returns the users who prepared or edited the item a gate decides, read in

@@ -2128,3 +2128,55 @@ Done in PORT-18:
 - HTTP-26 webhook row_version: not done (time limit). Needs an additive migration on platform.webhook and the Postgres reads in kernel/webhook to compare it for If-Match.
 - STMT-IMPORT: recon.CSVParser (generic kind,date,description,amount_cents CSV, integer cents only) and recon.PGImports replace NoParser and PGService's import refusal at boot. Touched recon/http_write.go to put a ParseError's line and reason (never file text) in the 422 problem detail. Line descriptions go in StatementLine.Reference (the frozen contract has no description field).
 - Merge fixes: recon read/write HTTP files declared the shared problem codes, Access and reconView twice (kept the read file's, Version int64); trust.TxRunner declared twice (kept receipt_http.go's).
+
+## Q-HTTP-15 Gated payment routes: proposed allocations and refund gate
+
+- POST /payments/{payment_id}/allocations: the sum must equal the payment (422
+  allocation_sum_mismatch, ARC-I-029). A set of operating bills only, each named once, is
+  proposed directly (200, allocation state `proposed`) through a new `payment.Proposals`
+  port; the route declares `payment.allocation=proposed` and never
+  `payment.allocation=applied`. Unapplied money (client credit) or a trust_ledger row opens
+  billing.payment_allocation (202). The payment version is 1, as GET reports it.
+- POST /payments/{payment_id}/refunds opens billing.refund (202) with payee = the payment's
+  payer of record and reason = reason_code; an amount above the payment answers 409
+  refund_exceeds_payment. The billing.refund effect (provider call keyed <gate_id>:<version>)
+  and its registration are not built yet: an approved refund pays nothing until they are.
+- Boot must wire `payment.Gated` (DB, Gates, Proposals and the HTTP dependencies); until it
+  does, both routes answer 503.
+
+## PG-WRITES-FIX
+
+- Additive: migration `5505_withdrawal_gate.sql` adds nullable `trust.withdrawal_request.gate_id`
+  (5504 is taken by another task branch). The request route stores the opened gate in the same tx;
+  cancel withdraws that gate; only the preparer (the user, or the user an agent acts for) may cancel.
+- Additive: `withdraw.Cancels` gains `RecordGate`, and `withdraw.Row` gains `GateID` (not contract files).
+- Open: no Postgres `withdraw.FeeBills` adapter exists yet (billing owns the bill balance), so
+  `Effect.Bills` is unwired at boot and every fee withdrawal fails closed at authorization.
+- Open: the route opens `billing.trust_fee_withdrawal` for a bill withdrawal, but that kind has no
+  effect wired (boot/unwired_gates.txt) and execution reads only `trust.withdrawal` approvals.
+- Open: `PGService.Request` opens no gate, so the agent tool's `w.GateID == ""` check refuses every
+  agent withdrawal on Postgres until the gate is opened in the service path.
+
+## Q-BOOT-REST-2a payment.Gated, refund stores, WO-FIX close path, fee withdrawals
+
+- Additive (CONTRACT kernel/registry/types.go): `GateKind.OnReject RejectFunc`, `Rejected` and
+  the `RejectHook` interface. The PG engine and gatefake call OnReject in the deciding tx right
+  after a decision rejects a gate; an error rolls the decision back. Nil does nothing. Boot sets
+  it through a registry wrapper (`rejectFilter`), so gates.RegisterWired is unchanged.
+- WO-FIX: billing.credit_note gets `credit.RejectHooks(PGWriteOffs{})`: a rejected write-off
+  gate closes its draft as `rejected`. New route POST /credit-notes/{credit_note_id}/withdraw
+  (additive in api/openapi.yaml, operationId withdrawWriteOff): only the preparer, as a person,
+  withdraws the pending G-B5 gate and the draft closes as `withdrawn`.
+- payment.PGRefunds (RefundStore) and payment.PGTrustRefunds (TrustRefunds) are the RestPorts
+  defaults. A trust refund is a `client_refund` trust.withdrawal_request whose trust.withdrawal
+  gate the G-B6 approver prepares; payment `trust_withdrawal_id` replay is keyed by the gate.
+- payment.Gated is wired when HTTPPorts.Payments and PaymentProposals are set. Open: no Postgres
+  `payment.Proposals` exists, so production boot still needs that port.
+- PG-WRITES-FIX follow-up: boot.PGFeeBills (billing.bill + bill_balance, balance net of reserved
+  fee transfers, bill row locked) is the default withdraw `Effect.Bills`. `withdraw.FeeEffect`
+  handles billing.trust_fee_withdrawal: By-law 9 flag, then Effect.Apply (agent and preparer
+  never approve, signatory check, bill re-check, ledger lock). Execution stays with the
+  execution route: `PGApprovals` now accepts approved payloads of either gate kind, so the
+  executor is still a second person (sole-practice exception audited). `PGService.Gates`, set
+  at boot, opens the gate in the request tx and stores gate_id; the route skips opening when
+  the service already did, so agent withdrawals are gated on Postgres.

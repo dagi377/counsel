@@ -130,6 +130,12 @@ func (t *WriteTools) Call(ctx context.Context, c Call) (Result, error) {
 		// Validation detail can echo client data; keep it out of the error.
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, ErrInvalidInput)
 	}
+	// rule: ARC-I-027
+	// The preparer of the withdrawal is the user the run acts for, never the agent and never
+	// no one: a call without an acting user is refused before anything is read or recorded.
+	if c.ActingFor == "" {
+		return Result{}, fmt.Errorf("call %s: no acting user: %w", c.Tool, ErrForbidden)
+	}
 	ok, err := t.deps.Can(ctx, c.ActingFor, CapTrustRequest)
 	if err != nil {
 		return Result{}, fmt.Errorf("call %s: capability: %w", c.Tool, err)
