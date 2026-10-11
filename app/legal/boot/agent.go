@@ -317,15 +317,13 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		trust.FeaturePayeeFraudCheck:                trust.PayeeFraudCheckBinding,
+		trust.FeatureBankFeedSync:                   trust.BankFeedSyncBinding,
 		trust.FeatureWithdrawalDrafter:              trust.WithdrawalDrafterBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
 	onRequest := map[string]bool{
 		matter.FeatureMatterQuestionAnswering: true,
-		// F-TRU-01's schedule binds with its write path (FEAT-TRU-02); until then its screen
-		// actions start it.
-		trust.FeatureBankFeedSync: true,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {

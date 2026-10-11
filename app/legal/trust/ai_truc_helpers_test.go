@@ -25,9 +25,11 @@ import (
 	"github.com/dagi377/counsel/app/legal/gates/gatesfake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/roles"
+	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/agenttools/run"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
+	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/gate/gatefake"
 	"github.com/dagi377/counsel/kernel/registry"
 )
@@ -399,4 +401,74 @@ func trucCheckNoEffectCalls(t *testing.T, file string) {
 		}
 		return true
 	})
+}
+
+// trucRecorder passes tool calls to the run's registry and keeps their order, refusals and
+// opened gates. It checks nothing itself.
+type trucRecorder struct {
+	next    trust.ToolCaller
+	names   []string
+	inputs  []json.RawMessage
+	refused []error
+	gateIDs []string
+}
+
+func (r *trucRecorder) Call(ctx context.Context, p agenttools.Principal, name string, in json.RawMessage) (agenttools.ToolResult, error) {
+	r.names = append(r.names, name)
+	r.inputs = append(r.inputs, in)
+	res, err := r.next.Call(ctx, p, name, in)
+	if err != nil {
+		r.refused = append(r.refused, err)
+	}
+	if res.GateID != "" {
+		r.gateIDs = append(r.gateIDs, res.GateID)
+	}
+	return res, err
+}
+
+// trucCheckGate fails t unless gate id in the seed's store is pending, of kind, prepared for
+// the acting user, and refused (403) to the agent principal and to the acting user, while
+// trucOtherLawyer may decide it.
+func trucCheckGate(t *testing.T, w *trucWorld, id, kind string) {
+	t.Helper()
+	ctx := context.Background()
+	g, err := w.fd.Seed.Gates.Get(ctx, gate.GateID(id))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// rule: ARC-I-035
+	if g.Kind != kind || g.Status != gate.StatusPending || g.Preparer.ActingFor != agenttest.FeatureActingFor {
+		t.Fatalf("gate = %s %s preparer %+v; want pending %s prepared for the acting user", g.Kind, g.Status, g.Preparer, kind)
+	}
+	tests := []struct {
+		name       string
+		by         registry.Principal
+		wantErr    error
+		wantStatus int
+	}{
+		{"agent principal", registry.Principal{Kind: registry.PrincipalAgent, RunID: "run-truc", ActingFor: agenttest.FeatureActingFor}, gate.ErrAgentApprover, http.StatusForbidden},
+		{"acting user decides own gate", registry.Principal{Kind: registry.PrincipalUser, UserID: agenttest.FeatureActingFor}, gate.ErrSelfApproval, http.StatusForbidden},
+		{"another lawyer", registry.Principal{Kind: registry.PrincipalUser, UserID: trucOtherLawyer}, nil, http.StatusOK},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cur, err := w.fd.Seed.Gates.Get(ctx, gate.GateID(id))
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = w.fd.Seed.Gates.Decide(ctx, nil, cur.ID, cur.Version, gate.Decision{
+				Verdict: gate.VerdictApprove, PayloadHash: cur.PayloadHash, MFAVerifiedAt: trucNow.Add(-time.Minute),
+			}, tt.by)
+			status := http.StatusOK
+			if err != nil {
+				status = http.StatusInternalServerError
+				if p := gate.Problem(err); p != nil {
+					status = p.Status
+				}
+			}
+			if !errors.Is(err, tt.wantErr) || status != tt.wantStatus {
+				t.Fatalf("decide = %v (%d), want %v (%d)", err, status, tt.wantErr, tt.wantStatus)
+			}
+		})
+	}
 }

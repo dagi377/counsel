@@ -3266,3 +3266,18 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   a matter contact with no bill_id. The Postgres trust service refuses fees_to_operating
   without a bill and the authorization effect re-checks delivery, so it fails closed
   downstream, but the agent tool could refuse it earlier.
+
+## Q-FEAT-TRU-02 bank-feed-sync write path (F-TRU-01)
+
+- The write path is trust.ReceiptGates, the pipeline's ReceiptProposals sink: per proposed
+  receipt it calls report_plan, draft_document and submit_for_approval through the run's
+  registry as the agent principal, inside the run's scope (trust.receipt_classification
+  only). It re-checks every receipt's amount and date against its cited bank-feed line
+  before the first write (ErrUnsourcedValue), and keeps bank-feed text (the reference) out
+  of the draft. Match suggestions open nothing. Open: boot wiring of the pipeline job (the
+  run's matter, sources and principal) is not in this task.
+- Binding: daily for the designated lawyer, plus bank_line.imported (the event POST
+  /trust/bank-lines/imports declares) for "when a statement is uploaded". F-TRU-01 leaves the
+  boot onRequest list for a JobBindings binding.
+- Package trust cannot import app/legal/agent, so the tool names the sink calls are repeated
+  as unexported constants.
