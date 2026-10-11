@@ -45,6 +45,11 @@
       "pattern": "^([0-9]+(ns|us|ms|s|m|h))+$",
       "description": "Go duration, e.g. 72h"
     },
+    "spec_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "optional id of the gate in the app's own spec, for traceability"
+    },
     "payload_schema": {
       "type": "object",
       "description": "an embedded JSON Schema document"

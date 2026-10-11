@@ -1,0 +1,266 @@
+[
+  {
+    "id": "intake.leads",
+    "description": "View and work leads"
+  },
+  {
+    "id": "intake.forms",
+    "description": "Build intake forms"
+  },
+  {
+    "id": "intake.convert",
+    "description": "Convert lead to matter / approve engagement"
+  },
+  {
+    "id": "conflicts.run",
+    "description": "Run conflict search"
+  },
+  {
+    "id": "conflicts.clear",
+    "description": "Clear a conflict check"
+  },
+  {
+    "id": "conflicts.walls",
+    "description": "Create or lift an ethical wall"
+  },
+  {
+    "id": "conflicts.identify",
+    "description": "Verify client identity"
+  },
+  {
+    "id": "matters.directory",
+    "description": "See matter names and numbers (no content)"
+  },
+  {
+    "id": "matters.view",
+    "description": "Open matter content"
+  },
+  {
+    "id": "matters.edit",
+    "description": "Edit matter details and parties"
+  },
+  {
+    "id": "matters.open",
+    "description": "Open a new matter"
+  },
+  {
+    "id": "matters.team",
+    "description": "Change a matter's team and access"
+  },
+  {
+    "id": "matters.restrict",
+    "description": "Mark a matter restricted"
+  },
+  {
+    "id": "matters.close",
+    "description": "Close a matter"
+  },
+  {
+    "id": "contacts.view",
+    "description": "View contacts"
+  },
+  {
+    "id": "contacts.edit",
+    "description": "Edit contacts"
+  },
+  {
+    "id": "documents.view",
+    "description": "View matter documents"
+  },
+  {
+    "id": "documents.edit",
+    "description": "Create and edit documents"
+  },
+  {
+    "id": "documents.release",
+    "description": "Release a document or agent draft to a client or other side"
+  },
+  {
+    "id": "documents.templates",
+    "description": "Manage templates and precedents"
+  },
+  {
+    "id": "deadlines.view",
+    "description": "View deadlines"
+  },
+  {
+    "id": "deadlines.edit",
+    "description": "Add or change deadlines"
+  },
+  {
+    "id": "deadlines.verify",
+    "description": "Second-check a deadline"
+  },
+  {
+    "id": "deadlines.rules",
+    "description": "Install or change rule packs"
+  },
+  {
+    "id": "work.view",
+    "description": "View work items"
+  },
+  {
+    "id": "work.edit",
+    "description": "Create and update work items"
+  },
+  {
+    "id": "work.approve",
+    "description": "Approve a work item gate"
+  },
+  {
+    "id": "work.workflows",
+    "description": "Edit workflows and templates"
+  },
+  {
+    "id": "time.record",
+    "description": "Record own time and expenses"
+  },
+  {
+    "id": "time.view_all",
+    "description": "View everyone's time"
+  },
+  {
+    "id": "time.approve",
+    "description": "Approve timesheets"
+  },
+  {
+    "id": "time.rates",
+    "description": "Set billing rates"
+  },
+  {
+    "id": "time.writedown",
+    "description": "Write down or write off time"
+  },
+  {
+    "id": "billing.view",
+    "description": "View bills and receivables"
+  },
+  {
+    "id": "billing.draft",
+    "description": "Prepare bills"
+  },
+  {
+    "id": "billing.approve",
+    "description": "Approve a bill for sending"
+  },
+  {
+    "id": "billing.payments",
+    "description": "Record payments"
+  },
+  {
+    "id": "billing.credit",
+    "description": "Issue credit notes and write-offs"
+  },
+  {
+    "id": "trust.view",
+    "description": "View trust ledgers and journals"
+  },
+  {
+    "id": "trust.record",
+    "description": "Post receipts and corrections"
+  },
+  {
+    "id": "trust.request",
+    "description": "Request a trust withdrawal or transfer"
+  },
+  {
+    "id": "trust.authorize",
+    "description": "Authorize trust withdrawal or transfer (designated signatory only)"
+  },
+  {
+    "id": "trust.execute",
+    "description": "Execute an authorized payment at the bank"
+  },
+  {
+    "id": "trust.reconcile",
+    "description": "Prepare monthly reconciliation"
+  },
+  {
+    "id": "trust.signoff",
+    "description": "Sign off monthly reconciliation"
+  },
+  {
+    "id": "trust.signatories",
+    "description": "Manage trust accounts and signatories"
+  },
+  {
+    "id": "reports.firm",
+    "description": "Firm financial and productivity reports"
+  },
+  {
+    "id": "platform.portal",
+    "description": "Share to and message in the client portal"
+  },
+  {
+    "id": "platform.agent_settings",
+    "description": "Change automation and agent settings"
+  },
+  {
+    "id": "platform.integrations",
+    "description": "Connect integrations"
+  },
+  {
+    "id": "platform.retention",
+    "description": "Retention and destruction"
+  },
+  {
+    "id": "platform.firm_profile",
+    "description": "Firm profile and branding"
+  },
+  {
+    "id": "agent.ask",
+    "description": "Ask the agent to do work"
+  },
+  {
+    "id": "admin.users",
+    "description": "Invite, suspend and remove users"
+  },
+  {
+    "id": "admin.roles",
+    "description": "Edit roles and permission groups"
+  },
+  {
+    "id": "admin.security",
+    "description": "Sign-in, SSO, MFA, sessions, IP limits"
+  },
+  {
+    "id": "admin.break_glass",
+    "description": "Use break-glass access"
+  },
+  {
+    "id": "admin.break_glass_approve",
+    "description": "Approve or review break-glass use"
+  },
+  {
+    "id": "admin.access_review",
+    "description": "Run and certify access reviews"
+  },
+  {
+    "id": "admin.audit_log",
+    "description": "Read the access audit log"
+  },
+  {
+    "id": "admin.export",
+    "description": "Bulk export firm data"
+  },
+  {
+    "id": "rates.view",
+    "description": "See billing rates (none, own, all)"
+  },
+  {
+    "id": "admin.teams",
+    "description": "Create and edit teams"
+  },
+  {
+    "id": "admin.authority_limits",
+    "description": "Set per-person authority limits"
+  },
+  {
+    "id": "admin.offboard",
+    "description": "Offboard a person and hand over their work"
+  },
+  {
+    "id": "admin.support_access",
+    "description": "Grant vendor support access"
+  }
+]
