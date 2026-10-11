@@ -1907,4 +1907,17 @@ Done in PORT-18:
   matter), Cancels (row version, ledger, bill; records the cancellation), Gates (Open, Withdraw).
 - Method wire answers 422 (no wire method in the module); direction_document_id carries the
   Form 9A EFT authorization id. Only the preparer can withdraw the gate (403 otherwise).
+
+## HTTP-18: trust reconciliation import, prepare and submit routes
+
+- New ports in http_write.go (Service stays frozen): Parser (CSV/OFX file -> Statement,
+  ErrUnparseable), Versions (row version for If-Match), Gates (Open, Get). No parser exists on
+  main yet; boot wiring must supply one.
+- Import answers 202 `{statement_id, lines}` (openapi has no body schema) and posts no journal
+  entry. A statement whose lines do not sum to its closing balance answers 422
+  unparseable_statement.
+- Prepare ignores bank_balance_cents: the imported statement's closing balance is the bank
+  balance. Please confirm, or say whether a mismatch should be refused.
+- Submit is refused 422 unexplained_difference unless the three-way totals agree after
+  reconciling items; a signed-off reconciliation answers 409 period_locked.
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
