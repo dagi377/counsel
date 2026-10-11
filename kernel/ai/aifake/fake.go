@@ -393,22 +393,3 @@ func Vector(text string, dim int) []float32 {
 	}
 	return out
 }
-
-// Embed returns one deterministic unit vector per input.
-func (f *Fake) Embed(ctx context.Context, req ai.EmbedRequest) (ai.EmbedResponse, error) {
-	if err := ctx.Err(); err != nil {
-		return ai.EmbedResponse{}, err
-	}
-	if err := req.Validate(); err != nil {
-		return ai.EmbedResponse{}, err
-	}
-	if fault, ok := f.faults[req.FeatureID]; ok {
-		return ai.EmbedResponse{}, faultError(fault)
-	}
-	resp := ai.EmbedResponse{Vectors: make([][]float32, len(req.Inputs))}
-	for i, in := range req.Inputs {
-		resp.Vectors[i] = Vector(in, f.dim)
-		resp.Usage.InputTokens += (len(in) + 3) / 4
-	}
-	return resp, nil
-}

@@ -393,3 +393,11 @@ Template:
   ("sha256:" + hex SHA-256 of the normalised quote). docsfake hashes the same way. Comment only.
 - Resolved at wave 2a integration: interest runs from `months_after(delivery, 1)` itself
   (Solicitors Act s.33). The contract comment, `Months.AccrualStart` and tests now say so.
+
+## AI-034.0a: Embed moved out of aifake/fake.go
+
+The task lists only `kernel/ai/aifake/embed.go`. `Fake.Embed` was defined in `fake.go`, and a
+method cannot be defined twice, so it was deleted there and rewritten in `embed.go`. `Vector`
+stays in `fake.go`; no other change to it.
+`tools/nofloat_allow.txt` gains `embed.go` and `embed_test.go`: embedding vectors are float32
+by the `ai.EmbedResponse` contract, the same reason `fake.go` is listed.
