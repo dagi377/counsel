@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -244,5 +245,23 @@ func TestExecutionRecordFailsClosedWhenUnverified(t *testing.T) {
 	_, err := x.Record(context.Background(), "w1", user("lawyer2"), Confirmation{ExecutedOn: execDay, BankRef: "B"})
 	if !errors.Is(err, ErrUnverified) {
 		t.Fatalf("err = %v, want ErrUnverified", err)
+	}
+}
+
+// An EFT executed without its Form 9A record is a 409, not a 500.
+func TestProblemForNoEFTAuthorization(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+	}{
+		{"bare", ErrNoEFTAuthorization},
+		{"effect failure", failed(CodeNoEFTAuthorization, fmt.Errorf("eft w1: no record: %w", ErrNoEFTAuthorization))},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if p := problemFor(tt.err); p.Status != http.StatusConflict || p.Code != CodeNoEFTAuthorization {
+				t.Fatalf("problem = %d %s, want 409 %s", p.Status, p.Code, CodeNoEFTAuthorization)
+			}
+		})
 	}
 }

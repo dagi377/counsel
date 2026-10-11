@@ -371,13 +371,16 @@ func (pgLedgerRepo) getLedger(ctx context.Context, tx pgx.Tx, id LedgerID) (Ledg
 }
 
 // sumsSQL mirrors trust.available_cents: money out, non-receipts and receipts cleared by today
-// (on the row or by a later clearance) count as cleared.
+// (on the row or by a later clearance) count as cleared. Held money is every authorised
+// withdrawal and every authorised transfer out of the ledger, except the one being executed.
 const sumsSQL = `SELECT
   coalesce(sum(t.amount_cents), 0)::bigint,
   coalesce(sum(t.amount_cents) FILTER (WHERE t.amount_cents < 0 OR t.kind <> 'receipt' OR t.cleared_on <= $2::date
     OR EXISTS (SELECT 1 FROM trust.receipt_clearance c WHERE c.trust_transaction_id = t.id AND c.cleared_on <= $2::date)), 0)::bigint,
   coalesce((SELECT sum(w.amount_cents) FROM trust.withdrawal_request w
     WHERE w.ledger_id = $1::uuid AND w.status = 'authorized' AND w.id::text IS DISTINCT FROM NULLIF($3, '')), 0)::bigint
+  + coalesce((SELECT sum(x.amount_cents) FROM trust.trust_transfer x
+    WHERE x.from_ledger_id = $1::uuid AND x.status = 'authorized' AND x.id::text IS DISTINCT FROM NULLIF($3, '')), 0)::bigint
 FROM trust.trust_transaction t WHERE t.ledger_id = $1::uuid`
 
 func (pgLedgerRepo) sums(ctx context.Context, tx pgx.Tx, id LedgerID, today time.Time, except string) (ledgerSums, error) {
@@ -412,12 +415,8 @@ func (pgLedgerRepo) insertTxn(ctx context.Context, tx pgx.Tx, t Txn) (TxnID, err
 		t.TxnDate.Format(time.DateOnly), string(t.Method), t.InstrumentNo, t.Counterparty, t.AmountCents, t.Purpose,
 		t.WithdrawalID, t.ApprovalID, t.CashExceptionCode, dateOrEmpty(t.ClearedOn), t.PostedBy,
 		string(t.ReversesID), string(t.ReplenishesID)).Scan(&id); err != nil {
-		var pg *pgconn.PgError
-		if errors.As(err, &pg) && pg.Code == "23514" {
-			// check_violation: the database's own balance guard (DM-052, DM-064).
-			return "", fmt.Errorf("insert txn: %w", ErrInsufficientFunds)
-		}
-		return "", fmt.Errorf("insert txn: %w", err)
+		// rule: BIL-I-010
+		return "", fmt.Errorf("insert txn: %w", ledgerCheck(err))
 	}
 	return TxnID(id), nil
 }
