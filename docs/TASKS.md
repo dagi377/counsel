@@ -1,0 +1,652 @@
+# Tasks
+
+Generated from `spec/tasks.json` (source of truth; this page is a view). Validate with `python3 -I tools/check_tasks.py`.
+
+**463 tasks, 26 waves, max parallel width 88.** Every task is size S (one agent, about 25 minutes). `parent` traces each task to its o1 task (T-id) or AI task (AI-id); `rule_ids` and `accept` are the tests to write first.
+
+## How to work a task
+
+1. **Claim**: one agent per task. Take a task from the lowest open wave whose `depends_on` are all merged. Mark it claimed in the wave tracking issue before starting.
+2. **Branch**: `task/<id>` from the current wave branch `wave/<n>` (wave 0 branches from `main`).
+3. **Own only your files.** The `files` list is exclusive within a wave: no other task in the same wave touches them. Need another file? Stop and write a `docs/QUESTIONS.md` entry.
+4. **Extension points, not hot files.** Routes, gate kinds, tools and the rest register from your own file via the package `register.go` registrar list (wave-0 task T-001.5/T-001.6); migrations go in your module block (`migrations/README.md`); web features are discovered from `web/src/features/*/feature.ts`; e2e suites are discovered by `test/e2e/run.sh`. Never edit a shared registry file.
+5. **Flags**: a task with `flag` codes a `(verify)` rule behind that flag, off by default (`app/legal/flags.go`). Its tests run with the flag on and assert it is off by default. It is not blocked.
+6. **Done**: `make check` green; one commit `feat: <id> <subject>`; open a PR into `wave/<n>`; tick the box below.
+7. **Merge order**: within a wave any order (files are disjoint); wave 0 merges in id order (T-001.* first). The integrator merges `wave/<n>` into `main` only after `make check` and `test/e2e/run.sh` pass on the wave branch, then opens `wave/<n+1>`.
+
+## Verify flags (off by default)
+
+| Blocker | Flag |
+|---|---|
+| V-TRUST | `trust.bylaw9_verified` |
+| V-BILL | `billing.solicitors_act_verified` |
+| V-TAX | `tax.verify_rules` |
+| V-CFA | `billing.contingency_fees` |
+| V-DEADLINES | `deadline.ontario_pack` |
+| V-ID | `conflict.id_verification` |
+| V-SURCHARGE | `billing.card_surcharge` |
+
+## Waves
+
+| Wave | Tasks |
+|---|---|
+| 0 | 16 |
+| 1 | 8 |
+| 2 | 10 |
+| 3 | 10 |
+| 4 | 11 |
+| 5 | 11 |
+| 6 | 17 |
+| 7 | 16 |
+| 8 | 14 |
+| 9 | 18 |
+| 10 | 24 |
+| 11 | 19 |
+| 12 | 13 |
+| 13 | 37 |
+| 14 | 14 |
+| 15 | 88 |
+| 16 | 19 |
+| 17 | 19 |
+| 18 | 7 |
+| 19 | 6 |
+| 20 | 8 |
+| 21 | 8 |
+| 22 | 43 |
+| 23 | 5 |
+| 24 | 18 |
+| 25 | 4 |
+
+
+### Wave 0 (16 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-001 | AI-001 | kernel | kernel/ai: ModelClient contract, request/response types, usage accounting |  | `kernel/ai/client.go`<br>`kernel/ai/types.go`<br>`kernel/ai/usage.go` |  |
+| [ ] | AI-003 | AI-003 | kernel | Fixture format, loader, prompt hash and fixture lint |  | `kernel/ai/fixture`<br>`testdata/ai/README.md`<br>`tools/ai_fixture_lint.py` |  |
+| [ ] | T-001.1 | T-001 | kernel | go.mod with allowed deps and cmd main stubs |  | `go.mod`<br>`go.sum`<br>`cmd/counseld/main.go`<br>`cmd/counsel-worker/main.go`<br>+2 more |  |
+| [ ] | T-001.2 | T-001 | kernel | Makefile check, rule coverage and layering test |  | `Makefile`<br>`tools/rule_coverage.py`<br>`tools/layering_test.go` |  |
+| [ ] | T-001.3 | T-001 | kernel | CI workflow and e2e runner with suite auto-discovery |  | `.github/workflows/ci.yaml`<br>`test/e2e/run.sh`<br>`test/e2e/lib.sh` |  |
+| [ ] | T-001.4 | T-001 | kernel | web/ scaffold: Vite, Vitest, React, feature auto-discovery |  | `web/package.json`<br>`web/tsconfig.json`<br>`web/vite.config.ts`<br>`web/vitest.config.ts`<br>+6 more |  |
+| [ ] | T-001.5 | T-001 | app | app/legal registration extension points (per-package register.go) |  | `app/legal/register.go`<br>`app/legal/modules.go`<br>`app/legal/flags.go`<br>`app/legal/register_test.go`<br>+36 more |  |
+| [ ] | T-001.6 | T-001 | kernel | kernel boot, flags and package stubs |  | `kernel/boot/boot.go`<br>`kernel/boot/boot_test.go`<br>`kernel/all/all.go`<br>`kernel/flags/flags.go`<br>+29 more |  |
+| [ ] | T-001b.1 | T-001b | kernel | Kernel boundary ratchet tests |  | `kernel/boundary_test.go`<br>`tools/kernel_terms.txt`<br>`tools/kernel_allow.txt`<br>`tools/kernel_bindings.txt` |  |
+| [ ] | T-002.1 | T-002 | kernel | Import api/openapi.yaml with contract-diff test |  | `api/openapi.yaml`<br>`kernel/contract/openapi_test.go` |  |
+| [ ] | T-002.2 | T-002 | kernel | Import migrations/0001_init.sql with smoke test |  | `migrations/0001_init.sql`<br>`migrations/smoke.sql`<br>`kernel/contract/ddl_integration_test.go` |  |
+| [ ] | T-002.3 | T-002 | kernel | spec/kernel JSON Schemas for registered extension data |  | `spec/kernel/`<br>`kernel/contract/schema_test.go` |  |
+| [ ] | T-002.4 | T-002 | kernel | kernel/registry: frozen Registry interface (k1) |  | `kernel/registry/registry.go`<br>`kernel/registry/types.go`<br>`kernel/registry/registry_test.go` |  |
+| [ ] | T-002.5 | T-002 | kernel | Migration numbering scheme and per-module blocks |  | `migrations/README.md`<br>`tools/migration_blocks.txt`<br>`tools/migration_blocks_test.go` |  |
+| [ ] | T-002L.1 | T-002L | app | spec/rules/*.json union of b1,b2,b3,a1,a2,a3 |  | `spec/rules/`<br>`tools/rules_union_test.go` |  |
+| [ ] | T-002L.2 | T-002L | app | spec/gates.json and spec/access.json |  | `spec/gates.json`<br>`spec/access.json`<br>`tools/gates_access_test.go` |  |
+
+### Wave 1 (8 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-002 | AI-002 | kernel | kernel/ai/aifake: deterministic in-process ModelClient for unit tests | AI-001 | `kernel/ai/aifake/fake.go`<br>`kernel/ai/aifake/fake_test.go` |  |
+| [ ] | AI-004 | AI-004 | kernel | test/fakes/llm: Messages-protocol fake server (non-stream, stream, tools) | AI-003 | `test/fakes/llm/main.go`<br>`test/fakes/llm/messages.go`<br>`test/fakes/llm/Dockerfile` |  |
+| [ ] | T-002.6 | T-002 | kernel | kernel/registry boot validation against spec/kernel schemas | T-001.1, T-001.2, T-001.3, T-001.4, T-001.5, T-001.6 +2 | `kernel/registry/validate.go`<br>`kernel/registry/validate_test.go` |  |
+| [ ] | T-003.1 | T-003 | kernel | kernel/money: Cents, PPM, Rhu | T-001.1, T-001.2, T-001.3, T-001.4, T-001.5, T-001.6 | `kernel/money/money.go`<br>`kernel/money/money_test.go` |  |
+| [ ] | T-003.3 | T-003 | kernel | No-float analyzer for kernel/ and app/ | T-001.1, T-001.2, T-001.3, T-001.4, T-001.5, T-001.6 | `tools/nofloat_test.go`<br>`tools/nofloat_allow.txt` |  |
+| [ ] | T-004.1 | T-004 | kernel | kernel/ids: monotonic ids | T-001.1, T-001.2, T-001.3, T-001.4, T-001.5, T-001.6 | `kernel/ids/ids.go`<br>`kernel/ids/ids_test.go` |  |
+| [ ] | T-004.2 | T-004 | kernel | kernel/clock: business date in cell zone | T-001.1, T-001.2, T-001.3, T-001.4, T-001.5, T-001.6 | `kernel/clock/clock.go`<br>`kernel/clock/clock_test.go` |  |
+| [ ] | T-004.3 | T-004 | kernel | kernel/numseq: gapless number series | T-001.1, T-001.2, T-001.3, T-001.4, T-001.5, T-001.6 | `kernel/numseq/numseq.go`<br>`kernel/numseq/numseq_integration_test.go` |  |
+
+### Wave 2 (10 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-005 | AI-005 | kernel | test/fakes/llm: OpenAI-compatible Chat Completions and Responses protocol | AI-004 | `test/fakes/llm/chat.go`<br>`test/fakes/llm/responses.go` |  |
+| [ ] | AI-006 | AI-006 | kernel | test/fakes/llm: faults, latency, token usage and request journal | AI-004 | `test/fakes/llm/faults.go`<br>`test/fakes/llm/journal.go` |  |
+| [ ] | AI-007 | AI-007 | kernel | test/fakes/llm: embeddings endpoint | AI-004 | `test/fakes/llm/embeddings.go` |  |
+| [ ] | AI-008 | AI-008 | kernel | Config switch model.mode = mock / live, HTTP ModelClient, live guard | AI-002, AI-004 | `kernel/ai/httpclient`<br>`kernel/ai/config.go`<br>`deploy/counsel.dev.yaml`<br>`deploy/counsel.prod.yaml` |  |
+| [ ] | AI-010 | AI-010 | kernel | Eval runner reusing fixtures | AI-002, AI-003 | `tools/ai-eval`<br>`testdata/ai/evals` |  |
+| [ ] | T-003.2 | T-003 | kernel | kernel/money: Allocate largest remainder | T-001.1, T-001.2, T-001.3, T-001.4, T-001.5, T-001.6 +1 | `kernel/money/allocate.go`<br>`kernel/money/allocate_test.go` |  |
+| [ ] | T-005.1 | T-005 | kernel | kernel/audit: Append with hash chain | T-002.1, T-002.2, T-002.3, T-002.4, T-002.5, T-002.6 +3 | `kernel/audit/audit.go`<br>`kernel/audit/chain.go`<br>`kernel/audit/chain_test.go` |  |
+| [ ] | T-006.1 | T-006 | kernel | kernel/identity: roles, capabilities, Can() | T-002.1, T-002.2, T-002.3, T-002.4, T-002.5, T-002.6 | `kernel/identity/can.go`<br>`kernel/identity/roles.go`<br>`kernel/identity/can_test.go` |  |
+| [ ] | T-008.1 | T-008 | kernel | kernel/idem: Idempotency-Key store and replay | T-002.1, T-002.2, T-002.3, T-002.4, T-002.5, T-002.6 +3 | `kernel/idem/idem.go`<br>`kernel/idem/idem_test.go` |  |
+| [ ] | T-008.3 | T-008 | kernel | kernel/outbox: Emit in tx and relay | T-002.1, T-002.2, T-002.3, T-002.4, T-002.5, T-002.6 +3 | `kernel/outbox/outbox.go`<br>`kernel/outbox/relay.go`<br>`kernel/outbox/relay_integration_test.go` |  |
+
+### Wave 3 (10 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-011 | AI-011 | kernel | CI guard: no live model anywhere in tests | AI-008 | `.github/workflows/ci.yaml`<br>`tools/no_live_model_test.go` |  |
+| [ ] | T-005.2 | T-005 | kernel | kernel/audit: Verify and immutability triggers | T-002.1, T-002.2, T-002.3, T-002.4, T-002.5, T-002.6 +4 | `kernel/audit/verify.go`<br>`kernel/audit/immutable_integration_test.go` |  |
+| [ ] | T-005.3 | T-005 | kernel | kernel/audit: detail masking | T-002.1, T-002.2, T-002.3, T-002.4, T-002.5, T-002.6 +4 | `kernel/audit/mask.go`<br>`kernel/audit/mask_test.go` |  |
+| [ ] | T-006.2 | T-006 | kernel | kernel/identity: SubjectResolver visibility | T-002.1, T-002.2, T-002.3, T-002.4, T-002.5, T-002.6 +1 | `kernel/identity/resolver.go`<br>`kernel/identity/resolver_test.go` |  |
+| [ ] | T-006.3 | T-006 | kernel | kernel/identity: AgentPrincipal capability intersection | T-002.1, T-002.2, T-002.3, T-002.4, T-002.5, T-002.6 +1 | `kernel/identity/agent.go`<br>`kernel/identity/agent_test.go` |  |
+| [ ] | T-006.4 | T-006 | kernel | kernel/identity: per-request RLS session | T-002.1, T-002.2, T-002.3, T-002.4, T-002.5, T-002.6 +1 | `kernel/identity/session.go`<br>`kernel/identity/session_integration_test.go` |  |
+| [ ] | T-008.2 | T-008 | kernel | Money POST requires Idempotency-Key (conformance) | T-002.1, T-002.2, T-002.3, T-002.4, T-002.5, T-002.6 +4 | `kernel/server/middleware/require_idem.go`<br>`kernel/server/middleware/require_idem_test.go` |  |
+| [ ] | T-008.4 | T-008 | kernel | kernel/outbox: gap-free subject_seq | T-002.1, T-002.2, T-002.3, T-002.4, T-002.5, T-002.6 +4 | `kernel/outbox/seq.go`<br>`kernel/outbox/seq_integration_test.go` |  |
+| [ ] | T-014.1 | T-014 | app | Tax rates seed and lookup | T-003.1, T-003.2, T-003.3, T-004.1, T-004.2, T-004.3 | `app/legal/billing/tax/rates.go`<br>`app/legal/billing/tax/rates_test.go` |  |
+| [ ] | T-014.4 | T-014 | app | Business number check digit | T-003.1, T-003.2, T-003.3, T-004.1, T-004.2, T-004.3 | `app/legal/billing/tax/bn.go`<br>`app/legal/billing/tax/bn_test.go` |  |
+
+### Wave 4 (11 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | T-006L.1 | T-006L | app | Legal roles and capabilities from access.json | T-002L.1, T-002L.2, T-006.1, T-006.2, T-006.3, T-006.4 | `app/legal/roles/roles.go`<br>`app/legal/roles/access_matrix_test.go` |  |
+| [ ] | T-007.1 | T-007 | kernel | kernel/gate: kind registration and Open | T-005.1, T-005.2, T-005.3, T-006.1, T-006.2, T-006.3 +5 | `kernel/gate/kind.go`<br>`kernel/gate/open.go`<br>`kernel/gate/kind_test.go` |  |
+| [ ] | T-008b.1 | T-008b | kernel | kernel/inbound: provider registration and dedup | T-008.1, T-008.2, T-008.3, T-008.4 | `kernel/inbound/inbound.go`<br>`kernel/inbound/inbound_test.go` |  |
+| [ ] | T-009.1 | T-009 | kernel | kernel/server: problem+json and log scan | T-006.1, T-006.2, T-006.3, T-006.4, T-008.1, T-008.2 +2 | `kernel/server/problem.go`<br>`kernel/server/problem_test.go` |  |
+| [ ] | T-009.2 | T-009 | kernel | kernel/server: ETag and If-Match | T-006.1, T-006.2, T-006.3, T-006.4, T-008.1, T-008.2 +2 | `kernel/server/etag.go`<br>`kernel/server/etag_test.go` |  |
+| [ ] | T-009.3 | T-009 | kernel | kernel/api: cursor paging | T-006.1, T-006.2, T-006.3, T-006.4, T-008.1, T-008.2 +2 | `kernel/api/cursor.go`<br>`kernel/api/cursor_test.go` |  |
+| [ ] | T-010.1 | T-010 | kernel | kernel/ledger: balanced idempotent Post | T-003.1, T-003.2, T-003.3, T-005.1, T-005.2, T-005.3 | `kernel/ledger/post.go`<br>`kernel/ledger/post_integration_test.go`<br>`kernel/ledger/post_test.go` |  |
+| [ ] | T-014.2 | T-014 | app | Place-of-supply decision table | T-003.1, T-003.2, T-003.3, T-004.1, T-004.2, T-004.3 +1 | `app/legal/billing/tax/pos.go`<br>`app/legal/billing/tax/decision_table_test.go` |  |
+| [ ] | T-014.3 | T-014 | app | Tax computation, no tax on tax | T-003.1, T-003.2, T-003.3, T-004.1, T-004.2, T-004.3 +1 | `app/legal/billing/tax/compute.go`<br>`app/legal/billing/tax/compute_test.go` |  |
+| [ ] | T-036.1 | T-036 | kernel | kernel/webhook: Standard Webhooks signing | T-008.1, T-008.2, T-008.3, T-008.4 | `kernel/webhook/sign.go`<br>`kernel/webhook/sign_test.go` |  |
+| [ ] | T-036.3 | T-036 | kernel | kernel/webhook: registered event types with schema | T-008.1, T-008.2, T-008.3, T-008.4 | `kernel/webhook/types.go`<br>`kernel/webhook/types_test.go` |  |
+
+### Wave 5 (11 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | T-006L.2 | T-006L | app | Agent limits and module naming | T-002L.1, T-002L.2, T-006.1, T-006.2, T-006.3, T-006.4 +1 | `app/legal/roles/agent.go`<br>`app/legal/roles/agent_test.go` |  |
+| [ ] | T-006L.3 | T-006L | app | Walls SubjectResolver | T-002L.1, T-002L.2, T-006.1, T-006.2, T-006.3, T-006.4 +1 | `app/legal/roles/walls.go`<br>`app/legal/roles/walls_test.go` |  |
+| [ ] | T-007.2 | T-007 | kernel | kernel/gate: JCS payload hash and versions | T-005.1, T-005.2, T-005.3, T-006.1, T-006.2, T-006.3 +6 | `kernel/gate/version.go`<br>`kernel/gate/jcs.go`<br>`kernel/gate/version_test.go` |  |
+| [ ] | T-007.3 | T-007 | kernel | kernel/gate: Decide with SoD and authority limits | T-005.1, T-005.2, T-005.3, T-006.1, T-006.2, T-006.3 +6 | `kernel/gate/decide.go`<br>`kernel/gate/decide_test.go` |  |
+| [ ] | T-008b.2 | T-008b | kernel | kernel/inbound: signature and timestamp check | T-008.1, T-008.2, T-008.3, T-008.4, T-008b.1 | `kernel/inbound/verify.go`<br>`kernel/inbound/verify_test.go` |  |
+| [ ] | T-009.4 | T-009 | kernel | kernel/server: route registration and OpenAPI conformance | T-006.1, T-006.2, T-006.3, T-006.4, T-008.1, T-008.2 +3 | `kernel/server/routes.go`<br>`kernel/server/conformance_test.go` |  |
+| [ ] | T-010.2 | T-010 | kernel | kernel/ledger: Reverse | T-003.1, T-003.2, T-003.3, T-005.1, T-005.2, T-005.3 +1 | `kernel/ledger/reverse.go`<br>`kernel/ledger/reverse_test.go` |  |
+| [ ] | T-010.3 | T-010 | kernel | kernel/ledger: periods and ClosePeriod | T-003.1, T-003.2, T-003.3, T-005.1, T-005.2, T-005.3 +1 | `kernel/ledger/period.go`<br>`kernel/ledger/period_integration_test.go` |  |
+| [ ] | T-010.4 | T-010 | kernel | kernel/ledger: chart registration and Balance | T-003.1, T-003.2, T-003.3, T-005.1, T-005.2, T-005.3 +1 | `kernel/ledger/chart.go`<br>`kernel/ledger/balance.go`<br>`kernel/ledger/chart_test.go` |  |
+| [ ] | T-014.5 | T-014 | app | Verify-flagged tax rules | T-003.1, T-003.2, T-003.3, T-004.1, T-004.2, T-004.3 +1 | `app/legal/billing/tax/verify_rules.go`<br>`app/legal/billing/tax/verify_rules_test.go` | tax.verify_rules |
+| [ ] | T-036.2 | T-036 | kernel | kernel/webhook: ordered delivery per endpoint and subject | T-008.1, T-008.2, T-008.3, T-008.4, T-036.1 | `kernel/webhook/deliver.go`<br>`kernel/webhook/deliver_integration_test.go` |  |
+
+### Wave 6 (17 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | T-007.4 | T-007 | kernel | kernel/gate: quorum and expiry | T-005.1, T-005.2, T-005.3, T-006.1, T-006.2, T-006.3 +6 | `kernel/gate/quorum.go`<br>`kernel/gate/expiry.go`<br>`kernel/gate/quorum_test.go` |  |
+| [ ] | T-007.5 | T-007 | kernel | kernel/gate: effect runs exactly once | T-005.1, T-005.2, T-005.3, T-006.1, T-006.2, T-006.3 +6 | `kernel/gate/effect.go`<br>`kernel/gate/effect_integration_test.go` |  |
+| [ ] | T-007.6 | T-007 | kernel | kernel/gate: SelfApprovalPolicy hook (default deny) | T-005.1, T-005.2, T-005.3, T-006.1, T-006.2, T-006.3 +6 | `kernel/gate/selfapproval.go`<br>`kernel/gate/selfapproval_test.go` |  |
+| [ ] | T-010L.1 | T-010L | app | Operating and trust chart of accounts | T-002L.1, T-002L.2, T-010.1, T-010.2, T-010.3, T-010.4 | `app/legal/books/chart.go`<br>`app/legal/books/chart_test.go` |  |
+| [ ] | T-010b.1 | T-010b | app | Matter core create API | T-006L.1, T-006L.2, T-006L.3, T-009.1, T-009.2, T-009.3 +1 | `app/legal/matter/core.go`<br>`app/legal/matter/core_test.go` |  |
+| [ ] | T-010b.2 | T-010b | app | Minimal party contact | T-006L.1, T-006L.2, T-006L.3, T-009.1, T-009.2, T-009.3 +1 | `app/legal/party/contact.go`<br>`app/legal/party/contact_test.go` |  |
+| [ ] | T-015.1 | T-015 | app | Rate resolution chain | T-003.1, T-003.2, T-003.3, T-006L.1, T-006L.2, T-006L.3 | `app/legal/timekeeping/rates/resolve.go`<br>`app/legal/timekeeping/rates/resolve_test.go` |  |
+| [ ] | T-015.3 | T-015 | app | Time rounding | T-003.1, T-003.2, T-003.3, T-006L.1, T-006L.2, T-006L.3 | `app/legal/timekeeping/rates/rounding.go`<br>`app/legal/timekeeping/rates/rounding_test.go` |  |
+| [ ] | T-038.1 | T-038 | kernel | kernel/report: ReportDef registration and Run | T-006.1, T-006.2, T-006.3, T-006.4, T-009.1, T-009.2 +2 | `kernel/report/def.go`<br>`kernel/report/run.go`<br>`kernel/report/def_test.go` |  |
+| [ ] | T-043.1 | T-043 | kernel | Helm chart per cell | T-009.1, T-009.2, T-009.3, T-009.4 | `deploy/helm/counsel/Chart.yaml`<br>`deploy/helm/counsel/values.yaml`<br>`deploy/helm/counsel/templates/app.yaml`<br>`tools/helm_render_test.go` |  |
+| [ ] | T-043.2 | T-043 | kernel | CloudNativePG backups and restore drill | T-009.1, T-009.2, T-009.3, T-009.4 | `deploy/cnpg/`<br>`docs/runbooks/restore.md` |  |
+| [ ] | T-043.3 | T-043 | kernel | DR bucket month-end export ordering | T-009.1, T-009.2, T-009.3, T-009.4 | `kernel/backup/export.go`<br>`kernel/backup/export_test.go` |  |
+| [ ] | T-043.4 | T-043 | kernel | Migration job and expand-contract lint | T-009.1, T-009.2, T-009.3, T-009.4 | `deploy/helm/counsel/templates/migrate-job.yaml`<br>`tools/migration_lint.py`<br>`tools/migration_lint_test.go` |  |
+| [ ] | T-043.5 | T-043 | kernel | Pooled connection session reset | T-009.1, T-009.2, T-009.3, T-009.4 | `kernel/db/pool.go`<br>`kernel/db/pool_integration_test.go` |  |
+| [ ] | T-043.6 | T-043 | kernel | Control plane config and WAF | T-009.1, T-009.2, T-009.3, T-009.4 | `deploy/helm/counsel/templates/waf.yaml`<br>`deploy/controlplane/`<br>`tools/controlplane_test.go` |  |
+| [ ] | T-045.1 | T-045 | kernel | web generated API client | T-009.1, T-009.2, T-009.3, T-009.4 | `web/src/kernel/api/client.ts`<br>`web/src/kernel/api/client.test.ts`<br>`tools/gen_client.mjs` |  |
+| [ ] | T-045.2 | T-045 | kernel | web money formatter and float lint | T-009.1, T-009.2, T-009.3, T-009.4 | `web/src/kernel/money.ts`<br>`web/src/kernel/money.test.ts`<br>`web/eslint.config.js` |  |
+
+### Wave 7 (16 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | T-007L.1 | T-007L | app | Legal gate kinds from gates.json | T-006L.1, T-006L.2, T-006L.3, T-007.1, T-007.2, T-007.3 +3 | `app/legal/gates/kinds.go`<br>`app/legal/gates/kinds_test.go` |  |
+| [ ] | T-010L.2 | T-010L | app | AR and client credit invariants | T-002L.1, T-002L.2, T-010.1, T-010.2, T-010.3, T-010.4 +1 | `app/legal/books/invariants.go`<br>`app/legal/books/invariants_test.go` |  |
+| [ ] | T-010L.3 | T-010L | app | Vendor bills in gl | T-002L.1, T-002L.2, T-010.1, T-010.2, T-010.3, T-010.4 +1 | `app/legal/books/vendorbill.go`<br>`app/legal/books/vendorbill_test.go` |  |
+| [ ] | T-010b.3 | T-010b | app | Matter query API and api_matter view | T-006L.1, T-006L.2, T-006L.3, T-009.1, T-009.2, T-009.3 +2 | `app/legal/matter/query.go`<br>`app/legal/matter/query_test.go` |  |
+| [ ] | T-015.2 | T-015 | app | Effective-dated re-pricing | T-003.1, T-003.2, T-003.3, T-006L.1, T-006L.2, T-006L.3 +1 | `app/legal/timekeeping/rates/reprice.go`<br>`app/legal/timekeeping/rates/reprice_test.go` |  |
+| [ ] | T-015.4 | T-015 | app | Matter move rate recheck | T-003.1, T-003.2, T-003.3, T-006L.1, T-006L.2, T-006L.3 +1 | `app/legal/timekeeping/rates/move.go`<br>`app/legal/timekeeping/rates/move_test.go` |  |
+| [ ] | T-032.1 | T-032 | kernel | kernel/docs: document kinds and upload | T-005.1, T-005.2, T-005.3, T-006.1, T-006.2, T-006.3 +7 | `kernel/docs/kind.go`<br>`kernel/docs/upload.go`<br>`kernel/docs/kind_test.go` |  |
+| [ ] | T-032.4 | T-032 | kernel | kernel/retention: retention classes | T-005.1, T-005.2, T-005.3, T-006.1, T-006.2, T-006.3 +7 | `kernel/retention/class.go`<br>`kernel/retention/class_test.go` |  |
+| [ ] | T-034.1 | T-034 | kernel | kernel/work: work items on registered subjects | T-006.1, T-006.2, T-006.3, T-006.4, T-007.1, T-007.2 +4 | `kernel/work/item.go`<br>`kernel/work/item_test.go` |  |
+| [ ] | T-038.2 | T-038 | kernel | kernel/report: River schedules | T-006.1, T-006.2, T-006.3, T-006.4, T-009.1, T-009.2 +3 | `kernel/report/schedule.go`<br>`kernel/report/schedule_test.go` |  |
+| [ ] | T-038.3 | T-038 | kernel | kernel/report: CSV/PDF export with manifest | T-006.1, T-006.2, T-006.3, T-006.4, T-009.1, T-009.2 +3 | `kernel/report/export.go`<br>`kernel/report/export_test.go` |  |
+| [ ] | T-039.1 | T-039 | kernel | kernel/identity: role change and activation gates | T-006.1, T-006.2, T-006.3, T-006.4, T-007.1, T-007.2 +4 | `kernel/identity/admin_gates.go`<br>`kernel/identity/admin_gates_test.go` |  |
+| [ ] | T-039.2 | T-039 | kernel | kernel/identity: break-glass grants | T-006.1, T-006.2, T-006.3, T-006.4, T-007.1, T-007.2 +4 | `kernel/identity/breakglass.go`<br>`kernel/identity/breakglass_test.go` |  |
+| [ ] | T-039.3 | T-039 | kernel | kernel/identity: access reviews and offboarding | T-006.1, T-006.2, T-006.3, T-006.4, T-007.1, T-007.2 +4 | `kernel/identity/review.go`<br>`kernel/identity/review_test.go` |  |
+| [ ] | T-043.7 | T-043 | kernel | Rollout rings | T-009.1, T-009.2, T-009.3, T-009.4, T-043.1 | `deploy/rings.yaml`<br>`docs/runbooks/rollout.md`<br>`tools/rings_test.go` |  |
+| [ ] | T-045.3 | T-045 | kernel | web shell navigation from feature list | T-009.1, T-009.2, T-009.3, T-009.4, T-045.1 | `web/src/kernel/shell/Shell.tsx`<br>`web/src/kernel/shell/nav.ts`<br>`web/src/kernel/shell/Shell.test.tsx` |  |
+
+### Wave 8 (14 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | T-007L.2 | T-007L | app | Sole-practitioner self-approval policy | T-006L.1, T-006L.2, T-006L.3, T-007.1, T-007.2, T-007.3 +4 | `app/legal/gates/selfapproval.go`<br>`app/legal/gates/selfapproval_test.go` |  |
+| [ ] | T-007L.3 | T-007L | app | Trust cooling-off periods | T-006L.1, T-006L.2, T-006L.3, T-007.1, T-007.2, T-007.3 +4 | `app/legal/gates/coolingoff.go`<br>`app/legal/gates/coolingoff_test.go` |  |
+| [ ] | T-007L.4 | T-007L | app | Human non-preparer decision check | T-006L.1, T-006L.2, T-006L.3, T-007.1, T-007.2, T-007.3 +4 | `app/legal/gates/decision.go`<br>`app/legal/gates/decision_test.go` |  |
+| [ ] | T-028.1 | T-028 | app | Merged contact mapping | T-009.1, T-009.2, T-009.3, T-009.4, T-010b.1, T-010b.2 +1 | `app/legal/party/merge.go`<br>`app/legal/party/merge_test.go` |  |
+| [ ] | T-028.2 | T-028 | app | Party fields and relationships | T-009.1, T-009.2, T-009.3, T-009.4, T-010b.1, T-010b.2 +1 | `app/legal/party/relationships.go`<br>`app/legal/party/fields_test.go` |  |
+| [ ] | T-032.2 | T-032 | kernel | kernel/docs: page/line text and citations | T-005.1, T-005.2, T-005.3, T-006.1, T-006.2, T-006.3 +8 | `kernel/docs/text.go`<br>`kernel/docs/cite.go`<br>`kernel/docs/cite_test.go` |  |
+| [ ] | T-032.3 | T-032 | kernel | kernel/docs: blob storage, no text in logs | T-005.1, T-005.2, T-005.3, T-006.1, T-006.2, T-006.3 +8 | `kernel/docs/blob.go`<br>`kernel/docs/blob_test.go` |  |
+| [ ] | T-032.5 | T-032 | kernel | kernel/retention: purge proposals via destruction gate | T-005.1, T-005.2, T-005.3, T-006.1, T-006.2, T-006.3 +8 | `kernel/retention/purge.go`<br>`kernel/retention/purge_test.go` |  |
+| [ ] | T-034.2 | T-034 | kernel | kernel/work: boards and workflows | T-006.1, T-006.2, T-006.3, T-006.4, T-007.1, T-007.2 +5 | `kernel/work/board.go`<br>`kernel/work/workflow.go`<br>`kernel/work/workflow_test.go` |  |
+| [ ] | T-039.4 | T-039 | kernel | web access admin pages | T-006.1, T-006.2, T-006.3, T-006.4, T-007.1, T-007.2 +7 | `web/src/kernel/access/AccessAdmin.tsx`<br>`web/src/kernel/access/AccessAdmin.test.tsx` |  |
+| [ ] | T-044.1 | T-044 | kernel | SLO rules, alerts and synthetic check | T-043.1, T-043.2, T-043.3, T-043.4, T-043.5, T-043.6 +1 | `deploy/observability/`<br>`kernel/metrics/synthetic.go`<br>`kernel/metrics/synthetic_test.go` |  |
+| [ ] | T-044.2 | T-044 | kernel | Degraded-mode smoke checks | T-043.1, T-043.2, T-043.3, T-043.4, T-043.5, T-043.6 +1 | `kernel/metrics/smoke.go`<br>`kernel/metrics/smoke_test.go` |  |
+| [ ] | T-044.3 | T-044 | kernel | kernel/flags: owner and expiry validation | T-043.1, T-043.2, T-043.3, T-043.4, T-043.5, T-043.6 +1 | `kernel/flags/config.go`<br>`kernel/flags/config_test.go` |  |
+| [ ] | T-044.4 | T-044 | kernel | Dead letter paging and replay | T-043.1, T-043.2, T-043.3, T-043.4, T-043.5, T-043.6 +1 | `kernel/outbox/deadletter.go`<br>`kernel/outbox/deadletter_test.go` |  |
+
+### Wave 9 (18 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-012 | AI-012 | app | Fixtures and mock test: F-ACC-01 Duty scan | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +4 | `testdata/ai/f-acc-01/duty-scan/`<br>`app/legal/access/ai_f_acc_01_test.go` |  |
+| [ ] | AI-016 | AI-016 | app | Fixtures and mock test: F-ACC-05 Anomaly watch | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +4 | `testdata/ai/f-acc-05/anomaly-watch/`<br>`app/legal/access/ai_f_acc_05_test.go` |  |
+| [ ] | AI-019 | AI-019 | app | Fixtures and mock test: F-ACC-08 Explain role | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +4 | `testdata/ai/f-acc-08/explain-role/`<br>`app/legal/access/ai_f_acc_08_test.go` |  |
+| [ ] | AI-020 | AI-020 | app | Fixtures and mock test: F-ACC-09 Explain access | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +4 | `testdata/ai/f-acc-09/explain-access/`<br>`app/legal/access/ai_f_acc_09_test.go` |  |
+| [ ] | AI-022 | AI-022 | app | Fixtures and mock test: F-ACC-11 Explain pattern | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +4 | `testdata/ai/f-acc-11/explain-pattern/`<br>`app/legal/access/ai_f_acc_11_test.go` |  |
+| [ ] | AI-023 | AI-023 | app | Fixtures and mock test: F-ACC-12 Explain change | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +4 | `testdata/ai/f-acc-12/explain-change/`<br>`app/legal/access/ai_f_acc_12_test.go` |  |
+| [ ] | AI-024 | AI-024 | app | Fixtures and mock test: F-ACC-13 Summarize session | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +4 | `testdata/ai/f-acc-13/summarize-session/`<br>`app/legal/access/ai_f_acc_13_test.go` |  |
+| [ ] | T-011.1 | T-011 | app | Trust accounts and signatories | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010L.1, T-010L.2 +4 | `app/legal/trust/account.go`<br>`app/legal/trust/account_test.go` | trust.bylaw9_verified |
+| [ ] | T-016.1 | T-016 | app | Time entry state machine and suggestions | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010b.1, T-010b.2 +5 | `app/legal/timekeeping/entry.go`<br>`app/legal/timekeeping/state_test.go` |  |
+| [ ] | T-029.1 | T-029 | app | Conflict check runs and hits | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010b.1, T-010b.2 +3 | `app/legal/conflict/check.go`<br>`app/legal/conflict/check_test.go` |  |
+| [ ] | T-029.4 | T-029 | app | Client ID verification | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010b.1, T-010b.2 +3 | `app/legal/conflict/idverify.go`<br>`app/legal/conflict/idverify_test.go` | conflict.id_verification |
+| [ ] | T-034.3 | T-034 | kernel | kernel/work: append-only automation | T-006.1, T-006.2, T-006.3, T-006.4, T-007.1, T-007.2 +5 | `kernel/work/automation.go`<br>`kernel/work/automation_test.go` |  |
+| [ ] | T-035.1 | T-035 | kernel | kernel/notify: templates and channel preferences | T-006.1, T-006.2, T-006.3, T-006.4, T-009.1, T-009.2 +7 | `kernel/notify/notify.go`<br>`kernel/notify/notify_test.go` |  |
+| [ ] | T-035.3 | T-035 | kernel | kernel/portal: guest identity and sign-in | T-006.1, T-006.2, T-006.3, T-006.4, T-009.1, T-009.2 +7 | `kernel/portal/auth.go`<br>`kernel/portal/auth_test.go` |  |
+| [ ] | T-037.1 | T-037 | kernel | kernel/agenttools: Tool registration and input schema | T-007.1, T-007.2, T-007.3, T-007.4, T-007.5, T-007.6 +5 | `kernel/agenttools/tool.go`<br>`kernel/agenttools/tool_test.go` |  |
+| [ ] | T-040.1 | T-040 | kernel | kernel/importer: source registration and checkpoints | T-007.1, T-007.2, T-007.3, T-007.4, T-007.5, T-007.6 +9 | `kernel/importer/source.go`<br>`kernel/importer/checkpoint.go`<br>`kernel/importer/checkpoint_test.go` |  |
+| [ ] | T-044.5 | T-044 | kernel | Purge guard for never_purge classes | T-032.1, T-032.2, T-032.3, T-032.4, T-032.5, T-043.1 +6 | `kernel/retention/guard.go`<br>`kernel/retention/guard_test.go` |  |
+| [ ] | T-044.6 | T-044 | kernel | Status page | T-043.1, T-043.2, T-043.3, T-043.4, T-043.5, T-043.6 +2 | `kernel/metrics/status.go`<br>`kernel/metrics/status_test.go` |  |
+
+### Wave 10 (24 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-191 | AI-191 | app | Fixtures and mock test: F-WRK-03 Triage new items | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 | `testdata/ai/f-wrk-03/triage-new-items/`<br>`app/legal/work/ai_f_wrk_03_test.go` |  |
+| [ ] | AI-193 | AI-193 | app | Fixtures and mock test: F-WRK-05 Daily work digest | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 | `testdata/ai/f-wrk-05/daily-work-digest/`<br>`app/legal/work/ai_f_wrk_05_test.go` |  |
+| [ ] | AI-196 | AI-196 | app | Fixtures and mock test: F-WRK-08 Explain automation runs | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 | `testdata/ai/f-wrk-08/explain-automation-runs/`<br>`app/legal/work/ai_f_wrk_08_test.go` |  |
+| [ ] | AI-198 | AI-198 | app | Fixtures and mock test: F-WRK-10 Ask a question | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 | `testdata/ai/f-wrk-10/ask-a-question/`<br>`app/legal/work/ai_f_wrk_10_test.go` |  |
+| [ ] | AI-200 | AI-200 | app | Fixtures and mock test: F-WRK-12 Suggest rebalance | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 | `testdata/ai/f-wrk-12/suggest-rebalance/`<br>`app/legal/work/ai_f_wrk_12_test.go` |  |
+| [ ] | AI-201 | AI-201 | app | Fixtures and mock test: F-WRK-13 Ask in plain language | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 | `testdata/ai/f-wrk-13/ask-in-plain-language/`<br>`app/legal/work/ai_f_wrk_13_test.go` |  |
+| [ ] | AI-203 | AI-203 | app | Fixtures and mock test: F-WRK-15 Explain failed or skipped run | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 | `testdata/ai/f-wrk-15/explain-failed-or-skipped-run/`<br>`app/legal/work/ai_f_wrk_15_test.go` |  |
+| [ ] | AI-204 | AI-204 | app | Fixtures and mock test: F-WRK-16 Suggest categories | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 | `testdata/ai/f-wrk-16/suggest-categories/`<br>`app/legal/work/ai_f_wrk_16_test.go` |  |
+| [ ] | AI-205 | AI-205 | app | Fixtures and mock test: F-WRK-17 Explain this number | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 | `testdata/ai/f-wrk-17/explain-this-number/`<br>`app/legal/work/ai_f_wrk_17_test.go` |  |
+| [ ] | T-011.2 | T-011 | app | Trust receipts and client ledgers | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010L.1, T-010L.2 +5 | `app/legal/trust/receipt.go`<br>`app/legal/trust/receipt_integration_test.go` | trust.bylaw9_verified |
+| [ ] | T-016.2 | T-016 | app | Timers | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010b.1, T-010b.2 +6 | `app/legal/timekeeping/timer.go`<br>`app/legal/timekeeping/timer_test.go` |  |
+| [ ] | T-016.3 | T-016 | app | Write-downs and billed-entry lock | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010b.1, T-010b.2 +6 | `app/legal/timekeeping/writedown.go`<br>`app/legal/timekeeping/writedown_test.go` |  |
+| [ ] | T-016.4 | T-016 | app | Paralegal scope check | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010b.1, T-010b.2 +6 | `app/legal/timekeeping/paralegal.go`<br>`app/legal/timekeeping/paralegal_test.go` |  |
+| [ ] | T-029.2 | T-029 | app | G2 clearance | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010b.1, T-010b.2 +4 | `app/legal/conflict/clearance.go`<br>`app/legal/conflict/clearance_test.go` |  |
+| [ ] | T-029.3 | T-029 | app | Ethical walls | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010b.1, T-010b.2 +4 | `app/legal/conflict/walls.go`<br>`app/legal/conflict/walls_test.go` |  |
+| [ ] | T-031.1 | T-031 | kernel | kernel/deadline: rule pack loader | T-004.1, T-004.2, T-004.3, T-007.1, T-007.2, T-007.3 +6 | `kernel/deadline/pack.go`<br>`kernel/deadline/pack_test.go` |  |
+| [ ] | T-035.2 | T-035 | kernel | kernel/notify: delivery worker | T-006.1, T-006.2, T-006.3, T-006.4, T-009.1, T-009.2 +8 | `kernel/notify/worker.go`<br>`kernel/notify/worker_test.go` |  |
+| [ ] | T-035.4 | T-035 | kernel | kernel/portal: page registration | T-006.1, T-006.2, T-006.3, T-006.4, T-009.1, T-009.2 +8 | `kernel/portal/pages.go`<br>`kernel/portal/pages_test.go` |  |
+| [ ] | T-037.2 | T-037 | kernel | kernel/agenttools: write tools draft or open gates only | T-007.1, T-007.2, T-007.3, T-007.4, T-007.5, T-007.6 +6 | `kernel/agenttools/write.go`<br>`kernel/agenttools/write_test.go` |  |
+| [ ] | T-037.3 | T-037 | kernel | kernel/agenttools: injection returned as quoted data | T-007.1, T-007.2, T-007.3, T-007.4, T-007.5, T-007.6 +6 | `kernel/agenttools/quote.go`<br>`kernel/agenttools/quote_test.go` |  |
+| [ ] | T-037.4 | T-037 | kernel | kernel/agenttools: citation shape | T-007.1, T-007.2, T-007.3, T-007.4, T-007.5, T-007.6 +6 | `kernel/agenttools/cite.go`<br>`kernel/agenttools/cite_test.go` |  |
+| [ ] | T-037.5 | T-037 | kernel | kernel/agenttools: plans and steps | T-007.1, T-007.2, T-007.3, T-007.4, T-007.5, T-007.6 +6 | `kernel/agenttools/plan.go`<br>`kernel/agenttools/plan_test.go` |  |
+| [ ] | T-040.2 | T-040 | kernel | kernel/importer: id map and idempotent transform | T-007.1, T-007.2, T-007.3, T-007.4, T-007.5, T-007.6 +10 | `kernel/importer/idmap.go`<br>`kernel/importer/idmap_test.go` |  |
+| [ ] | T-040.4 | T-040 | kernel | kernel/importer: UTC instants, unshifted dates | T-007.1, T-007.2, T-007.3, T-007.4, T-007.5, T-007.6 +10 | `kernel/importer/timefix.go`<br>`kernel/importer/timefix_test.go` |  |
+
+### Wave 11 (19 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-043 | AI-043 | app | Fixtures and mock test: F-CON-11 Audit anomaly digest | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +1 | `testdata/ai/f-con-11/audit-anomaly-digest/`<br>`app/legal/conflicts/ai_f_con_11_test.go` |  |
+| [ ] | AI-044 | AI-044 | app | Fixtures and mock test: F-CON-12 Duplicate and relationship finder | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +1 | `testdata/ai/f-con-12/duplicate-and-relationship-finder/`<br>`app/legal/conflicts/ai_f_con_12_test.go` |  |
+| [ ] | AI-045 | AI-045 | app | Fixtures and mock test: F-CON-13 Determine obligation | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +1 | `testdata/ai/f-con-13/determine-obligation/`<br>`app/legal/conflicts/ai_f_con_13_test.go` |  |
+| [ ] | AI-046 | AI-046 | app | Fixtures and mock test: F-CON-14 Show KYC summary on matter | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +1 | `testdata/ai/f-con-14/show-kyc-summary-on-matter/`<br>`app/legal/conflicts/ai_f_con_14_test.go` |  |
+| [ ] | AI-049 | AI-049 | app | Fixtures and mock test: F-CON-17 Estimate impact | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +1 | `testdata/ai/f-con-17/estimate-impact/`<br>`app/legal/conflicts/ai_f_con_17_test.go` |  |
+| [ ] | AI-174 | AI-174 | app | Fixtures and mock test: F-TIM-08 Flag out-of-scope work | AI-002, AI-003, AI-004, T-016.1, T-016.2, T-016.3 +1 | `testdata/ai/f-tim-08/flag-out-of-scope-work/`<br>`app/legal/time/ai_f_tim_08_test.go` |  |
+| [ ] | AI-175 | AI-175 | app | Fixtures and mock test: F-TIM-09 Explain trend | AI-002, AI-003, AI-004, T-016.1, T-016.2, T-016.3 +1 | `testdata/ai/f-tim-09/explain-trend/`<br>`app/legal/time/ai_f_tim_09_test.go` |  |
+| [ ] | AI-176 | AI-176 | app | Fixtures and mock test: F-TIM-10 Find inconsistencies | AI-002, AI-003, AI-004, T-016.1, T-016.2, T-016.3 +1 | `testdata/ai/f-tim-10/find-inconsistencies/`<br>`app/legal/time/ai_f_tim_10_test.go` |  |
+| [ ] | AI-177 | AI-177 | app | Fixtures and mock test: F-TIM-11 Suggest categories from history | AI-002, AI-003, AI-004, T-016.1, T-016.2, T-016.3 +1 | `testdata/ai/f-tim-11/suggest-categories-from-history/`<br>`app/legal/time/ai_f_tim_11_test.go` |  |
+| [ ] | AI-178 | AI-178 | app | Fixtures and mock test: F-TIM-12 Explain shortfall | AI-002, AI-003, AI-004, T-016.1, T-016.2, T-016.3 +1 | `testdata/ai/f-tim-12/explain-shortfall/`<br>`app/legal/time/ai_f_tim_12_test.go` |  |
+| [ ] | T-011.3 | T-011 | app | Cash receipt limit | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010L.1, T-010L.2 +5 | `app/legal/trust/cashlimit.go`<br>`app/legal/trust/cashlimit_test.go` | trust.bylaw9_verified |
+| [ ] | T-011.4 | T-011 | app | NSF reversal and replenishment | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010L.1, T-010L.2 +5 | `app/legal/trust/nsf.go`<br>`app/legal/trust/nsf_test.go` | trust.bylaw9_verified |
+| [ ] | T-011.5 | T-011 | app | Ledger lock under concurrency | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010L.1, T-010L.2 +5 | `app/legal/trust/ledgerlock.go`<br>`app/legal/trust/ledgerlock_integration_test.go` | trust.bylaw9_verified |
+| [ ] | T-017.1 | T-017 | app | Bill draft lines and b3 golden examples | T-014.1, T-014.2, T-014.3, T-014.4, T-014.5, T-016.1 +3 | `app/legal/billing/draft/lines.go`<br>`app/legal/billing/draft/examples_test.go` |  |
+| [ ] | T-030.1 | T-030 | app | Matter lifecycle | T-010b.1, T-010b.2, T-010b.3, T-028.1, T-028.2, T-029.1 +3 | `app/legal/matter/lifecycle.go`<br>`app/legal/matter/lifecycle_test.go` |  |
+| [ ] | T-031.2 | T-031 | kernel | kernel/deadline: day-count computation | T-004.1, T-004.2, T-004.3, T-007.1, T-007.2, T-007.3 +7 | `kernel/deadline/compute.go`<br>`kernel/deadline/compute_test.go` |  |
+| [ ] | T-033.1 | T-033 | app | Leads and intake forms | T-029.1, T-029.2, T-029.3, T-029.4 | `app/legal/intake/lead.go`<br>`app/legal/intake/form.go`<br>`app/legal/intake/lead_test.go` |  |
+| [ ] | T-035.5 | T-035 | kernel | web portal shell | T-006.1, T-006.2, T-006.3, T-006.4, T-009.1, T-009.2 +8 | `web/src/kernel/portal/PortalShell.tsx`<br>`web/src/kernel/portal/PortalShell.test.tsx` |  |
+| [ ] | T-040.3 | T-040 | kernel | kernel/importer: dry run and import gate | T-007.1, T-007.2, T-007.3, T-007.4, T-007.5, T-007.6 +10 | `kernel/importer/dryrun.go`<br>`kernel/importer/dryrun_test.go` |  |
+
+### Wave 12 (13 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | T-012.1 | T-012 | app | Withdrawal request validation | T-011.1, T-011.2, T-011.3, T-011.4, T-011.5 | `app/legal/trust/withdraw/request.go`<br>`app/legal/trust/withdraw/request_test.go` | trust.bylaw9_verified |
+| [ ] | T-013.1 | T-013 | app | Bank statement import | T-011.1, T-011.2, T-011.3, T-011.4, T-011.5 | `app/legal/trust/recon/bankimport.go`<br>`app/legal/trust/recon/bankimport_test.go` | trust.bylaw9_verified |
+| [ ] | T-017.2 | T-017 | app | Bill discounts | T-014.1, T-014.2, T-014.3, T-014.4, T-014.5, T-016.1 +4 | `app/legal/billing/draft/discount.go`<br>`app/legal/billing/draft/discount_test.go` |  |
+| [ ] | T-017.3 | T-017 | app | Disbursements and markup | T-014.1, T-014.2, T-014.3, T-014.4, T-014.5, T-016.1 +4 | `app/legal/billing/draft/disbursement.go`<br>`app/legal/billing/draft/disbursement_test.go` |  |
+| [ ] | T-017.5 | T-017 | app | Line reductions | T-014.1, T-014.2, T-014.3, T-014.4, T-014.5, T-016.1 +4 | `app/legal/billing/draft/reduction.go`<br>`app/legal/billing/draft/reduction_test.go` |  |
+| [ ] | T-030.2 | T-030 | app | Matter team and stages | T-010b.1, T-010b.2, T-010b.3, T-028.1, T-028.2, T-029.1 +4 | `app/legal/matter/team.go`<br>`app/legal/matter/stages.go`<br>`app/legal/matter/stages_test.go` |  |
+| [ ] | T-030.3 | T-030 | app | Matter notes and facts | T-010b.1, T-010b.2, T-010b.3, T-028.1, T-028.2, T-029.1 +4 | `app/legal/matter/notes.go`<br>`app/legal/matter/notes_test.go` |  |
+| [ ] | T-030.4 | T-030 | app | Matter RLS policies | T-010b.1, T-010b.2, T-010b.3, T-028.1, T-028.2, T-029.1 +4 | `app/legal/matter/rls.go`<br>`app/legal/matter/rls_integration_test.go` |  |
+| [ ] | T-031.3 | T-031 | kernel | kernel/deadline: human confirmation | T-004.1, T-004.2, T-004.3, T-007.1, T-007.2, T-007.3 +7 | `kernel/deadline/confirm.go`<br>`kernel/deadline/confirm_test.go` |  |
+| [ ] | T-033.2 | T-033 | app | Consultations | T-029.1, T-029.2, T-029.3, T-029.4, T-033.1 | `app/legal/intake/consult.go`<br>`app/legal/intake/consult_test.go` |  |
+| [ ] | T-033.3 | T-033 | app | Lead to matter conversion | T-029.1, T-029.2, T-029.3, T-029.4, T-033.1 | `app/legal/intake/convert.go`<br>`app/legal/intake/convert_test.go` |  |
+| [ ] | T-039L.1 | T-039L | app | Trust signatory change gate | T-011.1, T-011.2, T-011.3, T-011.4, T-011.5, T-039.1 +3 | `app/legal/trust/signatory/change.go`<br>`app/legal/trust/signatory/change_test.go` |  |
+| [ ] | T-040.5 | T-040 | kernel | cmd/counsel-import CLI | T-007.1, T-007.2, T-007.3, T-007.4, T-007.5, T-007.6 +10 | `cmd/counsel-import/main.go`<br>`kernel/importer/cli.go`<br>`kernel/importer/cli_test.go` |  |
+
+### Wave 13 (37 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-090 | AI-090 | app | Fixtures and mock test: F-INT-05 Pre-consult brief | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 | `testdata/ai/f-int-05/pre-consult-brief/`<br>`app/legal/intake/ai_f_int_05_test.go` |  |
+| [ ] | AI-092 | AI-092 | app | Fixtures and mock test: F-INT-07 Pipeline follow-ups | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 | `testdata/ai/f-int-07/pipeline-follow-ups/`<br>`app/legal/intake/ai_f_int_07_test.go` |  |
+| [ ] | AI-094 | AI-094 | app | Fixtures and mock test: F-INT-09 Weekly intake digest | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 | `testdata/ai/f-int-09/weekly-intake-digest/`<br>`app/legal/intake/ai_f_int_09_test.go` |  |
+| [ ] | AI-096 | AI-096 | app | Fixtures and mock test: F-INT-11 Guided chat intake | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 | `testdata/ai/f-int-11/guided-chat-intake/`<br>`app/legal/intake/ai_f_int_11_test.go` |  |
+| [ ] | AI-098 | AI-098 | app | Fixtures and mock test: F-INT-13 Propose slots | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 | `testdata/ai/f-int-13/propose-slots/`<br>`app/legal/intake/ai_f_int_13_test.go` |  |
+| [ ] | AI-101 | AI-101 | app | Fixtures and mock test: F-INT-16 Suggest scoring weights | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 | `testdata/ai/f-int-16/suggest-scoring-weights/`<br>`app/legal/intake/ai_f_int_16_test.go` |  |
+| [ ] | AI-103 | AI-103 | app | Fixtures and mock test: F-INT-18 Dry run on last 20 leads | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 | `testdata/ai/f-int-18/dry-run-on-last-20-leads/`<br>`app/legal/intake/ai_f_int_18_test.go` |  |
+| [ ] | AI-105 | AI-105 | app | Fixtures and mock test: F-INT-20 Map answers to lead | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 | `testdata/ai/f-int-20/map-answers-to-lead/`<br>`app/legal/intake/ai_f_int_20_test.go` |  |
+| [ ] | AI-108 | AI-108 | app | Fixtures and mock test: F-MAT-02 Matter digest and risk score | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +3 | `testdata/ai/f-mat-02/matter-digest-and-risk-score/`<br>`app/legal/matters/ai_f_mat_02_test.go` |  |
+| [ ] | AI-116 | AI-116 | app | Fixtures and mock test: F-MAT-10 Related matter finder | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +3 | `testdata/ai/f-mat-10/related-matter-finder/`<br>`app/legal/matters/ai_f_mat_10_test.go` |  |
+| [ ] | AI-117 | AI-117 | app | Fixtures and mock test: F-MAT-11 Access hygiene | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +3 | `testdata/ai/f-mat-11/access-hygiene/`<br>`app/legal/matters/ai_f_mat_11_test.go` |  |
+| [ ] | AI-119 | AI-119 | app | Fixtures and mock test: F-MAT-13 Matter question answering | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +3 | `testdata/ai/f-mat-13/matter-question-answering/`<br>`app/legal/matters/ai_f_mat_13_test.go` |  |
+| [ ] | AI-121 | AI-121 | app | Fixtures and mock test: F-MAT-15 Propose next actions | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +3 | `testdata/ai/f-mat-15/propose-next-actions/`<br>`app/legal/matters/ai_f_mat_15_test.go` |  |
+| [ ] | AI-126 | AI-126 | app | Fixtures and mock test: F-MAT-20 Suggest from past matters | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +3 | `testdata/ai/f-mat-20/suggest-from-past-matters/`<br>`app/legal/matters/ai_f_mat_20_test.go` |  |
+| [ ] | AI-127 | AI-127 | app | Fixtures and mock test: F-MAT-21 Auto-map columns | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +3 | `testdata/ai/f-mat-21/auto-map-columns/`<br>`app/legal/matters/ai_f_mat_21_test.go` |  |
+| [ ] | AI-128 | AI-128 | app | Fixtures and mock test: F-MAT-22 Suggest cleanup | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +3 | `testdata/ai/f-mat-22/suggest-cleanup/`<br>`app/legal/matters/ai_f_mat_22_test.go` |  |
+| [ ] | AI-129 | AI-129 | app | Fixtures and mock test: F-MAT-23 Summarize this week | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +3 | `testdata/ai/f-mat-23/summarize-this-week/`<br>`app/legal/matters/ai_f_mat_23_test.go` |  |
+| [ ] | T-012.2 | T-012 | app | Withdrawal gate effect with balance re-check | T-011.1, T-011.2, T-011.3, T-011.4, T-011.5, T-012.1 | `app/legal/trust/withdraw/effect.go`<br>`app/legal/trust/withdraw/effect_integration_test.go` | trust.bylaw9_verified |
+| [ ] | T-013.2 | T-013 | app | Three-way reconciliation | T-011.1, T-011.2, T-011.3, T-011.4, T-011.5, T-013.1 | `app/legal/trust/recon/threeway.go`<br>`app/legal/trust/recon/threeway_test.go` | trust.bylaw9_verified |
+| [ ] | T-017.4 | T-017 | app | Itemized disbursement delivery block | T-014.1, T-014.2, T-014.3, T-014.4, T-014.5, T-016.1 +4 | `app/legal/billing/draft/itemize.go`<br>`app/legal/billing/draft/itemize_test.go` |  |
+| [ ] | T-031.4 | T-031 | kernel | kernel/deadline: reminder worker | T-004.1, T-004.2, T-004.3, T-007.1, T-007.2, T-007.3 +7 | `kernel/deadline/remind.go`<br>`kernel/deadline/remind_test.go` |  |
+| [ ] | T-032L.1 | T-032L | app | Legal document kinds and retention classes | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-030.1, T-030.2 +7 | `app/legal/docs/kinds.go`<br>`app/legal/docs/kinds_test.go` |  |
+| [ ] | T-037L.1 | T-037L | app | Counsel read tools | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-030.1, T-030.2 +7 | `app/legal/agent/tools_read.go`<br>`app/legal/agent/tools_read_test.go` |  |
+| [ ] | T-037L.2 | T-037L | app | Counsel write tools propose only | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-030.1, T-030.2 +7 | `app/legal/agent/tools_write.go`<br>`app/legal/agent/tools_write_test.go` |  |
+| [ ] | T-037L.3 | T-037L | app | Paploo plugin manifest | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-030.1, T-030.2 +7 | `paploo/counsel-plugin/paploo.yaml`<br>`paploo/counsel-plugin/manifest_test.go` |  |
+| [ ] | T-045L.1 | T-045L | app | Legal screens: matters | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +1 | `web/src/features/matters/` |  |
+| [ ] | T-045L.10 | T-045L | app | Legal screens: reports | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +1 | `web/src/features/reports/` |  |
+| [ ] | T-045L.11 | T-045L | app | Legal screens: access | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +1 | `web/src/features/access/` |  |
+| [ ] | T-045L.12 | T-045L | app | Legal screens: settings | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +1 | `web/src/features/settings/` |  |
+| [ ] | T-045L.2 | T-045L | app | Legal screens: conflicts | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +1 | `web/src/features/conflicts/` |  |
+| [ ] | T-045L.3 | T-045L | app | Legal screens: intake | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +1 | `web/src/features/intake/` |  |
+| [ ] | T-045L.4 | T-045L | app | Legal screens: time | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +1 | `web/src/features/time/` |  |
+| [ ] | T-045L.5 | T-045L | app | Legal screens: billing | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +1 | `web/src/features/billing/` |  |
+| [ ] | T-045L.6 | T-045L | app | Legal screens: trust | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +1 | `web/src/features/trust/` |  |
+| [ ] | T-045L.7 | T-045L | app | Legal screens: documents | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +1 | `web/src/features/documents/` |  |
+| [ ] | T-045L.8 | T-045L | app | Legal screens: deadlines | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +1 | `web/src/features/deadlines/` |  |
+| [ ] | T-045L.9 | T-045L | app | Legal screens: work | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +1 | `web/src/features/work/` |  |
+
+### Wave 14 (14 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | T-012.3 | T-012 | app | Execution recording and bank match | T-011.1, T-011.2, T-011.3, T-011.4, T-011.5, T-012.2 | `app/legal/trust/withdraw/execute.go`<br>`app/legal/trust/withdraw/execute_test.go` | trust.bylaw9_verified |
+| [ ] | T-012.4 | T-012 | app | Withdrawal effect replay once | T-011.1, T-011.2, T-011.3, T-011.4, T-011.5, T-012.2 | `app/legal/trust/withdraw/replay_integration_test.go` | trust.bylaw9_verified |
+| [ ] | T-012.5 | T-012 | app | Transfers and EFT authorization | T-011.1, T-011.2, T-011.3, T-011.4, T-011.5, T-012.2 | `app/legal/trust/withdraw/transfer.go`<br>`app/legal/trust/withdraw/eft.go`<br>`app/legal/trust/withdraw/eft_test.go` | trust.bylaw9_verified |
+| [ ] | T-013.3 | T-013 | app | Reconciliation sign-off locks month | T-011.1, T-011.2, T-011.3, T-011.4, T-011.5, T-013.2 | `app/legal/trust/recon/signoff.go`<br>`app/legal/trust/recon/signoff_integration_test.go` | trust.bylaw9_verified |
+| [ ] | T-018.1 | T-018 | app | Tax per tax line | T-017.1, T-017.2, T-017.3, T-017.4, T-017.5 | `app/legal/billing/total/tax.go`<br>`app/legal/billing/total/tax_test.go` |  |
+| [ ] | T-018.3 | T-018 | app | Tax point | T-017.1, T-017.2, T-017.3, T-017.4, T-017.5 | `app/legal/billing/total/taxpoint.go`<br>`app/legal/billing/total/taxpoint_test.go` |  |
+| [ ] | T-027.1 | T-027 | app | Contingency agreements and fee | T-017.1, T-017.2, T-017.3, T-017.4, T-017.5 | `app/legal/billing/contingency/agreement.go`<br>`app/legal/billing/contingency/agreement_test.go` | billing.contingency_fees |
+| [ ] | T-027.3 | T-027 | app | Fee agreement templates | T-017.1, T-017.2, T-017.3, T-017.4, T-017.5 | `app/legal/billing/contingency/template.go`<br>`app/legal/billing/contingency/template_test.go` | billing.contingency_fees |
+| [ ] | T-027.4 | T-027 | app | Fee splitting and referral fees | T-017.1, T-017.2, T-017.3, T-017.4, T-017.5 | `app/legal/billing/feeshare/feeshare.go`<br>`app/legal/billing/feeshare/feeshare_test.go` | billing.contingency_fees |
+| [ ] | T-031L.1 | T-031L | app | Ontario holiday calendar pack data | T-030.1, T-030.2, T-030.3, T-030.4, T-031.1, T-031.2 +2 | `app/legal/rulepacks/ontario/holidays.yaml`<br>`app/legal/rulepacks/ontario/holidays_test.go` | deadline.ontario_pack |
+| [ ] | T-032L.2 | T-032L | app | Matter folders | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-030.1, T-030.2 +8 | `app/legal/docs/folders.go`<br>`app/legal/docs/folders_test.go` |  |
+| [ ] | T-032L.3 | T-032L | app | File destruction proposals via G14 | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-030.1, T-030.2 +8 | `app/legal/docs/destruction.go`<br>`app/legal/docs/destruction_test.go` |  |
+| [ ] | T-037L.4 | T-037L | app | Tool schema validation for all 25 tools | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-030.1, T-030.2 +9 | `app/legal/agent/schemas/`<br>`app/legal/agent/schemas_test.go` |  |
+| [ ] | T-045L.13 | T-045L | app | Screen coverage check across features | T-030.1, T-030.2, T-030.3, T-030.4, T-045.1, T-045.2 +13 | `web/src/app/screens.test.ts` |  |
+
+### Wave 15 (88 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-009 | AI-009 | kernel | Paploo plugin path on the mock: Paploo dev stack with test/fakes/llm | AI-004, AI-008, T-037L.1, T-037L.2, T-037L.3, T-037L.4 | `deploy/compose.paploo.yaml`<br>`paploo/counsel-plugin/paploo.yaml`<br>`test/e2e/suites/paploo-mock.sh` |  |
+| [ ] | AI-013 | AI-013 | app | Fixtures and mock test: F-ACC-02 Licence check | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +8 | `testdata/ai/f-acc-02/licence-check/`<br>`app/legal/access/ai_f_acc_02_test.go` |  |
+| [ ] | AI-014 | AI-014 | app | Fixtures and mock test: F-ACC-03 Access review pre-fill | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +8 | `testdata/ai/f-acc-03/access-review-pre-fill/`<br>`app/legal/access/ai_f_acc_03_test.go` |  |
+| [ ] | AI-015 | AI-015 | app | Fixtures and mock test: F-ACC-04 Break-glass summary | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +8 | `testdata/ai/f-acc-04/break-glass-summary/`<br>`app/legal/access/ai_f_acc_04_test.go` |  |
+| [ ] | AI-017 | AI-017 | app | Fixtures and mock test: F-ACC-06 Offboarding plan | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +8 | `testdata/ai/f-acc-06/offboarding-plan/`<br>`app/legal/access/ai_f_acc_06_test.go` |  |
+| [ ] | AI-018 | AI-018 | app | Fixtures and mock test: F-ACC-07 Invite list check | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +8 | `testdata/ai/f-acc-07/invite-list-check/`<br>`app/legal/access/ai_f_acc_07_test.go` |  |
+| [ ] | AI-021 | AI-021 | app | Fixtures and mock test: F-ACC-10 Suggest team | AI-002, AI-003, AI-004, T-006L.1, T-006L.2, T-006L.3 +8 | `testdata/ai/f-acc-10/suggest-team/`<br>`app/legal/access/ai_f_acc_10_test.go` |  |
+| [ ] | AI-033 | AI-033 | app | Fixtures and mock test: F-CON-01 Party extraction | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +5 | `testdata/ai/f-con-01/party-extraction/`<br>`app/legal/conflicts/ai_f_con_01_test.go` |  |
+| [ ] | AI-034 | AI-034 | app | Fixtures and mock test: F-CON-02 Conflict search and ranking | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +5 | `testdata/ai/f-con-02/conflict-search-and-ranking/`<br>`app/legal/conflicts/ai_f_con_02_test.go` |  |
+| [ ] | AI-035 | AI-035 | app | Fixtures and mock test: F-CON-03 Clearance memo | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +5 | `testdata/ai/f-con-03/clearance-memo/`<br>`app/legal/conflicts/ai_f_con_03_test.go` |  |
+| [ ] | AI-036 | AI-036 | app | Fixtures and mock test: F-CON-04 Consent drafting and chasing | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +5 | `testdata/ai/f-con-04/consent-drafting-and-chasing/`<br>`app/legal/conflicts/ai_f_con_04_test.go` |  |
+| [ ] | AI-037 | AI-037 | app | Fixtures and mock test: F-CON-05 Reverse conflict sweep | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +5 | `testdata/ai/f-con-05/reverse-conflict-sweep/`<br>`app/legal/conflicts/ai_f_con_05_test.go` |  |
+| [ ] | AI-038 | AI-038 | app | Fixtures and mock test: F-CON-06 ID obligation watcher | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +5 | `testdata/ai/f-con-06/id-obligation-watcher/`<br>`app/legal/conflicts/ai_f_con_06_test.go` |  |
+| [ ] | AI-039 | AI-039 | app | Fixtures and mock test: F-CON-07 ID evidence check | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +5 | `testdata/ai/f-con-07/id-evidence-check/`<br>`app/legal/conflicts/ai_f_con_07_test.go` |  |
+| [ ] | AI-040 | AI-040 | app | Fixtures and mock test: F-CON-08 Beneficial ownership mapping | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +5 | `testdata/ai/f-con-08/beneficial-ownership-mapping/`<br>`app/legal/conflicts/ai_f_con_08_test.go` |  |
+| [ ] | AI-041 | AI-041 | app | Fixtures and mock test: F-CON-09 Wall enforcement and monitoring | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +5 | `testdata/ai/f-con-09/wall-enforcement-and-monitoring/`<br>`app/legal/conflicts/ai_f_con_09_test.go` |  |
+| [ ] | AI-042 | AI-042 | app | Fixtures and mock test: F-CON-10 Expiry and retention | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +5 | `testdata/ai/f-con-10/expiry-and-retention/`<br>`app/legal/conflicts/ai_f_con_10_test.go` |  |
+| [ ] | AI-047 | AI-047 | app | Fixtures and mock test: F-CON-15 Propose wall | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +5 | `testdata/ai/f-con-15/propose-wall/`<br>`app/legal/conflicts/ai_f_con_15_test.go` |  |
+| [ ] | AI-048 | AI-048 | app | Fixtures and mock test: F-CON-16 Run lateral check | AI-002, AI-003, AI-004, T-029.1, T-029.2, T-029.3 +5 | `testdata/ai/f-con-16/run-lateral-check/`<br>`app/legal/conflicts/ai_f_con_16_test.go` |  |
+| [ ] | AI-063 | AI-063 | app | Fixtures and mock test: F-DOC-01 ingest-document | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-01/ingest-document/`<br>`app/legal/documents/ai_f_doc_01_test.go` |  |
+| [ ] | AI-064 | AI-064 | app | Fixtures and mock test: F-DOC-02 draft-engagement-letter | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-02/draft-engagement-letter/`<br>`app/legal/documents/ai_f_doc_02_test.go` |  |
+| [ ] | AI-065 | AI-065 | app | Fixtures and mock test: F-DOC-03 draft-with-citations | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-03/draft-with-citations/`<br>`app/legal/documents/ai_f_doc_03_test.go` |  |
+| [ ] | AI-066 | AI-066 | app | Fixtures and mock test: F-DOC-04 precheck-outgoing | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-04/precheck-outgoing/`<br>`app/legal/documents/ai_f_doc_04_test.go` |  |
+| [ ] | AI-067 | AI-067 | app | Fixtures and mock test: F-DOC-05 citation-staleness | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +5 | `testdata/ai/f-doc-05/citation-staleness/`<br>`app/legal/documents/ai_f_doc_05_test.go` |  |
+| [ ] | AI-068 | AI-068 | app | Fixtures and mock test: F-DOC-06 template-and-precedent-currency | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-06/template-and-precedent-currency/`<br>`app/legal/documents/ai_f_doc_06_test.go` |  |
+| [ ] | AI-069 | AI-069 | app | Fixtures and mock test: F-DOC-07 precedent-candidates | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-07/precedent-candidates/`<br>`app/legal/documents/ai_f_doc_07_test.go` |  |
+| [ ] | AI-070 | AI-070 | app | Fixtures and mock test: F-DOC-08 email-filer | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-08/email-filer/`<br>`app/legal/documents/ai_f_doc_08_test.go` |  |
+| [ ] | AI-071 | AI-071 | app | Fixtures and mock test: F-DOC-09 court-form-currency | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-09/court-form-currency/`<br>`app/legal/documents/ai_f_doc_09_test.go` |  |
+| [ ] | AI-072 | AI-072 | app | Fixtures and mock test: F-DOC-10 assembly-on-stage | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-10/assembly-on-stage/`<br>`app/legal/documents/ai_f_doc_10_test.go` |  |
+| [ ] | AI-073 | AI-073 | app | Fixtures and mock test: F-DOC-11 tracked-revision | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-11/tracked-revision/`<br>`app/legal/documents/ai_f_doc_11_test.go` |  |
+| [ ] | AI-074 | AI-074 | app | Fixtures and mock test: F-DOC-12 Place signing fields | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +5 | `testdata/ai/f-doc-12/place-signing-fields/`<br>`app/legal/documents/ai_f_doc_12_test.go` |  |
+| [ ] | AI-075 | AI-075 | app | Fixtures and mock test: F-DOC-13 Auto-file | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +5 | `testdata/ai/f-doc-13/auto-file/`<br>`app/legal/documents/ai_f_doc_13_test.go` |  |
+| [ ] | AI-076 | AI-076 | app | Fixtures and mock test: F-DOC-14 Answer with citations | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +5 | `testdata/ai/f-doc-14/answer-with-citations/`<br>`app/legal/documents/ai_f_doc_14_test.go` |  |
+| [ ] | AI-077 | AI-077 | app | Fixtures and mock test: F-DOC-15 Propose fields | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-15/propose-fields/`<br>`app/legal/documents/ai_f_doc_15_test.go` |  |
+| [ ] | AI-078 | AI-078 | app | Fixtures and mock test: F-DOC-16 Ask client for missing answers | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-16/ask-client-for-missing-answers/`<br>`app/legal/documents/ai_f_doc_16_test.go` |  |
+| [ ] | AI-079 | AI-079 | app | Fixtures and mock test: F-DOC-17 Anonymize | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-17/anonymize/`<br>`app/legal/documents/ai_f_doc_17_test.go` |  |
+| [ ] | AI-080 | AI-080 | app | Fixtures and mock test: F-DOC-18 Auto-file | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +5 | `testdata/ai/f-doc-18/auto-file/`<br>`app/legal/documents/ai_f_doc_18_test.go` |  |
+| [ ] | AI-081 | AI-081 | app | Fixtures and mock test: F-DOC-19 Request documents from client | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +9 | `testdata/ai/f-doc-19/request-documents-from-client/`<br>`app/legal/documents/ai_f_doc_19_test.go` |  |
+| [ ] | AI-082 | AI-082 | app | Fixtures and mock test: F-DOC-20 Analyze | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +5 | `testdata/ai/f-doc-20/analyze/`<br>`app/legal/documents/ai_f_doc_20_test.go` |  |
+| [ ] | AI-083 | AI-083 | app | Fixtures and mock test: F-DOC-21 Follow-up question | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +5 | `testdata/ai/f-doc-21/follow-up-question/`<br>`app/legal/documents/ai_f_doc_21_test.go` |  |
+| [ ] | AI-084 | AI-084 | app | Fixtures and mock test: F-DOC-22 Suggest order and tabs | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +5 | `testdata/ai/f-doc-22/suggest-order-and-tabs/`<br>`app/legal/documents/ai_f_doc_22_test.go` |  |
+| [ ] | AI-085 | AI-085 | app | Fixtures and mock test: F-DOC-23 Detect matter content | AI-002, AI-003, AI-004, T-032.1, T-032.2, T-032.3 +5 | `testdata/ai/f-doc-23/detect-matter-content/`<br>`app/legal/documents/ai_f_doc_23_test.go` |  |
+| [ ] | AI-086 | AI-086 | app | Fixtures and mock test: F-INT-01 Triage new lead | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-01/triage-new-lead/`<br>`app/legal/intake/ai_f_int_01_test.go` |  |
+| [ ] | AI-087 | AI-087 | app | Fixtures and mock test: F-INT-02 Intake mailbox watcher | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-02/intake-mailbox-watcher/`<br>`app/legal/intake/ai_f_int_02_test.go` |  |
+| [ ] | AI-088 | AI-088 | app | Fixtures and mock test: F-INT-03 Missing-info chaser | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-03/missing-info-chaser/`<br>`app/legal/intake/ai_f_int_03_test.go` |  |
+| [ ] | AI-089 | AI-089 | app | Fixtures and mock test: F-INT-04 Decline/refer letter drafter | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-04/decline-refer-letter-drafter/`<br>`app/legal/intake/ai_f_int_04_test.go` |  |
+| [ ] | AI-091 | AI-091 | app | Fixtures and mock test: F-INT-06 Consult note and outcome | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-06/consult-note-and-outcome/`<br>`app/legal/intake/ai_f_int_06_test.go` |  |
+| [ ] | AI-093 | AI-093 | app | Fixtures and mock test: F-INT-08 Conversion prefill | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-08/conversion-prefill/`<br>`app/legal/intake/ai_f_int_08_test.go` |  |
+| [ ] | AI-095 | AI-095 | app | Fixtures and mock test: F-INT-10 AI receptionist | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-10/ai-receptionist/`<br>`app/legal/intake/ai_f_int_10_test.go` |  |
+| [ ] | AI-097 | AI-097 | app | Fixtures and mock test: F-INT-12 Draft form from description | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-12/draft-form-from-description/`<br>`app/legal/intake/ai_f_int_12_test.go` |  |
+| [ ] | AI-099 | AI-099 | app | Fixtures and mock test: F-INT-14 Generate engagement letter draft | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-14/generate-engagement-letter-draft/`<br>`app/legal/intake/ai_f_int_14_test.go` |  |
+| [ ] | AI-100 | AI-100 | app | Fixtures and mock test: F-INT-15 Generate non-engagement letter | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-15/generate-non-engagement-letter/`<br>`app/legal/intake/ai_f_int_15_test.go` |  |
+| [ ] | AI-102 | AI-102 | app | Fixtures and mock test: F-INT-17 Draft sequence from description | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-17/draft-sequence-from-description/`<br>`app/legal/intake/ai_f_int_17_test.go` |  |
+| [ ] | AI-104 | AI-104 | app | Fixtures and mock test: F-INT-19 Suggest criteria from firm website | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-19/suggest-criteria-from-firm-website/`<br>`app/legal/intake/ai_f_int_19_test.go` |  |
+| [ ] | AI-106 | AI-106 | app | Fixtures and mock test: F-INT-21 Draft thank-you note to referrer | AI-002, AI-003, AI-004, T-033.1, T-033.2, T-033.3 +4 | `testdata/ai/f-int-21/draft-thank-you-note-to-referrer/`<br>`app/legal/intake/ai_f_int_21_test.go` |  |
+| [ ] | AI-107 | AI-107 | app | Fixtures and mock test: F-MAT-01 Matter brief refresh | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-01/matter-brief-refresh/`<br>`app/legal/matters/ai_f_mat_01_test.go` |  |
+| [ ] | AI-109 | AI-109 | app | Fixtures and mock test: F-MAT-03 Stage advance watcher | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-03/stage-advance-watcher/`<br>`app/legal/matters/ai_f_mat_03_test.go` |  |
+| [ ] | AI-110 | AI-110 | app | Fixtures and mock test: F-MAT-04 Party extraction | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-04/party-extraction/`<br>`app/legal/matters/ai_f_mat_04_test.go` |  |
+| [ ] | AI-111 | AI-111 | app | Fixtures and mock test: F-MAT-05 Contact dedupe and enrichment | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-05/contact-dedupe-and-enrichment/`<br>`app/legal/matters/ai_f_mat_05_test.go` |  |
+| [ ] | AI-112 | AI-112 | app | Fixtures and mock test: F-MAT-06 Matter opening pre-fill | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-06/matter-opening-pre-fill/`<br>`app/legal/matters/ai_f_mat_06_test.go` |  |
+| [ ] | AI-113 | AI-113 | app | Fixtures and mock test: F-MAT-07 Call and meeting summary | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-07/call-and-meeting-summary/`<br>`app/legal/matters/ai_f_mat_07_test.go` |  |
+| [ ] | AI-114 | AI-114 | app | Fixtures and mock test: F-MAT-08 Retainer and budget watch | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-08/retainer-and-budget-watch/`<br>`app/legal/matters/ai_f_mat_08_test.go` |  |
+| [ ] | AI-115 | AI-115 | app | Fixtures and mock test: F-MAT-09 Config hygiene | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-09/config-hygiene/`<br>`app/legal/matters/ai_f_mat_09_test.go` |  |
+| [ ] | AI-118 | AI-118 | app | Fixtures and mock test: F-MAT-12 Matter chronology builder | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-12/matter-chronology-builder/`<br>`app/legal/matters/ai_f_mat_12_test.go` |  |
+| [ ] | AI-120 | AI-120 | app | Fixtures and mock test: F-MAT-14 Template fit | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-14/template-fit/`<br>`app/legal/matters/ai_f_mat_14_test.go` |  |
+| [ ] | AI-122 | AI-122 | app | Fixtures and mock test: F-MAT-16 Re-run conflict on new parties | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-16/re-run-conflict-on-new-parties/`<br>`app/legal/matters/ai_f_mat_16_test.go` |  |
+| [ ] | AI-123 | AI-123 | app | Fixtures and mock test: F-MAT-17 Create folders, task plan and calendar placeholders | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-17/create-folders-task-plan-and-calendar-placeholders/`<br>`app/legal/matters/ai_f_mat_17_test.go` |  |
+| [ ] | AI-124 | AI-124 | app | Fixtures and mock test: F-MAT-18 Propose relationship | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-18/propose-relationship/`<br>`app/legal/matters/ai_f_mat_18_test.go` |  |
+| [ ] | AI-125 | AI-125 | app | Fixtures and mock test: F-MAT-19 Request ID | AI-002, AI-003, AI-004, T-028.1, T-028.2, T-030.1 +7 | `testdata/ai/f-mat-19/request-id/`<br>`app/legal/matters/ai_f_mat_19_test.go` |  |
+| [ ] | AI-167 | AI-167 | app | Fixtures and mock test: F-TIM-01 Rebuild day | AI-002, AI-003, AI-004, T-016.1, T-016.2, T-016.3 +5 | `testdata/ai/f-tim-01/rebuild-day/`<br>`app/legal/time/ai_f_tim_01_test.go` |  |
+| [ ] | AI-168 | AI-168 | app | Fixtures and mock test: F-TIM-02 Receipt capture | AI-002, AI-003, AI-004, T-016.1, T-016.2, T-016.3 +5 | `testdata/ai/f-tim-02/receipt-capture/`<br>`app/legal/time/ai_f_tim_02_test.go` |  |
+| [ ] | AI-169 | AI-169 | app | Fixtures and mock test: F-TIM-03 Pre-bill check | AI-002, AI-003, AI-004, T-016.1, T-016.2, T-016.3 +5 | `testdata/ai/f-tim-03/pre-bill-check/`<br>`app/legal/time/ai_f_tim_03_test.go` |  |
+| [ ] | AI-170 | AI-170 | app | Fixtures and mock test: F-TIM-04 Timesheet pre-review | AI-002, AI-003, AI-004, T-016.1, T-016.2, T-016.3 +5 | `testdata/ai/f-tim-04/timesheet-pre-review/`<br>`app/legal/time/ai_f_tim_04_test.go` |  |
+| [ ] | AI-171 | AI-171 | app | Fixtures and mock test: F-TIM-05 Engagement terms extract | AI-002, AI-003, AI-004, T-016.1, T-016.2, T-016.3 +5 | `testdata/ai/f-tim-05/engagement-terms-extract/`<br>`app/legal/time/ai_f_tim_05_test.go` |  |
+| [ ] | AI-172 | AI-172 | app | Fixtures and mock test: F-TIM-06 Rate change impact | AI-002, AI-003, AI-004, T-016.1, T-016.2, T-016.3 +5 | `testdata/ai/f-tim-06/rate-change-impact/`<br>`app/legal/time/ai_f_tim_06_test.go` |  |
+| [ ] | AI-173 | AI-173 | app | Fixtures and mock test: F-TIM-07 Rewrite narrative | AI-002, AI-003, AI-004, T-016.1, T-016.2, T-016.3 +5 | `testdata/ai/f-tim-07/rewrite-narrative/`<br>`app/legal/time/ai_f_tim_07_test.go` |  |
+| [ ] | AI-189 | AI-189 | app | Fixtures and mock test: F-WRK-01 Pick up agent-ready items | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 +4 | `testdata/ai/f-wrk-01/pick-up-agent-ready-items/`<br>`app/legal/work/ai_f_wrk_01_test.go` |  |
+| [ ] | AI-190 | AI-190 | app | Fixtures and mock test: F-WRK-02 Propose matter plan | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 +4 | `testdata/ai/f-wrk-02/propose-matter-plan/`<br>`app/legal/work/ai_f_wrk_02_test.go` |  |
+| [ ] | AI-192 | AI-192 | app | Fixtures and mock test: F-WRK-04 Date-shift on key date change | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 +4 | `testdata/ai/f-wrk-04/date-shift-on-key-date-change/`<br>`app/legal/work/ai_f_wrk_04_test.go` |  |
+| [ ] | AI-194 | AI-194 | app | Fixtures and mock test: F-WRK-06 Workflow lint | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 +4 | `testdata/ai/f-wrk-06/workflow-lint/`<br>`app/legal/work/ai_f_wrk_06_test.go` |  |
+| [ ] | AI-195 | AI-195 | app | Fixtures and mock test: F-WRK-07 Rule suggester | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 +4 | `testdata/ai/f-wrk-07/rule-suggester/`<br>`app/legal/work/ai_f_wrk_07_test.go` |  |
+| [ ] | AI-197 | AI-197 | app | Fixtures and mock test: F-WRK-09 Absence cover planner | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 +4 | `testdata/ai/f-wrk-09/absence-cover-planner/`<br>`app/legal/work/ai_f_wrk_09_test.go` |  |
+| [ ] | AI-199 | AI-199 | app | Fixtures and mock test: F-WRK-11 Create from email / call note | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 +4 | `testdata/ai/f-wrk-11/create-from-email-call-note/`<br>`app/legal/work/ai_f_wrk_11_test.go` |  |
+| [ ] | AI-202 | AI-202 | app | Fixtures and mock test: F-WRK-14 Draft template from past matters | AI-002, AI-003, AI-004, T-034.1, T-034.2, T-034.3 +4 | `testdata/ai/f-wrk-14/draft-template-from-past-matters/`<br>`app/legal/work/ai_f_wrk_14_test.go` |  |
+| [ ] | T-013.4 | T-013 | app | Month-end immutable export | T-011.1, T-011.2, T-011.3, T-011.4, T-011.5, T-013.3 | `app/legal/trust/recon/export.go`<br>`app/legal/trust/recon/export_test.go` | trust.bylaw9_verified |
+| [ ] | T-018.2 | T-018 | app | Bill totals and server recompute | T-017.1, T-017.2, T-017.3, T-017.4, T-017.5, T-018.1 | `app/legal/billing/total/total.go`<br>`app/legal/billing/total/total_test.go` |  |
+| [ ] | T-027.2 | T-027 | app | Settlement statement | T-017.1, T-017.2, T-017.3, T-017.4, T-017.5, T-027.1 | `app/legal/billing/contingency/settlement.go`<br>`app/legal/billing/contingency/settlement_test.go` | billing.contingency_fees |
+| [ ] | T-031L.2 | T-031L | app | Rules of Civil Procedure rule pack | T-030.1, T-030.2, T-030.3, T-030.4, T-031.1, T-031.2 +3 | `app/legal/rulepacks/ontario/civil-procedure.yaml`<br>`app/legal/rulepacks/ontario/golden_test.go` | deadline.ontario_pack |
+
+### Wave 16 (19 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-179 | AI-179 | app | Fixtures and mock test: F-TRU-01 bank-feed-sync | AI-002, AI-003, AI-004, T-011.1, T-011.2, T-011.3 +15 | `testdata/ai/f-tru-01/bank-feed-sync/`<br>`app/legal/trust/ai_f_tru_01_test.go` |  |
+| [ ] | AI-180 | AI-180 | app | Fixtures and mock test: F-TRU-02 withdrawal-drafter | AI-002, AI-003, AI-004, T-011.1, T-011.2, T-011.3 +15 | `testdata/ai/f-tru-02/withdrawal-drafter/`<br>`app/legal/trust/ai_f_tru_02_test.go` |  |
+| [ ] | AI-181 | AI-181 | app | Fixtures and mock test: F-TRU-03 payee-fraud-check | AI-002, AI-003, AI-004, T-011.1, T-011.2, T-011.3 +11 | `testdata/ai/f-tru-03/payee-fraud-check/`<br>`app/legal/trust/ai_f_tru_03_test.go` |  |
+| [ ] | AI-182 | AI-182 | app | Fixtures and mock test: F-TRU-04 month-end-reconciliation | AI-002, AI-003, AI-004, T-011.1, T-011.2, T-011.3 +15 | `testdata/ai/f-tru-04/month-end-reconciliation/`<br>`app/legal/trust/ai_f_tru_04_test.go` |  |
+| [ ] | AI-183 | AI-183 | app | Fixtures and mock test: F-TRU-05 retainer-replenishment | AI-002, AI-003, AI-004, T-011.1, T-011.2, T-011.3 +15 | `testdata/ai/f-tru-05/retainer-replenishment/`<br>`app/legal/trust/ai_f_tru_05_test.go` |  |
+| [ ] | AI-184 | AI-184 | app | Fixtures and mock test: F-TRU-06 annual-report-prep | AI-002, AI-003, AI-004, T-011.1, T-011.2, T-011.3 +15 | `testdata/ai/f-tru-06/annual-report-prep/`<br>`app/legal/trust/ai_f_tru_06_test.go` |  |
+| [ ] | AI-185 | AI-185 | app | Fixtures and mock test: F-TRU-07 retainer-coverage-scan | AI-002, AI-003, AI-004, T-011.1, T-011.2, T-011.3 +15 | `testdata/ai/f-tru-07/retainer-coverage-scan/`<br>`app/legal/trust/ai_f_tru_07_test.go` |  |
+| [ ] | AI-186 | AI-186 | app | Fixtures and mock test: F-TRU-08 Draft transfer | AI-002, AI-003, AI-004, T-011.1, T-011.2, T-011.3 +15 | `testdata/ai/f-tru-08/draft-transfer/`<br>`app/legal/trust/ai_f_tru_08_test.go` |  |
+| [ ] | AI-187 | AI-187 | app | Fixtures and mock test: F-TRU-09 Spot-audit pack | AI-002, AI-003, AI-004, T-011.1, T-011.2, T-011.3 +15 | `testdata/ai/f-tru-09/spot-audit-pack/`<br>`app/legal/trust/ai_f_tru_09_test.go` |  |
+| [ ] | AI-188 | AI-188 | app | Fixtures and mock test: F-TRU-10 Propose disposition | AI-002, AI-003, AI-004, T-011.1, T-011.2, T-011.3 +15 | `testdata/ai/f-tru-10/propose-disposition/`<br>`app/legal/trust/ai_f_tru_10_test.go` |  |
+| [ ] | AI-206 | AI-206 | app | e2e on mock LLM: access AI features | AI-006, AI-007, AI-009, AI-012, AI-013, AI-014 +10 | `test/e2e/suites/ai-access.sh` |  |
+| [ ] | AI-208 | AI-208 | app | e2e on mock LLM: conflicts AI features | AI-006, AI-007, AI-009, AI-033, AI-034, AI-035 +14 | `test/e2e/suites/ai-conflicts.sh` |  |
+| [ ] | AI-210 | AI-210 | app | e2e on mock LLM: documents AI features | AI-006, AI-007, AI-009, AI-063, AI-064, AI-065 +20 | `test/e2e/suites/ai-documents.sh` |  |
+| [ ] | AI-211 | AI-211 | app | e2e on mock LLM: intake AI features | AI-006, AI-007, AI-009, AI-086, AI-087, AI-088 +18 | `test/e2e/suites/ai-intake.sh` |  |
+| [ ] | AI-212 | AI-212 | app | e2e on mock LLM: matters AI features | AI-006, AI-007, AI-009, AI-107, AI-108, AI-109 +20 | `test/e2e/suites/ai-matters.sh` |  |
+| [ ] | AI-215 | AI-215 | app | e2e on mock LLM: time AI features | AI-006, AI-007, AI-009, AI-167, AI-168, AI-169 +9 | `test/e2e/suites/ai-time.sh` |  |
+| [ ] | AI-217 | AI-217 | app | e2e on mock LLM: work AI features | AI-006, AI-007, AI-009, AI-189, AI-190, AI-191 +14 | `test/e2e/suites/ai-work.sh` |  |
+| [ ] | T-019.1 | T-019 | app | Bill approval effect and numbering | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010L.1, T-010L.2 +7 | `app/legal/billing/bill/approve.go`<br>`app/legal/billing/bill/approve_integration_test.go` |  |
+| [ ] | T-031L.3 | T-031L | app | Limitation assessment | T-030.1, T-030.2, T-030.3, T-030.4, T-031.1, T-031.2 +3 | `app/legal/limitation/assess.go`<br>`app/legal/limitation/assess_test.go` | deadline.ontario_pack |
+
+### Wave 17 (19 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-050 | AI-050 | app | Fixtures and mock test: F-DL-01 Extract deadlines from document | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +8 | `testdata/ai/f-dl-01/extract-deadlines-from-document/`<br>`app/legal/deadlines/ai_f_dl_01_test.go` |  |
+| [ ] | AI-051 | AI-051 | app | Fixtures and mock test: F-DL-02 Draft limitation assessment | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +8 | `testdata/ai/f-dl-02/draft-limitation-assessment/`<br>`app/legal/deadlines/ai_f_dl_02_test.go` |  |
+| [ ] | AI-052 | AI-052 | app | Fixtures and mock test: F-DL-03 Recompute dependants | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +8 | `testdata/ai/f-dl-03/recompute-dependants/`<br>`app/legal/deadlines/ai_f_dl_03_test.go` |  |
+| [ ] | AI-053 | AI-053 | app | Fixtures and mock test: F-DL-04 Compliance evidence matcher | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +8 | `testdata/ai/f-dl-04/compliance-evidence-matcher/`<br>`app/legal/deadlines/ai_f_dl_04_test.go` |  |
+| [ ] | AI-054 | AI-054 | app | Fixtures and mock test: F-DL-05 Daily digest and weekly report | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +4 | `testdata/ai/f-dl-05/daily-digest-and-weekly-report/`<br>`app/legal/deadlines/ai_f_dl_05_test.go` |  |
+| [ ] | AI-055 | AI-055 | app | Fixtures and mock test: F-DL-06 Rule watch | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +8 | `testdata/ai/f-dl-06/rule-watch/`<br>`app/legal/deadlines/ai_f_dl_06_test.go` |  |
+| [ ] | AI-056 | AI-056 | app | Fixtures and mock test: F-DL-07 Post-event follow-up | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +8 | `testdata/ai/f-dl-07/post-event-follow-up/`<br>`app/legal/deadlines/ai_f_dl_07_test.go` |  |
+| [ ] | AI-057 | AI-057 | app | Fixtures and mock test: F-DL-08 Adjournment watcher | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +8 | `testdata/ai/f-dl-08/adjournment-watcher/`<br>`app/legal/deadlines/ai_f_dl_08_test.go` |  |
+| [ ] | AI-058 | AI-058 | app | Fixtures and mock test: F-DL-09 Absence coverage check | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +8 | `testdata/ai/f-dl-09/absence-coverage-check/`<br>`app/legal/deadlines/ai_f_dl_09_test.go` |  |
+| [ ] | AI-059 | AI-059 | app | Fixtures and mock test: F-DL-10 Propose meeting time | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +4 | `testdata/ai/f-dl-10/propose-meeting-time/`<br>`app/legal/deadlines/ai_f_dl_10_test.go` |  |
+| [ ] | AI-060 | AI-060 | app | Fixtures and mock test: F-DL-11 Find a time for the matter team | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +4 | `testdata/ai/f-dl-11/find-a-time-for-the-matter-team/`<br>`app/legal/deadlines/ai_f_dl_11_test.go` |  |
+| [ ] | AI-061 | AI-061 | app | Fixtures and mock test: F-DL-12 Explain step | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +4 | `testdata/ai/f-dl-12/explain-step/`<br>`app/legal/deadlines/ai_f_dl_12_test.go` |  |
+| [ ] | AI-062 | AI-062 | app | Fixtures and mock test: F-DL-13 Draft agenda | AI-002, AI-003, AI-004, T-031.1, T-031.2, T-031.3 +4 | `testdata/ai/f-dl-13/draft-agenda/`<br>`app/legal/deadlines/ai_f_dl_13_test.go` |  |
+| [ ] | AI-216 | AI-216 | app | e2e on mock LLM: trust AI features | AI-006, AI-007, AI-009, AI-179, AI-180, AI-181 +7 | `test/e2e/suites/ai-trust.sh` |  |
+| [ ] | T-019.2 | T-019 | app | Approved bill guard | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010L.1, T-010L.2 +8 | `app/legal/billing/bill/guard.go`<br>`app/legal/billing/bill/guard_integration_test.go` |  |
+| [ ] | T-019.3 | T-019 | app | Bill signature and delivery | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010L.1, T-010L.2 +8 | `app/legal/billing/bill/deliver.go`<br>`app/legal/billing/bill/deliver_test.go` |  |
+| [ ] | T-019.4 | T-019 | app | Delivered bill content | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010L.1, T-010L.2 +8 | `app/legal/billing/bill/pdf.go`<br>`app/legal/billing/bill/pdf_test.go` | billing.solicitors_act_verified |
+| [ ] | T-019.5 | T-019 | app | Bill approval journal | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010L.1, T-010L.2 +8 | `app/legal/billing/bill/journal.go`<br>`app/legal/billing/bill/journal_integration_test.go` |  |
+| [ ] | T-019.6 | T-019 | app | Paralegal bills and fee basis | T-007L.1, T-007L.2, T-007L.3, T-007L.4, T-010L.1, T-010L.2 +8 | `app/legal/billing/bill/paralegal.go`<br>`app/legal/billing/bill/paralegal_test.go` | billing.solicitors_act_verified |
+
+### Wave 18 (7 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-209 | AI-209 | app | e2e on mock LLM: deadlines AI features | AI-006, AI-007, AI-009, AI-050, AI-051, AI-052 +10 | `test/e2e/suites/ai-deadlines.sh` |  |
+| [ ] | T-020.1 | T-020 | app | Bill void | T-019.1, T-019.2, T-019.3, T-019.4, T-019.5, T-019.6 | `app/legal/billing/bill/void.go`<br>`app/legal/billing/bill/void_integration_test.go` |  |
+| [ ] | T-020.2 | T-020 | app | Place-of-supply change after delivery | T-019.1, T-019.2, T-019.3, T-019.4, T-019.5, T-019.6 | `app/legal/billing/bill/pos_change.go`<br>`app/legal/billing/bill/pos_change_test.go` |  |
+| [ ] | T-021.1 | T-021 | app | Payment capture and allocation | T-008.1, T-008.2, T-008.3, T-008.4, T-008b.1, T-008b.2 +6 | `app/legal/billing/payment/allocate.go`<br>`app/legal/billing/payment/allocate_test.go` |  |
+| [ ] | T-025.1 | T-025 | app | Split bills | T-019.1, T-019.2, T-019.3, T-019.4, T-019.5, T-019.6 | `app/legal/billing/split/split.go`<br>`app/legal/billing/split/split_test.go` |  |
+| [ ] | T-025.2 | T-025 | app | Batch billing | T-019.1, T-019.2, T-019.3, T-019.4, T-019.5, T-019.6 | `app/legal/billing/batch/batch.go`<br>`app/legal/billing/batch/batch_test.go` |  |
+| [ ] | T-025.4 | T-025 | app | Unbilled WIP holding flag | T-019.1, T-019.2, T-019.3, T-019.4, T-019.5, T-019.6 | `app/legal/billing/batch/wipflag.go`<br>`app/legal/billing/batch/wipflag_test.go` |  |
+
+### Wave 19 (6 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | T-021.2 | T-021 | app | Payment provider webhook dedup | T-008.1, T-008.2, T-008.3, T-008.4, T-008b.1, T-008b.2 +7 | `app/legal/billing/payment/provider.go`<br>`app/legal/billing/payment/provider_test.go` |  |
+| [ ] | T-021.3 | T-021 | app | Overpayment and client credit | T-008.1, T-008.2, T-008.3, T-008.4, T-008b.1, T-008b.2 +7 | `app/legal/billing/payment/overpay.go`<br>`app/legal/billing/payment/overpay_test.go` |  |
+| [ ] | T-021.4 | T-021 | app | Operating receipts journal | T-008.1, T-008.2, T-008.3, T-008.4, T-008b.1, T-008b.2 +7 | `app/legal/billing/payment/receipts.go`<br>`app/legal/billing/payment/receipts_test.go` |  |
+| [ ] | T-021.5 | T-021 | app | NSF reversal of payments | T-008.1, T-008.2, T-008.3, T-008.4, T-008b.1, T-008b.2 +7 | `app/legal/billing/payment/nsf.go`<br>`app/legal/billing/payment/nsf_test.go` |  |
+| [ ] | T-021.6 | T-021 | app | Refunds, disputes and chargebacks | T-008.1, T-008.2, T-008.3, T-008.4, T-008b.1, T-008b.2 +7 | `app/legal/billing/payment/dispute.go`<br>`app/legal/billing/payment/dispute_test.go` |  |
+| [ ] | T-025.3 | T-025 | app | Combined client bills | T-019.1, T-019.2, T-019.3, T-019.4, T-019.5, T-019.6 +1 | `app/legal/billing/batch/combined.go`<br>`app/legal/billing/batch/combined_test.go` |  |
+
+### Wave 20 (8 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | T-022.1 | T-022 | app | Apply trust to bill | T-012.1, T-012.2, T-012.3, T-012.4, T-012.5, T-021.1 +5 | `app/legal/billing/trustapply/apply.go`<br>`app/legal/billing/trustapply/apply_test.go` | trust.bylaw9_verified |
+| [ ] | T-023.1 | T-023 | app | Credit notes with source tax proration | T-021.1, T-021.2, T-021.3, T-021.4, T-021.5, T-021.6 | `app/legal/billing/credit/credit.go`<br>`app/legal/billing/credit/credit_test.go` |  |
+| [ ] | T-024.2 | T-024 | app | Simple interest calculation | T-021.1, T-021.2, T-021.3, T-021.4, T-021.5, T-021.6 | `app/legal/billing/interest/calc.go`<br>`app/legal/billing/interest/calc_test.go` |  |
+| [ ] | T-024.3 | T-024 | app | months_after calendar months | T-021.1, T-021.2, T-021.3, T-021.4, T-021.5, T-021.6 | `app/legal/billing/interest/months.go`<br>`app/legal/billing/interest/months_test.go` | billing.solicitors_act_verified |
+| [ ] | T-026.1 | T-026 | app | Card surcharge rules and cap | T-021.1, T-021.2, T-021.3, T-021.4, T-021.5, T-021.6 | `app/legal/billing/surcharge/surcharge.go`<br>`app/legal/billing/surcharge/surcharge_test.go` | billing.card_surcharge |
+| [ ] | T-035L.1 | T-035L | app | Client portal page loaders | T-021.1, T-021.2, T-021.3, T-021.4, T-021.5, T-021.6 +9 | `app/legal/comms/portal.go`<br>`app/legal/comms/portal_test.go` |  |
+| [ ] | T-035L.2 | T-035L | app | Court filings and message templates | T-021.1, T-021.2, T-021.3, T-021.4, T-021.5, T-021.6 +9 | `app/legal/comms/filings.go`<br>`app/legal/comms/templates.go`<br>`app/legal/comms/filings_test.go` |  |
+| [ ] | T-040L.1 | T-040L | app | Practice-management REST fake server | T-012.1, T-012.2, T-012.3, T-012.4, T-012.5, T-021.1 +17 | `test/fakes/practiceapi/server.go`<br>`test/fakes/practiceapi/server_test.go` |  |
+
+### Wave 21 (8 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | T-022.2 | T-022 | app | Disbursement paid from trust | T-012.1, T-012.2, T-012.3, T-012.4, T-012.5, T-021.1 +6 | `app/legal/billing/trustapply/disbursement.go`<br>`app/legal/billing/trustapply/disbursement_test.go` | trust.bylaw9_verified |
+| [ ] | T-022.3 | T-022 | app | Auto-apply proposals | T-012.1, T-012.2, T-012.3, T-012.4, T-012.5, T-021.1 +6 | `app/legal/billing/trustapply/auto.go`<br>`app/legal/billing/trustapply/auto_test.go` | trust.bylaw9_verified |
+| [ ] | T-022.4 | T-022 | app | Retainer tax timing | T-012.1, T-012.2, T-012.3, T-012.4, T-012.5, T-021.1 +6 | `app/legal/billing/trustapply/retainer.go`<br>`app/legal/billing/trustapply/retainer_test.go` | trust.bylaw9_verified |
+| [ ] | T-023.2 | T-023 | app | Write-offs and bad-debt adjustment | T-021.1, T-021.2, T-021.3, T-021.4, T-021.5, T-021.6 +1 | `app/legal/billing/credit/writeoff.go`<br>`app/legal/billing/credit/writeoff_test.go` |  |
+| [ ] | T-024.1 | T-024 | app | Interest accrual start | T-021.1, T-021.2, T-021.3, T-021.4, T-021.5, T-021.6 +1 | `app/legal/billing/interest/start.go`<br>`app/legal/billing/interest/start_test.go` | billing.solicitors_act_verified |
+| [ ] | T-026.2 | T-026 | app | Surcharge tax and refunds | T-021.1, T-021.2, T-021.3, T-021.4, T-021.5, T-021.6 +1 | `app/legal/billing/surcharge/tax.go`<br>`app/legal/billing/surcharge/tax_test.go` | billing.card_surcharge |
+| [ ] | T-035L.3 | T-035L | app | Portal web feature | T-021.1, T-021.2, T-021.3, T-021.4, T-021.5, T-021.6 +10 | `web/src/features/portal/feature.ts`<br>`web/src/features/portal/PortalMatters.tsx`<br>`web/src/features/portal/PortalMatters.test.tsx` |  |
+| [ ] | T-040L.2 | T-040L | app | Source client, region and token | T-012.1, T-012.2, T-012.3, T-012.4, T-012.5, T-021.1 +18 | `app/legal/clio/client.go`<br>`app/legal/clio/client_test.go` |  |
+
+### Wave 22 (43 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-025 | AI-025 | app | Fixtures and mock test: F-BIL-01 Billing cycle drafts | AI-002, AI-003, AI-004, T-017.1, T-017.2, T-017.3 +20 | `testdata/ai/f-bil-01/billing-cycle-drafts/`<br>`app/legal/billing/ai_f_bil_01_test.go` |  |
+| [ ] | AI-026 | AI-026 | app | Fixtures and mock test: F-BIL-02 Bill render and pre-flight | AI-002, AI-003, AI-004, T-017.1, T-017.2, T-017.3 +20 | `testdata/ai/f-bil-02/bill-render-and-pre-flight/`<br>`app/legal/billing/ai_f_bil_02_test.go` |  |
+| [ ] | AI-027 | AI-027 | app | Fixtures and mock test: F-BIL-03 Trust application proposal | AI-002, AI-003, AI-004, T-017.1, T-017.2, T-017.3 +20 | `testdata/ai/f-bil-03/trust-application-proposal/`<br>`app/legal/billing/ai_f_bil_03_test.go` |  |
+| [ ] | AI-028 | AI-028 | app | Fixtures and mock test: F-BIL-04 Payment matching | AI-002, AI-003, AI-004, T-017.1, T-017.2, T-017.3 +20 | `testdata/ai/f-bil-04/payment-matching/`<br>`app/legal/billing/ai_f_bil_04_test.go` |  |
+| [ ] | AI-029 | AI-029 | app | Fixtures and mock test: F-BIL-05 Evergreen watch | AI-002, AI-003, AI-004, T-017.1, T-017.2, T-017.3 +20 | `testdata/ai/f-bil-05/evergreen-watch/`<br>`app/legal/billing/ai_f_bil_05_test.go` |  |
+| [ ] | AI-030 | AI-030 | app | Fixtures and mock test: F-BIL-06 Aging and collections | AI-002, AI-003, AI-004, T-017.1, T-017.2, T-017.3 +20 | `testdata/ai/f-bil-06/aging-and-collections/`<br>`app/legal/billing/ai_f_bil_06_test.go` |  |
+| [ ] | AI-031 | AI-031 | app | Fixtures and mock test: F-BIL-07 Monthly billing digest | AI-002, AI-003, AI-004, T-017.1, T-017.2, T-017.3 +16 | `testdata/ai/f-bil-07/monthly-billing-digest/`<br>`app/legal/billing/ai_f_bil_07_test.go` |  |
+| [ ] | AI-032 | AI-032 | app | Fixtures and mock test: F-BIL-08 Draft credit note | AI-002, AI-003, AI-004, T-017.1, T-017.2, T-017.3 +20 | `testdata/ai/f-bil-08/draft-credit-note/`<br>`app/legal/billing/ai_f_bil_08_test.go` |  |
+| [ ] | AI-130 | AI-130 | app | Fixtures and mock test: F-PLT-01 Portal triage | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-01/portal-triage/`<br>`app/legal/platform/ai_f_plt_01_test.go` |  |
+| [ ] | AI-131 | AI-131 | app | Fixtures and mock test: F-PLT-02 Mail filing | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-02/mail-filing/`<br>`app/legal/platform/ai_f_plt_02_test.go` |  |
+| [ ] | AI-132 | AI-132 | app | Fixtures and mock test: F-PLT-03 Reply drafter | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-03/reply-drafter/`<br>`app/legal/platform/ai_f_plt_03_test.go` |  |
+| [ ] | AI-133 | AI-133 | app | Fixtures and mock test: F-PLT-04 Call summarizer | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-04/call-summarizer/`<br>`app/legal/platform/ai_f_plt_04_test.go` |  |
+| [ ] | AI-134 | AI-134 | app | Fixtures and mock test: F-PLT-05 Risk digest | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +8 | `testdata/ai/f-plt-05/risk-digest/`<br>`app/legal/platform/ai_f_plt_05_test.go` |  |
+| [ ] | AI-135 | AI-135 | app | Fixtures and mock test: F-PLT-06 Closing starter | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-06/closing-starter/`<br>`app/legal/platform/ai_f_plt_06_test.go` |  |
+| [ ] | AI-136 | AI-136 | app | Fixtures and mock test: F-PLT-07 Destruction batch | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-07/destruction-batch/`<br>`app/legal/platform/ai_f_plt_07_test.go` |  |
+| [ ] | AI-137 | AI-137 | app | Fixtures and mock test: F-PLT-08 Access review | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-08/access-review/`<br>`app/legal/platform/ai_f_plt_08_test.go` |  |
+| [ ] | AI-138 | AI-138 | app | Fixtures and mock test: F-PLT-09 Insights note | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +8 | `testdata/ai/f-plt-09/insights-note/`<br>`app/legal/platform/ai_f_plt_09_test.go` |  |
+| [ ] | AI-139 | AI-139 | app | Fixtures and mock test: F-PLT-10 Text triage | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-10/text-triage/`<br>`app/legal/platform/ai_f_plt_10_test.go` |  |
+| [ ] | AI-140 | AI-140 | app | Fixtures and mock test: F-PLT-11 Stale matter sweep | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-11/stale-matter-sweep/`<br>`app/legal/platform/ai_f_plt_11_test.go` |  |
+| [ ] | AI-141 | AI-141 | app | Fixtures and mock test: F-PLT-12 Citation checker | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-12/citation-checker/`<br>`app/legal/platform/ai_f_plt_12_test.go` |  |
+| [ ] | AI-142 | AI-142 | app | Fixtures and mock test: F-PLT-13 Filing scope re-evaluation | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +8 | `testdata/ai/f-plt-13/filing-scope-re-evaluation/`<br>`app/legal/platform/ai_f_plt_13_test.go` |  |
+| [ ] | AI-143 | AI-143 | app | Fixtures and mock test: F-PLT-14 Goal runner | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-14/goal-runner/`<br>`app/legal/platform/ai_f_plt_14_test.go` |  |
+| [ ] | AI-144 | AI-144 | app | Fixtures and mock test: F-PLT-15 Retainer coverage watch | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-15/retainer-coverage-watch/`<br>`app/legal/platform/ai_f_plt_15_test.go` |  |
+| [ ] | AI-145 | AI-145 | app | Fixtures and mock test: F-PLT-16 Request documents | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-16/request-documents/`<br>`app/legal/platform/ai_f_plt_16_test.go` |  |
+| [ ] | AI-146 | AI-146 | app | Fixtures and mock test: F-PLT-17 Prepare signature fields | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +8 | `testdata/ai/f-plt-17/prepare-signature-fields/`<br>`app/legal/platform/ai_f_plt_17_test.go` |  |
+| [ ] | AI-147 | AI-147 | app | Fixtures and mock test: F-PLT-18 Answer with citations | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +8 | `testdata/ai/f-plt-18/answer-with-citations/`<br>`app/legal/platform/ai_f_plt_18_test.go` |  |
+| [ ] | AI-148 | AI-148 | app | Fixtures and mock test: F-PLT-19 Recommend settings | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-19/recommend-settings/`<br>`app/legal/platform/ai_f_plt_19_test.go` |  |
+| [ ] | AI-149 | AI-149 | app | Fixtures and mock test: F-PLT-20 Prepare final bill | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-20/prepare-final-bill/`<br>`app/legal/platform/ai_f_plt_20_test.go` |  |
+| [ ] | AI-150 | AI-150 | app | Fixtures and mock test: F-PLT-21 Prepare trust refund / transfer | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-21/prepare-trust-refund-transfer/`<br>`app/legal/platform/ai_f_plt_21_test.go` |  |
+| [ ] | AI-151 | AI-151 | app | Fixtures and mock test: F-PLT-22 Suggest practice area setup | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-22/suggest-practice-area-setup/`<br>`app/legal/platform/ai_f_plt_22_test.go` |  |
+| [ ] | AI-152 | AI-152 | app | Fixtures and mock test: F-PLT-23 Describe report in words | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +8 | `testdata/ai/f-plt-23/describe-report-in-words/`<br>`app/legal/platform/ai_f_plt_23_test.go` |  |
+| [ ] | AI-153 | AI-153 | app | Fixtures and mock test: F-PLT-24 Explain change | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +8 | `testdata/ai/f-plt-24/explain-change/`<br>`app/legal/platform/ai_f_plt_24_test.go` |  |
+| [ ] | AI-154 | AI-154 | app | Fixtures and mock test: F-PLT-25 Summarize thread | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +8 | `testdata/ai/f-plt-25/summarize-thread/`<br>`app/legal/platform/ai_f_plt_25_test.go` |  |
+| [ ] | AI-155 | AI-155 | app | Fixtures and mock test: F-PLT-26 Suggest reply | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +8 | `testdata/ai/f-plt-26/suggest-reply/`<br>`app/legal/platform/ai_f_plt_26_test.go` |  |
+| [ ] | AI-156 | AI-156 | app | Fixtures and mock test: F-PLT-27 Research | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +8 | `testdata/ai/f-plt-27/research/`<br>`app/legal/platform/ai_f_plt_27_test.go` |  |
+| [ ] | AI-157 | AI-157 | app | Fixtures and mock test: F-PLT-28 Propose template | AI-002, AI-003, AI-004, T-035.1, T-035.2, T-035.3 +12 | `testdata/ai/f-plt-28/propose-template/`<br>`app/legal/platform/ai_f_plt_28_test.go` |  |
+| [ ] | T-024.4 | T-024 | app | Interest posting job | T-021.1, T-021.2, T-021.3, T-021.4, T-021.5, T-021.6 +2 | `app/legal/billing/interest/post.go`<br>`app/legal/billing/interest/post_test.go` |  |
+| [ ] | T-038L.1 | T-038L | app | HST report | T-013.1, T-013.2, T-013.3, T-013.4, T-023.1, T-023.2 +3 | `app/legal/reports/hst.go`<br>`app/legal/reports/hst_test.go` |  |
+| [ ] | T-038L.2 | T-038L | app | Monthly client trust listing | T-013.1, T-013.2, T-013.3, T-013.4, T-023.1, T-023.2 +3 | `app/legal/reports/trustlisting.go`<br>`app/legal/reports/trustlisting_test.go` | trust.bylaw9_verified |
+| [ ] | T-038L.3 | T-038L | app | AR aging and WIP reports | T-013.1, T-013.2, T-013.3, T-013.4, T-023.1, T-023.2 +3 | `app/legal/reports/aging.go`<br>`app/legal/reports/wip.go`<br>`app/legal/reports/aging_test.go` |  |
+| [ ] | T-040L.3 | T-040L | app | Rate limit and decimal money | T-012.1, T-012.2, T-012.3, T-012.4, T-012.5, T-021.1 +18 | `app/legal/clio/ratelimit.go`<br>`app/legal/clio/decimal.go`<br>`app/legal/clio/ratelimit_test.go` |  |
+| [ ] | T-040L.4 | T-040L | app | Resource extract and transform | T-012.1, T-012.2, T-012.3, T-012.4, T-012.5, T-021.1 +18 | `app/legal/clio/transform.go`<br>`app/legal/clio/transform_test.go` |  |
+| [ ] | T-040L.5 | T-040L | app | Document version import | T-012.1, T-012.2, T-012.3, T-012.4, T-012.5, T-021.1 +18 | `app/legal/clio/documents.go`<br>`app/legal/clio/documents_test.go` |  |
+
+### Wave 23 (5 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-207 | AI-207 | app | e2e on mock LLM: billing AI features | AI-006, AI-007, AI-009, AI-025, AI-026, AI-027 +5 | `test/e2e/suites/ai-billing.sh` |  |
+| [ ] | AI-213 | AI-213 | app | e2e on mock LLM: platform AI features | AI-006, AI-007, AI-009, AI-130, AI-131, AI-132 +25 | `test/e2e/suites/ai-platform.sh` |  |
+| [ ] | T-024b.1 | T-024b | app | Collection hold | T-023.1, T-023.2, T-024.1, T-024.2, T-024.3, T-024.4 | `app/legal/billing/assessment/collection.go`<br>`app/legal/billing/assessment/collection_test.go` | billing.solicitors_act_verified |
+| [ ] | T-024b.2 | T-024b | app | Assessment requisition | T-023.1, T-023.2, T-024.1, T-024.2, T-024.3, T-024.4 | `app/legal/billing/assessment/requisition.go`<br>`app/legal/billing/assessment/requisition_test.go` | billing.solicitors_act_verified |
+| [ ] | T-040L.6 | T-040L | app | Source dry-run report | T-012.1, T-012.2, T-012.3, T-012.4, T-012.5, T-021.1 +18 | `app/legal/clio/dryrun.go`<br>`app/legal/clio/dryrun_test.go` |  |
+
+### Wave 24 (18 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-158 | AI-158 | app | Fixtures and mock test: F-RDY-01 Questionnaire filler | AI-002, AI-003, AI-004, T-037L.1, T-037L.2, T-037L.3 +13 | `testdata/ai/f-rdy-01/questionnaire-filler/`<br>`app/legal/readiness/ai_f_rdy_01_test.go` |  |
+| [ ] | AI-159 | AI-159 | app | Fixtures and mock test: F-RDY-02 Citation checker | AI-002, AI-003, AI-004, T-037L.1, T-037L.2, T-037L.3 +13 | `testdata/ai/f-rdy-02/citation-checker/`<br>`app/legal/readiness/ai_f_rdy_02_test.go` |  |
+| [ ] | AI-160 | AI-160 | app | Fixtures and mock test: F-RDY-03 Rule pack impact | AI-002, AI-003, AI-004, T-037L.1, T-037L.2, T-037L.3 +13 | `testdata/ai/f-rdy-03/rule-pack-impact/`<br>`app/legal/readiness/ai_f_rdy_03_test.go` |  |
+| [ ] | AI-161 | AI-161 | app | Fixtures and mock test: F-RDY-04 Draft insurer questionnaire answers | AI-002, AI-003, AI-004, T-037L.1, T-037L.2, T-037L.3 +13 | `testdata/ai/f-rdy-04/draft-insurer-questionnaire-answers/`<br>`app/legal/readiness/ai_f_rdy_04_test.go` |  |
+| [ ] | AI-162 | AI-162 | app | Fixtures and mock test: F-RDY-05 Draft service credit note | AI-002, AI-003, AI-004, T-037L.1, T-037L.2, T-037L.3 +13 | `testdata/ai/f-rdy-05/draft-service-credit-note/`<br>`app/legal/readiness/ai_f_rdy_05_test.go` |  |
+| [ ] | AI-163 | AI-163 | app | Fixtures and mock test: F-RDY-06 Voice note to time entry | AI-002, AI-003, AI-004, T-037L.1, T-037L.2, T-037L.3 +13 | `testdata/ai/f-rdy-06/voice-note-to-time-entry/`<br>`app/legal/readiness/ai_f_rdy_06_test.go` |  |
+| [ ] | AI-164 | AI-164 | app | Fixtures and mock test: F-RDY-07 Reply to client text or portal message | AI-002, AI-003, AI-004, T-037L.1, T-037L.2, T-037L.3 +13 | `testdata/ai/f-rdy-07/reply-to-client-text-or-portal-message/`<br>`app/legal/readiness/ai_f_rdy_07_test.go` |  |
+| [ ] | AI-165 | AI-165 | app | Fixtures and mock test: F-RDY-08 Draft reply | AI-002, AI-003, AI-004, T-037L.1, T-037L.2, T-037L.3 +13 | `testdata/ai/f-rdy-08/draft-reply/`<br>`app/legal/readiness/ai_f_rdy_08_test.go` |  |
+| [ ] | AI-166 | AI-166 | app | Fixtures and mock test: F-RDY-09 Ask | AI-002, AI-003, AI-004, T-040L.1, T-040L.2, T-040L.3 +9 | `testdata/ai/f-rdy-09/ask/`<br>`app/legal/readiness/ai_f_rdy_09_test.go` |  |
+| [ ] | T-024b.3 | T-024b | app | Assessment result repayment | T-023.1, T-023.2, T-024.1, T-024.2, T-024.3, T-024.4 +1 | `app/legal/billing/assessment/result.go`<br>`app/legal/billing/assessment/result_test.go` | billing.solicitors_act_verified |
+| [ ] | T-040b.1 | T-040b | app | Alongside mode read-only | T-008.1, T-008.2, T-008.3, T-008.4, T-036.1, T-036.2 +7 | `app/legal/clio/sync/alongside.go`<br>`app/legal/clio/sync/alongside_test.go` |  |
+| [ ] | T-040b.2 | T-040b | app | Source subscription renewal job | T-008.1, T-008.2, T-008.3, T-008.4, T-036.1, T-036.2 +7 | `app/legal/clio/sync/renew.go`<br>`app/legal/clio/sync/renew_test.go` |  |
+| [ ] | T-040b.3 | T-040b | app | Outbound endpoint expiry events | T-008.1, T-008.2, T-008.3, T-008.4, T-036.1, T-036.2 +7 | `kernel/webhook/expiry.go`<br>`kernel/webhook/expiry_test.go` |  |
+| [ ] | T-041.2 | T-041 | app | Imported bills keep source tax | T-013.1, T-013.2, T-013.3, T-013.4, T-040L.1, T-040L.2 +4 | `app/legal/clio/bills_import.go`<br>`app/legal/clio/bills_import_test.go` | trust.bylaw9_verified |
+| [ ] | T-041.3 | T-041 | app | Opening balances after G-IMP | T-013.1, T-013.2, T-013.3, T-013.4, T-040L.1, T-040L.2 +4 | `app/legal/clio/opening.go`<br>`app/legal/clio/opening_test.go` | trust.bylaw9_verified |
+| [ ] | T-041.4 | T-041 | app | Historical trust lines | T-013.1, T-013.2, T-013.3, T-013.4, T-040L.1, T-040L.2 +4 | `app/legal/clio/trust_history.go`<br>`app/legal/clio/trust_history_test.go` | trust.bylaw9_verified |
+| [ ] | T-041.5 | T-041 | app | Imported reconciliations | T-013.1, T-013.2, T-013.3, T-013.4, T-040L.1, T-040L.2 +4 | `app/legal/clio/recon_import.go`<br>`app/legal/clio/recon_import_test.go` | trust.bylaw9_verified |
+| [ ] | T-042.1 | T-042 | app | Firm export layout and manifest | T-032L.1, T-032L.2, T-032L.3, T-035L.1, T-035L.2, T-035L.3 +14 | `app/legal/export/export.go`<br>`app/legal/export/manifest.go`<br>`app/legal/export/export_test.go` |  |
+
+### Wave 25 (4 tasks)
+
+| Done | Id | Parent | Layer | Title | Depends on | Files | Flag |
+|---|---|---|---|---|---|---|---|
+| [ ] | AI-214 | AI-214 | app | e2e on mock LLM: readiness AI features | AI-006, AI-007, AI-009, AI-158, AI-159, AI-160 +6 | `test/e2e/suites/ai-readiness.sh` |  |
+| [ ] | T-040b.4 | T-040b | app | Polling fallback | T-008.1, T-008.2, T-008.3, T-008.4, T-036.1, T-036.2 +8 | `app/legal/clio/sync/poll.go`<br>`app/legal/clio/sync/poll_test.go` |  |
+| [ ] | T-041.1 | T-041 | app | Cut-over validation checks | T-013.1, T-013.2, T-013.3, T-013.4, T-040L.1, T-040L.2 +8 | `app/legal/clio/validate.go`<br>`app/legal/clio/validate_test.go` | trust.bylaw9_verified |
+| [ ] | T-042.2 | T-042 | app | Export trust balances reconcile | T-032L.1, T-032L.2, T-032L.3, T-035L.1, T-035L.2, T-035L.3 +15 | `app/legal/export/trust.go`<br>`app/legal/export/trust_test.go` |  |
