@@ -69,7 +69,8 @@ func (s *PGSignOff) Locked(ctx context.Context, accountID string, p Period) (boo
 	return locked, nil
 }
 
-const signLoadSQL = `SELECT prepared_by::text, status, adjusted_bank_cents, journal_balance_cents, client_listing_total_cents
+const signLoadSQL = `SELECT prepared_by::text, status, adjusted_bank_cents, journal_balance_cents, client_listing_total_cents,
+  bank_balance_cents, outstanding_items
 FROM trust.reconciliation WHERE id = $1::uuid FOR UPDATE`
 
 const signSQL = `UPDATE trust.reconciliation
@@ -116,8 +117,10 @@ func (s *PGSignOff) Sign(ctx context.Context, tx pgx.Tx, r SignOffRecord) error 
 	var (
 		preparedBy, status         string
 		adjusted, journal, clients int64
+		bank                       int64
+		itemsJSON                  []byte
 	)
-	err := tx.QueryRow(ctx, signLoadSQL, id).Scan(&preparedBy, &status, &adjusted, &journal, &clients)
+	err := tx.QueryRow(ctx, signLoadSQL, id).Scan(&preparedBy, &status, &adjusted, &journal, &clients, &bank, &itemsJSON)
 	if err != nil {
 		var pg *pgconn.PgError
 		if errors.Is(err, pgx.ErrNoRows) || (errors.As(err, &pg) && pg.Code == "22P02") {
@@ -127,6 +130,16 @@ func (s *PGSignOff) Sign(ctx context.Context, tx pgx.Tx, r SignOffRecord) error 
 	}
 	if status != "draft" && status != "ready" {
 		return fmt.Errorf("recon sign %s: status %s: %w", id, status, ErrInvalidState)
+	}
+	items, err := decodeItems(itemsJSON)
+	if err != nil {
+		return fmt.Errorf("recon sign %s: items: %w", id, err)
+	}
+	tw := ThreeWay{BankCents: bank, AdjustedBankCents: adjusted, BookCents: journal, ClientLedgerCents: clients, Items: items}
+	// rule: BIL-I-009
+	// By-law 9: the stored adjusted bank balance must be the bank balance plus its items.
+	if !tw.ItemsAgree() {
+		return fmt.Errorf("recon sign %s: %w", id, ErrUnbalanced)
 	}
 	// rule: BIL-I-025
 	if adjusted != journal || journal != clients {

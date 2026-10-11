@@ -3001,3 +3001,15 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## RECON-REFUSE: a stored reconciliation that disagrees with its items
+
+- Answers the PG-WRITES-FIX open question (counsel decision): a stored row whose
+  adjusted_bank_cents is not bank_balance_cents + the signed sum of its items is refused for
+  sign-off and reported as `unbalanced`, never as stored (rule BIL-I-009, By-law 9 s.18(8)).
+- Additive contract change in `app/legal/trust/recon/contract.go`: `ThreeWay.ItemsAgree()`.
+  `Balanced()` now also requires it, so the read and write views report such a row as
+  `balanced: false`. A computed comparison always agrees, so no live path changes.
+- POST /trust/reconciliations/{id}/submit answers 422 with problem code `unbalanced`
+  (`recon.CodeUnbalanced`) before the three-way check; the sign-off effect (`PGSignOff.Sign`)
+  re-reads bank_balance_cents and outstanding_items under FOR UPDATE and returns ErrUnbalanced.

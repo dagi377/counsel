@@ -31,6 +31,8 @@ func (r scriptRow) Scan(dest ...any) error {
 			*d = v.(bool)
 		case *string:
 			*d = v.(string)
+		case *[]byte:
+			*d = v.([]byte)
 		case *int64:
 			switch n := v.(type) {
 			case int64:
@@ -117,8 +119,13 @@ func TestBIL_I_025_PGSignOffSign(t *testing.T) {
 	at := time.Date(2026, 4, 3, 10, 0, 0, 0, time.UTC)
 	sum := []byte{0xab, 0xcd}
 	rec := recon.SignOffRecord{ReconciliationID: "r1", By: recon.Approver{UserID: "approver"}, At: at, PackageSHA256: sum, ApprovalID: "g1"}
+	// row stores a bank balance equal to the adjusted balance and no items.
 	row := func(status string, adjusted, journal, clients int64) scriptRow {
-		return scriptRow{vals: []any{"preparer", status, adjusted, journal, clients}}
+		return scriptRow{vals: []any{"preparer", status, adjusted, journal, clients, adjusted, []byte(nil)}}
+	}
+	// itemized stores bank balance 90 with the given items and adjusted, book and clients 100.
+	itemized := func(items string) scriptRow {
+		return scriptRow{vals: []any{"preparer", "ready", int64(100), int64(100), int64(100), int64(90), []byte(items)}}
 	}
 	with := func(f func(*recon.SignOffRecord)) recon.SignOffRecord {
 		r := rec
@@ -135,6 +142,10 @@ func TestBIL_I_025_PGSignOffSign(t *testing.T) {
 		{"balanced ready recon is signed", &signTx{load: row("ready", 100, 100, 100), updated: 1}, rec, nil, true},
 		{"unbalanced recon", &signTx{load: row("ready", 100, 100, 99), updated: 1}, rec, recon.ErrUnbalanced, false},
 		{"bank does not match book", &signTx{load: row("draft", 101, 100, 100), updated: 1}, rec, recon.ErrUnbalanced, false},
+		// rule: BIL-I-009
+		{"items explain the adjusted balance", &signTx{load: itemized(`[{"kind":"outstanding_deposit","amount_cents":10}]`), updated: 1}, rec, nil, true},
+		{"stored adjusted balance disagrees with its items", &signTx{load: itemized(`[{"kind":"outstanding_deposit","amount_cents":9}]`), updated: 1}, rec, recon.ErrUnbalanced, false},
+		{"stored adjusted balance with no items", &signTx{load: itemized(``), updated: 1}, rec, recon.ErrUnbalanced, false},
 		{"preparer cannot sign", &signTx{load: row("ready", 100, 100, 100), updated: 1}, with(func(r *recon.SignOffRecord) { r.By.UserID = "preparer" }), recon.ErrSelfApproval, false},
 		{"agent cannot sign", &signTx{load: row("ready", 100, 100, 100), updated: 1}, with(func(r *recon.SignOffRecord) { r.By.IsAgent = true }), recon.ErrAgentApproval, false},
 		{"already signed", &signTx{load: row("signed", 100, 100, 100), updated: 1}, rec, recon.ErrInvalidState, false},
@@ -167,7 +178,7 @@ func TestBIL_I_025_PGSignOffSign(t *testing.T) {
 // rule: ARC-I-021
 func TestARC_I_021_SolePractitionerSignOff(t *testing.T) {
 	at := time.Date(2026, 4, 3, 10, 0, 0, 0, time.UTC)
-	ready := scriptRow{vals: []any{"preparer", "ready", int64(100), int64(100), int64(100)}}
+	ready := scriptRow{vals: []any{"preparer", "ready", int64(100), int64(100), int64(100), int64(100), []byte(nil)}}
 	// licensees is the active-licensee count and whether the signer is one of them.
 	licensees := func(n int, signer bool) scriptRow { return scriptRow{vals: []any{n, signer}} }
 	tests := []struct {
