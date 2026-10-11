@@ -376,3 +376,11 @@ Template:
   `Ledgers.BalanceTx(ctx, tx, id)` if the authorisation check must run under the lock too.
 - Branch: task/T-012.2 is cut from task/T-011.2 (it uses `trust.LedgerStore`); merge T-011.2
   first.
+## T-024.1: interest start day (day after months_after, or months_after itself)
+
+- The frozen contract (`Calendar.AccrualStart`) and the T-024.1 accept line start interest on
+  the day after `months_after(delivery, 1)` (delivered 2026-01-15 -> accrues from 2026-02-16).
+  BIL-C-073 and BIL-L-008 say interest accrues for days `>= months_after(d, 1)` (2026-02-15).
+- Done: `interest.Start` follows the contract and accept line, tagged (verify), behind
+  `billing.solicitors_act_verified`. Counsel must confirm which day is correct.
+- Integrator: add `interest.FlagSolicitorsActVerified` to `TestFlagMirrorsMatchCanonicalNames`.
