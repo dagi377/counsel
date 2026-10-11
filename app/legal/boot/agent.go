@@ -62,6 +62,7 @@ type AgentPorts struct {
 	TrustAccounts  agent.MatterTrustAccounts
 	Entries        tk.Entries
 	MatterTime     agent.MatterTime
+	UnbilledWIP    agent.UnbilledWIP
 	DraftCalc      draft.Calc
 	DraftStore     draft.Store
 	BatchDrafts    batch.Drafts
@@ -112,6 +113,7 @@ func (p AgentPorts) ports() []port {
 		{"TrustAccounts", p.TrustAccounts, p.TrustAccounts != nil},
 		{"Entries", p.Entries, p.Entries != nil},
 		{"MatterTime", p.MatterTime, p.MatterTime != nil},
+		{"UnbilledWIP", p.UnbilledWIP, p.UnbilledWIP != nil},
 		{"DraftCalc", p.DraftCalc, p.DraftCalc != nil},
 		{"DraftStore", p.DraftStore, p.DraftStore != nil},
 		{"BatchDrafts", p.BatchDrafts, p.BatchDrafts != nil},

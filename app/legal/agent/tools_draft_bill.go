@@ -34,13 +34,19 @@ const (
 	lineNoCharge  = "no_charge"
 )
 
+// UnbilledWIP lists the time entries a matter's draft bill would take: its approved, unbilled
+// WIP up to periodTo (wired at boot).
+type UnbilledWIP interface {
+	UnbilledEntryIDs(ctx context.Context, matterID string, periodTo clock.Date) ([]string, error)
+}
+
 // DraftBillHandler is draft_bill's handler, for the boot HandlerSet.
 func DraftBillHandler() Handler {
 	return Handler{Name: ToolDraftBill, Build: buildDraftBill}
 }
 
-// buildDraftBill reads Deps: CapabilityCheck, roles.Walls, batch.Drafts, draft.Store,
-// draft.Calc, agenttools.GateOpener and *agenttools.Provenance.
+// buildDraftBill reads Deps: CapabilityCheck, roles.Walls, batch.Drafts, UnbilledWIP,
+// draft.Store, draft.Calc, agenttools.GateOpener and *agenttools.Provenance.
 func buildDraftBill(d Deps) (registry.Tool, error) {
 	wrap := func(err error) (registry.Tool, error) {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolDraftBill, err)
@@ -54,6 +60,10 @@ func buildDraftBill(d Deps) (registry.Tool, error) {
 		return wrap(err)
 	}
 	drafts, err := DepOf[batch.Drafts](d)
+	if err != nil {
+		return wrap(err)
+	}
+	wip, err := DepOf[UnbilledWIP](d)
 	if err != nil {
 		return wrap(err)
 	}
@@ -78,7 +88,7 @@ func buildDraftBill(d Deps) (registry.Tool, error) {
 		return wrap(err)
 	}
 	s := specs[0]
-	t := draftBill{can: can, walls: walls, drafts: drafts, store: store, calc: calc,
+	t := draftBill{can: can, walls: walls, drafts: drafts, wip: wip, store: store, calc: calc,
 		open: agenttools.ScopedOpener(open), capability: s.Capability}
 	// rule: ARC-I-035
 	// WriteTool holds every result to a draft, a proposal or an opened gate.
@@ -101,6 +111,7 @@ type draftBill struct {
 	can        CapabilityCheck
 	walls      roles.Walls
 	drafts     batch.Drafts
+	wip        UnbilledWIP
 	store      draft.Store
 	calc       draft.Calc
 	open       agenttools.GateOpener
@@ -173,6 +184,12 @@ func (t draftBill) handle(ctx context.Context, p registry.Principal, raw json.Ra
 		return fail(err)
 	}
 	// rule: ARC-I-035
+	// Every line action names one of the matter's unbilled entries; a bad source is refused
+	// before the draft exists, so a refused call leaves nothing behind.
+	if err := t.checkSources(ctx, in.MatterID, periodTo, actions); err != nil {
+		return fail(err)
+	}
+	// rule: ARC-I-035
 	// Create builds a draft bill only; a retried call of the same run and input returns it.
 	billID, _, err := t.drafts.Create(ctx, draftBillKey(p, raw), batch.Target{MatterID: in.MatterID}, periodTo)
 	if err != nil {
@@ -198,6 +215,27 @@ func (t draftBill) handle(ctx context.Context, p registry.Principal, raw json.Ra
 		return fail(err)
 	}
 	return registry.ToolResult{Output: out, GateID: string(gateID)}, nil
+}
+
+// checkSources refuses a line action whose source is not unbilled WIP the draft would take.
+func (t draftBill) checkSources(ctx context.Context, matterID string, periodTo clock.Date, actions map[string]lineActionIn) error {
+	if len(actions) == 0 {
+		return nil
+	}
+	ids, err := t.wip.UnbilledEntryIDs(ctx, matterID, periodTo)
+	if err != nil {
+		return fmt.Errorf("unbilled wip: %w", err)
+	}
+	unbilled := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		unbilled[id] = true
+	}
+	for id := range actions {
+		if id == "" || !unbilled[id] {
+			return fmt.Errorf("line action: source not unbilled: %w", ErrInvalidInput)
+		}
+	}
+	return nil
 }
 
 // applyActions changes the draft's lines by their source time entry. Every action is checked
