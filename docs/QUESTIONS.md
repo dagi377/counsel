@@ -760,6 +760,20 @@ s.33 as amended and either the rules or the decision change.
   that joins `PG` and `Balances`. BOOT-16 fills `TrustPorts` from them.
 - Answer: (owner)
 
+## Q-PORT-19: the conflict index version must not be a snapshot xmin
+
+- Task: PORT-19 (app/legal/conflict PGSearcher). The first pass reported
+  `pg_snapshot_xmin(pg_current_snapshot())` as `IndexVersion`; that moves with any
+  transaction in the cluster and says nothing about the name index.
+- Answer (owner, answered): add a real conflict index version, a sequence bumped on party and
+  alias writes, additively. Done in `migrations/5200_conflict_index_version.sql`
+  (app/legal/conflict): `conflict.index_version_seq` and a one-row `conflict.index_version`
+  set to `nextval` by a statement-level SECURITY DEFINER trigger on writes to
+  `party.contact` names and aliases, `matter.party_role` and `conflict.sealed_prospect` (all
+  three change search results). The row is written in the writer's transaction, so a search
+  sees committed versions only; it reads the version first, so the hits are never older than
+  it. Cost: name writes serialize on that one row.
+
 ## BOOT progress
 
 BOOT tasks are not in docs/TASKS.md, so their progress is tracked here.
