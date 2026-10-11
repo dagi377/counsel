@@ -1810,8 +1810,10 @@ Done in PORT-18:
   must equal the gate version (412). The preparer -> 403 self_approval unless approving
   with a sole_practitioner_declaration, which the engine's self-approval policy then decides.
 - Step-up comes from `DecideHTTP.StepUp` (when the session last passed MFA). Missing, or
-  older than 15 min for high/irreversible kinds -> 403 step_up_required (accept line);
-  kernel/gate's own problem table says 401 for ErrMFARequired. Please confirm 403.
+  older than 15 min for high/irreversible kinds -> 401 step_up_required with
+  `WWW-Authenticate: Bearer error="insufficient_user_authentication"` (RFC 9470), matching
+  kernel/gate's problem table and ARC-I-017's test. An engine ErrMFARequired answers the
+  same. Decided in HTTP-13b (the accept line's 403 is superseded).
 - Approval runs the effect inside Engine.Decide in the route's transaction; the PG engine
   wraps it in gate.WithEffect. gatefake does not set WithEffect, so the test asserts the
   effect ran once per approval, not the context mark.
