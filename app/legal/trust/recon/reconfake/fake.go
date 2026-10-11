@@ -83,6 +83,21 @@ func (f *Fake) ImportStatement(ctx context.Context, s recon.Statement) (string, 
 	return s.ID, nil
 }
 
+// Closing returns the closing balance of the imported statement for the account's month, or
+// recon.ErrNotFound (the recon.Statements port).
+func (f *Fake) Closing(ctx context.Context, accountID string, p recon.Period) (int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	st, ok := f.statements[acctPeriod{accountID, p}]
+	if !ok {
+		return 0, fmt.Errorf("closing: statement: %w", recon.ErrNotFound)
+	}
+	return st.ClosingCents, nil
+}
+
 // Prepare implements recon.Service.
 func (f *Fake) Prepare(ctx context.Context, accountID string, p recon.Period, items []recon.ReconcilingItem, preparedBy string) (recon.Reconciliation, error) {
 	if err := ctx.Err(); err != nil {
