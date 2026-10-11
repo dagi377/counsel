@@ -78,5 +78,6 @@ func appDefs() []feature.Def {
 		timekeeping.FlagOutOfScopeDef(),
 		timekeeping.ExplainTrendDef(),
 		timekeeping.SuggestCategoriesDef(),
+		timekeeping.ExplainShortfallDef(),
 	}
 }

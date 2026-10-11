@@ -362,6 +362,7 @@ var actionScreens = map[string]trigger.Screen{
 	"matter-fee-arrangement": {SubjectKind: "matter", Capability: "billing.view"},
 	"utilization":            {SubjectKind: "matter", Capability: "reports.firm"},
 	"activity-categories":    {SubjectKind: "matter", Capability: "time.view_all"},
+	"timekeeper-targets":     {SubjectKind: "matter", Capability: "reports.firm"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
