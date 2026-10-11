@@ -204,6 +204,18 @@
    "note": ""
   },
   {
+   "type": "email.filed",
+   "version": 1,
+   "module": "comms",
+   "subject_type": "comm_item",
+   "payload": [
+    "comm_item_id",
+    "matter_id",
+    "filed_by"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-DRAFT-FIX): an email filed to a matter; starts F-DL-01 like document.uploaded."
+  },
+  {
    "type": "deadline.proposed",
    "version": 1,
    "module": "cal",

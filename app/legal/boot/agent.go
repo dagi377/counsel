@@ -14,6 +14,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/batch"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
+	"github.com/dagi377/counsel/app/legal/comms"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	"github.com/dagi377/counsel/app/legal/gates"
@@ -261,7 +262,11 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		return func() (trigger.Binding, error) { return bind(ruleAdmin) }
 	}
 	byID := map[string]func() (trigger.Binding, error){
-		deadlines.FeatureExtractDeadlines:           deadlines.ExtractDeadlinesBinding,
+		deadlines.FeatureExtractDeadlines: func() (trigger.Binding, error) {
+			// F-DL-01 also starts on an email filed to a matter (Q-DRAFT-FIX).
+			d, _ := s.ByID(deadlines.FeatureExtractDeadlines)
+			return trigger.Bind(d, "", deadlines.EventDocumentUploaded, comms.EventEmailFiled)
+		},
 		deadlines.FeatureLimitationAssessment:       deadlines.LimitationAssessmentBinding,
 		deadlines.RecomputeDependantsDef().ID:       deadlines.RecomputeDependantsBinding,
 		deadlines.ComplianceEvidenceMatcherDef().ID: deadlines.ComplianceEvidenceMatcherBinding,

@@ -286,7 +286,7 @@ const (
 	sqlCheckTouch = `UPDATE conflict.conflict_check
 SET updated_by = $2, updated_at = now(), row_version = row_version + 1
 WHERE id = $1 RETURNING status`
-	sqlPartyInsert = `INSERT INTO conflict.check_party (check_id, name, kind, role) VALUES ($1, $2, $3, $4)`
+	sqlPartyInsert = `INSERT INTO conflict.check_party (check_id, name, kind, role, source) VALUES ($1, $2, $3, $4, $5)`
 	sqlPartyTerms  = `SELECT t FROM (
   SELECT name AS t FROM conflict.check_party WHERE check_id = $1
   UNION SELECT unnest(aliases) FROM conflict.check_party WHERE check_id = $1) x ORDER BY t`
@@ -301,6 +301,28 @@ func partyKind(k string) (string, error) {
 		return "organization", nil
 	}
 	return "", fmt.Errorf("party kind %q: %w", k, agent.ErrInvalidInput)
+}
+
+// partySourceJSON is the stored shape of conflict.check_party.source: a pointer to the
+// cited lines of a document version, never their text.
+type partySourceJSON struct {
+	VersionID string `json:"version_id"`
+	Page      int    `json:"page,omitempty"`
+	FromLine  int    `json:"from_line,omitempty"`
+	ToLine    int    `json:"to_line,omitempty"`
+}
+
+// partySource encodes a proposed party's source citation for conflict.check_party.source.
+// A party with no source stores NULL.
+func partySource(c *agenttools.Citation) ([]byte, error) {
+	if c == nil {
+		return nil, nil
+	}
+	// rule: ARC-I-038
+	if err := agenttools.ValidCitation(*c); err != nil {
+		return nil, fmt.Errorf("party source: %w", err)
+	}
+	return json.Marshal(partySourceJSON{VersionID: c.VersionID, Page: c.Page, FromLine: c.FromLine, ToLine: c.ToLine})
 }
 
 // CheckMatter implements agent.ConflictCheckParties.
@@ -328,12 +350,16 @@ func (s PGConflictParties) ProposeParties(ctx context.Context, checkID string, p
 		return nil, fmt.Errorf("propose parties: preparer: %w", agent.ErrInvalidInput)
 	}
 	kinds := make([]string, len(parties))
+	sources := make([][]byte, len(parties))
 	for i, p := range parties {
 		k, err := partyKind(p.Kind)
 		if err != nil {
 			return nil, fmt.Errorf("propose parties: %w", err)
 		}
 		kinds[i] = k
+		if sources[i], err = partySource(p.Source); err != nil {
+			return nil, fmt.Errorf("propose parties: %w", err)
+		}
 	}
 	var terms []string
 	err := inTx(ctx, s.DB, func(ctx context.Context, tx pgx.Tx) error {
@@ -345,7 +371,7 @@ func (s PGConflictParties) ProposeParties(ctx context.Context, checkID string, p
 			return ErrCheckClosed
 		}
 		for i, p := range parties {
-			if _, err := tx.Exec(ctx, sqlPartyInsert, checkID, p.Name, kinds[i], p.Role); err != nil {
+			if _, err := tx.Exec(ctx, sqlPartyInsert, checkID, p.Name, kinds[i], p.Role, sources[i]); err != nil {
 				return err
 			}
 		}
@@ -434,6 +460,45 @@ func draftRow(kind, matterID, preparedBy, runID string) error {
 	return nil
 }
 
+// draftKey is a draft call's idempotency key within its run. Only an agent run's keyed call
+// is deduplicated (the unique index is on run id and key); the manual path stores each call.
+type draftKey struct{ runID, key string }
+
+func (k draftKey) keyed() bool { return k.runID != "" && k.key != "" }
+
+// existingDraft returns the id of the draft a keyed call already stored in its run, or ""
+// when there is none. byKey selects the id by run id ($1) and key ($2).
+func existingDraft(ctx context.Context, d db.DB, byKey string, k draftKey) (string, error) {
+	if !k.keyed() {
+		return "", nil
+	}
+	var id string
+	err := inTx(ctx, d, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, byKey, k.runID, k.key).Scan(&id)
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
+}
+
+// insertDraft runs the insert (ON CONFLICT DO NOTHING ... RETURNING id) and scans the new id.
+// When a concurrent retry stored the same keyed draft first, it returns that draft's id and
+// created false.
+func insertDraft(ctx context.Context, tx pgx.Tx, byKey string, k draftKey, insert string, args ...any) (id string, created bool, err error) {
+	err = tx.QueryRow(ctx, insert, args...).Scan(&id)
+	if err == nil {
+		return id, true, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) || !k.keyed() {
+		return "", false, err
+	}
+	if err := tx.QueryRow(ctx, byKey, k.runID, k.key).Scan(&id); err != nil {
+		return "", false, err
+	}
+	return id, false, nil
+}
+
 // PGDocumentDrafts stores draft documents on docs.draft. The body goes to the object store;
 // source_scope holds its reference and the citations' anchors, never body text.
 type PGDocumentDrafts struct {
@@ -441,10 +506,15 @@ type PGDocumentDrafts struct {
 	Bodies matter.Bodies
 }
 
-const sqlDocDraft = `INSERT INTO docs.draft
-  (matter_id, instruction, doc_kind, source_scope, status, agent_run_id, created_by)
-VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')::uuid, $7)
+const (
+	sqlDocDraft = `INSERT INTO docs.draft
+  (matter_id, instruction, doc_kind, source_scope, status, agent_run_id, created_by, idempotency_key)
+VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')::uuid, $7, NULLIF($8, ''))
+ON CONFLICT (agent_run_id, idempotency_key)
+  WHERE agent_run_id IS NOT NULL AND idempotency_key IS NOT NULL DO NOTHING
 RETURNING id::text`
+	sqlDocDraftByKey = `SELECT id::text FROM docs.draft WHERE agent_run_id = $1::uuid AND idempotency_key = $2`
+)
 
 type draftScope struct {
 	BodyRef    string          `json:"body_ref"`
@@ -467,6 +537,13 @@ func (s PGDocumentDrafts) CreateDraft(ctx context.Context, d agent.NewDraftDocum
 	if err := draftRow("document draft", d.MatterID, d.PreparedBy, d.RunID); err != nil {
 		return "", err
 	}
+	k := draftKey{runID: d.RunID, key: d.IdempotencyKey}
+	if id, err := existingDraft(ctx, s.DB, sqlDocDraftByKey, k); err != nil || id != "" {
+		if err != nil {
+			return "", fmt.Errorf("document draft: %w", err)
+		}
+		return id, nil
+	}
 	ref, err := s.Bodies.Put(ctx, d.BodyMarkdown)
 	if err != nil {
 		return "", fmt.Errorf("document draft: body: %w", err)
@@ -488,7 +565,10 @@ func (s PGDocumentDrafts) CreateDraft(ctx context.Context, d agent.NewDraftDocum
 	}
 	var id string
 	err = inTx(ctx, s.DB, func(ctx context.Context, tx pgx.Tx) error {
-		return tx.QueryRow(ctx, sqlDocDraft, d.MatterID, d.Title, kind, raw, draftDocStatus, d.RunID, d.PreparedBy).Scan(&id)
+		var err error
+		id, _, err = insertDraft(ctx, tx, sqlDocDraftByKey, k, sqlDocDraft,
+			d.MatterID, d.Title, kind, raw, draftDocStatus, d.RunID, d.PreparedBy, d.IdempotencyKey)
+		return err
 	})
 	if err != nil {
 		return "", fmt.Errorf("document draft: %w", err)
@@ -506,9 +586,13 @@ type PGEmailDrafts struct {
 
 const (
 	sqlEmailDraft = `INSERT INTO comms.comm_item
-  (channel, direction, participants, display_subject, body_ref, occurred_at)
-VALUES ('email', 'outbound', $1, $2, $3, now())
+  (channel, direction, participants, display_subject, body_ref, occurred_at, agent_run_id, idempotency_key)
+VALUES ('email', 'outbound', $1, $2, $3, now(), NULLIF($4, '')::uuid, NULLIF($5, ''))
+ON CONFLICT (agent_run_id, idempotency_key)
+  WHERE agent_run_id IS NOT NULL AND idempotency_key IS NOT NULL DO NOTHING
 RETURNING id::text`
+	sqlEmailDraftByKey = `SELECT id::text FROM comms.comm_item
+WHERE agent_run_id = $1::uuid AND idempotency_key = $2 AND channel = 'email'`
 	sqlEmailFiling = `INSERT INTO comms.comm_filing (comm_item_id, matter_id, rule, status, filed_by)
 VALUES ($1, $2, $3, 'proposed', $4)`
 )
@@ -517,7 +601,6 @@ type emailParticipants struct {
 	ToContactIDs         []string `json:"to_contact_ids"`
 	AttachmentVersionIDs []string `json:"attachment_version_ids,omitempty"`
 	PreparedBy           string   `json:"prepared_by"`
-	RunID                string   `json:"run_id,omitempty"`
 }
 
 // CreateEmailDraft implements agent.EmailDrafts.
@@ -525,25 +608,36 @@ func (s PGEmailDrafts) CreateEmailDraft(ctx context.Context, d agent.NewDraftEma
 	if err := draftRow("email draft", d.MatterID, d.PreparedBy, d.RunID); err != nil {
 		return "", err
 	}
+	k := draftKey{runID: d.RunID, key: d.IdempotencyKey}
+	if id, err := existingDraft(ctx, s.DB, sqlEmailDraftByKey, k); err != nil || id != "" {
+		if err != nil {
+			return "", fmt.Errorf("email draft: %w", err)
+		}
+		return id, nil
+	}
 	ref, err := s.Bodies.Put(ctx, d.BodyMarkdown)
 	if err != nil {
 		return "", fmt.Errorf("email draft: body: %w", err)
 	}
-	// drafted_by_agent_run_id needs an approval id (comm_item CHECK), so the run id waits in
-	// participants until the gate's effect stamps the row.
+	// drafted_by_agent_run_id needs an approval id (comm_item CHECK), so the drafting run is
+	// kept in agent_run_id until the gate's effect stamps the row.
 	raw, err := json.Marshal(emailParticipants{
 		ToContactIDs: d.ToContactIDs, AttachmentVersionIDs: d.AttachmentVersionIDs,
-		PreparedBy: d.PreparedBy, RunID: d.RunID,
+		PreparedBy: d.PreparedBy,
 	})
 	if err != nil {
 		return "", fmt.Errorf("email draft: participants: %w", err)
 	}
 	var id string
 	err = inTx(ctx, s.DB, func(ctx context.Context, tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, sqlEmailDraft, raw, d.Subject, ref).Scan(&id); err != nil {
+		var created bool
+		var err error
+		id, created, err = insertDraft(ctx, tx, sqlEmailDraftByKey, k, sqlEmailDraft,
+			raw, d.Subject, ref, d.RunID, d.IdempotencyKey)
+		if err != nil || !created {
 			return err
 		}
-		_, err := tx.Exec(ctx, sqlEmailFiling, id, d.MatterID, draftFilingRule, d.PreparedBy)
+		_, err = tx.Exec(ctx, sqlEmailFiling, id, d.MatterID, draftFilingRule, d.PreparedBy)
 		return err
 	})
 	if err != nil {
@@ -559,14 +653,26 @@ type PGNoteDrafts struct {
 	Bodies matter.Bodies
 }
 
-const sqlNoteDraft = `INSERT INTO matter.note (matter_id, author_id, agent_run_id, body_ref, updated_by)
-VALUES ($1, $2, NULLIF($3, '')::uuid, $4, $2)
+const (
+	sqlNoteDraft = `INSERT INTO matter.note (matter_id, author_id, agent_run_id, body_ref, updated_by, idempotency_key)
+VALUES ($1, $2, NULLIF($3, '')::uuid, $4, $2, NULLIF($5, ''))
+ON CONFLICT (agent_run_id, idempotency_key)
+  WHERE agent_run_id IS NOT NULL AND idempotency_key IS NOT NULL DO NOTHING
 RETURNING id::text`
+	sqlNoteDraftByKey = `SELECT id::text FROM matter.note WHERE agent_run_id = $1::uuid AND idempotency_key = $2`
+)
 
 // CreateNoteDraft implements agent.NoteDrafts.
 func (s PGNoteDrafts) CreateNoteDraft(ctx context.Context, n agent.NewDraftNote) (string, error) {
 	if err := draftRow("note draft", n.MatterID, n.PreparedBy, n.RunID); err != nil {
 		return "", err
+	}
+	k := draftKey{runID: n.RunID, key: n.IdempotencyKey}
+	if id, err := existingDraft(ctx, s.DB, sqlNoteDraftByKey, k); err != nil || id != "" {
+		if err != nil {
+			return "", fmt.Errorf("note draft: %w", err)
+		}
+		return id, nil
 	}
 	ref, err := s.Bodies.Put(ctx, n.BodyMarkdown)
 	if err != nil {
@@ -574,7 +680,10 @@ func (s PGNoteDrafts) CreateNoteDraft(ctx context.Context, n agent.NewDraftNote)
 	}
 	var id string
 	err = inTx(ctx, s.DB, func(ctx context.Context, tx pgx.Tx) error {
-		return tx.QueryRow(ctx, sqlNoteDraft, n.MatterID, n.PreparedBy, n.RunID, ref).Scan(&id)
+		var err error
+		id, _, err = insertDraft(ctx, tx, sqlNoteDraftByKey, k, sqlNoteDraft,
+			n.MatterID, n.PreparedBy, n.RunID, ref, n.IdempotencyKey)
+		return err
 	})
 	if err != nil {
 		return "", fmt.Errorf("note draft: %w", err)
