@@ -766,7 +766,7 @@ s.33 as amended and either the rules or the decision change.
   `pg_snapshot_xmin(pg_current_snapshot())` as `IndexVersion`; that moves with any
   transaction in the cluster and says nothing about the name index.
 - Answer (owner, answered): add a real conflict index version, a sequence bumped on party and
-  alias writes, additively. Done in `migrations/5200_conflict_index_version.sql`
+  alias writes, additively. Done in `migrations/5201_conflict_index_version.sql`
   (app/legal/conflict): `conflict.index_version_seq` and a one-row `conflict.index_version`
   set to `nextval` by a statement-level SECURITY DEFINER trigger on writes to
   `party.contact` names and aliases, `matter.party_role` and `conflict.sealed_prospect` (all
