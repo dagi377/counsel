@@ -13,11 +13,14 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/bill/billfake"
+	"github.com/dagi377/counsel/app/legal/conflict"
+	"github.com/dagi377/counsel/app/legal/conflict/conflictfake"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/matter/matterfake"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/party/partyfake"
+	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/app/legal/roles/rolesfake"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/timekeeping/timekeepingfake"
@@ -65,6 +68,11 @@ type Seed struct {
 	Withdrawals *withdrawfake.Fake
 	Gates       *gatefake.Fake
 	Store       *SeedStore
+	// Conflicts runs the conflict checks propose_conflict_parties opens (in-memory runs).
+	Conflicts *conflictfake.Fake
+	// Provenance is the run's set of values and citations its read tools returned; the
+	// sourced write tools check against it.
+	Provenance *agenttools.Provenance
 
 	t testing.TB
 }
@@ -93,6 +101,8 @@ func NewSeed(t testing.TB, actingFor string, withdrawals *withdrawfake.Fake) *Se
 		Withdrawals: withdrawals,
 		Gates:       gatefake.New(func() time.Time { return seedNow }, gatefake.Caps{}),
 		Store:       newSeedStore(),
+		Conflicts:   conflictfake.New(),
+		Provenance:  agenttools.NewProvenance(),
 		t:           t,
 	}
 }
@@ -106,7 +116,9 @@ func (s *Seed) Deps(can agent.CapabilityCheck, plans agenttools.Plans) agent.Dep
 	return agent.NewDeps(
 		can, s.Walls, plans, open, agenttools.RunScopes{},
 		agent.ContactSearch(s.Contacts), agent.ClientMatters(s.Matters), agent.WorkList(s.Work),
-		agent.DocumentText(s.Text), s.Store,
+		agent.DocumentText(s.Text), agent.DocumentLookup(s.Store), agent.SubjectMatters(s.Store),
+		agent.ConflictCheckParties(s.Store), conflict.Checker(s.Conflicts), agent.PublishedPacks(s.Store),
+		s.Deadlines, s.Provenance, s.Store,
 	)
 }
 
@@ -175,11 +187,31 @@ func (s *Seed) Deadline(matterID, rule string, due deadline.Date) deadline.Deadl
 	s.t.Helper()
 	id, err := s.Deadlines.Save(context.Background(), nil, deadline.Proposed{
 		PackID: "synthetic", PackVersion: "1", RuleID: rule, Trigger: due, Due: due,
-		Subject: deadline.Subject{Kind: "matter", ID: matterID},
+		Subject: deadline.Subject{Kind: roles.SubjectMatter, ID: matterID},
 	})
 	if err != nil {
 		s.t.Fatalf("seed: deadline: %v", err)
 	}
+	return id
+}
+
+// Pack loads p into the deadline engine and publishes it, so compute_deadline uses it.
+func (s *Seed) Pack(p deadline.Pack) {
+	s.t.Helper()
+	if err := s.Deadlines.LoadPack(context.Background(), p); err != nil {
+		s.t.Fatalf("seed: pack %s: %v", p.ID, err)
+	}
+	s.Store.mu.Lock()
+	defer s.Store.mu.Unlock()
+	s.Store.packs = append(s.Store.packs, p)
+}
+
+// ConflictCheck opens a synthetic conflict check on matterID and returns its id.
+func (s *Seed) ConflictCheck(matterID string) string {
+	s.Store.mu.Lock()
+	defer s.Store.mu.Unlock()
+	id := s.Store.next("check")
+	s.Store.checks[id] = matterID
 	return id
 }
 
@@ -234,6 +266,10 @@ type SeedStore struct {
 	seq      int
 	docs     map[string][]agent.ListedDocument // matter id -> filed documents
 	contacts map[string][]string               // matter id -> contact ids
+	packs    []deadline.Pack                   // published rule packs
+	checks   map[string]string                 // conflict check id -> matter id
+	// Proposed lists the parties proposed per conflict check, in call order.
+	Proposed map[string][]agent.ProposedParty
 	Drafts   []SeedDraft
 }
 
@@ -247,7 +283,8 @@ type SeedDraft struct {
 }
 
 func newSeedStore() *SeedStore {
-	return &SeedStore{docs: map[string][]agent.ListedDocument{}, contacts: map[string][]string{}}
+	return &SeedStore{docs: map[string][]agent.ListedDocument{}, contacts: map[string][]string{},
+		checks: map[string]string{}, Proposed: map[string][]agent.ProposedParty{}}
 }
 
 func (s *SeedStore) next(prefix string) string {
@@ -331,4 +368,54 @@ func (s *SeedStore) CreateEmailDraft(_ context.Context, d agent.NewDraftEmail) (
 // CreateNoteDraft implements agent.NoteDrafts.
 func (s *SeedStore) CreateNoteDraft(_ context.Context, n agent.NewDraftNote) (string, error) {
 	return s.draft("note", n.MatterID, n.PreparedBy, n.RunID), nil
+}
+
+// PublishedPacks implements agent.PublishedPacks over the packs Seed.Pack published.
+func (s *SeedStore) PublishedPacks(context.Context) ([]deadline.Pack, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.packs), nil
+}
+
+// CheckMatter implements agent.ConflictCheckParties for checks Seed.ConflictCheck opened.
+func (s *SeedStore) CheckMatter(_ context.Context, checkID string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m, ok := s.checks[checkID]
+	if !ok {
+		return "", fmt.Errorf("seed: check %s: %w", checkID, conflict.ErrNotFound)
+	}
+	return m, nil
+}
+
+// ProposeParties implements agent.ConflictCheckParties: it records the parties and returns
+// the name of every party on the check as its search terms.
+func (s *SeedStore) ProposeParties(_ context.Context, checkID string, parties []agent.ProposedParty, _ string) ([]string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.checks[checkID]; !ok {
+		return nil, fmt.Errorf("seed: check %s: %w", checkID, conflict.ErrNotFound)
+	}
+	s.Proposed[checkID] = append(s.Proposed[checkID], parties...)
+	terms := make([]string, 0, len(s.Proposed[checkID]))
+	for _, p := range s.Proposed[checkID] {
+		terms = append(terms, p.Name)
+	}
+	return terms, nil
+}
+
+// SubjectMatter implements agent.SubjectMatters: a matter is its own matter, and a draft the
+// run made belongs to the matter it was drafted on. Any other subject is not found.
+func (s *SeedStore) SubjectMatter(_ context.Context, subjectType, subjectID string) (string, error) {
+	if subjectType == roles.SubjectMatter {
+		return subjectID, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, d := range s.Drafts {
+		if d.ID == subjectID {
+			return d.MatterID, nil
+		}
+	}
+	return "", fmt.Errorf("seed: subject %s %s: %w", subjectType, subjectID, agenttools.ErrNotFound)
 }
