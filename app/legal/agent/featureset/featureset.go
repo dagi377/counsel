@@ -179,5 +179,6 @@ func appDefs() []feature.Def {
 		platform.SummarizeThreadDef(),
 		platform.SuggestReplyDef(),
 		platform.ResearchDef(),
+		platform.MailFilingDef(),
 	}
 }
