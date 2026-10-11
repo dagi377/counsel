@@ -75,3 +75,6 @@ j/k (or ↓/↑ once a row is focused) move over `.kb-item`, clickable table row
 - `App.onUser(fn(userId))`: runs after "view as" switches user; core clears `App.selection`s, modules clear their own cursors and picks.
 - Approvals: `gate({..., assignee, risk, due})`; with `assignee` only that person may approve. Gate audit rows carry `matterId`.
 - `App.agent.paused(matterId)`: why runs are held. `agent.run` returns null and toasts while `agentPauses` "firm" or the matter's pause is active.
+
+## Smoke test
+`npm i --no-save jsdom` then `node prototype/test/smoke.js prototype`: it opens every page as every user, clicks every action, and must print SMOKE OK.
