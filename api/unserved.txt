@@ -13,9 +13,6 @@ POST /documents
 POST /documents/{document_id}/release
 GET /documents/{document_id}/versions/{version_id}/pages/{page}
 GET /drafts
-GET /payments
-POST /payments
-GET /payments/{payment_id}
 POST /payments/{payment_id}/allocations
 POST /payments/{payment_id}/refunds
 GET /roles

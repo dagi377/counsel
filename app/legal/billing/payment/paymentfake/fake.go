@@ -4,7 +4,9 @@ package paymentfake
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/dagi377/counsel/app/legal/billing/payment"
@@ -25,6 +27,8 @@ type Fake struct {
 	// Cash is the cash limit every cash payment is checked against; while nil a cash payment
 	// fails closed with payment.ErrCashUnchecked.
 	Cash payment.CashLimit
+	// NewID names a new payment; while nil payments are named pay_<n>.
+	NewID func() string
 
 	mu       sync.Mutex
 	bills    map[string]*bill
@@ -89,6 +93,9 @@ func (f *Fake) Capture(ctx context.Context, c payment.Capture) (payment.Payment,
 	}
 	f.seq++
 	p := &payment.Payment{ID: "pay_" + strconv.Itoa(f.seq), Capture: c, Status: payment.StatusCaptured}
+	if f.NewID != nil {
+		p.ID = f.NewID()
+	}
 	applied := min(c.AmountCents, b.fee+b.tax)
 	var as []payment.Allocation
 	if applied > 0 {
@@ -153,4 +160,27 @@ func (f *Fake) Allocations(_ context.Context, id string) ([]payment.Allocation, 
 		return nil, fmt.Errorf("paymentfake: payment %s: %w", id, payment.ErrNotFound)
 	}
 	return append([]payment.Allocation(nil), as...), nil
+}
+
+// List returns payments matching flt, ordered by id.
+func (f *Fake) List(_ context.Context, flt payment.ListFilter) ([]payment.Payment, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []payment.Payment
+	for _, p := range f.payments {
+		c := p.Capture
+		switch {
+		case p.ID <= flt.After,
+			flt.ClientID != "" && c.ClientID != flt.ClientID,
+			!flt.ReceivedFrom.IsZero() && c.ReceivedOn.Before(flt.ReceivedFrom),
+			!flt.ReceivedTo.IsZero() && c.ReceivedOn.After(flt.ReceivedTo):
+			continue
+		}
+		out = append(out, *p)
+	}
+	slices.SortFunc(out, func(a, b payment.Payment) int { return strings.Compare(a.ID, b.ID) })
+	if flt.Limit > 0 && len(out) > flt.Limit {
+		out = out[:flt.Limit]
+	}
+	return out, nil
 }
