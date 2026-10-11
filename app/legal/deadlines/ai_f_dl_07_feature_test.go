@@ -47,9 +47,6 @@ const otherLawyer = "user-synthetic-supervisor"
 // decideAt is the fake gate store's clock: the agenttest seed's weekday morning.
 var decideAt = time.Date(2026, 10, 5, 9, 0, 0, 0, time.FixedZone("EDT", -4*60*60))
 
-// standInTools are the tools with no real handler yet.
-var standInTools = []string{agent.ToolGetMatter, agent.ToolReadDocument}
-
 type publishedPacks []deadline.Pack
 
 func (p publishedPacks) PublishedPacks(context.Context) ([]deadline.Pack, error) { return p, nil }
@@ -172,8 +169,8 @@ type toolCall struct {
 	input string // JSON
 }
 
-// script is an inline aifake fixture for feature: one tool call per turn, then text.
-func script(feature, dir string, calls []toolCall, text string) fstest.MapFS {
+// dl07Script is an inline aifake fixture for feature: one tool call per turn, then text.
+func dl07Script(feature, dir string, calls []toolCall, text string) fstest.MapFS {
 	var b strings.Builder
 	fmt.Fprintf(&b, "synthetic: true\nfeature: %s\nmatch:\n  last_user_regex: '.'\nturns:\n", feature)
 	for _, c := range calls {
@@ -358,7 +355,7 @@ func TestFDL07_TriggerBinding(t *testing.T) {
 	}
 }
 
-// fdl07Run fires F-DL-07 once over the real handlers with the event documents' text read.
+// fdl07Run fires F-DL-07 once over the real handlers, the event document holding readText.
 func fdl07Run(t *testing.T, readText string) (*agenttest.FeatureDriver, agenttest.FeatureRun) {
 	t.Helper()
 	env := newToolEnv(t)
@@ -366,9 +363,8 @@ func fdl07Run(t *testing.T, readText string) (*agenttest.FeatureDriver, agenttes
 	approvableGates(fd)
 	m := fd.Seed.Matter("2026-0107", "Synth v Example")
 	mid := string(m.ID)
-	doc, v := fd.Seed.Document(mid, []string{"Case conference held 2026-10-05.", "Next step: serve the affidavit."})
-	fd.SetRead(agent.ToolReadDocument, readText)
-	model := aifake.New(script("F-DL-07", "post-event-follow-up", []toolCall{
+	doc, v := fd.Seed.Document(mid, []string{readText})
+	model := aifake.New(dl07Script("F-DL-07", "post-event-follow-up", []toolCall{
 		{agenttools.ToolReportPlan, `{"steps": [{"step_id": "read", "title": "Read the event"}, {"step_id": "note", "title": "Draft the note"}]}`},
 		{agent.ToolGetMatter, `{"matter_id": "` + mid + `"}`},
 		{agent.ToolReadDocument, `{"doc_id": "` + doc + `", "version_id": "` + string(v) + `"}`},
@@ -386,8 +382,8 @@ func TestFDL07_FromFeature(t *testing.T) {
 	if run.Err != nil || len(run.Refused) != 0 {
 		t.Fatalf("run err = %v, refused = %v", run.Err, run.Refused)
 	}
-	if !slices.Equal(fd.StandIns, standInTools) {
-		t.Fatalf("stand-ins = %v, want only %v (no real handler yet)", fd.StandIns, standInTools)
+	if len(fd.StandIns) != 0 {
+		t.Fatalf("stand-ins = %v, want none (every tool runs its real handler)", fd.StandIns)
 	}
 	// rule: ARC-I-039
 	if run.PlanAt < 0 || run.FirstWrite <= run.PlanAt || run.Tools[run.FirstWrite] != agent.ToolDraftNote {
@@ -435,7 +431,7 @@ func TestFDL07_Injection(t *testing.T) {
 	if !slices.Equal(run.Tools, want) {
 		t.Fatalf("tools = %v, want %v (no extra call)", run.Tools, want)
 	}
-	if err := agenttest.QuotedOnly(run.Run, injected); err != nil {
+	if err := docQuotedOnly(run, injected); err != nil {
 		t.Fatal(err)
 	}
 	if err := absentFromProposals(context.Background(), fd, run.Run, injected, agent.ToolDraftNote); err != nil {
