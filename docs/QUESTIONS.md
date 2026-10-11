@@ -3062,3 +3062,33 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   `app/legal/boot/production.go`, `routes.go`, `compose_test.go`.
 - Still unwired: `POST /gates/{gate_id}/decisions` and `/withdraw` need a step-up source
   (`gates.DecideHTTP.StepUp`), which waits on request authentication.
+
+## BOOT-CONFIG: a signed-in member can use Counsel
+
+- **Roles were never registered.** `roles.Register` had no registrar, so the production
+  catalog was empty and every capability check failed (403, or 500 on unknown capability).
+  `app/legal/roles` now embeds a byte-for-byte copy of `spec/legal/access.json`
+  (`TestAccessDataMatchesSpec`) and registers it. Production fills its checker's catalog from
+  the sealed registrations (`identity.Roles.Load`) and reads each member's role per check
+  from `core.app_user.role_id` -> `core.role.key` (`identity.PGAssignments`; active user and
+  active role only).
+- **Choice logged (needs a spec answer):** the kernel checker is boolean, but access.json has
+  levels, and many gate approver capabilities are also plain work capabilities
+  (`matters.edit`, `admin.users`, `billing.payments`, ...). To keep ARC-I-018 (admin and agent
+  never approve; viewing is not approving), a role holds a gate approver capability only at
+  level `all` or `approve`, and admin and agent never hold one. Fail-closed side effects:
+  associate/paralegal `own` on `matters.edit`, admin `all` on `admin.users`/`admin.roles`,
+  auditor `view` on approver capabilities are not granted. Custom roles (`core.role_grant`,
+  `based_on_id`) are not loaded: a member on a custom role gets 403.
+- **Gate decisions:** `POST /gates/{gate_id}/decisions` and `/withdraw` are mounted on the
+  kernel gate engine (it is the `gates.Engine` port as is; `HTTPPorts.Decisions` overrides
+  it), the spec catalog and the kernel clock. Without a sign-in service, StepUp is "never",
+  so every decision answers 401 step_up_required.
+- **Seal key:** `counseld` and `counsel-worker` read `$COUNSEL_SEAL_KEY` (base64, 32 bytes)
+  or `-seal-key-file`/`$COUNSEL_SEAL_KEY_FILE`; `-env`/`$COUNSEL_ENV` (worker gained `-env`).
+  Outside dev, boot refuses to start without one (`ErrSealKeyMissing`); dev uses a random
+  per-process key and warns without showing it. `boot.Secret` redacts in fmt and slog. The
+  Helm chart does not mount the secret yet.
+- **Session limits:** the session read joins `core.sign_in_policy` (singleton); its
+  lifetime and idle limits win, and the config/DDL defaults apply only with no policy row.
+  The cookie Max-Age still uses the config lifetime.

@@ -20,8 +20,6 @@ POST /agent/runs
 POST /deadlines
 POST /documents
 POST /documents/{document_id}/release
-POST /gates/{gate_id}/decisions
-POST /gates/{gate_id}/withdraw
 POST /payments
 POST /payments/{payment_id}/allocations
 POST /payments/{payment_id}/refunds

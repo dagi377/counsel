@@ -57,7 +57,8 @@ type Config struct {
 	CookieKey []byte
 	// InsecureCookie drops the Secure attribute; only a dev config may set it.
 	InsecureCookie bool
-	// Lifetime and Idle bound a session; zero uses DefaultLifetime and DefaultIdle.
+	// Lifetime and Idle bound a session when the firm has no core.sign_in_policy row (a
+	// policy row wins); zero uses DefaultLifetime and DefaultIdle.
 	Lifetime time.Duration
 	Idle     time.Duration
 

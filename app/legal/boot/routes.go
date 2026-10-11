@@ -68,6 +68,9 @@ type HTTPPorts struct {
 	Reconciliations recon.Lists
 	// GateList serves GET /gates over core.gate under the caller's RLS.
 	GateList gates.Lister
+	// Decisions, with StepUp, serves POST /gates/{gate_id}/decisions and /withdraw. Nil
+	// uses the kernel gate engine (decisionEngine).
+	Decisions gates.Engine
 	// Expenses serves /expenses (HTTP-05). Nil uses the Postgres ExpenseStore on the kernel DB.
 	Expenses timekeeping.Expenses
 	// WithdrawRequests, with WithdrawLedgers and WithdrawCancels, serves POST
@@ -175,11 +178,41 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	wg, canWithdraw := p.Gates.(credit.GateWithdrawer)
 	add(canWithdraw && p.DB != nil && p.Idem != nil, (&credit.WithdrawHTTP{Store: credit.PGWriteOffs{}, Gates: wg,
 		DB: p.DB, Access: p.Access, Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
+	if d := decideMount(k, p, cat); d != nil {
+		add(true, d.Routes)
+	}
 	if m := runMount(p, p.Runs, p.RunAccess); m != nil {
 		add(true, m)
 	}
 	out = append(out, moduleMounts(k, p, approvers)...)
 	return out, nil
+}
+
+// decisionEngine is the gates.Engine the decision routes call: p.Decisions, else the kernel
+// gate engine, whose Decide, Withdraw and Get are the route's port as they are (the engine
+// runs an approved gate's effect inside Decide). Nil when neither is set.
+func decisionEngine(k *kboot.Kernel, p HTTPPorts) gates.Engine {
+	if p.Decisions != nil {
+		return p.Decisions
+	}
+	if k != nil && k.Gates != nil {
+		return k.Gates
+	}
+	return nil
+}
+
+// decideMount is POST /gates/{gate_id}/decisions and /withdraw on the gate engine, the spec
+// gate catalog and the kernel clock. Nil when a port is missing: the routes then keep their
+// placeholder (503).
+func decideMount(k *kboot.Kernel, p HTTPPorts, cat *gates.Catalog) *gates.DecideHTTP {
+	e := decisionEngine(k, p)
+	if e == nil || p.StepUp == nil || p.DB == nil || p.Idem == nil || k == nil || k.Clock == nil {
+		return nil
+	}
+	// rule: ARC-I-017
+	// Every decision needs step-up auth from the sign-in service's StepUp.
+	return &gates.DecideHTTP{Gates: e, Kinds: cat, Access: p.Access, DB: p.DB, Idem: p.Idem,
+		Problems: p.Problems, Principal: p.Principal, StepUp: p.StepUp, Now: k.Clock.Now}
 }
 
 // minApprovers maps each spec gate kind to its approver count.

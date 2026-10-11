@@ -10,8 +10,8 @@ import (
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
-// RoleAssignments says which roles a user holds. The database-backed implementation reads
-// core.role_assignment; tests pass a map.
+// RoleAssignments says which roles a user holds. PGAssignments reads core.app_user.role_id;
+// tests pass a map.
 type RoleAssignments interface {
 	RolesOf(ctx context.Context, u UserID) ([]string, error)
 }

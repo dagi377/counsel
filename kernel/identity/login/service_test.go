@@ -37,6 +37,8 @@ type memStore struct {
 	reasons  map[string]string
 	active   map[string]bool // userID -> active
 	emails   map[string]string
+	// lifetime and idle are the sign-in policy row's limits; zero is no row.
+	lifetime, idle time.Duration
 }
 
 func newMemStore() *memStore {
@@ -62,6 +64,7 @@ func (m *memStore) Get(_ context.Context, id string) (Session, error) {
 	}
 	out := *s
 	out.UserActive = m.active[s.UserID]
+	out.Lifetime, out.Idle = m.lifetime, m.idle
 	return out, nil
 }
 
@@ -244,6 +247,37 @@ func TestARC_I_036_SessionAuth(t *testing.T) {
 			}
 			if tc.status == http.StatusOK && rec.Body.String() != devUser {
 				t.Errorf("principal = %q, want %q", rec.Body, devUser)
+			}
+		})
+	}
+}
+
+// TestARC_I_036_SignInPolicyLimits: the firm's core.sign_in_policy limits bound a session;
+// without a policy row the config limits (the DDL defaults) apply.
+func TestARC_I_036_SignInPolicyLimits(t *testing.T) {
+	tests := []struct {
+		name           string
+		lifetime, idle time.Duration
+		advance        time.Duration
+		status         int
+		reason         string
+	}{
+		{"no policy: default idle still live", 0, 0, DefaultIdle - time.Minute, http.StatusOK, ""},
+		{"policy idle 10 min ends the session", 0, 10 * time.Minute, 10 * time.Minute, http.StatusUnauthorized, EndIdle},
+		{"policy idle 60 min keeps it past the default", 0, 60 * time.Minute, 45 * time.Minute, http.StatusOK, ""},
+		{"policy lifetime 20 min expires it", 20 * time.Minute, 60 * time.Minute, 20 * time.Minute, http.StatusUnauthorized, EndExpired},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t, devConfig(), nil)
+			h.store.lifetime, h.store.idle = tc.lifetime, tc.idle
+			c := h.devSession(t)
+			h.clock.add(tc.advance)
+			if rec := h.do(http.MethodGet, "/v1/items", c); rec.Code != tc.status {
+				t.Fatalf("status = %d, want %d", rec.Code, tc.status)
+			}
+			if got := h.store.reasons["sess-1"]; got != tc.reason {
+				t.Errorf("end reason = %q, want %q", got, tc.reason)
 			}
 		})
 	}

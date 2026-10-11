@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
@@ -33,8 +34,9 @@ type Production struct {
 	// Principal authenticates a request. Nil authenticates nobody: every route answers 401,
 	// never 503.
 	Principal func(r *http.Request) (registry.Principal, bool)
-	// Roles and Assignments decide capabilities. Nil gives an empty catalog and nobody a
-	// role, so every capability check fails closed.
+	// Roles and Assignments decide capabilities. Nil Roles is the catalog the app registers
+	// (its capabilities, roles, subject kinds and gate approvers); nil Assignments reads each
+	// member's role from Postgres (identity.PGAssignments).
 	Roles       *identity.Roles
 	Assignments identity.RoleAssignments
 	// CursorKey signs list cursors. Nil uses a random key per process: cursors then do not
@@ -51,6 +53,14 @@ type Production struct {
 	// seals trust account numbers. Nil leaves Options.Gates unset, so no app gate kind with
 	// a money effect is registered (fail closed).
 	SealKey *trust.SealKey
+	// SealKeyBase64 is the active seal key as standard base64 of 32 bytes, from the secret
+	// environment ($COUNSEL_SEAL_KEY); SealKeyFile names a mounted file holding the same.
+	// Either sets SealKey when it is nil. Neither is ever logged or formatted into an error.
+	SealKeyBase64 Secret
+	SealKeyFile   string
+	// Dev marks a dev environment. Outside dev, boot refuses to start without a seal key;
+	// in dev a missing key is replaced by a random per-process key, with a warning.
+	Dev bool
 	// BillPrefix is the bill number series prefix; empty uses DefaultBillPrefix.
 	BillPrefix string
 }
@@ -68,9 +78,23 @@ type pgConn interface {
 // bindProduction fills every Options group left nil from Postgres on the kernel. It runs
 // first, so the later Register steps see the filled groups.
 func (w *wiring) bindProduction(_ context.Context, k *kboot.Kernel) error {
-	p := w.opts.Production
-	if p == nil {
+	if w.opts.Production == nil {
 		return nil
+	}
+	// A copy: boot fills SealKey and Roles without touching the caller's config.
+	pc := *w.opts.Production
+	p := &pc
+	if p.SealKey == nil {
+		key, err := p.resolveSealKey()
+		if err != nil {
+			return fmt.Errorf("production: %w", err)
+		}
+		p.SealKey = key
+	}
+	if p.Roles == nil {
+		// The checker is built now, before the app registers; loadRoles fills this catalog.
+		p.Roles = identity.NewRoles()
+		w.roles = p.Roles
 	}
 	opts, err := p.options(k)
 	if err != nil {
@@ -148,7 +172,9 @@ func (p Production) options(k *kboot.Kernel) (Options, error) {
 		roles = identity.NewRoles()
 	}
 	if assign == nil {
-		assign = identity.StaticAssignments{}
+		// rule: ARC-I-018
+		// Capabilities come from the member's role in core.app_user, read per check.
+		assign = identity.PGAssignments{DB: k.DB}
 	}
 	principal := p.Principal
 	if principal == nil {
@@ -162,8 +188,11 @@ func (p Production) options(k *kboot.Kernel) (Options, error) {
 			Cursors:   cursors,
 			Problems:  &server.Problems{},
 			Principal: principal,
-			Idem:      idem.NewPG(conn),
-			Audit:     auditLog,
+			// No sign-in service: no request ever passed step-up, so every gate decision
+			// answers 401 step_up_required (fail closed). bindProduction replaces it.
+			StepUp: noStepUp,
+			Idem:   idem.NewPG(conn),
+			Audit:  auditLog,
 		},
 		Clearance: &ClearancePorts{Search: conflict.NewPGSearcher(k.DB), Roles: roles, Assignments: assign},
 		Rest:      &RestPorts{},
@@ -179,6 +208,27 @@ func (p Production) options(k *kboot.Kernel) (Options, error) {
 		o.Webhooks = &WebhookPorts{Secrets: p.WebhookSecrets}
 	}
 	return o, nil
+}
+
+// noStepUp is a request that never passed step-up authentication.
+func noStepUp(*http.Request) time.Time { return time.Time{} }
+
+// loadRoles fills the catalog bindProduction built from every capability, role, subject
+// kind and gate kind the app registered, then validates it. It runs after every other
+// Register step, before the kernel serves a request.
+func (w *wiring) loadRoles(_ context.Context, k *kboot.Kernel) error {
+	if w.roles == nil {
+		return nil
+	}
+	lister, ok := k.Registry.(interface{ Calls() []registry.Call })
+	if !ok {
+		return fmt.Errorf("production roles: registry %T cannot list its calls: %w", k.Registry, ErrMissingDependency)
+	}
+	w.roles.Load(lister.Calls())
+	if err := w.roles.Validate(); err != nil {
+		return fmt.Errorf("production roles: %w", err)
+	}
+	return nil
 }
 
 // noPrincipal authenticates nobody.

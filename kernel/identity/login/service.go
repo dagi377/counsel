@@ -159,9 +159,9 @@ func (s *Service) session(r *http.Request) (Session, time.Time, error) {
 	switch {
 	case !sess.UserActive:
 		reason = EndRevoked
-	case !now.Before(sess.StartedAt.Add(s.cfg.lifetime())):
+	case !now.Before(sess.StartedAt.Add(limit(sess.Lifetime, s.cfg.lifetime()))):
 		reason = EndExpired
-	case !now.Before(sess.LastSeenAt.Add(s.cfg.idle())):
+	case !now.Before(sess.LastSeenAt.Add(limit(sess.Idle, s.cfg.idle()))):
 		reason = EndIdle
 	}
 	if reason != "" {
@@ -180,6 +180,14 @@ func (s *Service) session(r *http.Request) (Session, time.Time, error) {
 		mfa = time.Unix(sec, 0)
 	}
 	return sess, mfa, nil
+}
+
+// limit is the sign-in policy's limit when the firm set one, else the config limit.
+func limit(policy, config time.Duration) time.Duration {
+	if policy > 0 {
+		return policy
+	}
+	return config
 }
 
 // login starts the OIDC flow. ?step_up=1 asks the provider for fresh multi-factor

@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	cfg, login, err := parseFlags(os.Args[1:])
+	cfg, prod, err := parseFlags(os.Args[1:])
 	if err != nil {
 		os.Exit(2)
 	}
@@ -23,16 +23,18 @@ func main() {
 	defer stop()
 	// Modules wire their own tables and routes through boot; main never touches a store.
 	// rule: ARC-I-040
-	if err := boot.Run(ctx, cfg, legalboot.App(legalboot.Options{Production: &legalboot.Production{Login: &login}})); err != nil {
+	if err := boot.Run(ctx, cfg, legalboot.App(legalboot.Options{Production: &prod})); err != nil {
 		slog.Error("counseld stopped", "err", err)
 		os.Exit(1)
 	}
 }
 
-// parseFlags turns command-line arguments into a boot.Config and the member sign-in config.
-// It holds no other logic: legalboot validates the sign-in config, and refuses the dev login
-// unless -env=dev. Secrets come only from the environment, never from flags.
-func parseFlags(args []string) (boot.Config, legalboot.Login, error) {
+// parseFlags turns command-line arguments into a boot.Config and the production config
+// (member sign-in and the seal key). It holds no other logic: legalboot validates the
+// sign-in config, refuses the dev login unless -env=dev, and refuses to boot outside dev
+// without a seal key. Secrets come only from the environment or a mounted file, never from
+// flags.
+func parseFlags(args []string) (boot.Config, legalboot.Production, error) {
 	fs := flag.NewFlagSet("counseld", flag.ContinueOnError)
 	cfg := boot.Config{Role: boot.RoleServer}
 	fs.StringVar(&cfg.DatabaseURL, "db", os.Getenv("COUNSEL_DATABASE_URL"), "Postgres DSN (default $COUNSEL_DATABASE_URL)")
@@ -47,15 +49,19 @@ func parseFlags(args []string) (boot.Config, legalboot.Login, error) {
 	fs.StringVar(&login.StepUpACR, "oidc-step-up-acr", os.Getenv("COUNSEL_OIDC_STEP_UP_ACR"), "acr_values sent on a step-up sign-in")
 	fs.BoolVar(&login.DevLogin, "dev-login", false, "dev only: serve POST /auth/dev-login for the seeded user; refused unless -env=dev")
 	fs.StringVar(&login.DevUserEmail, "dev-login-email", os.Getenv("COUNSEL_DEV_LOGIN_EMAIL"), "dev only: the seeded user the dev login signs in")
+	prod := legalboot.Production{SealKeyBase64: legalboot.Secret(os.Getenv("COUNSEL_SEAL_KEY"))}
+	fs.StringVar(&prod.SealKeyFile, "seal-key-file", os.Getenv("COUNSEL_SEAL_KEY_FILE"), "file holding the base64 trust seal key (default $COUNSEL_SEAL_KEY_FILE); $COUNSEL_SEAL_KEY wins")
 	if err := fs.Parse(args); err != nil {
-		return boot.Config{}, legalboot.Login{}, err
+		return boot.Config{}, legalboot.Production{}, err
 	}
 	if *flagList != "" {
 		cfg.Flags = strings.Split(*flagList, ",")
 	}
 	login.Dev = *env == "dev"
 	login.InsecureCookie = login.Dev
-	return cfg, login, nil
+	prod.Dev = login.Dev
+	prod.Login = &login
+	return cfg, prod, nil
 }
 
 // envOr is $key, else def.

@@ -22,6 +22,10 @@ type Session struct {
 	Ended bool
 	// UserActive is false once the user is suspended or offboarded.
 	UserActive bool
+	// Lifetime and Idle are the firm's sign-in policy limits (core.sign_in_policy), read
+	// with the session; zero means no policy row, and the Config limits apply.
+	Lifetime time.Duration
+	Idle     time.Duration
 }
 
 // End reasons, as core.user_session.end_reason allows them.
@@ -66,8 +70,10 @@ const (
 	sqlStart = `INSERT INTO core.user_session (user_id, platform, device, ip, started_at, last_seen_at)
 VALUES ($1::uuid, 'web', NULLIF($2, ''), NULLIF($3, '')::inet, $4, $4) RETURNING id::text`
 	sqlGet = `SELECT s.user_id::text, s.started_at, s.last_seen_at, s.ended_at IS NOT NULL,
-  u.status = 'active' AND u.archived_at IS NULL
+  u.status = 'active' AND u.archived_at IS NULL,
+  COALESCE(p.session_lifetime_min, 0), COALESCE(p.idle_timeout_min, 0)
 FROM core.user_session s JOIN core.app_user u ON u.id = s.user_id
+LEFT JOIN core.sign_in_policy p ON p.singleton
 WHERE s.id = $1::uuid AND s.platform = 'web'`
 	sqlTouch = `UPDATE core.user_session SET last_seen_at = $2 WHERE id = $1::uuid AND ended_at IS NULL`
 	sqlEnd   = `UPDATE core.user_session SET ended_at = $2, end_reason = $3 WHERE id = $1::uuid AND ended_at IS NULL`
@@ -93,8 +99,10 @@ func (p PGStore) Get(ctx context.Context, id string) (Session, error) {
 		return Session{}, ErrNoSession
 	}
 	s := Session{ID: id}
+	var lifeMin, idleMin int
 	err := p.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		return tx.QueryRow(ctx, sqlGet, id).Scan(&s.UserID, &s.StartedAt, &s.LastSeenAt, &s.Ended, &s.UserActive)
+		return tx.QueryRow(ctx, sqlGet, id).Scan(&s.UserID, &s.StartedAt, &s.LastSeenAt, &s.Ended, &s.UserActive,
+			&lifeMin, &idleMin)
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -102,6 +110,8 @@ func (p PGStore) Get(ctx context.Context, id string) (Session, error) {
 	case err != nil:
 		return Session{}, fmt.Errorf("get session: %w", err)
 	}
+	s.Lifetime = time.Duration(lifeMin) * time.Minute
+	s.Idle = time.Duration(idleMin) * time.Minute
 	return s, nil
 }
 
