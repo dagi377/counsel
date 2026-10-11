@@ -100,7 +100,21 @@ type GateKind struct {
 	PayloadSchema []byte // JSON Schema for the gate payload
 	Effect        EffectFunc
 	CoolingOff    time.Duration
+	// AmountPath is the dot path of the payload field holding the integer cents a decider's
+	// authority limit is compared with, e.g. "total_cents". A kind whose payload schema
+	// carries money (any "*_cents" property) must declare it; there is no default field.
+	AmountPath string
+	// LimitKind is the authority-limit kind whose value (cents) caps AmountPath for a
+	// decider. Empty means the kind has no cap.
+	LimitKind string
+	// Preparers returns more users in the gate's preparer set: every editor of the
+	// underlying item. Nil adds nobody; the gate's own requesters always count.
+	Preparers PreparersFunc
 }
+
+// PreparersFunc returns the users who prepared or edited the item a gate decides, read in
+// the deciding tx.
+type PreparersFunc func(ctx context.Context, tx pgx.Tx, subject Subject, payload json.RawMessage) ([]string, error)
 
 // InboundEvent is one verified provider event.
 type InboundEvent struct {

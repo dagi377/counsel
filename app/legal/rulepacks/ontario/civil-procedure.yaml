@@ -5,9 +5,16 @@
 #
 # r. 3.01(1)(a): exclude the trigger day, include the last day ("clear days" is abolished),
 #   so periods use day_count calendar, not clear.
-# r. 3.01(1)(b): a period of 7 days or less does not count holidays -> day_count business.
+# r. 3.01(1)(b): holidays are not counted only in a period of LESS than seven days -> a
+#   period of 1 to 6 days uses day_count business; a period of 7 days or more counts every
+#   calendar day (holidays included) -> day_count calendar.
 # r. 3.01(1)(c): a period that ends on a holiday ends on the next day that is not -> roll forward.
-# r. 1.03 "holiday" includes Saturday and Sunday; the dated holidays below match holidays.yaml.
+# r. 1.03(1) "holiday" includes any Saturday and Sunday (business counting and the forward
+#   roll skip both); the dated holidays below match holidays.yaml.
+# r. 18.01 / 18.02: the notice of intent to defend is due within the time for the statement
+#   of defence (20 days in Ontario); delivering it in time gives 10 more days for the
+#   defence (30 days from service). Only Ontario service is modelled (r. 18.01(a)); service
+#   elsewhere in Canada or the US (40 days) and elsewhere (60 days) is not.
 # Not expressible yet (left out): periods counted back from a hearing, and the
 # December 21 - January 6 pleading service rule.
 pack: ontario_civil_procedure
@@ -84,9 +91,16 @@ rules:
     roll: forward
     confirm: true
   - id: notice_of_intent_to_defend
-    description: "r. 18.02(1) (verify): notice of intent to defend, 10 days after service of the claim."
+    description: "r. 18.02(1) (verify): notice of intent to defend, within the time for the statement of defence: 20 days after service of the claim in Ontario."
     trigger: claim_served
-    offset_days: 10
+    offset_days: 20
+    day_count: calendar
+    roll: forward
+    confirm: true
+  - id: statement_of_defence_after_notice
+    description: "r. 18.02(2) (verify): statement of defence where a notice of intent to defend was delivered within the r. 18.01 time: 10 more days, 30 days after service of the claim in Ontario. The trigger date is the day the claim was served; raise this trigger only once the notice was delivered in time."
+    trigger: claim_served_notice_of_intent_delivered
+    offset_days: 30
     day_count: calendar
     roll: forward
     confirm: true
@@ -111,10 +125,10 @@ rules:
     day_count: calendar
     roll: forward
     confirm: true
-  - id: short_period_7_days
-    description: "r. 3.01(1)(b) (verify): a 7-day period, holidays and weekends not counted."
+  - id: period_7_days
+    description: "r. 3.01(1)(a)-(c) (verify): a 7-day period counts calendar days, holidays included (r. 3.01(1)(b) excludes holidays only in periods of less than seven days); a last day on a holiday rolls forward."
     trigger: any_event
     offset_days: 7
-    day_count: business
+    day_count: calendar
     roll: forward
     confirm: true

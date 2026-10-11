@@ -23,6 +23,7 @@ func validKind(slug string) GateKind {
 		MinApprovers:  1,
 		TTL:           72 * time.Hour,
 		PayloadSchema: []byte(amountSchema),
+		AmountPath:    "amount_cents",
 		Effect:        noEffect,
 	}
 }

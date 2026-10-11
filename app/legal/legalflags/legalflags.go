@@ -22,6 +22,7 @@ const (
 	IDVerification          = "conflict.id_verification"             // V-ID
 	DeadlineOntarioPack     = "deadline.ontario_pack"                // V-DEADLINES
 	ExportPostCancelWindow  = "export.post_cancel_window"            // customer contract
+	ImportSourceSync        = "import.source_sync"                   // operational
 	InterestCJADefaultRate  = "interest.cja_default_rate"            // V-BILL
 	TaxBNCheckVerified      = "tax.bn_check_verified"                // V-TAX
 	TaxVerifyRules          = "tax.verify_rules"                     // V-TAX

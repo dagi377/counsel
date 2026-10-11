@@ -8,7 +8,6 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/clock"
-	"github.com/dagi377/counsel/kernel/deadline"
 )
 
 var _ Calculator = (*Statute)(nil)
@@ -25,7 +24,7 @@ var _ Calculator = (*Statute)(nil)
 type Statute struct {
 	schedule Schedule
 	loc      *time.Location
-	holidays []clock.Date // the rule pack's holidays (Legislation Act, 2006 s.88)
+	holidays []clock.Date // dated holidays (Legislation Act, 2006 s.87) for the s.88 roll
 	roll     bool         // a holiday calendar is attached, so s.88 applies
 }
 
@@ -39,10 +38,11 @@ func NewStatute(schedule Schedule) (*Statute, error) {
 	return &Statute{schedule: schedule, loc: loc}, nil
 }
 
-// WithHolidays returns s using holidays, the rule pack's holiday calendar, for the
-// Legislation Act, 2006 s.88 roll: a period that ends on a holiday or a weekend runs to the
-// next business day (Saturday, Sunday or a holiday in the calendar). Boot attaches the
-// Ontario pack's calendar; a Statute without one returns calendar last days.
+// WithHolidays returns s using holidays, the dated holiday calendar, for the Legislation
+// Act, 2006 s.88 roll: a period that ends on a holiday runs to the next day that is not a
+// holiday. A holiday is a Sunday or a date in the calendar (s.87); Saturday is not a
+// holiday under s.87, so a period ending on a Saturday is not moved. Boot attaches the
+// Ontario calendar; a Statute without one returns calendar last days.
 func (s *Statute) WithHolidays(holidays []clock.Date) *Statute {
 	c := *s
 	c.holidays, c.roll = slices.Clone(holidays), true
@@ -107,7 +107,7 @@ func (s *Statute) Compute(ctx context.Context, a Assessment) ([]Period, error) {
 	}
 	// (verify) Limitations Act, 2002 s.4: 2 years from the day the claim was discovered.
 	// s.6 and s.7: the basic period does not run while the claimant is a minor or incapable
-	// and not represented by a litigation guardian. s.22: an agreement may suspend it.
+	// and not represented by a litigation guardian. s.22(3): an agreement may suspend it.
 	// Wilful concealment goes to discovery (s.5), so it does not suspend the basic period.
 	basic, open := run(disc, years, filter(susp, SuspendMinority, SuspendIncapacity, SuspendAgreement))
 	if !open {
@@ -117,8 +117,14 @@ func (s *Statute) Compute(ctx context.Context, a Assessment) ([]Period, error) {
 		// (verify) Limitations Act, 2002 s.15(2): 15 years from the day of the act or
 		// omission. s.15(4): it does not run while the claimant is incapable or a minor and
 		// not represented by a litigation guardian, or while the defendant wilfully conceals
-		// the injury or misleads the claimant. s.22: an agreement may suspend it.
-		ult, open := run(act, ultimateYears, filter(susp, SuspendMinority, SuspendIncapacity, SuspendConcealment, SuspendAgreement))
+		// the injury or misleads the claimant. s.22(4): an agreement suspends or extends it
+		// only if made once the claim was discovered; s.22(5) para. 2 gives a business
+		// agreement no wider power to suspend or extend it. An agreement suspension that
+		// starts before discovery is ignored here (fail closed: the earlier date).
+		// rule: Limitations Act, 2002 s.22(4) (verify)
+		ult, open := run(act, ultimateYears, append(
+			filter(susp, SuspendMinority, SuspendIncapacity, SuspendConcealment),
+			afterDiscovery(filter(susp, SuspendAgreement), disc)...))
 		if !open {
 			out = append(out, Period{Kind: "ultimate", Due: s.at(ult)})
 		}
@@ -206,6 +212,18 @@ func (s *Statute) intervals(in []Suspension) ([]interval, error) {
 	return out, nil
 }
 
+// afterDiscovery keeps the intervals that start on or after disc, the day the claim was
+// discovered. The suspension's start stands in for the day the agreement was made.
+func afterDiscovery(in []interval, disc time.Time) []interval {
+	var out []interval
+	for _, iv := range in {
+		if !iv.from.Before(disc) {
+			out = append(out, iv)
+		}
+	}
+	return out
+}
+
 func filter(in []interval, kinds ...SuspensionKind) []interval {
 	var out []interval
 	for _, iv := range in {
@@ -282,16 +300,25 @@ func (s *Statute) day(t time.Time) time.Time {
 }
 
 // at returns the last day of a period ending on calendar date d, as midnight
-// America/Toronto. (verify) Legislation Act, 2006 s.88: when the last day falls on a holiday
-// (Saturday and Sunday included), the period ends on the next day that is not a holiday.
+// America/Toronto. (verify) Legislation Act, 2006 s.88: when the last day falls on a holiday,
+// the period ends on the next day that is not a holiday. s.87 "holiday" includes Sunday but
+// not Saturday, so a Saturday last day stands (fail closed). Whether a court office closed
+// on Saturday extends the time under the Legislation Act's closed-office rule (section to
+// verify) is for the lawyer to confirm; online filing is open on Saturdays.
 func (s *Statute) at(d time.Time) time.Time {
 	y, mo, dd := d.Date()
 	day := clock.Date{Year: y, Month: mo, Day: dd}
-	// rule: Legislation Act, 2006 s.88 (verify)
-	for s.roll && !deadline.IsBusinessDay(day, s.holidays) {
+	// rule: Legislation Act, 2006 s.87, s.88 (verify)
+	for s.roll && s.holiday(day) {
 		day = day.AddDays(1)
 	}
 	return day.Start(s.loc)
+}
+
+// holiday reports whether day is a Legislation Act, 2006 s.87 holiday: a Sunday or a dated
+// holiday in the attached calendar. Saturday is not one.
+func (s *Statute) holiday(day clock.Date) bool {
+	return day.Start(time.UTC).Weekday() == time.Sunday || slices.Contains(s.holidays, day)
 }
 
 // addMonths adds n calendar months to a UTC-midnight date. (verify) Legislation Act, 2006

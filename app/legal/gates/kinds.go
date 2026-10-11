@@ -36,6 +36,8 @@ type SpecKind struct {
 	PayloadSchema  json.RawMessage
 	DualApprovers  int           // 0, or approvers needed once the firm has that many eligible
 	SoleOwnerDelay time.Duration // 0, or the delay before a sole eligible approver may decide
+	AmountPath     string        // payload field an authority limit reads (amount_path)
+	LimitKind      string        // core.authority_limit kind capping AmountPath, or empty
 }
 
 type specEntry struct {
@@ -49,6 +51,8 @@ type specEntry struct {
 	CoolingOff     string          `json:"cooling_off"`
 	DualWhen       string          `json:"dual_when"`
 	SoleOwnerDelay string          `json:"sole_owner_delay"`
+	AmountPath     string          `json:"amount_path"`
+	LimitKind      string          `json:"limit_kind"`
 	PayloadSchema  json.RawMessage `json:"payload_schema"`
 }
 
@@ -96,6 +100,8 @@ func (e specEntry) kind() (SpecKind, error) {
 		Risk:          registry.Risk(e.Risk),
 		MinApprovers:  e.MinApprovers,
 		PayloadSchema: e.PayloadSchema,
+		AmountPath:    e.AmountPath,
+		LimitKind:     e.LimitKind,
 	}
 	var err error
 	if k.TTL, err = duration(e.TTL); err != nil || k.TTL <= 0 {
@@ -137,6 +143,11 @@ func duration(s string) (time.Duration, error) {
 // GateKind is the kernel registration for k, applied by effect. A kind with no effect yet
 // still needs one to register: the feature module that owns the kind supplies it.
 func (k SpecKind) GateKind(effect registry.EffectFunc) registry.GateKind {
+	return k.GateKindWith(effect, nil)
+}
+
+// GateKindWith is GateKind with the module's editor lookup for the preparer set (ARC-I-016).
+func (k SpecKind) GateKindWith(effect registry.EffectFunc, preparers registry.PreparersFunc) registry.GateKind {
 	return registry.GateKind{
 		Slug:          k.Code,
 		Approver:      k.Approver,
@@ -146,6 +157,9 @@ func (k SpecKind) GateKind(effect registry.EffectFunc) registry.GateKind {
 		PayloadSchema: slices.Clone([]byte(k.PayloadSchema)),
 		Effect:        effect,
 		CoolingOff:    k.CoolingOff,
+		AmountPath:    k.AmountPath,
+		LimitKind:     k.LimitKind,
+		Preparers:     preparers,
 	}
 }
 
@@ -153,12 +167,18 @@ func (k SpecKind) GateKind(effect registry.EffectFunc) registry.GateKind {
 // code to its effect handler; a kind with no handler registers with nil Effect and fails
 // kernel validation at Seal, so a missing handler stops boot.
 func RegisterKinds(r registry.Registry, data []byte, effects map[string]registry.EffectFunc) (*Catalog, error) {
+	return RegisterKindsWith(r, data, effects, nil)
+}
+
+// RegisterKindsWith is RegisterKinds with each module's editor lookup: preparers maps a gate
+// code to the func that adds the item's editors to the gate's preparer set.
+func RegisterKindsWith(r registry.Registry, data []byte, effects map[string]registry.EffectFunc, preparers map[string]registry.PreparersFunc) (*Catalog, error) {
 	kinds, err := ParseKinds(data)
 	if err != nil {
 		return nil, err
 	}
 	for _, k := range kinds {
-		r.GateKind(k.GateKind(effects[k.Code]))
+		r.GateKind(k.GateKindWith(effects[k.Code], preparers[k.Code]))
 	}
 	return NewCatalog(kinds), nil
 }
