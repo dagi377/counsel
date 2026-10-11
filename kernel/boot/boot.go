@@ -83,6 +83,7 @@ type Kernel struct {
 	Reports  report.Engine
 	Server   server.Server
 	Events   *webhook.Types
+	Jobs     *Jobs // River workers and periodic jobs apps add at Register
 
 	sealed bool // Registry.Seal passed; apply runs only then
 }
@@ -122,6 +123,7 @@ func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kerne
 	k := &Kernel{
 		Flags: flags.New(), Registry: deps.Registry, DB: deps.DB, Clock: deps.Clock,
 		Gates: deps.Gates, Reports: deps.Reports, Server: deps.Server, Events: deps.Events,
+		Jobs: NewJobs(),
 	}
 	for _, a := range apps {
 		if a.Register == nil {
