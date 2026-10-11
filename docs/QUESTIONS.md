@@ -1890,3 +1890,14 @@ Done in PORT-18:
 - search_matters and get_matter return matter short names unquoted (not as
   agenttools.Quoted), so an instruction in a matter name reaches the model outside quoted
   data (ARC-I-038). That is a handler follow-up.
+
+## Q-FEAT-DOC-16 F-DOC-19 request documents from client
+
+- Files beyond the task list: `app/legal/agent/featureset/featureset.go` and its test register
+  `docs.RequestDocumentsDef()`, and `go generate` added its plugin skill.
+- F-DOC-19 is a screen action: the spec words its button in the trigger and leaves
+  `on_request` empty, so the Def's `Actions` hold that button and the spec sync test checks
+  them against the trigger (as F-CON-15 does).
+- The request goes out as a draft email; `submit_for_approval` on the `email_draft` subject
+  opens `platform.portal_message`. `draft_email` is called without `submit`, so it never opens
+  `platform.outgoing_email`, which is outside the Def's gate kinds.
