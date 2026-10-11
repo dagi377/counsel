@@ -1,0 +1,2227 @@
+[
+ {
+  "name": "search_matters",
+  "kind": "read",
+  "capability": "matters.view",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "query"
+   ],
+   "properties": {
+    "query": {
+     "type": "string",
+     "maxLength": 200
+    },
+    "status": {
+     "enum": [
+      "open",
+      "pending",
+      "closed"
+     ]
+    },
+    "cursor": {
+     "type": "string"
+    },
+    "limit": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 50,
+     "default": 20
+    }
+   }
+  }
+ },
+ {
+  "name": "get_matter",
+  "kind": "read",
+  "capability": "matters.view",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "matter_id"
+   ],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    }
+   }
+  }
+ },
+ {
+  "name": "search_contacts",
+  "kind": "read",
+  "capability": "contacts.view",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "query"
+   ],
+   "properties": {
+    "query": {
+     "type": "string",
+     "maxLength": 200
+    },
+    "cursor": {
+     "type": "string"
+    },
+    "limit": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 50,
+     "default": 20
+    }
+   }
+  }
+ },
+ {
+  "name": "list_documents",
+  "kind": "read",
+  "capability": "documents.view",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "matter_id"
+   ],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "folder_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "cursor": {
+     "type": "string"
+    },
+    "limit": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 50,
+     "default": 20
+    }
+   }
+  }
+ },
+ {
+  "name": "read_document",
+  "kind": "read",
+  "capability": "documents.view",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "doc_id"
+   ],
+   "properties": {
+    "doc_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "version_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "page_from": {
+     "type": "integer",
+     "minimum": 1
+    },
+    "page_to": {
+     "type": "integer",
+     "minimum": 1
+    }
+   }
+  }
+ },
+ {
+  "name": "search_documents",
+  "kind": "read",
+  "capability": "documents.view",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "matter_id",
+    "query"
+   ],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "query": {
+     "type": "string",
+     "maxLength": 500
+    },
+    "cursor": {
+     "type": "string"
+    },
+    "limit": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 50,
+     "default": 20
+    }
+   }
+  }
+ },
+ {
+  "name": "list_deadlines",
+  "kind": "read",
+  "capability": "deadlines.view",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "from": {
+     "$ref": "#/$defs/date"
+    },
+    "to": {
+     "$ref": "#/$defs/date"
+    },
+    "cursor": {
+     "type": "string"
+    },
+    "limit": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 50,
+     "default": 20
+    }
+   }
+  }
+ },
+ {
+  "name": "list_work_items",
+  "kind": "read",
+  "capability": "work.view",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "assignee_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "status": {
+     "type": "string"
+    },
+    "cursor": {
+     "type": "string"
+    },
+    "limit": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 50,
+     "default": 20
+    }
+   }
+  }
+ },
+ {
+  "name": "list_unbilled",
+  "kind": "read",
+  "capability": "billing.view",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "matter_id"
+   ],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "period_to": {
+     "$ref": "#/$defs/date"
+    }
+   }
+  }
+ },
+ {
+  "name": "get_bill",
+  "kind": "read",
+  "capability": "billing.view",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "bill_id"
+   ],
+   "properties": {
+    "bill_id": {
+     "$ref": "#/$defs/uuid"
+    }
+   }
+  }
+ },
+ {
+  "name": "get_trust_balance",
+  "kind": "read",
+  "capability": "trust.view",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "matter_id"
+   ],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "as_of": {
+     "$ref": "#/$defs/date"
+    }
+   }
+  }
+ },
+ {
+  "name": "compute_deadline",
+  "kind": "read",
+  "capability": "deadlines.view",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "rule_id",
+    "trigger_date"
+   ],
+   "properties": {
+    "rule_id": {
+     "type": "string"
+    },
+    "trigger_date": {
+     "$ref": "#/$defs/date"
+    },
+    "rule_pack_version": {
+     "type": "string"
+    }
+   }
+  }
+ },
+ {
+  "name": "report_plan",
+  "kind": "report",
+  "capability": "agent.ask",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "steps"
+   ],
+   "properties": {
+    "steps": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 30,
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "step_id",
+       "title"
+      ],
+      "properties": {
+       "step_id": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]{1,40}$"
+       },
+       "title": {
+        "type": "string",
+        "maxLength": 140
+       },
+       "tool": {
+        "type": "string"
+       },
+       "depends_on": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "name": "report_step",
+  "kind": "report",
+  "capability": "agent.ask",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "step_id",
+    "status"
+   ],
+   "properties": {
+    "step_id": {
+     "type": "string"
+    },
+    "status": {
+     "enum": [
+      "running",
+      "done",
+      "failed",
+      "skipped",
+      "waiting_gate"
+     ]
+    },
+    "outputs": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "type",
+       "id"
+      ],
+      "properties": {
+       "type": {
+        "type": "string"
+       },
+       "id": {
+        "$ref": "#/$defs/uuid"
+       }
+      }
+     }
+    },
+    "gate_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "error_code": {
+     "type": "string",
+     "maxLength": 64
+    }
+   }
+  }
+ },
+ {
+  "name": "draft_document",
+  "kind": "write",
+  "capability": "documents.edit",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "matter_id",
+    "title",
+    "body_markdown"
+   ],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "title": {
+     "type": "string",
+     "maxLength": 200
+    },
+    "template_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "body_markdown": {
+     "type": "string",
+     "maxLength": 200000
+    },
+    "citations": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "anchor",
+       "citation"
+      ],
+      "properties": {
+       "anchor": {
+        "type": "string",
+        "maxLength": 40
+       },
+       "citation": {
+        "$ref": "#/$defs/citation"
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "name": "draft_email",
+  "kind": "write",
+  "capability": "documents.edit",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "matter_id",
+    "to_contact_ids",
+    "subject",
+    "body_markdown"
+   ],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "to_contact_ids": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "$ref": "#/$defs/uuid"
+     }
+    },
+    "subject": {
+     "type": "string",
+     "maxLength": 200
+    },
+    "body_markdown": {
+     "type": "string",
+     "maxLength": 50000
+    },
+    "attachment_version_ids": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/uuid"
+     }
+    },
+    "submit": {
+     "type": "boolean",
+     "default": false
+    }
+   }
+  }
+ },
+ {
+  "name": "draft_note",
+  "kind": "write",
+  "capability": "matters.edit",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "matter_id",
+    "body_markdown"
+   ],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "body_markdown": {
+     "type": "string",
+     "maxLength": 50000
+    },
+    "citations": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/citation"
+     }
+    }
+   }
+  }
+ },
+ {
+  "name": "propose_time_entries",
+  "kind": "write",
+  "capability": "time.record",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "entries"
+   ],
+   "properties": {
+    "entries": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 50,
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "matter_id",
+       "work_date",
+       "minutes",
+       "narrative"
+      ],
+      "properties": {
+       "matter_id": {
+        "$ref": "#/$defs/uuid"
+       },
+       "work_date": {
+        "$ref": "#/$defs/date"
+       },
+       "minutes": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1440
+       },
+       "narrative": {
+        "type": "string",
+        "maxLength": 1000
+       },
+       "activity_category_id": {
+        "$ref": "#/$defs/uuid"
+       },
+       "signal_ids": {
+        "type": "array",
+        "items": {
+         "$ref": "#/$defs/uuid"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "name": "propose_deadline",
+  "kind": "write",
+  "capability": "deadlines.edit",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "matter_id",
+    "title",
+    "due_on",
+    "source"
+   ],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "title": {
+     "type": "string",
+     "maxLength": 200
+    },
+    "due_on": {
+     "$ref": "#/$defs/date"
+    },
+    "rule_id": {
+     "type": "string"
+    },
+    "trigger_date": {
+     "$ref": "#/$defs/date"
+    },
+    "source": {
+     "$ref": "#/$defs/citation"
+    }
+   }
+  }
+ },
+ {
+  "name": "create_task",
+  "kind": "write",
+  "capability": "work.edit",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "title"
+   ],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "title": {
+     "type": "string",
+     "maxLength": 200
+    },
+    "assignee_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "due_on": {
+     "$ref": "#/$defs/date"
+    },
+    "description_markdown": {
+     "type": "string",
+     "maxLength": 10000
+    }
+   }
+  }
+ },
+ {
+  "name": "draft_bill",
+  "kind": "write",
+  "capability": "billing.draft",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "matter_id",
+    "period_to"
+   ],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "period_from": {
+     "$ref": "#/$defs/date"
+    },
+    "period_to": {
+     "$ref": "#/$defs/date"
+    },
+    "line_actions": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "source_id",
+       "action"
+      ],
+      "properties": {
+       "source_id": {
+        "$ref": "#/$defs/uuid"
+       },
+       "action": {
+        "enum": [
+         "bill",
+         "hold",
+         "write_down",
+         "no_charge"
+        ]
+       },
+       "write_down_cents": {
+        "$ref": "#/$defs/cents"
+       },
+       "narrative": {
+        "type": "string",
+        "maxLength": 1000
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "name": "propose_payment_allocation",
+  "kind": "write",
+  "capability": "billing.payments",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "payment_id",
+    "allocations"
+   ],
+   "properties": {
+    "payment_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "allocations": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "target_type",
+       "amount_cents"
+      ],
+      "properties": {
+       "target_type": {
+        "enum": [
+         "bill",
+         "trust_ledger",
+         "unapplied"
+        ]
+       },
+       "target_id": {
+        "$ref": "#/$defs/uuid"
+       },
+       "amount_cents": {
+        "$ref": "#/$defs/cents"
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "name": "prepare_trust_withdrawal",
+  "kind": "write",
+  "capability": "trust.request",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "matter_id",
+    "amount_cents",
+    "purpose_category",
+    "payee"
+   ],
+   "properties": {
+    "matter_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "amount_cents": {
+     "$ref": "#/$defs/cents"
+    },
+    "bill_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "purpose_category": {
+     "enum": [
+      "fees",
+      "disbursement",
+      "client_payment",
+      "third_party",
+      "refund"
+     ]
+    },
+    "payee": {
+     "type": "string",
+     "maxLength": 200
+    },
+    "method": {
+     "enum": [
+      "eft",
+      "cheque",
+      "wire"
+     ]
+    }
+   }
+  }
+ },
+ {
+  "name": "propose_conflict_parties",
+  "kind": "write",
+  "capability": "conflicts.run",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "check_id",
+    "parties"
+   ],
+   "properties": {
+    "check_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "parties": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "name",
+       "role"
+      ],
+      "properties": {
+       "name": {
+        "type": "string",
+        "maxLength": 200
+       },
+       "role": {
+        "type": "string",
+        "maxLength": 60
+       },
+       "kind": {
+        "enum": [
+         "person",
+         "org"
+        ]
+       },
+       "source": {
+        "$ref": "#/$defs/citation"
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "name": "submit_for_approval",
+  "kind": "write",
+  "capability": "agent.ask",
+  "input_schema": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$defs": {
+    "citation": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "doc_id",
+      "version_id",
+      "page",
+      "line_start",
+      "line_end",
+      "quote_hash"
+     ],
+     "properties": {
+      "doc_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "version_id": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "page": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_start": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "line_end": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "quote_hash": {
+       "type": "string",
+       "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+     }
+    },
+    "cents": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100000000000
+    },
+    "uuid": {
+     "type": "string",
+     "format": "uuid"
+    },
+    "date": {
+     "type": "string",
+     "format": "date"
+    }
+   },
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "subject_type",
+    "subject_id",
+    "gate_kind"
+   ],
+   "properties": {
+    "subject_type": {
+     "type": "string"
+    },
+    "subject_id": {
+     "$ref": "#/$defs/uuid"
+    },
+    "gate_kind": {
+     "type": "string"
+    },
+    "note": {
+     "type": "string",
+     "maxLength": 1000
+    }
+   }
+  }
+ }
+]
