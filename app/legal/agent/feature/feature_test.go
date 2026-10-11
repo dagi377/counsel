@@ -116,7 +116,8 @@ func TestARC_I_035_Spec(t *testing.T) {
 			if s.FeatureID != d.ID || s.Kind != tt.wantKind {
 				t.Fatalf("spec id/kind = %s/%s", s.FeatureID, s.Kind)
 			}
-			want := "feature: F-TIM-01\nPropose time entries for the day.\n"
+			// The shared prompt rules come after the preamble and before the feature prompt.
+			want := "feature: F-TIM-01\n" + Rules() + "\nPropose time entries for the day.\n"
 			if s.System != want {
 				t.Fatalf("System = %q, want %q", s.System, want)
 			}

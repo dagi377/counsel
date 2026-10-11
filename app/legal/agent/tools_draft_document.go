@@ -45,14 +45,18 @@ type DocumentDrafts interface {
 	CreateDraft(ctx context.Context, d NewDraftDocument) (draftID string, err error)
 }
 
-// RunScope is the run's scope as the draft tools see it (kernel/agenttools Scope,
-// FEAT-CORE-06): the citations the run's tool results returned and the drafts it made.
+// RunScope is the run's scope as the draft tools see it: the kernel agenttools.Scope the
+// Runner puts in ctx, seen by run id. agenttools.RunScopes is the implementation boot wires;
+// tests use a fake. It reports the citations the run's tool results returned and records the
+// drafts it made.
 type RunScope interface {
 	// Returned reports whether a tool result of the run returned a citation covering c.
 	Returned(ctx context.Context, runID string, c agenttools.Citation) (bool, error)
 	// RecordDraft records a draft made in the run, so the run may later submit it.
 	RecordDraft(ctx context.Context, runID, ref string) error
 }
+
+var _ RunScope = agenttools.RunScopes{}
 
 // DraftDocumentHandler is draft_document's handler, for the boot HandlerSet.
 func DraftDocumentHandler() Handler {

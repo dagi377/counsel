@@ -10,7 +10,9 @@ import (
 )
 
 func TestHandlersIsExplicitList(t *testing.T) {
-	want := []string{agent.ToolListDocuments, agent.ToolListWorkItems, agent.ToolSearchContacts, agent.ToolSearchDocuments}
+	want := []string{agent.ToolDraftDocument, agent.ToolDraftEmail, agent.ToolDraftNote, agent.ToolListDocuments,
+		agent.ToolListWorkItems, agent.ToolReportPlan, agent.ToolReportStep, agent.ToolSearchContacts, agent.ToolSearchDocuments}
+	slices.Sort(want)
 	if got := agent.HandlerNames(); !slices.Equal(got, want) {
 		t.Fatalf("HandlerNames() = %v, want %v", got, want)
 	}

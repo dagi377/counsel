@@ -1368,3 +1368,35 @@ Done in PORT-18:
   stored run reads back whole. `PGRuns` refuses (ErrInvalidRun) a run or hit missing any value,
   a hit whose check party is on another check, and on read a run without a preparer or with a
   gap in hit order. Dispositions and G2 decisions stay in memory (proposal C).
+
+## Q-INTEG-12 Pass 12 integration decisions
+
+- Run scope, one concept (additive): the kernel `agenttools.Scope` (FEAT-CORE-06) now also
+  holds the citations the run's tool results returned (`AddCitations`, `Cites`).
+  `Registry.Call` records them (`RecordCitations`) after `CheckCitations`. The app's
+  `agent.RunScope` port (FEAT-TOOL-11..13) stays as the consumer view; its implementation is
+  the stateless `agenttools.RunScopes{}`, which reads the Scope the Runner put in ctx and fails
+  closed with `ErrNoRunScope` when the ctx has no scope for that run.
+- Provenance (FEAT-CORE-07) keeps its own per-run value set keyed by `Principal.RunID`; it is
+  built at registration time (`ReadTool`/`SourcedWrite` wrappers), before any run exists, so
+  moving it into Scope is not a natural fit. Open: the Runner should call `Provenance.Forget`
+  when a run ends (boot task).
+- `agent.Handlers()` now lists draft_document, draft_email, draft_note and the
+  `ReportHandlers()` pair. No init() registration.
+- Q-FEAT-CORE-10.1 applied: `Def.Spec()` builds `Preamble(id) + Rules() + "\n" + prompt`.
+- `PGWriteOffTotals` reads pending write-offs from `billing.write_off_draft` (status draft
+  with a credit gate set), never the kernel gate table. A submitted draft whose gate was
+  rejected stays `draft` and still counts; that only raises the total toward the second
+  approval (fails closed). Open: add a `rejected`/`withdrawn` draft status set by the gate
+  outcome so rejected drafts stop counting.
+- Migrations: PORT-19's `5200_conflict_index_version.sql` renumbered to 5201 (collided with
+  PORT-18's 5200). 5200 and 5610 brought to MIG-061 (timeouts, NOT VALID constraints); the
+  hit ordinal unique index moved to `5202_check_run_detail_index.sql` (CONCURRENTLY).
+- Not done in pass 12 (requeue to the BOOT/PORT task set): filling `feature.Set` at boot and
+  building the registry from `agent.Handlers()` (app/legal/boot has no agent wiring yet); the
+  report_step step-id map in the PlanStore (needs a step id on `agenttools.Step`, a kernel
+  contract change; PORT-25); the matter-side `credit.ResponsibleLawyers` adapter at boot; and
+  write-off drafting on bills with trust fee transfers (split the fee transfer first, PORT-15
+  note). Q-INTEG-12.1 (lawyer): when a bill was paid partly by a trust fee transfer, is the
+  write-off split computed on the outstanding balance after the transfer (fee portion only),
+  or must the transfer itself be apportioned across fee, disbursement and tax first?

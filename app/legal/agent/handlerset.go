@@ -88,14 +88,20 @@ func (s HandlerSet) Names() []string {
 }
 
 // Handlers is the app's handler set: every a2 tool with a real handler, listed here. A new
-// tool file adds its Handler to this list.
+// tool file adds its Handler to this list. Boot builds the registry from this set; nothing
+// registers itself from init().
 func Handlers() HandlerSet {
-	s, err := NewHandlerSet(
-		Handler{Name: ToolListDocuments, Build: buildListDocuments},
-		Handler{Name: ToolListWorkItems, Build: buildListWorkItems},
-		Handler{Name: ToolSearchContacts, Build: buildSearchContacts},
-		Handler{Name: ToolSearchDocuments, Build: buildSearchDocuments},
-	)
+	hs := []Handler{
+		{Name: ToolListDocuments, Build: buildListDocuments},
+		{Name: ToolListWorkItems, Build: buildListWorkItems},
+		{Name: ToolSearchContacts, Build: buildSearchContacts},
+		{Name: ToolSearchDocuments, Build: buildSearchDocuments},
+		DraftDocumentHandler(),
+		DraftEmailHandler(),
+		DraftNoteHandler(),
+	}
+	hs = append(hs, ReportHandlers()...)
+	s, err := NewHandlerSet(hs...)
 	if err != nil {
 		// The list above is static; a duplicate is a programming error caught by its test.
 		panic(err)

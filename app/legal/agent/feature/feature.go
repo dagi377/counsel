@@ -99,8 +99,8 @@ func (d Def) tools() ([]schemas.Def, error) {
 	return out, nil
 }
 
-// Spec builds the run.Spec of d: the system prompt is the preamble followed by the prompt
-// file, and the tools carry their a2 input schemas.
+// Spec builds the run.Spec of d: the system prompt is the preamble, the shared prompt rules
+// (Rules) and then the prompt file, and the tools carry their a2 input schemas.
 func (d Def) Spec() (run.Spec, error) {
 	if err := d.Validate(); err != nil {
 		return run.Spec{}, err
@@ -124,7 +124,7 @@ func (d Def) Spec() (run.Spec, error) {
 	return run.Spec{
 		FeatureID:    d.ID,
 		Kind:         kind,
-		System:       Preamble(d.ID) + strings.TrimLeft(string(prompt), "\n"),
+		System:       Preamble(d.ID) + Rules() + "\n" + strings.TrimLeft(string(prompt), "\n"),
 		Tools:        tools,
 		Grant:        slices.Clone(d.Grant),
 		GateKinds:    slices.Clone(d.GateKinds),
