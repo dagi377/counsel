@@ -448,3 +448,13 @@ Template:
 - Reading A: the app pods' priority class, node pool and per-container requests/limits live in templates/app.yaml, so the accept lines cannot pass without touching it.
 - Proposed: done. app.yaml Deployments get priorityClassName counsel-<cell>-app, the app pool nodeSelector and toleration, and resources from values. No other change.
 - Answer: (owner)
+
+## T-043.4b: lock_timeout limit differs between sources
+
+- Task: T-043.4b (also T-043.4c)
+- Sources: MIG-061 says lock_timeout = '3s'; ARC-U-018 and the task say 2 s.
+- Decision taken (owner instruction, strictest value, as T-043.1f did): tools/migration_lint.py
+  accepts lock_timeout > 0 and <= 2s, and the migration Job sets PGOPTIONS lock_timeout=2s.
+  Any value that passes also meets MIG-061 (<= 3s). The task's accept line says the lint
+  accepts <= 3s; that is looser than the owner's rule, so the lint uses 2s.
+- Answer: (owner)

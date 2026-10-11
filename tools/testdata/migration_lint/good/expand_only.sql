@@ -3,10 +3,13 @@ SET lock_timeout = '2s';
 SET statement_timeout = '60s';
 CREATE TABLE work.work_label (
     id bigint PRIMARY KEY,
-    name text
+    name text,
+    parent_id bigint REFERENCES work.work_label (id)
 );
+CREATE INDEX ix_work_label_name ON work.work_label (name);
 ALTER TABLE work.work_label ALTER COLUMN name SET NOT NULL;
-ALTER TABLE work.work_label ADD COLUMN weight int NOT NULL;
+ALTER TABLE work.work_label ADD COLUMN weight int NOT NULL CHECK (weight >= 0);
+ALTER TABLE work.work_label ADD CONSTRAINT work_label_name_uq UNIQUE (name);
 ALTER TABLE work.work_item ADD COLUMN label_id bigint;
 ALTER TABLE work.work_item ADD COLUMN state text NOT NULL DEFAULT 'open';
 ALTER TABLE work.work_item ADD COLUMN rank int NOT NULL DEFAULT 0;

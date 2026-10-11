@@ -155,3 +155,9 @@ func checkLintCases(t *testing.T, rule string) {
 func TestMIG_060_ExpandContract(t *testing.T) {
 	checkLintCases(t, "MIG-060")
 }
+
+// rule: MIG-061
+// rule: ARC-U-018
+func TestMIG_061_LockSafe(t *testing.T) {
+	checkLintCases(t, "MIG-061")
+}
