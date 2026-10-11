@@ -19,6 +19,16 @@ Template:
 
 ## Open
 
+## Q-T-045.1 Generated API client cannot live in web/src/kernel
+
+- Task: T-045.1
+- Sources: spec/tasks.json T-045.1 files (`web/src/kernel/api/client.ts`); AGENTS.md "Where things go" (generated client in `web/src/kernel`); kernel/boundary_test.go `termRoots` includes `web/src/kernel`; api/openapi.yaml is the legal API (`matter_id`, `/trust/...`, `hst_cents`).
+- Problem: a client generated from api/openapi.yaml carries matter, trust and HST names, so TestKernelHasNoLegalTerms fails; `tools/kernel_allow.txt` may only shrink.
+- Reading A: generate into `web/src/app/api/client.ts` (app layer); `web/src/kernel` keeps only the domain-free runtime (fetch, problem+json, extensible-enum decode, enumLabel).
+- Reading B: keep the path and add `web/src/kernel/api/client.ts` as an exemption in kernel/boundary_test.go (scanner change, not an allowlist line).
+- Proposed: A. A working generator (tools/gen_client.mjs, python3+PyYAML for YAML, no new npm deps) and ARC-I-002 tests are drafted and pass vitest; they ship once the path is decided.
+- Answer: (owner)
+
 ## Q-004 POST /hooks/{provider} lacks problem responses ARC-I-051 asks for
 
 - Task: T-009.1
