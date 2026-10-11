@@ -16,6 +16,9 @@ var (
 	// ErrNoClientDirection is returned when a disbursement paid from trust has no
 	// client-direction record (409).
 	ErrNoClientDirection = errors.New("trustapply: disbursement needs a client direction")
+	// ErrUnverified is returned while the By-law 9 rules behind a trust check are unverified:
+	// the check fails closed rather than passing silently.
+	ErrUnverified = errors.New("trustapply: by-law 9 rules not verified")
 )
 
 // TrustDisbursement is an expense paid by a trust withdrawal.
@@ -46,9 +49,10 @@ type BillDisbursements struct {
 }
 
 // CheckDisbursement validates an expense paid from trust before it is listed on a bill.
+// It fails closed: while FlagBylaw9Verified is off it returns ErrUnverified (also ErrDisabled).
 func CheckDisbursement(a Applier, d TrustDisbursement) error {
 	if !a.Flags.Enabled(FlagBylaw9Verified) {
-		return ErrDisabled
+		return fmt.Errorf("trust disbursement: %w: %w", ErrUnverified, ErrDisabled)
 	}
 	if d.AmountCents <= 0 || d.ExpenseID == "" || d.MatterID == "" {
 		return fmt.Errorf("trust disbursement: %w", ErrInvalid)

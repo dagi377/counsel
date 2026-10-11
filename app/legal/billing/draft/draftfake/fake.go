@@ -43,6 +43,9 @@ func (f *Fake) Net(l draft.Line) int64 {
 
 // ApplyReduction implements draft.Calc.
 func (f *Fake) ApplyReduction(l draft.Line, r draft.Reduction) (draft.Line, error) {
+	if r.Cents < 0 {
+		return l, fmt.Errorf("reduce line %s: %w", l.ID, draft.ErrInvalidReduction)
+	}
 	// rule: BIL-C-023
 	if r.Reason == "" || (r.Reason == draft.ReasonOther && strings.TrimSpace(r.ReasonText) == "") {
 		return l, fmt.Errorf("reduce line %s: %w", l.ID, draft.ErrReasonRequired)

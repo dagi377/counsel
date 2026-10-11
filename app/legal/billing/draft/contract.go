@@ -29,6 +29,9 @@ var (
 	ErrNotFound = errors.New("draft: not found")
 	// ErrNotDraft means the bill left draft state and its lines are frozen (409).
 	ErrNotDraft = errors.New("draft: bill is not a draft")
+	// ErrInvalidReduction means a reduction is negative. A write-up is its own explicit action,
+	// never a negative reduction (additive, docs/QUESTIONS.md).
+	ErrInvalidReduction = errors.New("draft: reduction must not be negative")
 )
 
 // LineKind is what a bill line bills for.

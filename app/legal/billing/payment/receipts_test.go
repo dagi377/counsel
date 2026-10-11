@@ -31,7 +31,7 @@ func TestBIL_I_016_BIL_L_042_ReceiptsJournal(t *testing.T) {
 			payment.Capture{ClientID: "c1", BillID: "b1", Kind: payment.KindBillPayment, AmountCents: 137000, ReceivedOn: on, IdempotencyKey: "k3"},
 			nil, []payment.ReceiptLine{
 				{BillID: "b1", AmountCents: 113000, Account: payment.AccountAR},
-				{AmountCents: 24000, Account: "OP-2200"},
+				{AmountCents: 24000, Account: payment.AccountClientCredit},
 			}, 113000},
 	}
 	for _, tc := range tests {
@@ -39,7 +39,7 @@ func TestBIL_I_016_BIL_L_042_ReceiptsJournal(t *testing.T) {
 			ctx := context.Background()
 			svc := paymentfake.New()
 			svc.AddBill("b1", "c1", 100000, 13000)
-			var j payment.ReceiptsJournal
+			j := payment.ReceiptsJournal{Flags: receiptsFlag(true)}
 			// The journal refuses a retainer even if capture let it through.
 			p := payment.Payment{ID: "pay_r", Capture: tc.capture, Status: payment.StatusCaptured}
 			var as []payment.Allocation
@@ -76,6 +76,47 @@ func TestBIL_I_016_BIL_L_042_ReceiptsJournal(t *testing.T) {
 			}
 			if got := j.PaidTo("b1"); got != tc.paidB1 {
 				t.Fatalf("paid to b1 = %d, want %d", got, tc.paidB1)
+			}
+		})
+	}
+}
+
+// receiptsFlag turns FlagReceiptsJournalVerified on or off.
+type receiptsFlag bool
+
+func (f receiptsFlag) Enabled(name string) bool {
+	return bool(f) && name == payment.FlagReceiptsJournalVerified
+}
+
+// rule: BIL-L-042 (verify)
+// While the flag is off, unapplied money is refused (fail closed); bill payments still record.
+func TestBIL_L_042_ClientCreditFailsClosedWhenUnverified(t *testing.T) {
+	ctx := context.Background()
+	on := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name   string
+		flags  payment.Enabler
+		amount int64
+		err    error
+	}{
+		{"overpayment, flag off", receiptsFlag(false), 137000, payment.ErrUnverified},
+		{"overpayment, no flags", nil, 137000, payment.ErrUnverified},
+		{"exact payment, flag off", receiptsFlag(false), 113000, nil},
+	}
+	for i, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := paymentfake.New()
+			svc.AddBill("b1", "c1", 100000, 13000)
+			p, as, err := svc.Capture(ctx, payment.Capture{ClientID: "c1", BillID: "b1", Kind: payment.KindBillPayment, AmountCents: tc.amount, ReceivedOn: on, IdempotencyKey: "k" + string(rune('a'+i))})
+			if err != nil {
+				t.Fatal(err)
+			}
+			j := payment.ReceiptsJournal{Flags: tc.flags}
+			if _, err := j.Record(p, as); !errors.Is(err, tc.err) {
+				t.Fatalf("err=%v, want %v", err, tc.err)
+			}
+			if tc.err != nil && len(j.Entries()) != 0 {
+				t.Fatal("refused receipt was journalled")
 			}
 		})
 	}

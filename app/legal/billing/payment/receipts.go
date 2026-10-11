@@ -1,6 +1,7 @@
 package payment
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -9,8 +10,19 @@ import (
 // AccountAR is the operating ledger account a bill payment credits.
 const AccountAR = "OP-1100"
 
-// receiptCreditAccount is the operating account holding unapplied money (client credit).
-const receiptCreditAccount = "OP-2200"
+// FlagReceiptsJournalVerified gates BIL-L-042 (verify), the client-credit line for unapplied
+// money in the receipts journal. It mirrors app/legal.FlagReceiptsJournalVerified and is off
+// by default.
+const FlagReceiptsJournalVerified = "billing.receipts_journal_verified"
+
+// ErrUnverified means a receipt needs BIL-L-042 while its flag is off. The journal fails
+// closed: unapplied money is refused, never silently absorbed.
+var ErrUnverified = errors.New("payment: receipts journal rule not verified")
+
+// Enabler is the part of kernel/flags the receipts journal reads.
+type Enabler interface {
+	Enabled(name string) bool
+}
 
 // ReceiptLine is one part of a receipt: what it paid and where it was posted. An empty
 // BillID is unapplied money, held for the client in client credit.
@@ -32,6 +44,9 @@ type Receipt struct {
 // ReceiptsJournal is the general receipts journal: every operating payment, once, with the
 // bills it pays. It is safe for concurrent use.
 type ReceiptsJournal struct {
+	// Flags reports FlagReceiptsJournalVerified. Nil means every flag is off.
+	Flags Enabler
+
 	mu      sync.Mutex
 	entries []Receipt
 	byID    map[string]int
@@ -63,7 +78,10 @@ func (j *ReceiptsJournal) Record(p Payment, allocs []Allocation) (Receipt, error
 		// credit, never silently absorbed.
 		acct := AccountAR
 		if a.BillID == "" {
-			acct = receiptCreditAccount
+			if j.Flags == nil || !j.Flags.Enabled(FlagReceiptsJournalVerified) {
+				return Receipt{}, fmt.Errorf("record receipt %s: client credit: %w", p.ID, ErrUnverified)
+			}
+			acct = AccountClientCredit
 		}
 		r.Lines = append(r.Lines, ReceiptLine{BillID: a.BillID, AmountCents: a.Total(), Account: acct})
 		sum += a.Total()

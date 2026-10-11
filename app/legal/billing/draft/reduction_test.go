@@ -19,6 +19,7 @@ func TestApplyReductionLineOnly(t *testing.T) {
 		{"partial", base, Reduction{Cents: 2500, Reason: ReasonCourtesy}, 7500, nil},
 		{"to zero", base, Reduction{Cents: 10000, Reason: ReasonDuplicate}, 0, nil},
 		{"below zero", base, Reduction{Cents: 10001, Reason: ReasonScope}, 10000, ErrNegativeLine},
+		{"negative reduction is not a write-up", base, Reduction{Cents: -500, Reason: ReasonScope}, 10000, ErrInvalidReduction},
 		{"below zero after discount", Line{ID: "l2", Kind: LineFee, AmountCents: 10000, LineDiscountCents: 9000}, Reduction{Cents: 1001, Reason: ReasonTraining}, 1000, ErrNegativeLine},
 		{"other with text", base, Reduction{Cents: 100, Reason: ReasonOther, ReasonText: "agreed"}, 9900, nil},
 		{"other without text", base, Reduction{Cents: 100, Reason: ReasonOther}, 10000, ErrReasonRequired},

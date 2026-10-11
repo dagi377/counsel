@@ -20,6 +20,7 @@ func TestBIL_C_042_DisbursementNeedsWithdrawalGateAndDirection(t *testing.T) {
 	}{
 		{name: "approved gate and direction", flagOn: true, mutate: func(*TrustDisbursement) {}},
 		{name: "flag off", flagOn: false, mutate: func(*TrustDisbursement) {}, want: ErrDisabled},
+		{name: "flag off fails closed", flagOn: false, mutate: func(*TrustDisbursement) {}, want: ErrUnverified},
 		{name: "no gate", flagOn: true, mutate: func(d *TrustDisbursement) { d.GateID = "" }, want: ErrNoWithdrawalGate},
 		{name: "wrong gate kind", flagOn: true, mutate: func(d *TrustDisbursement) { d.GateKind = "billing.trust_fee_withdrawal" }, want: ErrNoWithdrawalGate},
 		{name: "gate not approved", flagOn: true, mutate: func(d *TrustDisbursement) { d.GateApproved = false }, want: ErrNoWithdrawalGate},

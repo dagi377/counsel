@@ -60,6 +60,7 @@ func TestVerifyFlagsDefinedOffWithOwnerAndExpiry(t *testing.T) {
 		"billing.contingency_fees",
 		"billing.credit_route_verified",
 		"billing.joint_retainer_verified",
+		"billing.receipts_journal_verified",
 		"billing.records_verified",
 		"billing.solicitors_act_verified",
 		"conflict.id_verification",
@@ -67,6 +68,7 @@ func TestVerifyFlagsDefinedOffWithOwnerAndExpiry(t *testing.T) {
 		"export.post_cancel_window",
 		"tax.bn_check_verified",
 		"tax.verify_rules",
+		"timekeeping.paralegal_scope_verified",
 		"trust.bylaw9_verified",
 	}
 	if len(defs) != len(tests) {

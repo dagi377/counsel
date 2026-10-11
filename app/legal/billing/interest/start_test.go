@@ -25,7 +25,7 @@ func TestBIL_I_023_NoInterestBeforeOneMonth(t *testing.T) {
 	s, day := startFixture(t)
 	b := Bill{ID: "b1", DeliveredAt: day(2026, 1, 15).Add(10 * time.Hour), Principal: 100000, RatePPM: 60000}
 	for d := day(2026, 1, 15); d.Before(day(2026, 3, 1)); d = d.AddDate(0, 0, 1) {
-		want := !d.Before(day(2026, 2, 16))
+		want := !d.Before(day(2026, 2, 15)) // s.33: from one month after delivery
 		if got := s.Accrues(b, time.Time{}, d); got != want {
 			t.Fatalf("Accrues(%s) = %v, want %v", d.Format(time.DateOnly), got, want)
 		}
@@ -54,8 +54,8 @@ func TestBIL_L_008_AccrualFromOneMonthAfterDelivery(t *testing.T) {
 		delivered time.Time
 		want      time.Time
 	}{
-		{"mid month", day(2026, 1, 15).Add(9 * time.Hour), day(2026, 2, 16)},
-		{"month end clamps", day(2026, 1, 31).Add(9 * time.Hour), day(2026, 3, 1)},
+		{"mid month", day(2026, 1, 15).Add(9 * time.Hour), day(2026, 2, 15)},
+		{"month end clamps", day(2026, 1, 31).Add(9 * time.Hour), day(2026, 2, 28)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -76,8 +76,8 @@ func TestBIL_C_070_StartIsLaterOfDueAndOneMonth(t *testing.T) {
 		due  time.Time
 		want time.Time
 	}{
-		{"no due date", time.Time{}, day(2026, 2, 16)},
-		{"due before one month", day(2026, 1, 30), day(2026, 2, 16)},
+		{"no due date", time.Time{}, day(2026, 2, 15)},
+		{"due before one month", day(2026, 1, 30), day(2026, 2, 15)},
 		{"due after one month", day(2026, 3, 15), day(2026, 3, 15)},
 	}
 	for _, tt := range tests {
@@ -144,7 +144,7 @@ func TestBIL_L_012_NoInterestBeforeDelivery(t *testing.T) {
 	}{
 		{"security given, bill not delivered", time.Time{}, day(2026, 3, 1), false},
 		{"delivered 03-01, 03-31 blocked", day(2026, 3, 1), day(2026, 3, 31), false},
-		{"delivered 03-01, 04-01 blocked", day(2026, 3, 1), day(2026, 4, 1), false},
+		{"delivered 03-01, 04-01 accrues (s.33)", day(2026, 3, 1), day(2026, 4, 1), true},
 		{"delivered 03-01, 04-02 accrues", day(2026, 3, 1), day(2026, 4, 2), true},
 	}
 	for _, tt := range tests {
@@ -167,9 +167,9 @@ func TestBIL_C_072_PostingClippedToStart(t *testing.T) {
 		want    Period
 		wantErr error
 	}{
-		{"month end posting starts at accrual start", Period{day(2026, 2, 1), day(2026, 3, 1)}, Period{day(2026, 2, 16), day(2026, 3, 1)}, nil},
+		{"month end posting starts at accrual start", Period{day(2026, 2, 1), day(2026, 3, 1)}, Period{day(2026, 2, 15), day(2026, 3, 1)}, nil},
 		{"later period unchanged", Period{day(2026, 3, 1), day(2026, 4, 1)}, Period{day(2026, 3, 1), day(2026, 4, 1)}, nil},
-		{"period ends on start", Period{day(2026, 2, 1), day(2026, 2, 16)}, Period{}, ErrNotDue},
+		{"period ends on start", Period{day(2026, 2, 1), day(2026, 2, 15)}, Period{}, ErrNotDue},
 		{"reversed period", Period{day(2026, 3, 1), day(2026, 2, 1)}, Period{}, ErrBadPeriod},
 	}
 	for _, tt := range tests {
@@ -193,8 +193,8 @@ func TestBIL_C_073_TorontoDeliveryDate(t *testing.T) {
 		delivered time.Time
 		want      time.Time
 	}{
-		{"03:30Z is 23:30 the day before in Toronto", time.Date(2026, 11, 1, 3, 30, 0, 0, time.UTC), day(2026, 12, 1)},
-		{"same instant late in UTC day", time.Date(2026, 11, 1, 18, 0, 0, 0, time.UTC), day(2026, 12, 2)},
+		{"03:30Z is 23:30 the day before in Toronto", time.Date(2026, 11, 1, 3, 30, 0, 0, time.UTC), day(2026, 11, 30)},
+		{"same instant late in UTC day", time.Date(2026, 11, 1, 18, 0, 0, 0, time.UTC), day(2026, 12, 1)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

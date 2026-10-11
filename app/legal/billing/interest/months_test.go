@@ -57,9 +57,9 @@ func TestAccrualStartUsesTorontoDate(t *testing.T) {
 			if got.Location() != loc {
 				t.Fatalf("zone = %s, want America/Toronto", got.Location())
 			}
-			wantStart := m.MonthsAfter(mustDate(t, tt.wantMonth, loc), 0).AddDate(0, 0, 1)
+			wantStart := m.MonthsAfter(mustDate(t, tt.wantMonth, loc), 0)
 			if !got.Equal(wantStart) {
-				t.Fatalf("AccrualStart = %s, want day after %s", got.Format(time.DateOnly), tt.wantMonth)
+				t.Fatalf("AccrualStart = %s, want %s (s.33: one month after delivery)", got.Format(time.DateOnly), tt.wantMonth)
 			}
 		})
 	}
