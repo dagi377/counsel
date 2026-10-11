@@ -51,8 +51,8 @@ func registerHooks(opts Options) []hook {
 	return []hook{registerModules, opts.registerPayment, opts.registerNotify}
 }
 
-// startHooks lists the Start steps (seed and start jobs), in order. None exist yet.
-func startHooks(Options) []hook { return nil }
+// startHooks lists the Start steps (seed and start jobs), in order.
+func startHooks(Options) []hook { return []hook{seedTemplates} }
 
 func newApp(register, start []hook) kboot.App {
 	return kboot.App{

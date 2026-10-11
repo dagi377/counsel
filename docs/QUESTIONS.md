@@ -745,3 +745,14 @@ s.33 as amended and either the rules or the decision change.
   `sync.subscription_renewal_failed`, for the cliosync renewal alert (ids and times only).
   Modules that need notifications add theirs to `notifyTemplates`.
 - Answer: (owner)
+
+## Q-BOOT-23 template seed: Start hook and test fake
+
+- Task: BOOT-23 (app/legal/boot seed message templates at Start).
+- Outside the task's files: `app/legal/boot/boot.go` `startHooks` now returns `seedTemplates`.
+- A kernel with no DB (`kboot.Build` with no deps, used by `Run` today) skips the seed, so
+  `TestAppShape`'s empty-kernel Start stays valid; with a DB, a seed error stops Start.
+- `commsfake` has no versioned seed (versions live in `TemplateStore.Seed`'s SQL), so
+  `seed_test.go` drives the real `TemplateStore.Seed` over a test-local in-memory
+  `comms.message_template` DB instead of commsfake.
+- Answer: (owner)
