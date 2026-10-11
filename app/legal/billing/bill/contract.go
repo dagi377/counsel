@@ -68,6 +68,8 @@ type Line struct {
 	AmountCents   int64
 	TaxCode       string
 	FeeBasis      string // the disclosed fee basis this line is charged under
+	ID            string // billing.bill_line.id (added for HTTP-06)
+	Taxable       bool   // the line is in the tax base (added for HTTP-06)
 }
 
 // Bill is a bill and its frozen terms. All amounts are int64 cents; rates are ppm.
@@ -99,6 +101,22 @@ type Bill struct {
 	DeliveredOn           time.Time // business date of DeliveredAt, America/Toronto
 	DeliveryChannel       Channel
 	Paralegal             bool // prepared under a paralegal licence
+	// Added for the bill routes (HTTP-06); all stored, server-computed values.
+	Version           int       // billing.bill.row_version; the HTTP ETag
+	PeriodFrom        time.Time // business date
+	PeriodTo          time.Time // business date
+	TaxRatePPM        int64
+	TrustAppliedCents int64
+	BalanceCents      int64
+	CreatedAt         time.Time
+}
+
+// Filter selects one page of Service.List (added for HTTP-06).
+type Filter struct {
+	MatterID string   // empty: every matter
+	Statuses []Status // empty: every status
+	After    ID
+	Limit    int
 }
 
 // Approval is what the bill approval gate effect passes in.
@@ -137,6 +155,9 @@ type Change struct {
 type Service interface {
 	// Get returns one bill.
 	Get(ctx context.Context, id ID) (Bill, error)
+	// List returns bills by id after f.After, at most f.Limit, filtered by matter and status
+	// (added for HTTP-06).
+	List(ctx context.Context, f Filter) ([]Bill, error)
 	// Approve is called only by the bill approval gate effect. It assigns the next gapless
 	// number for prefix and year in the same tx, sets the issue date and freezes the bill.
 	// Replaying an approval already applied returns the approved bill unchanged.
