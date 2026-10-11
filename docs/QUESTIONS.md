@@ -3230,3 +3230,18 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   needs a document uuid and a quote hash.
 - The end-to-end tests use `app/legal/intake/ai_intb_helpers_test.go` (prefix `intb`), shared
   byte-for-byte with FEAT-INT-03 and FEAT-INT-04.
+
+## Q-FEAT-INT-03 F-INT-02 intake mailbox watcher: event, gate kind and boot wiring
+
+- "mail.received on the intake address" binds `email.received` (`intake.EventEmailReceived`),
+  the same event F-DOC-08 proposes (`docs.EventEmailReceived`, Q-FEAT-DOC-09). No mailbox
+  connector publishes it yet, and the event carries no recipient address, so the prompt tells
+  the run to draft nothing for mail not sent to the intake address.
+- The Def names `intake.lead_decision` as a literal: FEAT-INT-01 (in flight) owns the F-INT-01
+  gate constant, and a second exported constant would clash at merge.
+- Registering the Def in featureset makes boot's TestJobBindings and
+  TestActionScreensCoverFeatures need it, so this task also adds its binding to
+  `boot.JobBindings` and the `phone-and-email-capture` screen (subject `intake.lead`,
+  capability `intake.leads`) to `actionScreens`.
+  byte-for-byte with FEAT-INT-02 and FEAT-INT-04. F-INT-02 is an extraction Def, so it gets no
+  plugin skill.

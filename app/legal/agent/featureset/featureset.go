@@ -118,5 +118,6 @@ func appDefs() []feature.Def {
 		matter.SummarizeThisWeekDef(),
 		// intake
 		intake.TriageNewLeadDef(),
+		intake.MailboxWatcherDef(),
 	}
 }

@@ -317,6 +317,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		intake.FeatureTriageNewLead:                 intake.TriageNewLeadBinding,
+		intake.MailboxWatcherDef().ID:               intake.MailboxWatcherBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -420,6 +421,8 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Intake screens select the lead ("intake.lead", the outbox subject of a lead).
+	"phone-and-email-capture": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
