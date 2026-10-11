@@ -1002,3 +1002,13 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
 - Drafts are keyed by the write output ref (the subject id); submit_for_approval on any other
   subject is ErrNotFound (404). The gate payload carries subject ids only; the model's note is
   not stored (AI-R-005).
+
+## FEAT-TOOL-16 create_task
+
+- The a2 `create_task` input has `description_markdown`, but the frozen kernel/work `Item`
+  has no description field (the `work.work_item.description` column exists). The tool accepts
+  the field (it is schema-valid) and does not store it. Proposed fix: an additive
+  `Item.Description` in kernel/work, then the tool passes it through.
+- The proposed status is config, not a constant: the tool reads the task workflow and its
+  proposed status through a new `agent.ProposedTasks` port, wired at boot from work config.
+- An assignee walled from the matter is refused as `ErrNotVisible` (404), like the acting user.
