@@ -247,3 +247,10 @@ Template:
 - Proposed: B for filings (contract already describes court filings), and app-side seeding
   for templates (no Registry change).
 - Answer: open. T-035L.2 is stopped until answered.
+## AI-008: /healthz model field
+
+- No `/healthz` handler exists on main yet, and AI-008 lists no server file. AI-008 ships
+  `ai.Config.Check(env)` and `httpclient.FromConfig(...)`, whose `ModelClient.Mode()` is the
+  value `/healthz` must report as `model: mock|live`. Proposed: the task that adds `/healthz`
+  (kernel/server) reads `Mode()` from the client built at boot, and boot passes `COUNSEL_ENV`
+  as `env` so a live config in test or ci fails with `ErrLiveModelForbidden`.

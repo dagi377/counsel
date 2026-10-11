@@ -1,0 +1,9 @@
+# Production config. The only file where the model runs live (spec/ai/mocks.md sec. 8).
+# Boot refuses live mode when COUNSEL_ENV is test or ci, or when base_url or key_ref is empty.
+model:
+  mode: live
+  base_url: ""               # set per cell: the provider endpoint
+  protocol: messages
+  models: {drafting: "", fast: "", embed: ""}   # provider ids, set per cell
+  key_ref: vault://model/api_key   # the key lives in the vault; never in env files or logs
+  budget_micro_cents_per_feature_day: 0

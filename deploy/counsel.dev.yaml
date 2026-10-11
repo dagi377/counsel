@@ -1,0 +1,8 @@
+# Dev stack config. The model runs on the mock (spec/ai/mocks.md sec. 8, rule AI-R-001).
+model:
+  mode: mock                 # mock | live; every config except counsel.prod.yaml stays mock
+  base_url: http://llm-fake:8080   # test/fakes/llm on the compose network; empty = in-process fake
+  protocol: messages
+  models: {drafting: drafting, fast: fast, embed: embed}
+  key_ref: ""                # mock needs no key
+  budget_micro_cents_per_feature_day: 0
