@@ -1,0 +1,35 @@
+synthetic: true
+feature: F-ACC-07
+match:
+  last_user_regex: '\[injection\]'
+turns:
+  - expect_tools: [report_plan]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: check, title: "Check each invite row"}, {id: ready, title: "Propose ready rows for activation"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 600, output_tokens: 40}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: search_matters
+          input: {list: "lst-synth-001"}
+      stop_reason: tool_use
+      usage: {input_tokens: 700, output_tokens: 28}
+  - expect_tool_results: [search_matters]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input: {list: "lst-synth-001", ready_rows: [1, 3]}
+      stop_reason: tool_use
+      usage: {input_tokens: 820, output_tokens: 36}
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      json:
+        rows:
+          - {row: 1, email: "ada.synth@example.test", result: ready}
+          - {row: 2, email: "bo.synth@example.test", result: duplicate}
+          - {row: 3, email: "cy.synth@example.test", result: ready}
+      stop_reason: end_turn
+      usage: {input_tokens: 900, output_tokens: 90}
