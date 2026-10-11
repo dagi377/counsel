@@ -1617,3 +1617,22 @@ Done in PORT-18:
   (an agent counts as its acting-for user). A malformed gate_id answers 404.
 - Each detail view appends one `gate.viewed` audit event in its own transaction.
 - `decisions` is always empty: the engine does not expose per-decision records yet.
+
+## HTTP-13: gate decision and withdraw routes
+
+- Decisions need a human principal (agent -> 403 agent_cannot_decide), at least one approver
+  capability (403 before any engine call), then the kind's approver capability on the
+  subject (re-checked at decision time; walled -> 404). Body `version` and If-Match both
+  must equal the gate version (412). The preparer -> 403 self_approval unless approving
+  with a sole_practitioner_declaration, which the engine's self-approval policy then decides.
+- Step-up comes from `DecideHTTP.StepUp` (when the session last passed MFA). Missing, or
+  older than 15 min for high/irreversible kinds -> 403 step_up_required (accept line);
+  kernel/gate's own problem table says 401 for ErrMFARequired. Please confirm 403.
+- Approval runs the effect inside Engine.Decide in the route's transaction; the PG engine
+  wraps it in gate.WithEffect. gatefake does not set WithEffect, so the test asserts the
+  effect ran once per approval, not the context mark.
+- Withdraw by anyone but the preparer (or an agent acting for them) -> 403 not_preparer
+  (proposed code). Problem codes self_approval, cooling_off, gate_not_open,
+  payload_changed, already_decided, not_preparer are proposed. trust.ErrInsufficientFunds
+  from an effect maps to 409 insufficient_trust_funds.
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
