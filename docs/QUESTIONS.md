@@ -683,3 +683,16 @@ s.33 as amended and either the rules or the decision change.
   (execute.go) should map `ErrNoEFTAuthorization` to 409 `eft_authorization_missing`; the
   trust.transfer gate effect should call `Transfers.Post`; and `sumsSQL` (trust/receipt.go)
   leaves out authorised `trust_transfer` holds that `trust.available_cents` subtracts.
+
+
+## Q-T-011.4 Trust exception table for NSF reversals
+
+- Task: T-011.4. Sources: b3 BIL-C-065 ("a reversal of a trust deposit always opens a trust
+  exception"), task accept line ("trust exception opened"). 0001 has no table to hold one.
+- Answer: owner (2026-10-11): additive migration `5500_trust_exception.sql` (app/legal/trust,
+  first file in its block): `trust.exception` (kind `nsf`, receipt id, ledger and matter link,
+  amount cents, shortfall cents, opened_at/by, resolved_at/by, resolution), one row per
+  (kind, receipt), no delete. `migrations/migrations_test.go` lists the new file. ReverseNSF
+  opens the row in the reversal's tx; the replenishment's operating leg is
+  Dr OP-1100 / Cr OP-1000 with source kind `nsf_replenishment`. Resolving an exception is a
+  later task.
