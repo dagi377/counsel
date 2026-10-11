@@ -2417,3 +2417,21 @@ Done in PORT-18:
   deadline engine and its fakes already implement.
 - `work.output` is counted as a work-item gate kind beside `work.absence` because its payload
   names an `item_id`; confirm when the F-WRK features that use it are built.
+## Q-FEAT-CON-04 Conflict feature tests: stand-ins, test helpers and files beyond the task list
+
+- Tasks: FEAT-CON-04, FEAT-CON-05, FEAT-CON-06 (F-CON-04 to F-CON-06).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (each Def in
+  appDefs, as FEAT-CORE-17 asks) and the generated plugin skills under
+  `paploo/counsel-plugin/skills/f-con-0N-*/SKILL.md`.
+- The task lists `app/legal/conflicts/ai_f_con_04_test.go`; the landed AI-036 test lives in
+  `app/legal/conflict/` (package `conflict`), so it was moved to FromFeature there.
+- The agenttest Seed's Deps carry no `agent.SubjectMatters`, so `submit_for_approval` would run
+  as a stand-in, and its draft ids are not a2 uuids. The conflict feature tests add both through
+  `conHandlers` / `conDrafts` in `ai_f_con_04_feature_test.go` (reused by F-CON-05 and F-CON-06).
+  Proposed: a `SubjectMatters` and uuid draft ids in `agenttest.Seed`.
+- `search_matters` and `read_document` have no `Handler`, so they still register as stand-ins.
+  The ok scripts call neither; the injection scripts call `read_document` to carry the injected
+  text, since `agenttest.QuotedOnly` reads only a top-level `agenttools.Quoted` result and
+  `search_contacts` returns its quotes under `quotes[]`.
+- Defs set `Grant` to the capabilities of their tools: an empty grant refuses every call.
+- The event types named here (`conflict.clearance_subject_to_consent`, ...) have no publisher yet.

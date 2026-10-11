@@ -49,8 +49,8 @@ func appDefs() []feature.Def {
 		deadlines.AbsenceCoverageCheckDef(),
 		// conflicts
 		conflict.PartyExtractionDef(),
-		// conflicts
 		conflict.SearchRankingDef(),
 		conflict.ClearanceMemoDef(),
+		conflict.ConsentDraftingDef(),
 	}
 }
