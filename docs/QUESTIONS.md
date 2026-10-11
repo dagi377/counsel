@@ -4599,3 +4599,27 @@ and has a one-outbox-event test.
 - The AI-017 test (ai_f_acc_06_test.go) now runs through agenttest.FromFeature with no
   stand-ins; the fixtures use a2 inputs, the injection variant makes no extra tool call, and
   ok pins match.prompt_hash.
+
+## Q-FEAT-ACC-05 Invite list check: new event, firm-level screen, row results as a draft
+
+- a2 names no event for "list or CSV uploaded"; F-ACC-07 binds `user.invite_list_uploaded`
+  (access.EventInviteListUploaded), which no module publishes yet.
+- main has no boot.FirmSubject, so the user-list screen action selects a matter (capability
+  admin.users) in app/legal/boot/agent.go.
+- F-ACC-07 is an extraction call with tools: the row results are a draft_document draft and
+  the ready rows go to gate GA2 (core.user_activation) through submit_for_approval, so the
+  Def sets no OutputSchema. draft_document needs a matter, so the draft sits on a matter until
+  a firm-level draft subject exists; core.user_activation's payload names one user, so a
+  per-row activation proposal needs the identity module's ProposeActivation path.
+- draft_document and submit_for_approval declare no provenance fields, so no write can be
+  refused with ErrUnsourcedValue at the handler; the tests check every date in the run's write
+  inputs against the run's Provenance (accbSourcedDates).
+- The AI-018 test (ai_f_acc_07_test.go) now runs through agenttest.FromFeature with no
+  stand-ins; the fixtures use a2 inputs, the injection variant makes no extra tool call, ok
+  pins match.prompt_hash and bad_output still records nothing.
+
+## Q-INTEG-18-ACC pass 18 ACC-04 and ACC-05
+
+- FEAT-ACC-06 did not carry ACC-04 and ACC-05 (each branch was one commit on main), so pass 18
+  merged task/FEAT-ACC-04 (F-ACC-06) and task/FEAT-ACC-05 (F-ACC-07) after it. Their accb
+  helpers were identical to the copy ACC-06 brought, so `ai_acc_helpers_test.go` keeps one copy.

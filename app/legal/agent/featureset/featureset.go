@@ -194,5 +194,6 @@ func appDefs() []feature.Def {
 		access.BreakGlassSummaryDef(),
 		access.SuggestTeamDef(),
 		access.OffboardingPlanDef(),
+		access.InviteListCheckDef(),
 	}
 }
