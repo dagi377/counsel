@@ -8,7 +8,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	kaudit "github.com/dagi377/counsel/kernel/audit"
 )
+
+// ActionSoleSignOff is the audit action of a sole practitioner signing their own
+// reconciliation (docs/QUESTIONS.md Q-PORT-24).
+const ActionSoleSignOff = "sign_off.sole_practitioner"
 
 // Querier is the part of a pgx pool or connection PGSignOff reads with (db.Pool satisfies it).
 type Querier interface {
@@ -28,12 +34,20 @@ type SignOffRecord struct {
 // locked for an account when its reconciliation is signed or imported.
 type PGSignOff struct {
 	conn Querier
+	// audit records the sole-practitioner exception. While nil the preparer never signs.
+	audit kaudit.Log
 }
 
 var _ Locker = (*PGSignOff)(nil)
 
 // NewPGSignOff returns a PGSignOff that answers Locked on conn.
 func NewPGSignOff(conn Querier) *PGSignOff { return &PGSignOff{conn: conn} }
+
+// WithAudit returns s recording the sole-practitioner exception through log, in the sign-off
+// tx. Without it the preparer is always refused.
+func (s *PGSignOff) WithAudit(log kaudit.Log) *PGSignOff {
+	return &PGSignOff{conn: s.conn, audit: log}
+}
 
 // monthOf is the first day of p, the trust.reconciliation.month value.
 func monthOf(p Period) time.Time { return time.Date(p.Year, p.Month, 1, 0, 0, 0, 0, time.UTC) }
@@ -62,11 +76,35 @@ const signSQL = `UPDATE trust.reconciliation
 SET status = 'signed', signed_by = $2::uuid, signed_at = $3, package_sha256 = $4, approval_id = $5::uuid
 WHERE id = $1::uuid AND status IN ('draft', 'ready')`
 
+// soleLicenseeSQL counts the firm's active licensees (a human lawyer or paralegal in good
+// standing whose account is active, not offboarded, archived or expired, as the signatory
+// directory defines it) and reports whether $1 is one of them.
+const soleLicenseeSQL = `SELECT count(*), COALESCE(bool_or(u.id = $1::uuid), false)
+FROM core.app_user u
+WHERE u.principal_kind = 'human' AND u.licence_type IN ('lawyer', 'paralegal')
+  AND u.licence_status = 'good_standing'
+  AND u.status = 'active' AND u.offboarded_at IS NULL AND u.archived_at IS NULL
+  AND (u.expires_on IS NULL OR u.expires_on >= (now() AT TIME ZONE 'America/Toronto')::date)`
+
+// soleLicensee reports whether userID is the firm's one and only active licensee.
+func soleLicensee(ctx context.Context, tx pgx.Tx, userID string) (bool, error) {
+	var (
+		n      int64
+		signer bool
+	)
+	if err := tx.QueryRow(ctx, soleLicenseeSQL, userID).Scan(&n, &signer); err != nil {
+		return false, err
+	}
+	return n == 1 && signer, nil
+}
+
 // Sign records the sign-off in tx. It checks what the table CHECKs and triggers would refuse
 // first, so the caller gets a sentinel: an unknown id is ErrNotFound, an unbalanced
 // reconciliation ErrUnbalanced, the preparer ErrSelfApproval, an agent ErrAgentApproval, and a
 // row that is not draft or ready, or a record missing its signer, time, package hash or
-// approval, ErrInvalidState.
+// approval, ErrInvalidState. The preparer signs only as a sole practitioner: the firm has
+// exactly one active licensee, the preparer is that licensee, and the exception is audited as
+// ActionSoleSignOff in tx (core.check_sod also requires core.firm.sole_practitioner).
 func (s *PGSignOff) Sign(ctx context.Context, tx pgx.Tx, r SignOffRecord) error {
 	id := r.ReconciliationID
 	if r.By.IsAgent {
@@ -94,8 +132,23 @@ func (s *PGSignOff) Sign(ctx context.Context, tx pgx.Tx, r SignOffRecord) error 
 	if adjusted != journal || journal != clients {
 		return fmt.Errorf("recon sign %s: %w", id, ErrUnbalanced)
 	}
+	sole := false
 	if r.By.UserID == preparedBy {
-		return fmt.Errorf("recon sign %s: %w", id, ErrSelfApproval)
+		// rule: ARC-I-021
+		// By-law 9 needs a licensee to sign and a sole practitioner has no second person, so
+		// the preparer may sign only when they are the firm's one active licensee and the
+		// exception is audited. Every other preparer is refused; an agent never reaches here.
+		if s == nil || s.audit == nil {
+			return fmt.Errorf("recon sign %s: no audit for the sole-practitioner exception: %w", id, ErrSelfApproval)
+		}
+		ok, err := soleLicensee(ctx, tx, r.By.UserID)
+		if err != nil {
+			return fmt.Errorf("recon sign %s: licensees: %w", id, err)
+		}
+		if !ok {
+			return fmt.Errorf("recon sign %s: %w", id, ErrSelfApproval)
+		}
+		sole = true
 	}
 	tag, err := tx.Exec(ctx, signSQL, id, r.By.UserID, r.At, r.PackageSHA256, r.ApprovalID)
 	if err != nil {
@@ -103,6 +156,18 @@ func (s *PGSignOff) Sign(ctx context.Context, tx pgx.Tx, r SignOffRecord) error 
 	}
 	if tag.RowsAffected() != 1 {
 		return fmt.Errorf("recon sign %s: %w", id, ErrInvalidState)
+	}
+	if sole {
+		e := kaudit.Event{
+			ActorKind: "user",
+			ActorID:   r.By.UserID,
+			Action:    ActionSoleSignOff,
+			Subject:   kaudit.Subject{Kind: "trust.reconciliation", ID: id},
+			Detail:    map[string]string{"approval_id": r.ApprovalID},
+		}
+		if err := s.audit.Append(ctx, tx, e); err != nil {
+			return fmt.Errorf("recon sign %s: audit: %w", id, err)
+		}
 	}
 	return nil
 }

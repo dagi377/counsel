@@ -1154,3 +1154,18 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   addNotifyJobs and addWebhookJobs. The legal app schedules
   trust.withdrawal_release_expired every 15 minutes when gate services are built. kernel/idem
   problem bodies carry `type` (urn:counsel:problem:<code>, now api.ProblemTypePrefix).
+
+## Q-PORT-24-SOLE: sole practitioner signs their own trust reconciliation
+
+- Task: PORT-24-SOLE, answering Q-PORT-24 (decided as counsel): By-law 9 needs a licensee to
+  sign the monthly reconciliation and a sole practitioner has no second person.
+  `recon.PGSignOff.Sign` lets the preparer sign only when the firm has exactly one active
+  licensee (core.app_user, same definition as the signatory directory) and the preparer is
+  that licensee. It records audit action `sign_off.sole_practitioner` in the sign-off tx
+  through `PGSignOff.WithAudit`; without an audit log the preparer is refused. Every other
+  preparer is refused (ErrSelfApproval) and an agent never signs (ErrAgentApproval). Tagged
+  `rule: ARC-I-021`.
+- The database keeps its own guard: `core.check_sod` (0001) also needs
+  `core.firm.sole_practitioner` true and writes its `sod_solo_exception` row, so boot must keep
+  that setting in step with the licensee count. Showing the exception in the UI is a separate
+  web task.
