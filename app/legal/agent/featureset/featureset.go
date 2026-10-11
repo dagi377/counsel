@@ -119,5 +119,6 @@ func appDefs() []feature.Def {
 		// intake
 		intake.TriageNewLeadDef(),
 		intake.MailboxWatcherDef(),
+		intake.MissingInfoChaserDef(),
 	}
 }
