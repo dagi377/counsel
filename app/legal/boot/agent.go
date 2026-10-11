@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/dagi377/counsel/app/legal/access"
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/featureset"
@@ -315,6 +316,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
+		access.FeatureOffboardingPlan:               access.OffboardingPlanBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -418,6 +420,9 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Access. main has no firm subject yet, so a firm-level admin screen selects a matter
+	// (Q-FEAT-ACC-04).
+	"offboard-user": {SubjectKind: "matter", Capability: "admin.offboard"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

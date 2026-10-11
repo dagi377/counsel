@@ -13,6 +13,7 @@ package featureset
 //go:generate go test -run TestExportSkillsCheckedIn -update-skills .
 
 import (
+	"github.com/dagi377/counsel/app/legal/access"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
@@ -115,5 +116,7 @@ func appDefs() []feature.Def {
 		matter.SuggestFromPastMattersDef(),
 		matter.SuggestCleanupDef(),
 		matter.SummarizeThisWeekDef(),
+		// access
+		access.OffboardingPlanDef(),
 	}
 }

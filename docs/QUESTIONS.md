@@ -3217,3 +3217,20 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
   screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
   as served by its screen actions instead of binding it.
+
+## Q-FEAT-ACC-04 Offboarding plan: new event, firm-level screen, tool-gap gate
+
+- a2 names no event for "Offboard started"; F-ACC-06 binds `user.offboard_started`
+  (access.EventOffboardStarted), which no module publishes yet.
+- main has no boot.FirmSubject, so the offboard-user screen action selects a matter
+  (capability admin.offboard) in app/legal/boot/agent.go. It should select the leaving user
+  once a firm or user subject exists.
+- core.offboarding (GA12) is not registered by any module; the run opens it as a tool-gap
+  kind (draft_document, then submit_for_approval). draft_document needs a matter, so the
+  handover is drafted on a matter the leaver holds.
+- draft_document and submit_for_approval declare no provenance fields, so no write of the
+  feature can be refused with ErrUnsourcedValue at the handler. The tests check every date in
+  the run's write inputs against the run's Provenance instead (accbSourcedDates).
+- The AI-017 test (ai_f_acc_06_test.go) now runs through agenttest.FromFeature with no
+  stand-ins; the fixtures use a2 inputs, the injection variant makes no extra tool call, and
+  ok pins match.prompt_hash.
