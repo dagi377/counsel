@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/dagi377/counsel/migrations/migrationstest"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/dagi377/counsel/kernel/db"
@@ -41,6 +43,7 @@ func queueDB(t *testing.T) *db.Pool {
 	b := make([]byte, 6)
 	_, _ = rand.Read(b)
 	name := "webhook_deliver_" + hex.EncodeToString(b)
+	defer migrationstest.LockClusterRoles(ctx, t, admin)()
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{name}.Sanitize()); err != nil {
 		t.Fatalf("create database: %v", err)
 	}

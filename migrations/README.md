@@ -27,8 +27,11 @@ columns, columns with a default, indexes and constraints added `NOT VALID`; it n
 breaks the previous release's code. A rename is an add, a backfill and a later drop, never
 `RENAME`. Migrations never `DELETE FROM` or `TRUNCATE`: financial, trust, journal, gate
 and audit rows are corrected with reversing rows. The check rejects `RENAME`, `TRUNCATE`
-and `DELETE FROM` outside comments; lock and backfill limits (lock_timeout 2 s, batches of
-at most 10000 rows) are checked by the migration job and its lint.
+and `DELETE FROM` outside comments. `make migration-lint` (tools/migration_lint.py) runs
+MIG-060/MIG-061 on every numbered file: each sets `lock_timeout` (at most 2 s) and
+`statement_timeout`, a constraint on an existing table is added `NOT VALID` and validated in
+a later file, and an index on an existing table is built `CONCURRENTLY` in its own file marked
+`-- migrate: no-transaction`. Only the frozen `0001_init.sql` has a baseline entry.
 
 ## Adding a module block
 
@@ -39,4 +42,7 @@ Non-migration files here (this README, `smoke.sql`) do not start with a digit an
 numbered.
 
 `migrations.go` embeds the numbered files: `migrations.Apply` runs them in file-name order,
-for `counsel-migrate` and for integration tests that need the current schema.
+for `counsel-migrate` and for integration tests that need the current schema. It records each
+applied file in `schema_meta.applied` (created by Apply, readable by every role) and skips files
+already recorded. `counsel-migrate -mode=wait-version` waits until the newest file built into
+the binary is recorded; app pods run it as an init container.

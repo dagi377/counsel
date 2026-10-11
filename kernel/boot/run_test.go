@@ -157,7 +157,6 @@ func TestRunRolesNotImplemented(t *testing.T) {
 		name string
 		cfg  Config
 	}{
-		{"migrate", Config{Role: RoleMigrate, MigrateMode: MigrateExpand}},
 		{"import", Config{Role: RoleImport}},
 	}
 	for _, tt := range tests {

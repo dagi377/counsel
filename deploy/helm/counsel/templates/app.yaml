@@ -3,7 +3,8 @@
 {{- $ns := printf "counsel-%s" $cell }}
 {{- $host := printf "%s.%s" $cell .Values.domain }}
 # rule: ARC-U-001
-# One cell = its own namespaces, Postgres, bucket, KMS key, secrets and hostname, all
+# One cell = its own namespaces (counsel-<cell> for the app, counsel-<cell>-runtime for the
+# agent runtime, counsel-<cell>-agents for agent containers), Postgres, bucket, KMS key, secrets and hostname, all
 # derived from .Values.cell. Nothing in this file is shared between cells.
 apiVersion: v1
 kind: Namespace
@@ -15,14 +16,14 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: paploo-{{ $cell }}
+  name: counsel-{{ $cell }}-runtime
   labels:
     counsel.io/cell: {{ $cell | quote }}
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: paploo-{{ $cell }}-agents
+  name: counsel-{{ $cell }}-agents
   labels:
     counsel.io/cell: {{ $cell | quote }}
 ---
@@ -106,6 +107,27 @@ spec:
       # preStop sleep lets endpoints drain; the process then finishes in-flight work and
       # releases job leases within the grace period.
       terminationGracePeriodSeconds: 30
+      # rule: ARC-U-018
+      # The pod starts only once the database has the schema this image expects: the newest
+      # migration built into the image, applied by the migrate Job. On a first install the Job
+      # and the Deployments are created together, so this wait orders them.
+      initContainers:
+        - name: wait-schema
+          image: {{ printf "%s:%s" $.Values.image.repository $.Values.image.tag | quote }}
+          args: ["counsel-migrate", "-mode=wait-version"]
+          env:
+            - name: COUNSEL_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: counsel-{{ $cell }}-pg-app
+                  key: uri
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
       containers:
         - name: {{ .name }}
           image: {{ printf "%s:%s" $.Values.image.repository $.Values.image.tag | quote }}

@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/dagi377/counsel/migrations/migrationstest"
 )
 
 const (
@@ -292,6 +294,7 @@ func TestDDLAppliesAndSmokePasses(t *testing.T) {
 		t.Fatalf("random name: %v", err)
 	}
 	dbName := "ddl_contract_" + hex.EncodeToString(suffix)
+	defer migrationstest.LockClusterRoles(ctx, t, admin)()
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{dbName}.Sanitize()); err != nil {
 		t.Fatalf("create database: %v", err)
 	}

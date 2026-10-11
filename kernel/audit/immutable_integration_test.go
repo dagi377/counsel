@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/dagi377/counsel/migrations/migrationstest"
 )
 
 // immutableDB creates a database on COUNSEL_TEST_DB, applies the init migration, seeds one
@@ -33,6 +35,7 @@ func immutableDB(t *testing.T) *pgx.Conn {
 	b := make([]byte, 6)
 	_, _ = rand.Read(b)
 	name := "audit_immutable_" + hex.EncodeToString(b)
+	defer migrationstest.LockClusterRoles(ctx, t, admin)()
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{name}.Sanitize()); err != nil {
 		t.Fatalf("create database: %v", err)
 	}

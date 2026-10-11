@@ -31,6 +31,8 @@ type env struct {
 	server func(ctx context.Context, cfg Config, k *Kernel) error
 	// worker runs the worker role.
 	worker func(ctx context.Context, k *Kernel, cfg WorkerConfig) error
+	// apply applies the migration files of one migrate mode.
+	apply applier
 }
 
 func productionEnv() env {
@@ -48,6 +50,7 @@ func productionEnv() env {
 		worker: func(ctx context.Context, k *Kernel, cfg WorkerConfig) error {
 			return runWorker(ctx, k, cfg, newRiverClient)
 		},
+		apply: pgApply,
 	}
 }
 
@@ -62,8 +65,17 @@ func run(ctx context.Context, cfg Config, e env, apps ...App) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
+	if cfg.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, cfg.Timeout)
+		defer cancel()
+	}
+	if cfg.Role == RoleMigrate {
+		// Migrations change the schema the apps register against, so no app is built.
+		return runMigrate(ctx, cfg, e.apply)
+	}
 	if cfg.Role != RoleServer && cfg.Role != RoleWorker {
-		// Migrate and import build the kernel with no database until their tasks land.
+		// Import builds the kernel with no database until its task lands.
 		if _, err := BuildWith(ctx, Deps{}, cfg.Flags, apps...); err != nil {
 			return err
 		}

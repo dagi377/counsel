@@ -4,19 +4,18 @@
 -- registers its books (operating and trust for Counsel) and every entry names one. Existing
 -- rows and callers that send no book stay in 'operating'. The engine knows no book name, so
 -- the column CHECK is a format check; the app's chart decides which books exist.
+SET lock_timeout = '2s';
+SET statement_timeout = '5min';
 
 ALTER TABLE gl.account
   ADD COLUMN book text NOT NULL DEFAULT 'operating';
 ALTER TABLE gl.account
   ADD CONSTRAINT account_book_ck CHECK (book ~ '^[a-z][a-z0-9_]*$') NOT VALID;
-ALTER TABLE gl.account VALIDATE CONSTRAINT account_book_ck;
 
 ALTER TABLE gl.journal_entry
   ADD COLUMN book text NOT NULL DEFAULT 'operating';
 ALTER TABLE gl.journal_entry
   ADD CONSTRAINT journal_entry_book_ck CHECK (book ~ '^[a-z][a-z0-9_]*$') NOT VALID;
-ALTER TABLE gl.journal_entry VALIDATE CONSTRAINT journal_entry_book_ck;
-CREATE INDEX journal_entry_book_date_idx ON gl.journal_entry (book, entry_date);
 
 -- Append the 'trust' source kind (widening only; every stored row still passes).
 -- 0001 left the column CHECK unnamed, so it is found by its definition.
@@ -33,7 +32,6 @@ ALTER TABLE gl.journal_entry
     CHECK (source_type IN ('bill','payment','payment_allocation','credit_note','expense','vendor_bill','write_off',
                            'interest_charge','trust_fee_transfer','nsf_replenishment','refund','manual','reversal',
                            'import','trust')) NOT VALID;
-ALTER TABLE gl.journal_entry VALIDATE CONSTRAINT journal_entry_source_kind_ck;
 
 -- Per-book period close. gl.period (keyed by month alone) stays and keeps meaning the
 -- 'operating' book, so a release that still writes it closes exactly what it closed before.
@@ -76,3 +74,6 @@ CREATE VIEW gl.operating_journal_line AS
 GRANT SELECT, INSERT, UPDATE ON gl.book_period TO counsel_app, counsel_jobs;
 GRANT SELECT ON gl.book_period, gl.operating_journal_entry, gl.operating_journal_line TO counsel_integrity;
 GRANT SELECT ON gl.operating_journal_entry, gl.operating_journal_line TO counsel_app, counsel_jobs;
+
+RESET lock_timeout;
+RESET statement_timeout;

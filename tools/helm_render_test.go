@@ -116,11 +116,17 @@ func loadValues(t *testing.T) map[string]any {
 	return vals
 }
 
-// renderChart renders every template with values.yaml plus the dotted-key overrides.
+// renderChart renders every template with values.yaml plus the dotted-key overrides. A key
+// "Release.<field>" sets a release field instead (default: a first install, as helm template).
 func renderChart(t *testing.T, set map[string]any) ([]k8sObj, error) {
 	t.Helper()
 	vals := loadValues(t)
+	release := map[string]any{"Name": "counsel", "Namespace": "default", "IsInstall": true, "IsUpgrade": false}
 	for k, v := range set {
+		if f, ok := strings.CutPrefix(k, "Release."); ok {
+			release[f] = v
+			continue
+		}
 		setPath(vals, k, v)
 	}
 	files, err := filepath.Glob(filepath.Join(chartDir, "templates", "*.yaml"))
@@ -130,7 +136,7 @@ func renderChart(t *testing.T, set map[string]any) ([]k8sObj, error) {
 	sort.Strings(files)
 	data := map[string]any{
 		"Values":  vals,
-		"Release": map[string]any{"Name": "counsel", "Namespace": "default"},
+		"Release": release,
 		"Chart":   map[string]any{"Name": "counsel"},
 	}
 	var out []k8sObj
@@ -591,7 +597,7 @@ func TestARC_U_005_Isolation(t *testing.T) {
 	prio := func(name string) int { return asInt(dig(pcs[name], "value")) }
 	db, app, agent := prio("counsel-alpha-db"), prio("counsel-alpha-app"), prio("counsel-alpha-agent")
 	quotas, limits := byName(objs, "ResourceQuota"), byName(objs, "LimitRange")
-	sched := byName(objs, "ConfigMap")["paploo-alpha-agent-scheduling"]
+	sched := byName(objs, "ConfigMap")["counsel-alpha-agent-scheduling"]
 	vals := loadValues(t)
 	tests := []struct {
 		name string
@@ -603,8 +609,8 @@ func TestARC_U_005_Isolation(t *testing.T) {
 		{"agents never preempt", dig(pcs["counsel-alpha-agent"], "preemptionPolicy") == "Never"},
 		{"cell ResourceQuota", quotas["counsel-alpha"] != nil && quotas["counsel-alpha"].meta("namespace") == "counsel-alpha"},
 		{"cell LimitRange", limits["counsel-alpha"] != nil && limits["counsel-alpha"].meta("namespace") == "counsel-alpha"},
-		{"agent ResourceQuota", quotas["paploo-alpha-agents"] != nil && quotas["paploo-alpha-agents"].meta("namespace") == "paploo-alpha-agents"},
-		{"agent LimitRange", limits["paploo-alpha-agents"] != nil},
+		{"agent ResourceQuota", quotas["counsel-alpha-agents"] != nil && quotas["counsel-alpha-agents"].meta("namespace") == "counsel-alpha-agents"},
+		{"agent LimitRange", limits["counsel-alpha-agents"] != nil && limits["counsel-alpha-agents"].meta("namespace") == "counsel-alpha-agents"},
 		{"agent pool differs from app and DB", dig(vals, "nodePools", "agent") != dig(vals, "nodePools", "app") && dig(vals, "nodePools", "agent") != dig(vals, "nodePools", "db")},
 		{"agent scheduling uses agent pool", dig(sched, "data", "nodeSelector") == fmt.Sprintf("counsel.io/pool=%v", dig(vals, "nodePools", "agent"))},
 		{"agent scheduling tolerates agent taint", dig(sched, "data", "toleration") == fmt.Sprintf("counsel.io/pool=%v:NoSchedule", dig(vals, "nodePools", "agent"))},
@@ -793,6 +799,7 @@ func TestARC_U_018_MigrationJobValues(t *testing.T) {
 	runChecks(t, []check{
 		{"enabled", m["enabled"], true},
 		{"pre-upgrade hook", slices.Contains(hooks, any("pre-upgrade")), true},
+		{"no pre-install hook (prerequisites do not exist yet)", slices.Contains(hooks, any("pre-install")), false},
 		{"lock_timeout 2s", m["lockTimeout"], "2s"},
 		{"retries", asInt(m["retries"]) >= 1, true},
 	})
@@ -877,35 +884,105 @@ func containerEnv(c map[string]any, name string) any {
 // rule: MIG-061
 // rule: ARC-U-018
 func TestMIG_061_MigrationJob(t *testing.T) {
-	job := migrateJob(t, map[string]any{"cell": "alpha"})
-	if job == nil {
-		t.Fatal("no migration Job rendered")
+	tests := []struct {
+		name     string
+		set      map[string]any
+		wantName string
+		wantHook string // "" means an ordinary release resource
+	}{
+		{"install: release resource", map[string]any{"cell": "alpha"}, "counsel-alpha-migrate-install", ""},
+		{"upgrade: pre-upgrade hook", map[string]any{"cell": "alpha", "Release.IsInstall": false, "Release.IsUpgrade": true}, "counsel-alpha-migrate", "pre-upgrade"},
 	}
-	ann, _ := dig(job, "metadata", "annotations").(map[string]any)
-	hooks, _ := ann["helm.sh/hook"].(string)
-	cs := podContainers(job)
-	if len(cs) != 1 {
-		t.Fatalf("migration Job has %d containers, want 1", len(cs))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			job := migrateJob(t, tt.set)
+			if job == nil {
+				t.Fatal("no migration Job rendered")
+			}
+			ann, _ := dig(job, "metadata", "annotations").(map[string]any)
+			cs := podContainers(job)
+			if len(cs) != 1 {
+				t.Fatalf("migration Job has %d containers, want 1", len(cs))
+			}
+			args, _ := cs[0]["args"].([]any)
+			var argv []string
+			for _, a := range args {
+				argv = append(argv, fmt.Sprint(a))
+			}
+			var wantHook any // no annotation: an ordinary release resource
+			if tt.wantHook != "" {
+				wantHook = tt.wantHook
+			}
+			checks := []check{
+				{"name", job.meta("name"), tt.wantName},
+				{"namespace", job.meta("namespace"), "counsel-alpha"},
+				{"hook", ann["helm.sh/hook"], wantHook},
+				{"backoffLimit >= 3", asInt(dig(job, "spec", "backoffLimit")) >= 3, true},
+				{"restartPolicy", dig(job, "spec", "template", "spec", "restartPolicy"), "Never"},
+				{"runs counsel-migrate", len(argv) > 0 && argv[0] == "counsel-migrate", true},
+				{"expand only", slices.Contains(argv, "-mode=expand"), true},
+				{"no backfill in the Job", strings.Contains(strings.ToLower(strings.Join(argv, " ")), "backfill"), false},
+				{"PGOPTIONS lock_timeout 2s", containerEnv(cs[0], "PGOPTIONS"), "-c lock_timeout=2s"},
+				{"database url from cell secret", dig(containerEnv(cs[0], "COUNSEL_DATABASE_URL"), "secretKeyRef", "name"), "counsel-alpha-pg-app"},
+				{"app priority class", dig(job, "spec", "template", "spec", "priorityClassName"), "counsel-alpha-app"},
+			}
+			if tt.wantHook != "" {
+				checks = append(checks, check{"hook-delete-policy", ann["helm.sh/hook-delete-policy"], "before-hook-creation"})
+			}
+			runChecks(t, checks)
+		})
 	}
-	args, _ := cs[0]["args"].([]any)
-	var argv []string
-	for _, a := range args {
-		argv = append(argv, fmt.Sprint(a))
+}
+
+// Every app pod waits for the schema its image expects before it starts.
+// rule: ARC-U-018
+func TestARC_U_018_AppWaitsForSchema(t *testing.T) {
+	objs := mustRender(t, map[string]any{"cell": "alpha"})
+	deps := byKind(objs, "Deployment")
+	if len(deps) != len(statelessTiers) {
+		t.Fatalf("rendered %d Deployments, want %d", len(deps), len(statelessTiers))
 	}
-	runChecks(t, []check{
-		{"namespace", job.meta("namespace"), "counsel-alpha"},
-		{"pre-install hook", slices.Contains(strings.Split(hooks, ","), "pre-install"), true},
-		{"pre-upgrade hook", slices.Contains(strings.Split(hooks, ","), "pre-upgrade"), true},
-		{"hook-delete-policy", ann["helm.sh/hook-delete-policy"], "before-hook-creation"},
-		{"backoffLimit >= 3", asInt(dig(job, "spec", "backoffLimit")) >= 3, true},
-		{"restartPolicy", dig(job, "spec", "template", "spec", "restartPolicy"), "Never"},
-		{"runs counsel-migrate", len(argv) > 0 && argv[0] == "counsel-migrate", true},
-		{"expand only", slices.Contains(argv, "-mode=expand"), true},
-		{"no backfill in the hook", strings.Contains(strings.ToLower(strings.Join(argv, " ")), "backfill"), false},
-		{"PGOPTIONS lock_timeout 2s", containerEnv(cs[0], "PGOPTIONS"), "-c lock_timeout=2s"},
-		{"database url from cell secret", dig(containerEnv(cs[0], "COUNSEL_DATABASE_URL"), "secretKeyRef", "name"), "counsel-alpha-pg-app"},
-		{"app priority class", dig(job, "spec", "template", "spec", "priorityClassName"), "counsel-alpha-app"},
-	})
+	for _, tier := range statelessTiers {
+		t.Run(tier, func(t *testing.T) {
+			d := deps[tier]
+			inits, _ := dig(d, "spec", "template", "spec", "initContainers").([]any)
+			if len(inits) != 1 {
+				t.Fatalf("%d init containers, want 1", len(inits))
+			}
+			ic, _ := inits[0].(map[string]any)
+			app := podContainers(d)[0]
+			args, _ := ic["args"].([]any)
+			runChecks(t, []check{
+				{"name", ic["name"], "wait-schema"},
+				{"same image as the app", ic["image"], app["image"]},
+				{"waits for the version", fmt.Sprint(args), "[counsel-migrate -mode=wait-version]"},
+				{"database url from cell secret", dig(containerEnv(ic, "COUNSEL_DATABASE_URL"), "secretKeyRef", "name"), "counsel-alpha-pg-app"},
+				{"has resource limits", dig(ic, "resources", "limits", "memory") != nil, true},
+			})
+		})
+	}
+}
+
+// The chart uses only Counsel names: every namespace is the cell's own counsel-<cell>[-*].
+// rule: ARC-U-001
+func TestARC_U_001_CounselNamespaces(t *testing.T) {
+	objs := mustRender(t, map[string]any{"cell": "alpha"})
+	var nss []string
+	for _, o := range objs {
+		if o.kind() == "Namespace" {
+			nss = append(nss, o.meta("name"))
+		}
+		if ns := o.meta("namespace"); ns != "" && !strings.HasPrefix(ns, "counsel-alpha") {
+			t.Errorf("%s in namespace %q, want counsel-alpha[-*]", o.id(), ns)
+		}
+		if strings.Contains(strings.ToLower(o.id()), "paploo") {
+			t.Errorf("%s names another product", o.id())
+		}
+	}
+	sort.Strings(nss)
+	if want := []string{"counsel-alpha", "counsel-alpha-agents", "counsel-alpha-runtime"}; !slices.Equal(nss, want) {
+		t.Fatalf("namespaces %v, want %v", nss, want)
+	}
 }
 
 // rule: ARC-U-018
@@ -920,6 +997,7 @@ func TestMIG_061_MigrationJobValues(t *testing.T) {
 		{"disabled", map[string]any{"cell": "alpha", "migrate.enabled": false}, false, ""},
 		{"too few retries", map[string]any{"cell": "alpha", "migrate.retries": 2}, false, "at least 3"},
 		{"three retries", map[string]any{"cell": "alpha", "migrate.retries": 3}, true, ""},
+		{"pre-install hook refused", map[string]any{"cell": "alpha", "migrate.hooks": []any{"pre-install", "pre-upgrade"}}, false, "only be pre-upgrade"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

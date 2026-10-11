@@ -34,7 +34,9 @@ func parseFlags(args []string) (boot.Config, error) {
 	flagList := fs.String("flags", "", "comma-separated feature flags to turn on")
 	// Expand-only by default; destructive contract steps need an explicit -mode contract.
 	// rule: ARC-U-017
-	mode := fs.String("mode", string(boot.MigrateExpand), "migration half to run: expand or contract")
+	mode := fs.String("mode", string(boot.MigrateExpand), "expand, contract, or wait-version (apply nothing; wait until the database has -version)")
+	fs.StringVar(&cfg.SchemaVersion, "version", "", "wait-version only: migration file to wait for (default: the newest built into this binary)")
+	timeout := fs.Duration("timeout", 0, "give up after this long (0: no limit)")
 	if err := fs.Parse(args); err != nil {
 		return boot.Config{}, err
 	}
@@ -42,5 +44,6 @@ func parseFlags(args []string) (boot.Config, error) {
 		cfg.Flags = strings.Split(*flagList, ",")
 	}
 	cfg.MigrateMode = boot.MigrateMode(*mode)
+	cfg.Timeout = *timeout
 	return cfg, nil
 }
