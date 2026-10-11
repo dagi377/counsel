@@ -519,6 +519,7 @@ RETURNING id::text`
 type draftScope struct {
 	BodyRef    string          `json:"body_ref"`
 	TemplateID string          `json:"template_id,omitempty"`
+	SubjectRef string          `json:"subject_ref,omitempty"`
 	Citations  []draftCiteJSON `json:"citations,omitempty"`
 }
 
@@ -548,7 +549,7 @@ func (s PGDocumentDrafts) CreateDraft(ctx context.Context, d agent.NewDraftDocum
 	if err != nil {
 		return "", fmt.Errorf("document draft: body: %w", err)
 	}
-	scope := draftScope{BodyRef: ref, TemplateID: d.TemplateID}
+	scope := draftScope{BodyRef: ref, TemplateID: d.TemplateID, SubjectRef: d.SubjectRef}
 	for _, c := range d.Citations {
 		scope.Citations = append(scope.Citations, draftCiteJSON{
 			Anchor: c.Anchor, DocID: c.DocID, QuoteHash: c.QuoteHash, VersionID: c.Source.VersionID,

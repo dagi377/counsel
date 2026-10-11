@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/dagi377/counsel/kernel/db"
+	"github.com/dagi377/counsel/kernel/outbox"
 )
 
 // pgInvalidText is the Postgres SQLSTATE for a malformed value, such as an id that is not a uuid.
@@ -45,6 +46,9 @@ func (f Filter) PageSize() int {
 // module's job.
 type Store struct {
 	db db.DB
+	// Events receives EventOrganizationClientCreated in Create's tx. Boot sets it; nil
+	// publishes nothing.
+	Events outbox.Emitter
 }
 
 var _ Contacts = (*Store)(nil)
@@ -102,7 +106,8 @@ func (s *Store) Create(ctx context.Context, c NewContact) (Contact, error) {
 		}
 		out.ID = ContactID(id)
 		out.State = State(state)
-		return nil
+		// The event commits with the contact row.
+		return s.publishCreated(ctx, tx, out, c.CreatedBy)
 	})
 	if err != nil {
 		return Contact{}, fmt.Errorf("create contact: %w", err)

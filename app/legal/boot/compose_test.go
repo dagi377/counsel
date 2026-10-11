@@ -100,7 +100,7 @@ func applyCall(k *kboot.Kernel, c registry.Call) error {
 }
 
 // wantWiredGates is the gate kinds with an effect over testGatePorts.
-const wantWiredGates = 7
+const wantWiredGates = 8
 
 func TestComposeOverFakes(t *testing.T) {
 	all := legalFlagNames(t)
@@ -123,8 +123,9 @@ func TestComposeOverFakes(t *testing.T) {
 				}
 				wired++
 			}
-			// The seven effects testGatePorts and the rest step build (BOOT-16): signatory,
-			// withdrawal, bill approval and void, and the write-off pair.
+			// The eight effects testGatePorts and the rest step build (BOOT-16): signatory,
+			// withdrawal, bill approval and void, the write-off pair, and matter.opening
+			// (EVENTS-WIRE).
 			if wired != wantWiredGates {
 				t.Fatalf("wired %d gate kinds, want %d", wired, wantWiredGates)
 			}

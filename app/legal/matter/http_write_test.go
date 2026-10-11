@@ -166,7 +166,7 @@ func newWriteRig(t *testing.T) writeRig {
 	return rig
 }
 
-const openingJSON = `{"short_name":"Delta","client_id":"0190c000-0000-7000-8000-000000000001","practice_area_id":"pa","responsible_lawyer_id":"u9"}`
+const openingJSON = `{"number":"2026-0042","short_name":"Delta","client_id":"0190c000-0000-7000-8000-000000000001","practice_area_id":"pa","responsible_lawyer_id":"u9"}`
 
 func (r writeRig) serviceCalls() int { return r.q.Calls() + len(r.gates.Opens()) + r.updates.calls }
 
