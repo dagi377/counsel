@@ -260,7 +260,7 @@ func gateKindCodes() ([]string, error) {
 // ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-09,
 // F-CON-09, F-CON-11, F-CON-12, F-DOC-09; Q-INTEG-15A-SCHEDULED); empty fails with
 // trigger.ErrBadBinding. F-DL-05, F-DL-06, F-CON-05, F-CON-10, F-DOC-06, F-DOC-07, F-MAT-05,
-// F-MAT-09 and F-MAT-14 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
+// F-MAT-09, F-MAT-14 and F-TRU-04 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
 // job feature cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
@@ -316,6 +316,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
+		trust.FeatureMonthEndReconciliation:         trust.MonthEndReconciliationBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -422,10 +423,11 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
-	// Trust. The bank feed and the receipts journal are firm-level screens; with no firm
-	// subject yet they select the matter a deposit is for (docs/QUESTIONS.md Q-FEAT-TRU-01).
+	// Trust. The bank feed, the receipts journal and the monthly reconciliation are firm-level
+	// screens; with no firm subject yet they select a matter (docs/QUESTIONS.md Q-FEAT-TRU-01).
 	"trust-receipts-journal": {SubjectKind: "matter", Capability: "trust.view"},
 	"bank-feed-import":       {SubjectKind: "matter", Capability: "trust.view"},
+	"monthly-reconciliation": {SubjectKind: "matter", Capability: "trust.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

@@ -3232,3 +3232,19 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   integer cents ("125000 cents") or dollars and cents ("$1,250.00") in the line, else
   agenttools.ErrUnsourcedValue and nothing is written. Its ReceiptProposals sink (opening
   trust.receipt_classification with the acting user as preparer) is wired in FEAT-TRU-02.
+
+## Q-FEAT-TRU-04 month-end-reconciliation: trigger event, gate kind and amount provenance
+
+- No kernel event names a received bank statement. F-TRU-04 binds to the new
+  `trust.statement_received` (trust.EventStatementReceived) plus a daily check (the spec's
+  "schedule"), acting for the firm's designated lawyer (BindDesignated, JOB-ACTOR). Open: the
+  module that files statements publishes the event.
+- recon imports trust, so trust restates G12 as trust.GateReconciliationSignOff; a test holds
+  it equal to recon.GateSignOff.
+- draft_document and draft_email check citations but not amounts. trust.SourcedCents wraps
+  them so a trust write may state only integer cents and dates a read of the run returned
+  (signed, so an overdraft cannot be written unsigned), else agenttools.ErrUnsourcedValue and
+  no draft or gate. The FromFeature tests wire it; open: boot wraps the draft tools of trust
+  feature runs with it (the shared handler set has no per-feature wrapping yet).
+- monthly-reconciliation is a firm-level screen and selects a matter until boot.FirmSubject
+  lands (Q-FEAT-TRU-01).
