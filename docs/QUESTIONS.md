@@ -3245,3 +3245,11 @@ of FEAT-TIM-01 above.
 - Open: wire `AgentWiring.Timekeepers` to a store query of active timekeepers (users holding
   `time.record`, not disabled); until then F-TIM-01's end-of-day run does not start and the
   screen actions cover on-request runs.
+
+## TIMEKEEPERS Active timekeepers for per-user runs
+
+Done; resolves the TIME-FIX open item. `timekeeping.PGTimekeepers` lists active human users
+(not archived, not expired in America/Toronto) whose active role grants `time.record` at any
+level but `none`. `registerAgent` uses it when `AgentWiring.Timekeepers` is nil and the
+kernel has a database, so F-TIM-01's end-of-day run starts per timekeeper. Unit tests stub
+the query; a Postgres integration test is still to write (integration runs are on hold).

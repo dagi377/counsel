@@ -26,6 +26,7 @@ import (
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
+	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/deadline"
 	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -486,7 +487,8 @@ type AgentWiring struct {
 	// Bindings receives the job-feature bindings; nil skips triggers and the tick job.
 	Bindings *trigger.Bindings
 	// Timekeepers lists the users a per-user scheduled feature (F-TIM-01) runs for on each
-	// tick. Nil leaves those features unready (trigger.ReasonNoUserSource).
+	// tick. Nil means the kernel database's active timekeepers (timekeeping.PGTimekeepers);
+	// with no database either, those features stay unready (trigger.ReasonNoUserSource).
 	Timekeepers trigger.ActiveUsers
 	// Actions, when set, is mounted as the screen-action route. Boot sets its Features,
 	// Screens and Queue.
@@ -498,6 +500,18 @@ type AgentWiring struct {
 	// Runners are every other agent runner boot hands out (the job-run worker's among them).
 	// Boot wraps each in place so it forgets a run's provenance values when the run ends.
 	Runners []*agentrun.Runner
+}
+
+// timekeepers is the per-user features' user source: the wired one, else the active
+// timekeepers in pool, else nil (no database: the features stay unready).
+func timekeepers(wired trigger.ActiveUsers, pool db.DB) trigger.ActiveUsers {
+	if wired != nil {
+		return wired
+	}
+	if pool == nil {
+		return nil
+	}
+	return tk.PGTimekeepers{DB: pool}
 }
 
 // registerAgent registers the agent tools and features: every handler tool, the job
@@ -528,8 +542,8 @@ func registerAgent(w *AgentWiring) hook {
 			k.Registry.Tool(t)
 		}
 		if w.Bindings != nil {
-			if w.Timekeepers != nil {
-				w.Bindings.WithUsers(w.Timekeepers)
+			if users := timekeepers(w.Timekeepers, k.DB); users != nil {
+				w.Bindings.WithUsers(users)
 			}
 			if err := JobBindings(features, w.Bindings, w.RuleAdmin); err != nil {
 				return err

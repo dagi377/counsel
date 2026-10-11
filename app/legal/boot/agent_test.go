@@ -22,6 +22,8 @@ import (
 	"github.com/dagi377/counsel/kernel/agenttools"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/clock"
+	"github.com/dagi377/counsel/kernel/db"
+	"github.com/dagi377/counsel/kernel/db/dbfake"
 	"github.com/dagi377/counsel/kernel/deadline"
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -279,4 +281,31 @@ func mustWriteTools() *agent.WriteTools {
 		panic(err)
 	}
 	return w
+}
+
+type stubUsers struct{}
+
+func (stubUsers) ActiveUsers(context.Context, string) ([]string, error) { return []string{"u-1"}, nil }
+
+// TestTimekeepersSource: boot hands the per-user features the wired user source, else the
+// database's active timekeepers, else nothing (the features stay unready).
+func TestTimekeepersSource(t *testing.T) {
+	pool := dbfake.New()
+	cases := []struct {
+		name  string
+		wired trigger.ActiveUsers
+		pool  db.DB
+		want  trigger.ActiveUsers
+	}{
+		{"wired source wins", stubUsers{}, pool, stubUsers{}},
+		{"database timekeepers", nil, pool, tk.PGTimekeepers{DB: pool}},
+		{"no source", nil, nil, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := timekeepers(tc.wired, tc.pool); got != tc.want {
+				t.Fatalf("source = %#v, want %#v", got, tc.want)
+			}
+		})
+	}
 }
