@@ -42,8 +42,9 @@ var volatileKeys = map[string]bool{"id": true, "tooluseid": true, "runid": true}
 // after masking volatile values: ULIDs, RFC 3339 timestamps, {{seed.*}} placeholders and
 // the values of id, tool_use_id and run_id keys. Object keys are lower-cased with underscores removed and
 // null, "", false and empty arrays/objects are dropped, so a Go struct and its protocol
-// (snake_case, omitempty) encoding hash the same. Numbers must be integers within
-// +-(2^53-1) (canon.ErrNumber otherwise).
+// (snake_case, omitempty) encoding hash the same. Numbers use canon's literal mode: a
+// decimal in a prompt hashes by its normalised digits (1.0 and 1 hash the same), with no
+// float parsing.
 func PromptHash(p Prompt) (string, error) {
 	raw, err := json.Marshal(p)
 	if err != nil {
@@ -54,7 +55,7 @@ func PromptHash(p Prompt) (string, error) {
 		return "", fmt.Errorf("prompt hash: %w", err)
 	}
 	v, _ = normalise(v)
-	b, err := canon.Marshal(v)
+	b, err := canon.MarshalLiteral(v)
 	if err != nil {
 		return "", fmt.Errorf("prompt hash: %w", err)
 	}

@@ -93,8 +93,8 @@ func TestPromptHashPinned(t *testing.T) {
 	}
 }
 
-// PromptHash uses kernel/canon, whose numbers are integer-only: integers hash by their
-// decimal form, and a fraction or exponent is canon.ErrNumber.
+// PromptHash uses kernel/canon's literal-number mode: a number hashes by its normalised
+// literal, so decimals in prompts are accepted and equal values written differently match.
 func TestPromptHashNumbers(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -105,10 +105,11 @@ func TestPromptHashNumbers(t *testing.T) {
 		{name: "minus zero is zero", a: `[{"n":-0}]`, b: `[{"n":0}]`, same: true},
 		{name: "integer spacing", a: `[{"n": 100}]`, b: `[{"n":100}]`, same: true},
 		{name: "integer differs", a: `[{"n":100}]`, b: `[{"n":101}]`},
-		{name: "fraction rejected", a: `[{"n":0.5}]`, wantErr: true},
-		{name: "integral fraction rejected", a: `[{"n":1.0}]`, wantErr: true},
-		{name: "exponent rejected", a: `[{"n":1e21}]`, wantErr: true},
-		{name: "beyond 2^53-1 rejected", a: `[{"n":9007199254740992}]`, wantErr: true},
+		{name: "decimal accepted", a: `[{"n":0.5}]`, b: `[{"n":0.50}]`, same: true},
+		{name: "integral fraction is the integer", a: `[{"n":1.0}]`, b: `[{"n":1}]`, same: true},
+		{name: "exponent normalised", a: `[{"n":1e21}]`, b: `[{"n":10E+20}]`, same: true},
+		{name: "beyond 2^53-1 kept exactly", a: `[{"n":9007199254740993}]`, b: `[{"n":9007199254740992}]`},
+		{name: "decimal differs", a: `[{"n":0.1}]`, b: `[{"n":0.10000000000000001}]`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -10,10 +10,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/santhosh-tekuri/jsonschema/v5"
-
 	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
+	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
 // Write tool names.
@@ -168,7 +168,8 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 	t.mu.Lock()
 	t.waiting[w.GateID] = parked{runID: c.RunID, preparer: c.ActingFor}
 	t.mu.Unlock()
-	out, err := json.Marshal(map[string]string{"status": "proposed", "withdrawal_id": w.ID, "gate_id": w.GateID})
+	out, err := json.Marshal(map[string]string{"outcome": string(agenttools.OutcomeGate), "ref": w.GateID,
+		"status": "proposed", "withdrawal_id": w.ID, "gate_id": w.GateID})
 	if err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}

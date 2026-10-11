@@ -348,6 +348,10 @@ Template:
   `PayloadHash`, API unchanged) and `kernel/ai/fixture` (`PromptHash`) both use it, and
   neither is in `tools/nofloat_allow.txt`. RFC 8785 Appendix B float vectors are tested as
   rejected inputs.
+- Amended (decided): prompts may hold decimals, so `canon.MarshalLiteral` / `canon.LiteralNumber`
+  add a literal-number mode that keeps a number's own digits, normalised (zero sign, leading
+  and trailing zeros, exponent form), with no float parsing. `fixture.PromptHash` uses it;
+  gate payloads stay on the integer-only `canon.Marshal`.
 
 ## Q-INTAKE-PARTY: intake/party import cycle
 
@@ -423,3 +427,16 @@ Template:
   ("sha256:" + hex SHA-256 of the normalised quote). docsfake hashes the same way. Comment only.
 - Resolved at wave 2a integration: interest runs from `months_after(delivery, 1)` itself
   (Solicitors Act s.33). The contract comment, `Months.AccrualStart` and tests now say so.
+
+## Q-CLEARANCE-BOOT: no boot place to wire conflict.Clearance with identity capabilities
+
+- Decision (T-029.2): the only `conflict.Clearer` is `Clearance` (gated), and its
+  `Capabilities` must come from the identity registry at boot.
+- Blocker: there is no runtime boot wiring yet. `app/legal.Register(registry.Registry)` only
+  declares kinds, gates and capabilities; it receives no identity service, store or clock, and
+  `cmd/counseld/main.go` only parses flags. `kernel/identity` also has no per-user lookup
+  (`Capabilities(ctx, userID) ([]string, error)`); `Access` answers only `Can(...)`.
+- Question: where does service construction live (a `legal.Wire(deps)` called from counseld, or
+  a kernel boot container), and should `kernel/identity` gain an additive per-user capability
+  lookup, or should `conflict.Capabilities` be satisfied by an adapter over `Access.Can`?
+  Until then `NewClearance` is wired only in tests.

@@ -238,7 +238,7 @@ func (d *Driver) standIn(s agent.ToolSpec) registry.Tool {
 			d.seq++
 			id := fmt.Sprintf("gate-%s-%d", s.Name, d.seq)
 			d.proposals[id] = Proposal{GateID: id, GateKind: s.GateKind, Preparer: p.ActingFor, Input: in}
-			out, err := json.Marshal(map[string]string{"status": "proposed", "gate_id": id})
+			out, err := json.Marshal(map[string]string{"outcome": string(agenttools.OutcomeGate), "ref": id, "status": "proposed", "gate_id": id})
 			return registry.ToolResult{Output: out, GateID: id}, err
 		}
 	}

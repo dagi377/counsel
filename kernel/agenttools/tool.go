@@ -121,5 +121,14 @@ func (r *Registry) Call(ctx context.Context, p Principal, name string, in json.R
 	if err != nil {
 		return ToolResult{}, fmt.Errorf("call %q: %w", name, err)
 	}
+	// rule: ARC-I-035
+	// Every write-kind tool is held to WriteTool's contract here, so a write tool registered
+	// without WriteTool still cannot send, approve or execute: its result must be a draft, a
+	// proposal or an opened gate.
+	if t.Kind == registry.ToolWrite {
+		if err := CheckWriteResult(res); err != nil {
+			return ToolResult{}, fmt.Errorf("call %q: %w", name, err)
+		}
+	}
 	return res, nil
 }

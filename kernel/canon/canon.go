@@ -6,6 +6,11 @@
 // integer within +-(2^53-1) that form is the plain decimal, so the writer needs no floating
 // point. Any other number (a fraction, an exponent, or an integer outside that range) is
 // ErrNumber.
+//
+// MarshalLiteral is a second, literal-number mode for hashes over free text that may hold
+// decimals (AI fixture prompt hashes). It keeps a number's own digits, normalised (sign of
+// zero, leading and trailing zeros, exponent form), and never parses it as a float. Gate
+// payloads stay on the integer-only Marshal.
 package canon
 
 import (
@@ -56,17 +61,32 @@ func Marshal(v any) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+// MarshalLiteral is Marshal with numbers written by LiteralNumber instead of Number: any
+// JSON number is accepted and written as its normalised literal. Use it only for hashes
+// that are not gate payloads.
+func MarshalLiteral(v any) ([]byte, error) {
+	var b bytes.Buffer
+	if err := write(&b, v, LiteralNumber); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
 // Write appends the canonical form of v to b. Object keys are sorted by UTF-16 code unit
 // (RFC 8785 sec. 3.2.3), there is no insignificant whitespace, and strings are escaped
 // only where sec. 3.2.2.2 requires.
 func Write(b *bytes.Buffer, v any) error {
+	return write(b, v, Number)
+}
+
+func write(b *bytes.Buffer, v any, number func(json.Number) (string, error)) error {
 	switch t := v.(type) {
 	case nil:
 		b.WriteString("null")
 	case bool:
 		b.WriteString(strconv.FormatBool(t))
 	case json.Number:
-		s, err := Number(t)
+		s, err := number(t)
 		if err != nil {
 			return err
 		}
@@ -79,7 +99,7 @@ func Write(b *bytes.Buffer, v any) error {
 			if i > 0 {
 				b.WriteByte(',')
 			}
-			if err := Write(b, e); err != nil {
+			if err := write(b, e, number); err != nil {
 				return err
 			}
 		}
@@ -97,7 +117,7 @@ func Write(b *bytes.Buffer, v any) error {
 			}
 			writeString(b, k)
 			b.WriteByte(':')
-			if err := Write(b, t[k]); err != nil {
+			if err := write(b, t[k], number); err != nil {
 				return err
 			}
 		}
@@ -120,6 +140,66 @@ func Number(n json.Number) (string, error) {
 		return "", fmt.Errorf("number %s: %w", s, ErrNumber)
 	}
 	return strconv.FormatInt(i, 10), nil
+}
+
+// maxLiteralExp bounds a literal's decimal exponent so position arithmetic cannot overflow.
+const maxLiteralExp = 1 << 30
+
+// LiteralNumber returns the normalised text of a JSON number literal without parsing it as a
+// float, so no digit is rounded away. The value is written as ECMAScript writes a number
+// with exactly these significant digits: plain decimal when the decimal point falls within
+// 21 digits of the first digit and no more than 6 places after it, else d.ddde+x / d.ddde-x.
+// So 1.0, 1e0 and 10e-1 are all "1", -0 is "0", 0.50 is "0.5" and 1E21 is "1e+21". A
+// string that is not a JSON number is ErrNumber.
+func LiteralNumber(n json.Number) (string, error) {
+	s := string(n)
+	if !json.Valid([]byte(s)) || s == "" || (s[0] != '-' && (s[0] < '0' || s[0] > '9')) {
+		return "", fmt.Errorf("number %q: %w", s, ErrNumber)
+	}
+	neg := strings.HasPrefix(s, "-")
+	s = strings.TrimPrefix(s, "-")
+	mant, exp := s, 0
+	if i := strings.IndexAny(s, "eE"); i >= 0 {
+		mant = s[:i]
+		e, err := strconv.Atoi(strings.TrimPrefix(s[i+1:], "+"))
+		if err != nil || e > maxLiteralExp || e < -maxLiteralExp {
+			return "", fmt.Errorf("number %q: %w", n, ErrNumber)
+		}
+		exp = e
+	}
+	intPart, frac, _ := strings.Cut(mant, ".")
+	digits := strings.TrimLeft(intPart+frac, "0")
+	// point is where the decimal point sits after the first significant digit is placed at 0.
+	point := len(intPart) - (len(intPart+frac) - len(digits)) + exp
+	digits = strings.TrimRight(digits, "0")
+	if digits == "" {
+		return "0", nil
+	}
+	var out string
+	k := len(digits)
+	switch {
+	case k <= point && point <= 21:
+		out = digits + strings.Repeat("0", point-k)
+	case 0 < point && point <= 21:
+		out = digits[:point] + "." + digits[point:]
+	case -6 < point && point <= 0:
+		out = "0." + strings.Repeat("0", -point) + digits
+	default:
+		out = digits[:1]
+		if k > 1 {
+			out += "." + digits[1:]
+		}
+		e := point - 1
+		if e >= 0 {
+			out += "e+" + strconv.Itoa(e)
+		} else {
+			out += "e-" + strconv.Itoa(-e)
+		}
+	}
+	if neg {
+		out = "-" + out
+	}
+	return out, nil
 }
 
 // writeString writes s as an RFC 8785 string (sec. 3.2.2.2): only '"', '\\' and

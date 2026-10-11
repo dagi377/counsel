@@ -223,3 +223,40 @@ func TestARC_I_017_AgentPrincipalDecidingAnyGateIsRefused(t *testing.T) {
 		})
 	}
 }
+
+// rule: ARC-I-035
+func TestARC_I_035_UnwrappedWriteToolRefused(t *testing.T) {
+	cases := []struct {
+		name string
+		res  agenttools.ToolResult
+		ok   bool
+	}{
+		{"unwrapped draft passes", agenttools.ToolResult{Output: out("draft", "d1")}, true},
+		{"unwrapped send refused", agenttools.ToolResult{Output: out("sent", "m1")}, false},
+		{"unwrapped approve refused", agenttools.ToolResult{Output: out("approved", "g1"), GateID: "g1"}, false},
+		{"unwrapped free-form output refused", agenttools.ToolResult{Output: json.RawMessage(`{"ok":true}`)}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			plans := agenttoolsfake.New()
+			if _, err := plans.ReportPlan(ctx, "r1", []string{"draft-record"}); err != nil {
+				t.Fatalf("ReportPlan: %v", err)
+			}
+			r := agenttools.NewRegistry(plans)
+			// Registered directly, without WriteTool.
+			if err := r.Register(agenttools.Tool{Name: "raw_write", Kind: registry.ToolWrite, Input: []byte(subjectSchema), Handle: writeHandler(tc.res)}); err != nil {
+				t.Fatalf("Register: %v", err)
+			}
+			for _, p := range []agenttools.Principal{agent("r1"), user()} {
+				_, err := r.Call(ctx, p, "raw_write", json.RawMessage(`{"subject":"s1"}`))
+				if tc.ok && err != nil {
+					t.Fatalf("%s Call: %v", p.Kind, err)
+				}
+				if !tc.ok && !errors.Is(err, agenttools.ErrBadTool) {
+					t.Fatalf("%s Call err = %v, want ErrBadTool", p.Kind, err)
+				}
+			}
+		})
+	}
+}

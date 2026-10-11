@@ -17,8 +17,20 @@ func okHandler(_ context.Context, _ agenttools.Principal, _ json.RawMessage) (ag
 	return agenttools.ToolResult{Output: json.RawMessage(`{"ok":true}`)}, nil
 }
 
+// draftOutput is what the test write tool returns: a draft, the only kind of result a write
+// tool may give besides a proposal or an opened gate (ARC-I-035).
+const draftOutput = `{"outcome":"draft","ref":"d1"}`
+
+func draftHandler(_ context.Context, _ agenttools.Principal, _ json.RawMessage) (agenttools.ToolResult, error) {
+	return agenttools.ToolResult{Output: json.RawMessage(draftOutput)}, nil
+}
+
 func tool(name string, kind agenttools.ToolKind, capability string) agenttools.Tool {
-	return agenttools.Tool{Name: name, Kind: kind, Input: []byte(subjectSchema), Capability: capability, Handle: okHandler}
+	h := okHandler
+	if kind == registry.ToolWrite {
+		h = draftHandler
+	}
+	return agenttools.Tool{Name: name, Kind: kind, Input: []byte(subjectSchema), Capability: capability, Handle: h}
 }
 
 func agent(run string, grant ...string) agenttools.Principal {
@@ -178,7 +190,7 @@ func TestARC_U_029_ManualPathRunsWithoutAgentRun(t *testing.T) {
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("Call err = %v, want %v", err, tc.wantErr)
 			}
-			if tc.wantErr == nil && string(res.Output) != `{"ok":true}` {
+			if tc.wantErr == nil && string(res.Output) != draftOutput {
 				t.Fatalf("Output = %s", res.Output)
 			}
 		})
