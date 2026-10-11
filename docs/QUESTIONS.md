@@ -2631,6 +2631,7 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
 
 
 ## PG-WRITES-FIX
+## Q-HTTP-16 Direct trust receipt posting versus the gate-owned receipt key
 
 - Additive: migration `5505_withdrawal_gate.sql` adds nullable `trust.withdrawal_request.gate_id`
   (5504 is taken by another task branch). The request route stores the opened gate in the same tx;
@@ -2790,6 +2791,71 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   keep compiling with a fixed acting user. Boot wiring and a readiness HTTP surface are not
   built yet: boot calls `WithDesignated(agent.NewPGDesignatedLawyers(pool))` when it builds
   the Bindings, and surfaces `Readiness` on the setup checks.
+## PG-WRITES: Postgres write ports at boot
+
+- Branch merges task/PORT-STMT onto task/PG-READERS. Boot (`withWrites`, services_writes.go)
+  now fills credit.Bills (PGBills), withdraw.Service (PGService), recon.Service (PGService) and
+  recon.Statements (TxStatements over PGStatements); WithdrawGates defaults to the route gates
+  when they can withdraw. POST /credit-notes, POST /trust/withdrawals (+cancel) and the
+  reconciliation prepare and submit routes no longer answer 503 on Postgres.
+- withdraw.PGService and recon.PGService never approve: Authorize and RecordExecution refuse
+  (ErrEffectOnly, ErrNotAuthorized), and recon Approve refuses (ErrEffectOnly; an agent gets
+  ErrAgentApproval). Authorization stays in Effect.Apply; sign-off in PGSignOff.Sign. No
+  trust.reconciliation_signoff effect is registered at boot yet; open.
+- purpose_category: openapi (fees, disbursement, client_payment, third_party, refund) and the
+  DDL (fees_to_operating, disbursement, client_refund, third_party, transfer_out) differ.
+  PGService stores client_payment and refund as client_refund. `fees` is refused 422:
+  fees_to_operating needs bill_id and withdraw.Request has no bill field. Proposed: an additive
+  Request.BillID. The read side still reports the stored name; please confirm the mapping.
+- POST /trust/withdrawals passes `PreparedBy: p.UserID`, which is empty for an agent, so an
+  agent's request fails closed (422) instead of being prepared for its acting-for user.
+  Proposed fix in http_request.go: use the acting-for user, as recon's preparerOf does.
+- The route opens the gate after Request in its own transaction and does not store the gate
+  id, so approval_id stays NULL until the effect authorizes and cancel does not withdraw an
+  open gate. Proposed: a Cancels/Service hook to record approval_id at open.
+- Request.IdempotencyKey is not stored (no column); the route's idem layer replays keys.
+- Reconciliation book and client ledgers both come from trust.trust_transaction at month end
+  (the trust journal); bank is the imported statement's closing balance. Proposed follow-up:
+  read the book from the general-ledger trust bank control account so book vs ledgers is an
+  independent check. Prepare re-prepares an open draft/ready month in place; a signed or
+  imported month is ErrPeriodLocked. ImportStatement refuses with ErrNoParser.
+
+## BOOT-REST-2b
+
+- T-031.4 reminder worker (kernel/deadline/remind.go) added here; BOOT-21 jobs live in app/legal/boot/services_rest2.go (one boot file) instead of jobs_deadlines.go. The sent log defaults to in memory, so a restart can repeat that day's reminder once; a Postgres SentLog is open. No Postgres deadline Lister exists yet, so RestPorts.Deadlines takes it from the composition root.
+- The Ontario holiday calendar counts business days left only while deadline.ontario_pack is on.
+- HTTP-25: no RunService implementation (run starter + store) exists on any branch. HTTPPorts.Runs/RunAccess mount the routes when the composition root supplies them; until then they answer 503.
+- HTTP-26 webhook row_version: not done (time limit). Needs an additive migration on platform.webhook and the Postgres reads in kernel/webhook to compare it for If-Match.
+- STMT-IMPORT: recon.CSVParser (generic kind,date,description,amount_cents CSV, integer cents only) and recon.PGImports replace NoParser and PGService's import refusal at boot. Touched recon/http_write.go to put a ParseError's line and reason (never file text) in the 422 problem detail. Line descriptions go in StatementLine.Reference (the frozen contract has no description field).
+- Merge fixes: recon read/write HTTP files declared the shared problem codes, Access and reconView twice (kept the read file's, Version int64); trust.TxRunner declared twice (kept receipt_http.go's).
+
+## Q-HTTP-15 Gated payment routes: proposed allocations and refund gate
+
+- POST /payments/{payment_id}/allocations: the sum must equal the payment (422
+  allocation_sum_mismatch, ARC-I-029). A set of operating bills only, each named once, is
+  proposed directly (200, allocation state `proposed`) through a new `payment.Proposals`
+  port; the route declares `payment.allocation=proposed` and never
+  `payment.allocation=applied`. Unapplied money (client credit) or a trust_ledger row opens
+  billing.payment_allocation (202). The payment version is 1, as GET reports it.
+- POST /payments/{payment_id}/refunds opens billing.refund (202) with payee = the payment's
+  payer of record and reason = reason_code; an amount above the payment answers 409
+  refund_exceeds_payment. The billing.refund effect (provider call keyed <gate_id>:<version>)
+  and its registration are not built yet: an approved refund pays nothing until they are.
+- Boot must wire `payment.Gated` (DB, Gates, Proposals and the HTTP dependencies); until it
+  does, both routes answer 503.
+
+## PG-WRITES-FIX
+
+- Additive: migration `5505_withdrawal_gate.sql` adds nullable `trust.withdrawal_request.gate_id`
+  (5504 is taken by another task branch). The request route stores the opened gate in the same tx;
+  cancel withdraws that gate; only the preparer (the user, or the user an agent acts for) may cancel.
+- Additive: `withdraw.Cancels` gains `RecordGate`, and `withdraw.Row` gains `GateID` (not contract files).
+- Open: no Postgres `withdraw.FeeBills` adapter exists yet (billing owns the bill balance), so
+  `Effect.Bills` is unwired at boot and every fee withdrawal fails closed at authorization.
+- Open: the route opens `billing.trust_fee_withdrawal` for a bill withdrawal, but that kind has no
+  effect wired (boot/unwired_gates.txt) and execution reads only `trust.withdrawal` approvals.
+- Open: `PGService.Request` opens no gate, so the agent tool's `w.GateID == ""` check refuses every
+  agent withdrawal on Postgres until the gate is opened in the service path.
 
 ## Q-BOOT-REST-2a payment.Gated, refund stores, WO-FIX close path, fee withdrawals
 
@@ -3332,3 +3398,53 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - `matterkind.GatePartyConflict` (additive) names the kind so the agent package need not
   import matter; `matter.GatePartyConflict` is that constant. `gate_scope_test.go` adds a row
   for the matter kind.
+
+## BOOT-REST-3
+
+- Merged task/BOOT-REST-2a; kept receipt_http.go's trust.TxRunner (2a had dropped it).
+- Deadline reminders: `PGBook.List` is the Postgres `deadline.Lister`; `Reminders` skips
+  met, released and superseded deadlines. `deadline.SentLog` now takes a typed `SentKey`
+  (kind, deadline, user, day); `PGSentLog` stores it in `cal.deadline_reminder_sent`
+  (1102, unique NULLS NOT DISTINCT), so a restart never resends a reminder that day. Boot
+  (services_rest3.go) defaults Deadlines to the rest book, Sent to PGSentLog and, with
+  `DeadlinePorts.Recipient`, Primary to the kernel notification service (templates
+  deadline.reminder / deadline.digest, ids and dates only). The fallback notifier stays
+  caller-supplied; reminders carry no per-user recipient yet (UserID empty).
+- Webhooks: 1404 adds `platform.webhook.row_version` (default 1) and PGExpiry.SetExpiry bumps
+  it. Open: no Postgres `webhook.EndpointReads` exists and register.go mounts `webhook.HTTP{}`
+  without ports, so the routes still answer 503; the read must select row_version as
+  EndpointInfo.Version and the renew must be conditional on it (412 on mismatch).
+- Open: HTTP-25 RunService. PORT-18's PGRuns is the conflict-check run store
+  (conflict.check_run), not agent.agent_run, so it cannot back agent runs; an agent run store
+  is needed first. Routes still answer 503.
+- Open: Postgres payment.Proposals (HTTP-15). billing.payment_allocation has no proposed
+  state and no Postgres payment.Service exists, so the gated payment routes still need both
+  (a proposal table in the billing block, and a Postgres Service for Get) before they leave 503.
+
+### PG-PAYMENT
+
+- Resolves the open HTTP-15 item above. 5630 (billing block) adds three tables, additive only:
+  `billing.payment_allocation_proposal` (proposed sets; superseded, never deleted; a deferred
+  trigger keeps the proposed total within the payment), and, because the frozen
+  `billing.payment` has no column for them, `billing.payment_capture_key` (a manual capture's
+  idempotency key) and `billing.payment_reversal` (the reversal reason).
+- Question: `billing.payment.payer_name` is NOT NULL but Capture carries no name and billing may
+  not read party tables (ARC-I-041), so PGService writes ''. The payer is `payer_contact_id`.
+- Question: Reverse has no actor, so its -1 x rows carry the original `allocated_by`.
+
+### PAYMENT-FIX
+
+- Answers both PG-PAYMENT questions (decided as counsel).
+- Contract change (payment/contract.go): `Service.Reverse` gains `by Actor`
+  (`Actor{UserID, Agent}`), and `Payment` gains `ReversedBy`, with `ErrAgentReverse`. A
+  reversal must record who reversed it for the books' audit trail. The only implementations are
+  PGService and paymentfake, and nothing in production calls Reverse yet. PGService refuses
+  an agent: either the Actor says Agent, or the user's `core.app_user.principal_kind` is not
+  'human'. 5630 `billing.payment_reversal` gains `reversed_by` (NOT NULL, FK app_user). The
+  -1 x allocation rows also carry the reverser as `allocated_by`, never the original allocator.
+- payer_name: PGService gains `Payers PayerNames`, a port that billing defines. Boot wires it to
+  the party module API (`boot.PartyPayers` over `party.Contacts.Get`, which gives the legal name). Billing
+  never reads party tables. While the port is nil, or the payer has no name, Capture fails closed
+  (`ErrNoPayerNames` / ErrInvalid) and nothing is written.
+- Unapplied money (overpayment) is not a payment_allocation row; Allocations derives it as
+  amount minus applied, as paymentfake does. Turning it into client credit stays G-B3's.

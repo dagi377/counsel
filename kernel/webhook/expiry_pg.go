@@ -31,7 +31,7 @@ WHERE id::text = $1 AND expires_at = $2
   AND (expiry_noticed_for IS NULL OR expiry_noticed_for < $3)
 RETURNING id::text`
 	// sqlSetExpiry sets a new expiry and resets the notice claim for it.
-	sqlSetExpiry = `UPDATE platform.webhook SET expires_at = $2, expiry_noticed_for = NULL
+	sqlSetExpiry = `UPDATE platform.webhook SET expires_at = $2, expiry_noticed_for = NULL, row_version = row_version + 1
 WHERE id::text = $1`
 )
 

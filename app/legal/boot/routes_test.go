@@ -207,6 +207,10 @@ func TestWiredRoutesAreServed(t *testing.T) {
 		{"GET", "/gates/" + id},
 		{"GET", "/expenses"},
 		{"POST", "/expenses"},
+		// HTTP-14 and PG-PAYMENT: boot wires the payment list, record and read routes.
+		{"GET", "/payments"},
+		{"POST", "/payments"},
+		{"GET", "/payments/" + id},
 		// HTTP-15 and WO-FIX: boot wires the gated payment routes and the write-off withdraw.
 		{"POST", "/payments/" + id + "/allocations"},
 		{"POST", "/payments/" + id + "/refunds"},

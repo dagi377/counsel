@@ -44,33 +44,47 @@ type Notifier interface {
 	Notify(ctx context.Context, n Notice) error
 }
 
-// SentLog remembers which notices went out, so a second run the same day sends nothing.
-type SentLog interface {
-	// Sent reports whether key was marked.
-	Sent(ctx context.Context, key string) (bool, error)
-	// Mark records key as sent.
-	Mark(ctx context.Context, key string) error
+// SentKey names one sent notice: its kind, its deadline (empty for a digest), its recipient
+// (empty for the firm channel) and the business day it was sent for.
+type SentKey struct {
+	Kind       string
+	DeadlineID DeadlineID
+	UserID     string
+	Day        Date
 }
 
-// MemSentLog is an in-memory SentLog.
+func (k SentKey) String() string {
+	return fmt.Sprintf("%s:%s:%s:%04d-%02d-%02d", k.Kind, k.DeadlineID, k.UserID, k.Day.Year, int(k.Day.Month), k.Day.Day)
+}
+
+// SentLog remembers which notices went out, so a second run the same day sends nothing.
+// PGSentLog keeps it across restarts.
+type SentLog interface {
+	// Sent reports whether key was marked.
+	Sent(ctx context.Context, key SentKey) (bool, error)
+	// Mark records key as sent. Marking a key twice is not an error.
+	Mark(ctx context.Context, key SentKey) error
+}
+
+// MemSentLog is an in-memory SentLog for tests and a process without a database.
 type MemSentLog struct {
 	mu   sync.Mutex
-	keys map[string]bool
+	keys map[SentKey]bool
 }
 
 // Sent implements SentLog.
-func (m *MemSentLog) Sent(_ context.Context, key string) (bool, error) {
+func (m *MemSentLog) Sent(_ context.Context, key SentKey) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.keys[key], nil
 }
 
 // Mark implements SentLog.
-func (m *MemSentLog) Mark(_ context.Context, key string) error {
+func (m *MemSentLog) Mark(_ context.Context, key SentKey) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.keys == nil {
-		m.keys = map[string]bool{}
+		m.keys = map[SentKey]bool{}
 	}
 	m.keys[key] = true
 	return nil
@@ -143,6 +157,10 @@ func (r *Reminders) due(ctx context.Context) (Date, []Reminder, error) {
 	}
 	out := make([]Reminder, 0, len(ds))
 	for _, d := range ds {
+		// Only open deadlines are reminded: met, released and superseded ones are done.
+		if d.State != StateProposed && d.State != StateConfirmed {
+			continue
+		}
 		out = append(out, Reminder{DeadlineID: d.ID, Subject: d.Proposed.Subject, State: d.State, Due: d.Proposed.Due,
 			DaysLeft: daysBetween(today, d.Proposed.Due), BusinessDaysLeft: businessDaysBetween(today, d.Proposed.Due, hol)})
 	}
@@ -158,7 +176,7 @@ func (r *Reminders) Remind(ctx context.Context) (RunResult, error) {
 	var res RunResult
 	var errs []error
 	for _, rm := range rs {
-		key := fmt.Sprintf("%s:%s:%s", NoticeReminder, rm.DeadlineID, today)
+		key := SentKey{Kind: NoticeReminder, DeadlineID: rm.DeadlineID, Day: today}
 		if err := r.send(ctx, key, Notice{Kind: NoticeReminder, Day: today, Items: []Reminder{rm}}, &res); err != nil {
 			errs = append(errs, err)
 		}
@@ -174,12 +192,12 @@ func (r *Reminders) Digest(ctx context.Context) (RunResult, error) {
 		return RunResult{}, err
 	}
 	var res RunResult
-	key := fmt.Sprintf("%s:%s", NoticeDigest, today)
+	key := SentKey{Kind: NoticeDigest, Day: today}
 	return res, r.send(ctx, key, Notice{Kind: NoticeDigest, Day: today, Items: rs}, &res)
 }
 
 // send delivers n once per key: Primary first, then Fallback.
-func (r *Reminders) send(ctx context.Context, key string, n Notice, res *RunResult) error {
+func (r *Reminders) send(ctx context.Context, key SentKey, n Notice, res *RunResult) error {
 	done, err := r.Sent.Sent(ctx, key)
 	if err != nil {
 		return fmt.Errorf("reminders: sent log: %w", err)

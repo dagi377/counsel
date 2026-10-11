@@ -5,8 +5,6 @@ GET /deadlines/{deadline_id}
 GET /documents
 GET /documents/{document_id}/versions/{version_id}/pages/{page}
 GET /drafts
-GET /payments
-GET /payments/{payment_id}
 GET /roles
 GET /time-entries
 GET /trust/requests
@@ -20,9 +18,6 @@ POST /agent/runs
 POST /deadlines
 POST /documents
 POST /documents/{document_id}/release
-POST /payments
-POST /payments/{payment_id}/allocations
-POST /payments/{payment_id}/refunds
 POST /time-entries
 POST /trust/requests
 POST /trust/withdrawals/{withdrawal_id}/execution

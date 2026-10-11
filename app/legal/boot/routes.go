@@ -86,14 +86,15 @@ type HTTPPorts struct {
 	ReconStatements recon.Statements
 	ReconVersions   recon.Versions
 	ReconParser     recon.Parser
-	// Payments and PaymentProposals serve POST /payments/{payment_id}/allocations and
-	// /refunds (HTTP-15); both open their gates on Gates.
-	Payments         payment.Service
-	PaymentProposals payment.Proposals
 	// Runs and RunAccess serve POST /agent/runs and GET /agent/runs/{run_id} (HTTP-25):
 	// the composition root supplies the run starter and store.
 	Runs      agent.RunService
 	RunAccess agent.RunAccess
+	// Payments serves GET and POST /payments and GET /payments/{payment_id} (HTTP-14); with
+	// PaymentProposals it also serves POST /payments/{payment_id}/allocations and /refunds
+	// (HTTP-15), which open their gates on Gates.
+	Payments         payment.Service
+	PaymentProposals payment.Proposals
 }
 
 // TxRunner runs fn in one transaction; kernel/db implements it.
@@ -171,6 +172,8 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 		Statements: p.ReconStatements, Versions: p.ReconVersions, Gates: p.Gates, DB: p.DB, Access: p.Access,
 		Idem: p.Idem, Problems: p.Problems, Principal: p.Principal,
 		MinApprovers: approvers[recon.GateSignOff]}).Routes)
+	add(p.Payments != nil && p.Idem != nil, (&payment.HTTP{Payments: p.Payments, Access: p.Access, Cursors: p.Cursors,
+		Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
 	add(p.Payments != nil && p.PaymentProposals != nil && p.DB != nil && p.Gates != nil && p.Idem != nil,
 		(&payment.Gated{HTTP: payment.HTTP{Payments: p.Payments, Access: p.Access, Cursors: p.Cursors, Idem: p.Idem,
 			Problems: p.Problems, Principal: p.Principal}, DB: p.DB, Gates: p.Gates, Proposals: p.PaymentProposals,
