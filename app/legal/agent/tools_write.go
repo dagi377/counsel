@@ -215,6 +215,7 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 		Payee:          in.Payee,
 		Method:         method,
 		Reason:         in.Purpose,
+		BillID:         in.BillID,
 		PreparedBy:     c.ActingFor,
 		IdempotencyKey: idempotencyKey(c),
 	})

@@ -63,6 +63,9 @@ type Request struct {
 	Reason             string
 	PreparedBy         string
 	IdempotencyKey     string
+	// BillID is the delivered bill a fee withdrawal pays (trust.withdrawal_request.bill_id).
+	// Additive (WD-BILL): the trust module re-checks it at authorization.
+	BillID string
 }
 
 // Withdrawal is a request and where it is in its life.
