@@ -2,12 +2,8 @@
 # per line (paths without the /v1 base). This list only shrinks: the conformance tests fail
 # when a listed operation is served, when it leaves openapi.yaml, and when an operation is
 # neither served nor listed. Remove a line in the same change that mounts its handler.
-GET /audit-events
-GET /roles
 POST /trust/receipts
 POST /trust/transfers
-GET /users
-PUT /users/{user_id}/roles
 GET /webhook-endpoints
 POST /webhook-endpoints
 PATCH /webhook-endpoints/{webhook_id}
