@@ -24,3 +24,32 @@ func Register(r registry.Registry) error {
 	}
 	return nil
 }
+
+func init() { add(registerReadRoutes) }
+
+// registerReadRoutes mounts GET /bills, GET /bills/{bill_id} and GET /bills/{bill_id}/lines
+// through Registry.Routes. Boot wiring supplies the dependencies; until it does, the routes
+// answer 503.
+func registerReadRoutes(r registry.Registry) error {
+	r.Routes((&HTTP{}).Routes)
+	return nil
+}
+
+func init() { add(registerDraftRoutes) }
+
+// registerDraftRoutes mounts POST /bills and PATCH /bills/{bill_id} through Registry.Routes.
+// Boot wiring supplies the dependencies; until it does, the routes answer 503.
+func registerDraftRoutes(r registry.Registry) error {
+	r.Routes((&DraftHTTP{}).Routes)
+	return nil
+}
+
+func init() { add(registerActionRoutes) }
+
+// registerActionRoutes mounts POST /bills/{bill_id}/submit, /void and /deliver through
+// Registry.Routes. Boot wiring supplies the dependencies; until it does, the routes answer
+// 503.
+func registerActionRoutes(r registry.Registry) error {
+	r.Routes((&ActionHTTP{}).Routes)
+	return nil
+}

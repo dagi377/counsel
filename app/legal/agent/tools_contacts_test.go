@@ -58,7 +58,7 @@ func contactsWorld(t *testing.T, actorCaps map[string]bool) (*agenttools.Registr
 	})
 	h, ok := agent.HandlerFor(agent.ToolSearchContacts)
 	if !ok {
-		t.Fatal("search_contacts registered no handler from init")
+		t.Fatal("search_contacts is missing from the handler set")
 	}
 	tool, err := h.Build(agent.NewDeps(can, walls, contacts, matters))
 	if err != nil {

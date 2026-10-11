@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 	_ "time/tzdata" // America/Toronto without a system zoneinfo
@@ -52,8 +53,30 @@ func (f *Fake) Put(b bill.Bill) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	b.Lines = slices.Clone(b.Lines)
+	if b.Version == 0 {
+		b.Version = 1
+	}
 	f.bills[b.ID] = b
 	return nil
+}
+
+// List returns bills by id after flt.After, at most flt.Limit (0: all), filtered by matter
+// and status.
+func (f *Fake) List(_ context.Context, flt bill.Filter) ([]bill.Bill, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := []bill.Bill{}
+	for _, b := range f.bills {
+		if (flt.MatterID == "" || b.MatterID == flt.MatterID) && (flt.After == "" || b.ID > flt.After) &&
+			(len(flt.Statuses) == 0 || slices.Contains(flt.Statuses, b.Status)) {
+			out = append(out, clone(b))
+		}
+	}
+	slices.SortFunc(out, func(a, b bill.Bill) int { return strings.Compare(string(a.ID), string(b.ID)) })
+	if flt.Limit > 0 && len(out) > flt.Limit {
+		out = out[:flt.Limit]
+	}
+	return out, nil
 }
 
 func clone(b bill.Bill) bill.Bill {
@@ -99,6 +122,7 @@ func (f *Fake) Approve(_ context.Context, _ pgx.Tx, a bill.Approval) (bill.Bill,
 	b.Status = bill.StatusApproved
 	b.IssueDate = issue
 	b.ApprovalID, b.ApprovedBy, b.ApprovedAt = a.ApprovalID, a.ApprovedBy, a.ApprovedAt
+	b.Version++
 	f.bills[b.ID] = b
 	return clone(b), nil
 }
@@ -139,6 +163,7 @@ func (f *Fake) Update(_ context.Context, _ pgx.Tx, id bill.ID, c bill.Change) (b
 	if c.Lines != nil {
 		b.Lines = slices.Clone(c.Lines)
 	}
+	b.Version++
 	f.bills[id] = b
 	return clone(b), nil
 }
@@ -192,6 +217,7 @@ func (f *Fake) Deliver(_ context.Context, _ pgx.Tx, id bill.ID, ev bill.Delivery
 	b.DeliveredOn = businessDate(ev.AcceptedAt)
 	b.DeliveryChannel = ev.Channel
 	b.Status = bill.StatusDelivered
+	b.Version++
 	f.bills[id] = b
 	return clone(b), nil
 }

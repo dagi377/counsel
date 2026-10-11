@@ -19,10 +19,6 @@ const ToolSearchDocuments = "search_documents"
 // maxSearchPages caps how many pages of one version a search reads.
 const maxSearchPages = 500
 
-func init() {
-	addHandler(Handler{Name: ToolSearchDocuments, Build: buildSearchDocuments})
-}
-
 // buildSearchDocuments reads Deps: CapabilityCheck, roles.Walls, MatterDocuments,
 // DocumentText.
 func buildSearchDocuments(d Deps) (registry.Tool, error) {

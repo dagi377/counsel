@@ -39,7 +39,7 @@ func NewClearance(c *Checks, g gates.Gates, caps Capabilities, now func() time.T
 // capability and is not the run's preparer (for an agent-prepared run, not the user it
 // acted for), and the run must still be open.
 func (c *Clearance) Decide(ctx context.Context, runID string, approver Actor, approve bool, reason string) (Run, error) {
-	run, err := c.run(runID)
+	run, err := c.run(ctx, runID)
 	if err != nil {
 		return Run{}, err
 	}
@@ -60,14 +60,12 @@ func (c *Clearance) Decide(ctx context.Context, runID string, approver Actor, ap
 }
 
 // run returns the current view of one run.
-func (c *Clearance) run(runID string) (Run, error) {
-	c.checks.mu.Lock()
-	defer c.checks.mu.Unlock()
-	i := c.checks.find(runID)
-	if i < 0 {
-		return Run{}, fmt.Errorf("conflict clearance %s: %w", runID, ErrNotFound)
+func (c *Clearance) run(ctx context.Context, runID string) (Run, error) {
+	r, err := c.checks.get(ctx, runID)
+	if err != nil {
+		return Run{}, fmt.Errorf("conflict clearance: %w", err)
 	}
-	return c.checks.view(c.checks.runs[i]), nil
+	return r, nil
 }
 
 // gateError adds the conflict sentinel to a gate refusal that has one, so callers can test

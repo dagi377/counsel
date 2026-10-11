@@ -5,17 +5,6 @@
 POST /agent/runs
 GET /agent/runs/{run_id}
 GET /audit-events
-GET /bills
-POST /bills
-GET /bills/{bill_id}
-PATCH /bills/{bill_id}
-POST /bills/{bill_id}/deliver
-GET /bills/{bill_id}/lines
-POST /bills/{bill_id}/submit
-POST /bills/{bill_id}/void
-GET /contacts
-POST /contacts
-GET /contacts/{contact_id}
 GET /credit-notes
 POST /credit-notes
 GET /credit-notes/{credit_note_id}
@@ -27,8 +16,6 @@ POST /documents
 POST /documents/{document_id}/release
 GET /documents/{document_id}/versions/{version_id}/pages/{page}
 GET /drafts
-GET /expenses
-POST /expenses
 GET /gates
 GET /gates/{gate_id}
 POST /gates/{gate_id}/decisions
@@ -39,9 +26,6 @@ GET /payments/{payment_id}
 POST /payments/{payment_id}/allocations
 POST /payments/{payment_id}/refunds
 GET /roles
-GET /time-entries
-POST /time-entries
-PATCH /time-entries/{time_entry_id}
 GET /trust/accounts
 POST /trust/bank-lines/imports
 GET /trust/ledgers

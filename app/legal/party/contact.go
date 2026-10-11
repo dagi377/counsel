@@ -15,6 +15,32 @@ import (
 // pgInvalidText is the Postgres SQLSTATE for a malformed value, such as an id that is not a uuid.
 const pgInvalidText = "22P02"
 
+// pgUniqueViolation is the Postgres SQLSTATE for a unique constraint violation.
+const pgUniqueViolation = "23505"
+
+// ErrDuplicate means the contact already exists (a unique key on party.contact). The HTTP
+// layer answers 409 duplicate_contact.
+var ErrDuplicate = errors.New("party: duplicate contact")
+
+// ListLimit caps one List page: one more than the largest API page (200), so a caller can
+// tell whether another page follows.
+const ListLimit = 201
+
+// Filter selects one page of List: contacts whose id sorts after After, at most Limit
+// (0 means ListLimit; larger values are capped).
+type Filter struct {
+	After ContactID
+	Limit int
+}
+
+// PageSize is f.Limit with the default and cap applied.
+func (f Filter) PageSize() int {
+	if f.Limit <= 0 || f.Limit > ListLimit {
+		return ListLimit
+	}
+	return f.Limit
+}
+
 // Store creates and reads party.contact rows. It has no conflict check; that is the conflict
 // module's job.
 type Store struct {
@@ -68,6 +94,10 @@ func (s *Store) Create(ctx context.Context, c NewContact) (Contact, error) {
 		if err := tx.QueryRow(ctx, insertContactSQL,
 			string(c.Kind), c.LegalName, c.DisplayName, lang, c.IsClient, c.CreatedBy,
 		).Scan(&id, &state, &out.CreatedAt, &out.RowVersion); err != nil {
+			var pg *pgconn.PgError
+			if errors.As(err, &pg) && pg.Code == pgUniqueViolation {
+				return ErrDuplicate
+			}
 			return fmt.Errorf("insert: %w", err)
 		}
 		out.ID = ContactID(id)
@@ -147,6 +177,38 @@ func (s *Store) Search(ctx context.Context, query string) ([]Contact, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("search contacts: %w", err)
+	}
+	return out, nil
+}
+
+const listContactsSQL = `SELECT id::text, kind, legal_name, display_name, preferred_language, is_client, state, created_at, row_version
+FROM party.contact
+WHERE state <> 'merged' AND ($1 = '' OR id > NULLIF($1, '')::uuid)
+ORDER BY id
+LIMIT $2`
+
+// List implements Contacts. Ids are uuidv7, so id order is creation order.
+func (s *Store) List(ctx context.Context, f Filter) ([]Contact, error) {
+	out := []Contact{}
+	err := s.db.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, listContactsSQL, string(f.After), f.PageSize())
+		if err != nil {
+			return fmt.Errorf("select: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var c Contact
+			var kind, state string
+			if err := rows.Scan(&c.ID, &kind, &c.LegalName, &c.DisplayName, &c.PreferredLanguage, &c.IsClient, &state, &c.CreatedAt, &c.RowVersion); err != nil {
+				return fmt.Errorf("scan: %w", err)
+			}
+			c.Kind, c.State = Kind(kind), State(state)
+			out = append(out, c)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list contacts: %w", err)
 	}
 	return out, nil
 }

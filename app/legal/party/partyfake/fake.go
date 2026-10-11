@@ -107,3 +107,23 @@ func (f *Fake) Search(ctx context.Context, query string) ([]party.Contact, error
 	}
 	return out, nil
 }
+
+// List implements party.Contacts.
+func (f *Fake) List(ctx context.Context, flt party.Filter) ([]party.Contact, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("list contacts: %w", err)
+	}
+	f.mu.Lock()
+	out := []party.Contact{}
+	for _, c := range f.contacts {
+		if c.State != party.Merged && (flt.After == "" || c.ID > flt.After) {
+			out = append(out, c)
+		}
+	}
+	f.mu.Unlock()
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	if n := flt.PageSize(); len(out) > n {
+		out = out[:n]
+	}
+	return out, nil
+}

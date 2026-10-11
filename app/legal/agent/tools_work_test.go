@@ -47,7 +47,7 @@ func newWorkRegistry(t *testing.T, actorCaps map[string]bool) *agenttools.Regist
 	})
 	h, ok := agent.HandlerFor(agent.ToolListWorkItems)
 	if !ok {
-		t.Fatal("list_work_items registered no handler from init")
+		t.Fatal("list_work_items is missing from the handler set")
 	}
 	tool, err := h.Build(agent.NewDeps(can, walls, items))
 	if err != nil {

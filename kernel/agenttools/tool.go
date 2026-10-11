@@ -150,6 +150,9 @@ func (r *Registry) Call(ctx context.Context, p Principal, name string, in json.R
 	if err := CheckCitations(res); err != nil {
 		return ToolResult{}, fmt.Errorf("call %q: %w", name, err)
 	}
+	// rule: ARC-I-038
+	// The run may later cite only what its tool results returned.
+	RecordCitations(ctx, p, res)
 	return res, nil
 }
 

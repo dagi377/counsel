@@ -27,10 +27,6 @@ type WorkList interface {
 	List(ctx context.Context, f work.Filter) ([]work.Item, error)
 }
 
-func init() {
-	addHandler(Handler{Name: ToolListWorkItems, Build: buildListWorkItems})
-}
-
 // buildListWorkItems reads Deps: CapabilityCheck, roles.Walls, WorkList.
 func buildListWorkItems(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)

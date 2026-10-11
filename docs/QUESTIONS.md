@@ -760,6 +760,55 @@ s.33 as amended and either the rules or the decision change.
   that joins `PG` and `Balances`. BOOT-16 fills `TrustPorts` from them.
 - Answer: (owner)
 
+## Q-PORT-19: the conflict index version must not be a snapshot xmin
+
+- Task: PORT-19 (app/legal/conflict PGSearcher). The first pass reported
+  `pg_snapshot_xmin(pg_current_snapshot())` as `IndexVersion`; that moves with any
+  transaction in the cluster and says nothing about the name index.
+- Answer (owner, answered): add a real conflict index version, a sequence bumped on party and
+  alias writes, additively. Done in `migrations/5201_conflict_index_version.sql`
+  (app/legal/conflict): `conflict.index_version_seq` and a one-row `conflict.index_version`
+  set to `nextval` by a statement-level SECURITY DEFINER trigger on writes to
+  `party.contact` names and aliases, `matter.party_role` and `conflict.sealed_prospect` (all
+  three change search results). The row is written in the writer's transaction, so a search
+  sees committed versions only; it reads the version first, so the hits are never older than
+  it. Cost: name writes serialize on that one row.
+## Q-PORT-20: cal.deadline cannot hold a kernel deadline without an additive migration
+
+- Task: PORT-20 (kernel/deadline Postgres store). Stopped; no code written.
+- Problem: `kernel/deadline.Proposed` is (PackID, PackVersion, RuleID, Trigger date, Due
+  date, Subject{Kind, ID}). `cal.deadline` (0001) has none of PackID-as-text, PackVersion,
+  RuleID, Trigger date or a generic subject pair. Its link is `matter_id` XOR `lead_id`
+  (a CHECK), `title` and a legal `kind` enum are NOT NULL, and the pack is a uuid FK to
+  `cal.rule_pack` (whose `province` and `kind` columns are legal). Kernel code may not name
+  `matter` in SQL (tools/kernel_terms.txt), so a kernel store cannot satisfy the CHECK.
+  Repack also needs the trigger date and rule id to recompute, which the table does not keep
+  (`trigger_id` points at `cal.trigger_event`, itself matter-only).
+- Proposal (additive, same pattern as Q-T-034.1 work_item subject):
+  1. Kernel migration: `cal.deadline ADD COLUMN subject_kind text, subject_id uuid,
+     pack_code text, pack_version text, rule_key text, trigger_on date` (all nullable,
+     pair CHECKs NOT VALID then VALIDATE), and `cal.deadline_confirmation` unchanged.
+  2. App-block migration: a BEFORE INSERT trigger that sets `matter_id`/`lead_id` from
+     `(subject_kind, subject_id)` when the kind is the app's matter or lead kind, and fills
+     `title`/`kind` defaults (`'other'`) when the kernel leaves them empty; plus a backfill
+     of the new columns from existing rows.
+  3. PORT-20 then reads/writes only the generic columns; `rule_pack_id` stays NULL for
+     kernel-saved rows (the 0001 CHECK allows it when `rule_cite` is NULL).
+- Also needed: the Engine contract's Save/Confirm take a tx but Get does not; PGBook.Get
+  would run its own InTx. Confirmations/Repack are Book methods, not Engine methods, so
+  they would take a tx too (additive, PGBook only).
+- Answer (owner, answered): approved. Additive cal.deadline migration with a generic subject
+  (kind, id), pack code and version, rule id and trigger date; an app-block trigger sets
+  matter_id/lead_id from the subject. Done in PORT-20: `migrations/1100_deadline_subject.sql`
+  and `1101_deadline_subject_validate.sql` (kernel/deadline: nullable `subject_kind`,
+  `subject_id`, `pack_code`, `pack_version`, `rule_key`, `trigger_on`; pair CHECKs NOT VALID,
+  validated in the later file), and `5900_deadline_subject_link.sql` (app/legal/deadlines:
+  BEFORE INSERT trigger mapping the pair to matter_id/lead_id and back, `title` from the rule
+  key, `kind` 'other'; batched backfill of the pair). No index on the new columns yet: the
+  lint needs a separate no-transaction CONCURRENTLY file, which `migrations.Apply` (one
+  batch per file) cannot run; add one when Repack volume needs it. `PGBook` takes a tx for
+  Save, Confirm, Confirmations and Repack; Get runs its own transaction.
+
 ## BOOT progress
 
 BOOT tasks are not in docs/TASKS.md, so their progress is tracked here.
@@ -866,6 +915,56 @@ openapi-relative paths, as `kernel/inbound` and `withdraw.Execution` already do.
 Left open: the second accept line (refuse a route that sets state owned by a gate effect
 unless it is the gate decision endpoint) needs a per-route "gate-owned state" marker that no
 contract declares yet. Not built.
+
+## HTTP-00: gate-owned-state guard (files outside the task, decisions taken)
+
+- Write declarations live next to the route: `r.Method(m, path, server.Declare(h, keys...))`.
+  `server.DeclaredWrites` walks the mounted router (unwrapping `chi.ChainHandler`) and
+  `server.CheckWrites` refuses an undeclared POST/PUT/PATCH/DELETE route and any declaration
+  naming a `legal.GateOwned` key, except on `server.DecisionRoute`. Kernel mounters that do not
+  use Declare (inbound hooks) are declared in `app/legal/conformance_test.go` (`kernelWrites`).
+- `kernel/gate/decide.go` (not in the task's files): `runDecidedEffect` now hands the effect
+  `WithEffect(ctx, g.ID)`, so "set only by the effect runner" holds. One line.
+- `app/legal/register_test.go`: `MethodRoutes` joins the "always" set. Routes always mount;
+  each handler fails closed per request (the withdrawal execution route answers 503 until boot
+  wiring supplies its dependencies, and trust_rules_unverified while its flag is off). The
+  OpenAPI conformance test needs every route mounted with no features on, so routes cannot be
+  feature-gated at registration.
+- Fakes: `matterfake` (Create, AddMember) and `withdrawfake` (Authorize) gain
+  `GuardEffects(tb)`: effect-owned methods fail tb and return `gate.ErrOutsideEffect` outside
+  an effect. Other module fakes gain it when their handler task lands.
+- Q-HTTP-00 (open): `bill.delivered_at` is effect-owned (openapi deliverBill: "set only by the
+  delivery effect on evidence"; 0001 trigger RV1-008 mentions an approved delivery_correction),
+  but spec/gates.json has no delivery or delivery-correction kind. It is mapped to
+  `billing.bill_delivery`, listed pending and in the test's `unspecifiedKinds`. Needed: add the
+  kind to spec/gates.json (additive) or name the existing kind that owns it.
+- Mapping choices to confirm: write_off.status=approved -> billing.credit_note (the openapi op
+  "Request a credit note or write-off; opens gate billing.credit_note"); matter.team and
+  matter.restricted -> matter.widen_access; matter.status=closed -> platform.closing;
+  trust_account.signatories -> core.trust_signatory; trust_txn.posted is split into
+  `=receipt` (trust.receipt_classification) and `=transfer` (trust.transfer).
+
+## HTTP-01 / HTTP-02: matter routes (decisions taken, open items)
+
+- Routes register a zero-value `matter.HTTP` / `matter.Writes` through `Registry.Routes`;
+  every route answers 503 `unavailable` and calls nothing until boot wiring supplies the
+  dependencies (same as the withdrawal execution route). The BOOT tasks must inject them.
+- GET /matters: one capability check per request (ARC-I-042); walled and restricted matters
+  are left out by Query under the caller's RLS session, not by per-row checks. openapi
+  declares no `cursor`/`limit` parameters and no 200 schema for /matters; the handler takes
+  both (api.FromRequest) and the 200 bodies are not schema-checked.
+- POST /matters: the rule wins over the task text. Same key + different body returns 422
+  `idempotency_key_reused` (ARC-I-008), not 409. kernel/idem's own problem bodies omit the
+  required `type` field of the Problem schema; the handler checks the missing key itself so
+  that 400 validates, but the 422/409 bodies from `idem.New` do not (fix in kernel/idem).
+- POST /matters opens `matter.opening` with subject `party.contact`/client_id: the matter
+  row does not exist until the effect creates it. Needed: the matter.opening effect
+  (service gap) and a confirmation of the subject.
+- PATCH: plain-field writes go through a new `matter.Updater` port (declared in
+  http_write.go, not the frozen contract); its Postgres implementation is a service gap.
+  status=open opens matter.opening; closing/closed/archived open platform.closing (verify);
+  team and restricted open matter.widen_access. One gated change per request; mixing plain
+  and gated fields is 400.
 
 ## BOOT-09: Run wiring gaps
 
@@ -1096,31 +1195,7 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   core.app_user/core.role through a test-local one.
 ## HTTP-00: gate-owned-state guard (files outside the task, decisions taken)
 
-- Write declarations live next to the route: `r.Method(m, path, server.Declare(h, keys...))`.
-  `server.DeclaredWrites` walks the mounted router (unwrapping `chi.ChainHandler`) and
-  `server.CheckWrites` refuses an undeclared POST/PUT/PATCH/DELETE route and any declaration
-  naming a `legal.GateOwned` key, except on `server.DecisionRoute`. Kernel mounters that do not
-  use Declare (inbound hooks) are declared in `app/legal/conformance_test.go` (`kernelWrites`).
-- `kernel/gate/decide.go` (not in the task's files): `runDecidedEffect` now hands the effect
-  `WithEffect(ctx, g.ID)`, so "set only by the effect runner" holds. One line.
-- `app/legal/register_test.go`: `MethodRoutes` joins the "always" set. Routes always mount;
-  each handler fails closed per request (the withdrawal execution route answers 503 until boot
-  wiring supplies its dependencies, and trust_rules_unverified while its flag is off). The
-  OpenAPI conformance test needs every route mounted with no features on, so routes cannot be
-  feature-gated at registration.
-- Fakes: `matterfake` (Create, AddMember) and `withdrawfake` (Authorize) gain
-  `GuardEffects(tb)`: effect-owned methods fail tb and return `gate.ErrOutsideEffect` outside
-  an effect. Other module fakes gain it when their handler task lands.
-- Q-HTTP-00 (open): `bill.delivered_at` is effect-owned (openapi deliverBill: "set only by the
-  delivery effect on evidence"; 0001 trigger RV1-008 mentions an approved delivery_correction),
-  but spec/gates.json has no delivery or delivery-correction kind. It is mapped to
-  `billing.bill_delivery`, listed pending and in the test's `unspecifiedKinds`. Needed: add the
-  kind to spec/gates.json (additive) or name the existing kind that owns it.
-- Mapping choices to confirm: write_off.status=approved -> billing.credit_note (the openapi op
-  "Request a credit note or write-off; opens gate billing.credit_note"); matter.team and
-  matter.restricted -> matter.widen_access; matter.status=closed -> platform.closing;
-  trust_account.signatories -> core.trust_signatory; trust_txn.posted is split into
-  `=receipt` (trust.receipt_classification) and `=transfer` (trust.transfer).
+## HTTP-03: contacts routes (files outside the task)
 
 ## HTTP-01 / HTTP-02: matter routes (decisions taken, open items)
 
@@ -1154,7 +1229,19 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   addNotifyJobs and addWebhookJobs. The legal app schedules
   trust.withdrawal_release_expired every 15 minutes when gate services are built. kernel/idem
   problem bodies carry `type` (urn:counsel:problem:<code>, now api.ProblemTypePrefix).
+## FEAT-CORE-02 answers carry citations; explicit tool HandlerSet
 
+- Owner decision (2026-10-11): tool handlers do not register through init(). Outside the
+  task's files, `app/legal/agent/handlerset.go` now holds an explicit `HandlerSet`
+  (`NewHandlerSet` rejects duplicates, `For`, `Names`) and `Handlers()` lists every real
+  handler; the four tool files drop their init(). `HandlerFor`/`HandlerNames` remain as
+  wrappers over `Handlers()`, so existing callers keep working. A new tool adds its
+  `Handler` to the list in `Handlers()`.
+- Additive to the frozen `kernel/agenttools/run` contract: `Spec.AnswerMayBeUncited bool`
+  (default false, so an answer must cite). `CheckAnswer` reads `{answer, citations[]}` with
+  snake_case citation keys (`version_id`, `page`, `from_line`, `to_line`); `AnswerSchema` is the
+  matching `Spec.OutputSchema`. A cited range may be a sub-range of a citation a tool result of
+  the same run returned (same version and page).
 ## FEAT-CORE-06 run scope (gate-kind allowlist and drafts made in this run)
 
 - Additive to the frozen kernel/agenttools contract (new file scope.go): `Scope{RunID,
@@ -1184,3 +1271,248 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   `withdraw.Service` and `withdrawfake.Fake` satisfy it, so callers are unchanged.
 - The title says "payee from matter contacts", but the accept list does not cover it and there
   is no matter-contact dependency in WriteDeps. Payee is still free text. Open question.
+
+## FEAT-CORE-10
+
+- Q-FEAT-CORE-10.1: `prompts/rules.md` is embedded and exposed as `feature.Rules()`, but
+  `Def.Spec()` (feature.go, FEAT-CORE-08, outside this task's files) still builds
+  `System = Preamble(id) + prompt`. Proposed one-line change at merge: `Preamble(id) + Rules() +
+  "\n" + prompt`. `feature.PromptHash` hashes `Spec()`, so it follows that change by itself;
+  no fixture pins a prompt_hash yet, so nothing needs rehashing.
+## FEAT-TOOL-11 draft_document
+
+- Depends on FEAT-CORE-06 (run Scope), which has no branch yet. The handler takes a
+  `RunScope` dep (`Returned` for "citations must come from this run", `RecordDraft` for the
+  run's drafts); boot adapts the CORE-06 Scope to it once that lands. On the manual path (a
+  user principal, no run) citations are only shape-checked.
+- No init(): per the owner decision, `DraftDocumentHandler()` returns the Handler and boot
+  adds it to the explicit HandlerSet. Until boot does, agenttest.FromFeature keeps its
+  stand-in for draft_document.
+- The docs module has no draft API yet; the handler writes through `DocumentDrafts`
+  (`CreateDraft`), which app/legal/docs implements at boot.
+## FEAT-TOOL-12 draft_email
+
+- No init(): `DraftEmailHandler()` returns the Handler and boot adds it to the explicit
+  HandlerSet (owner decision); agenttest.FromFeature keeps its stand-in until boot does.
+- No email-draft or matter-contact API exists yet. The handler writes through `EmailDrafts`
+  (`CreateEmailDraft`, deliberately without a send method) and checks recipients with
+  `MatterContacts` (`MatterContactIDs`: client and parties of the matter); boot wires both.
+  submit=true opens `platform.outgoing_email` through `agenttools.GateOpener` with subject
+  kind `email_draft`; the caller is the preparer.
+
+## FEAT-TOOL-13 draft_note
+
+- No init(): `DraftNoteHandler()` returns the Handler and boot adds it to the explicit
+  HandlerSet (owner decision); agenttest.FromFeature keeps its stand-in until boot does.
+- No note-draft API exists yet. The handler writes through `NoteDrafts` (`CreateNoteDraft`)
+  and opens `matter.agent_note` through `agenttools.GateOpener` with subject kind
+  `agent_note`; the caller is the preparer (an agent's acting-for user).
+## Q-PORT-15 write-off store has no table for draft write-offs (answered)
+
+PORT-15 asks for `PGWriteOffs` over `billing.write_off`, adding only a second-gate column in
+`6220_write_off_second_gate.sql`. The 0001 table cannot hold what `WriteOffStore` needs:
+
+- `billing.write_off` is the approved record only: `approval_id` is NOT NULL, the row is
+  immutable (`write_off_immutable` trigger, UPDATE/DELETE revoked), and `billing.bill_balance`
+  subtracts every row's `amount_cents` at once (`bill_not_overpaid_wo` fires on INSERT). A
+  draft row would reduce the bill's balance before G-B5 is approved, and `MarkAwaitingSecond`
+  could never set a column on it.
+- It has no `status`, `prepared_by`, `approved_by` or `approved_at`, which `Lock` must return
+  (`ApproveWriteOff` checks the preparer and the draft status).
+- Its CHECK needs `fee_cents + dtx_cents + dnt_cents + tax_cents + interest_cents =
+  amount_cents`, but `SaveApproved(w WriteOff)` only carries `AmountCents`; the tax part is in
+  the `BadDebtAdjustment` that `PostBadDebt` gets, not in `SaveApproved`.
+- `WriteOffBills` needs `Bill.ResponsibleUser`, which lives on `matter.matter`; billing may not
+  join another module's table.
+
+Proposal (needs approval; all additive):
+A. `6220_write_off_draft.sql` adds `billing.write_off_draft` (id uuid PK, bill_id, amount_cents
+   > 0, reason, prepared_by uuid, credit_gate_id uuid NULL, second_gate_id uuid NULL,
+   created_at), append-only except a one-time `second_gate_id` NULL -> value guarded by a
+   trigger. `Lock` = draft row FOR UPDATE LEFT JOIN `billing.write_off` on the same id
+   (approved when that row exists; approved_by from the gate decision through the gate
+   engine, not a join). `SaveApproved` inserts `billing.write_off` with the draft's id and
+   `approval_id` = the G-B5 gate id, `ON CONFLICT (id) DO NOTHING` for idempotency.
+B. Bucket split: additive `SaveApprovedSplit(ctx, tx, w, adj)` (or `WriteOff.TaxCents`) so
+   `tax_cents` = adj.TaxCents and `fee_cents` = amount - tax; or approve putting the whole
+   amount in `fee_cents` (loses the tax split in the row; the journal still has it).
+C. `ResponsibleUser`: `PGWriteOffBills` takes a `matter.Query`-style lookup port (matter id ->
+   responsible lawyer) instead of joining `matter.matter`.
+
+Answer (owner): approve an additive `billing.write_off_draft` table (status, preparer,
+approvers, total). The fee, disbursement and tax split is computed at draft time with
+`money.Allocate` in proportion to the bill's outstanding components (largest remainder, then
+verified). Only the effect writes the approved row to `billing.write_off`. The responsible
+lawyer is read through a matter port, never a SQL join.
+
+Done in PORT-15:
+- `migrations/5610_write_off_draft.sql` (billing block 5600-5699; the task text named 6220,
+  which is the app/legal/agent block): the draft row with its five-bucket split,
+  `credit_gate_id` (G-B5) and `second_gate_id`, each set once, and draft -> approved once,
+  guarded by a trigger; no deletes.
+- `PGWriteOffs` implements `WriteOffStore` and `WriteOffBills`. `Draft` locks the bill, reads
+  its outstanding buckets from billing tables only and fails closed when they do not add up to
+  the bill balance net of reserved fee transfers (a trust fee transfer has no bucket split).
+  `Submit` records the G-B5 gate id; `SaveApproved` refuses a draft without it and inserts
+  `billing.write_off` with `approval_id` = that gate, `ON CONFLICT (id) DO NOTHING`.
+- `ResponsibleLawyers` is the matter port `WriteOffBill` reads the lawyer through; nil or an
+  empty lawyer fails closed. The matter-side adapter is wired at boot (BOOT-15/16).
+## Q-PORT-18 conflict run model does not map onto conflict.check_run / conflict.hit (answered)
+
+PORT-18 asks for `PGRuns` over `conflict.check_run` / `conflict.hit` behind an additive
+`RunStore`. The 0001 tables need values the conflict domain never has, so a store would have
+to invent regulator-facing conflict records:
+
+- `check_run` hangs off `conflict.conflict_check` (`check_id` NOT NULL, which itself needs
+  `trigger`, `settings_version` -> `conflict_settings` and `requested_by`), plus
+  `index_version` and `complete` NOT NULL. `Request`/`Run` carry only a matter id, terms and
+  the preparer: no check id, no version, no index version.
+- `conflict.hit` needs `check_party_id` NOT NULL (a `check_party` row with `kind`
+  person/organization and `role`), `matched_kind`, `matched_id`, `match_type` and `score_ppm`.
+  `Hit` is `{Term, PartyID, MatterID, Role}`: the term is not a check party, and the match
+  kind, match type and score are not known. `Hit.MatterID`/`Role` have no column.
+- G2 decisions and hit dispositions live on `conflict.clearance` (approval_id, signed_by) and
+  on `hit.disposition*`, which is UPDATEd in place; the in-memory `Checks` keeps both as
+  append-only logs. Replacing only the run slice leaves `Dispose`/`decide` needing a run
+  lookup by id, which `RunStore{Append, Runs}` does not offer.
+
+Proposal (needs approval; additive):
+A. `RunStore` = `Append(ctx, Run) (Run, error)`, `Runs(ctx, matterID)`, `Run(ctx, id)`; memory
+   default keeps `NewChecks` as is; `NewChecksWith(s, store, now)`.
+B. Additive fields: `Request.CheckID`, `Run.CheckID`, `Run.Version`, `Run.IndexVersion`,
+   `Run.Complete`; `Hit.CheckPartyID`, `Hit.MatchedKind`, `Hit.MatchType`, `Hit.ScorePPM`,
+   filled by the Searcher (the party index knows them). `PGRuns.Append` refuses
+   (ErrInvalid) a run or hit missing any of them, never defaults them; version is
+   `max(version)+1` under `SELECT ... FOR UPDATE` on the conflict_check row, and a 23505 on
+   UNIQUE(check_id, version) maps to a new `ErrRunExists`.
+C. Dispositions and G2 decisions stay in memory in this task; a follow-up maps them onto
+   `conflict.hit` dispositions and `conflict.clearance` (or an additive append-only
+   disposition table, since `hit.disposition` is updated in place).
+
+Answer (owner): approve the additive domain fields on conflict Run/Hit (check record, party,
+match type, score ppm), filled by the searcher. Missing values are refused. Add
+RunStore.Get(id).
+
+Done in PORT-18:
+- `contract.go` (additive): `Request.CheckID`; `Run.CheckID`, `Version`, `IndexVersion`,
+  `Complete`; `Hit.CheckPartyID`, `MatchedKind`, `MatchType`, `ScorePPM` (`Hit.PartyID` is
+  `conflict.hit.matched_id`).
+- `RunStore{Append, Runs, Get}`, `ErrRunExists`, `ErrInvalidRun` and the optional
+  `IndexVersioner` searcher in `check.go`; `NewChecks` keeps the in-memory store,
+  `NewChecksWith(s, store, now)` takes `PGRuns`. `clearance.go` reads a run through the store
+  (one helper call, needed because the run slice is gone).
+- `migrations/5200_check_run_detail.sql` (conflict block): nullable `check_run.prepared_by`,
+  `check_run.terms`, `hit.ordinal`, `hit.term`, `hit.party_matter_id`, `hit.party_role`, so a
+  stored run reads back whole. `PGRuns` refuses (ErrInvalidRun) a run or hit missing any value,
+  a hit whose check party is on another check, and on read a run without a preparer or with a
+  gap in hit order. Dispositions and G2 decisions stay in memory (proposal C).
+
+## Q-INTEG-12 Pass 12 integration decisions
+
+- Run scope, one concept (additive): the kernel `agenttools.Scope` (FEAT-CORE-06) now also
+  holds the citations the run's tool results returned (`AddCitations`, `Cites`).
+  `Registry.Call` records them (`RecordCitations`) after `CheckCitations`. The app's
+  `agent.RunScope` port (FEAT-TOOL-11..13) stays as the consumer view; its implementation is
+  the stateless `agenttools.RunScopes{}`, which reads the Scope the Runner put in ctx and fails
+  closed with `ErrNoRunScope` when the ctx has no scope for that run.
+- Provenance (FEAT-CORE-07) keeps its own per-run value set keyed by `Principal.RunID`; it is
+  built at registration time (`ReadTool`/`SourcedWrite` wrappers), before any run exists, so
+  moving it into Scope is not a natural fit. Open: the Runner should call `Provenance.Forget`
+  when a run ends (boot task).
+- `agent.Handlers()` now lists draft_document, draft_email, draft_note and the
+  `ReportHandlers()` pair. No init() registration.
+- Q-FEAT-CORE-10.1 applied: `Def.Spec()` builds `Preamble(id) + Rules() + "\n" + prompt`.
+- `PGWriteOffTotals` reads pending write-offs from `billing.write_off_draft` (status draft
+  with a credit gate set), never the kernel gate table. A submitted draft whose gate was
+  rejected stays `draft` and still counts; that only raises the total toward the second
+  approval (fails closed). Open: add a `rejected`/`withdrawn` draft status set by the gate
+  outcome so rejected drafts stop counting.
+- Migrations: PORT-19's `5200_conflict_index_version.sql` renumbered to 5201 (collided with
+  PORT-18's 5200). 5200 and 5610 brought to MIG-061 (timeouts, NOT VALID constraints); the
+  hit ordinal unique index moved to `5202_check_run_detail_index.sql` (CONCURRENTLY).
+- Not done in pass 12 (requeue to the BOOT/PORT task set): filling `feature.Set` at boot and
+  building the registry from `agent.Handlers()` (app/legal/boot has no agent wiring yet); the
+  report_step step-id map in the PlanStore (needs a step id on `agenttools.Step`, a kernel
+  contract change; PORT-25); the matter-side `credit.ResponsibleLawyers` adapter at boot; and
+  write-off drafting on bills with trust fee transfers (split the fee transfer first, PORT-15
+  note). Q-INTEG-12.1 (lawyer): when a bill was paid partly by a trust fee transfer, is the
+  write-off split computed on the outstanding balance after the transfer (fee portion only),
+  or must the transfer itself be apportioned across fee, disbursement and tax first?
+- `party.Contacts` gains `List(ctx, Filter)` in contract.go (additive, as the task's accept
+  line asks), so `partyfake` gains `List` too. Pages run by id (uuidv7, so creation order);
+  `ListLimit` is 201, one more than the openapi page maximum, so the handler can see a next page.
+- `ErrDuplicate` (409 duplicate_contact, proposed code) maps a unique violation on insert;
+  party.contact has no unique key yet, so it fires only once one is added.
+- A malformed contact_id answers 400 validation_failed after the capability check (accept
+  line), unlike GET /matters/{id}, which answers 404.
+- app/legal/boot TestRegisterNoFlagsRecordsOnlyAlwaysSet failed on HTTP-02 merged with main
+  (main's test predates the matter routes): Routes calls join the "always" set, since
+  HTTP-00 mounts every handler route unconditionally (unwired routes answer 503). The exact
+  comparison with legal.Register's calls is unchanged.
+
+## HTTP-04: time-entry routes (files outside the task)
+
+- Additive contract changes in timekeeping/contract.go: `TimeEntry.RowVersion` (the ETag) and
+  `Entries.List(ctx, EntryFilter)`; timekeepingfake implements both. No Postgres `Entries`
+  exists yet (service gap), so the routes answer 503 until boot wires one.
+- `time_entry_id` is a plain string in openapi; ids outside `[0-9A-Za-z-]{1,64}` are 400.
+- ErrOutOfScope maps to 422 activity_out_of_scope, but the service flags out-of-scope
+  paralegal entries instead of refusing them (BIL-L-046), so no route returns it today.
+- A reused Idempotency-Key with a different body answers 422 (rule ARC-I-008, kernel/idem),
+  not the 409 in the task text, as in HTTP-02.
+
+## HTTP-05: expense routes (approved scope)
+
+- No expense service existed; the owner approved a minimal one. `timekeeping/expense.go` adds
+  `Expense`, `Expenses` (Record, Get, List) and the Postgres `ExpenseStore` on
+  timekeeping.expense (draft rows only; approval and billing set the other statuses). Boot
+  wiring supplies the store; until then the routes answer 503. Its integration test is on hold.
+- An agent principal never records an expense (403), as with time entries.
+- `paid_from: trust` is accepted as a draft record only (the DDL allows it while draft); the
+  trust transaction link and any trust movement stay with the trust gates.
+- A reused Idempotency-Key with a different body answers 422 (rule ARC-I-008, kernel/idem),
+  not the 409 in the task text, as in HTTP-02 and HTTP-04.
+
+## HTTP-06: bill read routes (files outside the task)
+
+- Additive contract changes in billing/bill/contract.go: `Service.List(ctx, Filter)`, `Filter`,
+  and the stored fields the openapi Bill and BillLine require (`Bill.Version`, `PeriodFrom`,
+  `PeriodTo`, `TaxRatePPM`, `TrustAppliedCents`, `BalanceCents`, `CreatedAt`; `Line.ID`,
+  `Line.Taxable`). billfake implements List and bumps Version on each write. No Postgres
+  bill.Service exists yet, so the routes answer 503 until boot wires one.
+- Stored statuses map to the openapi BillStatus: preflight_failed -> draft,
+  pending_approval -> in_review, void -> voided; written_off and credited pass through
+  (x-extensible-enum). `status=returned` matches nothing: no stored status is "returned".
+  Delivery channels mail and hand show as "print".
+- List pages use the openapi `{data, next_cursor}` shape. Bills on matters hidden from the
+  caller are left out of the list (pages can be short).
+- Line actions are not stored on bill.Line yet; every line reports action "bill".
+
+## HTTP-07: bill draft routes (files outside the task)
+
+- No single-draft entry point exists (billing/draft has Calc+Store, billing/batch builds
+  drafts), so http_draft.go adds the narrow port `bill.Drafts` (Create, Edit) with
+  `DraftRequest`, `DraftEdit`, `LineAction` and the sentinels `ErrNotEditable` (409
+  bill_not_editable) and `ErrNoUnbilledWIP` (422 no_unbilled_wip). Boot wiring must supply a
+  Drafts built on billing/draft; until then the routes answer 503.
+- PATCH edits only stored draft statuses (draft, preflight_failed). A bill in review is 409;
+  there is no stored "returned" status yet.
+- A body carrying status, number or totals is 400 validation_failed (accept line), not the
+  422 read_only_field in the BillPatch description.
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+
+## HTTP-08: bill submit, void and deliver routes
+
+- Submit opens billing.bill_approval (202, Gate body) and never approves; void opens
+  billing.bill_void. Neither route changes the bill row: no service method moves a draft to
+  pending_approval yet, so the status stays draft until a submit service exists (follow-up).
+- Submit has no request body in openapi, but the approval payload requires
+  delivery_method. The route accepts an optional `{"delivery_method": email|portal|mail}`
+  body, default email. Please confirm or add the field to openapi (additive).
+- Void requires billing.approve (the requester must hold the approving capability);
+  submit and deliver require billing.draft.
+- Deliver emits one outbox message `billing.bill.delivery_requested` and returns 202 with
+  the bill; delivered_at stays unset until the delivery effect records evidence. The
+  consumer that calls bill.Service.Deliver is a boot follow-up.
+- Gate subject kind for bills is `billing.bill` (bill.SubjectBill).
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).

@@ -29,10 +29,6 @@ type ClientMatters interface {
 	List(ctx context.Context, f matter.Filter) ([]matter.Matter, error)
 }
 
-func init() {
-	addHandler(Handler{Name: ToolSearchContacts, Build: buildSearchContacts})
-}
-
 // buildSearchContacts reads Deps: CapabilityCheck, roles.Walls, ContactSearch, ClientMatters.
 func buildSearchContacts(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)
