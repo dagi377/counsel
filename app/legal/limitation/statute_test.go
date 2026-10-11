@@ -9,6 +9,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 	"github.com/dagi377/counsel/app/legal/limitation"
+	"github.com/dagi377/counsel/kernel/clock"
 )
 
 func d(s string) *time.Time {
@@ -244,5 +245,46 @@ func TestLimitationsActScheduleErrors(t *testing.T) {
 	}
 	if g := got(ps); g["schedule"] != "2027-03-03" || len(g) != 1 {
 		t.Fatalf("periods = %v, want schedule 2027-03-03", g)
+	}
+}
+
+// Legislation Act, 2006 s.88 (verify): with the pack's holiday calendar attached, a period
+// whose last day is a weekend or a holiday runs to the next business day.
+func TestLegislationActS88RollsToBusinessDay(t *testing.T) {
+	ctx := legalflagstest.Context(t, legalflags.DeadlineOntarioPack, true)
+	holiday := clock.Date{Year: 2028, Month: time.September, Day: 28}
+	tests := []struct {
+		name     string
+		holidays []clock.Date
+		a        limitation.Assessment
+		want     map[string]string
+	}{
+		{"saturday ultimate rolls to monday", nil,
+			limitation.Assessment{MatterID: "m", ActDate: d("2026-09-28"), DiscoveryPresumed: true},
+			map[string]string{"basic": "2028-09-28", "ultimate": "2041-09-30"}},
+		{"holiday basic rolls to next day", []clock.Date{holiday},
+			limitation.Assessment{MatterID: "m", ActDate: d("2026-09-28"), DiscoveryPresumed: true},
+			map[string]string{"basic": "2028-09-29", "ultimate": "2041-09-30"}},
+		{"s89 feb 28 on a saturday rolls to monday", nil,
+			limitation.Assessment{MatterID: "m", ActDate: d("2024-02-29"), DiscoveryPresumed: true},
+			map[string]string{"basic": "2026-03-02", "ultimate": "2039-02-28"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newStatute(t, nil).WithHolidays(tc.holidays)
+			ps, err := s.Compute(ctx, tc.a)
+			if err != nil {
+				t.Fatalf("Compute: %v", err)
+			}
+			g := got(ps)
+			if len(g) != len(tc.want) {
+				t.Fatalf("periods = %v, want %v", g, tc.want)
+			}
+			for k, v := range tc.want {
+				if g[k] != v {
+					t.Errorf("%s = %s, want %s (all %v)", k, g[k], v, g)
+				}
+			}
+		})
 	}
 }

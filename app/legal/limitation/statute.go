@@ -8,6 +8,7 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/clock"
+	"github.com/dagi377/counsel/kernel/deadline"
 )
 
 var _ Calculator = (*Statute)(nil)
@@ -24,6 +25,8 @@ var _ Calculator = (*Statute)(nil)
 type Statute struct {
 	schedule Schedule
 	loc      *time.Location
+	holidays []clock.Date // the rule pack's holidays (Legislation Act, 2006 s.88)
+	roll     bool         // a holiday calendar is attached, so s.88 applies
 }
 
 // NewStatute returns the Ontario calculator. schedule may be nil when no Schedule periods
@@ -34,6 +37,16 @@ func NewStatute(schedule Schedule) (*Statute, error) {
 		return nil, fmt.Errorf("limitation: load %s: %w", clock.DefaultZone, err)
 	}
 	return &Statute{schedule: schedule, loc: loc}, nil
+}
+
+// WithHolidays returns s using holidays, the rule pack's holiday calendar, for the
+// Legislation Act, 2006 s.88 roll: a period that ends on a holiday or a weekend runs to the
+// next business day (Saturday, Sunday or a holiday in the calendar). Boot attaches the
+// Ontario pack's calendar; a Statute without one returns calendar last days.
+func (s *Statute) WithHolidays(holidays []clock.Date) *Statute {
+	c := *s
+	c.holidays, c.roll = slices.Clone(holidays), true
+	return &c
 }
 
 // Period lengths in calendar years.
@@ -268,10 +281,17 @@ func (s *Statute) day(t time.Time) time.Time {
 	return time.Date(y, mo, d, 0, 0, 0, 0, time.UTC)
 }
 
-// at returns calendar date d as midnight America/Toronto.
+// at returns the last day of a period ending on calendar date d, as midnight
+// America/Toronto. (verify) Legislation Act, 2006 s.88: when the last day falls on a holiday
+// (Saturday and Sunday included), the period ends on the next day that is not a holiday.
 func (s *Statute) at(d time.Time) time.Time {
 	y, mo, dd := d.Date()
-	return time.Date(y, mo, dd, 0, 0, 0, 0, s.loc)
+	day := clock.Date{Year: y, Month: mo, Day: dd}
+	// rule: Legislation Act, 2006 s.88 (verify)
+	for s.roll && !deadline.IsBusinessDay(day, s.holidays) {
+		day = day.AddDays(1)
+	}
+	return day.Start(s.loc)
 }
 
 // addMonths adds n calendar months to a UTC-midnight date. (verify) Legislation Act, 2006
