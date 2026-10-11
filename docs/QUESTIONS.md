@@ -985,7 +985,7 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
 - `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
   Q-FEAT-TOOL agent handler set), so the branches merge cleanly.
 
-## Q-PORT-18 conflict run model does not map onto conflict.check_run / conflict.hit (blocked, stopped)
+## Q-PORT-18 conflict run model does not map onto conflict.check_run / conflict.hit (answered)
 
 PORT-18 asks for `PGRuns` over `conflict.check_run` / `conflict.hit` behind an additive
 `RunStore`. The 0001 tables need values the conflict domain never has, so a store would have
@@ -1016,3 +1016,21 @@ B. Additive fields: `Request.CheckID`, `Run.CheckID`, `Run.Version`, `Run.IndexV
 C. Dispositions and G2 decisions stay in memory in this task; a follow-up maps them onto
    `conflict.hit` dispositions and `conflict.clearance` (or an additive append-only
    disposition table, since `hit.disposition` is updated in place).
+
+Answer (owner): approve the additive domain fields on conflict Run/Hit (check record, party,
+match type, score ppm), filled by the searcher. Missing values are refused. Add
+RunStore.Get(id).
+
+Done in PORT-18:
+- `contract.go` (additive): `Request.CheckID`; `Run.CheckID`, `Version`, `IndexVersion`,
+  `Complete`; `Hit.CheckPartyID`, `MatchedKind`, `MatchType`, `ScorePPM` (`Hit.PartyID` is
+  `conflict.hit.matched_id`).
+- `RunStore{Append, Runs, Get}`, `ErrRunExists`, `ErrInvalidRun` and the optional
+  `IndexVersioner` searcher in `check.go`; `NewChecks` keeps the in-memory store,
+  `NewChecksWith(s, store, now)` takes `PGRuns`. `clearance.go` reads a run through the store
+  (one helper call, needed because the run slice is gone).
+- `migrations/5200_check_run_detail.sql` (conflict block): nullable `check_run.prepared_by`,
+  `check_run.terms`, `hit.ordinal`, `hit.term`, `hit.party_matter_id`, `hit.party_role`, so a
+  stored run reads back whole. `PGRuns` refuses (ErrInvalidRun) a run or hit missing any value,
+  a hit whose check party is on another check, and on read a run without a preparer or with a
+  gap in hit order. Dispositions and G2 decisions stay in memory (proposal C).

@@ -16,6 +16,103 @@ type Searcher interface {
 	Search(ctx context.Context, term string) ([]Hit, error)
 }
 
+// IndexVersioner is a Searcher that reports the party index version it searches, so a run
+// records which index it saw (conflict.check_run.index_version). Checks asks for it after
+// every term was searched.
+type IndexVersioner interface {
+	IndexVersion(ctx context.Context) (int64, error)
+}
+
+// RunStore keeps conflict runs, append-only. Append assigns the run's ID and, when Version
+// is zero, the next version of its check; a second run with the same (check, version) is
+// ErrRunExists and nothing is overwritten.
+type RunStore interface {
+	Append(ctx context.Context, r Run) (Run, error)
+	// Runs lists every run for a matter, oldest first.
+	Runs(ctx context.Context, matterID string) ([]Run, error)
+	// Get returns run id, or ErrNotFound.
+	Get(ctx context.Context, id string) (Run, error)
+}
+
+// Run store errors.
+var (
+	// ErrRunExists: a run with this (check, version) is already stored.
+	ErrRunExists = errors.New("conflict: run version already recorded")
+	// ErrInvalidRun: a run or hit is missing a value its store needs; nothing is defaulted.
+	ErrInvalidRun = errors.New("conflict: run is missing required values")
+)
+
+// memRuns is the in-memory RunStore NewChecks uses.
+type memRuns struct {
+	mu   sync.Mutex
+	runs []Run
+}
+
+func (m *memRuns) Append(ctx context.Context, r Run) (Run, error) {
+	if err := ctx.Err(); err != nil {
+		return Run{}, fmt.Errorf("append run: %w", err)
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := r.CheckID
+	if key == "" {
+		key = "matter:" + r.MatterID
+	}
+	last := 0
+	for _, x := range m.runs {
+		k := x.CheckID
+		if k == "" {
+			k = "matter:" + x.MatterID
+		}
+		if k != key {
+			continue
+		}
+		if r.Version != 0 && x.Version == r.Version {
+			return Run{}, fmt.Errorf("append run version %d: %w", r.Version, ErrRunExists)
+		}
+		if x.Version > last {
+			last = x.Version
+		}
+	}
+	if r.Version == 0 {
+		r.Version = last + 1
+	}
+	r.ID = "run-" + strconv.Itoa(len(m.runs)+1)
+	r.Terms = append([]string(nil), r.Terms...)
+	r.Hits = append([]Hit(nil), r.Hits...)
+	m.runs = append(m.runs, r)
+	return r, nil
+}
+
+func (m *memRuns) Runs(ctx context.Context, matterID string) ([]Run, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("runs: %w", err)
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []Run
+	for _, r := range m.runs {
+		if r.MatterID == matterID {
+			out = append(out, r)
+		}
+	}
+	return out, nil
+}
+
+func (m *memRuns) Get(ctx context.Context, id string) (Run, error) {
+	if err := ctx.Err(); err != nil {
+		return Run{}, fmt.Errorf("get run: %w", err)
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, r := range m.runs {
+		if r.ID == id {
+			return r, nil
+		}
+	}
+	return Run{}, fmt.Errorf("run %s: %w", id, ErrNotFound)
+}
+
 // errNoPreparer is returned for a check with no preparing user.
 var errNoPreparer = errors.New("conflict: check has no preparer")
 
@@ -75,17 +172,23 @@ var _ Checker = (*Checks)(nil)
 // updated in place. A run's Status, DecidedBy, Reason and DecidedAt come from its decision.
 type Checks struct {
 	search Searcher
+	runs   RunStore
 	now    func() time.Time
 
 	mu           sync.Mutex
-	runs         []Run
 	decisions    []decision
 	dispositions []dispositionOf
 }
 
 // NewChecks returns a Checks that searches with s and stamps times from now.
 func NewChecks(s Searcher, now func() time.Time) *Checks {
-	return &Checks{search: s, now: now}
+	return &Checks{search: s, runs: &memRuns{}, now: now}
+}
+
+// NewChecksWith returns a Checks that keeps its runs in store (PGRuns in production). G2
+// decisions and hit dispositions stay in memory (Q-PORT-18 C).
+func NewChecksWith(s Searcher, store RunStore, now func() time.Time) *Checks {
+	return &Checks{search: s, runs: store, now: now}
 }
 
 // Check implements Checker.
@@ -112,18 +215,29 @@ func (c *Checks) Check(ctx context.Context, req Request) (Run, error) {
 		}
 		hits = append(hits, h...)
 	}
+	var index int64
+	if v, ok := c.search.(IndexVersioner); ok {
+		var err error
+		if index, err = v.IndexVersion(ctx); err != nil {
+			return Run{}, fmt.Errorf("conflict check: index version: %w", err)
+		}
+	}
+	run, err := c.runs.Append(ctx, Run{
+		MatterID:     req.MatterID,
+		Terms:        terms,
+		Hits:         hits,
+		PreparedBy:   prep,
+		Status:       StatusOpen,
+		RanAt:        c.now(),
+		CheckID:      req.CheckID,
+		IndexVersion: index,
+		Complete:     true,
+	})
+	if err != nil {
+		return Run{}, fmt.Errorf("conflict check: %w", err)
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	run := Run{
-		ID:         "run-" + strconv.Itoa(len(c.runs)+1),
-		MatterID:   req.MatterID,
-		Terms:      terms,
-		Hits:       hits,
-		PreparedBy: prep,
-		Status:     StatusOpen,
-		RanAt:      c.now(),
-	}
-	c.runs = append(c.runs, run)
 	return c.view(run), nil
 }
 
@@ -132,13 +246,18 @@ func (c *Checks) Runs(ctx context.Context, matterID string) ([]Run, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("conflict runs: %w", err)
 	}
+	runs, err := c.runs.Runs(ctx, matterID)
+	if err != nil {
+		return nil, fmt.Errorf("conflict runs: %w", err)
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var out []Run
-	for _, r := range c.runs {
-		if r.MatterID == matterID {
-			out = append(out, c.view(r))
-		}
+	out := make([]Run, 0, len(runs))
+	for _, r := range runs {
+		out = append(out, c.view(r))
+	}
+	if len(out) == 0 {
+		return nil, nil
 	}
 	return out, nil
 }
@@ -150,13 +269,13 @@ func (c *Checks) Dispose(ctx context.Context, runID string, hit int, lawyer Acto
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("conflict dispose: %w", err)
 	}
+	stored, err := c.runs.Get(ctx, runID)
+	if err != nil {
+		return fmt.Errorf("conflict dispose: %w", err)
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	i := c.find(runID)
-	if i < 0 {
-		return fmt.Errorf("conflict dispose %s: %w", runID, ErrNotFound)
-	}
-	run := c.view(c.runs[i])
+	run := c.view(stored)
 	if err := approverErr(run, lawyer); err != nil {
 		return fmt.Errorf("conflict dispose %s: %w", runID, err)
 	}
@@ -183,13 +302,13 @@ func (c *Checks) decide(ctx context.Context, runID string, approver Actor, appro
 	if err := ctx.Err(); err != nil {
 		return Run{}, fmt.Errorf("conflict decide: %w", err)
 	}
+	stored, err := c.runs.Get(ctx, runID)
+	if err != nil {
+		return Run{}, fmt.Errorf("conflict decide: %w", err)
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	i := c.find(runID)
-	if i < 0 {
-		return Run{}, fmt.Errorf("conflict decide %s: %w", runID, ErrNotFound)
-	}
-	run := c.view(c.runs[i])
+	run := c.view(stored)
 	if err := approverErr(run, approver); err != nil {
 		return run, fmt.Errorf("conflict decide %s: %w", runID, err)
 	}
@@ -207,7 +326,18 @@ func (c *Checks) decide(ctx context.Context, runID string, approver Actor, appro
 		}
 	}
 	c.decisions = append(c.decisions, decision{runID: runID, by: approver.UserID, approve: approve, reason: reason, at: c.now()})
-	return c.view(c.runs[i]), nil
+	return c.view(stored), nil
+}
+
+// get returns the current view of run runID from the store.
+func (c *Checks) get(ctx context.Context, runID string) (Run, error) {
+	r, err := c.runs.Get(ctx, runID)
+	if err != nil {
+		return Run{}, err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.view(r), nil
 }
 
 // approverErr checks who may dispose or decide on run: a lawyer, not the agent and not the
@@ -235,15 +365,6 @@ func (c *Checks) latestDispositions(runID string) map[int]Disposition {
 		}
 	}
 	return out
-}
-
-func (c *Checks) find(runID string) int {
-	for i, r := range c.runs {
-		if r.ID == runID {
-			return i
-		}
-	}
-	return -1
 }
 
 // view returns a copy of r with its decision applied. Callers cannot reach the stored slices.
