@@ -2,6 +2,7 @@ package tools
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"testing"
@@ -141,6 +142,156 @@ func TestARC_U_038_WAFPerIPRateRule(t *testing.T) {
 			}
 			if !slices.Contains(policy.RateRules, tt.want) {
 				t.Fatalf("rate rules %+v do not contain %+v", policy.RateRules, tt.want)
+			}
+		})
+	}
+}
+
+type rolloutConfig struct {
+	Rollout struct {
+		Rings []struct {
+			Ring              int      `yaml:"ring"`
+			Cells             []string `yaml:"cells"`
+			MaxPercentOfCells int      `yaml:"max_percent_of_cells"`
+			BakeHours         int      `yaml:"bake_hours"`
+		} `yaml:"rings"`
+		Halt struct {
+			BurnRateAbove      int      `yaml:"burn_rate_above"`
+			BurnWindowMinutes  int      `yaml:"burn_window_minutes"`
+			IncidentSeverities []string `yaml:"incident_severities"`
+			Action             string   `yaml:"action"`
+		} `yaml:"halt"`
+		Rollback struct {
+			Method     string `yaml:"method"`
+			Migrations string `yaml:"migrations"`
+		} `yaml:"rollback"`
+	} `yaml:"rollout"`
+	RestoreDrills struct {
+		EveryCell struct {
+			Interval   string `yaml:"interval"`
+			MinPerYear int    `yaml:"min_per_year"`
+		} `yaml:"every_cell"`
+		RandomCell struct {
+			Interval string `yaml:"interval"`
+			Count    int    `yaml:"count"`
+		} `yaml:"random_cell"`
+		TargetNamespace string `yaml:"target_namespace"`
+		Pass            struct {
+			MaxWallMinutes      int  `yaml:"max_wall_minutes"`
+			MaxDataGapMinutes   int  `yaml:"max_data_gap_minutes"`
+			IntegrityMismatches *int `yaml:"integrity_mismatches"`
+		} `yaml:"pass"`
+	} `yaml:"restore_drills"`
+}
+
+func loadRollout(t *testing.T) rolloutConfig {
+	t.Helper()
+	_, raw := loadControlPlane(t)
+	var c rolloutConfig
+	if err := yaml.Unmarshal(raw, &c); err != nil {
+		t.Fatalf("parse rollout config: %v", err)
+	}
+	return c
+}
+
+// rule: ARC-U-015
+func TestARC_U_015_Rings(t *testing.T) {
+	r := loadRollout(t).Rollout
+	if len(r.Rings) != 3 {
+		t.Fatalf("got %d rings, want 3", len(r.Rings))
+	}
+	tests := []struct {
+		name      string
+		got, want any
+	}{
+		{"ring order", [3]int{r.Rings[0].Ring, r.Rings[1].Ring, r.Rings[2].Ring}, [3]int{0, 1, 2}},
+		{"ring 0 is staging + demo", slices.Equal(r.Rings[0].Cells, []string{"staging", "demo"}), true},
+		{"ring 0 bakes 2 h", r.Rings[0].BakeHours, 2},
+		{"ring 1 <= 10% of cells", r.Rings[1].MaxPercentOfCells > 0 && r.Rings[1].MaxPercentOfCells <= 10, true},
+		{"ring 1 bakes 24 h", r.Rings[1].BakeHours, 24},
+		{"ring 2 is the rest", slices.Equal(r.Rings[2].Cells, []string{"rest"}), true},
+		{"halt on burn rate > 6x", r.Halt.BurnRateAbove, 6},
+		{"burn window 30 min", r.Halt.BurnWindowMinutes, 30},
+		{"halt on SEV1", slices.Contains(r.Halt.IncidentSeverities, "SEV1"), true},
+		{"halt on SEV2", slices.Contains(r.Halt.IncidentSeverities, "SEV2"), true},
+		{"halt rolls back", r.Halt.Action, "halt_and_rollback"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Fatalf("got %v, want %v", tt.got, tt.want)
+			}
+		})
+	}
+}
+
+// downMigration matches any step that would roll a migration back.
+var downMigration = regexp.MustCompile(`(?i)down[-_ ]?migrat|migrat\w*[-_ ]down|\.down\.sql|rollback[-_ ]migrat|migrate\s+(down|rollback)`)
+
+// rule: ARC-U-020
+func TestARC_U_020_RollbackImageOnly(t *testing.T) {
+	r := loadRollout(t).Rollout.Rollback
+	if r.Method != "previous_image" {
+		t.Errorf("rollback.method = %q, want previous_image", r.Method)
+	}
+	if r.Migrations != "forward_only" {
+		t.Errorf("rollback.migrations = %q, want forward_only", r.Migrations)
+	}
+	files := []string{controlPlaneFile}
+	charts, err := filepath.Glob("../deploy/helm/counsel/*/*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	files = append(files, charts...)
+	for _, f := range files {
+		t.Run(f, func(t *testing.T) {
+			raw, err := os.ReadFile(f)
+			if err != nil {
+				t.Fatalf("read: %v", err)
+			}
+			if m := downMigration.FindString(string(raw)); m != "" {
+				t.Fatalf("down-migration step %q in deploy config", m)
+			}
+		})
+	}
+	for _, tt := range []struct {
+		text string
+		want bool
+	}{
+		{"run: counsel-migrate down", true},
+		{"step: migrate down 1", true},
+		{"step: down_migration", true},
+		{"file: 0002_x.down.sql", true},
+		{"method: previous_image", false},
+		{"never silently downgrade", false},
+	} {
+		if got := downMigration.MatchString(tt.text); got != tt.want {
+			t.Errorf("downMigration(%q) = %v, want %v", tt.text, got, tt.want)
+		}
+	}
+}
+
+// rule: ARC-U-010
+func TestARC_U_010_DrillSchedule(t *testing.T) {
+	d := loadRollout(t).RestoreDrills
+	perYear := map[string]int{"monthly": 12, "quarterly": 4, "semiannual": 2, "yearly": 1}
+	tests := []struct {
+		name      string
+		got, want any
+	}{
+		{"every cell quarterly", d.EveryCell.Interval, "quarterly"},
+		{"every cell >= twice a year", d.EveryCell.MinPerYear >= 2 && perYear[d.EveryCell.Interval] >= d.EveryCell.MinPerYear, true},
+		{"one random cell monthly", d.RandomCell.Interval, "monthly"},
+		{"random cell count 1", d.RandomCell.Count, 1},
+		{"restore into scratch namespace", d.TargetNamespace, "scratch"},
+		{"wall time <= 45 min", d.Pass.MaxWallMinutes > 0 && d.Pass.MaxWallMinutes <= 45, true},
+		{"data within 5 min", d.Pass.MaxDataGapMinutes > 0 && d.Pass.MaxDataGapMinutes <= 5, true},
+		{"zero integrity mismatches", d.Pass.IntegrityMismatches != nil && *d.Pass.IntegrityMismatches == 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Fatalf("got %v, want %v", tt.got, tt.want)
 			}
 		})
 	}

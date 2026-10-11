@@ -27,3 +27,40 @@ postgres:
     resume: operator_decision
     runbook: RB-01
     async_fallback: false
+# rule: ARC-U-015
+# Fleet rollout in rings. A ring halts and rolls back on its own when its SLO-01 burn rate
+# passes 6x over 30 min or a SEV1/SEV2 opens.
+rollout:
+  rings:
+    - ring: 0
+      cells: [staging, demo]
+      bake_hours: 2
+    - ring: 1
+      max_percent_of_cells: 10
+      bake_hours: 24
+    - ring: 2
+      cells: [rest]
+  halt:
+    burn_rate_above: 6
+    burn_window_minutes: 30
+    incident_severities: [SEV1, SEV2]
+    action: halt_and_rollback
+  # rule: ARC-U-020
+  # Rollback redeploys the previous image. Migrations are expand-contract and forward only.
+  rollback:
+    method: previous_image
+    migrations: forward_only
+# rule: ARC-U-010
+# PITR restore drills into a scratch namespace, followed by the integrity checks.
+restore_drills:
+  every_cell:
+    interval: quarterly
+    min_per_year: 2
+  random_cell:
+    interval: monthly
+    count: 1
+  target_namespace: scratch
+  pass:
+    max_wall_minutes: 45
+    max_data_gap_minutes: 5
+    integrity_mismatches: 0
