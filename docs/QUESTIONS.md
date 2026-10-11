@@ -3015,3 +3015,12 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   arrangement prices any time.
 - The Seed has no time ports: the feature tests add a timekeeping fake and an
   agent.MatterTime over it (ai_timc_helpers_test.go), so list_unbilled runs its real handler.
+
+## Q-FEAT-TIM-06 F-TIM-06 trigger event
+
+- No module publishes a rate-change-drafted event yet; F-TIM-06 binds `rate_change.drafted`
+  (timekeeping.EventRateChangeDrafted). The rates module publishes it when a rate change is
+  drafted, before its effective date.
+- The letters go through docs.outgoing (G8), reusing docs.GateOutgoing. draft_document checks
+  no provenance on main, so the rates in a letter are not checked against the run's reads; the
+  prompt forbids invented values and a lawyer approves each letter before it is sent.
