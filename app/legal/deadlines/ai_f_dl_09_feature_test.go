@@ -39,7 +39,7 @@ func TestFDL09_DefMatchesSpec(t *testing.T) {
 
 // rule: AI-R-005
 func TestFDL09_Prompt(t *testing.T) {
-	checkPrompt(t, AbsenceCoverageCheckDef(),
+	checkPromptHas(t, AbsenceCoverageCheckDef(),
 		"Absence coverage check",
 		"cover proposal accepted by the responsible or supervising lawyer; warning when no delegate exists",
 		"work.absence", "report_plan")
@@ -87,9 +87,8 @@ func fdl09Run(t *testing.T, readText, gateKind string) (*agenttest.FeatureDriver
 	}); err != nil {
 		t.Fatal(err)
 	}
-	doc, v := fd.Seed.Document(mid, []string{"Coverage memo.", "Delegate while away: the supervising lawyer."})
-	fd.SetRead(agent.ToolReadDocument, readText)
-	model := aifake.New(script("F-DL-09", "absence-coverage-check", []toolCall{
+	doc, v := fd.Seed.Document(mid, []string{readText})
+	model := aifake.New(featureScript("F-DL-09", "absence-coverage-check", []toolCall{
 		{agenttools.ToolReportPlan, `{"steps": [{"step_id": "find", "title": "Find uncovered deadlines"}, {"step_id": "cover", "title": "Propose cover"}]}`},
 		{agent.ToolGetMatter, `{"matter_id": "` + mid + `"}`},
 		{agent.ToolReadDocument, `{"doc_id": "` + doc + `", "version_id": "` + string(v) + `"}`},
@@ -121,8 +120,8 @@ func TestFDL09_FromFeature(t *testing.T) {
 			if run.Err != nil {
 				t.Fatalf("run: %v", run.Err)
 			}
-			if !slices.Equal(fd.StandIns, standInTools) {
-				t.Fatalf("stand-ins = %v, want only %v (no real handler yet)", fd.StandIns, standInTools)
+			if len(fd.StandIns) != 0 {
+				t.Fatalf("stand-ins = %v, want none (every tool runs its real handler)", fd.StandIns)
 			}
 			// rule: ARC-I-039
 			if run.PlanAt < 0 || run.FirstWrite <= run.PlanAt || run.Tools[run.FirstWrite] != agent.ToolCreateTask {
@@ -160,7 +159,7 @@ func TestFDL09_Injection(t *testing.T) {
 	if !slices.Equal(run.Tools, want) {
 		t.Fatalf("tools = %v, want %v (no extra call)", run.Tools, want)
 	}
-	if err := agenttest.QuotedOnly(run.Run, injected); err != nil {
+	if err := docQuotedOnly(run, injected); err != nil {
 		t.Fatal(err)
 	}
 	if err := absentFromProposals(context.Background(), fd, run.Run, injected, agent.ToolCreateTask, agent.ToolSubmitForApproval); err != nil {
