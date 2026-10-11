@@ -3001,3 +3001,18 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-FEAT-INT-04 F-INT-03 missing-info chaser: event, gate kind and boot wiring
+
+- "lead awaiting info" binds `intake.lead_awaiting_info` (`intake.EventLeadAwaitingInfo`,
+  proposed; named like `intake.lead_ready_to_open`). a2 lists no such event and intake does
+  not publish it yet (EVENTS-WIRE follow-up: publish it when a lead is set to wait on the
+  prospective client). "schedule" is daily, bound with trigger.BindDesignated, so scheduled
+  runs act for the designated lawyer in firm settings.
+- The Def names `platform.skill_autonomy` as a literal; no Go constant for it exists yet.
+- Registering the Def in featureset makes boot's TestJobBindings and
+  TestActionScreensCoverFeatures need it, so this task also adds its binding to
+  `boot.JobBindings` and the `lead-detail` screen (subject `intake.lead`, capability
+  `intake.leads`) to `actionScreens`.
+- The end-to-end tests use `app/legal/intake/ai_intb_helpers_test.go` (prefix `intb`), shared
+  byte-for-byte with FEAT-INT-02 and FEAT-INT-03.
