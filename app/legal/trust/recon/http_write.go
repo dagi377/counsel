@@ -392,6 +392,15 @@ func (h *WriteHTTP) writeErr(w http.ResponseWriter, r *http.Request, err error) 
 	case errors.Is(err, ErrNoParser):
 		h.fail(w, r, http.StatusUnprocessableEntity, CodeNoStatementParser, "No bank statement parser is configured")
 	case errors.Is(err, ErrUnparseable), errors.Is(err, ErrStatementMismatch):
+		// A ParseError names only the line and the reason, never the file text, so it is
+		// safe as the problem detail.
+		var pe *ParseError
+		if errors.As(err, &pe) {
+			p := server.NewProblem(http.StatusUnprocessableEntity, CodeUnparseableStatement, "Statement cannot be read or does not sum to its closing balance")
+			p.Detail = pe.Error()
+			h.pw().WriteProblem(w, r, p)
+			return
+		}
 		h.fail(w, r, http.StatusUnprocessableEntity, CodeUnparseableStatement, "Statement cannot be read or does not sum to its closing balance")
 	default:
 		h.fail(w, r, http.StatusInternalServerError, server.CodeInternal, "Internal error")

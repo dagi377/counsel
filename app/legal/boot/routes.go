@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/credit"
 	"github.com/dagi377/counsel/app/legal/gates"
@@ -76,6 +77,10 @@ type HTTPPorts struct {
 	ReconStatements recon.Statements
 	ReconVersions   recon.Versions
 	ReconParser     recon.Parser
+	// Runs and RunAccess serve POST /agent/runs and GET /agent/runs/{run_id} (HTTP-25):
+	// the composition root supplies the run starter and store.
+	Runs      agent.RunService
+	RunAccess agent.RunAccess
 }
 
 // TxRunner runs fn in one transaction; kernel/db implements it.
@@ -104,7 +109,7 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	if p.Gates == nil && k.Gates != nil {
 		p.Gates = k.Gates
 	}
-	p = p.withReaders(k).withWrites(k)
+	p = p.withImports(k).withReaders(k).withWrites(k)
 	if p.Expenses == nil && k.DB != nil && k.Clock != nil {
 		p.Expenses = timekeeping.NewExpenseStore(k.DB, k.Clock.Location())
 	}
@@ -152,6 +157,9 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 		Statements: p.ReconStatements, Versions: p.ReconVersions, Gates: p.Gates, DB: p.DB, Access: p.Access,
 		Idem: p.Idem, Problems: p.Problems, Principal: p.Principal,
 		MinApprovers: approvers[recon.GateSignOff]}).Routes)
+	if m := runMount(p, p.Runs, p.RunAccess); m != nil {
+		add(true, m)
+	}
 	return out, nil
 }
 

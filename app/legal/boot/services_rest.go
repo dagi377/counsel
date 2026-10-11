@@ -46,6 +46,8 @@ type RestPorts struct {
 	Receipts *ReceiptPorts
 	// Refunds, when set, wires the billing.refund effect (REFUND-EFFECT).
 	Refunds *RefundPorts
+	// Deadlines, when set, adds the deadline.remind and deadline.digest jobs (BOOT-21).
+	Deadlines *DeadlinePorts
 }
 
 // ReceiptPorts are the receipt classification effect's dependencies.
@@ -171,6 +173,11 @@ func (w *wiring) registerRest(_ context.Context, k *kboot.Kernel) error {
 	w.rest = &s
 	if w.opts.Rest.Renew != nil {
 		if err := addRenewJobs(k, *w.opts.Rest.Renew); err != nil {
+			return err
+		}
+	}
+	if w.opts.Rest.Deadlines != nil {
+		if err := addDeadlineJobs(k, *w.opts.Rest.Deadlines); err != nil {
 			return err
 		}
 	}

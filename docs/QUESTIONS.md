@@ -2119,3 +2119,12 @@ Done in PORT-18:
   read the book from the general-ledger trust bank control account so book vs ledgers is an
   independent check. Prepare re-prepares an open draft/ready month in place; a signed or
   imported month is ErrPeriodLocked. ImportStatement refuses with ErrNoParser.
+
+## BOOT-REST-2b
+
+- T-031.4 reminder worker (kernel/deadline/remind.go) added here; BOOT-21 jobs live in app/legal/boot/services_rest2.go (one boot file) instead of jobs_deadlines.go. The sent log defaults to in memory, so a restart can repeat that day's reminder once; a Postgres SentLog is open. No Postgres deadline Lister exists yet, so RestPorts.Deadlines takes it from the composition root.
+- The Ontario holiday calendar counts business days left only while deadline.ontario_pack is on.
+- HTTP-25: no RunService implementation (run starter + store) exists on any branch. HTTPPorts.Runs/RunAccess mount the routes when the composition root supplies them; until then they answer 503.
+- HTTP-26 webhook row_version: not done (time limit). Needs an additive migration on platform.webhook and the Postgres reads in kernel/webhook to compare it for If-Match.
+- STMT-IMPORT: recon.CSVParser (generic kind,date,description,amount_cents CSV, integer cents only) and recon.PGImports replace NoParser and PGService's import refusal at boot. Touched recon/http_write.go to put a ParseError's line and reason (never file text) in the 422 problem detail. Line descriptions go in StatementLine.Reference (the frozen contract has no description field).
+- Merge fixes: recon read/write HTTP files declared the shared problem codes, Access and reconView twice (kept the read file's, Version int64); trust.TxRunner declared twice (kept receipt_http.go's).
