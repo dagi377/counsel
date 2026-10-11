@@ -202,3 +202,44 @@ func TestARC_U_027_ProvenanceForgetAndUserReads(t *testing.T) {
 		})
 	}
 }
+
+// rule: ARC-U-027
+// A date or number written inside a Quoted read result counts as read; one the quote never
+// states, or one outside a Quoted envelope's text, does not.
+func TestARC_U_027_QuotedValuesCountAsRead(t *testing.T) {
+	const transcript = `{"quotes":[{"untrusted":true,"source":{"doc_id":"d1"},"text":"Call transcript, 2026-10-05, 30 minutes. Fee 1,250.00 discussed."}]}`
+	const plain = `{"note":"Call on 2026-10-06 for 45 minutes","text":"2026-10-07 for 50 minutes"}`
+	const page = `{"untrusted":true,"doc_id":"d2","pages":[{"page":1,"lines":[{"no":1,"text":"Meeting 2026-10-08, 75 minutes."}]}]}`
+	cases := []struct {
+		name string
+		in   string
+		ok   bool
+	}{
+		{"quoted minutes", `{"minutes":30}`, true},
+		{"quoted date", `{"work_date":"2026-10-05"}`, true},
+		{"quoted number with thousands comma", `{"minutes":1250}`, true},
+		{"invented minutes", `{"minutes":600}`, false},
+		{"invented date", `{"work_date":"2026-12-31"}`, false},
+		{"date parts are not numbers", `{"minutes":2026}`, false},
+		{"text outside a quote is not read", `{"minutes":45}`, false},
+		{"date outside a quote is not read", `{"work_date":"2026-10-06"}`, false},
+		{"text field outside an untrusted envelope", `{"minutes":50}`, false},
+		{"minutes on a quoted document line", `{"minutes":75}`, true},
+		{"date on a quoted document line", `{"work_date":"2026-10-08"}`, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			pv := agenttools.NewProvenance()
+			pv.Observe("r1", json.RawMessage(transcript))
+			pv.Observe("r1", json.RawMessage(plain))
+			pv.Observe("r1", json.RawMessage(page))
+			err := pv.Check("r1", []string{"/minutes", "/work_date"}, json.RawMessage(tc.in))
+			if tc.ok && err != nil {
+				t.Fatalf("Check: %v", err)
+			}
+			if !tc.ok && !errors.Is(err, agenttools.ErrUnsourcedValue) {
+				t.Fatalf("Check err = %v, want ErrUnsourcedValue", err)
+			}
+		})
+	}
+}
