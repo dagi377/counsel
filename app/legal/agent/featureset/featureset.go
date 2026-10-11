@@ -119,5 +119,6 @@ func appDefs() []feature.Def {
 		// trust
 		trust.BankFeedSyncDef(),
 		trust.MonthEndReconciliationDef(),
+		trust.RetainerReplenishmentDef(),
 	}
 }

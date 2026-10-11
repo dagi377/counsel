@@ -313,7 +313,9 @@ type truWorld struct {
 	matter   string // the ledger in funds
 	client   string // its client contact
 	overdrwn string // the overdrawn ledger
-	bill     string
+	// overdrwnClient is the overdrawn matter's client: not a contact of matter.
+	overdrwnClient string
+	bill           string
 }
 
 // Synthetic trust figures, integer cents. truOverdrawn is the overdrawn ledger's signed
@@ -353,7 +355,7 @@ func truFeature(t *testing.T, def feature.Def, narrative string) truWorld {
 	if err := env.bills.Put(b); err != nil {
 		t.Fatalf("seed bill: %v", err)
 	}
-	return truWorld{fd: fd, env: env, matter: string(m.ID), client: string(m.ClientID), overdrwn: string(o.ID), bill: string(b.ID)}
+	return truWorld{fd: fd, env: env, matter: string(m.ID), client: string(m.ClientID), overdrwn: string(o.ID), overdrwnClient: string(o.ClientID), bill: string(b.ID)}
 }
 
 // truCall is one scripted model tool call.

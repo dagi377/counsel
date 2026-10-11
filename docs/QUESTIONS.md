@@ -3248,3 +3248,16 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   feature runs with it (the shared handler set has no per-feature wrapping yet).
 - monthly-reconciliation is a firm-level screen and selects a matter until boot.FirmSubject
   lands (Q-FEAT-TRU-01).
+
+## Q-FEAT-TRU-05 retainer-replenishment: trigger event and the shortfall's figures
+
+- No kernel event names a ledger below its retainer floor. F-TRU-05 binds to the new
+  `trust.ledger_below_floor` (trust.EventLedgerBelowFloor), acting for the event's user.
+  Open: the trust module publishes it when a posting takes a ledger below the floor agreed
+  in the engagement.
+- The shortfall is Counsel's figure, never the model's: trust.NewRetainerShortfall keeps the
+  balance signed, flags an overdraft and covers it (floor - balance), and Observe records
+  its figures into the run's provenance before the run starts (fails closed without one).
+  Open: the event handler calls it and passes Prompt() as the run's request.
+- agent imports trust, so trust restates G-OUT as trust.GateOutgoingEmail; a test holds it
+  equal to agent.GateOutgoingEmail.
