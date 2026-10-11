@@ -2423,3 +2423,13 @@ Done in PORT-18:
 - The spec trigger "new pleading, correspondence or closing document" binds to the a2
   `document.uploaded` event (`matter.PartyDocumentEvents`); a2 has no email event yet.
 - The branch is based on task/FEAT-MAT-02 for the shared matb test helpers.
+
+## Q-FEAT-MAT-04 F-MAT-05 contact dedupe and enrichment
+
+- Besides the listed files, `app/legal/agent/featureset/featureset.go` gains
+  `matter.ContactDedupeDef()`. It is an embedding Def, so no plugin skill is generated.
+- The daily schedule binds with `trigger.BindDesignated` (Q-JOB-ACTOR): scheduled runs act for
+  the feature's designated lawyer; `contact.created` runs act for the event's user. The branch
+  is based on task/FEAT-MAT-03, which carries task/JOB-ACTOR and the shared matb helpers.
+- `matter.contact_merge` is a tool-gap kind: the run drafts the proposal with draft_document
+  and opens G-CM with submit_for_approval on that draft.

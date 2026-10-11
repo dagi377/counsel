@@ -56,5 +56,6 @@ func appDefs() []feature.Def {
 		// matters
 		matter.StageAdvanceDef(),
 		matter.PartyExtractionDef(),
+		matter.ContactDedupeDef(),
 	}
 }
