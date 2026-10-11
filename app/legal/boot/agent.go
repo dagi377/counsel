@@ -19,6 +19,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
@@ -294,6 +295,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		legaldocs.IngestDocumentDef().ID:            legaldocs.IngestDocumentBinding,
 		legaldocs.EngagementLetterDef().ID:          legaldocs.EngagementLetterBinding,
 		legaldocs.DraftWithCitationsDef().ID:        legaldocs.DraftWithCitationsBinding,
+		intake.AIReceptionistDef().ID:               intake.AIReceptionistBinding,
 		legaldocs.FeatureTemplateCurrency: func() (trigger.Binding, error) {
 			// F-DOC-06 runs weekly and on a known rule change; no form-change event exists
 			// yet (Q-INTEG-15A-SCHEDULED).
@@ -356,6 +358,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
+	// Intake screens select the lead ("intake.lead", the outbox subject of a lead).
+	"ai-receptionist": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
