@@ -1,0 +1,17 @@
+synthetic: true
+feature: F-ACC-12
+match:
+  last_user_regex: '\[error_429\]'
+fault: rate_limit
+turns:
+  - reply:
+      tool_calls:
+        - name: search_matters
+          input: {screen: sign-in-settings, selected: ["pol-synth-draft"]}
+      stop_reason: tool_use
+      usage: {input_tokens: 520, output_tokens: 30}
+  - expect_tool_results: [search_matters]
+    reply:
+      text: "If you apply the draft, 2 users without a passkey would be forced to re-enrol and 1 user with no second factor would be locked out."
+      stop_reason: end_turn
+      usage: {input_tokens: 690, output_tokens: 44}
