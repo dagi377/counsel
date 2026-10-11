@@ -6,9 +6,6 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 )
 
-// GateWall is the gate kind of spec gate G2b: an ethical wall around a matter takes effect only after a person approves it.
-const GateWall = "conflict.wall"
-
 // ActionProposeWall is the ethical-walls screen action that runs F-CON-15.
 const ActionProposeWall = "ethical-walls > Propose wall"
 

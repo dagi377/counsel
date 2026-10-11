@@ -11,7 +11,8 @@ import (
 // walled matter. It starts F-CON-09.
 const EventWalledMatterAccessed = "roles.walled_matter_accessed"
 
-// GateWall is the gate kind of spec gate G2b: a person decides a wall breach or a wall review.
+// GateWall is the gate kind of spec gate G2b: a person decides a wall breach or a wall review,
+// and an ethical wall around a matter takes effect only after a person approves it (F-CON-15).
 const GateWall = "conflict.wall"
 
 //go:embed prompts/f-con-09.md
