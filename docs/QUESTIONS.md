@@ -2524,7 +2524,7 @@ Done in PORT-18:
 ## Q-TAX-FIELDS
 
 Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
-- `matter.matter` gains nullable `court_province` and `property_province` (`migrations/5100_matter_tax_provinces.sql`).
+- `matter.matter` gains nullable `court_province` and `property_province` (`migrations/5102_matter_tax_provinces.sql`).
   `matter.Matter` gains `CourtProvince` and `PropertyProvince` (additive contract fields), returned by `matter.Query`.
   No write path sets them yet; matter create/edit and the API do not expose them.
 - `core.firm` gains `tax_registration_provinces char(2)[] NOT NULL DEFAULT '{}'`
@@ -2536,3 +2536,9 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   and `place_of_supply_province = 'EX'` (`draft.ExportProvince`): the column is char(2) and the 0001 approval CHECK
   needs it non-NULL, so approval accepts the export. Open: reports by province must treat `EX` as export, not a province.
 - PG-BILL-FIX's `5620_bill_sign_after_approval.sql` collided with WO-FIX (5620/5621); renumbered to 5622.
+
+## Q-INTEG-15A-MIGRATIONS Migration renumbering in pass 15a
+
+- DRAFT-FIX and TAX-FIELDS both took 5100 in the app/legal/matter block. The note
+  idempotency key (DRAFT-FIX, merged first) keeps 5100/5101; matter_tax_provinces moves to
+  5102_matter_tax_provinces.sql. Content unchanged; both are additive.
