@@ -53,9 +53,12 @@ INSERT INTO platform.outbox (topic, aggregate, aggregate_id, payload) VALUES ($1
 	return nil
 }
 
-// Claim records in tx that consumer handles messageID. It returns false for a message
-// already processed, and the caller then skips its effect.
+// Claim records in tx that consumer handles messageID (platform.inbox). It returns false for
+// a message already processed, and the caller then skips its effect. It is the one inbox
+// claim; kernel/idem has none.
+// rule: ARC-U-022
 func (p *PG) Claim(ctx context.Context, tx pgx.Tx, consumer, messageID string) (bool, error) {
+	// rule: ARC-I-030
 	tag, err := tx.Exec(ctx, `
 INSERT INTO platform.inbox (consumer, message_id) VALUES ($1, $2)
 ON CONFLICT (consumer, message_id) DO NOTHING`, consumer, messageID)

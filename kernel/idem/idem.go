@@ -37,8 +37,8 @@ type Conn interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-// PG is the Postgres Store over platform.idempotency_key. It also implements the
-// consumer inbox over platform.inbox.
+// PG is the Postgres Store over platform.idempotency_key. The consumer inbox over
+// platform.inbox is outbox.PG.Claim.
 type PG struct {
 	conn Conn
 }
@@ -142,20 +142,6 @@ DELETE FROM platform.idempotency_key
 		return fmt.Errorf("release: %w", err)
 	}
 	return nil
-}
-
-// rule: ARC-U-022
-// Claim records in tx that consumer handles messageID (platform.inbox). It returns false for
-// a message already processed; the caller then skips its effect. It satisfies outbox.Inbox.
-func (s *PG) Claim(ctx context.Context, tx pgx.Tx, consumer, messageID string) (bool, error) {
-	// rule: ARC-I-030
-	tag, err := tx.Exec(ctx, `
-INSERT INTO platform.inbox (consumer, message_id) VALUES ($1, $2)
-ON CONFLICT (consumer, message_id) DO NOTHING`, consumer, messageID)
-	if err != nil {
-		return false, fmt.Errorf("inbox claim: %w", err)
-	}
-	return tag.RowsAffected() == 1, nil
 }
 
 // RequestHash is the SHA-256 of a request body.

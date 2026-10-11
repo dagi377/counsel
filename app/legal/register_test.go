@@ -9,7 +9,16 @@ import (
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
-func TestRegisterWithNoFeaturesRecordsNothing(t *testing.T) {
+// alwaysMethods are the registry calls of the "always" registration set (Q-005): chart of
+// accounts, core gate kinds and capabilities. Feature-gated registrations are none of these.
+var alwaysMethods = map[string]bool{
+	registry.MethodChartOfAccounts: true,
+	registry.MethodGateKind:        true,
+	registry.MethodCapability:      true,
+	registry.MethodRole:            true,
+}
+
+func TestRegisterWithNoFeaturesRecordsOnlyAlwaysSet(t *testing.T) {
 	tests := []struct {
 		name  string
 		times int
@@ -25,8 +34,13 @@ func TestRegisterWithNoFeaturesRecordsNothing(t *testing.T) {
 					t.Fatalf("Register: %v", err)
 				}
 			}
-			if calls := rec.Calls(); len(calls) != 0 {
-				t.Errorf("Register made %d registry calls, want 0: %v", len(calls), calls)
+			for _, c := range rec.Calls() {
+				if !alwaysMethods[c.Method] {
+					t.Errorf("Register made feature-gated call %s with no features on", c.Method)
+				}
+			}
+			if got, want := len(rec.Method(registry.MethodChartOfAccounts)), 2*tc.times; got != want {
+				t.Errorf("ChartOfAccounts calls = %d, want %d (operating and trust per Register)", got, want)
 			}
 		})
 	}

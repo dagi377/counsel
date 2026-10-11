@@ -69,6 +69,9 @@ type Account struct {
 	Type         AccountType
 	Institution  string
 	AccountLast4 string
+	// AccountNo is the full account number (Q-004, additive). It is input only: it is sealed
+	// before storage and never read back, so Account() leaves it empty.
+	AccountNo    string
 	Title        string
 	ForMatterID  string // separate accounts only
 	OpenedOn     time.Time
@@ -167,8 +170,12 @@ type CashSource interface {
 }
 
 // Accounts manages trust accounts and their signatories.
+// The supported way to open an account and add a signatory is AccountStore.OpenAccountNumber
+// and AccountStore.AddApprovedSignatory (Q-004).
 type Accounts interface {
+	// Deprecated: use AccountStore.OpenAccountNumber; this returns ErrNeedsApproval (Q-004).
 	OpenAccount(ctx context.Context, tx pgx.Tx, a Account) (AccountID, error)
+	// Deprecated: use AccountStore.AddApprovedSignatory; this returns ErrNeedsApproval (Q-004).
 	AddSignatory(ctx context.Context, tx pgx.Tx, id AccountID, userID string) error
 	RemoveSignatory(ctx context.Context, tx pgx.Tx, id AccountID, userID string) error
 	Account(ctx context.Context, id AccountID) (Account, error)

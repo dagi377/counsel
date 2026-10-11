@@ -220,13 +220,21 @@ func TestARC_I_001_ContractIsHeaderPlusBaseline(t *testing.T) {
 		header = append(header, string(line))
 		body = rest
 	}
+	// The body is the baseline, or the baseline plus additive changes recorded in
+	// docs/QUESTIONS.md (e.g. Q-004 webhook problem responses).
+	additive := bytes.Equal(body, want)
+	if !additive {
+		var head, base map[string]any
+		additive = yaml.Unmarshal(body, &head) == nil && yaml.Unmarshal(want, &base) == nil &&
+			len(breakingChanges(base, head)) == 0
+	}
 	tests := []struct {
 		name string
 		ok   bool
 	}{
 		{name: "header present", ok: len(header) > 0},
 		{name: "header says CONTRACT", ok: len(header) > 0 && strings.Contains(header[0], "CONTRACT")},
-		{name: "body equals baseline byte for byte", ok: bytes.Equal(body, want)},
+		{name: "body equals baseline or extends it additively", ok: additive},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

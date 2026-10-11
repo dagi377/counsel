@@ -1249,7 +1249,8 @@
   },
   {
     "slug": "conflict.id_destruction",
-    "spec_id": "G14 (conflicts)",
+    "spec_id": "G14",
+    "label": "G14 (conflicts)",
     "approver": "platform.retention",
     "risk": "irreversible",
     "min_approvers": 2,
@@ -1338,7 +1339,8 @@
   },
   {
     "slug": "intake.public_wording",
-    "spec_id": "G-form",
+    "spec_id": "G-FORM",
+    "label": "G-form",
     "approver": "intake.forms",
     "risk": "high",
     "min_approvers": 1,
@@ -1363,7 +1365,8 @@
   },
   {
     "slug": "intake.fee_waiver",
-    "spec_id": "G-fee",
+    "spec_id": "G-FEE",
+    "label": "G-fee",
     "approver": "billing.credit",
     "risk": "high",
     "min_approvers": 1,
@@ -1395,7 +1398,8 @@
   },
   {
     "slug": "intake.open_matter",
-    "spec_id": "G-open",
+    "spec_id": "G-OPEN",
+    "label": "G-open",
     "approver": "matters.open",
     "risk": "high",
     "min_approvers": 1,
@@ -1420,7 +1424,8 @@
   },
   {
     "slug": "matter.party_conflict",
-    "spec_id": "G2 (matters)",
+    "spec_id": "G2",
+    "label": "G2 (matters)",
     "approver": "conflicts.clear",
     "risk": "high",
     "min_approvers": 1,
@@ -2014,7 +2019,8 @@
   },
   {
     "slug": "platform.file_destruction",
-    "spec_id": "G14 (platform)",
+    "spec_id": "G14",
+    "label": "G14 (platform)",
     "approver": "platform.retention",
     "risk": "irreversible",
     "min_approvers": 2,
@@ -2088,7 +2094,8 @@
   },
   {
     "slug": "platform.integration_scope",
-    "spec_id": "G-INT (platform)",
+    "spec_id": "G-INT",
+    "label": "G-INT (platform)",
     "approver": "platform.integrations",
     "risk": "high",
     "min_approvers": 1,
@@ -2199,7 +2206,8 @@
   },
   {
     "slug": "core.role_change",
-    "spec_id": "GA1 (access)",
+    "spec_id": "GA1",
+    "label": "GA1 (access)",
     "approver": "admin.roles",
     "risk": "high",
     "min_approvers": 1,
@@ -2223,7 +2231,8 @@
   },
   {
     "slug": "core.user_activation",
-    "spec_id": "GA2 (access)",
+    "spec_id": "GA2",
+    "label": "GA2 (access)",
     "approver": "admin.users",
     "risk": "high",
     "min_approvers": 1,
@@ -2606,7 +2615,8 @@
   },
   {
     "slug": "platform.outbound_connector",
-    "spec_id": "G-INT (readiness)",
+    "spec_id": "G-INT",
+    "label": "G-INT (readiness)",
     "approver": "platform.integrations",
     "risk": "high",
     "min_approvers": 1,

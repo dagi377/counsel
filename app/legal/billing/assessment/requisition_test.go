@@ -43,9 +43,10 @@ func TestBIL_L_005_RequisitionWindowAndHold(t *testing.T) {
 		wantStatus string
 	}{
 		{"within one month stops reminders and interest", "2026-04-15", "", true, nil, StatusWindowOpen},
-		{"after one month needs a note", "2026-04-16", "", true, ErrSpecialCircumstances, StatusSpecialCircumstances},
-		{"after one month with a note", "2026-04-16", "client was abroad", true, nil, StatusSpecialCircumstances},
+		{"after one month court referral needs no note", "2026-04-16", "", true, nil, StatusCourtReferral},
+		{"on the 12-month date needs no note", "2027-03-15", "", true, nil, StatusCourtReferral},
 		{"after 12 months never expired", "2027-03-16", "", true, ErrSpecialCircumstances, StatusSpecialCircumstances},
+		{"after 12 months with a note", "2027-03-16", "client was abroad", true, nil, StatusSpecialCircumstances},
 		{"flag off", "2026-03-20", "", false, ErrRequisitionUnverified, StatusWindowOpen},
 	}
 	for _, tt := range tests {

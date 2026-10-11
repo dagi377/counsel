@@ -153,3 +153,28 @@ func TestSpecKindGateKind(t *testing.T) {
 		}
 	}
 }
+
+// spec_id must match the approval_request.spec_gate CHECK; long text goes in label.
+func TestParseKindsSpecIDMatchesSpecGateCheck(t *testing.T) {
+	const entry = `{"slug":"conflict.id_destruction","spec_id":%q,"approver":"conflict.approve","risk":"high","min_approvers":1,"ttl":"168h","payload_schema":{"type":"object"}%s}`
+	tests := []struct {
+		name   string
+		specID string
+		extra  string
+		ok     bool
+	}{
+		{name: "normalised with label", specID: "G14", extra: `,"label":"G14 (conflicts)"`, ok: true},
+		{name: "trailing lower letter", specID: "G11t", ok: true},
+		{name: "dashed upper", specID: "G-FORM", ok: true},
+		{name: "long text in spec_id", specID: "G14 (conflicts)"},
+		{name: "lower-case segment", specID: "G-form"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseKinds([]byte("[" + fmt.Sprintf(entry, tt.specID, tt.extra) + "]"))
+			if (err == nil) != tt.ok {
+				t.Fatalf("ParseKinds(%q) err = %v, want ok %v", tt.specID, err, tt.ok)
+			}
+		})
+	}
+}

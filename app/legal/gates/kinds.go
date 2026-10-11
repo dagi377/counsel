@@ -17,9 +17,12 @@ import (
 var (
 	// gateCode is the shape of a gate kind slug: <module>.<slug>.
 	gateCode = regexp.MustCompile(`^[a-z]+\.[a-z_]+$`)
-	// specGateCode is the shape of a spec gate id (G2, G-B2, G11t, GA1). It is a label,
-	// never a gate_code (CF-04).
+	// specGateCode recognises a spec gate id (G2, G-B2, G11t, GA1) misused as a gate code.
+	// It is a label, never a gate_code (CF-04).
 	specGateCode = regexp.MustCompile(`^G(-?[A-Za-z0-9]+)+`)
+	// specGate is the approval_request.spec_gate CHECK of migrations/0001_init.sql; every
+	// spec_id must match it, and the long text lives in label.
+	specGate = regexp.MustCompile(`^G(-?[A-Z0-9]+)+[a-z]?$`)
 	// dualWhen is the only dual_when form spec/gates.json uses (Q-002).
 	dualWhen = regexp.MustCompile(`^signatories>=([2-9])$`)
 )
@@ -38,6 +41,7 @@ type SpecKind struct {
 type specEntry struct {
 	Slug           string          `json:"slug"`
 	SpecID         string          `json:"spec_id"`
+	Label          string          `json:"label"`
 	Approver       string          `json:"approver"`
 	Risk           string          `json:"risk"`
 	MinApprovers   int             `json:"min_approvers"`
@@ -81,7 +85,7 @@ func (e specEntry) kind() (SpecKind, error) {
 		}
 		return SpecKind{}, fmt.Errorf("gate code %q is not <module>.<slug>", e.Slug)
 	}
-	if !specGateCode.MatchString(e.SpecID) {
+	if !specGate.MatchString(e.SpecID) {
 		return SpecKind{}, fmt.Errorf("gate %q: spec id %q is not a spec gate id", e.Slug, e.SpecID)
 	}
 	if e.Approver == "" {

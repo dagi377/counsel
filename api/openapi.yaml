@@ -1634,6 +1634,10 @@ paths:
         '204': {description: Accepted or duplicate}
         '400': *id001
         '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
         '429': *id001
         default: *id001
   /webhook-endpoints/{webhook_id}:

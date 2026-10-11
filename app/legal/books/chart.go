@@ -46,9 +46,10 @@ var ledgerType = map[string]registry.AccountType{
 	"expense":        registry.AccountExpense,
 }
 
+func init() { add(RegisterCharts) }
+
 // RegisterCharts registers the operating and trust charts as two separate ledger books.
-// It is not yet added to Register: app/legal's TestRegisterWithNoFeaturesRecordsNothing
-// expects no registry calls (Q-005).
+// The charts are in the "always" registration set: they register whatever flags are on (Q-005).
 // rule: BIL-I-002
 func RegisterCharts(r registry.Registry) error {
 	for _, book := range []string{BookOperating, BookTrust} {

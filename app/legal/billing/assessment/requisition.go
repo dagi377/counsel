@@ -19,7 +19,7 @@ const requisitionFlag = "billing.solicitors_act_verified"
 
 // Requisition errors.
 var (
-	// ErrSpecialCircumstances means the requisition is past the one-month window and has no
+	// ErrSpecialCircumstances means the requisition is past the 12-month window and has no
 	// special-circumstances note (SPECIAL_CIRCUMSTANCES_REQUIRED).
 	ErrSpecialCircumstances = errors.New("assessment: special-circumstances note required")
 	// ErrNotDelivered means the bill has not been delivered, so it cannot be assessed yet.
@@ -28,9 +28,13 @@ var (
 	ErrRequisitionUnverified = errors.New("assessment: requisitions disabled until Solicitors Act rules are verified")
 )
 
-// Requisition statuses. A window never shows "expired" (BIL-L-005).
+// Requisition statuses. A window never shows "expired" (BIL-L-005). Within one month of
+// delivery assessment is available as of right; from then to 12 months the court may refer
+// the bill without special circumstances; after 12 months special circumstances are needed
+// (Solicitors Act s.3, s.4).
 const (
 	StatusWindowOpen           = "requisition window open"
+	StatusCourtReferral        = "court referral available"
 	StatusSpecialCircumstances = "special circumstances required"
 )
 
@@ -45,7 +49,7 @@ type AssessedBill struct {
 type Requisition struct {
 	BillID               string
 	RecordedOn           time.Time // business date
-	SpecialCircumstances string    // required after the one-month window
+	SpecialCircumstances string    // required after the 12-month window
 }
 
 // Windows are the per-bill assessment dates shown on the bill page.
@@ -79,13 +83,17 @@ func (r *Requisitions) Windows(ctx context.Context, b AssessedBill) (Windows, er
 		TwelveMonthTo:       r.Calendar.MonthsAfter(delivered, 12),
 		Status:              StatusWindowOpen,
 	}
-	if r.today(ctx).After(w.ClientRequisitionTo) {
+	// rule: BIL-L-005 (verify)
+	switch today := r.today(ctx); {
+	case today.After(w.TwelveMonthTo):
 		w.Status = StatusSpecialCircumstances
+	case today.After(w.ClientRequisitionTo):
+		w.Status = StatusCourtReferral
 	}
 	return w, nil
 }
 
-// Record records a requisition on b today. After the one-month window it needs a
+// Record records a requisition on b today. After the 12-month window it needs a
 // special-circumstances note. A paid bill can still be assessed.
 func (r *Requisitions) Record(ctx context.Context, b AssessedBill, note string) (Requisition, error) {
 	if !r.Flags.Enabled(requisitionFlag) {
@@ -96,7 +104,7 @@ func (r *Requisitions) Record(ctx context.Context, b AssessedBill, note string) 
 		return Requisition{}, fmt.Errorf("bill %s: %w", b.ID, err)
 	}
 	note = strings.TrimSpace(note)
-	// rule: BIL-L-005
+	// rule: BIL-L-005 (verify)
 	if w.Status == StatusSpecialCircumstances && note == "" {
 		return Requisition{}, fmt.Errorf("bill %s: %w", b.ID, ErrSpecialCircumstances)
 	}

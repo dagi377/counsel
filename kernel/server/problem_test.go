@@ -250,11 +250,6 @@ func TestARC_I_051_OperationsDocumentProblemResponses(t *testing.T) {
 	var bad []string
 	ops := 0
 	for path, item := range doc.Paths {
-		// The provider webhook receiver is session-less and documents 400/401/429 only;
-		// the contract is frozen, so it is excepted pending Q-004.
-		if path == "/hooks/{provider}" {
-			continue
-		}
 		for method, node := range item {
 			m := strings.ToUpper(method)
 			if !slices.Contains([]string{"GET", "POST", "PUT", "PATCH", "DELETE"}, m) {

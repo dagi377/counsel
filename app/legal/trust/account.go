@@ -71,8 +71,9 @@ func validateAccount(a Account) error {
 	return nil
 }
 
-// OpenAccount implements Accounts. The contract carries no full account number, which the
-// table requires sealed, so it always returns ErrNeedsApproval (Q-004).
+// OpenAccount implements Accounts and always returns ErrNeedsApproval (Q-004).
+//
+// Deprecated: use OpenAccountNumber, the supported API.
 func (s *AccountStore) OpenAccount(_ context.Context, _ pgx.Tx, a Account) (AccountID, error) {
 	if err := validateAccount(a); err != nil {
 		return "", fmt.Errorf("open account: %w", err)
@@ -87,7 +88,11 @@ RETURNING id::text`
 
 // OpenAccountNumber opens a trust account whose full number is sealed before it is stored.
 // The account has no signatory yet, so it accepts no receipt until one is added (MIG-035).
+// An empty accountNo falls back to a.AccountNo.
 func (s *AccountStore) OpenAccountNumber(ctx context.Context, tx pgx.Tx, a Account, accountNo string) (AccountID, error) {
+	if accountNo == "" {
+		accountNo = a.AccountNo
+	}
 	if err := validateAccount(a); err != nil {
 		return "", fmt.Errorf("open account: %w", err)
 	}
@@ -106,8 +111,10 @@ func (s *AccountStore) OpenAccountNumber(ctx context.Context, tx pgx.Tx, a Accou
 	return AccountID(id), nil
 }
 
-// AddSignatory implements Accounts. trust.signatory needs the GA1 approval id, which the
-// contract does not carry, so it always returns ErrNeedsApproval (Q-004).
+// AddSignatory implements Accounts and always returns ErrNeedsApproval: trust.signatory
+// needs the GA1 approval id (Q-004).
+//
+// Deprecated: use AddApprovedSignatory, the supported API.
 func (s *AccountStore) AddSignatory(_ context.Context, _ pgx.Tx, id AccountID, userID string) error {
 	if id == "" || userID == "" {
 		return fmt.Errorf("add signatory: missing field: %w", ErrInvalid)

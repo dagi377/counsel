@@ -19,33 +19,6 @@ Template:
 
 ## Open
 
-## Q-004 POST /hooks/{provider} lacks problem responses ARC-I-051 asks for
-
-- Task: T-009.1
-- Sources: spec/rules/a2.json ARC-I-051 ("every operation ... mutating operations 400, 401, 403,
-  404, 409, 412, 422, 428, 429"); api/openapi.yaml `receiveProviderEvent` documents no 403, 404,
-  409 or 422.
-- Reading A: ARC-I-051 covers the session-less webhook receiver too; the contract needs an
-  additive change adding the four responses.
-- Reading B: the receiver is not a client operation; ARC-I-051 excludes it.
-- Proposed: B for now. `TestARC_I_051_OperationsDocumentProblemResponses` skips only
-  `/hooks/{provider}`; if A, add the responses additively and drop the skip.
-
-## Q-004 trust.Accounts cannot fill NOT NULL columns of trust_account and signatory
-
-- Task: T-011.1
-- Sources: app/legal/trust/contract.go (`Account` has only `AccountLast4`; `AddSignatory` takes
-  only a user id); migrations/0001_init.sql (`trust_account.account_no_ciphertext NOT NULL`,
-  `signatory.approval_id NOT NULL`, `signatory.is_licensee NOT NULL`).
-- Reading A: the contract methods store placeholders (empty ciphertext, no approval id).
-- Reading B: the contract needs additive input: the full account number (sealed before
-  storage) and the GA1 approval id.
-- Proposed: B. T-011.1 ships additive `AccountStore.OpenAccountNumber` and
-  `AddApprovedSignatory`; the contract `OpenAccount` and `AddSignatory` validate and return
-  `ErrNeedsApproval` until the owner picks a shape (e.g. `Account.AccountNo` and an
-  `approvalID` argument).
-- Answer: (owner)
-
 ## Q-AI-003 Wire the AI fixture lint into make check
 
 - Task: AI-003
@@ -84,6 +57,36 @@ Template:
 - Done for now: B. `gate.Kinds.Label(slug, specID)` records it, and `Open` refuses a kind
   with no label (ErrInvalidKind). Proposed: A, so T-007L.1 can pass it through the Registry.
 
+## Answered
+
+## Q-004 POST /hooks/{provider} lacks problem responses ARC-I-051 asks for
+
+- Task: T-009.1
+- Sources: spec/rules/a2.json ARC-I-051 ("every operation ... mutating operations 400, 401, 403,
+  404, 409, 412, 422, 428, 429"); api/openapi.yaml `receiveProviderEvent` documents no 403, 404,
+  409 or 422.
+- Reading A: ARC-I-051 covers the session-less webhook receiver too; the contract needs an
+  additive change adding the four responses.
+- Reading B: the receiver is not a client operation; ARC-I-051 excludes it.
+- Proposed: B for now. `TestARC_I_051_OperationsDocumentProblemResponses` skips only
+  `/hooks/{provider}`; if A, add the responses additively and drop the skip.
+- Answer: owner (2026-10-11): A. 403, 404, 409 and 422 problem responses added to `receiveProviderEvent` in api/openapi.yaml (additive); the ARC-I-051 skip is gone and the contract test accepts additive changes over the baseline.
+
+## Q-004 trust.Accounts cannot fill NOT NULL columns of trust_account and signatory
+
+- Task: T-011.1
+- Sources: app/legal/trust/contract.go (`Account` has only `AccountLast4`; `AddSignatory` takes
+  only a user id); migrations/0001_init.sql (`trust_account.account_no_ciphertext NOT NULL`,
+  `signatory.approval_id NOT NULL`, `signatory.is_licensee NOT NULL`).
+- Reading A: the contract methods store placeholders (empty ciphertext, no approval id).
+- Reading B: the contract needs additive input: the full account number (sealed before
+  storage) and the GA1 approval id.
+- Proposed: B. T-011.1 ships additive `AccountStore.OpenAccountNumber` and
+  `AddApprovedSignatory`; the contract `OpenAccount` and `AddSignatory` validate and return
+  `ErrNeedsApproval` until the owner picks a shape (e.g. `Account.AccountNo` and an
+  `approvalID` argument).
+- Answer: owner (2026-10-11): B. `Account.AccountNo` added (additive, input only). `OpenAccountNumber` and `AddApprovedSignatory` are the supported API; `OpenAccount` and `AddSignatory` stay as deprecated stubs returning ErrNeedsApproval, so no signature changes.
+
 ## Q-005 app/legal register test forbids any registration
 
 - Task: T-010L.1
@@ -96,9 +99,31 @@ Template:
 - Reading B: features stay unwired until a later task.
 - Proposed: A. T-010L.1 ships `books.RegisterCharts` unwired; once the owner of
   app/legal/register_test.go relaxes it, add `func init() { add(RegisterCharts) }` to chart.go.
-- Answer: (owner)
+- Answer: owner (2026-10-11): registration is split into an "always" set (chart of accounts, core gate kinds and capabilities) and a feature-gated set. `books.RegisterCharts` is wired from init(); `TestRegisterWithNoFeaturesRecordsOnlyAlwaysSet` asserts only always-set calls are recorded.
 
-## Answered
+## Q-T-024b.2 Special circumstances after one month or after 12 months
+
+- Task: T-024b.2
+- Sources: spec/rules BIL-L-005; Solicitors Act ss.3, 4; the T-024b.2 accept line asked for a note after one month.
+- Answer: owner (2026-10-11): follow BIL-L-005, not the accept line. Within one month assessment is available as of right; then the court may refer the bill ("court referral available"); special circumstances are needed only after 12 months. Tagged `// rule: BIL-L-005 (verify)`, behind `billing.solicitors_act_verified` (off by default).
+
+## Q-GATES-001 spec/gates.json spec_id values that fail the spec_gate CHECK
+
+- Task: T-007.1, T-007L.1
+- Sources: migrations/0001_init.sql approval_request.spec_gate CHECK `^G(-?[A-Z0-9]+)+[a-z]?$`; spec/gates.json had 10 ids such as "G14 (conflicts)" and "G-form".
+- Answer: owner (2026-10-11): the 10 ids are normalised (e.g. "G14 (conflicts)" -> "G14", "G-form" -> "G-FORM") and the long text kept in a new optional `label` field (additive in spec/kernel/gatekind.schema.json). `gates.ParseKinds` enforces the CHECK pattern; the frozen 0001 CHECK is unchanged.
+
+## Q-INBOX-001 Two inbox Claim implementations
+
+- Task: T-008.1, T-008.3
+- Sources: kernel/idem `PG.Claim` and kernel/outbox `PG.Claim` both inserted into platform.inbox.
+- Answer: owner (2026-10-11): keep `outbox.PG.Claim`; the idem copy is removed and its ARC-U-022/ARC-I-030 tests moved to kernel/outbox/inbox_test.go.
+
+## Q-GATE-002 Fractional numbers in gate payloads
+
+- Task: T-007.1
+- Sources: kernel/gate payload canonicalisation rejects non-integer numbers; no test covered it.
+- Answer: owner (2026-10-11): keep the rejection; `TestARC_I_014_PayloadHashRejectsFractionalNumbers` covers fractions, exponents and out-of-range integers.
 
 ## Q-005 BIL-C-082 over-credit: which status and problem code
 

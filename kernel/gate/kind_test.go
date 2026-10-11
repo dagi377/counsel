@@ -154,6 +154,39 @@ func TestARC_I_014_PayloadHashCanonical(t *testing.T) {
 	}
 }
 
+// Amounts are integer cents and rates integer ppm, so a fractional or exponent number in a
+// payload is rejected before it is hashed.
+// rule: ARC-I-014
+func TestARC_I_014_PayloadHashRejectsFractionalNumbers(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload string
+		ok      bool
+	}{
+		{name: "integer", payload: `{"amount_cents":50000}`, ok: true},
+		{name: "negative integer", payload: `{"amount_cents":-1}`, ok: true},
+		{name: "fraction", payload: `{"amount_cents":500.5}`},
+		{name: "zero fraction", payload: `{"amount_cents":500.0}`},
+		{name: "exponent", payload: `{"amount_cents":5e4}`},
+		{name: "nested fraction", payload: `{"lines":[{"rate_ppm":0.13}]}`},
+		{name: "beyond int64", payload: `{"amount_cents":9223372036854775808}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := PayloadHash(json.RawMessage(tt.payload))
+			if tt.ok {
+				if err != nil {
+					t.Fatalf("PayloadHash = %v, want ok", err)
+				}
+				return
+			}
+			if !errors.Is(err, ErrInvalidPayload) {
+				t.Fatalf("PayloadHash = %v, want ErrInvalidPayload", err)
+			}
+		})
+	}
+}
+
 // rule: ARC-I-013
 func TestARC_I_013_OpenUnknownKindIs422(t *testing.T) {
 	e := NewPG()

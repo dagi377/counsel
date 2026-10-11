@@ -21,6 +21,7 @@ const (
 type gateKind struct {
 	Slug           string          `json:"slug"`
 	SpecID         string          `json:"spec_id"`
+	Label          string          `json:"label"`
 	Approver       string          `json:"approver"`
 	Risk           string          `json:"risk"`
 	MinApprovers   int             `json:"min_approvers"`
@@ -164,7 +165,8 @@ func TestGatesNotWeakerThanSpec(t *testing.T) {
 			if !ok {
 				t.Fatalf("missing from gates.json")
 			}
-			if got.SpecID != want.SpecGate {
+			// A normalised spec_id keeps a2's long text in label.
+			if got.SpecID != want.SpecGate && got.Label != want.SpecGate {
 				t.Errorf("spec_id %q, a2 %q", got.SpecID, want.SpecGate)
 			}
 			if got.Approver != want.Capability {
