@@ -401,3 +401,8 @@ method cannot be defined twice, so it was deleted there and rewritten in `embed.
 stays in `fake.go`; no other change to it.
 `tools/nofloat_allow.txt` gains `embed.go` and `embed_test.go`: embedding vectors are float32
 by the `ai.EmbedResponse` contract, the same reason `fake.go` is listed.
+
+## AI-034.0b: Embed journal field on aifake.Fake
+
+The Embed journal needs a slice on the `Fake` struct (guarded by its existing mutex), which is
+declared in `fake.go`; that one field is the only change outside the task's files.

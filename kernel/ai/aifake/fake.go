@@ -99,8 +99,9 @@ type Fake struct {
 	dim    int
 	faults map[string]Fault
 
-	mu    sync.Mutex
-	calls map[string]int // fixture path + run id -> calls answered
+	mu     sync.Mutex
+	calls  map[string]int // fixture path + run id -> calls answered
+	embeds []EmbedCall    // Embed journal (embed.go)
 }
 
 // New returns a Fake reading fixtures from fsys (rooted at testdata/ai).

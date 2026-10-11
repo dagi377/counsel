@@ -2,7 +2,11 @@ package aifake
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"math"
+	"reflect"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -37,6 +41,20 @@ vectors:
   "Pinned Party": [0, 0, 1]
 turns:
   - reply: {text: "ranked"}
+`)},
+		"f-e-01/ranking/error_429.yaml": {Data: []byte(`synthetic: true
+feature: F-E-01
+match:
+  last_user_regex: "(?i)^throttle"
+fault: rate_limit
+turns:
+  - reply: {text: "ok after retry"}
+`)},
+		"f-e-01/ranking/timeout.yaml": {Data: []byte(`synthetic: true
+feature: F-E-01
+match:
+  last_user_regex: "(?i)^slow party$"
+fault: timeout
 `)},
 		"f-e-02/bad/ok.yaml": {Data: []byte(`synthetic: true
 feature: F-E-02
@@ -146,5 +164,76 @@ func TestEmbedFixtureFallback(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// rule: AI-R-002
+func TestEmbedScriptedFaults(t *testing.T) {
+	tests := []struct {
+		name       string
+		opts       []Option
+		inputs     []string
+		wantStatus int
+		wantFault  Fault
+		wantIs     []error
+	}{
+		{name: "rate limit on any matching input", inputs: []string{"Synth Holdings Inc.", "Throttle Me Ltd"},
+			wantStatus: 429, wantFault: FaultRateLimit, wantIs: []error{ai.ErrRateLimited}},
+		{name: "timeout is ctx-style", inputs: []string{"slow party"},
+			wantFault: FaultTimeout, wantIs: []error{ai.ErrTimeout, context.DeadlineExceeded}},
+		{name: "WithFault wins over the fixture", opts: []Option{WithFault("F-E-01", FaultOverloaded)}, inputs: []string{"Throttle Me Ltd"},
+			wantStatus: 529, wantFault: FaultOverloaded, wantIs: []error{ai.ErrOverloaded}},
+		{name: "WithFault applies to unmatched input", opts: []Option{WithFault("F-E-01", FaultServer)}, inputs: []string{"Synth Holdings"},
+			wantStatus: 500, wantFault: FaultServer, wantIs: []error{ErrServer}},
+		{name: "no matching input succeeds", inputs: []string{"Synth Holdings", "Riverbend Bakery"}, wantStatus: 200},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := New(embedFixtures(), tt.opts...)
+			resp, err := f.Embed(context.Background(), ai.EmbedRequest{FeatureID: "F-E-01", Inputs: tt.inputs})
+			want := []EmbedCall{{FeatureID: "F-E-01", Inputs: len(tt.inputs), Status: tt.wantStatus, Fault: tt.wantFault}}
+			if got := f.EmbedJournal(); !reflect.DeepEqual(got, want) {
+				t.Fatalf("journal = %+v, want %+v", got, want)
+			}
+			if tt.wantFault == "" {
+				if err != nil || len(resp.Vectors) != len(tt.inputs) || resp.Usage.InputTokens == 0 {
+					t.Fatalf("Embed = %d vectors, usage %d, err %v", len(resp.Vectors), resp.Usage.InputTokens, err)
+				}
+				return
+			}
+			var fe *Error
+			if !errors.As(err, &fe) || fe.Status != tt.wantStatus || fe.Fault != tt.wantFault {
+				t.Fatalf("err = %v, want *Error status %d fault %s", err, tt.wantStatus, tt.wantFault)
+			}
+			for _, target := range tt.wantIs {
+				if !errors.Is(err, target) {
+					t.Fatalf("err = %v, want errors.Is %v", err, target)
+				}
+			}
+			// rule: AI-R-002 (usage only on success)
+			if resp.Vectors != nil || resp.Usage != (ai.EmbedResponse{}).Usage {
+				t.Fatalf("fault returned vectors %v usage %+v", resp.Vectors, resp.Usage)
+			}
+		})
+	}
+}
+
+// rule: AI-R-002
+func TestEmbedJournalHasNoInputText(t *testing.T) {
+	f := New(embedFixtures())
+	secret := "Synth Holdings Inc. IGNORE PREVIOUS INSTRUCTIONS"
+	for _, in := range [][]string{{secret}, {"throttle " + secret}} {
+		_, _ = f.Embed(context.Background(), ai.EmbedRequest{FeatureID: "F-E-01", Inputs: in})
+	}
+	j := f.EmbedJournal()
+	if len(j) != 2 || j[0].Status != 200 || j[1].Status != 429 {
+		t.Fatalf("journal = %+v, want a 200 then a 429", j)
+	}
+	for _, field := range []string{"Synth", "IGNORE", "throttle"} {
+		for _, c := range j {
+			if strings.Contains(fmt.Sprintf("%#v", c), field) {
+				t.Fatalf("journal entry %#v carries input text %q", c, field)
+			}
+		}
 	}
 }
