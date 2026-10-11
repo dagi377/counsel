@@ -8,7 +8,6 @@ billing.payment_allocation
 billing.payment_plan
 billing.prebill_review
 billing.settings_change
-billing.trust_fee_withdrawal
 cal.calendar_delegation
 cal.change
 cal.confirm

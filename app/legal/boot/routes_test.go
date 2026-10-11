@@ -16,6 +16,9 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/bill/billfake"
 	"github.com/dagi377/counsel/app/legal/billing/credit"
+	"github.com/dagi377/counsel/app/legal/billing/draft"
+	"github.com/dagi377/counsel/app/legal/billing/payment"
+	"github.com/dagi377/counsel/app/legal/billing/payment/paymentfake"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
@@ -26,6 +29,7 @@ import (
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/idem/idemfake"
+	"github.com/dagi377/counsel/kernel/outbox/outboxfake"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/kernel/server"
 )
@@ -122,23 +126,33 @@ func testHTTPPorts() *HTTPPorts {
 		Principal: func(*http.Request) (registry.Principal, bool) {
 			return registry.Principal{Kind: registry.PrincipalUser, UserID: "00000000-0000-0000-0000-0000000000a1"}, true
 		},
-		Idem:            idemfake.New(),
-		DB:              nilTx{},
-		Gates:           noGates{},
-		Audit:           auditfake.New(),
-		Outbox:          noEmit{},
-		Bills:           billfake.New(time.Now),
-		Drafts:          noDrafts{},
-		CreditReads:     noCredit{},
-		CreditBills:     noCredit{},
-		TrustLists:      noTrust{},
-		TrustLedgers:    noTrust{},
-		Withdrawals:     noWithdrawals{},
-		Reconciliations: noRecons{},
-		GateList:        noGateList{},
-		Expenses:        noExpenses{},
+		Idem:             idemfake.New(),
+		DB:               nilTx{},
+		Gates:            noGates{},
+		Audit:            auditfake.New(),
+		Outbox:           noEmit{},
+		Bills:            billfake.New(time.Now),
+		Drafts:           noDrafts{},
+		CreditReads:      noCredit{},
+		CreditBills:      noCredit{},
+		TrustLists:       noTrust{},
+		TrustLedgers:     noTrust{},
+		Withdrawals:      noWithdrawals{},
+		Reconciliations:  noRecons{},
+		GateList:         noGateList{},
+		Expenses:         noExpenses{},
+		Payments:         paymentfake.New(),
+		PaymentProposals: noProposals{},
 	}
 }
+
+type noProposals struct{}
+
+func (noProposals) Propose(context.Context, pgx.Tx, string, int, []payment.ProposedAllocation, string) ([]payment.Allocation, error) {
+	return nil, errFake
+}
+
+func (noGates) Withdraw(context.Context, pgx.Tx, gate.GateID, gate.Principal) error { return errFake }
 
 // served mounts every recorded Routes call on one router, the way the kernel server does.
 func served(t *testing.T, calls []registry.Call) (chi.Router, map[string]int) {
@@ -193,6 +207,10 @@ func TestWiredRoutesAreServed(t *testing.T) {
 		{"GET", "/gates/" + id},
 		{"GET", "/expenses"},
 		{"POST", "/expenses"},
+		// HTTP-15 and WO-FIX: boot wires the gated payment routes and the write-off withdraw.
+		{"POST", "/payments/" + id + "/allocations"},
+		{"POST", "/payments/" + id + "/refunds"},
+		{"POST", "/credit-notes/" + id + "/withdraw"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
@@ -269,5 +287,43 @@ func TestPlaceholdersKeptWithoutHTTPPorts(t *testing.T) {
 	router.ServeHTTP(w, httptest.NewRequest("GET", "/bills", nil))
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want 503 from the unwired placeholder", w.Code)
+	}
+}
+
+// On Postgres the bill routes serve with no caller-supplied Bills, Drafts or Outbox: boot
+// fills them with bill.PGService, draft.PGDrafts and the kernel emitter.
+func TestBillRoutesServeOnPostgres(t *testing.T) {
+	p := testHTTPPorts()
+	p.Bills, p.Drafts, p.Outbox = nil, nil, nil
+	rec := &registry.Recorder{}
+	k := testKernel()
+	k.Registry, k.Emitter = recorderBooter{rec}, outboxfake.New()
+	if err := App(Options{HTTP: p}).Register(context.Background(), k); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	_, seen := served(t, rec.Calls())
+	const id = "00000000-0000-0000-0000-000000000001"
+	for _, tt := range []struct{ method, path string }{
+		{"GET", "/bills"}, {"POST", "/bills"}, {"PATCH", "/bills/" + id}, {"POST", "/bills/" + id + "/submit"},
+		{"POST", "/bills/" + id + "/deliver"},
+	} {
+		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
+			if !seenPath(seen, tt.method, tt.path) {
+				t.Fatalf("route not wired from Postgres")
+			}
+		})
+	}
+	got := p.withPostgresBilling(k)
+	if _, ok := got.Bills.(*bill.PGService); !ok {
+		t.Fatalf("Bills = %T, want *bill.PGService", got.Bills)
+	}
+	if _, ok := got.Drafts.(draft.PGDrafts); !ok {
+		t.Fatalf("Drafts = %T, want draft.PGDrafts", got.Drafts)
+	}
+	if got.Outbox == nil {
+		t.Fatal("Outbox not the kernel emitter")
+	}
+	if kept := testHTTPPorts().withPostgresBilling(k); kept.Drafts != (noDrafts{}) {
+		t.Fatalf("caller Drafts replaced by %T", kept.Drafts)
 	}
 }

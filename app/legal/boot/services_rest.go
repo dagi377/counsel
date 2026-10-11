@@ -54,6 +54,8 @@ type RestPorts struct {
 	// Leads overrides intake.Leads' stores; nil uses the Postgres intake.PGForms and
 	// intake.PGLeads. intake.Leads is always built (EVENTS-WIRE-4).
 	Leads *LeadPorts
+	// Deadlines, when set, adds the deadline.remind and deadline.digest jobs (BOOT-21).
+	Deadlines *DeadlinePorts
 }
 
 // LeadPorts override intake.Leads' stores (tests). Contacts come from the event-emitting
@@ -69,8 +71,8 @@ type ReceiptPorts struct {
 	Poster trust.ReceiptPoster
 }
 
-// RefundPorts are the refund effect's dependencies. No Postgres RefundStore or TrustRefunds
-// exists yet, so the composition root takes them from its caller.
+// RefundPorts are the refund effect's dependencies. A nil Store uses payment.PGRefunds and a
+// nil Trust uses payment.PGTrustRefunds on the kernel DB, clock and gate engine.
 type RefundPorts struct {
 	Store  payment.RefundStore
 	Trust  payment.TrustRefunds
@@ -172,6 +174,14 @@ func restEffects(k *kboot.Kernel, p *RestPorts) (map[string]registry.EffectFunc,
 		out[trust.GateReceiptClassification] = fx[trust.GateReceiptClassification]
 	}
 	if p.Refunds != nil {
+		if p.Refunds.Store == nil {
+			p.Refunds.Store = payment.PGRefunds{}
+		}
+		if g, ok := k.Gates.(payment.WithdrawalGates); ok && p.Refunds.Trust == nil && k.DB != nil && k.Clock != nil {
+			// rule: BIL-L-037
+			// A trust refund becomes a trust withdrawal under the withdrawal rules and gate.
+			p.Refunds.Trust = payment.PGTrustRefunds{Ledgers: trust.NewLedgerStore(k.DB, nil, nil, k.Clock), Gates: g}
+		}
 		if err := requireDeps("refund effect", []dep{
 			{"kernel Clock", k.Clock == nil},
 			{"Store", p.Refunds.Store == nil},
@@ -209,6 +219,11 @@ func (w *wiring) registerRest(_ context.Context, k *kboot.Kernel) error {
 	w.rest = &s
 	if w.opts.Rest.Renew != nil {
 		if err := addRenewJobs(k, *w.opts.Rest.Renew); err != nil {
+			return err
+		}
+	}
+	if w.opts.Rest.Deadlines != nil {
+		if err := addDeadlineJobs(k, *w.opts.Rest.Deadlines); err != nil {
 			return err
 		}
 	}

@@ -90,6 +90,7 @@ func TestEffectsTable(t *testing.T) {
 		signatory.KindChange,
 		signatory.KindSigningAuthority,
 		withdraw.GateKind,
+		withdraw.GateFeeKind,
 	}
 	slices.Sort(want)
 	var got []string
@@ -301,8 +302,8 @@ func TestBootSealsWithGateEffects(t *testing.T) {
 		wantKinds int // registered app gate kinds
 	}{
 		{name: "no flags, no gate ports", wantKinds: 0},
-		{name: "no flags, gate ports", gates: testGatePorts(), wantKinds: 6},
-		{name: "every legal flag, gate ports", on: all, gates: testGatePorts(), wantKinds: 6},
+		{name: "no flags, gate ports", gates: testGatePorts(), wantKinds: 7},
+		{name: "every legal flag, gate ports", on: all, gates: testGatePorts(), wantKinds: 7},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -318,6 +319,11 @@ func TestBootSealsWithGateEffects(t *testing.T) {
 				g := c.Args[0].(registry.GateKind)
 				if g.Effect == nil {
 					t.Errorf("gate kind %s reached the registry with a nil Effect", g.Slug)
+				}
+				// rule: BIL-C-085
+				// A rejected G-B5 write-off gate closes its draft (WO-FIX).
+				if g.Slug == credit.GateKindCreditNote && g.OnReject == nil {
+					t.Errorf("gate kind %s has no OnReject", g.Slug)
 				}
 				if strings.HasPrefix(g.Slug, "core.") {
 					t.Errorf("app registered kernel gate kind %s", g.Slug)

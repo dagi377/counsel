@@ -7,6 +7,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/matter/matterkind"
 	"github.com/dagi377/counsel/kernel/deadline"
 	"github.com/dagi377/counsel/kernel/registry"
+	"github.com/dagi377/counsel/kernel/webhook"
 )
 
 // Register registers every app/legal module with the kernel registry, in the order of modules.
@@ -22,6 +23,7 @@ func Register(r registry.Registry) error {
 			return fmt.Errorf("legal: register %s: %w", m.name, err)
 		}
 	}
+	registerKernelRoutes(r)
 	// The deadline routes live in the kernel; the app mounts them with its configuration.
 	if err := registerDeadlines(r); err != nil {
 		return fmt.Errorf("legal: register deadlines: %w", err)
@@ -41,4 +43,11 @@ var DeadlineRoutes = deadline.HTTPConfig{
 func registerDeadlines(r registry.Registry) error {
 	r.Routes((&deadline.HTTP{Config: DeadlineRoutes}).Routes)
 	return nil
+}
+
+// registerKernelRoutes mounts the kernel-owned routes the app serves: GET /webhook-endpoints,
+// POST /webhook-endpoints and PATCH /webhook-endpoints/{webhook_id}. Boot wiring supplies their
+// dependencies; until it does, the routes answer 503.
+func registerKernelRoutes(r registry.Registry) {
+	r.Routes((&webhook.HTTP{}).Routes)
 }

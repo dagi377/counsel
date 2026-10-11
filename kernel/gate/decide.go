@@ -299,6 +299,16 @@ VALUES ($1, $2, $3, $4, $5, $6, greatest($7::timestamptz, now()), $8)`,
 	if err := tx.QueryRow(ctx, `SELECT status FROM gate.approval_request WHERE id = $1`, string(id)).Scan(&status); err != nil {
 		return fmt.Errorf("decide %s: reread: %w", id, err)
 	}
+	// A rejected gate's kind may close its item in the same tx (registry.GateKind.OnReject).
+	if Status(status) == StatusRejected && k.OnReject != nil {
+		if err := k.OnReject(ctx, tx, Rejected{
+			GateID: string(g.ID), Kind: g.Kind, Version: g.Version, Subject: g.Subject, Payload: g.Payload,
+			Preparer: g.Preparer, RejectedBy: by, Reason: d.Reason,
+		}); err != nil {
+			return fmt.Errorf("decide %s: on reject: %w", id, err)
+		}
+		return nil
+	}
 	if Status(status) != StatusApproved || k.CoolingOff > 0 {
 		return nil // more approvals needed, or RunDue runs the effect after cooling-off
 	}

@@ -39,10 +39,28 @@ const (
 const ContactSubject = "party.contact"
 
 // PlainChange is an edit of fields no gate owns. Nil means unchanged.
+//
+// CourtProvince and PropertyProvince (additive, Q-TAX-API) are the matter's
+// place-of-supply facts: a province or territory code (ProvinceCodes), or "" to clear it.
 type PlainChange struct {
-	ShortName      *string
-	PracticeAreaID *string
+	ShortName        *string
+	PracticeAreaID   *string
+	CourtProvince    *string
+	PropertyProvince *string
 }
+
+// ProvinceCodes are the Canadian province and territory codes a matter's court or property
+// province may hold.
+var ProvinceCodes = map[string]bool{
+	"AB": true, "BC": true, "MB": true, "NB": true, "NL": true, "NS": true, "NT": true,
+	"NU": true, "ON": true, "PE": true, "QC": true, "SK": true, "YT": true,
+}
+
+// validProvince reports whether v is unset, a clear ("") or a province or territory code.
+//
+// rule: BIL-T-011
+// rule: BIL-T-012
+func validProvince(v *string) bool { return v == nil || *v == "" || ProvinceCodes[*v] }
 
 // Updater writes plain matter fields at an expected row version. A stale version returns
 // server.ErrPreconditionFailed.
@@ -84,7 +102,8 @@ func (h *Writes) WriteRoutes(r chi.Router) {
 	// rule: ARC-I-012
 	// Opening is gate-owned: the route opens matter.opening and sets nothing itself.
 	r.Method(http.MethodPost, "/matters", server.Declare(h.create))
-	r.Method(http.MethodPatch, "/matters/{matter_id}", server.Declare(h.update, "matter.short_name", "matter.practice_area_id"))
+	r.Method(http.MethodPatch, "/matters/{matter_id}", server.Declare(h.update, "matter.short_name", "matter.practice_area_id",
+		"matter.court_province", "matter.property_province"))
 }
 
 func (h *Writes) writeReady() bool {
@@ -219,15 +238,19 @@ func (h *Writes) openGate(w http.ResponseWriter, r *http.Request, p registry.Pri
 }
 
 type patchBody struct {
-	ShortName      *string          `json:"short_name"`
-	PracticeAreaID *string          `json:"practice_area_id"`
-	Status         *string          `json:"status"`
-	Restricted     *bool            `json:"restricted"`
-	Team           *json.RawMessage `json:"team"`
+	ShortName        *string          `json:"short_name"`
+	PracticeAreaID   *string          `json:"practice_area_id"`
+	CourtProvince    *string          `json:"court_province"`
+	PropertyProvince *string          `json:"property_province"`
+	Status           *string          `json:"status"`
+	Restricted       *bool            `json:"restricted"`
+	Team             *json.RawMessage `json:"team"`
 }
 
 func (b patchBody) gated() bool { return b.Status != nil || b.Restricted != nil || b.Team != nil }
-func (b patchBody) plain() bool { return b.ShortName != nil || b.PracticeAreaID != nil }
+func (b patchBody) plain() bool {
+	return b.ShortName != nil || b.PracticeAreaID != nil || b.CourtProvince != nil || b.PropertyProvince != nil
+}
 
 // update serves PATCH /matters/{matter_id}. Plain fields are written at the If-Match
 // version (200 and the new ETag); team, restriction and status open a gate (202) and leave
@@ -265,7 +288,8 @@ func (h *Writes) update(w http.ResponseWriter, r *http.Request) {
 	}
 	var b patchBody
 	if err := decodeStrict(r, &b); err != nil || (!b.gated() && !b.plain()) || (b.gated() && b.plain()) ||
-		(b.ShortName != nil && *b.ShortName == "") || (b.PracticeAreaID != nil && *b.PracticeAreaID == "") {
+		(b.ShortName != nil && *b.ShortName == "") || (b.PracticeAreaID != nil && *b.PracticeAreaID == "") ||
+		!validProvince(b.CourtProvince) || !validProvince(b.PropertyProvince) {
 		h.fail(w, r, http.StatusBadRequest, server.CodeValidationFailed, "Body is not valid")
 		return
 	}
@@ -286,7 +310,8 @@ func (h *Writes) update(w http.ResponseWriter, r *http.Request) {
 		h.gatedUpdate(w, r, p, m, b)
 		return
 	}
-	out, err := h.Updates.Update(ctx, m.ID, m.RowVersion, PlainChange{ShortName: b.ShortName, PracticeAreaID: b.PracticeAreaID}, p)
+	out, err := h.Updates.Update(ctx, m.ID, m.RowVersion, PlainChange{ShortName: b.ShortName, PracticeAreaID: b.PracticeAreaID,
+		CourtProvince: b.CourtProvince, PropertyProvince: b.PropertyProvince}, p)
 	switch {
 	case errors.Is(err, server.ErrPreconditionFailed):
 		h.fail(w, r, http.StatusPreconditionFailed, server.CodeVersionConflict, "If-Match does not match the current version")

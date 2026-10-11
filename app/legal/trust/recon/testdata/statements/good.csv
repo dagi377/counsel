@@ -1,0 +1,6 @@
+kind,date,description,amount_cents
+opening,2026-08-01,,100000
+txn,2026-08-03,Deposit Smith retainer,25000
+txn,2026-08-05,"Cheque 101, Jones",-5000
+txn,2026-08-05,"Cheque 101, Jones",-5000
+closing,2026-08-31,,115000

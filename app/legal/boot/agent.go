@@ -19,7 +19,6 @@ import (
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/gates"
-	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
@@ -30,15 +29,6 @@ import (
 	"github.com/dagi377/counsel/kernel/deadline"
 	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/registry"
-)
-
-// Event types the deadline job features start from that the deadline package does not name
-// itself. They are the a2 event names of the owning modules (Q-BOOT-WIRE-A).
-const (
-	eventDocumentUploaded = "document.uploaded"   // F-DL-01: document filed to a matter
-	eventEmailFiled       = comms.EventEmailFiled // F-DL-01: email filed to a matter (Q-DRAFT-FIX)
-	eventLeadCreated      = "lead.created"        // F-DL-02: intake created
-	eventMatterUpdated    = "matter.updated"      // F-DL-02: claim facts updated
 )
 
 // AgentPorts are the module query APIs the agent tool handlers read through, one field per
@@ -81,7 +71,7 @@ type AgentPorts struct {
 	Deadlines       deadline.Lister
 	DeadlineCompute agent.DeadlineCompute
 	DeadlineSaver   agent.DeadlineSaver
-	DeadlineGet     agent.DeadlineGetter
+	DeadlineGetter  agent.DeadlineGetter
 	PublishedPacks  agent.PublishedPacks
 
 	Tasks           agent.TaskCreator
@@ -135,7 +125,7 @@ func (p AgentPorts) ports() []port {
 		{"Deadlines", p.Deadlines, p.Deadlines != nil},
 		{"DeadlineCompute", p.DeadlineCompute, p.DeadlineCompute != nil},
 		{"DeadlineSaver", p.DeadlineSaver, p.DeadlineSaver != nil},
-		{"DeadlineGet", p.DeadlineGet, p.DeadlineGet != nil},
+		{"DeadlineGetter", p.DeadlineGetter, p.DeadlineGetter != nil},
 		{"PublishedPacks", p.PublishedPacks, p.PublishedPacks != nil},
 		{"Tasks", p.Tasks, p.Tasks != nil},
 		{"ProposedTasks", p.ProposedTasks, p.ProposedTasks != nil},
@@ -266,44 +256,49 @@ func gateKindCodes() ([]string, error) {
 }
 
 // JobBindings binds every job feature of s to the events and schedule that start it.
-// ruleAdmin is the user the scheduled F-DL-06 rule watch acts for (the rule-pack
-// administrator); empty fails with trigger.ErrBadBinding. A job feature with no binding
-// listed here fails, so a new job feature cannot ship unbound.
+// ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-05,
+// F-DL-09, F-CON-05, F-CON-09 to 12, F-DOC-06; Q-INTEG-15A-SCHEDULED); empty fails with
+// trigger.ErrBadBinding. The F-DL-06 rule watch acts for its designated lawyer in firm
+// settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
+// job feature cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
+	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
+		return func() (trigger.Binding, error) { return bind(ruleAdmin) }
+	}
 	byID := map[string]func() (trigger.Binding, error){
 		deadlines.FeatureExtractDeadlines: func() (trigger.Binding, error) {
+			// F-DL-01 also starts on an email filed to a matter (Q-DRAFT-FIX).
 			d, _ := s.ByID(deadlines.FeatureExtractDeadlines)
-			return trigger.Bind(d, "", eventDocumentUploaded, eventEmailFiled)
+			return trigger.Bind(d, "", deadlines.EventDocumentUploaded, comms.EventEmailFiled)
 		},
-		deadlines.FeatureLimitationAssessment: func() (trigger.Binding, error) {
-			d, _ := s.ByID(deadlines.FeatureLimitationAssessment)
-			return trigger.Bind(d, "", eventLeadCreated, eventMatterUpdated)
-		},
+		deadlines.FeatureLimitationAssessment:       deadlines.LimitationAssessmentBinding,
 		deadlines.RecomputeDependantsDef().ID:       deadlines.RecomputeDependantsBinding,
 		deadlines.ComplianceEvidenceMatcherDef().ID: deadlines.ComplianceEvidenceMatcherBinding,
-		deadlines.RuleWatchDef().ID: func() (trigger.Binding, error) {
-			return deadlines.RuleWatchBinding(ruleAdmin)
-		},
-		deadlines.PostEventFollowUpDef().ID:    deadlines.PostEventFollowUpBinding,
-		deadlines.AdjournmentWatcherDef().ID:   deadlines.AdjournmentWatcherBinding,
-		deadlines.DigestDef().ID:               func() (trigger.Binding, error) { return deadlines.DigestBinding(ruleAdmin) },
-		deadlines.AbsenceCoverageCheckDef().ID: func() (trigger.Binding, error) { return deadlines.AbsenceCoverageCheckBinding(ruleAdmin) },
-		conflict.PartyExtractionDef().ID:       conflict.PartyExtractionBinding,
-		conflict.SearchRankingDef().ID:         conflict.SearchRankingBinding,
-		conflict.ClearanceMemoDef().ID:         conflict.ClearanceMemoBinding,
-		conflict.ConsentDraftingDef().ID:       conflict.ConsentDraftingBinding,
-		conflict.IDObligationWatcherDef().ID:   conflict.IDObligationWatcherBinding,
-		conflict.IDEvidenceCheckDef().ID:       conflict.IDEvidenceCheckBinding,
-		conflict.BeneficialOwnershipDef().ID:   conflict.BeneficialOwnershipBinding,
-		conflict.ReverseSweepDef().ID:          func() (trigger.Binding, error) { return conflict.ReverseSweepBinding(ruleAdmin) },
-		conflict.WallMonitorDef().ID:           func() (trigger.Binding, error) { return conflict.WallMonitorBinding(ruleAdmin) },
-		conflict.ExpiryRetentionDef().ID:       func() (trigger.Binding, error) { return conflict.ExpiryRetentionBinding(ruleAdmin) },
-		conflict.AuditAnomalyDigestDef().ID:    func() (trigger.Binding, error) { return conflict.AuditAnomalyDigestBinding(ruleAdmin) },
-		conflict.DuplicateFinderDef().ID:       func() (trigger.Binding, error) { return conflict.DuplicateFinderBinding(ruleAdmin) },
-		legaldocs.EngagementLetterDef().ID:     legaldocs.EngagementLetterBinding,
-		// F-DOC-06 runs weekly and on a court form change (Q-EVENTS-WIRE-4).
-		legaldocs.TemplateCurrencyDef().ID: func() (trigger.Binding, error) {
-			return trigger.Bind(legaldocs.TemplateCurrencyDef(), ruleAdmin, legaldocs.EventCourtFormChanged)
+		deadlines.RuleWatchDef().ID:                 deadlines.RuleWatchBinding,
+		deadlines.DigestDef().ID:                    scheduled(deadlines.DigestBinding),
+		deadlines.PostEventFollowUpDef().ID:         deadlines.PostEventFollowUpBinding,
+		deadlines.AdjournmentWatcherDef().ID:        deadlines.AdjournmentWatcherBinding,
+		deadlines.AbsenceCoverageCheckDef().ID:      scheduled(deadlines.AbsenceCoverageCheckBinding),
+		conflict.FeaturePartyExtraction:             conflict.PartyExtractionBinding,
+		conflict.SearchRankingDef().ID:              conflict.SearchRankingBinding,
+		conflict.ClearanceMemoDef().ID:              conflict.ClearanceMemoBinding,
+		conflict.ConsentDraftingDef().ID:            conflict.ConsentDraftingBinding,
+		conflict.ReverseSweepDef().ID:               scheduled(conflict.ReverseSweepBinding),
+		conflict.IDObligationWatcherDef().ID:        conflict.IDObligationWatcherBinding,
+		conflict.IDEvidenceCheckDef().ID:            conflict.IDEvidenceCheckBinding,
+		conflict.BeneficialOwnershipDef().ID:        conflict.BeneficialOwnershipBinding,
+		conflict.WallMonitorDef().ID:                scheduled(conflict.WallMonitorBinding),
+		conflict.ExpiryRetentionDef().ID:            scheduled(conflict.ExpiryRetentionBinding),
+		conflict.AuditAnomalyDigestDef().ID:         scheduled(conflict.AuditAnomalyDigestBinding),
+		conflict.DuplicateFinderDef().ID:            scheduled(conflict.DuplicateFinderBinding),
+		legaldocs.IngestDocumentDef().ID:            legaldocs.IngestDocumentBinding,
+		legaldocs.EngagementLetterDef().ID:          legaldocs.EngagementLetterBinding,
+		legaldocs.DraftWithCitationsDef().ID:        legaldocs.DraftWithCitationsBinding,
+		legaldocs.FeatureTemplateCurrency: func() (trigger.Binding, error) {
+			// F-DOC-06 runs weekly, on a known rule change and on a court form change
+			// (Q-INTEG-15A-SCHEDULED, Q-EVENTS-WIRE-4).
+			return trigger.Bind(legaldocs.TemplateCurrencyDef(), ruleAdmin, deadlines.EventRulePackPublished,
+				legaldocs.EventCourtFormChanged)
 		},
 	}
 	for _, d := range s.All() {
@@ -340,24 +335,28 @@ func AddTickJob(j *kboot.Jobs, b *trigger.Bindings) error {
 var actionScreens = map[string]trigger.Screen{
 	"matter-deadlines":      {SubjectKind: "matter", Capability: "deadlines.view"},
 	"limitation-assessment": {SubjectKind: "matter", Capability: "deadlines.view"},
-	"conflict-results":      {SubjectKind: conflict.SubjectRun, Capability: "conflicts.run"},
-	"conflict-clearance":    {SubjectKind: conflict.SubjectRun, Capability: "conflicts.run"},
-	// Screens of the conflict, calendar and document features merged from main
-	// (Q-EVENTS-WIRE-4). The capability is the screen's view or edit right on its record.
-	"conflict-check-new":          {SubjectKind: "matter", Capability: "conflicts.run"},
-	"consents-waivers":            {SubjectKind: "matter", Capability: "documents.edit"},
-	"identity-portal":             {SubjectKind: intake.SubjectLead, Capability: "contacts.view"},
-	"organization-identification": {SubjectKind: party.SubjectContact, Capability: "contacts.view"},
-	"compliance-audit-log":        {SubjectKind: "matter", Capability: "matters.view"},
-	"party-records-hygiene":       {SubjectKind: party.SubjectContact, Capability: "contacts.view"},
-	"client-identification":       {SubjectKind: party.SubjectContact, Capability: "contacts.view"},
-	"ethical-walls":               {SubjectKind: "matter", Capability: "matters.view"},
-	"lateral-hire-intake":         {SubjectKind: party.SubjectContact, Capability: "contacts.view"},
-	"conflict-search-settings":    {SubjectKind: "matter", Capability: "matters.view"},
-	"event-detail":                {SubjectKind: "matter", Capability: "deadlines.view"},
-	"firm-calendar":               {SubjectKind: "matter", Capability: "deadlines.view"},
-	"rule-trigger-wizard":         {SubjectKind: "matter", Capability: "deadlines.view"},
-	"engagement-letter-composer":  {SubjectKind: "matter", Capability: "documents.edit"},
+	// A new conflict check selects the matter it is for; results and clearance select the
+	// check run (EVENTS-WIRE, Q-INTEG-15A-SCREENS).
+	"conflict-check-new": {SubjectKind: "matter", Capability: "conflicts.run"},
+	"conflict-results":   {SubjectKind: conflict.SubjectRun, Capability: "conflicts.run"},
+	"conflict-clearance": {SubjectKind: conflict.SubjectRun, Capability: "conflicts.run"},
+	// Calendar screens act on the matter the event or deadline belongs to.
+	"event-detail":        {SubjectKind: "matter", Capability: "deadlines.view"},
+	"firm-calendar":       {SubjectKind: "matter", Capability: "deadlines.view"},
+	"rule-trigger-wizard": {SubjectKind: "matter", Capability: "deadlines.view"},
+	// Conflicts and client identification (pass 15b features; Q-INTEG-15A-SCREENS).
+	"consents-waivers":            {SubjectKind: conflict.SubjectRun, Capability: "conflicts.run"},
+	"identity-portal":             {SubjectKind: party.SubjectKind, Capability: "conflicts.identify"},
+	"organization-identification": {SubjectKind: party.SubjectKind, Capability: "conflicts.identify"},
+	"client-identification":       {SubjectKind: "matter", Capability: "conflicts.identify"},
+	"party-records-hygiene":       {SubjectKind: party.SubjectKind, Capability: "contacts.edit"},
+	"lateral-hire-intake":         {SubjectKind: party.SubjectKind, Capability: "conflicts.run"},
+	"ethical-walls":               {SubjectKind: "matter", Capability: "conflicts.walls"},
+	"conflict-search-settings":    {SubjectKind: "matter", Capability: "conflicts.run"},
+	"compliance-audit-log":        {SubjectKind: "matter", Capability: "admin.audit_log"},
+	// Documents.
+	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
+	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
@@ -425,7 +424,7 @@ func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Pr
 // AgentWiring is what the agent layer needs at boot beyond its ports.
 type AgentWiring struct {
 	Ports AgentPorts
-	// RuleAdmin is the user scheduled rule-watch runs act for.
+	// RuleAdmin is the user the scheduled digest and coverage-check runs act for.
 	RuleAdmin string
 	// Bindings receives the job-feature bindings; nil skips triggers and the tick job.
 	Bindings *trigger.Bindings

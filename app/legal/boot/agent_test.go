@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/dagi377/counsel/app/legal/matter"
 	"slices"
 	"testing"
 
@@ -16,6 +15,8 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/comms"
 	"github.com/dagi377/counsel/app/legal/conflict"
+	"github.com/dagi377/counsel/app/legal/deadlines"
+	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/kernel/agenttools"
@@ -38,13 +39,13 @@ type (
 	stubDocs         struct{ docs agent.MatterDocuments }
 	stubFolders      struct{ agent.MatterFolders }
 	stubBills        struct{ agent.BillReader }
+	stubWIP          struct{ agent.UnbilledWIP }
+	stubMatterQuery  struct{ matter.Query }
+	stubDocLookup    struct{ agent.DocumentLookup }
 	stubBalances     struct{ agent.BillBalances }
 	stubTrust        struct{ agent.TrustAvailable }
 	stubTrustAccts   struct{ agent.MatterTrustAccounts }
 	stubEntries      struct{ tk.Entries }
-	stubMatterQuery  struct{ matter.Query }
-	stubDocLookup    struct{ agent.DocumentLookup }
-	stubWIP          struct{ agent.UnbilledWIP }
 	stubMatterTime   struct{ mt agent.MatterTime }
 	stubCalc         struct{ draft.Calc }
 	stubDraftStore   struct{ draft.Store }
@@ -54,7 +55,7 @@ type (
 	stubLister       struct{ deadline.Lister }
 	stubCompute      struct{ agent.DeadlineCompute }
 	stubSaver        struct{ agent.DeadlineSaver }
-	stubDeadlineGet  struct{ agent.DeadlineGetter }
+	stubGetter       struct{ agent.DeadlineGetter }
 	stubPacks        struct{ packs agent.PublishedPacks }
 	stubTasks        struct{ agent.TaskCreator }
 	stubProposed     struct{ agent.ProposedTasks }
@@ -80,14 +81,14 @@ func fullPorts() AgentPorts {
 		Documents:       stubDocs{},
 		Folders:         stubFolders{},
 		Bills:           stubBills{},
+		Matters:         stubMatterQuery{},
+		DocLookup:       stubDocLookup{},
+		WriteTools:      mustWriteTools(),
 		BillBalances:    stubBalances{},
 		Trust:           stubTrust{},
 		TrustAccounts:   stubTrustAccts{},
 		Entries:         stubEntries{},
-		Matters:         stubMatterQuery{},
-		DocLookup:       stubDocLookup{},
 		UnbilledWIP:     stubWIP{},
-		WriteTools:      mustWriteTools(),
 		MatterTime:      stubMatterTime{},
 		DraftCalc:       stubCalc{},
 		DraftStore:      stubDraftStore{},
@@ -97,7 +98,7 @@ func fullPorts() AgentPorts {
 		Deadlines:       stubLister{},
 		DeadlineCompute: stubCompute{},
 		DeadlineSaver:   stubSaver{},
-		DeadlineGet:     stubDeadlineGet{},
+		DeadlineGetter:  stubGetter{},
 		PublishedPacks:  stubPacks{},
 		Tasks:           stubTasks{},
 		ProposedTasks:   stubProposed{},
@@ -214,7 +215,7 @@ func TestJobBindings(t *testing.T) {
 				t.Fatal("no event types bound")
 			}
 			// F-DL-01 starts on a document or an email filed to a matter (Q-DRAFT-FIX).
-			for _, ev := range []string{eventDocumentUploaded, comms.EventEmailFiled} {
+			for _, ev := range []string{deadlines.EventDocumentUploaded, comms.EventEmailFiled} {
 				if !slices.Contains(b.EventTypes(), ev) {
 					t.Fatalf("event types %v lack %s", b.EventTypes(), ev)
 				}

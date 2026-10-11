@@ -149,7 +149,10 @@ func TestRestEffectsMissingPorts(t *testing.T) {
 	}{
 		{"nil ports", nil, true},
 		{"receipts without poster", &RestPorts{Receipts: &ReceiptPorts{}}, false},
-		{"refunds without store", &RestPorts{Refunds: &RefundPorts{Trust: fakeRefunds{}, Ledger: ledgerfake.New(clock.Date{Year: 2026, Month: 10, Day: 11})}}, false},
+		// rule: BIL-C-064
+		// A nil Store defaults to payment.PGRefunds; a missing ledger still fails closed.
+		{"refunds without store", &RestPorts{Refunds: &RefundPorts{Trust: fakeRefunds{}, Ledger: ledgerfake.New(clock.Date{Year: 2026, Month: 10, Day: 11})}}, true},
+		{"refunds without ledger", &RestPorts{Refunds: &RefundPorts{Trust: fakeRefunds{}}}, false},
 		{"all ports", testRestPorts(), true},
 	}
 	for _, tt := range tests {

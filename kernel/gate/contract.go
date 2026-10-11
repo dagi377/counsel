@@ -89,6 +89,9 @@ type Decision struct {
 // Approved is a gate that has all the approvals it needs, as passed to its effect handler.
 type Approved = registry.Approved
 
+// Rejected is a just-rejected gate as GateKind.OnReject sees it.
+type Rejected = registry.Rejected
+
 // EffectFunc applies an approved gate. It runs at most once per gate, inside tx, while the
 // kernel holds the gate lock.
 type EffectFunc = registry.EffectFunc

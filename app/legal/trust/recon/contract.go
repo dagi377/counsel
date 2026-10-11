@@ -81,6 +81,20 @@ type ThreeWay struct {
 	Items             []ReconcilingItem
 }
 
+// OutstandingItemsCents is the net of the reconciling items, signed as stored: outstanding
+// deposits and in-transit amounts positive, outstanding cheques negative. By-law 9's
+// three-way comparison is bank closing balance + outstanding deposits - outstanding cheques
+// = book balance = the sum of the client ledgers, so for a computed comparison
+// BankCents + OutstandingItemsCents() == AdjustedBankCents. Every view of a reconciliation
+// reports outstanding_items_cents through this one function.
+func (t ThreeWay) OutstandingItemsCents() int64 {
+	var n int64
+	for _, it := range t.Items {
+		n += it.AmountCents
+	}
+	return n
+}
+
 // Balanced reports whether the adjusted bank balance, the book and the client ledgers agree.
 func (t ThreeWay) Balanced() bool {
 	return t.AdjustedBankCents == t.BookCents && t.BookCents == t.ClientLedgerCents

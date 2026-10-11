@@ -10,8 +10,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/credit"
+	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/comms"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
@@ -73,6 +75,27 @@ type HTTPPorts struct {
 	// routes (EVENTS-WIRE-2) and the stage, note, revision, court form, inbound email and
 	// calendar routes (EVENTS-WIRE-5). Nil builds them on the kernel DB and emitter.
 	Events *EventStores
+	// WithdrawRequests, with WithdrawLedgers and WithdrawCancels, serves POST
+	// /trust/withdrawals and its cancel action (HTTP-17).
+	WithdrawRequests withdraw.Service
+	WithdrawLedgers  withdraw.LedgerReader
+	WithdrawCancels  withdraw.Cancels
+	// WithdrawGates opens and withdraws the withdrawal gates. Nil uses the kernel gate engine.
+	WithdrawGates withdraw.Gates
+	// Recons, with ReconStatements, ReconVersions and ReconParser, serves the bank-line
+	// import and the reconciliation prepare and submit routes (HTTP-18).
+	Recons          recon.Service
+	ReconStatements recon.Statements
+	ReconVersions   recon.Versions
+	ReconParser     recon.Parser
+	// Payments and PaymentProposals serve POST /payments/{payment_id}/allocations and
+	// /refunds (HTTP-15); both open their gates on Gates.
+	Payments         payment.Service
+	PaymentProposals payment.Proposals
+	// Runs and RunAccess serve POST /agent/runs and GET /agent/runs/{run_id} (HTTP-25):
+	// the composition root supplies the run starter and store.
+	Runs      agent.RunService
+	RunAccess agent.RunAccess
 }
 
 // TxRunner runs fn in one transaction; kernel/db implements it.
@@ -101,6 +124,8 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	if p.Gates == nil && k.Gates != nil {
 		p.Gates = k.Gates
 	}
+	p = p.withPostgresBilling(k)
+	p = p.withImports(k).withReaders(k).withWrites(k)
 	if p.Expenses == nil && k.DB != nil && k.Clock != nil {
 		p.Expenses = timekeeping.NewExpenseStore(k.DB, k.Clock.Location())
 	}
@@ -161,6 +186,25 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 		add(ev.Inbound != nil, (&comms.InboundHTTP{Route: rt, Inbound: ev.Inbound}).Routes)
 		add(ev.Calendar != nil, (&deadlines.CalendarHTTP{Route: rt, Calendar: ev.Calendar}).Routes)
 	}
+	add(p.WithdrawRequests != nil && p.WithdrawLedgers != nil && p.WithdrawCancels != nil && p.WithdrawGates != nil &&
+		p.DB != nil && p.Idem != nil, (&withdraw.RequestHTTP{Withdrawals: p.WithdrawRequests,
+		Ledgers: p.WithdrawLedgers, Gates: p.WithdrawGates, Cancels: p.WithdrawCancels, DB: p.DB, Access: p.Access,
+		Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
+	add(p.Recons != nil && p.ReconStatements != nil && p.ReconVersions != nil && p.ReconParser != nil &&
+		p.Gates != nil && p.DB != nil && p.Idem != nil, (&recon.WriteHTTP{Recons: p.Recons, Parser: p.ReconParser,
+		Statements: p.ReconStatements, Versions: p.ReconVersions, Gates: p.Gates, DB: p.DB, Access: p.Access,
+		Idem: p.Idem, Problems: p.Problems, Principal: p.Principal,
+		MinApprovers: approvers[recon.GateSignOff]}).Routes)
+	add(p.Payments != nil && p.PaymentProposals != nil && p.DB != nil && p.Gates != nil && p.Idem != nil,
+		(&payment.Gated{HTTP: payment.HTTP{Payments: p.Payments, Access: p.Access, Cursors: p.Cursors, Idem: p.Idem,
+			Problems: p.Problems, Principal: p.Principal}, DB: p.DB, Gates: p.Gates, Proposals: p.PaymentProposals,
+			MinApprovers: approvers}).Routes)
+	wg, canWithdraw := p.Gates.(credit.GateWithdrawer)
+	add(canWithdraw && p.DB != nil && p.Idem != nil, (&credit.WithdrawHTTP{Store: credit.PGWriteOffs{}, Gates: wg,
+		DB: p.DB, Access: p.Access, Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
+	if m := runMount(p, p.Runs, p.RunAccess); m != nil {
+		add(true, m)
+	}
 	return out, nil
 }
 
@@ -210,4 +254,20 @@ func newRouteFilter(r registry.Registry, wired []mount) routeFilter {
 		f.wired[routeKey(m)] = true
 	}
 	return f
+}
+
+// rejectFilter is the registry the gate kinds register into: a kind with a rejection hook
+// gets it as GateKind.OnReject, so the kernel calls it in the deciding tx. Every other call
+// passes through.
+type rejectFilter struct {
+	registry.Registry
+	hooks map[string]registry.RejectFunc
+}
+
+// GateKind sets k.OnReject from the hooks when k has none.
+func (f rejectFilter) GateKind(k registry.GateKind) {
+	if h := f.hooks[k.Slug]; h != nil && k.OnReject == nil {
+		k.OnReject = h
+	}
+	f.Registry.GateKind(k)
 }

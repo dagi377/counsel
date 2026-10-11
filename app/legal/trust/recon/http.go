@@ -23,7 +23,7 @@ const CapView = "trust.view"
 // AccountSubject is the access subject kind of a trust account.
 const AccountSubject = "trust.account"
 
-// Problem codes the reconciliation read route writes.
+// Problem codes the reconciliation read and write routes share.
 const (
 	CodeUnauthenticated   = "unauthenticated"
 	CodeMissingCapability = "missing_capability"
@@ -88,13 +88,9 @@ type reconView struct {
 }
 
 func reconOf(c Reconciliation) reconView {
-	var items int64
-	for _, it := range c.Result.Items {
-		items += it.AmountCents
-	}
 	v := reconView{ID: c.ID, Version: 1, AccountID: c.AccountID,
 		Month:            fmt.Sprintf("%04d-%02d", c.Period.Year, int(c.Period.Month)),
-		BankBalanceCents: c.Result.BankCents, OutstandingItemsCents: items,
+		BankBalanceCents: c.Result.BankCents, OutstandingItemsCents: c.Result.OutstandingItemsCents(),
 		AdjustedBankCents: c.Result.AdjustedBankCents, JournalBalanceCents: c.Result.BookCents,
 		ClientListingTotalCents: c.Result.ClientLedgerCents, Balanced: c.Result.Balanced(),
 		Status: "prepared"}
