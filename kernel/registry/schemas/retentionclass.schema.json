@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "CONTRACT: frozen once on main; changes are additive only and need a docs/QUESTIONS.md entry. Source: spec/eng/k1-kernel.html (Registry). Validated at boot; registered data that fails it stops boot.",
+  "title": "RetentionClass",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "min_years",
+    "never_purge"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "module-prefixed id, e.g. <module>.<name>"
+    },
+    "min_years": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "never_purge": {
+      "type": "boolean"
+    },
+    "destruction_gate": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "module-prefixed id, e.g. <module>.<name>"
+    }
+  },
+  "if": {
+    "properties": {
+      "never_purge": {
+        "const": false
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "destruction_gate"
+    ]
+  },
+  "$id": "https://counsel.local/spec/kernel/retentionclass.schema.json"
+}

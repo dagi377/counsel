@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	"github.com/dagi377/counsel/kernel/audit"
@@ -14,13 +13,11 @@ import (
 	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
+	"github.com/dagi377/counsel/kernel/registry/schemas"
 	"github.com/dagi377/counsel/kernel/report"
 	"github.com/dagi377/counsel/kernel/server"
 	"github.com/dagi377/counsel/kernel/webhook"
 )
-
-// schemaDir is where the registry schemas live, relative to the working directory.
-const schemaDir = "spec/kernel"
 
 // env is what Run takes from the outside world. Tests replace any part of it.
 type env struct {
@@ -40,7 +37,7 @@ func productionEnv() env {
 	return env{
 		open: func(ctx context.Context, cfg db.Config) (db.DB, error) { return db.Open(ctx, cfg) },
 		registry: func() (registry.Booter, error) {
-			s, err := registry.LoadSchemas(os.DirFS(schemaDir))
+			s, err := registry.LoadSchemas(schemas.FS)
 			if err != nil {
 				return nil, err
 			}

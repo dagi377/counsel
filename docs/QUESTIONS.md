@@ -805,3 +805,12 @@ contract declares yet. Not built.
   is wired at boot. No kernel module owns a River job yet, so `addKernelJobs` adds none.
 - `TestRunFlags` now runs the import role and declares its flag in `Define`: Run builds
   through BuildWith, which turns flags on before Register (ARC-I-040).
+
+## PORT-02 (kernel/registry/schemas: embedded spec/kernel schemas)
+
+- Branch is cut from origin/main with origin/task/BOOT-09 merged in (run.go lives only there).
+  The merge resolves two conflicts against main's wave-4a boot work: Kernel keeps main's
+  fields (BOOT-09 had a second `Notify`), and run.go drops its stub `addKernelJobs` in favour
+  of main's real one in jobs_kernel.go.
+- `kernel/registry/schemas/embed_integration_test.go` is added beyond the task's file list to
+  meet the "integration test compiles" line; it needs no database.
