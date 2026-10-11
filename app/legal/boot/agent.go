@@ -326,6 +326,10 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		intake.PreConsultBriefDef().ID:              intake.PreConsultBriefBinding,
 		intake.PipelineFollowUpsDef().ID:            intake.PipelineFollowUpsBinding,
 		intake.WeeklyIntakeDigestDef().ID:           intake.WeeklyIntakeDigestBinding,
+		// F-TIM-01 runs at the end of each business day. One binding acts for one user, so
+		// it takes the rule admin until a per-user schedule exists (FEAT-TIM-01 in
+		// docs/QUESTIONS.md); the screen actions cover each user's on-request runs.
+		tk.RebuildDayDef().ID: scheduled(tk.RebuildDayBinding),
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -449,6 +453,10 @@ var actionScreens = map[string]trigger.Screen{
 	"public-intake-form":   {SubjectKind: "intake.lead", Capability: "intake.leads"},
 	"consultation-booking": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 	"intake-settings":      {SubjectKind: "matter", Capability: "intake.forms"},
+	// Time screens act on the matters the acting user records time on (FEAT-TIM-01).
+	"my-time":           {SubjectKind: "matter", Capability: "time.record"},
+	"suggested-entries": {SubjectKind: "matter", Capability: "time.record"},
+	"activity-ledger":   {SubjectKind: "matter", Capability: "time.record"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
