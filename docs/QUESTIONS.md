@@ -3024,3 +3024,10 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   scheduled features (Q-INTEG-15A-SCHEDULED).
 - `matter-wip` and `write-downs` map to subject `matter` with capability `billing.view`
   (what `list_unbilled` needs).
+
+## Q-FEAT-TIM-04 F-TIM-04 timesheet pre-review: trigger event
+
+- No week-submitted event exists on main. F-TIM-04 names `timesheet.week_submitted`
+  (`timekeeping.EventTimesheetWeekSubmitted`); timekeeping must publish it when a week is
+  submitted for G9c, or the feature never fires. It has no screen action (spec `on_request`
+  is empty).

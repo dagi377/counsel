@@ -76,5 +76,6 @@ func appDefs() []feature.Def {
 		// time
 		timekeeping.ReceiptCaptureDef(),
 		timekeeping.PreBillCheckDef(),
+		timekeeping.TimesheetPreReviewDef(),
 	}
 }

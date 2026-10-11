@@ -296,6 +296,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		legaldocs.DraftWithCitationsDef().ID:        legaldocs.DraftWithCitationsBinding,
 		tk.ReceiptCaptureDef().ID:                   tk.ReceiptCaptureBinding,
 		tk.PreBillCheckDef().ID:                     scheduled(tk.PreBillCheckBinding),
+		tk.TimesheetPreReviewDef().ID:               tk.TimesheetPreReviewBinding,
 		legaldocs.FeatureTemplateCurrency: func() (trigger.Binding, error) {
 			// F-DOC-06 runs weekly and on a known rule change; no form-change event exists
 			// yet (Q-INTEG-15A-SCHEDULED).
