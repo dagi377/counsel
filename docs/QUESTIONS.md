@@ -614,3 +614,14 @@ by the `ai.EmbedResponse` contract, the same reason `fake.go` is listed.
 
 The Embed journal needs a slice on the `Fake` struct (guarded by its existing mutex), which is
 declared in `fake.go`; that one field is the only change outside the task's files.
+
+## Q-INTEREST-CJA: prejudgment rate when no rate was agreed (integrator, wave 3a)
+
+The decision log says interest with no agreed rate should run at the Courts of Justice Act
+prejudgment rate for the quarter of delivery. The frozen rules say the opposite: BIL-C-071
+("the Act supplies no default rate. Default: off"), BIL-L-009 (the rate must be printed on the
+bill) and BIL-L-010 ("the Act now sets no default rate"). Rule ids outrank decisions, so the
+integrator did not change the no-rate behaviour (ErrNoAgreedRate stays). It seeded the
+quarterly CJA prejudgment table (2020 Q1 to 2026 Q4, from ontario.ca, verify) as
+`interest.PrejudgmentRate`, usable as the agreed rate's CJA benchmark. Needed: a lawyer reads
+s.33 as amended and either the rules or the decision change.

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/dagi377/counsel/kernel/money"
 )
@@ -131,9 +132,10 @@ type Disbursement struct {
 	MarkupPPM        int64
 	SortOrder        int
 	Description      string
-	OriginalMinor    int64  // foreign amount in minor units; 0 when CAD
-	OriginalCurrency string // ISO 4217; "" when CAD
-	FXPPM            int64  // CAD per unit in ppm
+	OriginalMinor    int64     // foreign amount in minor units; 0 when CAD
+	OriginalCurrency string    // ISO 4217; "" when CAD
+	FXPPM            int64     // CAD per unit in ppm
+	Date             time.Time // business date the cost was incurred; zero when unknown
 }
 
 // DisbursementLine builds the bill line for one disbursement.
@@ -152,7 +154,7 @@ func DisbursementLine(a money.Arithmetic, d Disbursement) (Line, error) {
 		if d.MarkupPPM != 0 {
 			return Line{}, fmt.Errorf("disbursement %s: %w", d.ID, ErrMarkupOnAgent)
 		}
-		return Line{ID: d.ID, Kind: LineAgentDis, SortOrder: d.SortOrder, Description: d.Description, AmountCents: d.PaidCents}, nil
+		return Line{ID: d.ID, Kind: LineAgentDis, SortOrder: d.SortOrder, Description: d.Description, AmountCents: d.PaidCents, ItemDate: itemDate(d.Date)}, nil
 	}
 	cost := d.PreTaxCents
 	if d.OriginalCurrency != "" {
@@ -166,7 +168,16 @@ func DisbursementLine(a money.Arithmetic, d Disbursement) (Line, error) {
 	if err != nil {
 		return Line{}, fmt.Errorf("disbursement %s markup: %w", d.ID, err)
 	}
-	return Line{ID: d.ID, Kind: LineOwnCost, SortOrder: d.SortOrder, Description: d.Description, AmountCents: cost + mk, MarkupCents: mk, Taxable: true}, nil
+	return Line{ID: d.ID, Kind: LineOwnCost, SortOrder: d.SortOrder, Description: d.Description, AmountCents: cost + mk, MarkupCents: mk, Taxable: true, ItemDate: itemDate(d.Date)}, nil
+}
+
+// itemDate is the line's ItemDate for a disbursement date: nil when the date is unknown, so
+// the itemized-delivery check (BIL-L-002) still blocks the bill.
+func itemDate(d time.Time) *time.Time {
+	if d.IsZero() {
+		return nil
+	}
+	return &d
 }
 
 // FXCents converts a foreign amount to CAD cents: rhu(original_minor * fx_ppm, 1e6).

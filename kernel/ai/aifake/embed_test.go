@@ -237,3 +237,36 @@ func TestEmbedJournalHasNoInputText(t *testing.T) {
 		}
 	}
 }
+
+// Embed fixture faults follow Complete: a transient fault fails only the first matching
+// call, so a retry gets vectors; a timeout fails every call; WithFault fails every call.
+// rule: AI-R-002
+func TestEmbedFaultSemanticsMatchComplete(t *testing.T) {
+	tests := []struct {
+		name   string
+		opts   []Option
+		inputs []string
+		want   []int // status of each of three calls
+	}{
+		{name: "rate limit fails only the first call", inputs: []string{"Throttle Me Ltd"}, want: []int{429, 200, 200}},
+		{name: "timeout fails every call", inputs: []string{"slow party"}, want: []int{0, 0, 0}},
+		{name: "WithFault fails every call", opts: []Option{WithFault("F-E-01", FaultRateLimit)}, inputs: []string{"Synth Holdings"}, want: []int{429, 429, 429}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := New(embedFixtures(), tt.opts...)
+			for range tt.want {
+				_, _ = f.Embed(context.Background(), ai.EmbedRequest{FeatureID: "F-E-01", Inputs: tt.inputs})
+			}
+			j := f.EmbedJournal()
+			if len(j) != len(tt.want) {
+				t.Fatalf("journal = %+v, want %d calls", j, len(tt.want))
+			}
+			for i, c := range j {
+				if c.Status != tt.want[i] {
+					t.Fatalf("call %d status = %d, want %d (journal %+v)", i, c.Status, tt.want[i], j)
+				}
+			}
+		})
+	}
+}

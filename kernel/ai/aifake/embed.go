@@ -49,16 +49,37 @@ type pins struct {
 	faults   []aifixture.Fixture
 }
 
-// fault returns the first scripted fault whose last_user_regex matches any input.
-func (p pins) fault(inputs []string) Fault {
+// fault returns the first scripted fault fixture whose last_user_regex matches any input,
+// or false when none does.
+func (p pins) fault(inputs []string) (aifixture.Fixture, bool) {
 	for _, fx := range p.faults {
 		for _, in := range inputs {
 			if fx.Matches("", in) {
-				return Fault(fx.Fault)
+				return fx, true
 			}
 		}
 	}
-	return ""
+	return aifixture.Fixture{}, false
+}
+
+// fixtureFault applies Complete's fault semantics to a matched Embed fixture: a transient
+// fault (rate_limit, overloaded, server_error) fails only the first matching call, so a
+// retry succeeds; timeout and malformed fail every call. EmbedRequest carries no run id, so
+// the run is the Fake itself (the same as a Complete call with no run_id).
+func (f *Fake) fixtureFault(fx aifixture.Fixture) Fault {
+	fault := Fault(fx.Fault)
+	switch fault {
+	case FaultRateLimit, FaultOverloaded, FaultServer:
+		key := "embed\x00" + fx.Path
+		f.mu.Lock()
+		n := f.calls[key]
+		f.calls[key] = n + 1
+		f.mu.Unlock()
+		if n > 0 {
+			return ""
+		}
+	}
+	return fault
 }
 
 // embedFault is the error for a scripted Embed fault. A timeout also unwraps to
@@ -163,7 +184,8 @@ func clustered(text, cluster string, dim int) []float32 {
 // feature's fixtures gets its pinned vector, a text in a fixture cluster sits near the other
 // members, and any other text gets the deterministic hash Vector. Texts match after
 // lowercase(trim(text)). A fixture with a fault and a last_user_regex matching any input
-// fails the call with that fault and no vectors; WithFault wins over fixtures. Usage is
+// fails the call with that fault and no vectors (a transient fault only on the first such
+// call, as in Complete); WithFault wins over fixtures and fails every call. Usage is
 // counted only on success, and every call is journalled without its input text.
 func (f *Fake) Embed(ctx context.Context, req ai.EmbedRequest) (ai.EmbedResponse, error) {
 	if err := ctx.Err(); err != nil {
@@ -181,7 +203,9 @@ func (f *Fake) Embed(ctx context.Context, req ai.EmbedRequest) (ai.EmbedResponse
 		if p, err = f.embedPins(req.FeatureID); err != nil {
 			return ai.EmbedResponse{}, err
 		}
-		fault = p.fault(req.Inputs)
+		if fx, ok := p.fault(req.Inputs); ok {
+			fault = f.fixtureFault(fx)
+		}
 	}
 	if fault != "" {
 		err := embedFault(fault)

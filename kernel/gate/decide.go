@@ -314,7 +314,9 @@ INSERT INTO gate.gate_decision
   (approval_id, decided_by, decision, reason, payload_hash, self_approval_exception, effective_at, mfa_verified_at)
 VALUES ($1, $2, $3, $4, $5, $6, greatest($7::timestamptz, now()), $8)`,
 		string(id), by.UserID, decision, reason, hash, out.selfApproved, effectiveAt, d.MFAVerifiedAt); err != nil {
-		return fmt.Errorf("decide %s: insert: %w", id, err)
+		// rule: ARC-I-023
+		// A second decision by the same human on this gate version is a 409, not a 500.
+		return AlreadyDecided(id, fmt.Errorf("decide %s: insert: %w", id, err))
 	}
 	// rule: ARC-I-020
 	// A recommendation is recorded and the gate stays pending for a decider with a higher limit.

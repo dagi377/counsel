@@ -3,6 +3,7 @@ package draft
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/dagi377/counsel/kernel/money"
 )
@@ -39,7 +40,7 @@ func TestBIL_C_041_Markup(t *testing.T) {
 }
 
 // rule: BIL-T-033
-// rule: BIL-L-048 (verify)
+// rule: BIL-L-002 (verify)
 func TestBIL_T_033_MarkupTaxableAgentNot(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -80,6 +81,31 @@ func TestBIL_T_033_MarkupTaxableAgentNot(t *testing.T) {
 			}
 			if tax != tc.wantTax {
 				t.Fatalf("tax = %d, want %d", tax, tc.wantTax)
+			}
+		})
+	}
+}
+
+// rule: BIL-L-002
+func TestBIL_L_048_DisbursementLineCarriesDate(t *testing.T) {
+	sep2 := time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name string
+		d    Disbursement
+		want *time.Time
+	}{
+		{"own cost dated", Disbursement{ID: "a", PreTaxCents: 5000, Date: sep2}, &sep2},
+		{"agent cost dated", Disbursement{ID: "b", Agent: true, PaidCents: 16000, Date: sep2}, &sep2},
+		{"undated stays nil", Disbursement{ID: "c", PreTaxCents: 5000}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			l, err := DisbursementLine(arith, tc.d)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if (l.ItemDate == nil) != (tc.want == nil) || (l.ItemDate != nil && !l.ItemDate.Equal(*tc.want)) {
+				t.Fatalf("ItemDate = %v, want %v", l.ItemDate, tc.want)
 			}
 		})
 	}
