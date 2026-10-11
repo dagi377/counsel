@@ -2561,3 +2561,15 @@ Done in PORT-18:
 - The spec gives F-DOC-04 only draft_document and submit_for_approval as writes, so the
   pre-check report is a draft the run submits under docs.outgoing (G8); the reviewing lawyer
   reads it beside the document under review.
+## Q-FEAT-DOC-07 F-DOC-06 trigger events and test helpers
+
+- "A known rule or form change" binds two events: `rulepack.published` (the kernel deadline
+  event, reused as `docs.EventRulePackPublished`) and `court_form.changed`
+  (`docs.EventCourtFormChanged`, proposed). Nothing publishes `court_form.changed` yet; the
+  docs module emits it when a new docs.court_form version lands (EVENTS-WIRE follow-up).
+- The weekly run binds with `trigger.BindDesignated` (JOB-ACTOR), so this branch merges
+  task/JOB-ACTOR.
+- The end-to-end tests use `app/legal/docs/ai_docc_helpers_test.go` (prefix `docc`), a file
+  outside the task's list, shared byte-for-byte with FEAT-DOC-08 and FEAT-DOC-09 so the three
+  branches merge cleanly. FEAT-DOC-06 already covered one G-D2 gate end to end; this task's
+  test drives both gate kinds in one run.
