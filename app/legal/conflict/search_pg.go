@@ -38,8 +38,9 @@ var _ Searcher = (*PGSearcher)(nil)
 // folded, surrounding and repeated whitespace collapsed. It reads names, ids and roles only:
 // never notes, descriptions or any conversation text.
 //
-// The three reads are separate statements in one transaction (modules never join another
-// module's tables), so the hits and the index version describe the same snapshot.
+// The version and the three reads are separate statements in one transaction (modules
+// never join another module's tables); the version is read first, so the hits are at least
+// as new as the version reported with them.
 type PGSearcher struct {
 	db db.DB
 }
@@ -107,9 +108,12 @@ func normSQL(x string) string {
 	return `regexp_replace(btrim(lower(translate(` + x + `, $2, $3))), '\s+', ' ', 'g')`
 }
 
-// searchVersionSQL is the index version: the oldest transaction still running when the
-// search snapshot was taken. It only grows, so a later run never reports an older index.
-const searchVersionSQL = `SELECT pg_snapshot_xmin(pg_current_snapshot())::text::bigint`
+// searchVersionSQL reads the conflict index version (migrations/5200_conflict_index_version.sql):
+// a sequence value bumped by every write to contact names and aliases, party roles and
+// sealed prospects, kept in a one-row table written in the writer's transaction. It is read
+// before the hits, so it never names a write the hits do not include; the hits may be newer
+// than it, which only makes a staleness check re-run. It only grows.
+const searchVersionSQL = `SELECT version FROM conflict.index_version WHERE id`
 
 // searchContactsSQL finds contacts whose legal name, display name or any alias matches the
 // normalised term $1. Archived and merged contacts still count: former clients and

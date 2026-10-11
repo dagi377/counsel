@@ -149,4 +149,21 @@ VALUES ('{"Sealed Prospect Ltd"}', '{"Dupré Holdings"}', 'secret nature', now()
 			}
 		})
 	}
+
+	// An alias write bumps the conflict index version: the next search reports a newer one
+	// and finds the new alias.
+	if err := pool.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `UPDATE party.contact SET aliases = aliases || $2::text[] WHERE id = $1`,
+			ids["acme"], []string{"Acme Two"})
+		return err
+	}); err != nil {
+		t.Fatalf("alias write: %v", err)
+	}
+	res, err := s.SearchIndex(ctx, "acme two")
+	if err != nil {
+		t.Fatalf("SearchIndex after alias write: %v", err)
+	}
+	if res.IndexVersion <= lastVersion || len(res.Hits) != 1 || res.Hits[0].PartyID != ids["acme"] {
+		t.Fatalf("after alias write: version %d (was %d), hits %+v", res.IndexVersion, lastVersion, res.Hits)
+	}
 }

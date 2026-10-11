@@ -347,3 +347,34 @@ func TestPGSearcherReadsNoText(t *testing.T) {
 		}
 	}
 }
+
+// The index version is the conflict index version row, not a snapshot xmin, and it is read
+// before any hit, so it never names a write the hits do not include.
+func TestPGSearcherIndexVersionReadFirst(t *testing.T) {
+	tests := []struct {
+		name    string
+		version int64
+	}{
+		{"first version", 1},
+		{"later version", 9001},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := indexTx("acme")
+			tx.version = scriptRow{vals: []any{tt.version}}
+			res, err := NewPGSearcher(searchDB{tx: tx}).SearchIndex(context.Background(), "acme")
+			if err != nil {
+				t.Fatalf("SearchIndex: %v", err)
+			}
+			if res.IndexVersion != tt.version {
+				t.Fatalf("index version = %d, want %d", res.IndexVersion, tt.version)
+			}
+			if len(tx.calls) == 0 || tx.calls[0].sql != searchVersionSQL {
+				t.Fatalf("first statement = %+v, want the index version", tx.calls)
+			}
+			if !strings.Contains(searchVersionSQL, "conflict.index_version") || strings.Contains(searchVersionSQL, "xmin") {
+				t.Fatalf("version SQL %q does not read the conflict index version", searchVersionSQL)
+			}
+		})
+	}
+}
