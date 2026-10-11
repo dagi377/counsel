@@ -3210,3 +3210,13 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   court_form.changed), F-DOC-07, F-MAT-05, F-MAT-09 and F-MAT-14. F-DOC-09 still takes the
   rule admin; open: switch CourtFormCurrencyBinding to BindDesignated. F-MAT-12 had no
   binding; boot binds it to document.uploaded and email.filed for the event's user.
+
+## Q-FEAT-WRK-10 F-WRK-05 registration outside the task's files
+
+- Task: FEAT-WRK-10 (F-WRK-05 Daily work digest).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs), `app/legal/boot/agent.go` (the job binding) and
+  `app/legal/work/ai_wrkd_helpers_test.go` (the shared test helpers of the read-only work
+  features).
+- F-WRK-05 is scheduled, so it binds with `trigger.BindDesignated` and runs for the designated
+  lawyer in firm settings; with none named readiness flags it (JOB-ACTOR).

@@ -23,6 +23,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
+	"github.com/dagi377/counsel/app/legal/work"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
@@ -259,7 +260,7 @@ func gateKindCodes() ([]string, error) {
 // ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-09,
 // F-CON-09, F-CON-11, F-CON-12, F-DOC-09; Q-INTEG-15A-SCHEDULED); empty fails with
 // trigger.ErrBadBinding. F-DL-05, F-DL-06, F-CON-05, F-CON-10, F-DOC-06, F-DOC-07, F-MAT-05,
-// F-MAT-09 and F-MAT-14 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
+// F-MAT-09, F-MAT-14 and F-WRK-05 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
 // job feature cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
@@ -316,6 +317,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 			// (Q-INTEG-16-SCREENS); the screen action covers on-request runs.
 			return trigger.Bind(matter.ChronologyDef(), "", matter.EventDocumentUploaded, matter.EventEmailFiled)
 		},
+		work.DailyDigestDef().ID: work.DailyDigestBinding,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
