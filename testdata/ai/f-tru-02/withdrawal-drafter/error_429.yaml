@@ -1,0 +1,32 @@
+synthetic: true
+feature: F-TRU-02
+match:
+  last_user_regex: '\[error_429\]'
+fault: rate_limit
+turns:
+  - expect_tools: [report_plan]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: balance, title: "Check the cleared trust balance"}, {id: draft, title: "Draft the fee withdrawal against bill INV-SYN-0042"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 610, output_tokens: 52}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: get_trust_balance
+          input: {matter_id: "00000000-0000-4000-8000-0000000000a1"}
+      stop_reason: tool_use
+      usage: {input_tokens: 700, output_tokens: 28}
+  - expect_tool_results: [get_trust_balance]
+    reply:
+      tool_calls:
+        - name: prepare_trust_withdrawal
+          input: {matter_id: "00000000-0000-4000-8000-0000000000a1", amount_cents: 125000, purpose_category: fees, payee: "Synthetic Law LLP", method: cheque, bill_id: "00000000-0000-4000-8000-0000000000c3"}
+      stop_reason: tool_use
+      usage: {input_tokens: 880, output_tokens: 96}
+  - expect_tool_results: [prepare_trust_withdrawal]
+    reply:
+      text: "Drafted a 1,250.00 fee withdrawal for lawyer approval."
+      stop_reason: end_turn
+      usage: {input_tokens: 990, output_tokens: 30}
