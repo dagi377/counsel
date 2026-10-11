@@ -11,11 +11,6 @@ import (
 	"github.com/dagi377/counsel/kernel/db"
 )
 
-// TxRunner runs fn in one transaction; kernel/db's pool implements it.
-type TxRunner interface {
-	InTx(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error
-}
-
 // Page sizes the Postgres list readers use when a filter's Limit is out of range.
 const (
 	DefaultListLimit = 50
