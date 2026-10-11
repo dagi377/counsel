@@ -69,5 +69,6 @@ func appDefs() []feature.Def {
 		// documents
 		legaldocs.TemplateCurrencyDef(),
 		legaldocs.AutoFileDef(),
+		legaldocs.EngagementLetterDef(),
 	}
 }

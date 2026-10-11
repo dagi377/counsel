@@ -36,6 +36,7 @@ func TestARC_I_038_QuotedOnly(t *testing.T) {
 		{"nested quoted field", runWith(result("search_matters", map[string]any{"matters": []any{map[string]any{"short_name": map[string]any{"untrusted": true, "text": injected}}}}), "done"), true},
 		{"escaped quotes stay quoted", runWith(result("search_matters", map[string]any{"untrusted": true, "text": `x"} ` + injected}), "done"), true},
 		{"pages not marked untrusted", runWith(result("read_document", map[string]any{"doc_id": "d1", "pages": []any{page}}), "done"), false},
+		{"plain text result", runWith(ai.ContentBlock{Type: "tool_result", ToolName: "read_document", Text: injected}, "done"), false},
 		{"plain field", runWith(result("search_matters", map[string]any{"short_name": injected}), "done"), false},
 		{"beside a quote", runWith(result("search_matters", map[string]any{"untrusted": true, "text": "x", "note": injected}), "done"), false},
 		{"in a tool call", runWith(ai.ContentBlock{Type: "tool_use", ToolName: "draft_note", Input: json.RawMessage(`{"body":"` + injected + `"}`)}, "done"), false},
