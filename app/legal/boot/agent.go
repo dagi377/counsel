@@ -381,6 +381,9 @@ type AgentWiring struct {
 	Queue trigger.ActionQueue
 	// Flags is the flag sink; boot sets its BlocksGate map.
 	Flags *agent.FlagSink
+	// Runners are every other agent runner boot hands out (the job-run worker's among them).
+	// Boot wraps each in place so it forgets a run's provenance values when the run ends.
+	Runners []*agentrun.Runner
 }
 
 // registerAgent registers the agent tools and features: every handler tool, the job
@@ -397,6 +400,11 @@ func registerAgent(w *AgentWiring) hook {
 		features, err := Features()
 		if err != nil {
 			return err
+		}
+		// One Provenance for every tool, write dep and runner: a run's values are recorded,
+		// checked and forgotten in the same place.
+		if w.Ports.Provenance == nil {
+			w.Ports.Provenance = agenttools.NewProvenance()
 		}
 		tools, err := AgentTools(w.Ports)
 		if err != nil {
@@ -421,10 +429,13 @@ func registerAgent(w *AgentWiring) hook {
 			if w.Queue != nil {
 				w.Actions.Queue = w.Queue
 			}
-			if w.Ports.Provenance != nil && w.Actions.Runner != nil {
-				w.Actions.Runner = ForgetRunner{Runner: w.Actions.Runner, Provenance: w.Ports.Provenance}
-			}
+			w.Actions.Runner = ForgetOnEnd(w.Ports.Provenance, w.Actions.Runner)
 			k.Registry.Routes(w.Actions.Routes)
+		}
+		for _, r := range w.Runners {
+			if r != nil {
+				*r = ForgetOnEnd(w.Ports.Provenance, *r)
+			}
 		}
 		if w.Flags != nil {
 			fresh := NewFlagSink(w.Flags.Store, w.Flags.Notify)

@@ -159,7 +159,7 @@ func TestScreenAction(t *testing.T) {
 			r := chi.NewRouter()
 			a.Routes(r)
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodPost, "/api/agent/actions/"+c.feature, bytes.NewBufferString(c.body))
+			req := httptest.NewRequest(http.MethodPost, "/agent/actions/"+c.feature, bytes.NewBufferString(c.body))
 			r.ServeHTTP(rec, req)
 			if rec.Code != c.wantStatus {
 				t.Fatalf("status = %d, want %d; body %s", rec.Code, c.wantStatus, rec.Body)

@@ -1859,7 +1859,11 @@ Done in PORT-18:
   fails closed: a nil port fails its handler with ErrMissingDep, and `Features()` fails when a
   feature names a tool with no handler or a gate kind outside spec/gates.json.
 - Event names chosen from a2 for unbound features: F-DL-01 `document.uploaded`; F-DL-02
-  `lead.created` and `matter.updated` (claim facts updated). Open: confirm with the owners.
+  `lead.created` and `matter.updated` (claim facts updated). Checked (BOOT-PORTS-B) against
+  spec/ai/features.json triggers ("document filed to matter"; "intake created or claim facts
+  updated") and the a2 event catalogue: all three are the a2 events for those triggers and
+  stay. a2 has no comms filing event, so an email filed to a matter does not start F-DL-01
+  until one exists.
 - Action screens: `matter-deadlines` and `limitation-assessment` both map to subject kind
   `matter`, capability `deadlines.view`. Open: limitation assessment from intake may need a
   `lead` subject kind.
@@ -1870,3 +1874,32 @@ Done in PORT-18:
   PlanStore step map (kernel `agenttools.Step` has no step id; needs an additive kernel field).
   `ForgetRunner` calls Provenance.Forget on run end; it wraps the action route's Runner, and the
   job-run worker must use it too once it exists.
+
+## Q-BOOT-PORTS-B matter-side agent ports, step ids, action route
+
+- `boot.WireMatterPorts` (matter reads go through `matter.Query.Get`, ARC-I-041) fills PublishedPacks, SubjectMatters, ProposedTasks,
+  ConflictParties, MatterContacts, DocumentDrafts, EmailDrafts and NoteDrafts with Postgres
+  adapters (app/legal/boot/agent_ports_matter.go), sets Plans to a Planner over PGPlans and
+  makes one shared Provenance. Drafted text goes through `matter.Bodies` (DM-020); rows hold
+  the reference only.
+- Table mapping (no new migration): published packs = newest `cal.rule_pack` row per code
+  with status `active`, rules jsonb decoded with the pack YAML rule keys; document draft =
+  `docs.draft` (title in `instruction`, body ref and citations in `source_scope`); email draft
+  = unsent outbound `comms.comm_item` plus a proposed `comms.comm_filing` (the run id waits in
+  `participants`, since `drafted_by_agent_run_id` needs an approval id); note draft =
+  unconfirmed `matter.note`; proposed task = status `proposed` of the newest `task`
+  workflow; proposed party = `conflict.check_party` row, preparer in the check's
+  `updated_by`. Open: no column holds a draft's idempotency key or a party's source citation;
+  a retried draft call stores a second draft.
+- SubjectMatters resolves matter, document_draft, agent_note, email_draft, deadline,
+  billing.bill, timekeeping.time_entry and conflict_check; any other kind fails closed (404).
+- Additive kernel contract change: `agenttools.Step` gains `ID` (the report_plan step id),
+  stored in the agent.plan body as `id`; `agenttools.StepIDs` (`SetStepIDs`) and
+  `StepIndex` are new, and Planner implements StepIDs. report_plan stores the ids, so
+  report_step finds a step after a restart; the in-process map stays as the fallback.
+- Provenance: `AgentWriteDeps` puts the shared Provenance on WriteDeps. Boot wraps the action
+  route's Runner and every runner listed in `AgentWiring.Runners` with `ForgetOnEnd`.
+- OpenAPI: `POST /agent/actions/{feature_id}` added additively (Q-FEAT-CORE-12), listed in
+  kernel/contract/additive.txt; `trigger.ActionPath` drops its `/api` prefix to match the /v1
+  server base. It is in api/unserved.txt because the app conformance test mounts only
+  Register routes; boot mounts it when `AgentWiring.Actions` is set.
