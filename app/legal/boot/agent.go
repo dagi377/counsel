@@ -320,6 +320,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		access.DutyScanDef().ID:                     access.DutyScanBinding,
+		access.AnomalyWatchDef().ID:                 access.AnomalyWatchBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).

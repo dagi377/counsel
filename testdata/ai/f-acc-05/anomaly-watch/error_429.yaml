@@ -1,11 +1,17 @@
 synthetic: true
 feature: F-ACC-05
-match: {last_user_regex: "access events batch"}
+match:
+  last_user_regex: '\[error_429\]'
 fault: rate_limit
 turns:
   - reply:
       tool_calls:
         - name: search_matters
-          input: {query: "matters opened by u-clerk-bo since 2026-10-09", limit: 50}
-  - reply:
-      text: "Unusual access: u-clerk-bo opened 42 matters in 10 minutes. Flagged for the owners."
+          input: {query: "2026-04", limit: 20}
+      stop_reason: tool_use
+      usage: {input_tokens: 540, output_tokens: 30}
+  - expect_tool_results: [search_matters]
+    reply:
+      json: {answer: "alert: usr-synth-clerk: opened 2 matters outside their assignments in 10 minutes on 2026-0412, 2026-0413", citations: []}
+      stop_reason: end_turn
+      usage: {input_tokens: 690, output_tokens: 44}

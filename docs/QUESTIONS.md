@@ -3740,3 +3740,9 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - The shared test harness is `ai_accc_helpers_test.go` (prefix `accc`); the screen actions are
   driven through the production `trigger.Actions` route over `run.Loop` and the real
   search_matters handler.
+- F-ACC-05 "event (access events)" binds the a2 core events `user.role_changed` and
+  `user.deactivated` (access.EventUserDeactivated). a2 names no event for a user opening a
+  matter, so the burst-of-access case is fed by those events' batches until one exists.
+  The AI-016 test (ai_f_acc_05_test.go) now runs the fixtures through FromFeature with no
+  stand-ins; the fixtures use the a2 search_matters input, the injection variant makes no extra
+  call, and ok pins match.prompt_hash.
