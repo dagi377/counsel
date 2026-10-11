@@ -1,0 +1,36 @@
+synthetic: true
+feature: F-BIL-06
+match:
+  prompt_hash: ""
+  last_user_regex: "daily aging and collections review"
+latency_ms: 0
+turns:
+  - reply:
+      tool_calls:
+        - name: get_bill
+          input: {bill_id: "B-2026-0031"}
+      stop_reason: tool_use
+      usage: {input_tokens: 640, output_tokens: 32}
+  - expect_tool_results: [get_bill]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: draft-reminder, title: "Draft payment reminder for B-2026-0031"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 720, output_tokens: 28}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input:
+            kind: billing.collections_message
+            matter_id: "8c1f6a52-3d0e-4b7a-9a61-2f4e7b0c9d15"
+            bill_ids: ["0e7b4c21-5a9d-4f38-b6e2-3d1c8a904f57"]
+            body_markdown: "Bill B-2026-0031 for $847.50 is 61 days overdue. Please arrange payment or contact us."
+      stop_reason: tool_use
+      usage: {input_tokens: 810, output_tokens: 96}
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      text: "Drafted 1 payment reminder for your approval."
+      stop_reason: end_turn
+      usage: {input_tokens: 860, output_tokens: 12}
