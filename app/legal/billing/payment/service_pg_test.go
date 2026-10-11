@@ -119,7 +119,7 @@ func TestPGServiceCapture(t *testing.T) {
 			if tt.bill != nil {
 				tx.row[lockBillSQL] = tt.bill
 			}
-			_, got, err := PGService{DB: txOnce{tx}}.Capture(context.Background(), tt.c)
+			_, got, err := PGService{DB: txOnce{tx}, Payers: payers{"c1": "Client One"}}.Capture(context.Background(), tt.c)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Capture err = %v, want %v", err, tt.wantErr)
 			}
@@ -157,10 +157,10 @@ func TestPGServiceCaptureDedup(t *testing.T) {
 			c.ClientID, c.BillID, c.AmountCents, c.Method, c.RecordedBy, c.ReceivedOn = "c1", "b1", 1000, "eft", "u1", on
 			tx := &scriptTx{
 				row: map[string][]any{tt.key: {"pay-0"}, getPaymentSQL: {"pay-0", on, "c1", int64(1000), "eft",
-					c.Provider, c.ProviderEventID, "u1", "posted", "", c.IdempotencyKey, "b1"}},
+					c.Provider, c.ProviderEventID, "u1", "posted", "", c.IdempotencyKey, "", "b1"}},
 				rows: map[string][][]any{allocationsSQL: {{"b1", int64(885), int64(115)}}},
 			}
-			p, as, err := PGService{DB: txOnce{tx}}.Capture(context.Background(), c)
+			p, as, err := PGService{DB: txOnce{tx}, Payers: payers{"c1": "Client One"}}.Capture(context.Background(), c)
 			if err != nil || p.ID != "pay-0" || len(as) != 1 || as[0].Total() != 1000 {
 				t.Fatalf("Capture = %+v, %+v, %v; want the first payment", p, as, err)
 			}
@@ -174,30 +174,39 @@ func TestPGServiceCaptureDedup(t *testing.T) {
 func TestPGServiceReverse(t *testing.T) {
 	on := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
 	row := func(status, reason string) []any {
-		return []any{"pay-1", on, "c1", int64(50000), "eft", "", "", "u1", status, reason, "", "b1"}
+		return []any{"pay-1", on, "c1", int64(50000), "eft", "", "", "u1", status, reason, "", "u2", "b1"}
 	}
 	tests := []struct {
 		name    string
 		status  string
 		reason  ReversalReason
+		by      Actor
+		human   []any // humanSQL answer; nil means no such user
 		found   bool
 		wantErr error
 		writes  int
 	}{
-		{name: "nsf", status: "posted", reason: ReasonNSF, found: true, writes: 3},
-		{name: "chargeback", status: "posted", reason: ReasonChargeback, found: true, writes: 3},
-		{name: "again", status: "reversed", reason: ReasonNSF, found: true, wantErr: ErrReversed},
-		{name: "unknown", reason: ReasonNSF, wantErr: ErrNotFound},
-		{name: "bad reason", reason: "lost", wantErr: ErrInvalid},
+		{name: "nsf", status: "posted", reason: ReasonNSF, by: Actor{UserID: "u2"}, human: []any{true}, found: true, writes: 3},
+		{name: "chargeback", status: "posted", reason: ReasonChargeback, by: Actor{UserID: "u2"}, human: []any{true}, found: true, writes: 3},
+		{name: "again", status: "reversed", reason: ReasonNSF, by: Actor{UserID: "u2"}, human: []any{true}, found: true, wantErr: ErrReversed},
+		{name: "unknown", reason: ReasonNSF, by: Actor{UserID: "u2"}, human: []any{true}, wantErr: ErrNotFound},
+		{name: "bad reason", reason: "lost", by: Actor{UserID: "u2"}, wantErr: ErrInvalid},
+		{name: "agent actor", status: "posted", reason: ReasonNSF, by: Actor{UserID: "u2", Agent: true}, human: []any{true}, found: true, wantErr: ErrAgentReverse},
+		{name: "agent principal", status: "posted", reason: ReasonNSF, by: Actor{UserID: "a1"}, human: []any{false}, found: true, wantErr: ErrAgentReverse},
+		{name: "no actor", status: "posted", reason: ReasonNSF, found: true, wantErr: ErrInvalid},
+		{name: "unknown actor", status: "posted", reason: ReasonNSF, by: Actor{UserID: "u9"}, found: true, wantErr: ErrInvalid},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &scriptTx{row: map[string][]any{}}
+			if tt.human != nil {
+				tx.row[humanSQL] = tt.human
+			}
 			if tt.found {
 				tx.row[lockPaymentSQL] = []any{tt.status}
 				tx.row[getPaymentSQL] = row("reversed", string(tt.reason))
 			}
-			p, err := PGService{DB: txOnce{tx}}.Reverse(context.Background(), "pay-1", tt.reason)
+			p, err := PGService{DB: txOnce{tx}}.Reverse(context.Background(), "pay-1", tt.reason, tt.by)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Reverse err = %v, want %v", err, tt.wantErr)
 			}
@@ -206,8 +215,15 @@ func TestPGServiceReverse(t *testing.T) {
 			}
 			if tt.writes > 0 {
 				// rule: BIL-I-019
-				if tx.execs[0] != reverseAllocationsSQL || p.Status != StatusReversed || p.Reason != tt.reason {
+				if tx.execs[0] != reverseAllocationsSQL || p.Status != StatusReversed || p.Reason != tt.reason || p.ReversedBy != tt.by.UserID {
 					t.Fatalf("Reverse = %+v, execs %v", p, tx.execs)
+				}
+				// The -1 x rows and the reversal row carry the reversing user, never the allocator.
+				if got := tx.args[0][1]; got != tt.by.UserID {
+					t.Fatalf("reversal allocated_by = %v, want %s", got, tt.by.UserID)
+				}
+				if tx.execs[1] != insertReversalSQL || tx.args[1][2] != tt.by.UserID {
+					t.Fatalf("reversal row = %s %v, want reversed_by %s", tx.execs[1], tx.args[1], tt.by.UserID)
 				}
 			}
 		})
@@ -240,7 +256,7 @@ func indexOf(s, sub string) int {
 
 func TestPGServiceGetAndList(t *testing.T) {
 	on := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
-	r := []any{"pay-1", on, "c1", int64(50000), "eft", "", "", "u1", "posted", "", "", "b1"}
+	r := []any{"pay-1", on, "c1", int64(50000), "eft", "", "", "u1", "posted", "", "", "", "b1"}
 	tx := &scriptTx{row: map[string][]any{getPaymentSQL: r}, rows: map[string][][]any{listPaymentsSQL: {r},
 		allocationsSQL: {{"b1", int64(44248), int64(5752)}}}}
 	s := PGService{DB: txOnce{tx}}
@@ -310,4 +326,66 @@ func TestPGProposalsPropose(t *testing.T) {
 			}
 		})
 	}
+}
+
+// payers is a PayerNames over a fixed client -> name map.
+type payers map[string]string
+
+func (p payers) PayerName(_ context.Context, id string) (string, error) {
+	if n, ok := p[id]; ok {
+		return n, nil
+	}
+	return "", errPayerMissing
+}
+
+var errPayerMissing = errors.New("no such payer")
+
+func TestPGServiceCapturePayerName(t *testing.T) {
+	on := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	c := Capture{ClientID: "c1", BillID: "b1", Kind: KindBillPayment, Method: "eft", RecordedBy: "u1", ReceivedOn: on, AmountCents: 100}
+	tests := []struct {
+		name     string
+		payers   PayerNames
+		wantName string
+		wantErr  error
+	}{
+		{name: "named from party", payers: payers{"c1": "Client One"}, wantName: "Client One"},
+		{name: "port not wired", wantErr: ErrNoPayerNames},
+		{name: "unknown payer", payers: payers{}, wantErr: errPayerMissing},
+		{name: "empty name", payers: payers{"c1": ""}, wantErr: ErrInvalid},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &scriptTx{row: map[string][]any{insertPaymentSQL: {"pay-1"}, lockBillSQL: openBillRow("c1", "delivered")}}
+			var inserted []any
+			rec := &recordTx{scriptTx: tx, sql: insertPaymentSQL, args: &inserted}
+			_, _, err := PGService{DB: txOnce{rec}, Payers: tt.payers}.Capture(context.Background(), c)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("Capture err = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr != nil {
+				if inserted != nil || len(tx.execs) != 0 {
+					t.Fatal("capture wrote without a payer name")
+				}
+				return
+			}
+			if got := inserted[len(inserted)-1]; got != tt.wantName {
+				t.Fatalf("payer_name = %v, want %q", got, tt.wantName)
+			}
+		})
+	}
+}
+
+// recordTx records the args of one QueryRow sql.
+type recordTx struct {
+	*scriptTx
+	sql  string
+	args *[]any
+}
+
+func (r *recordTx) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
+	if sql == r.sql {
+		*r.args = args
+	}
+	return r.scriptTx.QueryRow(ctx, sql, args...)
 }

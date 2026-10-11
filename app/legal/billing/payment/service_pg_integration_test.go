@@ -137,7 +137,7 @@ func TestPGServiceContract(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			env := newPGEnv(t)
-			svc := payment.PGService{DB: poolTx{env.pool}}
+			svc := payment.PGService{DB: poolTx{env.pool}, Payers: namedPayers{}}
 			c := tt.c(env)
 			p, got, err := svc.Capture(ctx, c)
 			if !errors.Is(err, tt.wantErr) {
@@ -154,11 +154,11 @@ func TestPGServiceContract(t *testing.T) {
 					t.Errorf("allocation %d = %+v, want %+v", i, a, tt.want[i])
 				}
 			}
-			reversed, err := svc.Reverse(ctx, p.ID, payment.ReasonNSF)
-			if err != nil || reversed.Status != payment.StatusReversed || reversed.Reason != payment.ReasonNSF {
+			reversed, err := svc.Reverse(ctx, p.ID, payment.ReasonNSF, payment.Actor{UserID: env.user})
+			if err != nil || reversed.Status != payment.StatusReversed || reversed.Reason != payment.ReasonNSF || reversed.ReversedBy != env.user {
 				t.Fatalf("Reverse = %+v, %v", reversed, err)
 			}
-			if _, err := svc.Reverse(ctx, p.ID, payment.ReasonNSF); !errors.Is(err, payment.ErrReversed) {
+			if _, err := svc.Reverse(ctx, p.ID, payment.ReasonNSF, payment.Actor{UserID: env.user}); !errors.Is(err, payment.ErrReversed) {
 				t.Fatalf("second Reverse err = %v, want ErrReversed", err)
 			}
 			ps, err := svc.List(ctx, payment.ListFilter{Limit: 10, ClientID: env.client})
@@ -181,7 +181,7 @@ func TestPGServiceCaptureDedup(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			env := newPGEnv(t)
-			svc := payment.PGService{DB: poolTx{env.pool}}
+			svc := payment.PGService{DB: poolTx{env.pool}, Payers: namedPayers{}}
 			c := env.capture(1000)
 			tt.edit(&c)
 			a, _, err := svc.Capture(ctx, c)
@@ -199,7 +199,7 @@ func TestPGServiceCaptureDedup(t *testing.T) {
 func TestPGProposalsContract(t *testing.T) {
 	ctx := context.Background()
 	env := newPGEnv(t)
-	svc := payment.PGService{DB: poolTx{env.pool}}
+	svc := payment.PGService{DB: poolTx{env.pool}, Payers: namedPayers{}}
 	p, _, err := svc.Capture(ctx, env.capture(50000))
 	if err != nil {
 		t.Fatal(err)
@@ -215,3 +215,8 @@ func TestPGProposalsContract(t *testing.T) {
 		t.Fatalf("Propose = %+v, %v", got, err)
 	}
 }
+
+// namedPayers names every payer "C", as the party module would.
+type namedPayers struct{}
+
+func (namedPayers) PayerName(context.Context, string) (string, error) { return "C", nil }

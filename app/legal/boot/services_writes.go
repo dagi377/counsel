@@ -1,8 +1,12 @@
 package boot
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/dagi377/counsel/app/legal/billing/credit"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
+	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/trust/recon"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
@@ -39,7 +43,8 @@ func (p HTTPPorts) withWrites(k *kboot.Kernel) HTTPPorts {
 	if p.Payments == nil {
 		// rule: BIL-L-039 (verify)
 		// Operating cash shares the trust ledger's per-matter cash limit; without a clock cash fails closed.
-		svc := payment.PGService{DB: k.DB}
+		// Billing names the payer only through the party module, never its tables (ARC-I-041).
+		svc := payment.PGService{DB: k.DB, Payers: PartyPayers{Contacts: party.NewStore(k.DB)}}
 		if k.Clock != nil {
 			svc.Cash = trust.NewLedgerStore(k.DB, nil, nil, k.Clock)
 		}
@@ -55,4 +60,21 @@ func (p HTTPPorts) withWrites(k *kboot.Kernel) HTTPPorts {
 		p.ReconStatements = recon.TxStatements{DB: k.DB}
 	}
 	return p
+}
+
+// PartyPayers is billing's payment.PayerNames over the party module API: the payer's name is
+// the contact's legal name.
+type PartyPayers struct {
+	Contacts party.Contacts
+}
+
+var _ payment.PayerNames = PartyPayers{}
+
+// PayerName implements payment.PayerNames.
+func (p PartyPayers) PayerName(ctx context.Context, clientID string) (string, error) {
+	c, err := p.Contacts.Get(ctx, party.ContactID(clientID))
+	if err != nil {
+		return "", fmt.Errorf("payer %s: %w", clientID, err)
+	}
+	return c.LegalName, nil
 }

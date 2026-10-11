@@ -16,6 +16,17 @@ import (
 // partially paid. It is also ErrInvalid.
 var ErrBillNotOpen = fmt.Errorf("%w: bill is not open for payment", ErrInvalid)
 
+// ErrNoPayerNames is returned by Capture while PGService has no PayerNames: a payment is never
+// written without its payer's name.
+var ErrNoPayerNames = errors.New("payment: payer name reader not wired")
+
+// PayerNames is the party reader port billing needs to name a payer. Billing never reads party
+// tables (ARC-I-041); boot wires this to the party module.
+type PayerNames interface {
+	// PayerName returns the legal name of the client contact clientID.
+	PayerName(ctx context.Context, clientID string) (string, error)
+}
+
 // PGService is Service over billing.payment and billing.payment_allocation (0001_init.sql),
 // with billing.payment_capture_key and billing.payment_reversal (5630). It serves operating
 // payments only: a trust deposit is a trust receipt and is never read or written here.
@@ -23,6 +34,8 @@ type PGService struct {
 	DB TxRunner
 	// Cash is the By-Law 9 cash limit; while nil a cash payment fails closed.
 	Cash CashLimit
+	// Payers names the payer of a capture; while nil a capture fails closed.
+	Payers PayerNames
 }
 
 var _ Service = PGService{}
@@ -35,7 +48,7 @@ const operating = `p.deposit_to = 'operating'`
 // paymentCols reads one payment row; the bill is the first bill the payment was applied to.
 const paymentCols = `p.id::text, p.received_on, coalesce(p.payer_contact_id::text, ''), p.amount_cents, p.method,
   coalesce(p.provider, ''), coalesce(p.provider_ref, ''), coalesce(p.created_by::text, ''), p.status,
-  coalesce(r.reason, ''), coalesce(k.idempotency_key, ''),
+  coalesce(r.reason, ''), coalesce(k.idempotency_key, ''), coalesce(r.reversed_by::text, ''),
   coalesce((SELECT a.bill_id::text FROM billing.payment_allocation a
     WHERE a.payment_id = p.id AND a.bill_id IS NOT NULL AND a.reverses_id IS NULL ORDER BY a.at, a.id LIMIT 1), '')`
 
@@ -73,7 +86,7 @@ WHERE b.id = $1::uuid FOR UPDATE OF b`
 
 const insertPaymentSQL = `INSERT INTO billing.payment (received_on, payer_contact_id, payer_name, amount_cents, method,
   deposit_to, provider, provider_ref, status, created_by)
-VALUES ($1::date, $2::uuid, '', $3, $4, 'operating', NULLIF($5, ''), NULLIF($6, ''), $7, $8::uuid) RETURNING id::text`
+VALUES ($1::date, $2::uuid, $9, $3, $4, 'operating', NULLIF($5, ''), NULLIF($6, ''), $7, $8::uuid) RETURNING id::text`
 
 const insertAllocationSQL = `INSERT INTO billing.payment_allocation (payment_id, target_type, bill_id, amount_cents,
   fee_cents, tax_cents, allocated_by) VALUES ($1::uuid, 'bill', $2::uuid, $3, $4, $5, $6::uuid)`
@@ -82,16 +95,20 @@ const insertKeySQL = `INSERT INTO billing.payment_capture_key (idempotency_key, 
 
 const lockPaymentSQL = `SELECT p.status FROM billing.payment p WHERE p.id = $1::uuid AND ` + operating + ` FOR UPDATE OF p`
 
-// reverseAllocationsSQL writes -1 x every applied allocation, bucket for bucket (BIL-I-019).
+// reverseAllocationsSQL writes -1 x every applied allocation, bucket for bucket (BIL-I-019),
+// allocated by the user who reverses, never the original allocator.
 const reverseAllocationsSQL = `INSERT INTO billing.payment_allocation (payment_id, target_type, bill_id, trust_ledger_id,
   client_id, amount_cents, fee_cents, dtx_cents, dnt_cents, tax_cents, interest_cents, reverses_id, allocated_by)
 SELECT a.payment_id, a.target_type, a.bill_id, a.trust_ledger_id, a.client_id, -a.amount_cents, -a.fee_cents,
-  -a.dtx_cents, -a.dnt_cents, -a.tax_cents, -a.interest_cents, a.id, a.allocated_by
+  -a.dtx_cents, -a.dnt_cents, -a.tax_cents, -a.interest_cents, a.id, $2::uuid
 FROM billing.payment_allocation a WHERE a.payment_id = $1::uuid AND a.reverses_id IS NULL
   AND NOT EXISTS (SELECT 1 FROM billing.payment_allocation x WHERE x.reverses_id = a.id)
 ORDER BY a.at, a.id`
 
-const insertReversalSQL = `INSERT INTO billing.payment_reversal (payment_id, reason) VALUES ($1::uuid, $2)`
+const insertReversalSQL = `INSERT INTO billing.payment_reversal (payment_id, reason, reversed_by) VALUES ($1::uuid, $2, $3::uuid)`
+
+// humanSQL says whether a user is a human principal; no row means no such user.
+const humanSQL = `SELECT u.principal_kind = 'human' FROM core.app_user u WHERE u.id = $1::uuid`
 
 const markReversedSQL = `UPDATE billing.payment SET status = 'reversed' WHERE id = $1::uuid`
 
@@ -115,9 +132,19 @@ func (s PGService) Capture(ctx context.Context, c Capture) (Payment, []Allocatio
 		(c.Provider == "") != (c.ProviderEventID == "") {
 		return Payment{}, nil, fmt.Errorf("capture: %w", ErrInvalid)
 	}
+	if s.Payers == nil {
+		return Payment{}, nil, ErrNoPayerNames
+	}
+	name, err := s.Payers.PayerName(ctx, c.ClientID)
+	if err != nil {
+		return Payment{}, nil, fmt.Errorf("capture: payer name: %w", err)
+	}
+	if name == "" {
+		return Payment{}, nil, fmt.Errorf("capture: payer has no name: %w", ErrInvalid)
+	}
 	var p Payment
 	var as []Allocation
-	err := s.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+	err = s.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if id, err := s.prior(ctx, tx, c); err != nil || id != "" {
 			if err != nil {
 				return err
@@ -126,7 +153,7 @@ func (s PGService) Capture(ctx context.Context, c Capture) (Payment, []Allocatio
 			return err
 		}
 		var err error
-		p, as, err = s.capture(ctx, tx, c)
+		p, as, err = s.capture(ctx, tx, c, name)
 		return err
 	})
 	if err != nil {
@@ -203,7 +230,7 @@ func (b openBill) split(applied int64) (fee, tax int64, err error) {
 	return applied - tax, tax, nil
 }
 
-func (s PGService) capture(ctx context.Context, tx pgx.Tx, c Capture) (Payment, []Allocation, error) {
+func (s PGService) capture(ctx context.Context, tx pgx.Tx, c Capture, payer string) (Payment, []Allocation, error) {
 	b, err := lockBill(ctx, tx, c.BillID, "")
 	if err != nil {
 		return Payment{}, nil, err
@@ -223,7 +250,7 @@ func (s PGService) capture(ctx context.Context, tx pgx.Tx, c Capture) (Payment, 
 	}
 	var id string
 	if err := tx.QueryRow(ctx, insertPaymentSQL, c.ReceivedOn.Format(time.DateOnly), c.ClientID, c.AmountCents, c.Method,
-		c.Provider, c.ProviderEventID, status, c.RecordedBy).Scan(&id); err != nil {
+		c.Provider, c.ProviderEventID, status, c.RecordedBy, payer).Scan(&id); err != nil {
 		return Payment{}, nil, fmt.Errorf("capture: %w", err)
 	}
 	var as []Allocation
@@ -298,30 +325,48 @@ func businessDate(d time.Time) time.Time {
 func scanPayment(row pgx.Row) (Payment, error) {
 	var p Payment
 	var on time.Time
-	var status, reason string
+	var status, reason, by string
 	c := &p.Capture
 	if err := row.Scan(&p.ID, &on, &c.ClientID, &c.AmountCents, &c.Method, &c.Provider, &c.ProviderEventID,
-		&c.RecordedBy, &status, &reason, &c.IdempotencyKey, &c.BillID); err != nil {
+		&c.RecordedBy, &status, &reason, &c.IdempotencyKey, &by, &c.BillID); err != nil {
 		return Payment{}, err
 	}
 	c.Kind, c.ReceivedOn = KindBillPayment, businessDate(on)
 	p.Status = StatusCaptured
 	if status == statusReversed {
-		p.Status, p.Reason = StatusReversed, ReversalReason(reason)
+		p.Status, p.Reason, p.ReversedBy = StatusReversed, ReversalReason(reason), by
 	}
 	return p, nil
 }
 
 // Reverse implements Service: every applied allocation gets its -1 x row, bucket for bucket,
-// and the payment is marked reversed with its reason.
-func (s PGService) Reverse(ctx context.Context, id string, reason ReversalReason) (Payment, error) {
+// and the payment is marked reversed with its reason and the user who reversed it.
+func (s PGService) Reverse(ctx context.Context, id string, reason ReversalReason, by Actor) (Payment, error) {
 	if reason != ReasonNSF && reason != ReasonRefund && reason != ReasonChargeback {
 		return Payment{}, fmt.Errorf("reverse %s: reason %q: %w", id, reason, ErrInvalid)
 	}
+	// The agent never reverses money; the books record the human who did.
+	if by.Agent {
+		return Payment{}, ErrAgentReverse
+	}
+	if by.UserID == "" {
+		return Payment{}, fmt.Errorf("reverse %s: no actor: %w", id, ErrInvalid)
+	}
 	var p Payment
 	err := s.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		var human bool
+		err := tx.QueryRow(ctx, humanSQL, by.UserID).Scan(&human)
+		if missing(err) {
+			return fmt.Errorf("reverse %s: unknown user: %w", id, ErrInvalid)
+		}
+		if err != nil {
+			return fmt.Errorf("reverse %s: actor: %w", id, err)
+		}
+		if !human {
+			return ErrAgentReverse
+		}
 		var status string
-		err := tx.QueryRow(ctx, lockPaymentSQL, id).Scan(&status)
+		err = tx.QueryRow(ctx, lockPaymentSQL, id).Scan(&status)
 		if missing(err) {
 			return fmt.Errorf("reverse %s: %w", id, ErrNotFound)
 		}
@@ -341,8 +386,8 @@ func (s PGService) Reverse(ctx context.Context, id string, reason ReversalReason
 			sql  string
 			args []any
 		}{
-			{reverseAllocationsSQL, []any{id}},
-			{insertReversalSQL, []any{id, string(reason)}},
+			{reverseAllocationsSQL, []any{id, by.UserID}},
+			{insertReversalSQL, []any{id, string(reason), by.UserID}},
 			{markReversedSQL, []any{id}},
 		} {
 			if _, err := tx.Exec(ctx, q.sql, q.args...); err != nil {

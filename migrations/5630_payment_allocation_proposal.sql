@@ -70,6 +70,8 @@ CREATE TRIGGER payment_capture_key_immutable BEFORE UPDATE OR DELETE ON billing.
 CREATE TABLE billing.payment_reversal (
   payment_id  uuid PRIMARY KEY REFERENCES billing.payment(id),
   reason      text NOT NULL CHECK (reason IN ('nsf','refund','chargeback')),
+  -- the human who reversed the payment, never the original allocator (PAYMENT-FIX)
+  reversed_by uuid NOT NULL REFERENCES core.app_user(id),
   reversed_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TRIGGER payment_reversal_immutable BEFORE UPDATE OR DELETE ON billing.payment_reversal

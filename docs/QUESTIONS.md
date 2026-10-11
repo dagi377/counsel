@@ -2213,5 +2213,20 @@ Done in PORT-18:
 - Question: `billing.payment.payer_name` is NOT NULL but Capture carries no name and billing may
   not read party tables (ARC-I-041), so PGService writes ''. The payer is `payer_contact_id`.
 - Question: Reverse has no actor, so its -1 x rows carry the original `allocated_by`.
+
+### PAYMENT-FIX
+
+- Answers both PG-PAYMENT questions (decided as counsel).
+- Contract change (payment/contract.go): `Service.Reverse` gains `by Actor`
+  (`Actor{UserID, Agent}`), and `Payment` gains `ReversedBy`, with `ErrAgentReverse`. A
+  reversal must record who reversed it for the books' audit trail. The only implementations are
+  PGService and paymentfake, and nothing in production calls Reverse yet. PGService refuses
+  an agent: either the Actor says Agent, or the user's `core.app_user.principal_kind` is not
+  'human'. 5630 `billing.payment_reversal` gains `reversed_by` (NOT NULL, FK app_user). The
+  -1 x allocation rows also carry the reverser as `allocated_by`, never the original allocator.
+- payer_name: PGService gains `Payers PayerNames`, a port that billing defines. Boot wires it to
+  the party module API (`boot.PartyPayers` over `party.Contacts.Get`, which gives the legal name). Billing
+  never reads party tables. While the port is nil, or the payer has no name, Capture fails closed
+  (`ErrNoPayerNames` / ErrInvalid) and nothing is written.
 - Unapplied money (overpayment) is not a payment_allocation row; Allocations derives it as
   amount minus applied, as paymentfake does. Turning it into client credit stays G-B3's.

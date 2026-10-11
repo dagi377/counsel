@@ -120,7 +120,14 @@ func (f *Fake) Capture(ctx context.Context, c payment.Capture) (payment.Payment,
 }
 
 // Reverse restores each allocation to its bill's buckets.
-func (f *Fake) Reverse(_ context.Context, id string, reason payment.ReversalReason) (payment.Payment, error) {
+func (f *Fake) Reverse(_ context.Context, id string, reason payment.ReversalReason, by payment.Actor) (payment.Payment, error) {
+	// A reversal records the human who made it; an agent never reverses.
+	if by.Agent {
+		return payment.Payment{}, payment.ErrAgentReverse
+	}
+	if by.UserID == "" {
+		return payment.Payment{}, fmt.Errorf("paymentfake: reverse %s: %w", id, payment.ErrInvalid)
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	p, ok := f.payments[id]
@@ -136,7 +143,7 @@ func (f *Fake) Reverse(_ context.Context, id string, reason payment.ReversalReas
 			b.tax += a.TaxCents
 		}
 	}
-	p.Status, p.Reason = payment.StatusReversed, reason
+	p.Status, p.Reason, p.ReversedBy = payment.StatusReversed, reason, by.UserID
 	return *p, nil
 }
 
