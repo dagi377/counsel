@@ -75,6 +75,7 @@ func appDefs() []feature.Def {
 		legaldocs.DraftWithCitationsDef(),
 		// intake
 		intake.DeclineReferLetterDef(),
+		intake.ConsultNoteDef(),
 		intake.ConversionPrefillDef(),
 	}
 }
