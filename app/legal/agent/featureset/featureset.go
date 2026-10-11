@@ -74,6 +74,9 @@ func appDefs() []feature.Def {
 		legaldocs.IngestDocumentDef(),
 		legaldocs.DraftWithCitationsDef(),
 		// matters
+		matter.ProposeNextActionsDef(),
+		matter.SuggestFromPastMattersDef(),
 		matter.SuggestCleanupDef(),
+		matter.SummarizeThisWeekDef(),
 	}
 }
