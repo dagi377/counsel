@@ -526,6 +526,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Readiness. The mobile app acts on the matter a voice note or client message belongs
 	// to; each tool still checks its own capability (time.record, documents.edit).
 	"mobile-app": {SubjectKind: "matter", Capability: "matters.view"},
+	// The mail add-in acts on the matter the selected email is filed on.
+	"mail-add-ins": {SubjectKind: "matter", Capability: "documents.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
