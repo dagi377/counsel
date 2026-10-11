@@ -1533,3 +1533,18 @@ Done in PORT-18:
 - The result carries ids, rule references and dates only, no document or client text, so it
   has no quoted envelope. Due dates are YYYY-MM-DD strings, which Provenance.ReadTool records.
 - Registered through `ListDeadlinesHandler()` for the boot HandlerSet, not init().
+## FEAT-TOOL-06 compute_deadline
+
+- "Published pack": kernel/deadline has no publish state, so the tool reads a new
+  consumer-side `agent.PublishedPacks` (wired at boot; a pack still behind its flag, such as
+  the unverified Ontario pack, must not be listed). The tool computes only on a published pack
+  and refuses with ErrUnknownPack when the engine holds another version than the published one.
+- `rule_id` is a bare rule id found in exactly one published pack, or `<pack>/<rule>`; a bare
+  id in several packs is refused (invalid input) rather than guessed.
+- Walls: the a2 input has no matter id and the computation reads no matter (empty subject,
+  nothing saved), so there is no walled-matter case; the accept line on ErrNotVisible does not
+  apply.
+- No write: `Compute` only; `Save`/`Confirm` are never called. Result has no document or client
+  text, so no quoted envelope; due dates are YYYY-MM-DD and recorded by Provenance.ReadTool.
+- Not yet in `agent.Handlers()`: `ComputeDeadlineHandler()` is added there (and to its test)
+  when boot wires PublishedPacks.
