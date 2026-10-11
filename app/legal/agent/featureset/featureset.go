@@ -171,5 +171,6 @@ func appDefs() []feature.Def {
 		work.ExplainNumberDef(),
 		// platform
 		platform.GoalRunnerDef(),
+		platform.RetainerCoverageDef(),
 	}
 }

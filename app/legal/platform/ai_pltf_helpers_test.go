@@ -127,6 +127,24 @@ func pltfDocWrites(t *testing.T, w pltfWorld, title, body, gateKind string) []pl
 	}
 }
 
+// pltfEmailWrites plans and drafts body to w's client with draft_email. With gateKind
+// agent.GateOutgoingEmail the draft is submitted by draft_email itself (G-OUT opens only that
+// way); with any other kind it is stored unsubmitted and submit_for_approval opens gateKind on
+// it.
+func pltfEmailWrites(t *testing.T, w pltfWorld, subject, body, gateKind string) []pltfCall {
+	t.Helper()
+	in := map[string]any{"matter_id": w.matterID, "to_contact_ids": []string{w.clientID}, "subject": subject, "body_markdown": body}
+	if gateKind == agent.GateOutgoingEmail {
+		in["submit"] = true
+		return []pltfCall{{agenttools.ToolReportPlan, pltfPlan}, {agent.ToolDraftEmail, pltfJSON(t, in)}}
+	}
+	return []pltfCall{
+		{agenttools.ToolReportPlan, pltfPlan},
+		{agent.ToolDraftEmail, pltfJSON(t, in)},
+		{agent.ToolSubmitForApproval, pltfJSON(t, map[string]string{"subject_type": agent.SubjectEmailDraft, "subject_id": w.draftID("email"), "gate_kind": gateKind})},
+	}
+}
+
 // pltfScript is an inline aifake fixture for feature: one tool call per turn, then text.
 func pltfScript(feature, dir string, calls []pltfCall, text string) *aifake.Fake {
 	var b strings.Builder
@@ -506,5 +524,23 @@ func pltfCheckBinding(t *testing.T, b trigger.Binding, err error, d feature.Def,
 				t.Fatalf("%s = %v, want %v", tt.name, tt.got, tt.want)
 			}
 		})
+	}
+}
+
+// pltfCheckDesignated fails t unless b is a scheduled binding for the designated lawyer, never
+// a fixed user, so that with no designated lawyer named the feature is unready.
+func pltfCheckDesignated(t *testing.T, b trigger.Binding) {
+	t.Helper()
+	if !b.Designated || b.ActingFor != "" {
+		t.Fatalf("binding = %+v, want designated with no fixed acting user", b)
+	}
+	s := trigger.New(nil, nil, nil)
+	if err := s.Add(b); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	unready, err := s.Readiness(context.Background())
+	want := trigger.Unready{FeatureID: b.FeatureID, Reason: trigger.ReasonNoDesignatedLawyer}
+	if err != nil || len(unready) != 1 || unready[0] != want {
+		t.Fatalf("readiness = %+v, %v; want %+v", unready, err, want)
 	}
 }

@@ -4268,3 +4268,19 @@ of FEAT-TIM-01 above.
 - Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
   (binding), the generated plugin skill, and the shared test helpers
   `app/legal/platform/ai_pltf_helpers_test.go`.
+
+## Q-FEAT-PLT-15 F-PLT-15 retainer coverage watch
+
+- F-PLT-15 runs daily for the designated lawyer (trigger.BindDesignated). A scheduled run
+  carries no subjects (RunArgs.Subjects is empty on a tick) and its tools hold no matter list
+  (get_matter and search_documents both take a matter_id). Open: a tick payload naming the
+  matters with a retainer on file, or search_matters in the spec's tool list.
+- The request is a draft_email submitted by draft_email itself, which opens
+  `platform.outgoing_email` (G-OUT) through the scoped opener; submit_for_approval with any
+  other kind is refused (ErrGateKindNotAllowed).
+- By-law 9: the prompt forbids moving trust money and says an overdraft is reported to the
+  lawyer with report_step, never drafted around; an unreadable balance drafts nothing. The
+  spec's tool list has no get_trust_balance, so the balance comes from the ledger statement
+  document; every amount and date in the request passes the provenance check.
+- Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (binding), the
+  generated plugin skill, `app/legal/platform/ai_pltf_helpers_test.go`.
