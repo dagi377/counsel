@@ -173,5 +173,6 @@ func appDefs() []feature.Def {
 		readiness.VoiceNoteToTimeEntryDef(),
 		readiness.ReplyToClientMessageDef(),
 		readiness.DraftReplyDef(),
+		readiness.AskDef(),
 	}
 }

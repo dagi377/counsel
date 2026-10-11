@@ -24,6 +24,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/agenttools/run"
 	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
 	"github.com/dagi377/counsel/kernel/gate"
@@ -458,9 +459,23 @@ func (q *rdycQueue) EnqueueAction(_ context.Context, featureID string, subjects 
 	return "run-rdyc", nil
 }
 
+// rdycRunner answers a chat feature inline with one answer citing the one line its run
+// returned, and records the runs it made.
+type rdycRunner struct{ runs []string }
+
+func (r *rdycRunner) Run(_ context.Context, spec run.Spec, p run.Principal, prompt string, _ ...run.Trigger) (run.Outcome, error) {
+	r.runs = append(r.runs, spec.FeatureID+"|"+p.ActingFor+"|"+strings.Split(prompt, "\n")[1])
+	c := agenttools.Citation{VersionID: "version-1", Page: 1, FromLine: 1, ToLine: 1}
+	return run.Outcome{
+		JSON:      json.RawMessage(`{"answer": "From the search.", "citations": [{"version_id": "version-1", "page": 1, "from_line": 1, "to_line": 1}]}`),
+		Citations: []agenttools.Citation{c},
+	}, nil
+}
+
 // rdycCheckAction fails t unless d's one action is action, boot maps action's screen to a
-// subject, and the screen-action route, with boot's screen map, queues d for the acting user
-// when started from that screen and refuses it from any other screen.
+// subject, and the screen-action route, with boot's screen map, runs d for the acting user
+// when started from that screen (a chat Def inline, answering 200 with nothing queued; any
+// other Def queued, answering 202) and refuses it from any other screen.
 func rdycCheckAction(t *testing.T, d feature.Def, action string) {
 	t.Helper()
 	if !slices.Equal(d.Actions, []string{action}) {
@@ -475,20 +490,31 @@ func rdycCheckAction(t *testing.T, d feature.Def, action string) {
 	if err := set.Add(d); err != nil {
 		t.Fatal(err)
 	}
+	ran := d.ID + "|" + agenttest.FeatureActingFor + "|rec-1"
+	own := struct {
+		status         int
+		queued, inline []string
+	}{http.StatusAccepted, []string{ran}, nil}
+	if d.Kind == ai.KindChat {
+		// rule: AI-R-005
+		// A chat feature answers in the response only; nothing is queued or stored.
+		own.status, own.queued, own.inline = http.StatusOK, nil, []string{d.ID + "|" + agenttest.FeatureActingFor + "|records: " + screens[screen].SubjectKind + ":rec-1"}
+	}
 	tests := []struct {
-		name   string
-		screen string
-		status int
-		queued []string
+		name           string
+		screen         string
+		status         int
+		queued, inline []string
 	}{
-		{"own screen queues the run", screen, http.StatusAccepted, []string{d.ID + "|" + agenttest.FeatureActingFor + "|rec-1"}},
-		{"other screen refused", "matter-overview", http.StatusUnprocessableEntity, nil},
+		{"own screen runs the feature", screen, own.status, own.queued, own.inline},
+		{"other screen refused", "matter-overview", http.StatusUnprocessableEntity, nil, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			q := &rdycQueue{}
+			runner := &rdycRunner{}
 			a := &trigger.Actions{
-				Features: set, Screens: screens, Access: rdycAccess{}, Queue: q,
+				Features: set, Screens: screens, Access: rdycAccess{}, Queue: q, Runner: runner,
 				NewRunID: func() string { return "run-rdyc" },
 				Principal: func(*http.Request) (registry.Principal, bool) {
 					return registry.Principal{Kind: registry.PrincipalUser, UserID: agenttest.FeatureActingFor}, true
@@ -500,8 +526,8 @@ func rdycCheckAction(t *testing.T, d feature.Def, action string) {
 			rec := httptest.NewRecorder()
 			body := `{"screen":"` + tt.screen + `","record_ids":["rec-1"]}`
 			r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/agent/actions/"+d.ID, bytes.NewBufferString(body)))
-			if rec.Code != tt.status || !slices.Equal(q.runs, tt.queued) {
-				t.Fatalf("status = %d, queued %v; want %d, %v (body %s)", rec.Code, q.runs, tt.status, tt.queued, rec.Body)
+			if rec.Code != tt.status || !slices.Equal(q.runs, tt.queued) || !slices.Equal(runner.runs, tt.inline) {
+				t.Fatalf("status = %d, queued %v, inline %v; want %d, %v, %v (body %s)", rec.Code, q.runs, runner.runs, tt.status, tt.queued, tt.inline, rec.Body)
 			}
 		})
 	}

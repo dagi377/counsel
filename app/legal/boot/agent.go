@@ -528,6 +528,8 @@ var actionScreens = map[string]trigger.Screen{
 	"mobile-app": {SubjectKind: "matter", Capability: "matters.view"},
 	// The mail add-in acts on the matter the selected email is filed on.
 	"mail-add-ins": {SubjectKind: "matter", Capability: "documents.view"},
+	// The research screen asks about the selected matter's documents.
+	"research": {SubjectKind: "matter", Capability: "documents.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
