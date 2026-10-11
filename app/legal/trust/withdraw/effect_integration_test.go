@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/dagi377/counsel/app/legal/books"
+	"github.com/dagi377/counsel/app/legal/matter/mattertest"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/trust/signatory"
 	"github.com/dagi377/counsel/kernel/clock"
@@ -111,8 +112,8 @@ func newItEnv(t *testing.T, balance int64) itEnv {
 		if err := tx.QueryRow(ctx, `INSERT INTO matter.practice_area(name) VALUES ('Litigation') RETURNING id::text`).Scan(&area); err != nil {
 			return err
 		}
-		if err := tx.QueryRow(ctx, `INSERT INTO matter.matter(number, short_name, client_id, practice_area_id, responsible_lawyer_id)
-VALUES ('2026-0001', 'M', $1::uuid, $2::uuid, $3::uuid) RETURNING id::text`, client, area, env.users["lawyer1"]).Scan(&matter); err != nil {
+		var err error
+		if matter, err = mattertest.Seed(ctx, tx, "2026-0001", "M", client, area, env.users["lawyer1"]); err != nil {
 			return err
 		}
 		env.acct, err = accts.OpenAccountNumber(ctx, tx, trust.Account{Type: trust.AccountMixed, Institution: "Bank",

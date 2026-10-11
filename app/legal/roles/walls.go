@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dagi377/counsel/app/legal/matter/matterkind"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
 // SubjectMatter is the subject kind of a matter. Its subject id is the matter id.
-const SubjectMatter = "matter.matter"
+const SubjectMatter = matterkind.Subject
 
 // ErrNoMatterLookup means a subject kind has no way to find its matter.
 var ErrNoMatterLookup = errors.New("roles: no matter lookup for subject kind")

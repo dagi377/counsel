@@ -39,6 +39,10 @@ func clearance(t *testing.T, cooling time.Duration, prep Actor, at *time.Time) (
 	if err != nil {
 		t.Fatal(err)
 	}
+	// G2 clears only a run whose every hit is disposed; a third lawyer disposes the one hit.
+	if err := checks.Dispose(context.Background(), run.ID, 0, Actor{UserID: "lawyer-d", IsLawyer: true}, DispositionNotAConflict, "different entity"); err != nil {
+		t.Fatal(err)
+	}
 	caps := capsMap{"lawyer-b": {"conflicts.clear"}, "lawyer-a": {"conflicts.clear"}, "clerk": {"conflicts.clear"}}
 	return NewClearance(checks, g, caps, now), checks, run
 }

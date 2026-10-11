@@ -68,7 +68,7 @@ func TestRunsAppendOnly(t *testing.T) {
 	ctx := context.Background()
 	c := newChecks()
 	first, _ := c.Check(ctx, Request{MatterID: "m1", Terms: []string{"acme"}, Preparer: preparer})
-	if _, err := c.Decide(ctx, first.ID, lawyer, false, "adverse party"); err != nil {
+	if _, err := c.decide(ctx, first.ID, lawyer, false, "adverse party"); err != nil {
 		t.Fatal(err)
 	}
 	second, _ := c.Check(ctx, Request{MatterID: "m1", Terms: []string{"acme"}, Preparer: preparer})
@@ -134,11 +134,11 @@ func TestDecideG2(t *testing.T) {
 				t.Fatal(err)
 			}
 			if tt.decideTwice {
-				if _, err := c.Decide(ctx, r.ID, Actor{UserID: "u-law2", IsLawyer: true}, true, "ok"); err != nil {
+				if _, err := c.decide(ctx, r.ID, Actor{UserID: "u-law2", IsLawyer: true}, true, "ok"); err != nil {
 					t.Fatal(err)
 				}
 			}
-			got, err := c.Decide(ctx, r.ID, tt.approver, tt.approve, "reason")
+			got, err := c.decide(ctx, r.ID, tt.approver, tt.approve, "reason")
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tt.wantErr)
 			}
@@ -151,7 +151,7 @@ func TestDecideG2(t *testing.T) {
 		})
 	}
 	t.Run("unknown run", func(t *testing.T) {
-		if _, err := newChecks().Decide(context.Background(), "run-x", lawyer, true, ""); !errors.Is(err, ErrNotFound) {
+		if _, err := newChecks().decide(context.Background(), "run-x", lawyer, true, ""); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("err = %v", err)
 		}
 	})
@@ -202,7 +202,7 @@ func TestG2ClearNeedsEveryHitDisposed(t *testing.T) {
 					t.Fatalf("Dispose: %v", err)
 				}
 			}
-			got, err := c.Decide(ctx, r.ID, lawyer, tt.approve, tt.reason)
+			got, err := c.decide(ctx, r.ID, lawyer, tt.approve, tt.reason)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tt.wantErr)
 			}
@@ -239,7 +239,7 @@ func TestDisposeChecks(t *testing.T) {
 			c := newChecks()
 			r, _ := c.Check(ctx, Request{MatterID: "m1", Terms: []string{"acme"}, Preparer: preparer})
 			if tt.decided {
-				if _, err := c.Decide(ctx, r.ID, lawyer, false, "adverse party"); err != nil {
+				if _, err := c.decide(ctx, r.ID, lawyer, false, "adverse party"); err != nil {
 					t.Fatal(err)
 				}
 			}

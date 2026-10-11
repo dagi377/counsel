@@ -162,8 +162,6 @@ func checkHolidays(t *testing.T, cases []holidayCase) {
 	}
 }
 
-func d(y int, m time.Month, day int) clock.Date { return clock.Date{Year: y, Month: m, Day: day} }
-
 func TestOntarioHolidays2025(t *testing.T) {
 	checkHolidays(t, []holidayCase{
 		{"new year's day", d(2025, time.January, 1), true},

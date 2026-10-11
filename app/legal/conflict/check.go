@@ -66,10 +66,9 @@ type decision struct {
 	at      time.Time
 }
 
-var (
-	_ Checker = (*Checks)(nil)
-	_ Clearer = (*Checks)(nil)
-)
+// Checks is deliberately not a Clearer: the only Clearer is Clearance, which goes through
+// gate G2. There is no gate-less clearing path.
+var _ Checker = (*Checks)(nil)
 
 // Checks runs conflict checks and records G2 decisions. Both logs are append-only: a check
 // adds a run, a re-check adds another run, and a decision adds a decision row; nothing is
@@ -177,10 +176,10 @@ func (c *Checks) Dispose(ctx context.Context, runID string, hit int, lawyer Acto
 	return nil
 }
 
-// Decide implements Clearer: gate G2 on an open run. Clearing needs every hit disposed as
+// decide records a G2 decision on an open run. Only Clearance calls it, after the gate check. Clearing needs every hit disposed as
 // not a conflict, waived by consent, or walled off with consent, and a reason when the run
 // has any hit. Rejecting needs neither.
-func (c *Checks) Decide(ctx context.Context, runID string, approver Actor, approve bool, reason string) (Run, error) {
+func (c *Checks) decide(ctx context.Context, runID string, approver Actor, approve bool, reason string) (Run, error) {
 	if err := ctx.Err(); err != nil {
 		return Run{}, fmt.Errorf("conflict decide: %w", err)
 	}

@@ -22,7 +22,7 @@ var _ Clearer = (*Clearance)(nil)
 
 // Clearance is the only Clearer the app wires: it decides a run through gate G2, so the
 // gate's capability and cooling-off rules apply on top of the lawyer and preparer rules of
-// Checks.Decide. It never edits a run; a decision is appended by Checks.
+// Checks.decide. It never edits a run; a decision is appended by Checks.
 type Clearance struct {
 	checks *Checks
 	gates  gates.Gates
@@ -56,7 +56,7 @@ func (c *Clearance) Decide(ctx context.Context, runID string, approver Actor, ap
 	if err := c.gates.CheckDecision(ctx, g, by, c.now()); err != nil {
 		return run, fmt.Errorf("conflict clearance %s: %w", runID, gateError(err))
 	}
-	return c.checks.Decide(ctx, runID, approver, approve, reason)
+	return c.checks.decide(ctx, runID, approver, approve, reason)
 }
 
 // run returns the current view of one run.

@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/dagi377/counsel/app/legal/books"
+	"github.com/dagi377/counsel/app/legal/matter/mattertest"
 	"github.com/dagi377/counsel/app/legal/trust/signatory"
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/clock/clockfake"
@@ -84,8 +85,8 @@ INSERT INTO core.app_user(email, display_name, role_id) SELECT 'l@example.com', 
 			return err
 		}
 		for i, n := range []string{"2026-0001", "2026-0002"} {
-			if err := tx.QueryRow(ctx, `INSERT INTO matter.matter(number, short_name, client_id, practice_area_id, responsible_lawyer_id)
-VALUES ($1, $1, $2::uuid, $3::uuid, $4::uuid) RETURNING id::text`, n, client, area, user).Scan(&matters[i]); err != nil {
+			var err error
+			if matters[i], err = mattertest.Seed(ctx, tx, n, n, client, area, user); err != nil {
 				return err
 			}
 		}
