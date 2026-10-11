@@ -356,6 +356,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
+	// Intake: the referral sources report selects referrer contacts (F-INT-21).
+	"referral-sources-report": {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
