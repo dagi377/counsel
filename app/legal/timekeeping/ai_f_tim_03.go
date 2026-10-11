@@ -52,7 +52,8 @@ func PreBillCheckDef() feature.Def {
 }
 
 // PreBillCheckBinding binds F-TIM-03 to the bill-draft-requested event and the monthly
-// schedule. Event runs act for the event's user; the monthly run acts for actingFor.
-func PreBillCheckBinding(actingFor string) (trigger.Binding, error) {
-	return trigger.Bind(PreBillCheckDef(), actingFor, EventBillDraftRequested)
+// schedule. Event runs act for the event's user; the monthly run acts for the feature's
+// designated lawyer in firm settings (trigger.BindDesignated), never the rule admin.
+func PreBillCheckBinding() (trigger.Binding, error) {
+	return trigger.BindDesignated(PreBillCheckDef(), EventBillDraftRequested)
 }

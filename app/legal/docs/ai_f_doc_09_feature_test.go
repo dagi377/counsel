@@ -2,7 +2,6 @@ package docs_test
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"testing"
 
@@ -26,11 +25,21 @@ func TestFDOC09_Prompt(t *testing.T) {
 // F-DOC-09 runs once a business day for the designated lawyer, and on request from the
 // template library. A scheduled run with no acting user does not bind.
 func TestFDOC09_TriggerBinding(t *testing.T) {
-	const lawyer = "user-synthetic-designated-lawyer"
-	b, err := docs.CourtFormCurrencyBinding(lawyer)
-	docdCheckBinding(t, b, err, docs.CourtFormCurrencyDef(), nil, trigger.CadenceDaily, lawyer, docs.ActionFlagOldFormVersions)
-	if _, err := docs.CourtFormCurrencyBinding(""); !errors.Is(err, trigger.ErrBadBinding) {
-		t.Fatalf("binding without acting user = %v, want ErrBadBinding", err)
+	b, err := docs.CourtFormCurrencyBinding()
+	docdCheckBinding(t, b, err, docs.CourtFormCurrencyDef(), nil, trigger.CadenceDaily, "", docs.ActionFlagOldFormVersions)
+	// The daily run acts for the designated lawyer, never a fixed user: with no designated
+	// lawyer the feature is unready and does not start.
+	if !b.Designated || b.ActingFor != "" {
+		t.Fatalf("binding = %+v, want designated with no fixed acting user", b)
+	}
+	s := trigger.New(nil, nil, nil)
+	if err := s.Add(b); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	unready, err := s.Readiness(context.Background())
+	want := trigger.Unready{FeatureID: b.FeatureID, Reason: trigger.ReasonNoDesignatedLawyer}
+	if err != nil || len(unready) != 1 || unready[0] != want {
+		t.Fatalf("readiness = %+v, %v; want %+v", unready, err, want)
 	}
 }
 

@@ -3521,3 +3521,6 @@ of FEAT-TIM-01 above.
   (`timekeeping.EventTimesheetWeekSubmitted`); timekeeping must publish it when a week is
   submitted for G9c, or the feature never fires. It has no screen action (spec `on_request`
   is empty).
+- F-TIM-03's monthly run and F-DOC-09's daily run bind with `trigger.BindDesignated`: they act
+  for the feature's designated lawyer in firm settings, never the rule admin. Their Binding
+  funcs take no acting user; with no designated lawyer the feature is unready.

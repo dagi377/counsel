@@ -2,7 +2,6 @@ package timekeeping_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/dagi377/counsel/app/legal/agent/agenttest"
@@ -24,14 +23,25 @@ func TestFTIM03_Prompt(t *testing.T) {
 }
 
 // F-TIM-03 starts when a draft bill is requested, acting for the event's user, and monthly,
-// acting for the scheduled user; matter-wip and write-downs run it on request.
+// acting for the designated lawyer in firm settings; matter-wip and write-downs run it on
+// request.
 func TestFTIM03_TriggerBinding(t *testing.T) {
-	b, err := tk.PreBillCheckBinding("user-synthetic-billing-admin")
+	b, err := tk.PreBillCheckBinding()
 	timbCheckBinding(t, b, err, tk.PreBillCheckDef(), []string{tk.EventBillDraftRequested},
-		trigger.CadenceMonthly, "user-synthetic-billing-admin", tk.ActionPreBillCheck, tk.ActionProposeReduction)
-	// The monthly run needs a user to act for.
-	if _, err := tk.PreBillCheckBinding(""); !errors.Is(err, trigger.ErrBadBinding) {
-		t.Fatalf("binding with no acting user = %v, want ErrBadBinding", err)
+		trigger.CadenceMonthly, "", tk.ActionPreBillCheck, tk.ActionProposeReduction)
+	// The monthly run acts for the designated lawyer, never a fixed user: with no designated
+	// lawyer the feature is unready and does not start.
+	if !b.Designated || b.ActingFor != "" {
+		t.Fatalf("binding = %+v, want designated with no fixed acting user", b)
+	}
+	s := trigger.New(nil, nil, nil)
+	if err := s.Add(b); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	unready, err := s.Readiness(context.Background())
+	want := trigger.Unready{FeatureID: b.FeatureID, Reason: trigger.ReasonNoDesignatedLawyer}
+	if err != nil || len(unready) != 1 || unready[0] != want {
+		t.Fatalf("readiness = %+v, %v; want %+v", unready, err, want)
 	}
 }
 
