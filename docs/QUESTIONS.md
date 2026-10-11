@@ -1154,3 +1154,8 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   addNotifyJobs and addWebhookJobs. The legal app schedules
   trust.withdrawal_release_expired every 15 minutes when gate services are built. kernel/idem
   problem bodies carry `type` (urn:counsel:problem:<code>, now api.ProblemTypePrefix).
+- Q-PORT-22 (open): the Clio client (app/legal/clio) has no webhook-subscription renew call,
+  so nothing implements sync.SubscriptionRenewer yet. PORT-22 ships only OutboxNotifier.
+  Needed: a `Renew(ctx, remoteID) (time.Time, error)` PATCH on the Clio webhook endpoint in
+  app/legal/clio/client.go (with cliofake support). Until then BOOT-19 wires the renewal job
+  only behind its flag, which is off by default.
