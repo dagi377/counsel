@@ -1460,3 +1460,18 @@ Done in PORT-18:
   trust transaction link and any trust movement stay with the trust gates.
 - A reused Idempotency-Key with a different body answers 422 (rule ARC-I-008, kernel/idem),
   not the 409 in the task text, as in HTTP-02 and HTTP-04.
+
+## HTTP-06: bill read routes (files outside the task)
+
+- Additive contract changes in billing/bill/contract.go: `Service.List(ctx, Filter)`, `Filter`,
+  and the stored fields the openapi Bill and BillLine require (`Bill.Version`, `PeriodFrom`,
+  `PeriodTo`, `TaxRatePPM`, `TrustAppliedCents`, `BalanceCents`, `CreatedAt`; `Line.ID`,
+  `Line.Taxable`). billfake implements List and bumps Version on each write. No Postgres
+  bill.Service exists yet, so the routes answer 503 until boot wires one.
+- Stored statuses map to the openapi BillStatus: preflight_failed -> draft,
+  pending_approval -> in_review, void -> voided; written_off and credited pass through
+  (x-extensible-enum). `status=returned` matches nothing: no stored status is "returned".
+  Delivery channels mail and hand show as "print".
+- List pages use the openapi `{data, next_cursor}` shape. Bills on matters hidden from the
+  caller are left out of the list (pages can be short).
+- Line actions are not stored on bill.Line yet; every line reports action "bill".

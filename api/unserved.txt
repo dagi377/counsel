@@ -5,12 +5,9 @@
 POST /agent/runs
 GET /agent/runs/{run_id}
 GET /audit-events
-GET /bills
 POST /bills
-GET /bills/{bill_id}
 PATCH /bills/{bill_id}
 POST /bills/{bill_id}/deliver
-GET /bills/{bill_id}/lines
 POST /bills/{bill_id}/submit
 POST /bills/{bill_id}/void
 GET /credit-notes
