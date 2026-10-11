@@ -75,5 +75,6 @@ func appDefs() []feature.Def {
 		legaldocs.DraftWithCitationsDef(),
 		// work
 		work.PickUpAgentReadyDef(),
+		work.ProposeMatterPlanDef(),
 	}
 }

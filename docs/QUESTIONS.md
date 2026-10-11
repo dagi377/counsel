@@ -3022,3 +3022,23 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   `app/legal/agent/tools_task.go`. Note that none of the F-WRK tools returns a bare
   `YYYY-MM-DD` value (list_work_items gives RFC 3339 `due_at`), so once wrapped an agent can
   write no due date until a read tool returns one.
+
+## Q-FEAT-WRK-02 create_task returns a proposal, so F-WRK-02 cannot open work.plan in the run
+
+- Task: FEAT-WRK-02 (F-WRK-02 Propose matter plan). Same gap as Q-FEAT-MAT-13 for work.plan.
+- `agent.WorkItemGateKinds` holds `work.absence` and `work.output` only, so under F-WRK-02's
+  scope (work.plan) `create_task` returns `OutcomeProposal`, the run records no draft and the
+  in-run `submit_for_approval` for `work.plan` is refused with `ErrNotFound`: the run fails
+  closed (tasks proposed, no gate). `TestFWRK02_FromFeature` pins that, then opens work.plan
+  on the proposed plan as the acting user and checks pending, the agent principal 403 and
+  `ErrSelfApproval` for the acting user.
+- work.plan's payload schema is `{matter_id, template_id}` (a matter's plan, not one item), so
+  adding it to `WorkItemGateKinds` does not fit. Proposed: let `submit_for_approval` open
+  work.plan on the matter (`subject_type: matter`) when the run created proposals on it, and
+  pass the template id the trigger carries (FEAT-TOOL-16 follow-up in
+  `app/legal/agent/tools_task.go` / `tools_submit.go`).
+- `matter.template_applied` is not in spec/eng/a2-interfaces.json; nothing publishes it yet.
+  `matter.opened` is the a2 event.
+- Files beyond the list: featureset.go and its test, boot/agent.go (the job binding), the
+  shared `ai_wrk_helpers_test.go` and the generated skill
+  `paploo/counsel-plugin/skills/f-wrk-02-propose-matter-plan/SKILL.md`.

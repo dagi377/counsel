@@ -486,3 +486,28 @@ func wrkCheckBinding(t *testing.T, b trigger.Binding, err error, d feature.Def, 
 		})
 	}
 }
+
+// wrkCheckPlanGate covers a work.plan run: create_task returns proposals, not run drafts,
+// so the in-run submit_for_approval is refused with ErrNotFound and no gate opens (fail
+// closed; Q-FEAT-WRK-02). The acting user then submits the proposed plan, refs, as a person,
+// and the gate is pending with that user as preparer, which neither the agent (403) nor
+// that user (ErrSelfApproval) can decide.
+func wrkCheckPlanGate(t *testing.T, w wrkWorld, run agenttest.FeatureRun, kind string, refs []string) {
+	t.Helper()
+	if len(run.Refused) != 1 || run.Refused[0].Tool != agent.ToolSubmitForApproval || !errors.Is(run.Refused[0].Err, agenttools.ErrNotFound) {
+		t.Fatalf("refused = %v, want submit_for_approval refused with ErrNotFound", run.Refused)
+	}
+	if len(run.GateIDs) != 0 {
+		t.Fatalf("gates = %v, want none opened in the run", run.GateIDs)
+	}
+	payload, err := json.Marshal(map[string]any{"matter_id": w.matter, "item_ids": refs})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := w.fd.Seed.Gates.Open(context.Background(), nil, kind, registry.Subject{Kind: roles.SubjectMatter, ID: w.matter}, payload,
+		registry.Principal{Kind: registry.PrincipalUser, UserID: agenttest.FeatureActingFor})
+	if err != nil {
+		t.Fatalf("open %s: %v", kind, err)
+	}
+	wrkCheckGate(t, w.fd, string(id), kind)
+}
