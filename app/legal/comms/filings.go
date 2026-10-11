@@ -10,12 +10,40 @@ import (
 
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/db"
+	"github.com/dagi377/counsel/kernel/outbox"
 )
 
 // FilingStore keeps court filings in legal.court_filing (migrations/6000_court_filing.sql).
 // comms.comm_filing is a different record: it files a message to a matter.
 type FilingStore struct {
 	db db.DB
+	// Events receives the filing event RecordFiling emits in its tx. Boot sets it; while nil,
+	// a filed filing is refused (its receipt would never reach the deadline matcher).
+	Events outbox.Emitter
+}
+
+// EventFilingReceiptReceived is the outbox event type of a filing recorded as filed: the
+// court's e-filing receipt is in. F-DL-04 (app/legal/deadlines) starts on it.
+const EventFilingReceiptReceived = "filing.receipt_received"
+
+// SubjectCourtFiling is the outbox subject kind of a court filing.
+const SubjectCourtFiling = "legal.court_filing"
+
+// FilingReceipt is the body of EventFilingReceiptReceived: ids and the filed date only.
+type FilingReceipt struct {
+	FilingID   string `json:"filing_id"`
+	MatterID   string `json:"matter_id"`
+	DocumentID string `json:"document_id,omitempty"`
+	FiledOn    string `json:"filed_on"`
+}
+
+// filingEvent returns the receipt event of a recorded filing, or ok false when the filing
+// is not filed (a draft or a rejection has no receipt).
+func filingEvent(f Filing, filedOn *clock.Date) (FilingReceipt, bool) {
+	if f.Status != FilingFiled || filedOn == nil {
+		return FilingReceipt{}, false
+	}
+	return FilingReceipt{FilingID: f.ID, MatterID: f.MatterID, DocumentID: f.DocumentID, FiledOn: filedOn.String()}, true
 }
 
 var _ Filings = (*FilingStore)(nil)
@@ -78,7 +106,8 @@ func nullable(s string) any {
 	return s
 }
 
-// RecordFiling appends f and returns it with ID and RecordedAt set.
+// RecordFiling appends f and returns it with ID and RecordedAt set. A filed filing emits
+// EventFilingReceiptReceived in the same tx.
 func (s *FilingStore) RecordFiling(ctx context.Context, f Filing) (Filing, error) {
 	c, err := clock.From(ctx)
 	if err != nil {
@@ -87,6 +116,9 @@ func (s *FilingStore) RecordFiling(ctx context.Context, f Filing) (Filing, error
 	r, err := normalizeFiling(f, c.Location())
 	if err != nil {
 		return Filing{}, fmt.Errorf("record filing: %w", err)
+	}
+	if r.Status == FilingFiled && s.Events == nil {
+		return Filing{}, fmt.Errorf("record filing: no event emitter: %w", ErrInvalid)
 	}
 	var filedOn any
 	if r.FiledOn != nil {
@@ -100,13 +132,20 @@ func (s *FilingStore) RecordFiling(ctx context.Context, f Filing) (Filing, error
 		out.FiledOn = r.FiledOn.Start(c.Location())
 	}
 	err = s.db.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		return tx.QueryRow(ctx,
+		if err := tx.QueryRow(ctx,
 			`INSERT INTO legal.court_filing
 			   (matter_id, document_id, court, reference, status, filed_by, filed_on)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7::date)
 			 RETURNING id::text, created_at`,
 			r.MatterID, nullable(r.DocumentID), r.Court, nullable(r.Reference), string(r.Status),
-			nullable(r.FiledBy), filedOn).Scan(&out.ID, &out.RecordedAt)
+			nullable(r.FiledBy), filedOn).Scan(&out.ID, &out.RecordedAt); err != nil {
+			return err
+		}
+		// The receipt event commits with the filing row.
+		if ev, ok := filingEvent(out, r.FiledOn); ok {
+			return s.Events.Emit(ctx, tx, outbox.Subject{Kind: SubjectCourtFiling, ID: out.ID}, EventFilingReceiptReceived, ev)
+		}
+		return nil
 	})
 	if err != nil {
 		return Filing{}, fmt.Errorf("record filing: %w", err)
