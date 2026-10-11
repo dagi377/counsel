@@ -3001,3 +3001,16 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-FEAT-TIM-02 F-TIM-02 receipt capture: trigger events and shared helpers
+
+- No receipt event exists. "receipt email or upload" binds the existing `document.uploaded`
+  and `email.filed` events (the strings the documents and comms modules publish); the prompt
+  has the agent draft nothing unless the file is a receipt. A dedicated receipt event, if one
+  is added, replaces them.
+- The `expenses` screen maps to subject `matter` with capability `time.record`.
+- `draft_document` takes free-text markdown, so the expense amounts carry no provenance
+  pointer; the prompt has the agent copy only values on the receipt or in a tool result.
+- The end-to-end tests use `app/legal/timekeeping/ai_timb_helpers_test.go` (prefix `timb`),
+  shared with FEAT-TIM-03 and FEAT-TIM-04. It prices the Seed's time entries for
+  `list_unbilled` (the Seed has no `agent.MatterTime`).
