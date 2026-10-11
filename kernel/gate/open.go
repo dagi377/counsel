@@ -16,6 +16,9 @@ type PG struct {
 	kinds  *Kinds
 	mu     sync.RWMutex
 	policy SelfApprovalPolicy
+	// decide holds the app's Decide inputs (SetDecideHooks), guarded by mu. Each engine
+	// owns its hooks; there is no package-level state.
+	decide DecideHooks
 }
 
 // NewPG returns an engine whose kinds are checked against modules (see NewKinds).

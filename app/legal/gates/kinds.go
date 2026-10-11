@@ -164,6 +164,8 @@ func RegisterKinds(r registry.Registry, data []byte, effects map[string]registry
 }
 
 // Catalog is the read side of the legal gate kinds.
+var _ Gates = (*Catalog)(nil)
+
 type Catalog struct {
 	kinds []SpecKind // ordered by Code
 }

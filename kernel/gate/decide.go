@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
-	"sync"
 	"time"
 
 	"github.com/dagi377/counsel/kernel/clock"
@@ -38,19 +37,18 @@ type DecideHooks struct {
 	LimitKinds map[string]string
 }
 
-var decideHooks sync.Map // *PG -> DecideHooks
-
 // SetDecideHooks installs the app's Decide inputs on e.
 func (e *PG) SetDecideHooks(h DecideHooks) {
 	h.LimitKinds = clonedMap(h.LimitKinds)
-	decideHooks.Store(e, h)
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.decide = h
 }
 
 func (e *PG) hooks() DecideHooks {
-	if h, ok := decideHooks.Load(e); ok {
-		return h.(DecideHooks)
-	}
-	return DecideHooks{}
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.decide
 }
 
 func clonedMap(m map[string]string) map[string]string {
