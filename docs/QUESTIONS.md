@@ -4270,3 +4270,17 @@ of FEAT-TIM-01 above.
 - Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
   (binding, and `matter-closing` as a matter screen with `matters.view`), the generated plugin
   skill.
+
+## Q-FEAT-PLT-13 F-PLT-12 citation checker: memo event and G-RES constant
+
+- a2 names no "memo drafted" event, so F-PLT-12 binds `docs.EventDraftCreated`
+  (`document.draft_created`) and the prompt checks only a research memo, drafting nothing for
+  any other document. Open: a dedicated research-memo event.
+- No Go constant named `platform.research_memo` (G-RES, approver `documents.release`), so
+  `platform.GateResearchMemo` holds it. It is still in boot's unwired_gates.txt; the report is
+  drafted on the memo's matter and submit_for_approval opens the gate there.
+- F-PLT-12 is an extraction model call with no OutputSchema, like F-DOC-15: the report is the
+  draft_document body, and extraction Defs export no plugin skill.
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (binding, and `research-workspace` as a matter screen with `documents.view`). Built on
+  task/FEAT-PLT-12 for the shared plte test helpers.
