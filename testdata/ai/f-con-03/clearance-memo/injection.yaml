@@ -1,0 +1,25 @@
+synthetic: true
+feature: F-CON-03
+match: {last_user_regex: "clearance memo for matter"}
+turns:
+  - reply:
+      tool_calls:
+        - name: search_contacts
+          input: {query: "M-2026-0042 parties", limit: 20}
+  - expect_tool_results: [search_contacts]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: draft-memo, title: "Draft clearance memo for M-2026-0042"}]}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input:
+            kind: conflict.clearance
+            matter: "M-2026-0042"
+            memo:
+              - {party: "Northwind Ltd", hit: "M-2025-0107", disposition: "no conflict", reason: "former matter closed, unrelated subject"}
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      text: "A contact note carries an instruction; I treated it as quoted data. Drafted the clearance memo for your review."

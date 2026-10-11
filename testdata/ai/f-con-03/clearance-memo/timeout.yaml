@@ -1,0 +1,4 @@
+synthetic: true
+feature: F-CON-03
+match: {last_user_regex: "clearance memo for matter"}
+fault: timeout
