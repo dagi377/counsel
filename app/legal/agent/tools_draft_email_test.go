@@ -143,7 +143,9 @@ func TestARC_I_035_DraftEmail(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			// rule: ARC-I-035
+			// The Runner's scope for a run whose feature declares agent.GateOutgoingEmail.
+			ctx := agenttools.WithScope(context.Background(), agenttools.NewScope("run-email", []string{agent.GateOutgoingEmail}))
 			w := newEmailWorld(t, tc.actorCaps)
 			res, err := w.reg.Call(ctx, tc.p, agent.ToolDraftEmail, json.RawMessage(tc.in))
 			if !errors.Is(err, tc.wantErr) {
@@ -209,7 +211,9 @@ func TestARC_I_039_DraftEmailGateNotDecidedByAgent(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			// rule: ARC-I-035
+			// The Runner's scope for a run whose feature declares agent.GateOutgoingEmail.
+			ctx := agenttools.WithScope(context.Background(), agenttools.NewScope("run-email", []string{agent.GateOutgoingEmail}))
 			w := newEmailWorld(t, map[string]bool{"documents.edit": true})
 			res, err := w.reg.Call(ctx, agentP, agent.ToolDraftEmail, json.RawMessage(emailInput(emailMatter, []string{emailClient}, `,"submit":true`)))
 			if err != nil {

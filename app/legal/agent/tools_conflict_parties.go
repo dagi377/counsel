@@ -159,6 +159,12 @@ func (t proposeConflictParties) handle(ctx context.Context, p registry.Principal
 		proposed = append(proposed, pp)
 	}
 	// rule: ARC-I-035
+	// The check opens conflict.clearance: refuse a run whose feature does not declare it
+	// before any party is recorded.
+	if err := agenttools.CheckGateKind(ctx, p, conflict.GateClearance); err != nil {
+		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolProposeConflictParties, err)
+	}
+	// rule: ARC-I-035
 	// The parties are recorded as proposed and the check runs; the run stays open until a
 	// lawyer decides conflict.clearance (G2). Nothing here clears it.
 	terms, err := t.parties.ProposeParties(ctx, in.CheckID, proposed, user)
