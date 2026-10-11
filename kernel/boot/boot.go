@@ -11,7 +11,11 @@ import (
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/registry"
+	"github.com/dagi377/counsel/kernel/report"
+	"github.com/dagi377/counsel/kernel/server"
+	"github.com/dagi377/counsel/kernel/webhook"
 
 	// Every kernel package, so each can register itself from its own files.
 	_ "github.com/dagi377/counsel/kernel/all"
@@ -75,6 +79,12 @@ type Kernel struct {
 	Registry registry.Booter // nil when built without one (Build)
 	DB       db.DB
 	Clock    clock.Clock
+	Gates    gate.Engine
+	Reports  report.Engine
+	Server   server.Server
+	Events   *webhook.Types
+
+	sealed bool // Registry.Seal passed; apply runs only then
 }
 
 // App is one application that registers with the kernel at boot.
@@ -94,6 +104,10 @@ type Deps struct {
 	Registry registry.Booter // sealed after every Register; nil skips Seal
 	DB       db.DB
 	Clock    clock.Clock
+	Gates    gate.Engine
+	Reports  report.Engine
+	Server   server.Server
+	Events   *webhook.Types
 }
 
 // Build creates the kernel and calls every app's Register in order.
@@ -105,7 +119,10 @@ func Build(ctx context.Context, apps ...App) (*Kernel, error) {
 // turned on, then every app's Register (with the flag set in ctx), then Registry.Seal. A flag
 // in on that no app defined fails before any Register.
 func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kernel, error) {
-	k := &Kernel{Flags: flags.New(), Registry: deps.Registry, DB: deps.DB, Clock: deps.Clock}
+	k := &Kernel{
+		Flags: flags.New(), Registry: deps.Registry, DB: deps.DB, Clock: deps.Clock,
+		Gates: deps.Gates, Reports: deps.Reports, Server: deps.Server, Events: deps.Events,
+	}
 	for _, a := range apps {
 		if a.Register == nil {
 			return nil, fmt.Errorf("register app %q: nil Register: %w", a.Name, ErrConfig)
@@ -136,6 +153,7 @@ func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kerne
 		if err := k.Registry.Seal(); err != nil {
 			return nil, fmt.Errorf("seal registry: %w", err)
 		}
+		k.sealed = true
 	}
 	return k, nil
 }
