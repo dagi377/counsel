@@ -712,3 +712,20 @@ s.33 as amended and either the rules or the decision change.
 - The 32-goroutine integration test seeds 32 withdrawals, each authorised under its own
   approved trust.withdrawal gate. It is vetted with `-tags integration` and not yet run
   (integration runs are on hold).
+
+
+## Q-T-031L.4 Limitations Act calculator: additive contract
+
+- Task: T-031L.4 (gap task: the real calculator behind app/legal/limitation).
+- Additive to `app/legal/limitation/contract.go`: Assessment fields `DiscoveryPresumed`
+  (s.5(2)), `NoLimit` (s.16/s.17) and `ContributionServedDate` (s.18); sentinels
+  `ErrUnverified` (flag off) and `ErrSuspended` (open-ended suspension); types `NoLimitKind`,
+  `SchedulePeriod` and the `Schedule` lookup hook (s.19, no data yet).
+- For the lawyer (all marked (verify) in `app/legal/limitation/statute.go`):
+  (a) a Feb 29 anniversary falls on Feb 28 (Legislation Act, 2006 s.89, month-end rule);
+  (b) the due date is not moved off a weekend or holiday (conservative; Legislation Act s.88
+  may allow the next business day); (c) undiscovered environmental claims cite s.17;
+  (d) an s.22 agreement suspends both periods; (e) a Schedule period replaces the basic and
+  ultimate periods and ignores suspensions.
+- No Assessor or production wiring exists yet, so nothing used the fake outside tests. The
+  BOOT task set should construct `limitation.NewStatute(schedule)` as the Calculator.
