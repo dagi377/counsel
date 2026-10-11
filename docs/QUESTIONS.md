@@ -1534,3 +1534,18 @@ Done in PORT-18:
   Needed: a `Renew(ctx, remoteID) (time.Time, error)` PATCH on the Clio webhook endpoint in
   app/legal/clio/client.go (with cliofake support). Until then BOOT-19 wires the renewal job
   only behind its flag, which is off by default.
+
+## Q-PORT-24-SOLE: sole practitioner signs their own trust reconciliation
+
+- Task: PORT-24-SOLE, answering Q-PORT-24 (decided as counsel): By-law 9 needs a licensee to
+  sign the monthly reconciliation and a sole practitioner has no second person.
+  `recon.PGSignOff.Sign` lets the preparer sign only when the firm has exactly one active
+  licensee (core.app_user, same definition as the signatory directory) and the preparer is
+  that licensee. It records audit action `sign_off.sole_practitioner` in the sign-off tx
+  through `PGSignOff.WithAudit`; without an audit log the preparer is refused. Every other
+  preparer is refused (ErrSelfApproval) and an agent never signs (ErrAgentApproval). Tagged
+  `rule: ARC-I-021`.
+- The database keeps its own guard: `core.check_sod` (0001) also needs
+  `core.firm.sole_practitioner` true and writes its `sod_solo_exception` row, so boot must keep
+  that setting in step with the licensee count. Showing the exception in the UI is a separate
+  web task.

@@ -3,6 +3,7 @@ package recon_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/dagi377/counsel/app/legal/trust/recon"
+	"github.com/dagi377/counsel/kernel/audit/auditfake"
 	"github.com/dagi377/counsel/kernel/clock"
 )
 
@@ -30,7 +32,12 @@ func (r scriptRow) Scan(dest ...any) error {
 		case *string:
 			*d = v.(string)
 		case *int64:
-			*d = v.(int64)
+			switch n := v.(type) {
+			case int64:
+				*d = n
+			case int:
+				*d = int64(n)
+			}
 		}
 	}
 	return nil
@@ -80,15 +87,22 @@ type scriptConn struct{ err error }
 
 func (c scriptConn) QueryRow(context.Context, string, ...any) pgx.Row { return scriptRow{err: c.err} }
 
-// signTx scripts the sign-off: the load query returns load, the update affects updated rows.
+// signTx scripts the sign-off: the load query returns load, the licensee count returns
+// licensees, the update affects updated rows.
 type signTx struct {
 	pgx.Tx
-	load    scriptRow
-	updated int64
-	exec    []any
+	load      scriptRow
+	licensees scriptRow
+	updated   int64
+	exec      []any
 }
 
-func (t *signTx) QueryRow(context.Context, string, ...any) pgx.Row { return t.load }
+func (t *signTx) QueryRow(_ context.Context, sql string, _ ...any) pgx.Row {
+	if strings.Contains(sql, "core.app_user") {
+		return t.licensees
+	}
+	return t.load
+}
 
 func (t *signTx) Exec(_ context.Context, _ string, args ...any) (pgconn.CommandTag, error) {
 	t.exec = args
@@ -144,6 +158,58 @@ func TestBIL_I_025_PGSignOffSign(t *testing.T) {
 				got := tt.tx.exec
 				if got[0] != "r1" || got[1] != "approver" || !got[2].(time.Time).Equal(at) || string(got[3].([]byte)) != string(sum) || got[4] != "g1" {
 					t.Fatalf("update args = %v", got)
+				}
+			}
+		})
+	}
+}
+
+// rule: ARC-I-021
+func TestARC_I_021_SolePractitionerSignOff(t *testing.T) {
+	at := time.Date(2026, 4, 3, 10, 0, 0, 0, time.UTC)
+	ready := scriptRow{vals: []any{"preparer", "ready", int64(100), int64(100), int64(100)}}
+	// licensees is the active-licensee count and whether the signer is one of them.
+	licensees := func(n int, signer bool) scriptRow { return scriptRow{vals: []any{n, signer}} }
+	tests := []struct {
+		name      string
+		by        recon.Approver
+		licensees scriptRow
+		noAudit   bool
+		want      error
+		wantAudit bool
+	}{
+		{"sole practitioner signs own reconciliation", recon.Approver{UserID: "preparer"}, licensees(1, true), false, nil, true},
+		{"two licensees refuse the preparer", recon.Approver{UserID: "preparer"}, licensees(2, true), false, recon.ErrSelfApproval, false},
+		{"agent never signs, even for a sole practitioner", recon.Approver{UserID: "preparer", IsAgent: true}, licensees(1, true), false, recon.ErrAgentApproval, false},
+		{"preparer who is not the one licensee", recon.Approver{UserID: "preparer"}, licensees(1, false), false, recon.ErrSelfApproval, false},
+		{"no licensee at all", recon.Approver{UserID: "preparer"}, licensees(0, false), false, recon.ErrSelfApproval, false},
+		{"no audit log refuses the exception", recon.Approver{UserID: "preparer"}, licensees(1, true), true, recon.ErrSelfApproval, false},
+		{"other signer needs no exception", recon.Approver{UserID: "approver"}, licensees(2, true), false, nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &signTx{load: ready, licensees: tt.licensees, updated: 1}
+			log := auditfake.New("approval_id")
+			s := recon.NewPGSignOff(nil)
+			if !tt.noAudit {
+				s = s.WithAudit(log)
+			}
+			rec := recon.SignOffRecord{ReconciliationID: "r1", By: tt.by, At: at, PackageSHA256: []byte{1}, ApprovalID: "g1"}
+			if err := s.Sign(context.Background(), tx, rec); !errors.Is(err, tt.want) {
+				t.Fatalf("Sign = %v, want %v", err, tt.want)
+			}
+			if (tx.exec != nil) != (tt.want == nil) {
+				t.Fatalf("update ran = %v, want %v", tx.exec != nil, tt.want == nil)
+			}
+			events := log.Events()
+			if got := len(events) == 1; got != tt.wantAudit {
+				t.Fatalf("audit events = %+v, want sole-practitioner event %v", events, tt.wantAudit)
+			}
+			if tt.wantAudit {
+				e := events[0]
+				if e.Action != "sign_off.sole_practitioner" || e.ActorID != "preparer" ||
+					e.Subject.Kind != "trust.reconciliation" || e.Subject.ID != "r1" {
+					t.Fatalf("audit event = %+v", e)
 				}
 			}
 		})
