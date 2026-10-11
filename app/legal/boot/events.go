@@ -9,6 +9,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
+	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
@@ -42,6 +43,9 @@ type EventStores struct {
 	CourtForms *legaldocs.CourtForms
 	Inbound    *comms.Inbound
 	Calendar   *deadlines.CalendarEvents
+	// LeadStatuses moves leads to awaiting info on intake.PGLeads and publishes
+	// intake.lead_awaiting_info through OwnTx (Q-LEAD-STATUS).
+	LeadStatuses *intake.Leads
 }
 
 // newEventStores builds the deadline book (rulepack.published,
@@ -67,7 +71,9 @@ func newEventStores(pool db.DB, em outbox.Emitter) EventStores {
 		Calendar:   &deadlines.CalendarEvents{DB: pool, Events: em},
 		Book:       book, Filings: filings, Emails: comms.NewEmailFilingStore(pool, em),
 		Contacts: contacts, OwnTx: own,
-		Walls: roles.NewWallResolver(matter.PGWallStore{DB: pool}, nil).WithEvents(own),
+		// Only SetStatus is used here: it reads Statuses and Events, never the form store.
+		LeadStatuses: &intake.Leads{Statuses: intake.PGLeads{DB: pool}, Events: own},
+		Walls:        roles.NewWallResolver(matter.PGWallStore{DB: pool}, nil).WithEvents(own),
 	}
 }
 

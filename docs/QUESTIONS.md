@@ -4271,3 +4271,15 @@ Done; resolves the TIME-FIX open item. `timekeeping.PGTimekeepers` lists active 
 level but `none`. `registerAgent` uses it when `AgentWiring.Timekeepers` is nil and the
 kernel has a database, so F-TIM-01's end-of-day run starts per timekeeper. Unit tests stub
 the query; a Postgres integration test is still to write (integration runs are on hold).
+
+## Q-LEAD-STATUS Route that sets a lead to awaiting info
+
+Done. Additive `api/openapi.yaml` path `POST /leads/{lead_id}/awaiting-info`
+(operationId `setLeadAwaitingInfo`, Idempotency-Key, no body). `intake.StatusHTTP` checks
+`intake.leads` firm-wide (403 without it), calls `Leads.SetStatus(..., awaiting_info)` and
+answers 200 `{lead_id, status}`; 404 for an unknown lead, 409 `lead_closed` for a converted,
+declined or sealed one. The first move into awaiting info publishes
+`intake.lead_awaiting_info` (F-INT-03 starts on it). Boot mounts it with the other event
+routes: `EventStores.LeadStatuses` is an `intake.Leads` on `intake.PGLeads`, publishing
+through the own-transaction emitter, as lead submission does. Open: moving back to `open`
+has no route yet.
