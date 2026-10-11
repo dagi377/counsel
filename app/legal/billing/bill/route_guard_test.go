@@ -121,7 +121,16 @@ func isIdent(e ast.Expr, name string) bool {
 
 type memStore struct {
 	bills map[ID]Bill
+	taxes map[ID][]TaxLine
 	saved int
+}
+
+func (m *memStore) JournalLines(_ context.Context, _ pgx.Tx, id ID) ([]Line, []TaxLine, error) {
+	b, ok := m.bills[id]
+	if !ok {
+		return nil, nil, ErrNotFound
+	}
+	return b.Lines, m.taxes[id], nil
 }
 
 func (m *memStore) Lock(_ context.Context, _ pgx.Tx, id ID) (Bill, error) {
@@ -188,10 +197,11 @@ func TestApproveEffect(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			b := pendingBill()
 			b.Status = tc.status
-			store := &memStore{bills: map[ID]Bill{"b1": b}}
+			store := &memStore{bills: map[ID]Bill{"b1": b}, taxes: map[ID][]TaxLine{"b1": {hstON(100000, 13000)}}}
 			var book memFeesBook
+			led := newRecordingLedger()
 			issued := 0
-			e := &ApproveEffect{Store: store, FeesBook: &book, Prefix: "INV", Now: func() time.Time { return now },
+			e := &ApproveEffect{Store: store, FeesBook: &book, Journal: store, Ledger: led, Prefix: "INV", Now: func() time.Time { return now },
 				Next: func(_ context.Context, _ pgx.Tx, prefix string, year int) (string, error) {
 					issued++
 					return FormatNumber(prefix, year, 146+issued)
@@ -201,8 +211,8 @@ func TestApproveEffect(t *testing.T) {
 				t.Fatalf("err = %v, want %v", err, tc.err)
 			}
 			if tc.err != nil {
-				if store.saved != 0 || len(book) != 0 {
-					t.Fatalf("failed effect wrote: saved %d, fees book %d", store.saved, len(book))
+				if store.saved != 0 || len(book) != 0 || len(led.posted) != 0 {
+					t.Fatalf("failed effect wrote: saved %d, fees book %d, entries %d", store.saved, len(book), len(led.posted))
 				}
 				return
 			}
@@ -220,8 +230,8 @@ func TestApproveEffect(t *testing.T) {
 			if err := e.Apply(context.Background(), nil, tc.g); err != nil {
 				t.Fatalf("replay: %v", err)
 			}
-			if issued != 1 || store.saved != 1 || len(book) != 1 {
-				t.Fatalf("replay wrote again: issued %d saved %d rows %d", issued, store.saved, len(book))
+			if issued != 1 || store.saved != 1 || len(book) != 1 || len(led.posted) != 1 {
+				t.Fatalf("replay wrote again: issued %d saved %d rows %d entries %d", issued, store.saved, len(book), len(led.posted))
 			}
 		})
 	}

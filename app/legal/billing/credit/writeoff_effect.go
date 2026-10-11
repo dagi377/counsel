@@ -48,8 +48,31 @@ type SecondApprovalPayload struct {
 // total it was issued with.
 type WriteOffBill struct {
 	Bill
-	TaxCents   int64 // bill tax as issued
-	TotalCents int64 // bill total including tax, as issued
+	TaxCents   int64  // bill tax as issued
+	TotalCents int64  // bill total including tax, as issued
+	ClientID   string // the client (payer) the bill is addressed to
+}
+
+// WriteOffClientWindow is how far back write-offs on the client's other bills count toward
+// the second-approval threshold (BIL-C-085, verify).
+const WriteOffClientWindow = 30 * 24 * time.Hour
+
+// WriteOffScope names the write-offs that count toward one write-off's threshold.
+type WriteOffScope struct {
+	BillID    string    // every write-off on this bill
+	ClientID  string    // and every write-off on this client's other bills ...
+	Since     time.Time // ... created at or after Since
+	ExcludeID string    // the write-off being decided, never counted twice
+}
+
+// WriteOffTotals sums earlier write-offs toward the second-approval threshold, in the
+// caller's tx.
+type WriteOffTotals interface {
+	// CumulativeCents locks bill s.BillID FOR UPDATE, so two write-offs on one bill are
+	// decided one after the other, then returns the cents of every write-off in s that is
+	// approved, awaiting its second approval or in draft with a gate open. Each write-off
+	// counts once, and s.ExcludeID never counts.
+	CumulativeCents(ctx context.Context, tx pgx.Tx, s WriteOffScope) (int64, error)
 }
 
 // WriteOffStore keeps write-offs. Every method runs in the caller's tx.
@@ -60,6 +83,9 @@ type WriteOffStore interface {
 	MarkAwaitingSecond(ctx context.Context, tx pgx.Tx, id, gateID string) error
 	// SaveApproved stores an approved write-off.
 	SaveApproved(ctx context.Context, tx pgx.Tx, w WriteOff) error
+	// AwaitingSecond returns the pending second-approval gate id MarkAwaitingSecond recorded
+	// for write-off id, or "" when there is none.
+	AwaitingSecond(ctx context.Context, tx pgx.Tx, id string) (string, error)
 }
 
 // WriteOffBills reads the bill a write-off reduces, in the caller's tx.
@@ -89,6 +115,30 @@ type WriteOffEffect struct {
 	Ledger BadDebtPoster
 	Gates  GateOpener
 	Clock  clock.Clock
+	// Totals sums earlier write-offs on the bill and the client. Nil fails closed.
+	Totals WriteOffTotals
+}
+
+// Effects returns the write-off effect handlers for gates.RegisterKinds: the G-B5
+// billing.credit_note write-off effect and the managing lawyer's
+// billing.writeoff_second_approval, both slugs from spec/gates.json. Every error a handler
+// returns wraps gate.ErrEffectFailed, so nothing is applied and the gate stays undone.
+func Effects(e *WriteOffEffect, second SecondApproval) map[string]registry.EffectFunc {
+	s := &WriteOffSecondEffect{WriteOff: e, Second: second}
+	return map[string]registry.EffectFunc{
+		GateKindCreditNote:     effectFailed(e.Apply),
+		GateKindWriteOffSecond: effectFailed(s.Apply),
+	}
+}
+
+// effectFailed wraps every error of fn in gate.ErrEffectFailed.
+func effectFailed(fn registry.EffectFunc) registry.EffectFunc {
+	return func(ctx context.Context, tx pgx.Tx, g registry.Approved) error {
+		if err := fn(ctx, tx, g); err != nil {
+			return fmt.Errorf("%w: %w", gate.ErrEffectFailed, err)
+		}
+		return nil
+	}
 }
 
 // Apply is the EffectFunc of billing.credit_note for a write-off. A credit-note payload is
@@ -101,13 +151,27 @@ func (e *WriteOffEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approv
 	if len(g.Approvers) == 0 {
 		return fmt.Errorf("write-off effect %s: %w", g.GateID, ErrSelfApproval)
 	}
-	first := approverOf(g.Approvers[len(g.Approvers)-1])
+	// The approver is the gate's first approver, never its preparer; approverOf makes an
+	// agent or guest an agent, which ApproveWriteOff refuses.
+	first := approverOf(g.Approvers[0])
 	w, err := e.Store.Lock(ctx, tx, g.Subject.ID)
 	if err != nil {
 		return fmt.Errorf("write-off effect %s: %w", g.GateID, err)
 	}
 	if w.BillID != p.BillID || w.AmountCents != p.AmountCents {
 		return fmt.Errorf("write-off effect %s: payload does not match write-off %s: %w", g.GateID, w.ID, ErrInvalidState)
+	}
+	// A replay of an applied effect changes nothing: the write-off is already approved (its
+	// adjustment posted), or its second-approval gate is already open.
+	if w.Status == StatusApproved {
+		return nil
+	}
+	awaiting, err := e.Store.AwaitingSecond(ctx, tx, w.ID)
+	if err != nil {
+		return fmt.Errorf("write-off effect %s: %w", g.GateID, err)
+	}
+	if awaiting != "" {
+		return nil
 	}
 	b, err := e.Bills.WriteOffBill(ctx, tx, w.BillID)
 	if err != nil {
@@ -120,9 +184,16 @@ func (e *WriteOffEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approv
 		return fmt.Errorf("write-off effect %s: %w", g.GateID, err)
 	}
 	// rule: BIL-C-085
+	// The threshold applies to the write-off plus every earlier one on the same bill and on
+	// the client's bills in the last 30 days, so splitting one write-off never avoids it.
+	cumulative, err := e.cumulativeCents(ctx, tx, w, b)
+	if err != nil {
+		return fmt.Errorf("write-off effect %s: %w", g.GateID, err)
+	}
+	// rule: BIL-C-085
 	// Above the threshold G-B5 alone posts nothing: the managing lawyer approves a second
 	// time, and the G-B5 approver prepares that gate so they can not approve it again.
-	if NeedsSecondApproval(w.AmountCents, e.Config) {
+	if NeedsSecondApproval(cumulative, e.Config) {
 		payload, err := json.Marshal(SecondApprovalPayload{
 			WriteOffID: w.ID, BillID: w.BillID, AmountCents: w.AmountCents, FirstApprover: first.UserID,
 		})
@@ -140,6 +211,24 @@ func (e *WriteOffEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approv
 		return nil
 	}
 	return e.complete(ctx, tx, approved, adj)
+}
+
+// cumulativeCents is w plus every earlier write-off that counts toward its threshold.
+func (e *WriteOffEffect) cumulativeCents(ctx context.Context, tx pgx.Tx, w WriteOff, b WriteOffBill) (int64, error) {
+	if e.Totals == nil {
+		return 0, fmt.Errorf("write-off %s: no write-off totals: %w", w.ID, ErrInvalidState)
+	}
+	since := businessDate(e.Clock).Add(-WriteOffClientWindow)
+	prior, err := e.Totals.CumulativeCents(ctx, tx, WriteOffScope{
+		BillID: w.BillID, ClientID: b.ClientID, Since: since, ExcludeID: w.ID,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("write-off %s: totals: %w", w.ID, err)
+	}
+	if prior < 0 {
+		return 0, fmt.Errorf("write-off %s: negative prior total: %w", w.ID, ErrInvalidState)
+	}
+	return prior + w.AmountCents, nil
 }
 
 // complete stores an approved write-off and posts its bad-debt adjustment.

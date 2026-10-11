@@ -39,9 +39,25 @@ func (m *memWriteOffs) MarkAwaitingSecond(_ context.Context, _ pgx.Tx, id, gateI
 	return nil
 }
 
+func (m *memWriteOffs) AwaitingSecond(_ context.Context, _ pgx.Tx, id string) (string, error) {
+	return m.awaiting[id], nil
+}
+
 func (m *memWriteOffs) SaveApproved(_ context.Context, _ pgx.Tx, w WriteOff) error {
 	m.w[w.ID] = w
 	return nil
+}
+
+// memTotals is a WriteOffTotals over a fixed prior total. It records every scope asked.
+type memTotals struct {
+	prior  int64
+	err    error
+	scopes []WriteOffScope
+}
+
+func (m *memTotals) CumulativeCents(_ context.Context, _ pgx.Tx, s WriteOffScope) (int64, error) {
+	m.scopes = append(m.scopes, s)
+	return m.prior, m.err
 }
 
 type memBills map[string]WriteOffBill
@@ -83,6 +99,7 @@ type writeOffRig struct {
 	store  *memWriteOffs
 	ledger *memLedger
 	gates  *gatefake.Fake
+	totals *memTotals
 }
 
 func newWriteOffRig(t *testing.T, amount int64, cfg SecondApprovalConfig) writeOffRig {
@@ -102,16 +119,18 @@ func newWriteOffRig(t *testing.T, amount int64, cfg SecondApprovalConfig) writeO
 		},
 		ledger: &memLedger{},
 		gates:  gatefake.New(clk.Now, caps),
+		totals: &memTotals{},
 	}
 	r.e = &WriteOffEffect{
 		Calc:   Calc{M: moneyfake.New()},
 		Config: cfg,
 		Store:  r.store,
 		Bills: memBills{"b1": {Bill: Bill{ID: "b1", Delivered: true, OpenCents: 200000, ResponsibleUser: "lawyer"},
-			TaxCents: 13000, TotalCents: 118000}},
+			TaxCents: 13000, TotalCents: 118000, ClientID: "client1"}},
 		Ledger: r.ledger,
 		Gates:  r.gates,
 		Clock:  clk,
+		Totals: r.totals,
 	}
 	r.registerKinds(t, map[string]registry.EffectFunc{GateKindCreditNote: r.e.Apply})
 	return r
@@ -251,3 +270,171 @@ func TestBIL_C_085_WriteOffEffectOpensSecondGate(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteOffEffectsSlugsFromSpec(t *testing.T) {
+	data, err := os.ReadFile(specGatesFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds, err := gates.ParseKinds(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := map[string]bool{}
+	for _, k := range kinds {
+		spec[k.Code] = true
+	}
+	r := newWriteOffRig(t, 59000, SecondApprovalConfig{})
+	effects := Effects(r.e, SecondApproval{})
+	tests := []struct{ slug string }{{GateKindCreditNote}, {GateKindWriteOffSecond}}
+	if len(effects) != len(tests) {
+		t.Fatalf("Effects = %d slugs, want %d", len(effects), len(tests))
+	}
+	for _, tt := range tests {
+		t.Run(tt.slug, func(t *testing.T) {
+			if !spec[tt.slug] {
+				t.Fatalf("%s is not a gate kind in spec/gates.json", tt.slug)
+			}
+			if effects[tt.slug] == nil {
+				t.Fatalf("Effects has no func for %s", tt.slug)
+			}
+		})
+	}
+}
+
+func TestWriteOffEffectApproverIsFirstApprover(t *testing.T) {
+	agent := gate.Principal{Kind: gate.PrincipalAgent, RunID: "run1", ActingFor: "lawyer"}
+	tests := []struct {
+		name      string
+		approvers []gate.Principal
+		wantErr   []error
+		wantBy    string
+	}{
+		{"responsible lawyer approves", []gate.Principal{user("lawyer")}, nil, "lawyer"},
+		{"first approver counts, not the last", []gate.Principal{user("lawyer"), agent}, nil, "lawyer"},
+		{"agent approver fails the effect", []gate.Principal{agent}, []error{gate.ErrEffectFailed, ErrAgentApproval}, ""},
+		{"agent first fails even with a lawyer after", []gate.Principal{agent, user("lawyer")}, []error{gate.ErrEffectFailed, ErrAgentApproval}, ""},
+		{"preparer approver fails the effect", []gate.Principal{user("clerk")}, []error{gate.ErrEffectFailed, ErrSelfApproval}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newWriteOffRig(t, 59000, SecondApprovalConfig{})
+			g := gb5Approved(59000, user("lawyer"))
+			g.Approvers = tt.approvers
+			err := Effects(r.e, SecondApproval{})[GateKindCreditNote](context.Background(), nil, g)
+			for _, want := range tt.wantErr {
+				if !errors.Is(err, want) {
+					t.Fatalf("err = %v, want %v", err, want)
+				}
+			}
+			w := r.store.w["w1"]
+			if tt.wantErr != nil {
+				if len(r.ledger.posts) != 0 || w.Status != StatusDraft {
+					t.Fatalf("posts = %v, status %s; want nothing applied", r.ledger.posts, w.Status)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("err = %v", err)
+			}
+			if w.Status != StatusApproved || w.ApprovedBy != tt.wantBy {
+				t.Fatalf("write-off = %+v, want approved by %s", w, tt.wantBy)
+			}
+		})
+	}
+}
+
+func TestWriteOffEffectReplayChangesNothing(t *testing.T) {
+	tests := []struct {
+		name       string
+		cfg        SecondApprovalConfig
+		wantPosts  int
+		wantSecond bool
+	}{
+		{"approved at or below the threshold", SecondApprovalConfig{}, 1, false},
+		{"second gate opened above the threshold", SecondApprovalConfig{WriteOffSecondApprovalCents: 50000}, 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newWriteOffRig(t, 59000, tt.cfg)
+			apply := Effects(r.e, SecondApproval{})[GateKindCreditNote]
+			g := gb5Approved(59000, user("lawyer"))
+			for i := 0; i < 2; i++ {
+				if err := apply(context.Background(), nil, g); err != nil {
+					t.Fatalf("run %d: %v", i+1, err)
+				}
+			}
+			if len(r.ledger.posts) != tt.wantPosts {
+				t.Fatalf("posts = %d, want %d", len(r.ledger.posts), tt.wantPosts)
+			}
+			_, err := r.gates.Get(context.Background(), "gate-1")
+			if opened := err == nil; opened != tt.wantSecond {
+				t.Fatalf("second gate opened = %v, want %v", opened, tt.wantSecond)
+			}
+			if _, err := r.gates.Get(context.Background(), "gate-2"); !errors.Is(err, gate.ErrNotFound) {
+				t.Fatalf("replay opened another gate: %v", err)
+			}
+		})
+	}
+}
+
+// rule: BIL-C-085
+// Splitting a write-off never avoids the managing lawyer: earlier write-offs on the bill and
+// on the client's bills in the last 30 days count toward the threshold.
+func TestBIL_C_085_SplitWriteOffsAggregate(t *testing.T) {
+	tests := []struct {
+		name       string
+		amount     int64
+		prior      int64
+		totalsErr  error
+		noTotals   bool
+		wantErr    error
+		wantSecond bool
+	}{
+		{"three $1,000 write-offs: the third opens the second gate", 100000, 200000, nil, false, nil, true},
+		{"second $1,000 write-off: total $2,000 opens the second gate", 100000, 100000, nil, false, nil, true},
+		{"earlier $0.01 tips $1,000 over the threshold", 100000, 1, nil, false, nil, true},
+		{"cumulative exactly the threshold approves now", 59000, 41000, nil, false, nil, false},
+		{"first write-off alone below the threshold approves now", 59000, 0, nil, false, nil, false},
+		{"totals error fails closed", 59000, 0, errors.New("db down"), false, errDBDown, false},
+		{"no totals configured fails closed", 59000, 0, nil, true, ErrInvalidState, false},
+		{"negative prior total fails closed", 59000, -1, nil, false, ErrInvalidState, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newWriteOffRig(t, tt.amount, SecondApprovalConfig{})
+			r.totals.prior = tt.prior
+			r.totals.err = tt.totalsErr
+			if tt.noTotals {
+				r.e.Totals = nil
+			}
+			err := r.e.Apply(context.Background(), nil, gb5Approved(tt.amount, user("lawyer")))
+			switch {
+			case tt.wantErr == errDBDown:
+				if err == nil {
+					t.Fatal("Apply err = nil, want the totals error")
+				}
+			case !errors.Is(err, tt.wantErr):
+				t.Fatalf("Apply err = %v, want %v", err, tt.wantErr)
+			}
+			_, awaiting := r.store.awaiting["w1"]
+			if awaiting != tt.wantSecond {
+				t.Fatalf("second gate opened = %v, want %v", awaiting, tt.wantSecond)
+			}
+			posted := len(r.ledger.posts) == 1
+			if wantPost := err == nil && !tt.wantSecond; posted != wantPost {
+				t.Fatalf("bad-debt posted = %v, want %v", posted, wantPost)
+			}
+			if tt.noTotals {
+				return
+			}
+			want := WriteOffScope{BillID: "b1", ClientID: "client1", Since: effectBizDate.Add(-WriteOffClientWindow), ExcludeID: "w1"}
+			if len(r.totals.scopes) != 1 || r.totals.scopes[0] != want {
+				t.Fatalf("scopes = %+v, want [%+v]", r.totals.scopes, want)
+			}
+		})
+	}
+}
+
+// errDBDown marks a case that expects the store's own error, passed through.
+var errDBDown = errors.New("want the totals error")

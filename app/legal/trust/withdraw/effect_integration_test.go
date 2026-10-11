@@ -10,6 +10,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -230,6 +231,68 @@ func TestARC_I_024_EffectIntegration(t *testing.T) {
 	}
 	if status != "proposed" {
 		t.Fatalf("status = %s, want proposed", status)
+	}
+}
+
+// rule: ARC-I-025
+// Twenty authorisations of 100000 race on a 1000000 ledger. Apply locks the ledger row in the
+// gate's tx and records its hold there, so exactly ten pass and the holds never exceed the
+// ledger.
+func TestARC_I_025_ConcurrentAuthorizationsIntegration(t *testing.T) {
+	const n, each, balance = 20, 100000, 1000000
+	env := newItEnv(t, balance)
+	type pending struct{ wid, gid string }
+	reqs := make([]pending, n)
+	for i := range reqs {
+		reqs[i].wid, reqs[i].gid = env.request(t, each)
+	}
+	e := env.effect()
+	start := make(chan struct{})
+	errs := make([]error, n)
+	var wg sync.WaitGroup
+	for i, r := range reqs {
+		wg.Go(func() {
+			p, _ := json.Marshal(EffectPayload{WithdrawalID: r.wid})
+			<-start
+			errs[i] = env.pool.InTx(context.Background(), func(ctx context.Context, tx pgx.Tx) error {
+				return e.Apply(ctx, tx, registry.Approved{GateID: r.gid, Kind: GateKind, Payload: p,
+					Approvers: []registry.Principal{{Kind: registry.PrincipalUser, UserID: env.users["lawyer1"]}}})
+			})
+		})
+	}
+	close(start)
+	wg.Wait()
+	var ok, refused int
+	for _, err := range errs {
+		switch {
+		case err == nil:
+			ok++
+		case errors.Is(err, gate.ErrEffectFailed) && errors.Is(err, ErrTrustOverdraw):
+			refused++
+		default:
+			t.Fatalf("apply: %v", err)
+		}
+	}
+	if ok != balance/each || refused != n-balance/each {
+		t.Fatalf("ok = %d, refused = %d; want %d, %d", ok, refused, balance/each, n-balance/each)
+	}
+	var authorized int
+	var held int64
+	if err := env.pool.InTx(context.Background(), func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT count(*), coalesce(sum(amount_cents), 0)::bigint FROM trust.withdrawal_request
+WHERE ledger_id = $1::uuid AND status = 'authorized'`, string(env.ledger)).Scan(&authorized, &held)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if authorized != ok || held != balance {
+		t.Fatalf("authorized = %d holding %d, want %d holding %d", authorized, held, ok, balance)
+	}
+	b, err := env.store.Balance(context.Background(), env.ledger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.AvailableCents != 0 || b.PostedCents != balance {
+		t.Fatalf("balance = %+v, want available 0 and posted %d (no posting)", b, balance)
 	}
 }
 

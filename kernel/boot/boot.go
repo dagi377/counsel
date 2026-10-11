@@ -6,9 +6,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 
+	"github.com/dagi377/counsel/kernel/clock"
+	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/identity"
+	"github.com/dagi377/counsel/kernel/notify"
+	"github.com/dagi377/counsel/kernel/outbox"
+	"github.com/dagi377/counsel/kernel/registry"
+	"github.com/dagi377/counsel/kernel/report"
+	"github.com/dagi377/counsel/kernel/server"
+	"github.com/dagi377/counsel/kernel/webhook"
 
 	// Every kernel package, so each can register itself from its own files.
 	_ "github.com/dagi377/counsel/kernel/all"
@@ -43,17 +52,32 @@ var (
 // Config is everything a binary passes to Run.
 type Config struct {
 	Role        Role
-	Addr        string      // listen address (server)
-	DatabaseURL string      // Postgres DSN; never logged
-	Flags       []string    // flag names to turn on; each must be defined by an app
-	MigrateMode MigrateMode // migrate only
-	ImportFrom  string      // import only: source export path
+	Addr        string // listen address (server)
+	DatabaseURL string // Postgres DSN through the pooler; never logged
+	// DirectDatabaseURL is the Postgres DSN that bypasses the pooler, for the job queue and
+	// migrations (ARC-U-011). Never logged.
+	DirectDatabaseURL string
+	Zone              string      // IANA business time zone; the binary passes it, the kernel names none
+	MaxWorkers        int         // worker only: concurrent jobs on the default queue; 0 means 10
+	Flags             []string    // flag names to turn on; each must be defined by an app
+	MigrateMode       MigrateMode // migrate only
+	ImportFrom        string      // import only: source export path
 }
 
 // Validate checks the fields the role needs.
 func (c Config) Validate() error {
 	switch c.Role {
-	case RoleServer, RoleWorker, RoleImport:
+	case RoleServer, RoleWorker:
+		if c.DatabaseURL == "" {
+			return fmt.Errorf("role %s: database url is empty: %w", c.Role, ErrConfig)
+		}
+		if c.DirectDatabaseURL == "" {
+			return fmt.Errorf("role %s: direct database url is empty: %w", c.Role, ErrConfig)
+		}
+		if c.Zone == "" {
+			return fmt.Errorf("role %s: zone is empty: %w", c.Role, ErrConfig)
+		}
+	case RoleImport:
 	case RoleMigrate:
 		switch c.MigrateMode {
 		case MigrateExpand, MigrateContract:
@@ -68,44 +92,124 @@ func (c Config) Validate() error {
 
 // Kernel is what an app sees at registration. Fields are added as kernel modules land.
 type Kernel struct {
-	Flags *flags.Set
+	Flags    *flags.Set
+	Registry registry.Booter // nil when built without one (Build)
+	DB       db.DB
+	Clock    clock.Clock
+	Gates    gate.Engine
+	Reports  report.Engine
+	Server   server.Server
+	Events   *webhook.Types
+	Jobs     *Jobs // River workers and periodic jobs apps add at Register
+	// Outbox delivers pending outbox messages to the registered consumers (kind outbox.relay).
+	// Nil leaves the relay unscheduled.
+	Outbox *outbox.Deliverer
+	// Emitter writes outbox events in a caller's transaction (kernel jobs that emit events).
+	Emitter outbox.Emitter
+	// Notify is the notification service; its delivery worker runs as an outbox consumer.
+	Notify *notify.Service
+	// NotifySender delivers rendered notifications. Nil means a sender that only counts.
+	NotifySender notify.Sender
+	// WebhookExpiry is the outbound endpoint expiry store (kind webhook.endpoint_expiry).
+	WebhookExpiry webhook.ExpiryStore
+	// Dispatcher queues outbound webhook deliveries in order per (endpoint, subject). Nil
+	// leaves kind webhook.deliver out.
+	Dispatcher WebhookQueue
+	// WebhookEndpoints lists the endpoints to drain; WebhookPoster sends one delivery. Both
+	// are required when Dispatcher is set.
+	WebhookEndpoints WebhookEndpoints
+	WebhookPoster    WebhookPoster
+	// AdminStore applies approved role changes and user activations. Admin is the identity
+	// admin gates built by AdminGates.
+	AdminStore identity.AdminStore
+	Admin      identity.AdminGates
+
+	sealed bool // Registry.Seal passed; apply runs only then
 }
 
 // App is one application that registers with the kernel at boot.
 type App struct {
-	Name     string
+	Name string
+	// Define declares the app's feature flags. It runs before any flag is turned on and
+	// before any Register, so a Register can read the flags it gates on. Optional.
+	Define func(s *flags.Set) error
+	// Register adds the app's registrations to the kernel. Required.
 	Register func(ctx context.Context, k *Kernel) error
+	// Start runs once the kernel is built and sealed, before the role runs. Optional.
+	Start func(ctx context.Context, k *Kernel) error
+}
+
+// Deps are the kernel dependencies BuildWith hands to every app.
+type Deps struct {
+	Registry registry.Booter // sealed after every Register; nil skips Seal
+	DB       db.DB
+	Clock    clock.Clock
+	Gates    gate.Engine
+	Reports  report.Engine
+	Server   server.Server
+	Events   *webhook.Types
+	Outbox   *outbox.Deliverer
+	Emitter  outbox.Emitter
+	Notify   *notify.Service
+	// NotifySender is optional; nil keeps the count-only sender.
+	NotifySender  notify.Sender
+	WebhookExpiry webhook.ExpiryStore
+	// Dispatcher is optional; nil leaves outbound webhook delivery off.
+	Dispatcher       WebhookQueue
+	WebhookEndpoints WebhookEndpoints
+	WebhookPoster    WebhookPoster
+	// AdminStore is optional; it applies approved identity admin changes.
+	AdminStore identity.AdminStore
 }
 
 // Build creates the kernel and calls every app's Register in order.
 func Build(ctx context.Context, apps ...App) (*Kernel, error) {
-	k := &Kernel{Flags: flags.New()}
+	return BuildWith(ctx, Deps{}, nil, apps...)
+}
+
+// BuildWith builds the kernel in a fixed order: every app's Define, then the flags in on are
+// turned on, then every app's Register (with the flag set in ctx), then Registry.Seal. A flag
+// in on that no app defined fails before any Register.
+func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kernel, error) {
+	k := &Kernel{
+		Flags: flags.New(), Registry: deps.Registry, DB: deps.DB, Clock: deps.Clock,
+		Gates: deps.Gates, Reports: deps.Reports, Server: deps.Server, Events: deps.Events,
+		Jobs: NewJobs(), Outbox: deps.Outbox, Emitter: deps.Emitter, Notify: deps.Notify,
+		NotifySender: deps.NotifySender, WebhookExpiry: deps.WebhookExpiry,
+		Dispatcher: deps.Dispatcher, WebhookEndpoints: deps.WebhookEndpoints, WebhookPoster: deps.WebhookPoster,
+		AdminStore: deps.AdminStore,
+	}
 	for _, a := range apps {
 		if a.Register == nil {
 			return nil, fmt.Errorf("register app %q: nil Register: %w", a.Name, ErrConfig)
 		}
+	}
+	for _, a := range apps {
+		if a.Define == nil {
+			continue
+		}
+		if err := a.Define(k.Flags); err != nil {
+			return nil, fmt.Errorf("define flags of app %q: %w", a.Name, err)
+		}
+	}
+	for _, name := range on {
+		if err := k.Flags.Set(name, true); err != nil {
+			return nil, fmt.Errorf("turn on flag %q: %w: %w", name, ErrConfig, err)
+		}
+	}
+	ctx = flags.WithSet(ctx, k.Flags)
+	// rule: ARC-I-040
+	// Each app registers only its own modules' surface; the kernel seals the lot once.
+	for _, a := range apps {
 		if err := a.Register(ctx, k); err != nil {
 			return nil, fmt.Errorf("register app %q: %w", a.Name, err)
 		}
 	}
-	return k, nil
-}
-
-// Run validates cfg, builds the kernel, turns on the requested flags and runs cfg.Role.
-func Run(ctx context.Context, cfg Config, apps ...App) error {
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
-	k, err := Build(ctx, apps...)
-	if err != nil {
-		return err
-	}
-	for _, name := range cfg.Flags {
-		if err := k.Flags.Set(name, true); err != nil {
-			return fmt.Errorf("turn on flag: %w", err)
+	if k.Registry != nil {
+		if err := k.Registry.Seal(); err != nil {
+			return nil, fmt.Errorf("seal registry: %w", err)
 		}
+		k.sealed = true
 	}
-	ctx = flags.WithSet(ctx, k.Flags)
-	slog.InfoContext(ctx, "kernel built", "role", string(cfg.Role), "apps", len(apps), "flags_on", len(cfg.Flags))
-	return fmt.Errorf("run %s: %w", cfg.Role, ErrNotImplemented)
+	return k, nil
 }

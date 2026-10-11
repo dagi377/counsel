@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -233,5 +234,20 @@ func TestOntarioHolidaysWeekdayCountPerYear(t *testing.T) {
 				t.Fatalf("weekday court holidays in %d = %d, want %d", y, got[y], n)
 			}
 		})
+	}
+}
+
+// The embedded calendar boot uses is the schema-checked holidays.yaml, date for date.
+func TestHolidaysMatchesPackFile(t *testing.T) {
+	want := loadHolidays(t).Holidays
+	got, err := Holidays()
+	if err != nil {
+		t.Fatalf("Holidays: %v", err)
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("Holidays() = %v, want %v", got, want)
+	}
+	if len(got) == 0 {
+		t.Fatal("Holidays() is empty")
 	}
 }

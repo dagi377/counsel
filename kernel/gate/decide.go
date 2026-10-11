@@ -19,9 +19,6 @@ import (
 // mfaWindow is how fresh step-up auth must be for a high or irreversible decision.
 const mfaWindow = 15 * time.Minute
 
-// amountField is the payload field an authority limit is compared with (integer cents).
-const amountField = "amount_cents"
-
 // decisionRecommend is the gate_decision value of an approval above the decider's authority
 // limit: recorded, never counted as an approval, and the gate stays pending
 // (migrations/0300_gate_payload_recommend.sql). A caller never sends it as a Verdict.
@@ -34,14 +31,15 @@ const recommendReason = "approval above the decider's authority limit; recorded 
 // DecideHooks are the inputs to Decide that only the app can supply.
 type DecideHooks struct {
 	// Preparers returns more users who count as preparers of g: every editor of the
-	// underlying item and its requester. The gate's own requesters are always included.
+	// underlying item and its requester, on top of GateKind.Preparers. The gate's own requesters are always included.
 	Preparers func(ctx context.Context, tx pgx.Tx, g Gate) ([]string, error)
 	// Payload returns the payload of g. Its hash must equal the gate's stored hash. Decide
 	// uses it only for a gate version opened before payloads were stored
 	// (gate.approval_request.payload_jcs is NULL); otherwise it reads the stored bytes.
 	Payload func(ctx context.Context, tx pgx.Tx, g Gate) (json.RawMessage, error)
 	// LimitKinds maps a gate kind slug to the core.authority_limit kind whose value_int
-	// (cents) caps the payload amount a decider may approve. Kinds not listed have no cap.
+	// (cents) caps the payload amount a decider may approve, for a kind that declares no
+	// GateKind.LimitKind of its own. The amount is always read from GateKind.AmountPath.
 	LimitKinds map[string]string
 }
 
@@ -173,35 +171,6 @@ func checkDecision(ctx context.Context, in decideIn) (verdictOut, error) {
 	return out, nil
 }
 
-// payloadAmount returns the integer cents in the payload's amount field, or nil.
-func payloadAmount(payload json.RawMessage) (*int64, error) {
-	var doc map[string]json.RawMessage
-	dec := json.NewDecoder(bytes.NewReader(payload))
-	dec.UseNumber()
-	if err := dec.Decode(&doc); err != nil {
-		return nil, fmt.Errorf("payload: %w", ErrInvalidPayload)
-	}
-	raw, ok := doc[amountField]
-	if !ok || string(raw) == "null" {
-		return nil, nil
-	}
-	var v any
-	d := json.NewDecoder(bytes.NewReader(raw))
-	d.UseNumber()
-	if err := d.Decode(&v); err != nil {
-		return nil, fmt.Errorf("payload %s: %w", amountField, ErrInvalidPayload)
-	}
-	n, ok := v.(json.Number)
-	if !ok {
-		return nil, fmt.Errorf("payload %s: not a number: %w", amountField, ErrInvalidPayload)
-	}
-	c, err := n.Int64()
-	if err != nil {
-		return nil, fmt.Errorf("payload %s: %w", amountField, ErrInvalidPayload)
-	}
-	return &c, nil
-}
-
 // storedPayload returns the payload stored with a gate version, checked against the
 // version's hash. ok is false when the row predates stored payloads (jcs is NULL).
 func storedPayload(jcs, sha, hash []byte) (p json.RawMessage, ok bool, err error) {
@@ -264,10 +233,6 @@ SELECT gate_code, version, status, payload_hash, payload_type, payload_id::text,
 		return fmt.Errorf("decide %s: %w", id, err)
 	}
 	h := e.hooks()
-	preparers, err := e.preparerSet(ctx, tx, g, h)
-	if err != nil {
-		return err
-	}
 	stored, ok, err := storedPayload(jcs, sha, hash)
 	switch {
 	case err != nil:
@@ -284,18 +249,26 @@ SELECT gate_code, version, status, payload_hash, payload_type, payload_id::text,
 		}
 		g.Payload = p
 	}
+	// rule: ARC-I-016
+	// The preparer set is built on every Decide, after the payload is known, so the kind's
+	// own editor lookup can read the item the payload names.
+	preparers, err := e.preparerSet(ctx, tx, g, k, h)
+	if err != nil {
+		return err
+	}
 	in := decideIn{gate: g, kind: k, preparers: preparers, version: version, d: d, by: by, now: clk.Now()}
 	e.mu.RLock()
 	in.policy = e.policy
 	e.mu.RUnlock()
-	if lk, ok := h.LimitKinds[g.Kind]; ok && d.Verdict == VerdictApprove {
-		// rule: ARC-I-020
-		if g.Payload == nil {
-			return fmt.Errorf("decide %s: kind has an authority limit but no payload hook: %w", id, ErrInvalidPayload)
-		}
-		if in.amount, err = payloadAmount(g.Payload); err != nil {
-			return fmt.Errorf("decide %s: %w", id, err)
-		}
+	// rule: ARC-I-020
+	// Every approval of a money kind reads its amount from the kind's declared path; a
+	// capped kind compares it with the decider's limit. Missing declarations fail closed.
+	lk, amount, err := limitInputs(k, h, g.Payload, d.Verdict)
+	if err != nil {
+		return fmt.Errorf("decide %s: %w", id, err)
+	}
+	in.amount = amount
+	if lk != "" {
 		if in.limit, err = authorityLimit(ctx, tx, by.UserID, lk, clk.Today(ctx)); err != nil {
 			return fmt.Errorf("decide %s: %w", id, err)
 		}
@@ -335,7 +308,7 @@ VALUES ($1, $2, $3, $4, $5, $6, greatest($7::timestamptz, now()), $8)`,
 // preparerSet is every user who counts as preparer of g: the requester of every version
 // in its supersede chain (an agent's acting-for user is stored as requester) plus the
 // app's editors of the underlying item.
-func (e *PG) preparerSet(ctx context.Context, tx pgx.Tx, g Gate, h DecideHooks) ([]string, error) {
+func (e *PG) preparerSet(ctx context.Context, tx pgx.Tx, g Gate, k GateKind, h DecideHooks) ([]string, error) {
 	// rule: ARC-I-016
 	rows, err := tx.Query(ctx, `
 WITH RECURSIVE chain AS (
@@ -350,6 +323,25 @@ SELECT DISTINCT requested_by::text FROM chain`, string(g.ID))
 	out, err := pgx.CollectRows(rows, pgx.RowTo[string])
 	if err != nil {
 		return nil, fmt.Errorf("decide %s: preparers: %w", g.ID, err)
+	}
+	more, err := itemPreparers(ctx, tx, g, k, h)
+	if err != nil {
+		return nil, err
+	}
+	return append(out, more...), nil
+}
+
+// itemPreparers is the editors of g's underlying item: the kind's own lookup, then the
+// app-wide hook. Either may be nil.
+func itemPreparers(ctx context.Context, tx pgx.Tx, g Gate, k GateKind, h DecideHooks) ([]string, error) {
+	// rule: ARC-I-016
+	var out []string
+	if k.Preparers != nil {
+		more, err := k.Preparers(ctx, tx, g.Subject, g.Payload)
+		if err != nil {
+			return nil, fmt.Errorf("decide %s: kind preparers: %w", g.ID, err)
+		}
+		out = append(out, more...)
 	}
 	if h.Preparers != nil {
 		more, err := h.Preparers(ctx, tx, g)

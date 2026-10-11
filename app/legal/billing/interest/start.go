@@ -13,6 +13,11 @@ import (
 // app/legal.FlagSolicitorsActVerified, which this package cannot import.
 const FlagSolicitorsActVerified = legalflags.SolicitorsActVerified
 
+// FlagCJADefaultRate (verify, off by default) applies the Courts of Justice Act s.127
+// prejudgment rate for the quarter of delivery to a bill with no agreed rate (Solicitors Act
+// s.33, Q-INTEREST-CJA). Off, a bill with no agreed rate never accrues interest.
+const FlagCJADefaultRate = legalflags.InterestCJADefaultRate
+
 // Accrual start errors.
 var (
 	// ErrAccrualUnverified means the Solicitors Act flag is off, so no interest accrues.
@@ -34,8 +39,8 @@ func (s Start) From(ctx context.Context, b Bill, due time.Time) (time.Time, erro
 	}
 	// rule: BIL-C-071
 	// rule: BIL-L-009
-	if b.RatePPM <= 0 {
-		return time.Time{}, fmt.Errorf("bill %s: %w", b.ID, ErrNoAgreedRate)
+	if _, err := EffectiveRate(ctx, b); err != nil {
+		return time.Time{}, err
 	}
 	// rule: BIL-L-012
 	if b.DeliveredAt.IsZero() {

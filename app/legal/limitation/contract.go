@@ -67,6 +67,53 @@ type Assessment struct {
 	NoticeDeadlineIDs     []string
 	PreparedBy            string // user id that prepared it (an agent's acting-for user)
 	ConfirmedBy           string // empty until a different user confirms
+
+	// Additive (Q-T-031L.4). DiscoveryPresumed records that discovery is the day of the act
+	// or omission under the s.5(2) presumption; when false, DiscoveryDate is the proved date.
+	DiscoveryPresumed bool
+	// NoLimit names a claim with no limitation period (s.16, s.17); empty for none.
+	NoLimit NoLimitKind
+	// ContributionServedDate, when set, makes this a claim for contribution and indemnity:
+	// s.18 deems the act or omission to be the day the claimant wrongdoer was served.
+	ContributionServedDate *time.Time
+}
+
+// Additive sentinel errors (Q-T-031L.4).
+var (
+	// ErrUnverified means the deadline.ontario_pack flag is off, so nothing is computed.
+	ErrUnverified = errors.New("limitation: ontario limitation rules not verified")
+	// ErrSuspended means every period is suspended with no end date; recompute when it ends.
+	ErrSuspended = errors.New("limitation: periods suspended with no end date")
+)
+
+// NoLimitKind names a claim the Limitations Act, 2002 exempts from any limitation period.
+type NoLimitKind string
+
+// No-limit kinds (Q-T-031L.4). Other s.16 claims are added here as the app needs them.
+const (
+	// NoLimitSexualAssault is a proceeding based on a sexual assault (s.16(1)(h)).
+	NoLimitSexualAssault NoLimitKind = "sexual_assault"
+	// NoLimitSexualMisconduct is a proceeding based on other misconduct of a sexual nature
+	// within s.16(1)(h.1) (verify the relationship conditions against the current text).
+	NoLimitSexualMisconduct NoLimitKind = "sexual_misconduct"
+	// NoLimitEnvironmental is an environmental claim; it has no period only while it has not
+	// been discovered (s.17, verify).
+	NoLimitEnvironmental NoLimitKind = "environmental"
+)
+
+// SchedulePeriod is a limitation period set by another Act and listed in the Schedule to
+// the Limitations Act, 2002 (s.19). It replaces the basic and ultimate periods.
+type SchedulePeriod struct {
+	Provision     string // citation of the listed provision, e.g. "Act X, s. 12"
+	Years         int
+	Months        int
+	Days          int
+	FromDiscovery bool // false: runs from the act or omission
+}
+
+// Schedule looks up a Schedule period for a claim type. ok is false when none applies.
+type Schedule interface {
+	Lookup(ctx context.Context, claimType string) (p SchedulePeriod, ok bool, err error)
 }
 
 // Period is one computed limitation date, before it becomes a deadline row.

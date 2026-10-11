@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -70,11 +71,57 @@ type GateOpener interface {
 	Open(ctx context.Context, tx pgx.Tx, kind string, subject gate.Subject, payload json.RawMessage, preparer gate.Principal) (gate.GateID, error)
 }
 
+// ErrInvalidCoreEffect means a WithCoreEffect option is not usable: its kind is not a core.*
+// kind, is one of the kernel's own admin kinds, is given twice, or has no effect.
+var ErrInvalidCoreEffect = errors.New("identity: invalid core effect")
+
 // AdminGates proposes role changes and user activations as gates and applies them in the
-// gates' effects.
+// gates' effects. Build it with NewAdminGates to add app-supplied effects for core.* kinds.
 type AdminGates struct {
 	Gates GateOpener
 	Store AdminStore
+
+	core map[string]registry.EffectFunc // app-supplied effects for core.* kinds
+}
+
+// AdminOption configures NewAdminGates.
+type AdminOption func(*adminConfig)
+
+type adminConfig struct {
+	core map[string]registry.EffectFunc
+	errs []error
+}
+
+// WithCoreEffect supplies the effect handler for a core.* gate kind the kernel owns but whose
+// effect lives in an app. The kernel still owns the kind; the app supplies only the handler.
+func WithCoreEffect(kind string, effect registry.EffectFunc) AdminOption {
+	return func(c *adminConfig) {
+		switch {
+		case !strings.HasPrefix(kind, "core.") || len(kind) == len("core."):
+			c.errs = append(c.errs, fmt.Errorf("core effect %q: not a core kind: %w", kind, ErrInvalidCoreEffect))
+		case kind == KindRoleChange || kind == KindUserActivation:
+			c.errs = append(c.errs, fmt.Errorf("core effect %q: kernel admin kind: %w", kind, ErrInvalidCoreEffect))
+		case effect == nil:
+			c.errs = append(c.errs, fmt.Errorf("core effect %q: nil effect: %w", kind, ErrInvalidCoreEffect))
+		case c.core[kind] != nil:
+			c.errs = append(c.errs, fmt.Errorf("core effect %q: given twice: %w", kind, ErrInvalidCoreEffect))
+		default:
+			c.core[kind] = effect
+		}
+	}
+}
+
+// NewAdminGates returns AdminGates on gates and store with the options applied. It fails
+// with ErrInvalidCoreEffect when any option is not usable.
+func NewAdminGates(gates GateOpener, store AdminStore, opts ...AdminOption) (AdminGates, error) {
+	c := adminConfig{core: map[string]registry.EffectFunc{}}
+	for _, o := range opts {
+		o(&c)
+	}
+	if err := errors.Join(c.errs...); err != nil {
+		return AdminGates{}, fmt.Errorf("admin gates: %w", err)
+	}
+	return AdminGates{Gates: gates, Store: store, core: c.core}, nil
 }
 
 // ProposeRoleChange opens a core.role_change gate for c, prepared by by.
@@ -106,12 +153,17 @@ func (a AdminGates) open(ctx context.Context, tx pgx.Tx, kind string, s gate.Sub
 }
 
 // Effects returns the effect handlers for the admin gate kinds, keyed by gate kind, for the
-// app to pass when it registers the kinds.
+// app to pass when it registers the kinds. It includes the core.* effects supplied through
+// WithCoreEffect.
 func (a AdminGates) Effects() map[string]registry.EffectFunc {
-	return map[string]registry.EffectFunc{
+	out := map[string]registry.EffectFunc{
 		KindRoleChange:     a.applyRoleChange,
 		KindUserActivation: a.activateUser,
 	}
+	for k, fn := range a.core {
+		out[k] = fn
+	}
+	return out
 }
 
 func (a AdminGates) applyRoleChange(ctx context.Context, tx pgx.Tx, g registry.Approved) error {

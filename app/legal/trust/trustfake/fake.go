@@ -220,6 +220,13 @@ func (f *Fake) Balance(_ context.Context, id trust.LedgerID) (trust.Balance, err
 	return f.balance(l), nil
 }
 
+// LockLedger returns a ledger's balance under the fake's mutex. The fake keeps no withdrawal
+// holds, so the hold total is always 0.
+func (f *Fake) LockLedger(ctx context.Context, _ pgx.Tx, id trust.LedgerID) (trust.Balance, int64, error) {
+	b, err := f.Balance(ctx, id)
+	return b, 0, err
+}
+
 // Txns lists a ledger's transactions in posting order.
 func (f *Fake) Txns(_ context.Context, id trust.LedgerID) ([]trust.Txn, error) {
 	f.mu.Lock()

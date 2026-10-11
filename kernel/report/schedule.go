@@ -133,10 +133,11 @@ func (e *Reports) markScheduled(id RunID, scheduleID string, slot time.Time) Run
 // TxFunc runs fn in one database transaction (kernel/db Pool.InTx has this shape).
 type TxFunc func(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error
 
-// SlotWorker is the River worker that runs one schedule slot.
+// SlotWorker is the River worker that runs one schedule slot on any Engine, so an app that is
+// handed the kernel's Engine uses it directly.
 type SlotWorker struct {
 	river.WorkerDefaults[SlotArgs]
-	Reports *Reports
+	Reports Engine
 	InTx    TxFunc
 }
 

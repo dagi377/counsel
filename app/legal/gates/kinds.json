@@ -1,0 +1,2889 @@
+[
+  {
+    "slug": "billing.prebill_review",
+    "spec_id": "G-B1",
+    "approver": "billing.approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "period_to"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "period_to": {
+          "type": "string",
+          "format": "date"
+        },
+        "period_from": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    }
+  },
+  {
+    "slug": "billing.bill_approval",
+    "spec_id": "G-B2",
+    "approver": "billing.approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "amount_path": "total_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "bill_id",
+        "matter_id",
+        "total_cents",
+        "delivery_method"
+      ],
+      "properties": {
+        "bill_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "total_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "delivery_method": {
+          "enum": [
+            "email",
+            "portal",
+            "mail"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "slug": "billing.payment_allocation",
+    "spec_id": "G-B3",
+    "approver": "billing.payments",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "payment_id",
+        "allocations"
+      ],
+      "properties": {
+        "payment_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "allocations": {
+          "type": "array",
+          "minItems": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "billing.trust_fee_withdrawal",
+    "spec_id": "G-B4",
+    "approver": "trust.authorize",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "dual_when": "signatories>=2",
+    "amount_path": "amount_cents",
+    "limit_kind": "trust_withdrawal_max",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "bill_id",
+        "amount_cents"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "bill_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  {
+    "slug": "billing.bill_void",
+    "spec_id": "G-B2",
+    "approver": "billing.approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "bill_id",
+        "reason"
+      ],
+      "properties": {
+        "bill_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "billing.credit_note",
+    "spec_id": "G-B5",
+    "approver": "billing.credit",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "amount_path": "amount_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "bill_id",
+        "amount_cents",
+        "kind",
+        "reason"
+      ],
+      "properties": {
+        "bill_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kind": {
+          "enum": [
+            "credit_note",
+            "write_off"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "billing.writeoff_second_approval",
+    "spec_id": "G-B5",
+    "label": "G-B5 (managing-lawyer second approval)",
+    "approver": "billing.writeoff_second_approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "amount_path": "amount_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "write_off_id",
+        "bill_id",
+        "amount_cents",
+        "first_approver"
+      ],
+      "properties": {
+        "write_off_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "bill_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "first_approver": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "billing.refund",
+    "spec_id": "G-B6",
+    "approver": "billing.credit",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "dual_when": "signatories>=2",
+    "amount_path": "amount_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "payment_id",
+        "amount_cents",
+        "payee",
+        "reason"
+      ],
+      "properties": {
+        "payment_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payee": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "billing.collections_message",
+    "spec_id": "G-B7",
+    "approver": "billing.approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "bill_ids",
+        "body_markdown"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "bill_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        },
+        "body_markdown": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "billing.settings_change",
+    "spec_id": "G-B8",
+    "approver": "billing.approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "setting",
+        "new_value"
+      ],
+      "properties": {
+        "setting": {
+          "type": "string",
+          "minLength": 1
+        },
+        "new_value": {}
+      }
+    }
+  },
+  {
+    "slug": "billing.payment_plan",
+    "spec_id": "G-B9",
+    "approver": "billing.approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "amount_path": "amount_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "contact_id",
+        "amount_cents",
+        "schedule",
+        "start_on"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "contact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "schedule": {
+          "enum": [
+            "weekly",
+            "biweekly",
+            "monthly"
+          ]
+        },
+        "start_on": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    }
+  },
+  {
+    "slug": "trust.receipt_classification",
+    "spec_id": "G6",
+    "approver": "trust.record",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "dual_when": "signatories>=2",
+    "amount_path": "amount_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "receipt_id",
+        "matter_id",
+        "amount_cents",
+        "classification"
+      ],
+      "properties": {
+        "receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "classification": {
+          "enum": [
+            "trust",
+            "general"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "slug": "trust.cash_over_limit",
+    "spec_id": "G6c",
+    "approver": "trust.authorize",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "dual_when": "signatories>=2",
+    "amount_path": "amount_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "amount_cents",
+        "aggregate_cents"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "aggregate_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exception": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "trust.withdrawal",
+    "spec_id": "G11",
+    "approver": "trust.authorize",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "dual_when": "signatories>=2",
+    "amount_path": "amount_cents",
+    "limit_kind": "trust_withdrawal_max",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "amount_cents",
+        "purpose_category",
+        "payee"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "purpose_category": {
+          "enum": [
+            "fees",
+            "disbursement",
+            "client_payment",
+            "third_party",
+            "refund"
+          ]
+        },
+        "payee": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bill_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "method": {
+          "enum": [
+            "eft",
+            "cheque",
+            "wire"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "slug": "trust.transfer",
+    "spec_id": "G11t",
+    "approver": "trust.authorize",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "dual_when": "signatories>=2",
+    "amount_path": "amount_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "from_matter_id",
+        "to_matter_id",
+        "amount_cents",
+        "reason"
+      ],
+      "properties": {
+        "from_matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "to_matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "trust.reconciliation_signoff",
+    "spec_id": "G12",
+    "approver": "trust.signoff",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "336h",
+    "dual_when": "signatories>=2",
+    "amount_path": "book_balance_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "trust_account_id",
+        "period_end",
+        "bank_balance_cents",
+        "ledger_total_cents",
+        "book_balance_cents"
+      ],
+      "properties": {
+        "trust_account_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "period_end": {
+          "type": "string",
+          "format": "date"
+        },
+        "bank_balance_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ledger_total_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "book_balance_cents": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  {
+    "slug": "trust.signing_authority",
+    "spec_id": "G-TSIG",
+    "approver": "trust.signatories",
+    "risk": "high",
+    "min_approvers": 2,
+    "ttl": "72h",
+    "dual_when": "signatories>=2",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "trust_account_id",
+        "user_id",
+        "change"
+      ],
+      "properties": {
+        "trust_account_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "change": {
+          "enum": [
+            "add",
+            "remove"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "slug": "trust.regulatory_release",
+    "spec_id": "G-TREL",
+    "approver": "trust.signoff",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "dual_when": "signatories>=2",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "report_id",
+        "recipient"
+      ],
+      "properties": {
+        "report_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "recipient": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "gl.operating_reconciliation",
+    "spec_id": "G12g",
+    "approver": "trust.reconcile",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "336h",
+    "amount_path": "book_balance_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "account_id",
+        "period_end",
+        "bank_balance_cents",
+        "book_balance_cents"
+      ],
+      "properties": {
+        "account_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "period_end": {
+          "type": "string",
+          "format": "date"
+        },
+        "bank_balance_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "book_balance_cents": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  {
+    "slug": "timekeeping.accept",
+    "spec_id": "G9",
+    "approver": "time.record",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "336h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "entries"
+      ],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "minItems": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "timekeeping.disbursement",
+    "spec_id": "G9b",
+    "approver": "time.approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "amount_path": "amount_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "expense_id",
+        "matter_id",
+        "amount_cents"
+      ],
+      "properties": {
+        "expense_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  {
+    "slug": "timekeeping.timesheet",
+    "spec_id": "G9c",
+    "approver": "time.approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "user_id",
+        "period_from",
+        "period_to"
+      ],
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "period_from": {
+          "type": "string",
+          "format": "date"
+        },
+        "period_to": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    }
+  },
+  {
+    "slug": "timekeeping.writedown",
+    "spec_id": "G9d",
+    "approver": "time.writedown",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "amount_path": "amount_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "entry_ids",
+        "amount_cents",
+        "reason"
+      ],
+      "properties": {
+        "entry_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "timekeeping.fee_arrangement",
+    "spec_id": "G9e",
+    "approver": "time.rates",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "arrangement",
+        "effective_on"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "arrangement": {
+          "enum": [
+            "hourly",
+            "flat",
+            "contingency",
+            "mixed"
+          ]
+        },
+        "effective_on": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    }
+  },
+  {
+    "slug": "docs.engagement_letter",
+    "spec_id": "G5",
+    "approver": "intake.convert",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "document_version_id"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_version_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "docs.outgoing",
+    "spec_id": "G8",
+    "approver": "documents.release",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "document_version_ids",
+        "channel"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_version_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        },
+        "channel": {
+          "enum": [
+            "email",
+            "portal",
+            "esign",
+            "filing"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "slug": "docs.filing_privilege",
+    "spec_id": "G-D1",
+    "approver": "documents.edit",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "document_id",
+        "privileged"
+      ],
+      "properties": {
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "privileged": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  {
+    "slug": "docs.template_publish",
+    "spec_id": "G-D2",
+    "approver": "documents.templates",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "336h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "template_id",
+        "version"
+      ],
+      "properties": {
+        "template_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "docs.precedent",
+    "spec_id": "G-D3",
+    "approver": "documents.templates",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "336h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "document_version_id"
+      ],
+      "properties": {
+        "document_version_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "cal.confirm",
+    "spec_id": "G7",
+    "approver": "deadlines.verify",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "24h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "title",
+        "due_on",
+        "source"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "due_on": {
+          "type": "string",
+          "format": "date"
+        },
+        "source": {
+          "type": "object"
+        },
+        "rule_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trigger_date": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    }
+  },
+  {
+    "slug": "cal.second_check",
+    "spec_id": "G7b",
+    "approver": "deadlines.verify",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "24h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "deadline_id",
+        "due_on"
+      ],
+      "properties": {
+        "deadline_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "due_on": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    }
+  },
+  {
+    "slug": "cal.change",
+    "spec_id": "G7c",
+    "approver": "deadlines.verify",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "24h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "deadline_id",
+        "due_on",
+        "reason"
+      ],
+      "properties": {
+        "deadline_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "due_on": {
+          "type": "string",
+          "format": "date"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "cal.mark_met",
+    "spec_id": "G7d",
+    "approver": "deadlines.edit",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "deadline_id",
+        "evidence_document_id"
+      ],
+      "properties": {
+        "deadline_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "evidence_document_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "cal.release",
+    "spec_id": "G7r",
+    "approver": "deadlines.verify",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "deadline_id",
+        "reason"
+      ],
+      "properties": {
+        "deadline_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "cal.rule_pack",
+    "spec_id": "G7e",
+    "approver": "deadlines.rules",
+    "risk": "irreversible",
+    "min_approvers": 2,
+    "ttl": "336h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "pack",
+        "version"
+      ],
+      "properties": {
+        "pack": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "cal.calendar_delegation",
+    "spec_id": "G-CAL",
+    "approver": "deadlines.edit",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "calendar_owner_id"
+      ],
+      "properties": {
+        "calendar_owner_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "delegate_user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "feed_shows_titles": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  {
+    "slug": "conflict.clearance",
+    "spec_id": "G2",
+    "approver": "conflicts.clear",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "check_id",
+        "parties"
+      ],
+      "properties": {
+        "check_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "parties": {
+          "type": "array",
+          "minItems": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "conflict.consent_text",
+    "spec_id": "G2a",
+    "approver": "conflicts.clear",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "check_id",
+        "document_version_id"
+      ],
+      "properties": {
+        "check_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_version_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "conflict.wall",
+    "spec_id": "G2b",
+    "approver": "conflicts.walls",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "wall_id",
+        "matter_id",
+        "screened_user_ids",
+        "action"
+      ],
+      "properties": {
+        "wall_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "screened_user_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        },
+        "action": {
+          "enum": [
+            "activate",
+            "lift"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "slug": "conflict.lateral",
+    "spec_id": "G2c",
+    "approver": "conflicts.clear",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "user_id",
+        "check_id"
+      ],
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "check_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "conflict.client_id",
+    "spec_id": "G4",
+    "approver": "conflicts.identify",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "contact_id",
+        "method",
+        "verified_on"
+      ],
+      "properties": {
+        "contact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verified_on": {
+          "type": "string",
+          "format": "date"
+        },
+        "exempt": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  {
+    "slug": "conflict.id_destruction",
+    "spec_id": "G14",
+    "label": "G14 (conflicts)",
+    "approver": "platform.retention",
+    "risk": "irreversible",
+    "min_approvers": 2,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "contact_id",
+        "record_ids"
+      ],
+      "properties": {
+        "contact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "record_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "intake.lead_decision",
+    "spec_id": "G1",
+    "approver": "intake.convert",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "lead_id",
+        "decision"
+      ],
+      "properties": {
+        "lead_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "decision": {
+          "enum": [
+            "accept",
+            "decline",
+            "refer"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "slug": "intake.consult_outcome",
+    "spec_id": "G3",
+    "approver": "intake.convert",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "lead_id",
+        "outcome"
+      ],
+      "properties": {
+        "lead_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "outcome": {
+          "enum": [
+            "engage",
+            "decline",
+            "refer"
+          ]
+        },
+        "limitation_date": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    }
+  },
+  {
+    "slug": "intake.public_wording",
+    "spec_id": "G-FORM",
+    "label": "G-form",
+    "approver": "intake.forms",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "336h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "form_id",
+        "version"
+      ],
+      "properties": {
+        "form_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "intake.fee_waiver",
+    "spec_id": "G-FEE",
+    "label": "G-fee",
+    "approver": "billing.credit",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "amount_path": "amount_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "lead_id",
+        "amount_cents",
+        "action"
+      ],
+      "properties": {
+        "lead_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "action": {
+          "enum": [
+            "waive",
+            "refund"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "slug": "intake.open_matter",
+    "spec_id": "G-OPEN",
+    "label": "G-open",
+    "approver": "matters.open",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "lead_id",
+        "responsible_lawyer_id"
+      ],
+      "properties": {
+        "lead_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "responsible_lawyer_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "matter.party_conflict",
+    "spec_id": "G2",
+    "label": "G2 (matters)",
+    "approver": "conflicts.clear",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "contact_id",
+        "role",
+        "check_id"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "contact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "check_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "matter.opening",
+    "spec_id": "G-MO",
+    "approver": "matters.open",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "responsible_lawyer_id",
+        "practice_area"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "responsible_lawyer_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "practice_area": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "matter.key_fact",
+    "spec_id": "G-KF",
+    "approver": "matters.edit",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "field",
+        "new_value"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "new_value": {}
+      }
+    }
+  },
+  {
+    "slug": "matter.stage_move",
+    "spec_id": "G-ST",
+    "approver": "matters.edit",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "to_stage"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "to_stage": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "matter.contact_merge",
+    "spec_id": "G-CM",
+    "approver": "contacts.edit",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "contact_ids",
+        "action"
+      ],
+      "properties": {
+        "contact_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        },
+        "action": {
+          "enum": [
+            "merge",
+            "delete",
+            "relate"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "slug": "matter.agent_note",
+    "spec_id": "G-NT",
+    "approver": "matters.edit",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "336h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "body_markdown"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "body_markdown": {
+          "type": "string",
+          "minLength": 1
+        },
+        "citations": {
+          "type": "array",
+          "minItems": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "matter.practice_config",
+    "spec_id": "G-CF",
+    "approver": "platform.firm_profile",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "336h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "practice_area",
+        "change"
+      ],
+      "properties": {
+        "practice_area": {
+          "type": "string",
+          "minLength": 1
+        },
+        "change": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  {
+    "slug": "matter.bulk_change",
+    "spec_id": "G-BK",
+    "approver": "matters.edit",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_ids",
+        "change"
+      ],
+      "properties": {
+        "matter_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        },
+        "change": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  {
+    "slug": "matter.renumber",
+    "spec_id": "G-NUM",
+    "approver": "platform.firm_profile",
+    "risk": "irreversible",
+    "min_approvers": 2,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_ids",
+        "scheme"
+      ],
+      "properties": {
+        "matter_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        },
+        "scheme": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "matter.widen_access",
+    "spec_id": "G-ACC",
+    "approver": "matters.team",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "visibility"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "visibility": {
+          "enum": [
+            "team",
+            "firm"
+          ]
+        },
+        "grant_user_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "matter.apply_template",
+    "spec_id": "G-AT",
+    "approver": "matters.edit",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "template_id"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "template_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "work.output",
+    "spec_id": "G-W1",
+    "approver": "work.approve",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "item_id"
+      ],
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "work.plan",
+    "spec_id": "G-W2",
+    "approver": "work.approve",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "template_id"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "template_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "work.workflow_publish",
+    "spec_id": "G-W3",
+    "approver": "work.workflows",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "336h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "workflow_id",
+        "version"
+      ],
+      "properties": {
+        "workflow_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "work.external_sync",
+    "spec_id": "G-W4",
+    "approver": "platform.integrations",
+    "risk": "high",
+    "min_approvers": 2,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "integration_id"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "integration_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "work.automation",
+    "spec_id": "G-AR",
+    "approver": "work.workflows",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "rule_id"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "work.absence",
+    "spec_id": "G-W5",
+    "approver": "work.approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "user_id",
+        "start_on",
+        "end_on"
+      ],
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "start_on": {
+          "type": "string",
+          "format": "date"
+        },
+        "end_on": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.portal_message",
+    "spec_id": "G-PM",
+    "approver": "platform.portal",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "body_markdown"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "body_markdown": {
+          "type": "string",
+          "minLength": 1
+        },
+        "document_version_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.outgoing_email",
+    "spec_id": "G-OUT",
+    "approver": "documents.release",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "to_contact_ids",
+        "subject",
+        "body_markdown"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "to_contact_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body_markdown": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attachment_version_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.summary_accuracy",
+    "spec_id": "G-SUM",
+    "approver": "matters.edit",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "336h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "body_markdown"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "body_markdown": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.closing",
+    "spec_id": "G13",
+    "approver": "matters.close",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "amount_path": "trust_balance_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "trust_balance_cents"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "trust_balance_cents": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.file_destruction",
+    "spec_id": "G14",
+    "label": "G14 (platform)",
+    "approver": "platform.retention",
+    "risk": "irreversible",
+    "min_approvers": 2,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "retention_class"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "retention_class": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.skill_autonomy",
+    "spec_id": "G-SK",
+    "approver": "platform.agent_settings",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "skill",
+        "autonomy"
+      ],
+      "properties": {
+        "skill": {
+          "type": "string",
+          "minLength": 1
+        },
+        "autonomy": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.access_change",
+    "spec_id": "G-PERM",
+    "approver": "admin.roles",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "user_id",
+        "change"
+      ],
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "change": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.integration_scope",
+    "spec_id": "G-INT",
+    "label": "G-INT (platform)",
+    "approver": "platform.integrations",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "integration_id",
+        "scopes",
+        "data_leaves_canada"
+      ],
+      "properties": {
+        "integration_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "data_leaves_canada": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.export",
+    "spec_id": "G-EXP",
+    "approver": "admin.export",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "scope",
+        "recipient"
+      ],
+      "properties": {
+        "report_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recipient": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.guest_access",
+    "spec_id": "G-GUEST",
+    "approver": "matters.team",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "guest_contact_id"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "guest_contact_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.research_memo",
+    "spec_id": "G-RES",
+    "approver": "documents.release",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "document_version_id"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_version_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.role_change",
+    "spec_id": "GA1",
+    "label": "GA1 (access)",
+    "approver": "admin.roles",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "role_id",
+        "change"
+      ],
+      "properties": {
+        "role_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "change": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.user_activation",
+    "spec_id": "GA2",
+    "label": "GA2 (access)",
+    "approver": "admin.users",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "user_id",
+        "role_id"
+      ],
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "role_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.temp_grant",
+    "spec_id": "GA3",
+    "approver": "admin.roles",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "24h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "user_id",
+        "capability",
+        "expires_at"
+      ],
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "capability": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.matter_visibility",
+    "spec_id": "GA4",
+    "approver": "matters.team",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "matter_id",
+        "visibility"
+      ],
+      "properties": {
+        "matter_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "visibility": {
+          "enum": [
+            "restricted",
+            "team",
+            "firm"
+          ]
+        },
+        "team_user_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.wall_lift",
+    "spec_id": "GA5",
+    "approver": "conflicts.walls",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "wall_id"
+      ],
+      "properties": {
+        "wall_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.trust_signatory",
+    "spec_id": "GA6",
+    "approver": "trust.signatories",
+    "risk": "high",
+    "min_approvers": 2,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "trust_account_id",
+        "user_id",
+        "change"
+      ],
+      "properties": {
+        "trust_account_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "change": {
+          "enum": [
+            "add",
+            "remove"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.break_glass_review",
+    "spec_id": "GA7",
+    "approver": "admin.break_glass_approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "break_glass_id",
+        "finding"
+      ],
+      "properties": {
+        "break_glass_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "finding": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.review_close",
+    "spec_id": "GA8",
+    "approver": "admin.access_review",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "336h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "campaign_id"
+      ],
+      "properties": {
+        "campaign_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.bulk_export",
+    "spec_id": "GA9",
+    "approver": "admin.export",
+    "risk": "high",
+    "min_approvers": 2,
+    "ttl": "72h",
+    "sole_owner_delay": "24h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "scope",
+        "destination"
+      ],
+      "properties": {
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "destination": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.sign_in_settings",
+    "spec_id": "GA10",
+    "approver": "admin.security",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "setting",
+        "new_value"
+      ],
+      "properties": {
+        "setting": {
+          "type": "string",
+          "minLength": 1
+        },
+        "new_value": {}
+      }
+    }
+  },
+  {
+    "slug": "core.mfa_reset",
+    "spec_id": "GA11",
+    "approver": "admin.security",
+    "risk": "high",
+    "min_approvers": 2,
+    "ttl": "24h",
+    "sole_owner_delay": "24h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "user_id",
+        "identity_check"
+      ],
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "identity_check": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.offboarding",
+    "spec_id": "GA12",
+    "approver": "admin.offboard",
+    "risk": "high",
+    "min_approvers": 2,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "user_id",
+        "handover",
+        "cutoff_at"
+      ],
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "handover": {
+          "type": "array",
+          "minItems": 1
+        },
+        "cutoff_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.vendor_support",
+    "spec_id": "GA13",
+    "approver": "admin.support_access",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "24h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "support_user",
+        "scope",
+        "expires_at"
+      ],
+      "properties": {
+        "support_user": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  {
+    "slug": "core.authority_limit",
+    "spec_id": "GA14",
+    "approver": "admin.authority_limits",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "amount_path": "limit_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "user_id",
+        "action"
+      ],
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "limit_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "action": {
+          "enum": [
+            "set",
+            "raise",
+            "remove"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.security_answer",
+    "spec_id": "G-SEC",
+    "approver": "platform.firm_profile",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "questionnaire_id",
+        "recipient"
+      ],
+      "properties": {
+        "questionnaire_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "recipient": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.outbound_connector",
+    "spec_id": "G-INT",
+    "label": "G-INT (readiness)",
+    "approver": "platform.integrations",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "integration_id",
+        "destination",
+        "data_leaves_canada"
+      ],
+      "properties": {
+        "integration_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "destination": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data_leaves_canada": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.payment_provider",
+    "spec_id": "G-PAY",
+    "approver": "platform.integrations",
+    "risk": "irreversible",
+    "min_approvers": 2,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "provider",
+        "account_ref"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "account_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.import_balances",
+    "spec_id": "G-IMP",
+    "approver": "trust.signoff",
+    "risk": "irreversible",
+    "min_approvers": 2,
+    "ttl": "168h",
+    "amount_path": "total_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "import_id",
+        "trust_account_id",
+        "total_cents"
+      ],
+      "properties": {
+        "import_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "trust_account_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "total_cents": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.rule_pack",
+    "spec_id": "G-RULE",
+    "approver": "deadlines.rules",
+    "risk": "irreversible",
+    "min_approvers": 2,
+    "ttl": "336h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "pack",
+        "version",
+        "province"
+      ],
+      "properties": {
+        "pack": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "province": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.vendor_support",
+    "spec_id": "G-SUP",
+    "approver": "admin.support_access",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "24h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "support_user",
+        "scope",
+        "expires_at"
+      ],
+      "properties": {
+        "support_user": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.escrow_destination",
+    "spec_id": "G-ESC",
+    "approver": "platform.firm_profile",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "destination"
+      ],
+      "properties": {
+        "destination": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.service_credit",
+    "spec_id": "G-SLA",
+    "approver": "billing.credit",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "amount_path": "amount_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "amount_cents",
+        "reason"
+      ],
+      "properties": {
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "platform.published_price",
+    "spec_id": "G-PRICE",
+    "approver": "platform.firm_profile",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "amount_path": "price_cents",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "plan",
+        "price_cents"
+      ],
+      "properties": {
+        "plan": {
+          "type": "string",
+          "minLength": 1
+        },
+        "price_cents": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+]

@@ -37,15 +37,22 @@ type Posting struct {
 }
 
 // Post computes and records the interest charge for b over the half-open period p. Days
-// before the accrual start are clipped off. A bill without an agreed rate never accrues
+// before the accrual start (the later of b.DueDate and one month after delivery) are
+// clipped off. A bill without an agreed rate never accrues
 // interest (ErrNoAgreedRate); a period wholly before the start returns ErrNotDue.
 func (s *Posting) Post(ctx context.Context, b Bill, p Period) (Charge, error) {
 	// rule: BIL-L-010 (verify)
-	// Interest runs only at a rate the client agreed to; no rate means no interest, ever.
-	if b.RatePPM <= 0 {
-		return Charge{}, fmt.Errorf("post interest %s: %w", b.ID, ErrNoAgreedRate)
+	// Interest runs at the rate the client agreed to; with no agreed rate it runs only at the
+	// CJA prejudgment rate, and only while FlagCJADefaultRate is on.
+	rate, err := EffectiveRate(ctx, b)
+	if err != nil {
+		return Charge{}, fmt.Errorf("post interest: %w", err)
 	}
-	clipped, err := s.Start.Clip(ctx, b, time.Time{}, p)
+	b.RatePPM = rate
+	// rule: BIL-C-070
+	// Interest never starts before the agreed due date: Clip takes the later of the due
+	// date and one month after delivery.
+	clipped, err := s.Start.Clip(ctx, b, b.DueDate, p)
 	if err != nil {
 		return Charge{}, fmt.Errorf("post interest: %w", err)
 	}

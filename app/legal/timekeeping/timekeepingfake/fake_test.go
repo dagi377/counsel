@@ -184,3 +184,43 @@ func TestParalegalScope(t *testing.T) {
 		})
 	}
 }
+
+func TestReleaseClearsBillID(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     []tk.State
+		wantBill string
+	}{
+		{name: "on draft bill keeps its bill", path: []tk.State{tk.StateApproved, tk.StateOnDraftBill}, wantBill: "b-1"},
+		{name: "release from draft bill clears it", path: []tk.State{tk.StateApproved, tk.StateOnDraftBill, tk.StateApproved}},
+		{name: "release from billed clears it", path: []tk.State{tk.StateApproved, tk.StateOnDraftBill, tk.StateBilled, tk.StateApproved}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			f := New(nil, nil)
+			id, err := f.Record(ctx, nil, entry("u1", "a"), owner)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, s := range tt.path {
+				if err := f.Transition(ctx, nil, id, s, owner); err != nil {
+					t.Fatal(err)
+				}
+				if s == tk.StateOnDraftBill {
+					// The bill module links the entry to its bill when it goes on one.
+					e := f.entries[id]
+					e.BillID = "b-1"
+					f.entries[id] = e
+				}
+			}
+			got, err := f.Get(ctx, id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.BillID != tt.wantBill {
+				t.Fatalf("BillID = %q, want %q", got.BillID, tt.wantBill)
+			}
+		})
+	}
+}
