@@ -2639,3 +2639,19 @@ Done in PORT-18:
 - F-DOC-12 is a read-only screen action: the proposed fields are the run's extraction output
   (`OutputSchema`: items in signing order with signer role, field, template anchor or detected
   block, and a citation). No write tool places them; the user does, so no gate opens.
+## Q-FEAT-DOC-20 F-DOC-13 screen action binding and run write path (files outside the task)
+
+- `app/legal/docs/ai_f_doc_13.go` (FEAT-DOC-19): `AutoFileDef` gains
+  `Actions: []string{ActionAutoFile}` and its trigger is built from that constant, so
+  `POST /api/agent/actions/F-DOC-13` from matter-documents queues a run (the route only
+  accepts a screen listed in `Def.Actions`). features.json has `on_request: []` for the
+  read-only screen actions and names the action only in `trigger`.
+- `app/legal/docs/ai_doc_helpers_test.go` (FEAT-DOC-06): the spec sync check reads the
+  on-request actions from `on_request`, else from the `on request: ` trigger (`docOnRequest`).
+- `AutoFileFromRun` (ai_f_doc_13_write.go) is the screen-action write path: the run's
+  output reaches the FilingSink only when every citation's page and line numbers came from
+  the run's reads (Provenance, `ErrUnsourcedValue`) and fall inside a citation the run
+  returned (`run.ErrUncitedAnswer`). It opens no gate and calls no write tool.
+- The shared `docg*` test helpers for the read-only document screen actions (F-DOC-13,
+  F-DOC-18, F-DOC-23) live in `ai_f_doc_13_feature_test.go`; FEAT-DOC-21 and FEAT-DOC-22
+  build on this branch.

@@ -63,7 +63,8 @@ func AutoFileDef() feature.Def {
 		Area:    "documents",
 		Name:    "Auto-file",
 		Source:  feature.SourceScreenAction,
-		Trigger: "on request: matter-documents > Auto-file",
+		Trigger: "on request: " + ActionAutoFile,
+		Actions: []string{ActionAutoFile},
 		// embedding+extraction: passages are ranked by embedding, then one extraction call.
 		Kind:         ai.KindExtraction,
 		Tools:        []string{"get_matter", "list_documents", "read_document", "search_documents"},

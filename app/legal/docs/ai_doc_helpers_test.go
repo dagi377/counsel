@@ -347,6 +347,18 @@ func docSpec(t *testing.T, id string) docFeatureSpec {
 	return spec.Features[i]
 }
 
+// docOnRequest is the screen actions that run sf on request: its on_request list, else the
+// action its trigger names ("on request: screen > Button").
+func docOnRequest(sf docFeatureSpec) []string {
+	if len(sf.OnRequest) > 0 {
+		return sf.OnRequest
+	}
+	if act, ok := strings.CutPrefix(sf.Trigger, "on request: "); ok {
+		return []string{act}
+	}
+	return nil
+}
+
 // docModelCall maps a Def kind to the features.json model_call it implements.
 func docModelCall(d feature.Def, embedded bool) string {
 	switch {
@@ -373,7 +385,7 @@ func docCheckDefMatchesSpec(t *testing.T, d feature.Def, embedded bool) {
 		{"area", d.Area, "documents"},
 		{"source", string(d.Source), sf.Source},
 		{"trigger", d.Trigger, sf.Trigger},
-		{"on request", sorted(d.Actions), sorted(sf.OnRequest)},
+		{"on request", sorted(d.Actions), sorted(docOnRequest(sf))},
 		{"tools", sorted(d.Tools), sorted(sf.Tools)},
 		{"gate kinds", sorted(d.GateKinds), sorted(sf.Gate.Kind)},
 		{"model call", docModelCall(d, embedded), sf.ModelCall},

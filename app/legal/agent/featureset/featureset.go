@@ -84,5 +84,7 @@ func appDefs() []feature.Def {
 		legaldocs.RequestDocumentsDef(),
 		legaldocs.CitationStalenessDef(),
 		legaldocs.PlaceSigningFieldsDef(),
+		legaldocs.EmailAutoFileDef(),
+		legaldocs.DetectMatterContentDef(),
 	}
 }
