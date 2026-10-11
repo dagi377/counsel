@@ -786,7 +786,16 @@ BOOT tasks are not in docs/TASKS.md, so their progress is tracked here.
   - `withdraw.PGEFTRecords` has a unit test on a fake DB. Its integration test is still
     to be written (vet only).
   - Kernel boot `Run` now uses the real kernel job adder (gate.run_due, outbox.relay); the
-    BOOT-09 stub is gone. `addNotifyJobs` and `addWebhookJobs` are not yet called from Run.
+    BOOT-09 stub is gone.
+- Merged to main (wave 4c): fix/w3-trust, fix/w3-deploy, fix/migrate-role (migrate role
+  expand/contract and wait-version), PORT-03, PORT-04, PORT-05, PORT-06, PORT-08, PORT-09,
+  PORT-13, PORT-14, HTTP-00, HTTP-01, HTTP-02. Applied at integration:
+  - `Run` builds the outbox relay over the request pool and calls `addNotifyJobs` and
+    `addWebhookJobs` after every app's Register.
+  - The legal app schedules `trust.withdrawal_release_expired` (PGStore.ReleaseExpired)
+    every 15 minutes when gate services are built.
+  - `billing.bill_delivery` is in spec/gates.json (unwired); idem problems carry `type`;
+    the billing/bill integration helper applies every migration.
 - Still open: register the kernel admin kinds (core.role_change, core.user_activation) with
   the admin gates' effects once a Postgres AdminStore exists; build the Assessor from the
   app's Register once limitation ports have production implementations.
