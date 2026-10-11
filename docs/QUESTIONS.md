@@ -3747,3 +3747,21 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   ...) are not registered in the boot graph; only 9 kinds are. A run that submits for one of
   those fails `gate: unknown kind`. The worker end-to-end test registers
   `docs.template_publish` itself for the scheduled case.
+
+## ENQUEUER: kernel insert-only job client for apps
+
+- Additive kernel change: `kboot.JobInserter`, `Kernel.Enqueuer` and `Deps.Enqueuer`. `Run`
+  opens an insert-only River client (no workers, no queues) on the direct DSN (ARC-U-011)
+  in both the server and the worker role, before Register, and closes it when the role
+  ends. counseld only inserts; counsel-worker works the jobs on its own client.
+- `Production.Jobs` stays; when nil, the agent layer enqueues on `Kernel.Enqueuer`. This
+  closes the AGENT-PROD-2b open item: the screen-action route queues `agent_feature_run`,
+  and the job-feature bindings are built, so the tick job (worker role) enqueues the
+  scheduled runs.
+- New outbox consumer `agent.feature_trigger` (`TriggerConsumer`) hands each relayed event
+  to `Bindings.OnEvent`. It inserts outside the consumer's transaction; the run is unique by
+  feature and event id, so a redelivery inserts nothing. A bound event naming no acting user
+  is logged and skipped, not retried.
+- Open: no migration creates River's tables (`river_job`, ...); nothing in the repo runs
+  `rivermigrate`. The integration test migrates its own database. Decide whether
+  counsel-migrate runs River's migrations or the schema goes into a numbered migration.

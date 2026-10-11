@@ -229,15 +229,16 @@ func (p Production) bindAgent(ctx context.Context, k *kboot.Kernel, opts *Option
 	if w.Actions.Problems == nil {
 		w.Actions.Problems = opts.HTTP.Problems
 	}
+	jobs := p.jobs(k)
 	if w.Queue == nil {
 		// rule: AI-R-005
 		// Without a job queue a queued feature fails closed (500) and readiness names it.
-		w.Queue = RiverActionQueue{Q: p.Jobs, NewRunID: newRunID}
+		w.Queue = RiverActionQueue{Q: jobs, NewRunID: newRunID}
 	}
-	if w.Bindings == nil && p.Jobs != nil && k.Clock != nil {
-		w.Bindings = trigger.New(p.Jobs, k.Clock, nil)
+	if w.Bindings == nil && jobs != nil && k.Clock != nil {
+		w.Bindings = trigger.New(jobs, k.Clock, nil)
 	}
-	if p.Jobs == nil {
+	if jobs == nil {
 		ready.addAll(features, ReasonNoJobQueue, func(d feature.Def) bool {
 			return d.Source == feature.SourceJob || d.Kind != ai.KindChat
 		})
@@ -253,6 +254,18 @@ func (p Production) bindAgent(ctx context.Context, k *kboot.Kernel, opts *Option
 	opts.HTTP.AgentModel = model
 	opts.HTTP.AgentTools = tools
 	return w, nil
+}
+
+// jobs is the enqueuer the agent queues runs on: Jobs when set, else the kernel's
+// insert-only job client. Nil when neither exists.
+func (p Production) jobs(k *kboot.Kernel) trigger.Enqueuer {
+	if p.Jobs != nil {
+		return p.Jobs
+	}
+	if k != nil && k.Enqueuer != nil {
+		return k.Enqueuer
+	}
+	return nil
 }
 
 // servedTools builds every handler tool over p. A tool whose port has no implementation in

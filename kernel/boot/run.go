@@ -40,6 +40,9 @@ type env struct {
 	worker func(ctx context.Context, k *Kernel, cfg WorkerConfig) error
 	// apply applies the migration files of one migrate mode.
 	apply applier
+	// inserter opens the insert-only job client apps enqueue on. Nil leaves Kernel.Enqueuer
+	// nil.
+	inserter openInserter
 }
 
 func productionEnv() env {
@@ -58,7 +61,8 @@ func productionEnv() env {
 		worker: func(ctx context.Context, k *Kernel, cfg WorkerConfig) error {
 			return runWorker(ctx, k, cfg, newRiverClient)
 		},
-		apply: pgApply,
+		apply:    pgApply,
+		inserter: pgInserter,
 	}
 }
 
@@ -123,7 +127,17 @@ func run(ctx context.Context, cfg Config, e env, apps ...App) error {
 			return fmt.Errorf("run %s: %w", cfg.Role, err)
 		}
 	}
+	var enq JobInserter
+	if e.inserter != nil {
+		ins, closeIns, err := e.inserter(ctx, cfg.dbConfig())
+		if err != nil {
+			return fmt.Errorf("run %s: %w", cfg.Role, err)
+		}
+		defer closeIns()
+		enq = ins
+	}
 	deps := Deps{
+		Enqueuer: enq,
 		Outbox:   relay,
 		Registry: reg,
 		DB:       pool,
