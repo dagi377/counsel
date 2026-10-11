@@ -2782,3 +2782,8 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   per ARC-I-049; narrowing too, since events are gate-owned) opens the gate with the whole
   patch (202). An expired endpoint answers 409 webhook_expired: create a new one.
 - A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008).
+## PORT-16c: bad-debt relief excludes interest
+
+- Resolves the PORT-16b open point (decided as counsel): `ApproveWriteOff` computes the ETA
+  s.231 relief as `BadDebtTax(amount - interest, billTax, billTotal)`. A write-off that is all
+  interest gets no relief; interest above the amount fails with `ErrInvalidAmount`.
