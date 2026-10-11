@@ -1,0 +1,453 @@
+package boot
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"slices"
+	"strings"
+
+	"github.com/dagi377/counsel/app/legal/agent"
+	"github.com/dagi377/counsel/app/legal/agent/feature"
+	"github.com/dagi377/counsel/app/legal/agent/featureset"
+	"github.com/dagi377/counsel/app/legal/agent/trigger"
+	"github.com/dagi377/counsel/app/legal/billing/batch"
+	"github.com/dagi377/counsel/app/legal/billing/draft"
+	"github.com/dagi377/counsel/app/legal/billing/payment"
+	"github.com/dagi377/counsel/app/legal/comms"
+	"github.com/dagi377/counsel/app/legal/conflict"
+	"github.com/dagi377/counsel/app/legal/deadlines"
+	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/roles"
+	tk "github.com/dagi377/counsel/app/legal/timekeeping"
+	"github.com/dagi377/counsel/kernel/agenttools"
+	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
+	kboot "github.com/dagi377/counsel/kernel/boot"
+	"github.com/dagi377/counsel/kernel/deadline"
+	"github.com/dagi377/counsel/kernel/notify"
+	"github.com/dagi377/counsel/kernel/registry"
+)
+
+// Event types the deadline job features start from that the deadline package does not name
+// itself. They are the a2 event names of the owning modules (Q-BOOT-WIRE-A).
+const (
+	eventDocumentUploaded = "document.uploaded"   // F-DL-01: document filed to a matter
+	eventEmailFiled       = comms.EventEmailFiled // F-DL-01: email filed to a matter (Q-DRAFT-FIX)
+	eventLeadCreated      = "lead.created"        // F-DL-02: intake created
+	eventMatterUpdated    = "matter.updated"      // F-DL-02: claim facts updated
+)
+
+// AgentPorts are the module query APIs the agent tool handlers read through, one field per
+// agent.Deps port. Boot fills them from the module services; a nil port fails the handler
+// that reads it with agent.ErrMissingDep, so a missing wire stops boot instead of serving a
+// tool that cannot answer.
+type AgentPorts struct {
+	Can      agent.CapabilityCheck
+	Walls    roles.Walls
+	Plans    agenttools.Plans // nil: a Planner over PlanStore
+	OpenGate agenttools.GateOpener
+
+	// Provenance checks that sourced write inputs come from the run's read results. Nil
+	// builds a fresh one; the agent runner forgets a run's values when the run ends.
+	Provenance *agenttools.Provenance
+
+	Contacts      agent.ContactSearch
+	ClientMatters agent.ClientMatters
+	Work          agent.WorkList
+	Text          agent.DocumentText
+	Documents     agent.MatterDocuments
+	Folders       agent.MatterFolders
+
+	Bills          agent.BillReader
+	BillBalances   agent.BillBalances
+	Trust          agent.TrustAvailable
+	TrustAccounts  agent.MatterTrustAccounts
+	Entries        tk.Entries
+	MatterTime     agent.MatterTime
+	DraftCalc      draft.Calc
+	DraftStore     draft.Store
+	BatchDrafts    batch.Drafts
+	Payments       payment.Service
+	SubjectMatters agent.SubjectMatters
+
+	Deadlines       deadline.Lister
+	DeadlineCompute agent.DeadlineCompute
+	DeadlineSaver   agent.DeadlineSaver
+	PublishedPacks  agent.PublishedPacks
+
+	Tasks           agent.TaskCreator
+	ProposedTasks   agent.ProposedTasks
+	Conflicts       conflict.Checker
+	ConflictParties agent.ConflictCheckParties
+
+	MatterContacts agent.MatterContacts
+	DocumentDrafts agent.DocumentDrafts
+	EmailDrafts    agent.EmailDrafts
+	NoteDrafts     agent.NoteDrafts
+}
+
+// port is one named AgentPorts value.
+type port struct {
+	name  string
+	value any
+	set   bool
+}
+
+// ports lists p's values by field name. RunScope has no field: the stateless
+// agenttools.RunScopes reads the Scope the Runner puts in ctx (Q-INTEG-12).
+func (p AgentPorts) ports() []port {
+	return []port{
+		{"Can", p.Can, p.Can != nil},
+		{"Walls", p.Walls, p.Walls != nil},
+		{"Plans", p.Plans, p.Plans != nil},
+		{"OpenGate", p.OpenGate, p.OpenGate != nil},
+		{"Provenance", p.Provenance, p.Provenance != nil},
+		{"Contacts", p.Contacts, p.Contacts != nil},
+		{"ClientMatters", p.ClientMatters, p.ClientMatters != nil},
+		{"Work", p.Work, p.Work != nil},
+		{"Text", p.Text, p.Text != nil},
+		{"Documents", p.Documents, p.Documents != nil},
+		{"Folders", p.Folders, p.Folders != nil},
+		{"Bills", p.Bills, p.Bills != nil},
+		{"BillBalances", p.BillBalances, p.BillBalances != nil},
+		{"Trust", p.Trust, p.Trust != nil},
+		{"TrustAccounts", p.TrustAccounts, p.TrustAccounts != nil},
+		{"Entries", p.Entries, p.Entries != nil},
+		{"MatterTime", p.MatterTime, p.MatterTime != nil},
+		{"DraftCalc", p.DraftCalc, p.DraftCalc != nil},
+		{"DraftStore", p.DraftStore, p.DraftStore != nil},
+		{"BatchDrafts", p.BatchDrafts, p.BatchDrafts != nil},
+		{"Payments", p.Payments, p.Payments != nil},
+		{"SubjectMatters", p.SubjectMatters, p.SubjectMatters != nil},
+		{"Deadlines", p.Deadlines, p.Deadlines != nil},
+		{"DeadlineCompute", p.DeadlineCompute, p.DeadlineCompute != nil},
+		{"DeadlineSaver", p.DeadlineSaver, p.DeadlineSaver != nil},
+		{"PublishedPacks", p.PublishedPacks, p.PublishedPacks != nil},
+		{"Tasks", p.Tasks, p.Tasks != nil},
+		{"ProposedTasks", p.ProposedTasks, p.ProposedTasks != nil},
+		{"Conflicts", p.Conflicts, p.Conflicts != nil},
+		{"ConflictParties", p.ConflictParties, p.ConflictParties != nil},
+		{"MatterContacts", p.MatterContacts, p.MatterContacts != nil},
+		{"DocumentDrafts", p.DocumentDrafts, p.DocumentDrafts != nil},
+		{"EmailDrafts", p.EmailDrafts, p.EmailDrafts != nil},
+		{"NoteDrafts", p.NoteDrafts, p.NoteDrafts != nil},
+	}
+}
+
+// Missing names the ports boot has not wired, in field order.
+func (p AgentPorts) Missing() []string {
+	var out []string
+	for _, v := range p.ports() {
+		if !v.set {
+			out = append(out, v.name)
+		}
+	}
+	return out
+}
+
+// Deps returns the agent.Deps the handlers build from. Only set ports go in, so DepOf
+// never returns a typed nil.
+func (p AgentPorts) Deps() agent.Deps {
+	values := []any{agenttools.RunScopes{}}
+	for _, v := range p.ports() {
+		if v.set {
+			values = append(values, v.value)
+		}
+	}
+	return agent.NewDeps(values...)
+}
+
+// AgentTools builds every tool in agent.Handlers() over p. A port the set needs and p lacks
+// fails with agent.ErrMissingDep naming the tool; nothing is half-built.
+func AgentTools(p AgentPorts) ([]registry.Tool, error) {
+	if p.Provenance == nil {
+		p.Provenance = agenttools.NewProvenance()
+	}
+	set := agent.Handlers()
+	deps := p.Deps()
+	var (
+		tools []registry.Tool
+		errs  []error
+	)
+	for _, name := range set.Names() {
+		h, _ := set.For(name)
+		t, err := h.Build(deps)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("agent tool %s: %w", name, err))
+			continue
+		}
+		tools = append(tools, t)
+	}
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
+	}
+	return tools, nil
+}
+
+// Features returns the app's feature set, each feature checked against the tools boot can
+// serve and the gate kinds the gate catalog defines.
+func Features() (*feature.Set, error) {
+	s, err := featureset.App()
+	if err != nil {
+		return nil, fmt.Errorf("feature set: %w", err)
+	}
+	tools, err := ServedToolNames()
+	if err != nil {
+		return nil, err
+	}
+	kinds, err := gateKindCodes()
+	if err != nil {
+		return nil, err
+	}
+	var errs []error
+	for _, d := range s.All() {
+		for _, t := range d.Tools {
+			if !slices.Contains(tools, t) {
+				errs = append(errs, fmt.Errorf("feature %s: tool %s has no handler: %w", d.ID, t, agent.ErrMissingDep))
+			}
+		}
+		for _, g := range d.GateKinds {
+			if !slices.Contains(kinds, g) {
+				errs = append(errs, fmt.Errorf("feature %s: gate kind %s is not in the gate catalog: %w", d.ID, g, agent.ErrMissingDep))
+			}
+		}
+	}
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// ServedToolNames lists every tool an agent run can call: the handler set plus the read and
+// write tool sets, sorted.
+func ServedToolNames() ([]string, error) {
+	names := agent.Handlers().Names()
+	rt, err := agent.NewReadTools(agent.ReadDeps{})
+	if err != nil {
+		return nil, fmt.Errorf("read tools: %w", err)
+	}
+	wt, err := agent.NewWriteTools(agent.WriteDeps{})
+	if err != nil {
+		return nil, fmt.Errorf("write tools: %w", err)
+	}
+	for _, s := range append(rt.Specs(), wt.Specs()...) {
+		if !slices.Contains(names, s.Name) {
+			names = append(names, s.Name)
+		}
+	}
+	slices.Sort(names)
+	return names, nil
+}
+
+func gateKindCodes() ([]string, error) {
+	kinds, err := gates.ParseKinds(gates.SpecData())
+	if err != nil {
+		return nil, fmt.Errorf("gate kinds: %w", err)
+	}
+	out := make([]string, 0, len(kinds))
+	for _, k := range kinds {
+		out = append(out, k.Code)
+	}
+	return out, nil
+}
+
+// JobBindings binds every job feature of s to the events and schedule that start it.
+// ruleAdmin is the user the scheduled F-DL-06 rule watch acts for (the rule-pack
+// administrator); empty fails with trigger.ErrBadBinding. A job feature with no binding
+// listed here fails, so a new job feature cannot ship unbound.
+func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
+	byID := map[string]func() (trigger.Binding, error){
+		deadlines.FeatureExtractDeadlines: func() (trigger.Binding, error) {
+			d, _ := s.ByID(deadlines.FeatureExtractDeadlines)
+			return trigger.Bind(d, "", eventDocumentUploaded, eventEmailFiled)
+		},
+		deadlines.FeatureLimitationAssessment: func() (trigger.Binding, error) {
+			d, _ := s.ByID(deadlines.FeatureLimitationAssessment)
+			return trigger.Bind(d, "", eventLeadCreated, eventMatterUpdated)
+		},
+		deadlines.RecomputeDependantsDef().ID:       deadlines.RecomputeDependantsBinding,
+		deadlines.ComplianceEvidenceMatcherDef().ID: deadlines.ComplianceEvidenceMatcherBinding,
+		deadlines.RuleWatchDef().ID: func() (trigger.Binding, error) {
+			return deadlines.RuleWatchBinding(ruleAdmin)
+		},
+	}
+	for _, d := range s.All() {
+		if d.Source != feature.SourceJob {
+			continue
+		}
+		bind, ok := byID[d.ID]
+		if !ok {
+			return fmt.Errorf("job feature %s: no binding: %w", d.ID, trigger.ErrBadBinding)
+		}
+		bd, err := bind()
+		if err != nil {
+			return fmt.Errorf("job feature %s: %w", d.ID, err)
+		}
+		if err := b.Add(bd); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// AddTickJob adds the TickWorker and its periodic job, which enqueue the scheduled runs.
+func AddTickJob(j *kboot.Jobs, b *trigger.Bindings) error {
+	if err := kboot.AddWorker(j, &trigger.TickWorker{Bindings: b}); err != nil {
+		return fmt.Errorf("agent tick job: %w", err)
+	}
+	j.AddPeriodic(b.PeriodicJob(), trigger.JobKindTick)
+	return nil
+}
+
+// actionScreens maps each screen that offers a feature action to the records it selects and
+// the capability the acting user needs on each. Every screen named in a feature's Actions
+// must be listed (TestActionScreensCoverFeatures).
+var actionScreens = map[string]trigger.Screen{
+	"matter-deadlines":      {SubjectKind: "matter", Capability: "deadlines.view"},
+	"limitation-assessment": {SubjectKind: "matter", Capability: "deadlines.view"},
+}
+
+// ActionScreens returns a copy of the screen-to-subject map of the action route.
+func ActionScreens() map[string]trigger.Screen {
+	out := make(map[string]trigger.Screen, len(actionScreens))
+	for k, v := range actionScreens {
+		out[k] = v
+	}
+	return out
+}
+
+// screenOf is the screen id of one feature action, "matter-deadlines > Extract".
+func screenOf(action string) string {
+	s, _, _ := strings.Cut(action, ">")
+	return strings.TrimSpace(s)
+}
+
+// RiverActionQueue queues a requested write feature's run as an agent_feature_run job.
+type RiverActionQueue struct {
+	Q        trigger.Enqueuer
+	NewRunID func() string
+}
+
+// EnqueueAction implements trigger.ActionQueue. The run id stands in as the job's event id,
+// so each request is its own job; the job holds ids only.
+func (q RiverActionQueue) EnqueueAction(ctx context.Context, featureID string, subjects []trigger.SubjectRef, actingFor string) (string, error) {
+	if q.Q == nil || q.NewRunID == nil {
+		return "", fmt.Errorf("action queue: %w", agent.ErrMissingDep)
+	}
+	runID := q.NewRunID()
+	// rule: AI-R-005
+	args := trigger.RunArgs{FeatureID: featureID, Subjects: subjects, ActingFor: actingFor, EventID: runID}
+	opts := args.InsertOpts()
+	if _, err := q.Q.Insert(ctx, args, &opts); err != nil {
+		return "", fmt.Errorf("action queue %s: %w", featureID, err)
+	}
+	return runID, nil
+}
+
+// flagBlocks maps a feature id to the gate kinds its flags block. No listed feature's flags
+// block a gate; a blocking feature (the GA1 duty scan) adds its entry here.
+var flagBlocks = map[string][]string{}
+
+// NewFlagSink returns the sink read-only job features record flags in.
+func NewFlagSink(store agent.FlagStore, notify agent.Sender) *agent.FlagSink {
+	blocks := make(map[string][]string, len(flagBlocks))
+	for k, v := range flagBlocks {
+		blocks[k] = slices.Clone(v)
+	}
+	return &agent.FlagSink{Store: store, Notify: notify, BlocksGate: blocks}
+}
+
+// ForgetRunner drops a run's provenance values when the run ends, whatever its outcome.
+type ForgetRunner struct {
+	agentrun.Runner
+	Provenance *agenttools.Provenance
+}
+
+// Run implements the run Runner.
+func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Principal, prompt string, triggers ...agentrun.Trigger) (agentrun.Outcome, error) {
+	defer r.Provenance.Forget(p.RunID)
+	return r.Runner.Run(ctx, spec, p, prompt, triggers...)
+}
+
+// AgentWiring is what the agent layer needs at boot beyond its ports.
+type AgentWiring struct {
+	Ports AgentPorts
+	// RuleAdmin is the user scheduled rule-watch runs act for.
+	RuleAdmin string
+	// Bindings receives the job-feature bindings; nil skips triggers and the tick job.
+	Bindings *trigger.Bindings
+	// Actions, when set, is mounted as the screen-action route. Boot sets its Features,
+	// Screens and Queue.
+	Actions *trigger.Actions
+	// Queue enqueues requested write features (Actions.Queue).
+	Queue trigger.ActionQueue
+	// Flags is the flag sink; boot sets its BlocksGate map.
+	Flags *agent.FlagSink
+	// Runners are every other agent runner boot hands out (the job-run worker's among them).
+	// Boot wraps each in place so it forgets a run's provenance values when the run ends.
+	Runners []*agentrun.Runner
+}
+
+// registerAgent registers the agent tools and features: every handler tool, the job
+// bindings and tick job, the action route, the flag digest template and the flag sink's
+// gate blocks. Nil w skips the agent layer.
+func registerAgent(w *AgentWiring) hook {
+	return func(ctx context.Context, k *kboot.Kernel) error {
+		if w == nil {
+			return nil
+		}
+		if k.Registry == nil {
+			return ErrNoRegistry
+		}
+		features, err := Features()
+		if err != nil {
+			return err
+		}
+		// One Provenance for every tool, write dep and runner: a run's values are recorded,
+		// checked and forgotten in the same place.
+		if w.Ports.Provenance == nil {
+			w.Ports.Provenance = agenttools.NewProvenance()
+		}
+		tools, err := AgentTools(w.Ports)
+		if err != nil {
+			return err
+		}
+		for _, t := range tools {
+			k.Registry.Tool(t)
+		}
+		if w.Bindings != nil {
+			if err := JobBindings(features, w.Bindings, w.RuleAdmin); err != nil {
+				return err
+			}
+			if k.Jobs != nil {
+				if err := AddTickJob(k.Jobs, w.Bindings); err != nil {
+					return err
+				}
+			}
+		}
+		if w.Actions != nil {
+			w.Actions.Features = features
+			w.Actions.Screens = ActionScreens()
+			if w.Queue != nil {
+				w.Actions.Queue = w.Queue
+			}
+			w.Actions.Runner = ForgetOnEnd(w.Ports.Provenance, w.Actions.Runner)
+			k.Registry.Routes(w.Actions.Routes)
+		}
+		for _, r := range w.Runners {
+			if r != nil {
+				*r = ForgetOnEnd(w.Ports.Provenance, *r)
+			}
+		}
+		if w.Flags != nil {
+			fresh := NewFlagSink(w.Flags.Store, w.Flags.Notify)
+			w.Flags.BlocksGate = fresh.BlocksGate
+		}
+		if k.Notify != nil {
+			if err := registerTemplates(ctx, k.Notify, []notify.Template{agent.FlagDigestTemplate}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}

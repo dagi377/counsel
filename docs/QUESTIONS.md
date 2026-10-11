@@ -1889,3 +1889,78 @@ Done in PORT-18:
     `filing.receipt_received`, so F-DL-04 runs once per record.
 - Open: no handler or route calls these yet (boot/handler task). Whether an affidavit of
   service received but not filed with the court should also publish (verify).
+## Q-BOOT-WIRE-A agent layer at boot
+
+- `Options.Agent` (`AgentWiring`) registers every `agent.Handlers()` tool, the job bindings
+  and tick job, the action route, the flag digest template and the FlagSink gate map. Boot
+  fails closed: a nil port fails its handler with ErrMissingDep, and `Features()` fails when a
+  feature names a tool with no handler or a gate kind outside spec/gates.json.
+- Event names chosen from a2 for unbound features: F-DL-01 `document.uploaded`; F-DL-02
+  `lead.created` and `matter.updated` (claim facts updated). Checked (BOOT-PORTS-B) against
+  spec/ai/features.json triggers ("document filed to matter"; "intake created or claim facts
+  updated") and the a2 event catalogue: all three are the a2 events for those triggers and
+  stay. a2 had no comms filing event; Q-DRAFT-FIX adds `email.filed`, and F-DL-01 now
+  starts on it too.
+- Action screens: `matter-deadlines` and `limitation-assessment` both map to subject kind
+  `matter`, capability `deadlines.view`. Open: limitation assessment from intake may need a
+  `lead` subject kind.
+- `RiverActionQueue` uses the run id as the job's event id so each request is its own job.
+- Left: Postgres adapters for BillBalances, MatterTrustAccounts, PublishedPacks, MatterTime,
+  SubjectMatters, ProposedTasks, ConflictCheckParties, MatterContacts, DocumentDrafts,
+  EmailDrafts, NoteDrafts (none exist); the caller passes them in `AgentPorts`. Not done: the
+  PlanStore step map (kernel `agenttools.Step` has no step id; needs an additive kernel field).
+  `ForgetRunner` calls Provenance.Forget on run end; it wraps the action route's Runner, and the
+  job-run worker must use it too once it exists.
+
+## Q-BOOT-PORTS-B matter-side agent ports, step ids, action route
+
+- `boot.WireMatterPorts` (matter reads go through `matter.Query.Get`, ARC-I-041) fills PublishedPacks, SubjectMatters, ProposedTasks,
+  ConflictParties, MatterContacts, DocumentDrafts, EmailDrafts and NoteDrafts with Postgres
+  adapters (app/legal/boot/agent_ports_matter.go), sets Plans to a Planner over PGPlans and
+  makes one shared Provenance. Drafted text goes through `matter.Bodies` (DM-020); rows hold
+  the reference only.
+- Table mapping (no new migration): published packs = newest `cal.rule_pack` row per code
+  with status `active`, rules jsonb decoded with the pack YAML rule keys; document draft =
+  `docs.draft` (title in `instruction`, body ref and citations in `source_scope`); email draft
+  = unsent outbound `comms.comm_item` plus a proposed `comms.comm_filing` (the run id waits in
+  `participants`, since `drafted_by_agent_run_id` needs an approval id); note draft =
+  unconfirmed `matter.note`; proposed task = status `proposed` of the newest `task`
+  workflow; proposed party = `conflict.check_party` row, preparer in the check's
+  `updated_by`. Resolved by Q-DRAFT-FIX: drafts keep their idempotency key, parties their
+  source citation, and the email draft's run id has its own column.
+- SubjectMatters resolves matter, document_draft, agent_note, email_draft, deadline,
+  billing.bill, timekeeping.time_entry and conflict_check; any other kind fails closed (404).
+- Additive kernel contract change: `agenttools.Step` gains `ID` (the report_plan step id),
+  stored in the agent.plan body as `id`; `agenttools.StepIDs` (`SetStepIDs`) and
+  `StepIndex` are new, and Planner implements StepIDs. report_plan stores the ids, so
+  report_step finds a step after a restart; the in-process map stays as the fallback.
+- Provenance: `AgentWriteDeps` puts the shared Provenance on WriteDeps. Boot wraps the action
+  route's Runner and every runner listed in `AgentWiring.Runners` with `ForgetOnEnd`.
+- OpenAPI: `POST /agent/actions/{feature_id}` added additively (Q-FEAT-CORE-12), listed in
+  kernel/contract/additive.txt; `trigger.ActionPath` drops its `/api` prefix to match the /v1
+  server base. It is in api/unserved.txt because the app conformance test mounts only
+  Register routes; boot mounts it when `AgentWiring.Actions` is set.
+
+## Q-DRAFT-FIX idempotent drafts, party citations, email draft run id, email.filed
+
+- Idempotent drafts (additive migrations, each in its owning block): `idempotency_key text`
+  on `docs.draft` (5800, app/legal/docs), `matter.note` (5100, app/legal/matter) and
+  `comms.comm_item` (6001, app/legal/comms), each with a partial unique index on
+  `(agent_run_id, idempotency_key)` built CONCURRENTLY in its own file (5801, 5101, 6002).
+  The adapters look the key up first, so a retried call returns the stored draft without
+  writing a second body; an insert that loses a race (`ON CONFLICT DO NOTHING`) returns the
+  winner's id, and its body object is left unreferenced. Only an agent run's keyed call is
+  deduplicated: the manual path (no run id) stores each call.
+- Email draft run id: `comms.comm_item.agent_run_id uuid` (6001, nullable) holds the drafting
+  run; `participants` no longer carries `run_id`. `drafted_by_agent_run_id` stays the run of an
+  approved outbound message (its CHECK needs an approval id); the gate's effect stamps it.
+- Conflict party citations: `conflict.check_party.source jsonb` (5203, nullable) holds the
+  proposed party's source as `{version_id, page, from_line, to_line}`, a pointer and never
+  text. `PGConflictParties` writes it, validated with `agenttools.ValidCitation` (ARC-I-038).
+- Additive a2 event `email.filed` (module comms, subject comm_item, payload comm_item_id,
+  matter_id, filed_by), in spec/eng/a2-interfaces.json and .html. `comms.EmailFilingStore`
+  `FileEmail` files an email to a matter on `comms.comm_filing` and emits it in the same
+  transaction (ARC-I-030); filing an already filed email emits nothing. F-DL-01's binding
+  (`boot.JobBindings`) lists `document.uploaded` and `email.filed`. Open: no HTTP route or
+  inbound-mail rule calls `FileEmail` yet; the route that files an email must wire it with the
+  outbox Emitter.

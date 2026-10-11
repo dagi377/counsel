@@ -13,8 +13,10 @@ import (
 
 var _ PlanStore = PGPlans{}
 
+var _ StepIDs = (*Planner)(nil)
+
 // PGPlans is a PlanStore over agent.plan. A row holds one plan: its id, its run and a body of
-// tool steps only (index, title, status, call ids). It never stores prompt or completion text.
+// tool steps only (index, title, status, call ids, step id). It never stores prompt or completion text.
 type PGPlans struct {
 	DB db.DB
 }
@@ -26,6 +28,7 @@ type planStep struct {
 	Title   string     `json:"title"`
 	Status  StepStatus `json:"status"`
 	CallIDs []string   `json:"call_ids,omitempty"`
+	ID      string     `json:"id,omitempty"`
 }
 
 const (
@@ -76,7 +79,7 @@ func (s PGPlans) load(ctx context.Context, sql, key string) (Plan, error) {
 	if len(steps) > 0 {
 		p.Steps = make([]Step, len(steps))
 		for i, st := range steps {
-			p.Steps[i] = Step{Index: st.Index, Title: st.Title, Status: st.Status, CallIDs: st.CallIDs}
+			p.Steps[i] = Step{Index: st.Index, Title: st.Title, Status: st.Status, CallIDs: st.CallIDs, ID: st.ID}
 		}
 	}
 	return p, nil
@@ -86,7 +89,7 @@ func (s PGPlans) load(ctx context.Context, sql, key string) (Plan, error) {
 func (s PGPlans) Save(ctx context.Context, p Plan) error {
 	steps := make([]planStep, len(p.Steps))
 	for i, st := range p.Steps {
-		steps[i] = planStep{Index: st.Index, Title: st.Title, Status: st.Status, CallIDs: st.CallIDs}
+		steps[i] = planStep{Index: st.Index, Title: st.Title, Status: st.Status, CallIDs: st.CallIDs, ID: st.ID}
 	}
 	body, err := json.Marshal(steps)
 	if err != nil {

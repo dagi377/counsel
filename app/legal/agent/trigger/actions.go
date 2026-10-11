@@ -22,7 +22,7 @@ import (
 )
 
 // ActionPath is the screen-action route (Q-FEAT-CORE-12 in docs/QUESTIONS.md).
-const ActionPath = "/api/agent/actions/{feature_id}"
+const ActionPath = "/agent/actions/{feature_id}"
 
 // maxRecords bounds the record ids one action may name.
 const maxRecords = 100
