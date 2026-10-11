@@ -457,16 +457,16 @@ func TestBIL_I_009_PrepareBankBalanceMatchesStatement(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			r := newRig(t)
+			r := wrNewRig(t)
 			body := `{"account_id":"` + acctA + `","month":"` + tc.month + `","bank_balance_cents":` + tc.balance + `}`
-			rec := do(r.h, preparePath, "alice", jsonType, body, key(tc.key))
+			rec := wrDo(r.h, preparePath, "alice", jsonType, body, key(tc.key))
 			if tc.code == "" {
 				if rec.Code != tc.status {
 					t.Fatalf("status = %d, want %d (%s)", rec.Code, tc.status, rec.Body)
 				}
 				return
 			}
-			checkProblem(t, rec, tc.status, tc.code)
+			wrCheckProblem(t, rec, tc.status, tc.code)
 			if r.svc.calls["Prepare"] != 0 {
 				t.Errorf("Prepare called %d times on a refused balance", r.svc.calls["Prepare"])
 			}
