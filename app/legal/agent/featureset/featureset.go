@@ -56,5 +56,6 @@ func appDefs() []feature.Def {
 		// matters
 		matter.RequestIDDef(),
 		matter.MatterDigestDef(),
+		matter.RelatedMattersDef(),
 	}
 }
