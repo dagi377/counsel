@@ -2377,3 +2377,21 @@ Done in PORT-18:
 - A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008), not
   the 409 the accept line names; same as the other HTTP routes.
 - openapi has no body schemas for these operations; the views are documented here.
+## Q-BOOT-WIRE-A agent layer at boot
+
+- `Options.Agent` (`AgentWiring`) registers every `agent.Handlers()` tool, the job bindings
+  and tick job, the action route, the flag digest template and the FlagSink gate map. Boot
+  fails closed: a nil port fails its handler with ErrMissingDep, and `Features()` fails when a
+  feature names a tool with no handler or a gate kind outside spec/gates.json.
+- Event names chosen from a2 for unbound features: F-DL-01 `document.uploaded`; F-DL-02
+  `lead.created` and `matter.updated` (claim facts updated). Open: confirm with the owners.
+- Action screens: `matter-deadlines` and `limitation-assessment` both map to subject kind
+  `matter`, capability `deadlines.view`. Open: limitation assessment from intake may need a
+  `lead` subject kind.
+- `RiverActionQueue` uses the run id as the job's event id so each request is its own job.
+- Left: Postgres adapters for BillBalances, MatterTrustAccounts, PublishedPacks, MatterTime,
+  SubjectMatters, ProposedTasks, ConflictCheckParties, MatterContacts, DocumentDrafts,
+  EmailDrafts, NoteDrafts (none exist); the caller passes them in `AgentPorts`. Not done: the
+  PlanStore step map (kernel `agenttools.Step` has no step id; needs an additive kernel field).
+  `ForgetRunner` calls Provenance.Forget on run end; it wraps the action route's Runner, and the
+  job-run worker must use it too once it exists.
