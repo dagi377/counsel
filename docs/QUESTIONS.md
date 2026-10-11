@@ -3014,3 +3014,13 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - The end-to-end tests use `app/legal/timekeeping/ai_timb_helpers_test.go` (prefix `timb`),
   shared with FEAT-TIM-03 and FEAT-TIM-04. It prices the Seed's time entries for
   `list_unbilled` (the Seed has no `agent.MatterTime`).
+
+## Q-FEAT-TIM-03 F-TIM-03 pre-bill check: trigger event and acting user
+
+- No bill-draft-requested event exists on main. F-TIM-03 names `bill.draft_requested`
+  (`timekeeping.EventBillDraftRequested`); billing must publish it when a user asks for a
+  draft bill, or the event half never fires. The monthly half runs today.
+- The monthly run has no designated lawyer, so boot binds it for `ruleAdmin` like the other
+  scheduled features (Q-INTEG-15A-SCHEDULED).
+- `matter-wip` and `write-downs` map to subject `matter` with capability `billing.view`
+  (what `list_unbilled` needs).

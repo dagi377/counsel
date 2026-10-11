@@ -75,5 +75,6 @@ func appDefs() []feature.Def {
 		legaldocs.DraftWithCitationsDef(),
 		// time
 		timekeeping.ReceiptCaptureDef(),
+		timekeeping.PreBillCheckDef(),
 	}
 }

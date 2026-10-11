@@ -257,8 +257,8 @@ func gateKindCodes() ([]string, error) {
 
 // JobBindings binds every job feature of s to the events and schedule that start it.
 // ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-05,
-// F-DL-09, F-CON-05, F-CON-09 to 12, F-DOC-06; Q-INTEG-15A-SCHEDULED); empty fails with
-// trigger.ErrBadBinding. The F-DL-06 rule watch acts for its designated lawyer in firm
+// F-DL-09, F-CON-05, F-CON-09 to 12, F-DOC-06, F-TIM-03; Q-INTEG-15A-SCHEDULED); empty
+// fails with trigger.ErrBadBinding. The F-DL-06 rule watch acts for its designated lawyer in firm
 // settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
 // job feature cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
@@ -295,6 +295,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		legaldocs.EngagementLetterDef().ID:          legaldocs.EngagementLetterBinding,
 		legaldocs.DraftWithCitationsDef().ID:        legaldocs.DraftWithCitationsBinding,
 		tk.ReceiptCaptureDef().ID:                   tk.ReceiptCaptureBinding,
+		tk.PreBillCheckDef().ID:                     scheduled(tk.PreBillCheckBinding),
 		legaldocs.FeatureTemplateCurrency: func() (trigger.Binding, error) {
 			// F-DOC-06 runs weekly and on a known rule change; no form-change event exists
 			// yet (Q-INTEG-15A-SCHEDULED).
@@ -359,6 +360,9 @@ var actionScreens = map[string]trigger.Screen{
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
 	// Time: an expense is recorded on its matter.
 	"expenses": {SubjectKind: "matter", Capability: "time.record"},
+	// A pre-bill check reviews the matter's unbilled time.
+	"matter-wip":  {SubjectKind: "matter", Capability: agent.CapBillingView},
+	"write-downs": {SubjectKind: "matter", Capability: agent.CapBillingView},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
