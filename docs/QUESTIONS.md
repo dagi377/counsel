@@ -734,3 +734,19 @@ s.33 as amended and either the rules or the decision change.
   ultimate periods and ignores suspensions.
 - No Assessor or production wiring exists yet, so nothing used the fake outside tests. The
   BOOT task set should construct `limitation.NewStatute(schedule)` as the Calculator.
+
+## Q-BOOT-13-PORTS: trust services need ports no module implements yet
+
+- Task: BOOT-13 (app/legal/boot trust services).
+- Gap: on main there is no production `signatory.Service`, `signatory.Directory`,
+  `trust.Sealer`, `withdraw.SignatoryCheck`, `withdraw.FirmPolicy` or `withdraw.Auditor`
+  (only fakes and test types), and `*ledger.PG` has no `Balance`, so it is not a
+  `ledger.Ledger` on its own (`ledger.Balances` has it).
+- Decision taken: `trustServices(k, TrustPorts)` builds `trust.AccountStore`,
+  `trust.LedgerStore` and `*withdraw.Effect` (store `withdraw.PGStore{}`) from the module
+  constructors and takes the missing ports from `TrustPorts`; each nil port fails boot naming
+  it. The AccountStore is the LedgerStore's `SignatoryGuard`.
+- Needed: tasks for the identity directory adapter, the account-number sealer, a Postgres
+  signatory service, the firm-policy reader, the withdrawal auditor and a kernel ledger value
+  that joins `PG` and `Balances`. BOOT-16 fills `TrustPorts` from them.
+- Answer: (owner)
