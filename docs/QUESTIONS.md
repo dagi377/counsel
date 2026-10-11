@@ -3042,3 +3042,20 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - Files beyond the list: featureset.go and its test, boot/agent.go (the job binding), the
   shared `ai_wrk_helpers_test.go` and the generated skill
   `paploo/counsel-plugin/skills/f-wrk-02-propose-matter-plan/SKILL.md`.
+
+## Q-FEAT-WRK-03 F-WRK-04 date shift: work.plan in the run, and no sourced shifted date
+
+- Task: FEAT-WRK-03 (F-WRK-04 Date-shift on key date change).
+- Same work.plan gap as Q-FEAT-WRK-02: the change tasks are proposals and the in-run
+  `submit_for_approval` fails closed with `ErrNotFound`; `TestFWRK04_FromFeature` opens
+  work.plan on the change as the acting user and checks pending, 403 and `ErrSelfApproval`.
+- The Def's tools return no bare `YYYY-MM-DD` date (list_work_items gives RFC 3339 `due_at`)
+  and there is no date-shift tool, so the agent cannot source a shifted due date. The prompt
+  has it leave `due_on` out and let the lawyer set it; the tests check an invented shifted
+  date is refused with `ErrUnsourcedValue` (with create_task wrapped as in Q-FEAT-WRK-01).
+  Proposed: a read tool that returns each dependent item's shifted date (offset from the key
+  date, in America/Toronto business days where the template says so), so a date-shift
+  proposal can carry dates.
+- `matter.key_date_changed` is not in spec/eng/a2-interfaces.json; nothing publishes it yet.
+- Files beyond the list: featureset.go and its test, boot/agent.go (the job binding) and the
+  generated skill `paploo/counsel-plugin/skills/f-wrk-04-date-shift-on-key-date-change/SKILL.md`.

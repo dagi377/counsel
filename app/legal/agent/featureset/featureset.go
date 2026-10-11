@@ -76,5 +76,6 @@ func appDefs() []feature.Def {
 		// work
 		work.PickUpAgentReadyDef(),
 		work.ProposeMatterPlanDef(),
+		work.DateShiftDef(),
 	}
 }
