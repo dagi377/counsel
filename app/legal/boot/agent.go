@@ -356,6 +356,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
+	// Intake.
+	"intake-automations": {SubjectKind: "matter", Capability: "intake.forms"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

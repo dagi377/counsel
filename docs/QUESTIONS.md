@@ -3001,3 +3001,13 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-FEAT-INT-12 F-INT-17 draft sequence: screen subject and shared helpers
+
+- `intake-automations` is a firm-level settings screen; with no firm subject kind on main
+  (BOOT-24 adds `boot.FirmSubject`, unmerged), it maps to subject `matter` (the matter the
+  draft is filed on, which `draft_document` needs) with capability `intake.forms`. Move it to
+  `FirmSubject` when BOOT-24 lands.
+- `platform.skill_autonomy` is a literal in the Def: no exported constant exists on main or the
+  pushed branches. The end-to-end tests use `app/legal/intake/ai_inte_helpers_test.go` (prefix
+  `inte`), shared byte-for-byte with FEAT-INT-11 and FEAT-INT-13.
