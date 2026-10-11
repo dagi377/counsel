@@ -45,5 +45,6 @@ func appDefs() []feature.Def {
 		conflict.ClearanceMemoDef(),
 		// matters
 		matter.CallSummaryDef(),
+		matter.ChronologyDef(),
 	}
 }
