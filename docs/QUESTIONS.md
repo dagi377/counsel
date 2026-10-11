@@ -734,3 +734,14 @@ s.33 as amended and either the rules or the decision change.
   ultimate periods and ignores suspensions.
 - No Assessor or production wiring exists yet, so nothing used the fake outside tests. The
   BOOT task set should construct `limitation.NewStatute(schedule)` as the Calculator.
+
+## Q-BOOT-22 notification templates: Options.Sender and the app template list
+
+- Task: BOOT-22 (app/legal/boot notification templates).
+- Outside the task's files: `app/legal/boot/boot.go` gains `Options.Sender notify.Sender`
+  (additive; the accept line names it) and `opts.registerNotify` in `registerHooks`.
+- No app module defines kernel notification templates yet (the comms message templates are
+  a separate store, seeded by BOOT-23). The app list in `notify.go` holds one template,
+  `sync.subscription_renewal_failed`, for the cliosync renewal alert (ids and times only).
+  Modules that need notifications add theirs to `notifyTemplates`.
+- Answer: (owner)
