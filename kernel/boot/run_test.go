@@ -211,3 +211,26 @@ func TestPGGatesIsTheEngine(t *testing.T) {
 		})
 	}
 }
+
+// Run loads the registry schemas from the binary, so it boots from any working directory.
+func TestProductionRegistryFromAnyDir(t *testing.T) {
+	tests := []struct {
+		name string
+		dir  func(t *testing.T) string
+	}{
+		{"empty temp dir", func(t *testing.T) string { return t.TempDir() }},
+		{"filesystem root", func(*testing.T) string { return "/" }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Chdir(tt.dir(t))
+			reg, err := productionEnv().registry()
+			if err != nil {
+				t.Fatalf("registry() from %s: %v", tt.name, err)
+			}
+			if reg == nil {
+				t.Fatal("registry() = nil")
+			}
+		})
+	}
+}

@@ -778,6 +778,7 @@ BOOT tasks are not in docs/TASKS.md, so their progress is tracked here.
 - Still open: kernel boot must call `identity.NewAdminGates` with `CoreGateEffects` and
   register the result's effects; the limitation Assessor must take `LimitationStatute`.
 
+
 ## T-009.4: concrete server, two-way OpenAPI check, unserved list (owner decision)
 
 The owner unblocked T-009.4 before every openapi path has a handler. Files outside the task:
@@ -945,3 +946,12 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   `gate.withdraw(uuid, uuid)` in a later additive migration would be tighter.
 - RunDue skips a gate whose effect failed (recorded as failed), whose kind is unknown or whose
   stored payload fails its hash, logging a warning, so one bad gate does not block the rest.
+
+## PORT-02 (kernel/registry/schemas: embedded spec/kernel schemas)
+
+- Branch is cut from origin/main with origin/task/BOOT-09 merged in (run.go lives only there).
+  The merge resolves two conflicts against main's wave-4a boot work: Kernel keeps main's
+  fields (BOOT-09 had a second `Notify`), and run.go drops its stub `addKernelJobs` in favour
+  of main's real one in jobs_kernel.go.
+- `kernel/registry/schemas/embed_integration_test.go` is added beyond the task's file list to
+  meet the "integration test compiles" line; it needs no database.
