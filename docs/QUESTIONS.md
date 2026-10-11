@@ -984,3 +984,15 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   CheckCitations validates it; quotes[i] is the name of contacts[i].
 - `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
   Q-FEAT-TOOL agent handler set), so the branches merge cleanly.
+
+## FEAT-TOOL-10 get_trust_balance
+
+- withdraw.Available takes a trust account id and a matter id; nothing on main lists the
+  accounts that hold a matter's ledger. The tool reads them through a new
+  `agent.MatterTrustAccounts` port (`TrustAccountsOf(ctx, matterID)`), wired at boot from the
+  trust ledgers, and returns one figure per account plus their sum.
+- Available has no history, so an `as_of` other than today (America/Toronto) is refused as
+  invalid input rather than answered with today's balance.
+- Registered through the explicit `GetTrustBalanceHandler()`, not init(). The result holds ids
+  and cents only, so it quotes nothing; it wraps itself with `Provenance.ReadTool` and needs
+  the run's `*agenttools.Provenance` in Deps.
