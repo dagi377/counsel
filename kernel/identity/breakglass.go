@@ -4,9 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
+	"log/slog"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -60,17 +59,24 @@ func (g BreakGlassGrant) ActiveAt(t time.Time) bool {
 // BreakGlass opens and expires time-boxed emergency grants. Every open and every expiry
 // writes one audit event in the caller's transaction.
 type BreakGlass struct {
-	clock clock.Clock
-	log   audit.Log
-
-	mu     sync.Mutex
-	seq    int
-	grants []*BreakGlassGrant
+	clock  clock.Clock
+	log    audit.Log
+	grants GrantStore
 }
 
-// NewBreakGlass returns a BreakGlass that reads time from c and audits to log.
+// NewBreakGlass returns a BreakGlass that reads time from c, audits to log and keeps grants
+// in memory.
 func NewBreakGlass(c clock.Clock, log audit.Log) *BreakGlass {
-	return &BreakGlass{clock: c, log: log}
+	return NewBreakGlassWith(c, log, nil)
+}
+
+// NewBreakGlassWith returns a BreakGlass that keeps grants in store (for example PGGrants).
+// A nil store keeps them in memory.
+func NewBreakGlassWith(c clock.Clock, log audit.Log, store GrantStore) *BreakGlass {
+	if store == nil {
+		store = newMemGrants()
+	}
+	return &BreakGlass{clock: c, log: log, grants: store}
 }
 
 // Open validates r, records a grant from now to now+r.Duration and appends an audit event.
@@ -86,13 +92,8 @@ func (b *BreakGlass) Open(ctx context.Context, tx pgx.Tx, r BreakGlassRequest) (
 	case r.Duration <= 0 || r.Duration > BreakGlassMax:
 		return BreakGlassGrant{}, fmt.Errorf("break glass: duration %s: %w", r.Duration, ErrInvalidBreakGlass)
 	}
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
 	now := b.clock.Now()
-	b.seq++
-	g := &BreakGlassGrant{
-		ID:          "bg-" + strconv.Itoa(b.seq),
+	g := BreakGlassGrant{
 		UserID:      UserID(r.By.UserID),
 		Subject:     r.Subject,
 		Reason:      r.Reason,
@@ -100,56 +101,53 @@ func (b *BreakGlass) Open(ctx context.Context, tx pgx.Tx, r BreakGlassRequest) (
 		StartsAt:    now,
 		EndsAt:      now.Add(r.Duration),
 	}
-	if err := b.log.Append(ctx, tx, b.event(ActionBreakGlassOpen, *g)); err != nil {
-		b.seq--
-		return BreakGlassGrant{}, fmt.Errorf("break glass: audit open: %w", err)
+	g, err := b.grants.Insert(ctx, tx, g, func(g BreakGlassGrant) error {
+		if err := b.log.Append(ctx, tx, b.event(ActionBreakGlassOpen, g)); err != nil {
+			return fmt.Errorf("audit open: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return BreakGlassGrant{}, fmt.Errorf("break glass: %w", err)
 	}
-	b.grants = append(b.grants, g)
-	return *g, nil
+	return g, nil
 }
 
-// Active returns the grant that lets user see s now, if any.
-func (b *BreakGlass) Active(_ context.Context, user UserID, s Subject) (BreakGlassGrant, bool) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	now := b.clock.Now()
-	for _, g := range b.grants {
-		if g.UserID == user && g.Subject == s && g.ActiveAt(now) {
-			return *g, true
-		}
+// Active returns the grant that lets user see s now, if any. A store error fails closed: no
+// grant, and the error is logged without the grant's free text.
+func (b *BreakGlass) Active(ctx context.Context, user UserID, s Subject) (BreakGlassGrant, bool) {
+	g, ok, err := b.grants.Active(ctx, user, s, b.clock.Now())
+	if err != nil {
+		slog.ErrorContext(ctx, "break glass: active grant lookup failed", "user", string(user), "subject_kind", s.Kind, "subject", s.ID, "err", err)
+		return BreakGlassGrant{}, false
 	}
-	return BreakGlassGrant{}, false
+	return g, ok
 }
 
 // Expire marks every grant past its EndsAt as expired and appends one expiry audit event
 // per grant. It is safe to run repeatedly; it returns how many grants it expired.
 func (b *BreakGlass) Expire(ctx context.Context, tx pgx.Tx) (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	now := b.clock.Now()
-	n := 0
-	for _, g := range b.grants {
-		if g.Expired || now.Before(g.EndsAt) {
-			continue
+	n, err := b.grants.ExpireDue(ctx, tx, b.clock.Now(), func(g BreakGlassGrant) error {
+		if err := b.log.Append(ctx, tx, b.event(ActionBreakGlassExpire, g)); err != nil {
+			return fmt.Errorf("audit expire %s: %w", g.ID, err)
 		}
-		if err := b.log.Append(ctx, tx, b.event(ActionBreakGlassExpire, *g)); err != nil {
-			return n, fmt.Errorf("break glass: audit expire %s: %w", g.ID, err)
-		}
-		g.Expired = true
-		n++
+		return nil
+	})
+	if err != nil {
+		return n, fmt.Errorf("break glass: %w", err)
 	}
 	return n, nil
 }
 
-// Grants lists every grant, in the order opened, for break-glass review.
-func (b *BreakGlass) Grants(_ context.Context) []BreakGlassGrant {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	out := make([]BreakGlassGrant, len(b.grants))
-	for i, g := range b.grants {
-		out[i] = *g
+// Grants lists every grant, in the order opened, for break-glass review. A store error is
+// logged and yields no grants.
+func (b *BreakGlass) Grants(ctx context.Context) []BreakGlassGrant {
+	gs, err := b.grants.List(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "break glass: list grants failed", "err", err)
+		return nil
 	}
-	return out
+	return gs
 }
 
 // event builds the audit event for g. Reason and explanation are free text and stay out

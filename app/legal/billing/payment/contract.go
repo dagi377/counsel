@@ -107,4 +107,15 @@ type Service interface {
 	Get(ctx context.Context, paymentID string) (Payment, error)
 	// Allocations lists a payment's allocations in the order they were made.
 	Allocations(ctx context.Context, paymentID string) ([]Allocation, error)
+	// List returns up to f.Limit payments matching f, ordered by id (HTTP-14, additive).
+	List(ctx context.Context, f ListFilter) ([]Payment, error)
+}
+
+// ListFilter selects one page of payments, ordered by id. Zero fields do not filter.
+type ListFilter struct {
+	After        string // return payments with id greater than this
+	Limit        int
+	ClientID     string
+	ReceivedFrom time.Time // business date, inclusive
+	ReceivedTo   time.Time // business date, inclusive
 }

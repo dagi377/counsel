@@ -1,0 +1,148 @@
+package agent
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"github.com/dagi377/counsel/app/legal/roles"
+	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/registry"
+	"github.com/dagi377/counsel/kernel/work"
+)
+
+// ToolCreateTask proposes a work item. It starts in the task workflow's proposed status and
+// becomes work only when its assignee or approver accepts it.
+const ToolCreateTask = "create_task"
+
+// WorkTypeTask is the work item type create_task creates.
+const WorkTypeTask = "task"
+
+// TaskCreator creates work items (kernel/work Service.Create).
+type TaskCreator interface {
+	Create(ctx context.Context, tx pgx.Tx, it work.Item) (work.ItemID, error)
+}
+
+// ProposedTasks names where an agent-proposed task starts: the task workflow and its
+// proposed status (work configuration, wired at boot).
+type ProposedTasks interface {
+	ProposedTaskStatus(ctx context.Context) (workflowID, statusID string, err error)
+}
+
+// CreateTaskHandler is create_task's handler, for the boot HandlerSet.
+func CreateTaskHandler() Handler {
+	return Handler{Name: ToolCreateTask, Build: buildCreateTask}
+}
+
+// buildCreateTask reads Deps: CapabilityCheck, roles.Walls, TaskCreator and ProposedTasks.
+func buildCreateTask(d Deps) (registry.Tool, error) {
+	can, err := DepOf[CapabilityCheck](d)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
+	}
+	walls, err := DepOf[roles.Walls](d)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
+	}
+	items, err := DepOf[TaskCreator](d)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
+	}
+	proposed, err := DepOf[ProposedTasks](d)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
+	}
+	loc, err := time.LoadLocation("America/Toronto")
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: zone: %w", ToolCreateTask, err)
+	}
+	specs, _, err := a2Specs([]ToolSpec{{Name: ToolCreateTask, Kind: Write}})
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
+	}
+	s := specs[0]
+	t := createTask{can: can, walls: walls, items: items, proposed: proposed, capability: s.Capability, loc: loc}
+	// rule: ARC-I-035
+	// WriteTool holds every result to a draft, a proposal or an opened gate.
+	tool, err := agenttools.WriteTool(registry.Tool{
+		Name: s.Name, Kind: registry.ToolWrite, Capability: s.Capability, Input: s.InputSchema, Handle: t.handle,
+	})
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
+	}
+	return tool, nil
+}
+
+type createTask struct {
+	can        CapabilityCheck
+	walls      roles.Walls
+	items      TaskCreator
+	proposed   ProposedTasks
+	capability string
+	loc        *time.Location
+}
+
+type createTaskIn struct {
+	MatterID   string `json:"matter_id"`
+	Title      string `json:"title"`
+	AssigneeID string `json:"assignee_id"`
+	DueOn      string `json:"due_on"`
+}
+
+func (t createTask) handle(ctx context.Context, p registry.Principal, raw json.RawMessage) (registry.ToolResult, error) {
+	user := actor(p)
+	// rule: ARC-I-036
+	ok, err := t.can(ctx, user, t.capability)
+	if err != nil {
+		return registry.ToolResult{}, fmt.Errorf("%s: capability: %w", ToolCreateTask, err)
+	}
+	if !ok {
+		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolCreateTask, ErrForbidden)
+	}
+	var in createTaskIn
+	if err := json.Unmarshal(raw, &in); err != nil || in.Title == "" {
+		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolCreateTask, ErrInvalidInput)
+	}
+	it := work.Item{Type: WorkTypeTask, Title: in.Title, ReporterID: user, AssigneeUserID: in.AssigneeID}
+	if in.MatterID != "" {
+		// rule: ARC-I-036
+		if err := visibleTo(ctx, t.walls, user, in.MatterID); err != nil {
+			return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
+		}
+		// The assignee must see the matter too: work on a walled matter is never handed to a
+		// walled user.
+		if in.AssigneeID != "" {
+			if err := visibleTo(ctx, t.walls, in.AssigneeID, in.MatterID); err != nil {
+				return registry.ToolResult{}, fmt.Errorf("%s: assignee: %w", ToolCreateTask, err)
+			}
+		}
+		it.Subject = registry.Subject{Kind: WorkSubjectMatter, ID: in.MatterID}
+	}
+	if in.DueOn != "" {
+		// A due date is a calendar day in the business zone, held as its midnight there.
+		due, err := time.ParseInLocation(time.DateOnly, in.DueOn, t.loc)
+		if err != nil {
+			return registry.ToolResult{}, fmt.Errorf("%s: due date: %w", ToolCreateTask, ErrInvalidInput)
+		}
+		it.DueAt = &due
+	}
+	it.WorkflowID, it.StatusID, err = t.proposed.ProposedTaskStatus(ctx)
+	if err != nil {
+		return registry.ToolResult{}, fmt.Errorf("%s: proposed status: %w", ToolCreateTask, err)
+	}
+	// rule: ARC-I-035
+	// The item is created proposed, with no approver: the agent never accepts it, and only the
+	// assignee or an approver moves it on.
+	id, err := t.items.Create(ctx, nil, it)
+	if err != nil {
+		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
+	}
+	out, err := json.Marshal(agenttools.WriteOutput{Outcome: agenttools.OutcomeProposal, Ref: string(id)})
+	if err != nil {
+		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
+	}
+	return registry.ToolResult{Output: out}, nil
+}

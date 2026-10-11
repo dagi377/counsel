@@ -34,6 +34,23 @@ type stubContacts struct {
 	calls    int
 }
 
+// listPage is the openapi list page shape, {data, next_cursor} as GET /bills declares it.
+// GET /contacts declares no 200 schema of its own, so its pages are checked against this shape.
+var listPage = jsonschema.MustCompileString("list-page.json",
+	`{"type":"object","required":["data","next_cursor"],"properties":{"data":{"type":"array"},"next_cursor":{"type":["string","null"]}}}`)
+
+// validatePage checks that body is a whole openapi list page.
+func validatePage(t *testing.T, body []byte) {
+	t.Helper()
+	var v any
+	if err := json.Unmarshal(body, &v); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	if err := listPage.Validate(v); err != nil {
+		t.Errorf("body is not an openapi list page: %v (%s)", err, body)
+	}
+}
+
 func (s *stubContacts) Calls() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -303,9 +320,10 @@ func TestContactListPages(t *testing.T) {
 				if rec.Code != http.StatusOK {
 					t.Fatalf("page %d status = %d (%s)", i, rec.Code, rec.Body)
 				}
+				validatePage(t, rec.Body.Bytes())
 				var page struct {
-					Items []map[string]any `json:"items"`
-					Next  string           `json:"next"`
+					Items []map[string]any `json:"data"`
+					Next  string           `json:"next_cursor"`
 				}
 				if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
 					t.Fatal(err)

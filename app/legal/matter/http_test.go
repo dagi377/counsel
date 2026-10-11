@@ -38,6 +38,23 @@ type stubQuery struct {
 	calls   int
 }
 
+// listPage is the openapi list page shape, {data, next_cursor} as GET /bills declares it.
+// GET /matters declares no 200 schema of its own, so its pages are checked against this shape.
+var listPage = jsonschema.MustCompileString("list-page.json",
+	`{"type":"object","required":["data","next_cursor"],"properties":{"data":{"type":"array"},"next_cursor":{"type":["string","null"]}}}`)
+
+// validatePage checks that body is a whole openapi list page.
+func validatePage(t *testing.T, body []byte) {
+	t.Helper()
+	var v any
+	if err := json.Unmarshal(body, &v); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	if err := listPage.Validate(v); err != nil {
+		t.Errorf("body is not an openapi list page: %v (%s)", err, body)
+	}
+}
+
 func (q *stubQuery) count() {
 	q.mu.Lock()
 	q.calls++
@@ -220,8 +237,8 @@ func do(h http.Handler, method, path, user string, body []byte, hdr map[string]s
 }
 
 type pageBody struct {
-	Items []map[string]any `json:"items"`
-	Next  string           `json:"next"`
+	Items []map[string]any `json:"data"`
+	Next  string           `json:"next_cursor"`
 }
 
 func TestARC_I_042_MatterReadsAuthz(t *testing.T) {
@@ -330,6 +347,7 @@ func TestMatterListPagesAndFields(t *testing.T) {
 			if rec.Code != 200 {
 				t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
 			}
+			validatePage(t, rec.Body.Bytes())
 			var p pageBody
 			if err := json.Unmarshal(rec.Body.Bytes(), &p); err != nil {
 				t.Fatal(err)
@@ -354,11 +372,13 @@ func TestMatterListPagesAndFields(t *testing.T) {
 func TestMatterListFollowsCursor(t *testing.T) {
 	_, _, h := newRig(t)
 	rec := do(h, http.MethodGet, "/v1/matters?limit=2", "viewer", nil, nil)
+	validatePage(t, rec.Body.Bytes())
 	var first pageBody
 	if err := json.Unmarshal(rec.Body.Bytes(), &first); err != nil || first.Next == "" {
 		t.Fatalf("first page: %v next=%q", err, first.Next)
 	}
 	rec = do(h, http.MethodGet, "/v1/matters?cursor="+first.Next, "viewer", nil, nil)
+	validatePage(t, rec.Body.Bytes())
 	var second pageBody
 	if err := json.Unmarshal(rec.Body.Bytes(), &second); err != nil {
 		t.Fatal(err)

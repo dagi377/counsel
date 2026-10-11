@@ -25,15 +25,15 @@ import (
 )
 
 const (
-	billMatter  = "91111111-1111-4111-8111-111111111111"
-	billWalled  = "92222222-2222-4222-8222-222222222222"
-	billEntryA  = "93333333-3333-4333-8333-333333333333"
-	billEntryB  = "94444444-4444-4444-8444-444444444444"
-	billEntryX  = "95555555-5555-4555-8555-555555555555"
-	billRun     = "run-bill"
-	billNoPlan  = "run-bill-noplan"
-	billCapName = "billing.draft"
-	billApprove = "billing.approve"
+	draftBillMatter = "91111111-1111-4111-8111-111111111111"
+	draftBillWalled = "92222222-2222-4222-8222-222222222222"
+	billEntryA      = "93333333-3333-4333-8333-333333333333"
+	billEntryB      = "94444444-4444-4444-8444-444444444444"
+	billEntryX      = "95555555-5555-4555-8555-555555555555"
+	draftBillRun    = "run-bill"
+	billNoPlan      = "run-bill-noplan"
+	billCapName     = "billing.draft"
+	billApprove     = "billing.approve"
 )
 
 // wipDrafts is a batch.Drafts over draftfake: Create assembles a draft from the matter's
@@ -67,7 +67,7 @@ func (w *wipDrafts) Create(ctx context.Context, key string, t batch.Target, _ cl
 
 // UnbilledEntryIDs is the matter's unbilled WIP: the two entries Create puts on the draft.
 func (w *wipDrafts) UnbilledEntryIDs(_ context.Context, matterID string, _ clock.Date) ([]string, error) {
-	if matterID != billMatter {
+	if matterID != draftBillMatter {
 		return nil, nil
 	}
 	return []string{billEntryA, billEntryB}, nil
@@ -80,7 +80,7 @@ func (w *wipDrafts) created() int {
 	return len(w.keys)
 }
 
-type billWorld struct {
+type draftBillWorld struct {
 	reg    *agenttools.Registry
 	drafts *wipDrafts
 	store  *draftfake.Fake
@@ -88,19 +88,19 @@ type billWorld struct {
 	opened *int // gates opened through the tool's opener
 }
 
-// newBillWorld registers the real draft_bill on a Registry over module fakes. billRun has a
+// newDraftBillWorld registers the real draft_bill on a Registry over module fakes. draftBillRun has a
 // plan and read the figure 5000; billNoPlan has no plan. clerk holds actorCaps and is walled
-// from billWalled.
-func newBillWorld(t *testing.T, actorCaps map[string]bool) billWorld {
+// from draftBillWalled.
+func newDraftBillWorld(t *testing.T, actorCaps map[string]bool) draftBillWorld {
 	t.Helper()
 	ctx := context.Background()
 	walls := rolesfake.New()
-	walls.Wall(clerk, billWalled)
+	walls.Wall(clerk, draftBillWalled)
 	can := agent.CapabilityCheck(func(_ context.Context, user, capability string) (bool, error) {
 		return user == clerk && actorCaps[capability], nil
 	})
 	store := draftfake.New()
-	w := billWorld{
+	w := draftBillWorld{
 		store:  store,
 		drafts: &wipDrafts{store: store, keys: map[string]string{}, status: map[string]string{}},
 		gates:  gatefake.New(func() time.Time { return time.Date(2026, 10, 11, 9, 0, 0, 0, time.UTC) }, gatefake.Caps{"partner": {billApprove}}),
@@ -118,7 +118,7 @@ func newBillWorld(t *testing.T, actorCaps map[string]bool) billWorld {
 		return w.gates.Open(ctx, nil, kind, s, payload, by)
 	})
 	pv := agenttools.NewProvenance()
-	pv.Observe(billRun, json.RawMessage(`{"unbilled_cents":5000}`))
+	pv.Observe(draftBillRun, json.RawMessage(`{"unbilled_cents":5000}`))
 	var drafts batch.Drafts = w.drafts
 	var wip agent.UnbilledWIP = w.drafts
 	var lines draft.Store = store
@@ -127,7 +127,7 @@ func newBillWorld(t *testing.T, actorCaps map[string]bool) billWorld {
 		t.Fatalf("build: %v", err)
 	}
 	plans := agenttoolsfake.New()
-	if _, err := plans.ReportPlan(ctx, billRun, []string{"draft the bill"}); err != nil {
+	if _, err := plans.ReportPlan(ctx, draftBillRun, []string{"draft the bill"}); err != nil {
 		t.Fatalf("plan: %v", err)
 	}
 	w.reg = agenttools.NewRegistry(plans)
@@ -166,7 +166,7 @@ func TestARC_I_035_DraftBill(t *testing.T) {
 		return registry.Principal{Kind: registry.PrincipalAgent, RunID: run, ActingFor: clerk, Grant: g}
 	}
 	user := registry.Principal{Kind: registry.PrincipalUser, UserID: clerk}
-	inScope := billScope(billRun, agent.GatePrebillReview)
+	inScope := billScope(draftBillRun, agent.GatePrebillReview)
 	writeDown := func(cents int) string {
 		return fmt.Sprintf(`{"source_id":"%s","action":"write_down","write_down_cents":%d,"narrative":"Synthetic duplicate"}`, billEntryA, cents)
 	}
@@ -180,27 +180,27 @@ func TestARC_I_035_DraftBill(t *testing.T) {
 		wantErr   error
 		wantNets  map[string]int64 // source entry -> net cents on the draft
 	}{
-		{"agent assembles the pre-bill", inScope, agentP(billRun, grant), caps, billInput(billMatter), nil, map[string]int64{billEntryA: 50000, billEntryB: 20000}},
-		{"sourced write-down and a hold", inScope, agentP(billRun, grant), caps, billInput(billMatter, writeDown(5000), hold), nil, map[string]int64{billEntryA: 45000}},
-		{"no charge", inScope, agentP(billRun, grant), caps, billInput(billMatter, `{"source_id":"`+billEntryB+`","action":"no_charge"}`), nil, map[string]int64{billEntryA: 50000, billEntryB: 0}},
-		{"manual path", context.Background(), user, caps, billInput(billMatter), nil, map[string]int64{billEntryA: 50000, billEntryB: 20000}},
-		{"walled matter", inScope, agentP(billRun, grant), caps, billInput(billWalled), agent.ErrNotVisible, nil},
-		{"walled matter on the manual path", context.Background(), user, caps, billInput(billWalled), agent.ErrNotVisible, nil},
-		{"run without the capability", inScope, agentP(billRun, nil), caps, billInput(billMatter), agenttools.ErrMissingCapability, nil},
-		{"acting user without the capability", inScope, agentP(billRun, grant), map[string]bool{}, billInput(billMatter), agent.ErrForbidden, nil},
-		{"no report_plan in the run", billScope(billNoPlan, agent.GatePrebillReview), agentP(billNoPlan, grant), caps, billInput(billMatter), agenttools.ErrPlanRequired, nil},
-		{"gate kind outside the run scope", billScope(billRun, "billing.payment_allocation"), agentP(billRun, grant), caps, billInput(billMatter), agenttools.ErrGateKindNotAllowed, nil},
-		{"invented write-down amount", inScope, agentP(billRun, grant), caps, billInput(billMatter, writeDown(4999)), agenttools.ErrUnsourcedValue, nil},
-		{"write-down without amount", inScope, agentP(billRun, grant), caps, billInput(billMatter, `{"source_id":"`+billEntryA+`","action":"write_down"}`), agent.ErrInvalidInput, nil},
-		{"source not on the draft", inScope, agentP(billRun, grant), caps, billInput(billMatter, `{"source_id":"`+billEntryX+`","action":"hold"}`), agent.ErrInvalidInput, nil},
-		{"one bad source among good ones", inScope, agentP(billRun, grant), caps, billInput(billMatter, hold, `{"source_id":"`+billEntryX+`","action":"no_charge"}`), agent.ErrInvalidInput, nil},
-		{"bad source on the manual path", context.Background(), user, caps, billInput(billMatter, `{"source_id":"`+billEntryX+`","action":"bill"}`), agent.ErrInvalidInput, nil},
-		{"period ends before it starts", inScope, agentP(billRun, grant), caps, `{"matter_id":"` + billMatter + `","period_from":"2026-09-30","period_to":"2026-09-01"}`, agent.ErrInvalidInput, nil},
-		{"no field to finalize", inScope, agentP(billRun, grant), caps, `{"matter_id":"` + billMatter + `","period_to":"2026-09-30","issue":true}`, agenttools.ErrInvalidInput, nil},
+		{"agent assembles the pre-bill", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter), nil, map[string]int64{billEntryA: 50000, billEntryB: 20000}},
+		{"sourced write-down and a hold", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, writeDown(5000), hold), nil, map[string]int64{billEntryA: 45000}},
+		{"no charge", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, `{"source_id":"`+billEntryB+`","action":"no_charge"}`), nil, map[string]int64{billEntryA: 50000, billEntryB: 0}},
+		{"manual path", context.Background(), user, caps, billInput(draftBillMatter), nil, map[string]int64{billEntryA: 50000, billEntryB: 20000}},
+		{"walled matter", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillWalled), agent.ErrNotVisible, nil},
+		{"walled matter on the manual path", context.Background(), user, caps, billInput(draftBillWalled), agent.ErrNotVisible, nil},
+		{"run without the capability", inScope, agentP(draftBillRun, nil), caps, billInput(draftBillMatter), agenttools.ErrMissingCapability, nil},
+		{"acting user without the capability", inScope, agentP(draftBillRun, grant), map[string]bool{}, billInput(draftBillMatter), agent.ErrForbidden, nil},
+		{"no report_plan in the run", billScope(billNoPlan, agent.GatePrebillReview), agentP(billNoPlan, grant), caps, billInput(draftBillMatter), agenttools.ErrPlanRequired, nil},
+		{"gate kind outside the run scope", billScope(draftBillRun, "billing.payment_allocation"), agentP(draftBillRun, grant), caps, billInput(draftBillMatter), agenttools.ErrGateKindNotAllowed, nil},
+		{"invented write-down amount", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, writeDown(4999)), agenttools.ErrUnsourcedValue, nil},
+		{"write-down without amount", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, `{"source_id":"`+billEntryA+`","action":"write_down"}`), agent.ErrInvalidInput, nil},
+		{"source not on the draft", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, `{"source_id":"`+billEntryX+`","action":"hold"}`), agent.ErrInvalidInput, nil},
+		{"one bad source among good ones", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, hold, `{"source_id":"`+billEntryX+`","action":"no_charge"}`), agent.ErrInvalidInput, nil},
+		{"bad source on the manual path", context.Background(), user, caps, billInput(draftBillMatter, `{"source_id":"`+billEntryX+`","action":"bill"}`), agent.ErrInvalidInput, nil},
+		{"period ends before it starts", inScope, agentP(draftBillRun, grant), caps, `{"matter_id":"` + draftBillMatter + `","period_from":"2026-09-30","period_to":"2026-09-01"}`, agent.ErrInvalidInput, nil},
+		{"no field to finalize", inScope, agentP(draftBillRun, grant), caps, `{"matter_id":"` + draftBillMatter + `","period_to":"2026-09-30","issue":true}`, agenttools.ErrInvalidInput, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			w := newBillWorld(t, tc.actorCaps)
+			w := newDraftBillWorld(t, tc.actorCaps)
 			res, err := w.reg.Call(tc.ctx, tc.p, agent.ToolDraftBill, json.RawMessage(tc.in))
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tc.wantErr)
@@ -233,7 +233,7 @@ func TestARC_I_035_DraftBill(t *testing.T) {
 				t.Fatalf("payload: %v", err)
 			}
 			if g.Kind != agent.GatePrebillReview || g.Status != gate.StatusPending || g.Subject.ID != payload.BillID ||
-				payload.MatterID != billMatter || payload.PeriodTo != "2026-09-30" {
+				payload.MatterID != draftBillMatter || payload.PeriodTo != "2026-09-30" {
 				t.Fatalf("gate = %+v, payload %+v", g, payload)
 			}
 			// rule: ARC-I-035
@@ -263,15 +263,15 @@ func TestARC_I_039_DraftBillGateNotDecidedByAgent(t *testing.T) {
 		name string
 		by   registry.Principal
 	}{
-		{"agent run approves its pre-bill", registry.Principal{Kind: registry.PrincipalAgent, RunID: billRun, ActingFor: clerk, Grant: []string{billCapName, billApprove}}},
+		{"agent run approves its pre-bill", registry.Principal{Kind: registry.PrincipalAgent, RunID: draftBillRun, ActingFor: clerk, Grant: []string{billCapName, billApprove}}},
 		{"another agent run approves", registry.Principal{Kind: registry.PrincipalAgent, RunID: "run-other", ActingFor: "partner", Grant: []string{billApprove}}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := billScope(billRun, agent.GatePrebillReview)
-			w := newBillWorld(t, map[string]bool{billCapName: true})
-			p := registry.Principal{Kind: registry.PrincipalAgent, RunID: billRun, ActingFor: clerk, Grant: []string{billCapName}}
-			res, err := w.reg.Call(ctx, p, agent.ToolDraftBill, json.RawMessage(billInput(billMatter)))
+			ctx := billScope(draftBillRun, agent.GatePrebillReview)
+			w := newDraftBillWorld(t, map[string]bool{billCapName: true})
+			p := registry.Principal{Kind: registry.PrincipalAgent, RunID: draftBillRun, ActingFor: clerk, Grant: []string{billCapName}}
+			res, err := w.reg.Call(ctx, p, agent.ToolDraftBill, json.RawMessage(billInput(draftBillMatter)))
 			if err != nil {
 				t.Fatalf("call: %v", err)
 			}

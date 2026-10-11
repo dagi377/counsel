@@ -4,6 +4,7 @@ package deadlinefake
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -143,4 +144,34 @@ func (f *Fake) Get(_ context.Context, id deadline.DeadlineID) (deadline.Deadline
 		return deadline.Deadline{}, fmt.Errorf("get %s: %w", id, deadline.ErrNotFound)
 	}
 	return d, nil
+}
+
+var _ deadline.Lister = (*Fake)(nil)
+
+// List returns the stored deadlines matching f, by due date then id.
+func (f *Fake) List(_ context.Context, flt deadline.Filter) ([]deadline.Deadline, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []deadline.Deadline
+	for _, d := range f.deadlines {
+		due := d.Proposed.Due
+		if flt.Subject != nil && d.Proposed.Subject != *flt.Subject {
+			continue
+		}
+		if flt.From != nil && due.Before(*flt.From) {
+			continue
+		}
+		if flt.To != nil && flt.To.Before(due) {
+			continue
+		}
+		out = append(out, d)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		a, b := out[i].Proposed.Due, out[j].Proposed.Due
+		if a != b {
+			return a.Before(b)
+		}
+		return out[i].ID < out[j].ID
+	})
+	return out, nil
 }

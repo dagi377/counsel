@@ -177,7 +177,13 @@ func (h *ActionHTTP) submit(w http.ResponseWriter, r *http.Request, p registry.P
 		g.readErr(w, r, err)
 		return
 	}
-	h.openGate(w, r, p, GateBillApproval, b, payload)
+	// rule: BIL-C-120
+	// The draft moves to pending_approval in the tx that opens the gate: both or neither.
+	submit := func(ctx context.Context, tx pgx.Tx) error {
+		_, err := h.Bills.Submit(ctx, tx, b.ID)
+		return err
+	}
+	h.openGate(w, r, p, GateBillApproval, b, payload, submit)
 }
 
 // parseSubmit reads the optional submit body; delivery_method defaults to email.
@@ -216,18 +222,28 @@ func (h *ActionHTTP) void(w http.ResponseWriter, r *http.Request, p registry.Pri
 		g.readErr(w, r, err)
 		return
 	}
-	h.openGate(w, r, p, GateBillVoid, b, payload)
+	h.openGate(w, r, p, GateBillVoid, b, payload, nil)
 }
 
-func (h *ActionHTTP) openGate(w http.ResponseWriter, r *http.Request, p registry.Principal, kind string, b Bill, payload json.RawMessage) {
+// openGate opens kind on b in one tx. before, when set, runs first in the same tx.
+func (h *ActionHTTP) openGate(w http.ResponseWriter, r *http.Request, p registry.Principal, kind string, b Bill, payload json.RawMessage, before func(ctx context.Context, tx pgx.Tx) error) {
 	g := h.gw()
 	subject := gate.Subject{Kind: SubjectBill, ID: string(b.ID)}
 	var id gate.GateID
 	err := h.DB.InTx(r.Context(), func(ctx context.Context, tx pgx.Tx) error {
+		if before != nil {
+			if err := before(ctx, tx); err != nil {
+				return err
+			}
+		}
 		var err error
 		id, err = h.Gates.Open(ctx, tx, kind, subject, payload, p)
 		return err
 	})
+	if errors.Is(err, ErrNotSubmittable) {
+		g.fail(w, r, http.StatusConflict, CodeBillNotSubmittable, "Only a draft bill can be submitted")
+		return
+	}
 	if err != nil {
 		g.fail(w, r, http.StatusInternalServerError, server.CodeInternal, "Internal error")
 		return

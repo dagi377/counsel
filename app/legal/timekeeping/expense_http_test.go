@@ -262,9 +262,10 @@ func TestExpenseListOwnOrAll(t *testing.T) {
 			path := "/v1/expenses" + tc.query
 			for i, want := range tc.pages {
 				rec := do(r.h, "GET", path, tc.user, "", nil)
+				validatePage(t, rec.Body.Bytes())
 				var page struct {
-					Items []map[string]any `json:"items"`
-					Next  string           `json:"next"`
+					Items []map[string]any `json:"data"`
+					Next  string           `json:"next_cursor"`
 				}
 				if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil || rec.Code != 200 {
 					t.Fatalf("page %d: %d %s", i, rec.Code, rec.Body)

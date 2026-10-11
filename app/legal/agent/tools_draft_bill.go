@@ -161,12 +161,12 @@ func (t draftBill) handle(ctx context.Context, p registry.Principal, raw json.Ra
 	if err := visibleTo(ctx, t.walls, user, in.MatterID); err != nil {
 		return fail(err)
 	}
-	periodTo, err := civilDate(in.PeriodTo)
+	periodTo, err := parseCivilDate(in.PeriodTo)
 	if err != nil {
 		return fail(err)
 	}
 	if in.PeriodFrom != "" {
-		from, err := civilDate(in.PeriodFrom)
+		from, err := parseCivilDate(in.PeriodFrom)
 		if err != nil {
 			return fail(err)
 		}
@@ -303,8 +303,8 @@ func lineActions(in []lineActionIn) (map[string]lineActionIn, error) {
 	return out, nil
 }
 
-// civilDate parses a YYYY-MM-DD input date.
-func civilDate(s string) (clock.Date, error) {
+// parseCivilDate parses a YYYY-MM-DD input date.
+func parseCivilDate(s string) (clock.Date, error) {
 	d, err := time.Parse(time.DateOnly, s)
 	if err != nil {
 		return clock.Date{}, fmt.Errorf("date: %w", ErrInvalidInput)
