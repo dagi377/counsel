@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -17,10 +18,15 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/agenttest"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
+	"github.com/dagi377/counsel/app/legal/billing/batch"
+	"github.com/dagi377/counsel/app/legal/billing/draft"
+	"github.com/dagi377/counsel/app/legal/billing/draft/draftfake"
 	"github.com/dagi377/counsel/app/legal/boot"
+	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
+	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/gate/gatefake"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -502,4 +508,113 @@ func pltgCheckTrigger(t *testing.T, d feature.Def, action, subjectKind string) {
 			}
 		})
 	}
+}
+
+// pltgEntry is one approved, unbilled synthetic time entry of a matter, priced in cents.
+type pltgEntry struct {
+	id, matterID string
+	cents        int64
+}
+
+// pltgBillTime is the matter's unbilled WIP (agent.UnbilledWIP) and builds draft bills from
+// it (batch.Drafts) into lines, one fee line per entry. The Seed lacks these billing ports,
+// so draft_bill reads them from here ahead of the Seed's.
+type pltgBillTime struct {
+	lines *draftfake.Fake
+
+	mu      sync.Mutex
+	entries []pltgEntry
+	keys    map[string]string
+	targets map[string]string // draft bill id -> matter id
+}
+
+func newPltgBillTime(entries ...pltgEntry) *pltgBillTime {
+	return &pltgBillTime{lines: draftfake.New(), entries: entries, keys: map[string]string{}, targets: map[string]string{}}
+}
+
+func (b *pltgBillTime) UnbilledEntryIDs(_ context.Context, matterID string, _ clock.Date) ([]string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	var ids []string
+	for _, e := range b.entries {
+		if e.matterID == matterID {
+			ids = append(ids, e.id)
+		}
+	}
+	return ids, nil
+}
+
+// Create assembles a draft from the matter's unbilled WIP. A retried key returns the first
+// draft.
+func (b *pltgBillTime) Create(ctx context.Context, key string, t batch.Target, _ clock.Date) (string, bool, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if id, ok := b.keys[key]; ok {
+		return id, false, nil
+	}
+	id := fmt.Sprintf("bill-synthetic-pltg-%d", len(b.keys)+1)
+	var lines []draft.Line
+	for _, e := range b.entries {
+		if e.matterID != t.MatterID {
+			continue
+		}
+		lines = append(lines, draft.Line{
+			ID: fmt.Sprintf("line-%d", len(lines)+1), Kind: draft.LineFee, SortOrder: len(lines) + 1,
+			Description: "Synthetic time", AmountCents: e.cents, SourceTimeEntryID: e.id,
+		})
+	}
+	if err := b.lines.SaveLines(ctx, id, lines); err != nil {
+		return "", false, err
+	}
+	b.keys[key] = id
+	b.targets[id] = t.MatterID
+	return id, true, nil
+}
+
+// drafts maps each draft bill Create built to its matter.
+func (b *pltgBillTime) drafts() map[string]string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	out := make(map[string]string, len(b.targets))
+	for k, v := range b.targets {
+		out[k] = v
+	}
+	return out
+}
+
+// pltgPull appends d's T, when it has one, to vals.
+func pltgPull[T any](vals []any, d agent.Deps) []any {
+	if v, err := agent.DepOf[T](d); err == nil {
+		return append(vals, v)
+	}
+	return vals
+}
+
+// pltgBillHandlers is agent.Handlers() with draft_bill's production Build given the billing
+// ports of bt ahead of the Seed's capability check, walls, gate opener and provenance.
+func pltgBillHandlers(t *testing.T, bt *pltgBillTime) agent.HandlerSet {
+	t.Helper()
+	app := agent.Handlers()
+	var hs []agent.Handler
+	for _, name := range app.Names() {
+		h, _ := app.For(name)
+		if name != agent.ToolDraftBill {
+			hs = append(hs, h)
+			continue
+		}
+		build := h.Build
+		hs = append(hs, agent.Handler{Name: name, Build: func(d agent.Deps) (registry.Tool, error) {
+			vals := []any{bt, bt.lines}
+			vals = pltgPull[agent.CapabilityCheck](vals, d)
+			vals = pltgPull[roles.Walls](vals, d)
+			vals = pltgPull[agenttools.GateOpener](vals, d)
+			vals = pltgPull[*agenttools.Provenance](vals, d)
+			return build(agent.NewDeps(vals...))
+		}})
+	}
+	set, err := agent.NewHandlerSet(hs...)
+	if err != nil {
+		t.Fatalf("handler set: %v", err)
+	}
+	return set
 }

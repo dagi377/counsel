@@ -4270,3 +4270,20 @@ of FEAT-TIM-01 above.
   draft's subject only. Same open point as the intake features that open this kind.
 - Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
   (screen), the generated plugin skill, ai_pltg_helpers_test.go (shared helpers).
+
+## Q-FEAT-PLT-18 F-PLT-20 prepare final bill
+
+- The spec's output names "Billing area gate G-B2", but its gate kind is
+  `billing.prebill_review`, which gates/kinds.json maps to G-B1. F-PLT-20 opens
+  `billing.prebill_review` (`agent.GatePrebillReview`) through draft_bill, as the spec's gate
+  kind says. Open: whether G-B2 was meant.
+- draft_bill's provenance check covers `write_down_cents` only, not `period_to`. The prompt
+  sends no line actions (write-downs are the reviewer's call) and takes `period_to` from the
+  closing record; the feature test checks that date with the production provenance check.
+  Proposed: draft_bill declares `/period_to` and `/period_from` as sourced fields.
+- The Seed has no billing ports (UnbilledWIP, batch.Drafts, draft.Store, draft.Calc), so the
+  test gives draft_bill's production handler in-memory ones (ai_pltg_helpers_test.go), as
+  FEAT-BIL-01 does.
+- `matter-closing` maps to `matter` with capability `matters.close`.
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (screen), the generated plugin skill, ai_pltg_helpers_test.go (shared helpers).

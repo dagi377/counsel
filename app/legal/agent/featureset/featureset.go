@@ -171,5 +171,6 @@ func appDefs() []feature.Def {
 		work.ExplainNumberDef(),
 		// platform
 		platform.RecommendSettingsDef(),
+		platform.PrepareFinalBillDef(),
 	}
 }

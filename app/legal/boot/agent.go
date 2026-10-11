@@ -527,6 +527,8 @@ var actionScreens = map[string]trigger.Screen{
 	// the firm. The agent-settings capability is a kernel id the app may not register, so the
 	// screen asks for documents.edit, the run's drafting capability (Q-FEAT-PLT-17).
 	"automation-settings": {SubjectKind: FirmSubject, Capability: "documents.edit"},
+	// matter-closing acts on the matter being closed (F-PLT-20 drafts its final bill).
+	"matter-closing": {SubjectKind: "matter", Capability: "matters.close"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
