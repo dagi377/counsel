@@ -292,9 +292,9 @@ func checkDefMatchesSpec(t *testing.T, d feature.Def) {
 	}
 }
 
-// checkPrompt fails t unless d's prompt passes lint, starts with the feature preamble, sits
+// dl07CheckPrompt fails t unless d's prompt passes lint, starts with the feature preamble, sits
 // under the shared rules and holds every phrase in want.
-func checkPrompt(t *testing.T, d feature.Def, want ...string) {
+func dl07CheckPrompt(t *testing.T, d feature.Def, want ...string) {
 	t.Helper()
 	names, err := feature.FixtureNames(os.DirFS("../../.."), "testdata/ai")
 	if err != nil {
@@ -325,7 +325,7 @@ func TestFDL07_DefMatchesSpec(t *testing.T) {
 
 // rule: AI-R-005
 func TestFDL07_Prompt(t *testing.T) {
-	checkPrompt(t, PostEventFollowUpDef(),
+	dl07CheckPrompt(t, PostEventFollowUpDef(),
 		"Post-event follow-up", "draft note for G-NT, suggested time entry", "matter.agent_note", "report_plan")
 }
 
