@@ -1,10 +1,33 @@
 #!/usr/bin/env python3
 """Validate spec/tasks.json: unique ids, deps exist and sit in earlier waves, no file
-overlap inside a wave, every o1 T-id and every AI task and feature covered.
+overlap inside a wave, every o1 T-id and every AI task and feature covered, at most
+MAX_WAVES waves. Prints the critical path (longest dependency chain).
 Usage: python3 -I tools/check_tasks.py [repo_root]"""
 import json
 import sys
 from collections import defaultdict
+
+MAX_WAVES = 8
+
+
+def critical_path(byid):
+    """Longest chain of depends_on, ending at the deepest task (ties broken by id)."""
+    memo = {}
+
+    def depth(i):
+        if i not in memo:
+            ds = [d for d in byid[i]['depends_on'] if d in byid]
+            memo[i] = 1 + max((depth(d) for d in ds), default=0)
+        return memo[i]
+
+    cur = max(byid, key=lambda i: (depth(i), i))
+    path = [cur]
+    while True:
+        ds = [d for d in byid[cur]['depends_on'] if d in byid]
+        if not ds:
+            return path[::-1]
+        cur = max(ds, key=lambda d: (depth(d), d))
+        path.append(cur)
 
 
 def overlap(a, b):
@@ -65,9 +88,16 @@ def main(root):
     for f in feats:
         if f['id'] not in covered:
             errs.append(f'AI feature {f["id"]} not covered')
+    counts = {w: len(ts) for w, ts in sorted(waves.items())}
+    if len(counts) > MAX_WAVES:
+        errs.append(f'{len(counts)} waves > {MAX_WAVES}')
     for e in errs:
         print('ERROR', e)
-    counts = {w: len(ts) for w, ts in sorted(waves.items())}
+    try:
+        path = critical_path(byid)
+        print(f'critical_path={len(path)} ' + ' -> '.join(path))
+    except RecursionError:
+        errs.append('dependency cycle')
     print(f'tasks={len(tasks)} waves={len(counts)} per_wave={counts} max_width={max(counts.values())}')
     print('FAIL' if errs else 'OK')
     return 1 if errs else 0
