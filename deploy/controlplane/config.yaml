@@ -1,0 +1,29 @@
+# Shared control plane configuration. It carries no customer data (ARC-U-004): only
+# component names, cell ids and operational policy. tools/controlplane_test.go enforces this.
+components:
+  - cluster
+  - ingress-waf
+  - fleet-operator
+  - ci-cd
+  - observability
+  - status-page
+telemetry:
+  # Logs and traces carry the cell id and record ids only.
+  allowed_fields: [cell_id, record_id, trace_id, span_id, route, method, status]
+postgres:
+  synchronous_standbys: 2
+  # Losing one sync standby raises PGSyncStandbyDegraded (ticket). Losing both blocks
+  # writes and raises PGSyncStandbyMissing (page) within 60 s; writes resume only after an
+  # operator decision per runbook RB-01 (ARC-U-007). Never silently downgrade to async.
+  on_one_standby_lost:
+    alert: PGSyncStandbyDegraded
+    severity: ticket
+    rebuild_within_hours: 24
+  on_both_standbys_lost:
+    alert: PGSyncStandbyMissing
+    severity: page
+    alert_within_seconds: 60
+    writes: block
+    resume: operator_decision
+    runbook: RB-01
+    async_fallback: false

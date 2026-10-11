@@ -1,0 +1,21 @@
+# Edge WAF policy for the shared ingress (ARC-U-038). Rendered as-is; values are fixed by the
+# spec, not tunable per cell. Over-limit requests get 429 with Retry-After and are excluded
+# from SLO-01.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: counsel-waf
+  labels:
+    app.kubernetes.io/part-of: counsel-controlplane
+data:
+  waf.yaml: |
+    ddos_protection: l3_l4
+    managed_rules: true
+    rate_rules:
+      - name: per-ip-edge
+        key: ip
+        limit: 2000
+        window_seconds: 300
+        action: block
+        status: 429
+        retry_after: true
