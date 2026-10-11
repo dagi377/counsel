@@ -60,5 +60,6 @@ func appDefs() []feature.Def {
 		conflict.ExpiryRetentionDef(),
 		conflict.ProposeWallDef(),
 		conflict.LateralCheckDef(),
+		conflict.AuditAnomalyDigestDef(),
 	}
 }

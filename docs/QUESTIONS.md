@@ -2491,3 +2491,21 @@ Done in PORT-18:
   that another lawyer may decide, not that the batch is fully approved.
 - F-CON-10's weekly binding needs an acting user from boot (the records officer); boot wiring
   is not in these tasks.
+  `party.organization_client_created` (F-CON-08).
+
+## Q-FEAT-CON-13 Read-only conflict features F-CON-11 to F-CON-14 and F-CON-17
+
+- Tasks: FEAT-CON-13 (F-CON-11), FEAT-CON-14 (F-CON-12), FEAT-CON-15 (F-CON-13, F-CON-14,
+  F-CON-17). Each Def joins `featureset.appDefs` (outside the task's file list); chat and
+  embedding Defs export no plugin skill.
+- The shared read-only harness lives in `ai_f_con_11_feature_test.go`: `search_contacts` and
+  `read_document` run their real handlers over `agenttest.Seed`, with read_document's first
+  page re-quoted as `agenttools.Quoted` so `agenttest.QuotedOnly` and `run.CheckAnswer` see
+  its citation. `search_matters` stays a stand-in the scripts never call (the Seed has no
+  `matter.Query`).
+- None of the three read tools returns a date as a JSON value, so the unsourced-date check
+  counts a date inside a quoted document line as read in the run. Proposed follow-up: have
+  read_document return `agenttools.Quoted` itself so the harness needs no re-quote.
+- The agent-never-approves check goes through `conflict.Clearance` on a check the agent
+  prepared for the acting user: agent principal -> `ErrAgentApproves`, acting user ->
+  `ErrPreparerApproves`, both 403.
