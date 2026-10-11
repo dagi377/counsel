@@ -162,13 +162,50 @@ func (p AgentPorts) Deps() agent.Deps {
 	return agent.NewDeps(values...)
 }
 
-// AgentTools builds every tool in agent.Handlers() over p. A port the set needs and p lacks
+// draftTools are the write tools whose free text carries figures a trust feature drafts.
+var draftTools = []string{agent.ToolDraftDocument, agent.ToolDraftEmail}
+
+// AgentHandlers is the production handler set: agent.Handlers() with, for every trust
+// feature in trust.SourcedFeatures(), draft_document and draft_email wrapped with
+// trust.SourcedCents. The wraps are listed here, not registered from init(); the set
+// resolves them per (feature, tool), so a non-trust feature's draft runs the default handler.
+func AgentHandlers() (agent.HandlerSet, error) {
+	set := agent.Handlers()
+	for _, id := range trust.SourcedFeatures() {
+		for _, tool := range draftTools {
+			var err error
+			// rule: ARC-U-027
+			// A trust draft carries figures for the regulator or a client: every amount in it
+			// must be one the run read.
+			if set, err = set.WithFeatureWrap(id, tool, sourcedTrustDraft); err != nil {
+				return agent.HandlerSet{}, fmt.Errorf("trust draft wrap: %w", err)
+			}
+		}
+	}
+	return set, nil
+}
+
+// sourcedTrustDraft wraps a built draft tool with trust.SourcedCents over the Provenance in
+// d. With no Provenance it fails with agent.ErrMissingDep, so a trust draft is never served
+// unchecked.
+func sourcedTrustDraft(d agent.Deps, t registry.Tool) (registry.Tool, error) {
+	pv, err := agent.DepOf[*agenttools.Provenance](d)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("sourced trust draft %s: %w", t.Name, err)
+	}
+	return trust.SourcedCents(pv, t)
+}
+
+// AgentTools builds every tool in AgentHandlers() over p. A port the set needs and p lacks
 // fails with agent.ErrMissingDep naming the tool; nothing is half-built.
 func AgentTools(p AgentPorts) ([]registry.Tool, error) {
 	if p.Provenance == nil {
 		p.Provenance = agenttools.NewProvenance()
 	}
-	set := agent.Handlers()
+	set, err := AgentHandlers()
+	if err != nil {
+		return nil, err
+	}
 	deps := p.Deps()
 	var (
 		tools []registry.Tool
@@ -260,7 +297,7 @@ func gateKindCodes() ([]string, error) {
 // ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-09,
 // F-CON-09, F-CON-11, F-CON-12, F-DOC-09; Q-INTEG-15A-SCHEDULED); empty fails with
 // trigger.ErrBadBinding. F-DL-05, F-DL-06, F-CON-05, F-CON-10, F-DOC-06, F-DOC-07, F-MAT-05,
-// F-MAT-09 and F-MAT-14 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
+// F-MAT-09, F-MAT-14 and F-TRU-04 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
 // job feature cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
@@ -318,11 +355,16 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		trust.AnnualReportPrepDef().ID:              trust.AnnualReportPrepBinding,
 		trust.RetainerCoverageScanDef().ID:          trust.RetainerCoverageScanBinding,
+		trust.FeatureMonthEndReconciliation:         trust.MonthEndReconciliationBinding,
+		trust.FeatureRetainerReplenishment:          trust.RetainerReplenishmentBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
 	onRequest := map[string]bool{
 		matter.FeatureMatterQuestionAnswering: true,
+		// F-TRU-01's schedule binds with its write path (FEAT-TRU-02); until then its screen
+		// actions start it.
+		trust.FeatureBankFeedSync: true,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -428,6 +470,11 @@ var actionScreens = map[string]trigger.Screen{
 	"client-trust-ledger": {SubjectKind: "matter", Capability: "trust.view"},
 	"retainer-coverage":   {SubjectKind: "matter", Capability: "trust.view"},
 	"trust-audit-trail":   {SubjectKind: "matter", Capability: "trust.view"},
+	// Trust. The bank feed, the receipts journal and the monthly reconciliation are firm-level
+	// screens; with no firm subject yet they select a matter (docs/QUESTIONS.md Q-FEAT-TRU-01).
+	"trust-receipts-journal": {SubjectKind: "matter", Capability: "trust.view"},
+	"bank-feed-import":       {SubjectKind: "matter", Capability: "trust.view"},
+	"monthly-reconciliation": {SubjectKind: "matter", Capability: "trust.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
@@ -480,15 +527,19 @@ func NewFlagSink(store agent.FlagStore, notify agent.Sender) *agent.FlagSink {
 	return &agent.FlagSink{Store: store, Notify: notify, BlocksGate: blocks}
 }
 
-// ForgetRunner drops a run's provenance values when the run ends, whatever its outcome.
+// ForgetRunner drops a run's provenance values when the run ends, whatever its outcome, and
+// scopes the run's tool calls to its feature.
 type ForgetRunner struct {
 	agentrun.Runner
 	Provenance *agenttools.Provenance
 }
 
-// Run implements the run Runner.
+// Run implements the run Runner. It also puts the run's feature in ctx (agent.WithFeature),
+// so a tool with a feature wrap (AgentHandlers) runs the wrapped handler for that feature.
 func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Principal, prompt string, triggers ...agentrun.Trigger) (agentrun.Outcome, error) {
 	defer r.Provenance.Forget(p.RunID)
+	// rule: ARC-U-027
+	ctx = agent.WithFeature(ctx, spec.FeatureID)
 	return r.Runner.Run(ctx, spec, p, prompt, triggers...)
 }
 

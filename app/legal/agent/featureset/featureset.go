@@ -120,5 +120,8 @@ func appDefs() []feature.Def {
 		trust.AnnualReportPrepDef(),
 		trust.RetainerCoverageScanDef(),
 		trust.SpotAuditPackDef(),
+		trust.BankFeedSyncDef(),
+		trust.MonthEndReconciliationDef(),
+		trust.RetainerReplenishmentDef(),
 	}
 }

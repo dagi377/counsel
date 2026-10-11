@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/dagi377/counsel/app/legal/agent"
@@ -20,6 +21,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/kernel/agenttools"
+	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/deadline"
@@ -279,4 +281,65 @@ func mustWriteTools() *agent.WriteTools {
 		panic(err)
 	}
 	return w
+}
+
+// TestTrustDraftsWrapped is the guard: every trust feature (F-TRU-*) whose tools include
+// draft_document or draft_email must have that tool wrapped in the production handler set,
+// and a non-trust feature's drafts must not be.
+//
+// rule: ARC-U-027
+func TestTrustDraftsWrapped(t *testing.T) {
+	set, err := AgentHandlers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	features, err := Features()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var trustDrafts int
+	for _, d := range features.All() {
+		isTrust := strings.HasPrefix(d.ID, "F-TRU-") || d.Area == "trust"
+		for _, tool := range d.Tools {
+			if tool != agent.ToolDraftDocument && tool != agent.ToolDraftEmail {
+				continue
+			}
+			got := set.Wrapped(d.ID, tool)
+			if isTrust {
+				trustDrafts++
+			}
+			if got != isTrust {
+				t.Errorf("feature %s tool %s: wrapped = %v, want %v (trust features' drafts go through trust.SourcedCents)", d.ID, tool, got, isTrust)
+			}
+		}
+	}
+	if trustDrafts == 0 {
+		t.Fatal("no trust feature drafts: the guard checks nothing")
+	}
+}
+
+// TestForgetRunnerScopesFeature checks that the production runner wrapper puts the run's
+// feature in ctx, so the per-feature wraps apply on the production run path.
+//
+// rule: ARC-U-027
+func TestForgetRunnerScopesFeature(t *testing.T) {
+	var got string
+	r := ForgetOnEnd(agenttools.NewProvenance(), runnerFunc(func(ctx context.Context) {
+		got = agent.FeatureOf(ctx)
+	}))
+	if _, err := r.Run(context.Background(), agentrun.Spec{FeatureID: "F-TRU-06"}, agentrun.Principal{RunID: "run-1"}, "go"); err != nil {
+		t.Fatal(err)
+	}
+	if got != "F-TRU-06" {
+		t.Fatalf("feature in ctx = %q, want F-TRU-06", got)
+	}
+}
+
+// runnerFunc is a run Runner that only observes its ctx.
+type runnerFunc func(ctx context.Context)
+
+// Run implements the run Runner.
+func (f runnerFunc) Run(ctx context.Context, _ agentrun.Spec, _ agentrun.Principal, _ string, _ ...agentrun.Trigger) (agentrun.Outcome, error) {
+	f(ctx)
+	return agentrun.Outcome{}, nil
 }

@@ -3251,3 +3251,63 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - draft_document opens no gate itself, so the pack's docs.outgoing (G-REL) gate opens through
   submit_for_approval on the draft, and submit_for_approval refuses any other kind
   (ErrGateKindNotAllowed). Amounts are checked by trust.SourcedDraft (Q-FEAT-TRU-06).
+## Q-FEAT-TRU-01 bank-feed-sync: screens, binding and files outside the task list
+
+- Registering F-TRU-01 in featureset.App() (FEAT-CORE-17) makes the boot tests require its
+  screens and a job binding, so the task also touches app/legal/agent/featureset and
+  app/legal/boot/agent.go.
+- trust-receipts-journal and bank-feed-import are firm-level screens. main has no
+  boot.FirmSubject yet, so both select a matter (trust.view). Open: switch them to the firm
+  subject once it lands.
+- The schedule ("daily, plus when a statement is uploaded") binds with the write path in
+  FEAT-TRU-02; until then JobBindings lists F-TRU-01 as served by its screen actions.
+- The pipeline takes every amount and date from the cited bank-feed line: an amount is
+  integer cents ("125000 cents") or dollars and cents ("$1,250.00") in the line, else
+  agenttools.ErrUnsourcedValue and nothing is written. Its ReceiptProposals sink (opening
+  trust.receipt_classification with the acting user as preparer) is wired in FEAT-TRU-02.
+
+## Q-FEAT-TRU-04 month-end-reconciliation: trigger event, gate kind and amount provenance
+
+- No kernel event names a received bank statement. F-TRU-04 binds to the new
+  `trust.statement_received` (trust.EventStatementReceived) plus a daily check (the spec's
+  "schedule"), acting for the firm's designated lawyer (BindDesignated, JOB-ACTOR). Open: the
+  module that files statements publishes the event.
+- recon imports trust, so trust restates G12 as trust.GateReconciliationSignOff; a test holds
+  it equal to recon.GateSignOff.
+- draft_document and draft_email check citations but not amounts. trust.SourcedCents wraps
+  them so a trust write may state only integer cents and dates a read of the run returned
+  (signed, so an overdraft cannot be written unsigned), else agenttools.ErrUnsourcedValue and
+  no draft or gate. The FromFeature tests wire it; open: boot wraps the draft tools of trust
+  feature runs with it (the shared handler set has no per-feature wrapping yet).
+- monthly-reconciliation is a firm-level screen and selects a matter until boot.FirmSubject
+  lands (Q-FEAT-TRU-01).
+
+## Q-FEAT-TRU-05 retainer-replenishment: trigger event and the shortfall's figures
+
+- No kernel event names a ledger below its retainer floor. F-TRU-05 binds to the new
+  `trust.ledger_below_floor` (trust.EventLedgerBelowFloor), acting for the event's user.
+  Open: the trust module publishes it when a posting takes a ledger below the floor agreed
+  in the engagement.
+- The shortfall is Counsel's figure, never the model's: trust.NewRetainerShortfall keeps the
+  balance signed, flags an overdraft and covers it (floor - balance), and Observe records
+  its figures into the run's provenance before the run starts (fails closed without one).
+  Open: the event handler calls it and passes Prompt() as the run's request.
+- agent imports trust, so trust restates G-OUT as trust.GateOutgoingEmail; a test holds it
+  equal to agent.GateOutgoingEmail.
+
+## TRUST-DRAFT-WRAP trust drafts are checked in production (decided)
+
+- Decided as counsel (trust exception): trust drafts carry figures that go to the regulator
+  or to clients, so every trust feature's draft_document and draft_email runs behind the one
+  trust sourced-figures check, trust.SourcedCents. It merges TRU-05's SourcedCents and
+  TRU-06's SourcedDraft and keeps the stricter rule of each: signed amounts (an overdraft
+  written without its minus sign is refused), dates, "*_cents" fields, thousands
+  separators, and refusal of dollars, decimals and fractions of a cent. A nil Provenance
+  or an empty run id fails closed.
+- agent.HandlerSet resolves per (feature, tool): WithFeatureWrap adds a wrap for one
+  feature, and the built tool picks per call by agent.FeatureOf(ctx). boot.AgentHandlers
+  lists the wraps explicitly (trust.SourcedFeatures; no init()), and boot.ForgetRunner puts
+  the run's feature in ctx. An agent call with no feature fails with agent.ErrNoFeature.
+- Files outside a task list: app/legal/agent/handlerset.go, agenttest/feature.go (Fire
+  scopes the feature), boot/agent.go. Non-trust drafts keep the default handler (BIL-02/05
+  policy unchanged).

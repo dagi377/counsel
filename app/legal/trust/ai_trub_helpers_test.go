@@ -19,6 +19,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/bill/billfake"
+	"github.com/dagi377/counsel/app/legal/boot"
 	"github.com/dagi377/counsel/app/legal/conflict/conflictfake"
 	"github.com/dagi377/counsel/app/legal/matter/matterfake"
 	"github.com/dagi377/counsel/app/legal/party/partyfake"
@@ -42,8 +43,8 @@ import (
 // The end-to-end tests drive a Def with agenttest.FromFeatureWith over the app's real handlers
 // and no stand-ins. The Seed has no trust or bill ports, so trubHandlers adds a withdrawal
 // fake (the agent.TrustAvailable get_trust_balance reads), a bill fake (get_bill) and the
-// matter's trust accounts ahead of the Seed's ports, and wraps the draft tools with
-// trust.SourcedDraft so every cents figure a draft carries must be one the run read.
+// matter's trust accounts ahead of the Seed's ports. The handlers are boot's production set,
+// so every cents figure a trust draft carries must be one the run read (trust.SourcedCents).
 
 // trubOtherLawyer is a second synthetic user who holds every gate kind's approver capability.
 const trubOtherLawyer = "user-synthetic-trust-lawyer"
@@ -82,13 +83,19 @@ func trubDep[T any](vals []any, d agent.Deps) []any {
 	return vals
 }
 
-// trubHandlers is agent.Handlers() with each Build given the trust and bill fakes ahead of the
-// Seed's ports, and draft_document and draft_email wrapped with trust.SourcedDraft.
+// trubHandlers is the production handler set, boot.AgentHandlers(), with each Build given the
+// trust and bill fakes ahead of the Seed's ports. The draft tools are not wrapped here: boot
+// wraps them with trust.SourcedCents for the trust features.
 func trubHandlers(t *testing.T, wd *withdrawfake.Fake, bills *billfake.Fake) agent.HandlerSet {
 	t.Helper()
-	app := agent.Handlers()
+	app, err := boot.AgentHandlers()
+	if err != nil {
+		t.Fatalf("production handler set: %v", err)
+	}
 	var hs []agent.Handler
 	for _, name := range app.Names() {
+		// For is the production per-(feature, tool) resolution: the trust features' drafts
+		// run behind trust.SourcedCents, every other feature's run the default handler.
 		h, _ := app.For(name)
 		build := h.Build
 		hs = append(hs, agent.Handler{Name: name, Build: func(d agent.Deps) (registry.Tool, error) {
@@ -107,17 +114,7 @@ func trubHandlers(t *testing.T, wd *withdrawfake.Fake, bills *billfake.Fake) age
 			vals = trubDep[*deadlinefake.Fake](vals, d)
 			vals = trubDep[*agenttools.Provenance](vals, d)
 			vals = trubDep[*agenttest.SeedStore](vals, d)
-			deps := agent.NewDeps(vals...)
-			tool, err := build(deps)
-			if err != nil || (name != agent.ToolDraftDocument && name != agent.ToolDraftEmail) {
-				return tool, err
-			}
-			pv, err := agent.DepOf[*agenttools.Provenance](deps)
-			if err != nil {
-				return registry.Tool{}, err
-			}
-			// rule: ARC-U-027
-			return trust.SourcedDraft(pv, tool)
+			return build(agent.NewDeps(vals...))
 		}})
 	}
 	set, err := agent.NewHandlerSet(hs...)
@@ -632,7 +629,7 @@ func TestTRUB_SourcedDraft(t *testing.T) {
 		calls++
 		return registry.ToolResult{Output: json.RawMessage(`{}`)}, nil
 	}}
-	wrapped, err := trust.SourcedDraft(pv, write)
+	wrapped, err := trust.SourcedCents(pv, write)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -661,10 +658,10 @@ func TestTRUB_SourcedDraft(t *testing.T) {
 		})
 	}
 	read := registry.Tool{Name: "get_bill", Kind: registry.ToolRead, Handle: write.Handle}
-	if _, err := trust.SourcedDraft(pv, read); !errors.Is(err, agenttools.ErrBadTool) {
+	if _, err := trust.SourcedCents(pv, read); !errors.Is(err, agenttools.ErrBadTool) {
 		t.Fatalf("wrap read tool = %v, want ErrBadTool", err)
 	}
-	if _, err := trust.SourcedDraft(nil, write); !errors.Is(err, agenttools.ErrUnsourcedValue) {
+	if _, err := trust.SourcedCents(nil, write); !errors.Is(err, agenttools.ErrUnsourcedValue) {
 		t.Fatalf("wrap without provenance = %v, want ErrUnsourcedValue", err)
 	}
 }
