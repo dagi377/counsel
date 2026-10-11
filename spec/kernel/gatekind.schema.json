@@ -65,6 +65,16 @@
       "pattern": "^([0-9]+(ns|us|ms|s|m|h))+$",
       "description": "optional Go duration: when only one eligible approver exists, that person may approve alone after this delay, with notification; only for min_approvers >= 2"
     },
+    "amount_path": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "description": "optional dot path of the payload field holding the integer cents an authority limit reads, e.g. total_cents; required when the payload schema has any *_cents property"
+    },
+    "limit_kind": {
+      "type": "string",
+      "minLength": 1,
+      "description": "optional authority-limit kind whose value (cents) caps amount_path for a decider; needs amount_path"
+    },
     "payload_schema": {
       "type": "object",
       "description": "an embedded JSON Schema document"

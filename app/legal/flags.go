@@ -23,6 +23,7 @@ const (
 	FlagIDVerification          = legalflags.IDVerification
 	FlagDeadlineOntarioPack     = legalflags.DeadlineOntarioPack
 	FlagExportPostCancelWindow  = legalflags.ExportPostCancelWindow
+	FlagImportSourceSync        = legalflags.ImportSourceSync
 	FlagTaxBNCheckVerified      = legalflags.TaxBNCheckVerified
 	FlagTaxVerifyRules          = legalflags.TaxVerifyRules
 	FlagParalegalScopeVerified  = legalflags.ParalegalScopeVerified
@@ -72,6 +73,8 @@ func Flags() []flags.Def {
 			Doc: "By-Law 7.1 client ID verification exemptions and retention unconfirmed"},
 		{Name: FlagDeadlineOntarioPack, Owner: "lawyer/LSO, owner", Expiry: verifyExpiry,
 			Doc: "Ontario court and limitation deadline rule pack not yet checked by a lawyer"},
+		{Name: FlagImportSourceSync, Owner: "owner", Expiry: verifyExpiry,
+			Doc: "source import/sync jobs (subscription renewal) run only once a firm turns sync on"},
 		{Name: FlagExportPostCancelWindow, Owner: "owner", Expiry: verifyExpiry,
 			Doc: "90-day export window after cancellation depends on the unconfirmed customer contract"},
 		{Name: FlagTaxVerifyRules, Owner: "accountant/CRA", Expiry: verifyExpiry,

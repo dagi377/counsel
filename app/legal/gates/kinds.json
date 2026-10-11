@@ -35,6 +35,7 @@
     "risk": "high",
     "min_approvers": 1,
     "ttl": "168h",
+    "amount_path": "total_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -99,6 +100,8 @@
     "min_approvers": 1,
     "ttl": "72h",
     "dual_when": "signatories>=2",
+    "amount_path": "amount_cents",
+    "limit_kind": "trust_withdrawal_max",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -154,6 +157,7 @@
     "risk": "high",
     "min_approvers": 1,
     "ttl": "168h",
+    "amount_path": "amount_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -192,6 +196,7 @@
     "risk": "high",
     "min_approvers": 1,
     "ttl": "168h",
+    "amount_path": "amount_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -228,6 +233,7 @@
     "min_approvers": 1,
     "ttl": "72h",
     "dual_when": "signatories>=2",
+    "amount_path": "amount_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -319,6 +325,7 @@
     "risk": "high",
     "min_approvers": 1,
     "ttl": "168h",
+    "amount_path": "amount_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -363,6 +370,7 @@
     "min_approvers": 1,
     "ttl": "72h",
     "dual_when": "signatories>=2",
+    "amount_path": "amount_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -401,6 +409,7 @@
     "min_approvers": 1,
     "ttl": "72h",
     "dual_when": "signatories>=2",
+    "amount_path": "amount_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -436,6 +445,8 @@
     "min_approvers": 1,
     "ttl": "72h",
     "dual_when": "signatories>=2",
+    "amount_path": "amount_cents",
+    "limit_kind": "trust_withdrawal_max",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -488,6 +499,7 @@
     "min_approvers": 1,
     "ttl": "72h",
     "dual_when": "signatories>=2",
+    "amount_path": "amount_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -524,6 +536,7 @@
     "min_approvers": 1,
     "ttl": "336h",
     "dual_when": "signatories>=2",
+    "amount_path": "book_balance_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -623,6 +636,7 @@
     "risk": "medium",
     "min_approvers": 1,
     "ttl": "336h",
+    "amount_path": "book_balance_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -678,6 +692,7 @@
     "risk": "high",
     "min_approvers": 1,
     "ttl": "168h",
+    "amount_path": "amount_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -738,6 +753,7 @@
     "risk": "high",
     "min_approvers": 1,
     "ttl": "168h",
+    "amount_path": "amount_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -1407,6 +1423,7 @@
     "risk": "high",
     "min_approvers": 1,
     "ttl": "168h",
+    "amount_path": "amount_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -2035,6 +2052,7 @@
     "risk": "high",
     "min_approvers": 1,
     "ttl": "168h",
+    "amount_path": "trust_balance_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -2599,6 +2617,7 @@
     "risk": "high",
     "min_approvers": 1,
     "ttl": "72h",
+    "amount_path": "limit_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -2711,6 +2730,7 @@
     "risk": "irreversible",
     "min_approvers": 2,
     "ttl": "168h",
+    "amount_path": "total_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -2821,6 +2841,7 @@
     "risk": "high",
     "min_approvers": 1,
     "ttl": "168h",
+    "amount_path": "amount_cents",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -2846,6 +2867,7 @@
     "risk": "high",
     "min_approvers": 1,
     "ttl": "168h",
+    "amount_path": "price_cents",
     "payload_schema": {
       "type": "object",
       "required": [

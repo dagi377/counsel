@@ -28,8 +28,9 @@ func (c SecondApprovalConfig) ThresholdCents() int64 {
 	return c.WriteOffSecondApprovalCents
 }
 
-// NeedsSecondApproval reports whether a write-off of amountCents needs a second approval.
-// Only an amount strictly above the threshold does; exactly the threshold needs one.
+// NeedsSecondApproval reports whether write-offs totalling amountCents need a second
+// approval. Only a total strictly above the threshold does; exactly the threshold does not.
+// The caller passes the cumulative total for the bill and client (WriteOffTotals).
 //
 // rule: BIL-C-085
 func NeedsSecondApproval(amountCents int64, cfg SecondApprovalConfig) bool {

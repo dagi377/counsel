@@ -17,8 +17,13 @@ func TestValidate(t *testing.T) {
 		cfg  Config
 		want error
 	}{
-		{name: "server", cfg: Config{Role: RoleServer}},
-		{name: "worker", cfg: Config{Role: RoleWorker}},
+		{name: "server", cfg: Config{Role: RoleServer, DatabaseURL: "pooled", DirectDatabaseURL: "direct", Zone: "Etc/UTC"}},
+		{name: "worker", cfg: Config{Role: RoleWorker, DatabaseURL: "pooled", DirectDatabaseURL: "direct", Zone: "Etc/UTC"}},
+		{name: "server no database url", cfg: Config{Role: RoleServer, DirectDatabaseURL: "direct", Zone: "Etc/UTC"}, want: ErrConfig},
+		{name: "server no direct database url", cfg: Config{Role: RoleServer, DatabaseURL: "pooled", Zone: "Etc/UTC"}, want: ErrConfig},
+		{name: "server no zone", cfg: Config{Role: RoleServer, DatabaseURL: "pooled", DirectDatabaseURL: "direct"}, want: ErrConfig},
+		{name: "worker no database url", cfg: Config{Role: RoleWorker, DirectDatabaseURL: "direct", Zone: "Etc/UTC"}, want: ErrConfig},
+		{name: "worker no zone", cfg: Config{Role: RoleWorker, DatabaseURL: "pooled", DirectDatabaseURL: "direct"}, want: ErrConfig},
 		{name: "import", cfg: Config{Role: RoleImport}},
 		{name: "migrate expand", cfg: Config{Role: RoleMigrate, MigrateMode: MigrateExpand}},
 		{name: "migrate contract", cfg: Config{Role: RoleMigrate, MigrateMode: MigrateContract}},
@@ -77,9 +82,12 @@ func TestBuildCallsAppRegister(t *testing.T) {
 }
 
 func TestRunFlags(t *testing.T) {
-	define := App{Name: "a", Register: func(_ context.Context, k *Kernel) error {
-		return k.Flags.Define(flags.Def{Name: "a.flag", Owner: "test"})
-	}}
+	// Run builds through BuildWith, which turns flags on before any Register, so the app
+	// declares its flag in Define (ARC-I-040).
+	define := App{Name: "a",
+		Define:   func(s *flags.Set) error { return s.Define(flags.Def{Name: "a.flag", Owner: "test"}) },
+		Register: func(context.Context, *Kernel) error { return nil },
+	}
 	tests := []struct {
 		name  string
 		flags []string
@@ -91,7 +99,9 @@ func TestRunFlags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := Run(context.Background(), Config{Role: RoleServer, Flags: tt.flags}, define)
+			// Import still builds with no database and stops at ErrNotImplemented, so it checks
+			// flag handling without one.
+			err := Run(context.Background(), Config{Role: RoleImport, Flags: tt.flags}, define)
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("Run() = %v, want %v", err, tt.want)
 			}

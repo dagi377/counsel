@@ -12,6 +12,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/payment"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/inbound"
+	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -25,6 +26,14 @@ var ErrNoRegistry = errors.New("legal boot: kernel has no registry")
 type Options struct {
 	// Payment, when set, registers the payment provider's webhook as an inbound provider.
 	Payment *PaymentHook
+	// Gates, when set, builds the gate effect services and registers every gate kind that
+	// has an effect. When nil no app gate kind is registered.
+	Gates *GatePorts
+	// Clearance, when set, builds conflict Clearance (gate G2) over the gate catalog.
+	Clearance *ClearancePorts
+	// Sender, when set, delivers rendered notifications. Nil keeps the kernel's count-only
+	// sender.
+	Sender notify.Sender
 }
 
 // PaymentHook is the configured payment provider. Webhook.ID is the hook provider name from
@@ -39,16 +48,17 @@ type hook func(ctx context.Context, k *kboot.Kernel) error
 
 // App returns the legal app for kernel boot.
 func App(opts Options) kboot.App {
-	return newApp(registerHooks(opts), startHooks(opts))
+	w := &wiring{opts: opts}
+	return newApp(registerHooks(w), startHooks(opts))
 }
 
 // registerHooks lists the Register steps, in order. Later boot tasks append theirs here.
-func registerHooks(opts Options) []hook {
-	return []hook{registerModules, opts.registerPayment}
+func registerHooks(w *wiring) []hook {
+	return []hook{registerModules, w.opts.registerPayment, w.registerGates, w.buildClearance, w.opts.registerNotify}
 }
 
-// startHooks lists the Start steps (seed and start jobs), in order. None exist yet.
-func startHooks(Options) []hook { return nil }
+// startHooks lists the Start steps (seed and start jobs), in order.
+func startHooks(Options) []hook { return []hook{seedTemplates} }
 
 func newApp(register, start []hook) kboot.App {
 	return kboot.App{

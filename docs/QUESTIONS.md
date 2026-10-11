@@ -466,6 +466,15 @@ Template:
   a kernel boot container), and should `kernel/identity` gain an additive per-user capability
   lookup, or should `conflict.Capabilities` be satisfied by an adapter over `Access.Can`?
   Until then `NewClearance` is wired only in tests.
+- Answer: owner (2026-10-11): `app/legal/boot` builds Clearance with Capabilities from a kernel
+  `identity.CapabilityLookup`. The lookup is generic: it reads the registered roles and the role
+  assignments and returns the capabilities a user holds. It fails closed for unknown users.
+  `core.*` kinds are registered by kernel/identity's own admin gates in kernel boot. Done in
+  BOOT-17: `kernel/identity/capabilities.go` (additive: `CapabilityLookup`, `ErrUnknownUser` for a
+  user with no roles, `ErrUnknownRole` for an unregistered role) and `app/legal/boot/clearance.go`
+  (`Options.Clearance` builds `conflict.NewClearance(checks, catalog, lookup, clock.Now)` over the
+  catalog BOOT-16 keeps). `kernel/identity` is outside BOOT-17's file list; the owner's answer
+  names it.
 
 ## Q-GL-BOOK Trust book in gl: book column, trust source kind, per-book close
 
@@ -757,14 +766,221 @@ BOOT tasks are not in docs/TASKS.md, so their progress is tracked here.
 
 - Merged to main (wave 4a): BOOT-01, BOOT-02, BOOT-03, BOOT-04, BOOT-05, BOOT-06, BOOT-08,
   BOOT-10, BOOT-11, BOOT-12, BOOT-13, BOOT-14, BOOT-15.
-- In progress: BOOT-07, BOOT-09.
+- Merged to main (wave 4b): T-009.4, BOOT-07, BOOT-09, BOOT-16, BOOT-17, BOOT-19, BOOT-20,
+  BOOT-22, BOOT-23; with PORT-01, PORT-02, FEAT-CORE-01, FEAT-CORE-04, FEAT-TOOL-02,
+  FEAT-TOOL-03, FEAT-TOOL-04, FEAT-TOOL-07, fix/w3-gates and fix/w3-legal.
 - Applied at integration (logged decisions):
   - `identity.NewAdminGates(gates, store, opts...)` with `identity.WithCoreEffect(kind,
     effect)`: the app supplies handlers for core.* kinds the kernel owns.
-    `boot.CoreGateEffects(svc)` supplies the core.trust_signatory effect.
+  - Kernel boot builds them: `(*boot.Kernel).AdminGates(opts...)` calls
+    `identity.NewAdminGates` on the kernel gate engine and `Deps.AdminStore` and keeps the
+    result in `Kernel.Admin`. The legal app calls it with `boot.CoreGateEffects(svc)` when it
+    builds its effect table, so the core.trust_signatory effect is the kernel admin gates' one.
   - `boot.LimitationStatute(schedule)` attaches `ontario.Holidays()` (embedded
     holidays.yaml) with `WithHolidays`, so the s.88 roll applies; tested on 2027 holidays.
+    `boot.LimitationAssessor(schedule, store, deadlines)` builds the Assessor on it.
+  - `import.source_sync` is defined in app/legal/flags.go (`legalflags.ImportSourceSync`),
+    default off; the renewal job reads it.
+  - `report.SlotWorker` takes a `report.Engine`; the app's report.slot worker is
+    `report.SlotWorker` on the kernel Engine and DB, and its own copy is gone.
   - `withdraw.PGEFTRecords` has a unit test on a fake DB. Its integration test is still
     to be written (vet only).
-- Still open: kernel boot must call `identity.NewAdminGates` with `CoreGateEffects` and
-  register the result's effects; the limitation Assessor must take `LimitationStatute`.
+  - Kernel boot `Run` now uses the real kernel job adder (gate.run_due, outbox.relay); the
+    BOOT-09 stub is gone. `addNotifyJobs` and `addWebhookJobs` are not yet called from Run.
+- Still open: register the kernel admin kinds (core.role_change, core.user_activation) with
+  the admin gates' effects once a Postgres AdminStore exists; build the Assessor from the
+  app's Register once limitation ports have production implementations.
+
+
+## T-009.4: concrete server, two-way OpenAPI check, unserved list (owner decision)
+
+The owner unblocked T-009.4 before every openapi path has a handler. Files outside the task:
+
+- `api/unserved.txt`: the openapi operations no handler serves yet. The owner asked for
+  `kernel/contract/unserved.txt`, but its lines are openapi paths with legal terms and the
+  kernel term lint (TestKernelHasNoLegalTerms) scans every file under kernel/; the allow list
+  only shrinks, so the file sits next to `api/openapi.yaml` instead. It only shrinks; the conformance tests fail when a listed operation is mounted, when it leaves
+  openapi.yaml, and when an operation is neither mounted nor listed.
+- `app/legal/conformance_test.go`: the full two-way check has to see app routes, and kernel
+  code cannot import app/. It mounts every handler on main (kernel inbound hooks, trust
+  withdrawal execution) plus every `Registry.Routes` call `legal.Register` makes.
+  `kernel/server/conformance_test.go` checks the kernel routes one way.
+
+Decision taken: `server.New` mounts module routes under `server.BasePath` ("/v1", the openapi
+server URL path), and `Routes()` reports the full served pattern. Modules keep mounting
+openapi-relative paths, as `kernel/inbound` and `withdraw.Execution` already do.
+
+Left open: the second accept line (refuse a route that sets state owned by a gate effect
+unless it is the gate decision endpoint) needs a per-route "gate-owned state" marker that no
+contract declares yet. Not built.
+
+## BOOT-09: Run wiring gaps
+
+- Additive `Config` fields beyond `Zone`: `DirectDatabaseURL` (db.Open validates both DSNs and
+  the worker needs the direct one, ARC-U-011) and `MaxWorkers` (default 10). Server and worker
+  need `DatabaseURL`, `DirectDatabaseURL` and `Zone`. `Kernel` and `Deps` gain `Notify`.
+- `gate.PG` does not implement `gate.Engine` yet (no Get, Withdraw, RunDue), so the production
+  server and worker roles stop with `ErrNotImplemented` at the gate engine until it does.
+- Registry schemas load from `spec/kernel` relative to the working directory; the images
+  must ship it, or the schemas get embedded.
+- Reports use a deny-all authorizer and an audit log with no Verify querier until identity
+  is wired at boot. No kernel module owns a River job yet, so `addKernelJobs` adds none.
+- `TestRunFlags` now runs the import role and declares its flag in `Define`: Run builds
+  through BuildWith, which turns flags on before Register (ARC-I-040).
+## Q-BOOT-16-FILES: BOOT-16 touches app/legal/boot/boot.go
+
+- Task: BOOT-16. Files listed: `effects.go`, `unwired_gates.txt`, `effects_test.go`.
+- Reason: "Register calls gates.RegisterWired" needs a Register hook, and the hook list and
+  `Options` live in `boot.go`. The change is additive: `Options.Gates *GatePorts` (nil keeps
+  the old behaviour: no app gate kind registered), and `App` builds a `wiring` value that
+  Register fills with the gate Catalog so a later step (BOOT-17 Clearance) can read it.
+- Wired: signatory (core.trust_signatory is ignored by RegisterWired, the kernel owns it),
+  trust.withdrawal, billing.bill_approval, billing.bill_void (bill.VoidEffects, per the
+  integrator decision) and the two write-off kinds. CreditPorts come from the caller
+  (no Postgres write-off store yet, Q-BOOT-13-PORTS).
+## Q-BOOT-22 notification templates: Options.Sender and the app template list
+
+- Task: BOOT-22 (app/legal/boot notification templates).
+- Outside the task's files: `app/legal/boot/boot.go` gains `Options.Sender notify.Sender`
+  (additive; the accept line names it) and `opts.registerNotify` in `registerHooks`.
+- No app module defines kernel notification templates yet (the comms message templates are
+  a separate store, seeded by BOOT-23). The app list in `notify.go` holds one template,
+  `sync.subscription_renewal_failed`, for the cliosync renewal alert (ids and times only).
+  Modules that need notifications add theirs to `notifyTemplates`.
+- Answer: (owner)
+
+## Q-BOOT-23 template seed: Start hook and test fake
+
+- Task: BOOT-23 (app/legal/boot seed message templates at Start).
+- Outside the task's files: `app/legal/boot/boot.go` `startHooks` now returns `seedTemplates`.
+- A kernel with no DB (`kboot.Build` with no deps, used by `Run` today) skips the seed, so
+  `TestAppShape`'s empty-kernel Start stays valid; with a DB, a seed error stops Start.
+- `commsfake` has no versioned seed (versions live in `TemplateStore.Seed`'s SQL), so
+  `seed_test.go` drives the real `TemplateStore.Seed` over a test-local in-memory
+  `comms.message_template` DB instead of commsfake.
+- Answer: (owner)
+
+## Q-FEAT-TOOL agent handler set (FEAT-TOOL-03, FEAT-TOOL-04, FEAT-TOOL-07)
+
+- The tool tasks say each handler registers itself from init() into "the agent handler set"
+  that `agenttest.FromFeature` (FEAT-CORE-14) reads, but no handler set exists on main. Each
+  of these tasks adds the same file, `app/legal/agent/handlerset.go` (identical in all three
+  branches, so they merge cleanly): `Handler{Name, Build(Deps)}`, `addHandler` (init only),
+  `HandlerFor`, `HandlerNames`, typed `Deps`/`DepOf`, and shared helpers (`handlerTool`,
+  `visibleTo`, cursor paging, `MatterDocuments`). FEAT-CORE-14/15 should build on it.
+- app/legal/docs has no "documents of a matter" query and kernel/docs has no text search, so
+  list_documents and search_documents read through a narrow `MatterDocuments` interface
+  (document + current version) that the docs module must implement when wired at boot.
+- list_work_items: a work item title is user text with no document citation. It is returned
+  as an untrusted `agenttools.Quoted` envelope without a source; CheckCitations passes because
+  only the "quotes" array needs citations. Matter-scoped items are those whose subject kind is
+  "matter".
+## Q-GATE-AMOUNT gate amount path, authority-limit kind and editor lookup per kind
+
+- Source: review of waves 2-3, items 4 and 5 (ARC-I-016, ARC-I-020, BIL-C-085).
+- Additive to `kernel/registry/types.go` GateKind: `AmountPath`, `LimitKind`, `Preparers`
+  (new type `PreparersFunc`). Additive to `spec/kernel/gatekind.schema.json`: optional
+  `amount_path` and `limit_kind`. `spec/gates.json` declares `amount_path` on every kind whose
+  payload has a `*_cents` field (bill_approval reads `total_cents`) and `limit_kind`
+  `trust_withdrawal_max` on trust.withdrawal and billing.trust_fee_withdrawal.
+- Decide no longer depends on SetDecideHooks for these checks: the limit and the kind's editor
+  lookup run on every Decide. A money kind with no amount path fails registration and Decide.
+- Open (verify): core.authority_limit.kind allows only writedown_pct, trust_withdrawal_max and
+  practice_area, so bills have no cents cap kind yet; adding one needs an additive migration.
+- Write-offs: `WriteOffEffect.Totals` (nil fails closed) sums write-offs on the same bill plus
+  the client's other bills in the last 30 days (verify the window with the lawyer). The
+  Postgres implementation must lock the bill row FOR UPDATE.
+## Q-W3-LEGAL Wave-3 legal corrections (review items 6 to 9)
+
+Changed expectations, each with its citation. Every rule stays (verify) and behind its flag.
+
+- **RCP 7-day period** (`app/legal/rulepacks/ontario/civil-procedure.yaml`). Rules of Civil
+  Procedure, R.R.O. 1990, Reg. 194, r. 3.01(1)(b): holidays are not counted only where the
+  period is *less than* seven days. The 7-day rule (renamed `short_period_7_days` ->
+  `period_7_days`) now counts calendar days, rolling forward only off a holiday last day
+  (r. 3.01(1)(c)). Golden dates: 2026-03-02 -> 03-09 (was 03-11); 2026-04-01 -> 04-08 (was
+  04-14); 2026-05-14 -> 05-21 (was 05-26); new 2026-05-11 -> 05-19 (Victoria Day roll).
+- **Notice of intent to defend.** r. 18.02(1): the notice is delivered within the time for the
+  statement of defence, i.e. 20 days after service in Ontario (r. 18.01(a)), not 10 days.
+  Golden dates: 2026-03-02 -> 03-23 (was 03-12). New rule `statement_of_defence_after_notice`
+  (r. 18.02(2)): a notice delivered in time gives 10 more days, so 30 days from service of
+  the claim; trigger `claim_served_notice_of_intent_delivered` is raised only when the
+  notice was delivered in time. Golden: 2026-03-02 -> 04-01; 2026-03-04 -> 04-07 (Good
+  Friday and Easter Monday roll). Not modelled: 40/60-day service outside Ontario
+  (r. 18.01(b), (c)) and r. 3.01(1)(d) deemed-service times.
+- **r. 1.03 holidays.** Unchanged: "holiday" includes every Saturday and Sunday, so the pack
+  skips both in business counting and the forward roll.
+- **Limitations Act, 2002 s.22** (`app/legal/limitation/statute.go`). An agreement suspension
+  now reaches the s.15 ultimate period only when it starts on or after discovery. The
+  instruction for this fix said "except business agreements under s.22(5) and (6)". The
+  statute as I read it says otherwise: s.22(4) lets *any* agreement made after the effective
+  date suspend or extend the s.15 period, but only if the claim has been discovered; s.22(5)
+  para. 2 lets a business agreement *vary* the s.15 period but says it may be suspended or
+  extended "only in accordance with subsection (4)". So no business-agreement exception was
+  added (no `BusinessAgreement` field); the discovery condition applies to all agreements.
+  The suspension's start date stands in for the date the agreement was made. (verify s.22(3)
+  to (6) and the 2006-10-19 effective date.) New tests: agreement after discovery suspends
+  both (basic 2024-01-11, ultimate 2035-01-11); agreement before discovery leaves the
+  ultimate at 2035-01-01.
+- **Legislation Act, 2006 s.87/s.88 roll.** The limitation roll now uses the s.87 "holiday"
+  definition: Sunday plus the dated holidays. Saturday is not an s.87 holiday, so a Saturday
+  last day is no longer moved (fail closed). Changed: ultimate 2041-09-28 (Sat) stays (was
+  09-30); basic 2026-02-28 (Sat) stays (was 03-02). New: a Sunday last day rolls to Monday;
+  a Saturday Boxing Day rolls past Sunday to Monday. (verify) Whether a court office closed
+  on Saturday extends the time under the Legislation Act's closed-office provision, and
+  whether s.87 makes the r. 1.03 substitute Mondays (e.g. 2026-12-28) holidays; the
+  calendar passed in is the r. 1.03 list, which includes them.
+- **Interest due date** (`app/legal/billing/interest`). Additive contract field
+  `interest.Bill.DueDate` (zero = none agreed). `Posting.Post` passes it to `Start.Clip`, so
+  interest starts on the later of the agreed due date and one month after delivery
+  (BIL-C-070, Solicitors Act s.33). New tests: due 2026-03-20 -> 10 days in March; a period
+  ending on the due date -> ErrNotDue; an earlier due date never starts before 02-15.
+- **ETA Sch. VI Part V s.23: NOT changed; needs the tax lawyer.** The instruction asked to add
+  an "individual in Canada when the service is performed" exclusion and to apply the
+  litigation exclusion to all recipients. The provision does not say that: s.23(a) excludes
+  "a service rendered to an individual in connection with criminal, civil or administrative
+  litigation in Canada, other than a service rendered before the commencement of such
+  litigation" (individuals only), and s.23 has no presence test. The presence exclusions
+  are in s.7(a)/(a.1), and s.7(b) takes advisory, professional and consulting services out
+  of s.7. The frozen rule BIL-T-015 (spec/rules/b2.json) quotes this text and has test
+  cases for both points, and rule ids outrank the code. Changing the behaviour would mean
+  changing a frozen rule against the statute, so the code and tests are left as they are.
+  (verify against the current s.23 text and GST/HST Memorandum 4.5.3.)
+
+## PORT-01 (kernel/gate: *PG implements gate.Engine)
+
+- Branch is cut from origin/main with origin/task/BOOT-09 merged in, because the run.go
+  ErrNotImplemented assert this task removes exists only on that branch.
+- `kernel/gate/open.go` (outside the task's file list) gains one field on `PG`: `db TxRunner`,
+  set with `SetDB`. `Engine.Get` takes no tx, so the engine needs its own read handle; the
+  field is additive. Boot's `pgGates` now takes the pool and wires it.
+- Withdraw sets `counsel.gate_tx` itself (there is no `gate.withdraw()` SQL function in
+  0001); `counsel_app` holds UPDATE on gate.approval_request. A SECURITY DEFINER
+  `gate.withdraw(uuid, uuid)` in a later additive migration would be tighter.
+- RunDue skips a gate whose effect failed (recorded as failed), whose kind is unknown or whose
+  stored payload fails its hash, logging a warning, so one bad gate does not block the rest.
+
+## PORT-02 (kernel/registry/schemas: embedded spec/kernel schemas)
+
+- Branch is cut from origin/main with origin/task/BOOT-09 merged in (run.go lives only there).
+  The merge resolves two conflicts against main's wave-4a boot work: Kernel keeps main's
+  fields (BOOT-09 had a second `Notify`), and run.go drops its stub `addKernelJobs` in favour
+  of main's real one in jobs_kernel.go.
+- `kernel/registry/schemas/embed_integration_test.go` is added beyond the task's file list to
+  meet the "integration test compiles" line; it needs no database.
+## FEAT-TOOL-02 search_contacts
+
+- Additive contract change (approved in the FEAT plan answers): `party.Contacts` gains
+  `Search(ctx, query)` and `party.SearchLimit`; Store and partyfake implement it. The Store
+  query uses LIKE on lower(legal_name/display_name) with wildcards escaped; it has no
+  integration test yet.
+- Visibility: a contact is returned only when it is the client of at least one matter the
+  acting user can see (matter.Query List by ClientID, then walls). A contact of walled
+  matters only is omitted, not refused with ErrNotVisible: the input has no matter id, and a
+  404 on a name search would tell the user a walled client exists. Parties other than the
+  client (matter.party_role) are not reachable through matter.Query, so they are not found.
+- Citations: a contact name is client text with no document version. It is returned as an
+  untrusted Quoted envelope cited to the contact record (`contact:<id>`, page 1, line 1) so
+  CheckCitations validates it; quotes[i] is the name of contacts[i].
+- `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
+  Q-FEAT-TOOL agent handler set), so the branches merge cleanly.

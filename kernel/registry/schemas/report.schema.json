@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "CONTRACT: frozen once on main; changes are additive only and need a docs/QUESTIONS.md entry. Source: spec/eng/k1-kernel.html (Registry). Validated at boot; registered data that fails it stops boot.",
+  "title": "ReportDef",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "capability",
+    "params"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "module-prefixed id, e.g. <module>.<name>"
+    },
+    "capability": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "module-prefixed id, e.g. <module>.<name>"
+    },
+    "params": {
+      "type": "object",
+      "description": "an embedded JSON Schema document"
+    }
+  },
+  "$id": "https://counsel.local/spec/kernel/report.schema.json"
+}

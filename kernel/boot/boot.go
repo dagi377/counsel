@@ -6,12 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/identity"
 	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -52,17 +52,32 @@ var (
 // Config is everything a binary passes to Run.
 type Config struct {
 	Role        Role
-	Addr        string      // listen address (server)
-	DatabaseURL string      // Postgres DSN; never logged
-	Flags       []string    // flag names to turn on; each must be defined by an app
-	MigrateMode MigrateMode // migrate only
-	ImportFrom  string      // import only: source export path
+	Addr        string // listen address (server)
+	DatabaseURL string // Postgres DSN through the pooler; never logged
+	// DirectDatabaseURL is the Postgres DSN that bypasses the pooler, for the job queue and
+	// migrations (ARC-U-011). Never logged.
+	DirectDatabaseURL string
+	Zone              string      // IANA business time zone; the binary passes it, the kernel names none
+	MaxWorkers        int         // worker only: concurrent jobs on the default queue; 0 means 10
+	Flags             []string    // flag names to turn on; each must be defined by an app
+	MigrateMode       MigrateMode // migrate only
+	ImportFrom        string      // import only: source export path
 }
 
 // Validate checks the fields the role needs.
 func (c Config) Validate() error {
 	switch c.Role {
-	case RoleServer, RoleWorker, RoleImport:
+	case RoleServer, RoleWorker:
+		if c.DatabaseURL == "" {
+			return fmt.Errorf("role %s: database url is empty: %w", c.Role, ErrConfig)
+		}
+		if c.DirectDatabaseURL == "" {
+			return fmt.Errorf("role %s: direct database url is empty: %w", c.Role, ErrConfig)
+		}
+		if c.Zone == "" {
+			return fmt.Errorf("role %s: zone is empty: %w", c.Role, ErrConfig)
+		}
+	case RoleImport:
 	case RoleMigrate:
 		switch c.MigrateMode {
 		case MigrateExpand, MigrateContract:
@@ -104,6 +119,10 @@ type Kernel struct {
 	// are required when Dispatcher is set.
 	WebhookEndpoints WebhookEndpoints
 	WebhookPoster    WebhookPoster
+	// AdminStore applies approved role changes and user activations. Admin is the identity
+	// admin gates built by AdminGates.
+	AdminStore identity.AdminStore
+	Admin      identity.AdminGates
 
 	sealed bool // Registry.Seal passed; apply runs only then
 }
@@ -139,6 +158,8 @@ type Deps struct {
 	Dispatcher       WebhookQueue
 	WebhookEndpoints WebhookEndpoints
 	WebhookPoster    WebhookPoster
+	// AdminStore is optional; it applies approved identity admin changes.
+	AdminStore identity.AdminStore
 }
 
 // Build creates the kernel and calls every app's Register in order.
@@ -156,6 +177,7 @@ func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kerne
 		Jobs: NewJobs(), Outbox: deps.Outbox, Emitter: deps.Emitter, Notify: deps.Notify,
 		NotifySender: deps.NotifySender, WebhookExpiry: deps.WebhookExpiry,
 		Dispatcher: deps.Dispatcher, WebhookEndpoints: deps.WebhookEndpoints, WebhookPoster: deps.WebhookPoster,
+		AdminStore: deps.AdminStore,
 	}
 	for _, a := range apps {
 		if a.Register == nil {
@@ -190,23 +212,4 @@ func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kerne
 		k.sealed = true
 	}
 	return k, nil
-}
-
-// Run validates cfg, builds the kernel, turns on the requested flags and runs cfg.Role.
-func Run(ctx context.Context, cfg Config, apps ...App) error {
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
-	k, err := Build(ctx, apps...)
-	if err != nil {
-		return err
-	}
-	for _, name := range cfg.Flags {
-		if err := k.Flags.Set(name, true); err != nil {
-			return fmt.Errorf("turn on flag: %w", err)
-		}
-	}
-	ctx = flags.WithSet(ctx, k.Flags)
-	slog.InfoContext(ctx, "kernel built", "role", string(cfg.Role), "apps", len(apps), "flags_on", len(cfg.Flags))
-	return fmt.Errorf("run %s: %w", cfg.Role, ErrNotImplemented)
 }

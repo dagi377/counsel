@@ -43,6 +43,12 @@ func TestBIL_L_010_NoAgreedRateNoInterest(t *testing.T) {
 		// 100000 * 60000 * 14 / (1e6 * 365) = 230.1 -> 230
 		{"agreed rate, clipped to start", true, Bill{ID: "b4", DeliveredAt: delivered, Principal: 100000, RatePPM: 60000}, Period{day(2026, 2, 1), day(2026, 3, 1)}, nil, 14, 230},
 		// 100000 * 60000 * 31 / (1e6 * 365) = 509.6 -> 510
+		// BIL-C-070: an agreed due date later than delivery + 1 month moves the start to it.
+		// 100000 * 60000 * 10 / (1e6 * 365) = 164.4 -> 164
+		{"agreed rate, due date after one month", true, Bill{ID: "b6", DeliveredAt: delivered, Principal: 100000, RatePPM: 60000, DueDate: day(2026, 3, 20)}, Period{day(2026, 3, 1), day(2026, 3, 30)}, nil, 10, 164},
+		{"agreed rate, period before due date", true, Bill{ID: "b7", DeliveredAt: delivered, Principal: 100000, RatePPM: 60000, DueDate: day(2026, 3, 20)}, Period{day(2026, 3, 1), day(2026, 3, 20)}, ErrNotDue, 0, 0},
+		// An earlier due date never starts interest before one month after delivery.
+		{"agreed rate, due date before one month", true, Bill{ID: "b8", DeliveredAt: delivered, Principal: 100000, RatePPM: 60000, DueDate: day(2026, 1, 30)}, Period{day(2026, 2, 1), day(2026, 3, 1)}, nil, 14, 230},
 		{"agreed rate, full month", true, Bill{ID: "b5", DeliveredAt: delivered, Principal: 100000, RatePPM: 60000}, Period{day(2026, 3, 1), day(2026, 4, 1)}, nil, 31, 510},
 	}
 	for _, tt := range tests {
