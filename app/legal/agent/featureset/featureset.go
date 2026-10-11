@@ -134,5 +134,9 @@ func appDefs() []feature.Def {
 		intake.PipelineFollowUpsDef(),
 		intake.WeeklyIntakeDigestDef(),
 		intake.MapAnswersToLeadDef(),
+		intake.GuidedChatIntakeDef(),
+		intake.ProposeSlotsDef(),
+		intake.SuggestScoringWeightsDef(),
+		intake.DryRunLastLeadsDef(),
 	}
 }
