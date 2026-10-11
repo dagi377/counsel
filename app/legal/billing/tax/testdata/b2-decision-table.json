@@ -1,0 +1,857 @@
+[
+  {
+    "client_location": "ON",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "ON",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "ON",
+        "rate_ppm": 130000
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "NS",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "NS",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "NS",
+        "rate_ppm": 140000
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "NB",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "NB",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "NB",
+        "rate_ppm": 150000
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "NL",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "NL",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "NL",
+        "rate_ppm": 150000
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "PE",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "PE",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "PE",
+        "rate_ppm": 150000
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "QC",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "QC",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      },
+      {
+        "kind": "QST",
+        "jurisdiction": "QC",
+        "rate_ppm": 99750,
+        "condition": "firm registered for QC QST (BIL-T-020)"
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "BC",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "BC",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      },
+      {
+        "kind": "PST",
+        "jurisdiction": "BC",
+        "rate_ppm": 70000,
+        "condition": "firm registered for BC PST (BIL-T-020)"
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "MB",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "MB",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      },
+      {
+        "kind": "RST",
+        "jurisdiction": "MB",
+        "rate_ppm": 70000,
+        "condition": "firm registered for MB RST (BIL-T-020)"
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "SK",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "SK",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      },
+      {
+        "kind": "PST",
+        "jurisdiction": "SK",
+        "rate_ppm": 60000,
+        "condition": "firm registered for SK PST (BIL-T-020)"
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "AB",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "AB",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "YT",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "YT",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "NT",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "NT",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "NU",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "NU",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      }
+    ],
+    "rules": [
+      "BIL-T-013"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in ON",
+    "place_of_supply": "ON",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "ON",
+        "rate_ppm": 130000
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in NS",
+    "place_of_supply": "NS",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "NS",
+        "rate_ppm": 140000
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in NB",
+    "place_of_supply": "NB",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "NB",
+        "rate_ppm": 150000
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in NL",
+    "place_of_supply": "NL",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "NL",
+        "rate_ppm": 150000
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in PE",
+    "place_of_supply": "PE",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "PE",
+        "rate_ppm": 150000
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in QC",
+    "place_of_supply": "QC",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      },
+      {
+        "kind": "QST",
+        "jurisdiction": "QC",
+        "rate_ppm": 99750,
+        "condition": "firm registered for QC QST (BIL-T-020)"
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in BC",
+    "place_of_supply": "BC",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      },
+      {
+        "kind": "PST",
+        "jurisdiction": "BC",
+        "rate_ppm": 70000,
+        "condition": "firm registered for BC PST (BIL-T-020)"
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in MB",
+    "place_of_supply": "MB",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      },
+      {
+        "kind": "RST",
+        "jurisdiction": "MB",
+        "rate_ppm": 70000,
+        "condition": "firm registered for MB RST (BIL-T-020)"
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in SK",
+    "place_of_supply": "SK",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      },
+      {
+        "kind": "PST",
+        "jurisdiction": "SK",
+        "rate_ppm": 60000,
+        "condition": "firm registered for SK PST (BIL-T-020)"
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in AB",
+    "place_of_supply": "AB",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in YT",
+    "place_of_supply": "YT",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in NT",
+    "place_of_supply": "NT",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any resident or non-resident",
+    "service_type": "real property situated in NU",
+    "place_of_supply": "NU",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      }
+    ],
+    "rules": [
+      "BIL-T-011",
+      "BIL-T-015(b)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of ON, after commencement",
+    "place_of_supply": "ON",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "ON",
+        "rate_ppm": 130000
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of NS, after commencement",
+    "place_of_supply": "NS",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "NS",
+        "rate_ppm": 140000
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of NB, after commencement",
+    "place_of_supply": "NB",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "NB",
+        "rate_ppm": 150000
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of NL, after commencement",
+    "place_of_supply": "NL",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "NL",
+        "rate_ppm": 150000
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of PE, after commencement",
+    "place_of_supply": "PE",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "PE",
+        "rate_ppm": 150000
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of QC, after commencement",
+    "place_of_supply": "QC",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      },
+      {
+        "kind": "QST",
+        "jurisdiction": "QC",
+        "rate_ppm": 99750,
+        "condition": "firm registered for QC QST (BIL-T-020)"
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of BC, after commencement",
+    "place_of_supply": "BC",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      },
+      {
+        "kind": "PST",
+        "jurisdiction": "BC",
+        "rate_ppm": 70000,
+        "condition": "firm registered for BC PST (BIL-T-020)"
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of MB, after commencement",
+    "place_of_supply": "MB",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      },
+      {
+        "kind": "RST",
+        "jurisdiction": "MB",
+        "rate_ppm": 70000,
+        "condition": "firm registered for MB RST (BIL-T-020)"
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of SK, after commencement",
+    "place_of_supply": "SK",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      },
+      {
+        "kind": "PST",
+        "jurisdiction": "SK",
+        "rate_ppm": 60000,
+        "condition": "firm registered for SK PST (BIL-T-020)"
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of AB, after commencement",
+    "place_of_supply": "AB",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of YT, after commencement",
+    "place_of_supply": "YT",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of NT, after commencement",
+    "place_of_supply": "NT",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "Canadian resident (any province), or non-resident individual",
+    "service_type": "litigation in a court/tribunal of NU, after commencement",
+    "place_of_supply": "NU",
+    "taxes": [
+      {
+        "kind": "GST",
+        "jurisdiction": "CA",
+        "rate_ppm": 50000
+      }
+    ],
+    "rules": [
+      "BIL-T-012",
+      "BIL-T-015(a)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "non-resident (individual or business)",
+    "service_type": "general (advisory, transactional, pre-litigation)",
+    "place_of_supply": "ZERO",
+    "taxes": [
+      {
+        "kind": "GST/HST",
+        "jurisdiction": "CA",
+        "rate_ppm": 0
+      }
+    ],
+    "rules": [
+      "BIL-T-015"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "non-resident business (corporation, trust, partnership)",
+    "service_type": "litigation in Canada after commencement",
+    "place_of_supply": "ZERO",
+    "taxes": [
+      {
+        "kind": "GST/HST",
+        "jurisdiction": "CA",
+        "rate_ppm": 0
+      }
+    ],
+    "rules": [
+      "BIL-T-015(a) individuals only (s.23(a) text read)"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "non-resident individual, met in Canada",
+    "service_type": "general advice rendered while the individual is in Canada",
+    "place_of_supply": "ZERO",
+    "taxes": [
+      {
+        "kind": "GST/HST",
+        "jurisdiction": "CA",
+        "rate_ppm": 0
+      }
+    ],
+    "rules": [
+      "BIL-T-015 (s.7(a.1) does not apply: s.7(b))"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "non-resident (any)",
+    "service_type": "acting as the client's agent / procuring supplies for it",
+    "place_of_supply": "general rule (BIL-T-013/014; typically ON)",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "ON",
+        "rate_ppm": 130000
+      }
+    ],
+    "rules": [
+      "BIL-T-015(d)",
+      "BIL-T-014"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "Canadian resident, no address on file",
+    "service_type": "general",
+    "place_of_supply": "ON (Canadian element performed in Ontario)",
+    "taxes": [
+      {
+        "kind": "HST",
+        "jurisdiction": "ON",
+        "rate_ppm": 130000
+      }
+    ],
+    "rules": [
+      "BIL-T-014"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any",
+    "service_type": "litigation in a federal court (FC, FCA, TCC, SCC)",
+    "place_of_supply": "general rule (client address)",
+    "taxes": "as client_location general row",
+    "rules": [
+      "BIL-T-012"
+    ],
+    "verify": true
+  },
+  {
+    "client_location": "any",
+    "service_type": "agent disbursement line (BIL-T-030 AGENT)",
+    "place_of_supply": "n/a",
+    "taxes": [],
+    "rules": [
+      "BIL-T-030",
+      "BIL-T-032"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any",
+    "service_type": "own-cost disbursement line (BIL-T-030 OWN)",
+    "place_of_supply": "same as the matter's service",
+    "taxes": "inherit matter tax code",
+    "rules": [
+      "BIL-T-016",
+      "BIL-T-031"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any",
+    "service_type": "late-payment interest",
+    "place_of_supply": "n/a",
+    "taxes": [],
+    "rules": [
+      "BIL-T-043"
+    ],
+    "verify": false
+  },
+  {
+    "client_location": "any",
+    "service_type": "credit card surcharge on a payment",
+    "place_of_supply": "same as the paid bill",
+    "taxes": "paid bill's tax codes, pro rata",
+    "rules": [
+      "BIL-T-044"
+    ],
+    "verify": true
+  }
+]
