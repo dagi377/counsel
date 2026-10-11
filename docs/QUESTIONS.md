@@ -2180,3 +2180,25 @@ Done in PORT-18:
   executor is still a second person (sole-practice exception audited). `PGService.Gates`, set
   at boot, opens the gate in the request tx and stores gate_id; the route skips opening when
   the service already did, so agent withdrawals are gated on Postgres.
+
+## BOOT-REST-3
+
+- Merged task/BOOT-REST-2a; kept receipt_http.go's trust.TxRunner (2a had dropped it).
+- Deadline reminders: `PGBook.List` is the Postgres `deadline.Lister`; `Reminders` skips
+  met, released and superseded deadlines. `deadline.SentLog` now takes a typed `SentKey`
+  (kind, deadline, user, day); `PGSentLog` stores it in `cal.deadline_reminder_sent`
+  (1102, unique NULLS NOT DISTINCT), so a restart never resends a reminder that day. Boot
+  (services_rest3.go) defaults Deadlines to the rest book, Sent to PGSentLog and, with
+  `DeadlinePorts.Recipient`, Primary to the kernel notification service (templates
+  deadline.reminder / deadline.digest, ids and dates only). The fallback notifier stays
+  caller-supplied; reminders carry no per-user recipient yet (UserID empty).
+- Webhooks: 1404 adds `platform.webhook.row_version` (default 1) and PGExpiry.SetExpiry bumps
+  it. Open: no Postgres `webhook.EndpointReads` exists and register.go mounts `webhook.HTTP{}`
+  without ports, so the routes still answer 503; the read must select row_version as
+  EndpointInfo.Version and the renew must be conditional on it (412 on mismatch).
+- Open: HTTP-25 RunService. PORT-18's PGRuns is the conflict-check run store
+  (conflict.check_run), not agent.agent_run, so it cannot back agent runs; an agent run store
+  is needed first. Routes still answer 503.
+- Open: Postgres payment.Proposals (HTTP-15). billing.payment_allocation has no proposed
+  state and no Postgres payment.Service exists, so the gated payment routes still need both
+  (a proposal table in the billing block, and a Postgres Service for Get) before they leave 503.

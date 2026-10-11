@@ -185,7 +185,11 @@ func (w *wiring) registerRest(_ context.Context, k *kboot.Kernel) error {
 		}
 	}
 	if w.opts.Rest.Deadlines != nil {
-		if err := addDeadlineJobs(k, *w.opts.Rest.Deadlines); err != nil {
+		dp, err := withDeadlineDefaults(k, w.rest, *w.opts.Rest.Deadlines)
+		if err != nil {
+			return err
+		}
+		if err := addDeadlineJobs(k, dp); err != nil {
 			return err
 		}
 	}
