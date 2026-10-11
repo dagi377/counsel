@@ -3,9 +3,11 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/dagi377/counsel/app/legal/conflict"
+	"github.com/dagi377/counsel/app/legal/matter/matterkind"
 	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -157,6 +159,18 @@ func (t proposeConflictParties) handle(ctx context.Context, p registry.Principal
 			cites = append(cites, src)
 		}
 		proposed = append(proposed, pp)
+	}
+	// rule: ARC-I-035
+	// The proposed parties wait on G2: conflict.clearance on a conflict run, or
+	// matter.party_conflict when a matter feature adds a party to its matter. Refuse a run
+	// whose feature declares neither before any party is recorded.
+	if err := agenttools.CheckGateKind(ctx, p, conflict.GateClearance); err != nil {
+		if !errors.Is(err, agenttools.ErrGateKindNotAllowed) {
+			return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolProposeConflictParties, err)
+		}
+		if agenttools.CheckGateKind(ctx, p, matterkind.GatePartyConflict) != nil {
+			return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolProposeConflictParties, err)
+		}
 	}
 	// rule: ARC-I-035
 	// The parties are recorded as proposed and the check runs; the run stays open until a

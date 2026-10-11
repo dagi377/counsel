@@ -65,7 +65,9 @@ func buildDraftNote(d Deps) (registry.Tool, error) {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolDraftNote, err)
 	}
 	s := specs[0]
-	t := draftNote{can: can, walls: walls, notes: notes, open: open, capability: s.Capability}
+	// rule: ARC-I-035
+	// The run's scoped opener: a gate kind the run's feature does not declare is refused.
+	t := draftNote{can: can, walls: walls, notes: notes, open: agenttools.ScopedOpener(open), capability: s.Capability}
 	// rule: ARC-I-035
 	// WriteTool holds every result to a draft, a proposal or an opened gate.
 	tool, err := agenttools.WriteTool(registry.Tool{
@@ -127,6 +129,11 @@ func (t draftNote) handle(ctx context.Context, p registry.Principal, raw json.Ra
 			return registry.ToolResult{}, fmt.Errorf("%s: citation %d: %w", ToolDraftNote, i, err)
 		}
 		cites = append(cites, src)
+	}
+	// rule: ARC-I-035
+	// Check the gate kind before storing anything, so a refused run leaves no draft.
+	if err := agenttools.CheckGateKind(ctx, p, GateAgentNote); err != nil {
+		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolDraftNote, err)
 	}
 	// rule: ARC-I-035
 	// The tool stores a draft note and opens its gate; the note is not on the file until a

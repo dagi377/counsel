@@ -3308,3 +3308,27 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - **Session limits:** the session read joins `core.sign_in_policy` (singleton); its
   lifetime and idle limits win, and the config/DDL defaults apply only with no policy row.
   The cookie Max-Age still uses the config lifetime.
+## Q-TRUST-SCOPE prepare_trust_withdrawal checks the run's gate kinds; boot wires its write deps
+
+- `agent/handlers.go`: the handler calls `agenttools.CheckGateKind(trust.withdrawal)` before
+  `WriteTools.Call`, so an undeclared kind is refused (ErrGateKindNotAllowed) before the trust
+  module records anything (ARC-I-035). `gate_scope_test.go` adds it to the table test and a
+  second AST guard: every `*WriteTools` `.Call` must follow a `CheckGateKind` call.
+- `agent/tools_write.go`: `Call` also refuses (ErrMissingDep) when Can, Walls, TrustAccount or
+  Withdrawals is nil, instead of panicking.
+- `boot/agent.go` (additive): `AgentWiring.Write` and `AgentWriteTools` build the write tools when
+  `Ports.WriteTools` is nil: Can, Walls, Provenance, MatterContacts and TrustAccounts from the
+  ports; Withdrawals (wrapped to Request and Available only), FirmAccount and Bills from
+  `Write`. Any nil port fails boot with agent.ErrMissingDep. A matter with zero or several
+  trust ledgers gets no trust account (fail closed).
+- Open: `Production` still does not build `AgentWiring`; the caller supplies `Write.Withdrawals`.
+
+## Q-INTEG-17A-PARTY-SCOPE propose_conflict_parties accepts either G2 kind
+
+- SCOPE-FIX made `propose_conflict_parties` check only `conflict.clearance`, but F-MAT-04,
+  F-MAT-16 and F-MAT-18 (spec/ai/features.json) declare `matter.party_conflict`, the matters
+  G2 their proposed parties wait on. The tool now accepts a run that declares either kind and
+  still refuses one that declares neither (ErrGateKindNotAllowed, nothing recorded).
+- `matterkind.GatePartyConflict` (additive) names the kind so the agent package need not
+  import matter; `matter.GatePartyConflict` is that constant. `gate_scope_test.go` adds a row
+  for the matter kind.

@@ -229,7 +229,9 @@ func TestARC_I_039_ProposeConflictPartiesClearanceNotDecidedByAgent(t *testing.T
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			// rule: ARC-I-035
+			// The Runner's scope for a run whose feature declares conflict.GateClearance.
+			ctx := agenttools.WithScope(context.Background(), agenttools.NewScope(cpRun, []string{conflict.GateClearance}))
 			w := newConflictWorld(t, map[string]bool{cpCap: true})
 			p := registry.Principal{Kind: registry.PrincipalAgent, RunID: cpRun, ActingFor: clerk, Grant: []string{cpCap}}
 			res, err := w.reg.Call(ctx, p, agent.ToolProposeConflictParties, json.RawMessage(cpInput(cpCheck, cpParty("Avery Synth", ""))))

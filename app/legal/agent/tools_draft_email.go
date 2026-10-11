@@ -81,7 +81,9 @@ func buildDraftEmail(d Deps) (registry.Tool, error) {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolDraftEmail, err)
 	}
 	s := specs[0]
-	t := draftEmail{can: can, walls: walls, drafts: drafts, contacts: contacts, open: open, capability: s.Capability}
+	// rule: ARC-I-035
+	// The run's scoped opener: a gate kind the run's feature does not declare is refused.
+	t := draftEmail{can: can, walls: walls, drafts: drafts, contacts: contacts, open: agenttools.ScopedOpener(open), capability: s.Capability}
 	// rule: ARC-I-035
 	// WriteTool holds every result to a draft, a proposal or an opened gate.
 	tool, err := agenttools.WriteTool(registry.Tool{
@@ -137,6 +139,14 @@ func (t draftEmail) handle(ctx context.Context, p registry.Principal, raw json.R
 		if !slices.Contains(known, id) {
 			// The id stays out of the error: only its position is reported.
 			return registry.ToolResult{}, fmt.Errorf("%s: recipient %d: %w", ToolDraftEmail, i, ErrNotMatterContact)
+		}
+	}
+	// rule: ARC-I-035
+	// A submitting call opens the outgoing-email gate: check its kind before storing
+	// anything, so a refused run leaves no draft.
+	if in.Submit {
+		if err := agenttools.CheckGateKind(ctx, p, GateOutgoingEmail); err != nil {
+			return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolDraftEmail, err)
 		}
 	}
 	// rule: ARC-I-035

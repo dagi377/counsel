@@ -23,6 +23,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
@@ -492,6 +493,11 @@ func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Pr
 // AgentWiring is what the agent layer needs at boot beyond its ports.
 type AgentWiring struct {
 	Ports AgentPorts
+	// Write is what prepare_trust_withdrawal proposes through when Ports.WriteTools is nil:
+	// Withdrawals (the trust withdrawal module), and FirmAccount and Bills
+	// (WireBillingAgentPorts). Boot fills Can, Walls, Provenance, Contacts and TrustAccount
+	// from Ports (AgentWriteTools).
+	Write agent.WriteDeps
 	// Designated reads, per scheduled feature, the lawyer its runs act for. Nil uses the
 	// Postgres firm setting on the kernel DB (agent.designated_lawyer).
 	Designated trigger.DesignatedLawyers
@@ -528,6 +534,13 @@ func registerAgent(w *AgentWiring) hook {
 		// checked and forgotten in the same place.
 		if w.Ports.Provenance == nil {
 			w.Ports.Provenance = agenttools.NewProvenance()
+		}
+		if w.Ports.WriteTools == nil {
+			wt, err := AgentWriteTools(w.Ports, w.Write)
+			if err != nil {
+				return err
+			}
+			w.Ports.WriteTools = wt
 		}
 		tools, err := AgentTools(w.Ports)
 		if err != nil {
@@ -573,5 +586,78 @@ func registerAgent(w *AgentWiring) hook {
 			}
 		}
 		return nil
+	}
+}
+
+// AgentWriteTools builds the write tools prepare_trust_withdrawal runs on: base's
+// Withdrawals, FirmAccount and Bills, with Can, Walls, Provenance, Contacts (MatterContacts)
+// and TrustAccount (TrustAccounts) from p. It fails closed with agent.ErrMissingDep naming
+// every port that is nil, so boot never serves a withdrawal tool that skips a check.
+func AgentWriteTools(p AgentPorts, base agent.WriteDeps) (*agent.WriteTools, error) {
+	var missing []string
+	for _, v := range []struct {
+		name string
+		nil  bool
+	}{
+		{"Can", p.Can == nil},
+		{"Walls", p.Walls == nil},
+		{"Provenance", p.Provenance == nil},
+		{"MatterContacts", p.MatterContacts == nil},
+		{"TrustAccounts", p.TrustAccounts == nil},
+		{"Withdrawals", base.Withdrawals == nil},
+		{"FirmAccount", base.FirmAccount == nil},
+		{"Bills", base.Bills == nil},
+	} {
+		if v.nil {
+			missing = append(missing, v.name)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("agent write tools: %s: %w", strings.Join(missing, ", "), agent.ErrMissingDep)
+	}
+	d := AgentWriteDeps(p, base)
+	d.Can = p.Can
+	d.Walls = p.Walls
+	d.Contacts = p.MatterContacts
+	d.TrustAccount = soleTrustAccount(p.TrustAccounts)
+	// rule: ARC-U-027
+	// The agent reaches the trust module through Request and Available only: the wrapper
+	// hides the concrete service, so no agent code can assert its way to Authorize or
+	// RecordExecution.
+	d.Withdrawals = requestOnly{w: base.Withdrawals}
+	wt, err := agent.NewWriteTools(d)
+	if err != nil {
+		return nil, fmt.Errorf("agent write tools: %w", err)
+	}
+	return wt, nil
+}
+
+// requestOnly exposes only the request half of the trust withdrawal module.
+type requestOnly struct{ w agent.Withdrawals }
+
+// Request implements agent.Withdrawals.
+func (r requestOnly) Request(ctx context.Context, req withdraw.Request) (withdraw.Withdrawal, error) {
+	return r.w.Request(ctx, req)
+}
+
+// Available implements agent.Withdrawals.
+func (r requestOnly) Available(ctx context.Context, trustAccountID, matterID string) (int64, error) {
+	return r.w.Available(ctx, trustAccountID, matterID)
+}
+
+// soleTrustAccount returns the one trust account that holds a matter's ledger. A matter with
+// no ledger, or with ledgers in several accounts, fails closed: the agent never picks the
+// account a withdrawal leaves from (By-Law 9 s.9(2): money leaves only the client's own ledger).
+func soleTrustAccount(src agent.MatterTrustAccounts) func(ctx context.Context, matterID string) (string, error) {
+	return func(ctx context.Context, matterID string) (string, error) {
+		accts, err := src.TrustAccountsOf(ctx, matterID)
+		if err != nil {
+			return "", fmt.Errorf("trust accounts of %s: %w", matterID, err)
+		}
+		// rule: BIL-L-036
+		if len(accts) != 1 {
+			return "", fmt.Errorf("trust accounts of %s: %d ledgers: %w", matterID, len(accts), agent.ErrInvalidInput)
+		}
+		return accts[0], nil
 	}
 }
