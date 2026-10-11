@@ -171,5 +171,6 @@ func appDefs() []feature.Def {
 		work.ExplainNumberDef(),
 		// readiness
 		readiness.QuestionnaireFillerDef(),
+		readiness.InsurerAnswersDef(),
 	}
 }

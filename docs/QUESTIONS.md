@@ -4275,3 +4275,20 @@ of FEAT-TIM-01 above.
 - Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
   (binding), the generated plugin skill, and the shared test helpers
   `app/legal/readiness/ai_rdy_helpers_test.go`.
+
+## Q-FEAT-RDY-04 F-RDY-04 insurer questionnaire answers from trust-center
+
+- F-RDY-04 is a screen action, `trust-center > Draft insurer questionnaire answers`, with no
+  event or schedule binding. It reuses `readiness.GateSecurityAnswer` from FEAT-RDY-01, so
+  the branch is built on task/FEAT-RDY-01.
+- trust-center is firm-level and main has `boot.FirmSubject`, but search_documents takes a
+  matter and a firm draft needs `intake.forms` (Q-FORM-SUBJECT, as Q-FEAT-RDY-01). So
+  `trust-center` is listed in boot's actionScreens as a matter screen with `documents.view`:
+  the owner selects the readiness matter that holds the controls list. Switch to FirmSubject
+  once search_documents and draft_document accept the firm.
+- The spec words a screen action in `trigger` and leaves `on_request` empty, while the Def
+  lists the action (as F-MAT-19). The rdyb helper checks the action against the trigger and
+  runs the shared spec check on the Def without it.
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (trust-center screen), the generated plugin skill, and the helper file
+  `app/legal/readiness/ai_rdyb_helpers_test.go` (shared with FEAT-RDY-05).

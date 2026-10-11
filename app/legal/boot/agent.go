@@ -525,6 +525,10 @@ var actionScreens = map[string]trigger.Screen{
 	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
 	"work-categories": {SubjectKind: "matter", Capability: "work.view"},
 	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
+	// Readiness. trust-center is firm-level, but its features search and draft on the
+	// readiness matter that holds the controls list, so it selects that matter
+	// (Q-FEAT-RDY-04).
+	"trust-center": {SubjectKind: "matter", Capability: "documents.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
