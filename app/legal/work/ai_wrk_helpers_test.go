@@ -1225,6 +1225,93 @@ func wrkcCheckAction(t *testing.T, d feature.Def, action, subjectKind, capabilit
 	}
 }
 
+// wrkcCheckReadOnlyPrompt fails t unless d's prompt passes lint, starts with the feature
+// preamble and the shared rules, names the task and the expected output from features.json,
+// says it is read-only and holds every phrase in want.
+func wrkcCheckReadOnlyPrompt(t *testing.T, d feature.Def, want ...string) {
+	t.Helper()
+	sf := wrkSpec(t, d.ID)
+	names, err := feature.FixtureNames(os.DirFS("../../.."), "testdata/ai")
+	if err != nil {
+		t.Fatalf("FixtureNames: %v", err)
+	}
+	if err := feature.LintPrompt(d, names); err != nil {
+		t.Fatalf("LintPrompt: %v", err)
+	}
+	spec, err := d.Spec()
+	if err != nil {
+		t.Fatalf("Spec: %v", err)
+	}
+	if !strings.HasPrefix(spec.System, feature.Preamble(d.ID)+feature.Rules()) {
+		t.Fatalf("system prompt does not start with the preamble and the shared rules")
+	}
+	for _, w := range append([]string{sf.Name, sf.Outputs, "read-only", "open no gate"}, want...) {
+		if !strings.Contains(spec.System, w) {
+			t.Errorf("system prompt lacks %q", w)
+		}
+	}
+}
+
+// wrkcCheckReadOnlyDef fails t unless every tool of d is a read tool and d opens no gate.
+func wrkcCheckReadOnlyDef(t *testing.T, d feature.Def) {
+	t.Helper()
+	// rule: AI-R-003
+	for _, name := range d.Tools {
+		s, err := schemas.ByName(name)
+		if err != nil || s.Kind != registry.ToolRead {
+			t.Fatalf("tool %s: kind %v (%v), want read", name, s.Kind, err)
+		}
+	}
+	if len(d.GateKinds) != 0 {
+		t.Fatalf("gate kinds = %v, want none", d.GateKinds)
+	}
+}
+
+// wrkcAnswer is a final chat answer of text citing lines from to to of page 1 of version.
+func wrkcAnswer(t *testing.T, text, version string, from, to int) string {
+	t.Helper()
+	b, err := json.Marshal(map[string]any{
+		"answer":    text,
+		"citations": []map[string]any{{"version_id": version, "page": 1, "from_line": from, "to_line": to}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+// wrkcOutcome is run as the job runner sees it: the final answer and the citation of every
+// page read_document returned in the run.
+func wrkcOutcome(r agenttest.FeatureRun) run.Outcome {
+	out := run.Outcome{Text: r.Text, JSON: r.JSON, GateIDs: r.GateIDs}
+	for i, name := range r.Tools {
+		if name != agent.ToolReadDocument || i >= len(r.ToolResults) || r.ToolResults[i].IsError {
+			continue
+		}
+		var doc struct {
+			VersionID string `json:"version_id"`
+			Pages     []struct {
+				Page  int `json:"page"`
+				Lines []struct {
+					No int `json:"no"`
+				} `json:"lines"`
+			} `json:"pages"`
+		}
+		if json.Unmarshal([]byte(r.ToolResults[i].Text), &doc) != nil {
+			continue
+		}
+		for _, p := range doc.Pages {
+			if len(p.Lines) == 0 {
+				continue
+			}
+			out.Citations = append(out.Citations, agenttools.Citation{
+				VersionID: doc.VersionID, Page: p.Page, FromLine: p.Lines[0].No, ToLine: p.Lines[len(p.Lines)-1].No,
+			})
+		}
+	}
+	return out
+}
+
 // Shared test helpers of the read-only work AI features (F-WRK-05, F-WRK-08, F-WRK-10,
 // F-WRK-12, F-WRK-13). Every name carries the wrkd prefix.
 //

@@ -331,6 +331,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		work.WorkflowLintDef().ID:                   work.WorkflowLintBinding,
+		work.TriageDef().ID:                         work.TriageBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		intake.FeatureTriageNewLead:                 intake.TriageNewLeadBinding,
 		intake.MailboxWatcherDef().ID:               intake.MailboxWatcherBinding,
@@ -524,6 +525,8 @@ var actionScreens = map[string]trigger.Screen{
 	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
 	"work-categories": {SubjectKind: "matter", Capability: "work.view"},
 	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
+	// work-list triage selects the matter whose untriaged items get suggestions.
+	"work-list": {SubjectKind: "matter", Capability: "work.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

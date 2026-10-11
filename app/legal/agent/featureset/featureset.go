@@ -168,5 +168,6 @@ func appDefs() []feature.Def {
 		work.ExplainFailedRunDef(),
 		work.SuggestCategoriesDef(),
 		work.ExplainNumberDef(),
+		work.TriageDef(),
 	}
 }
