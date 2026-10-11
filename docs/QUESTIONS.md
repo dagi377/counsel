@@ -984,3 +984,13 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   CheckCitations validates it; quotes[i] is the name of contacts[i].
 - `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
   Q-FEAT-TOOL agent handler set), so the branches merge cleanly.
+
+## FEAT-TOOL-12 draft_email
+
+- No init(): `DraftEmailHandler()` returns the Handler and boot adds it to the explicit
+  HandlerSet (owner decision); agenttest.FromFeature keeps its stand-in until boot does.
+- No email-draft or matter-contact API exists yet. The handler writes through `EmailDrafts`
+  (`CreateEmailDraft`, deliberately without a send method) and checks recipients with
+  `MatterContacts` (`MatterContactIDs`: client and parties of the matter); boot wires both.
+  submit=true opens `platform.outgoing_email` through `agenttools.GateOpener` with subject
+  kind `email_draft`; the caller is the preparer.
