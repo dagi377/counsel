@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/dagi377/counsel/kernel/importer"
+	"github.com/dagi377/counsel/kernel/money"
 )
 
 // SourceID is the importer source id of the practice-management system.
@@ -96,25 +97,33 @@ func (e *Extractor) Transform(ctx context.Context, r importer.Row, m importer.ID
 		if err != nil {
 			return nil, fmt.Errorf("transform activity %s: %w", r.ExternalID, err)
 		}
+		rate, err := cents(f["price"])
+		if err != nil {
+			return nil, fmt.Errorf("transform activity %s rate: %w", r.ExternalID, err)
+		}
 		c = importer.Command{Kind: KindTimeCreate, Fields: map[string]any{
-			"matter_id": matter,
-			"date":      scalar(f["date"]), // date-only, never shifted (MIG-006)
-			"seconds":   scalar(f["quantity"]),
-			"rate":      scalar(f["price"]), // decimal string; cents conversion is MIG-005
-			"note":      scalar(f["note"]),
+			"matter_id":  matter,
+			"date":       scalar(f["date"]), // date-only, never shifted (MIG-006)
+			"seconds":    scalar(f["quantity"]),
+			"rate_cents": rate,
+			"note":       scalar(f["note"]),
 		}}
 	case ResourceBills:
 		matter, err := ref(ctx, m, f["matter"], ResourceMatters)
 		if err != nil {
 			return nil, fmt.Errorf("transform bill %s: %w", r.ExternalID, err)
 		}
+		total, err := cents(f["total"])
+		if err != nil {
+			return nil, fmt.Errorf("transform bill %s total: %w", r.ExternalID, err)
+		}
 		c = importer.Command{Kind: KindBillImport, Fields: map[string]any{
-			"matter_id": matter,
-			"number":    scalar(f["number"]),
-			"issued_at": scalar(f["issued_at"]),
-			"state":     scalar(f["state"]),
-			"total":     scalar(f["total"]), // decimal string; cents conversion is MIG-005
-			"currency":  scalar(f["currency"]),
+			"matter_id":   matter,
+			"number":      scalar(f["number"]),
+			"issued_at":   scalar(f["issued_at"]),
+			"state":       scalar(f["state"]),
+			"total_cents": total,
+			"currency":    scalar(f["currency"]),
 		}}
 	default:
 		return nil, fmt.Errorf("transform %s:%s: %w", r.Resource, r.ExternalID, importer.ErrUnmapped)
@@ -135,6 +144,14 @@ func ref(ctx context.Context, m importer.IDMap, v any, res Resource) (string, er
 		return "", nil
 	}
 	return importer.Resolve(ctx, m, SourceID, string(res), ext)
+}
+
+// cents converts a decoded money value to integer cents through ParseCents, so the decimal
+// text is never parsed through float64.
+//
+// rule: MIG-005
+func cents(v any) (money.Cents, error) {
+	return ParseCents(scalar(v))
 }
 
 // scalar renders a decoded JSON scalar as a string: numbers keep their exact text.

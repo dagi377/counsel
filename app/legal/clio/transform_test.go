@@ -9,6 +9,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/clio"
 	"github.com/dagi377/counsel/app/legal/clio/cliofake"
 	"github.com/dagi377/counsel/kernel/importer"
+	"github.com/dagi377/counsel/kernel/money"
 )
 
 func seeded() *cliofake.Fake {
@@ -99,15 +100,16 @@ func TestTransformCommands(t *testing.T) {
 	}
 	matterID := importer.InternalID(clio.SourceID, "matters", "201")
 	tests := []struct {
-		kind, resource, ext, field, want string
+		kind, resource, ext, field string
+		want                       any
 	}{
 		{clio.KindPartyCreate, "contacts", "101", "email", "a@x.ca"},
 		{clio.KindPartyCreate, "contacts", "102", "kind", "Company"},
 		{clio.KindMatterCreate, "matters", "201", "client_id", importer.InternalID(clio.SourceID, "contacts", "101")},
 		{clio.KindTimeCreate, "activities", "301", "matter_id", matterID},
-		{clio.KindTimeCreate, "activities", "301", "rate", "350.10"},
+		{clio.KindTimeCreate, "activities", "301", "rate_cents", money.Cents(35010)},
 		{clio.KindTimeCreate, "activities", "301", "date", "2026-10-01"},
-		{clio.KindBillImport, "bills", "401", "total", "1234.50"},
+		{clio.KindBillImport, "bills", "401", "total_cents", money.Cents(123450)},
 		{clio.KindBillImport, "bills", "401", "matter_id", matterID},
 	}
 	for _, tc := range tests {
@@ -117,7 +119,7 @@ func TestTransformCommands(t *testing.T) {
 				t.Fatalf("no %s command for %s:%s", tc.kind, tc.resource, tc.ext)
 			}
 			if got := c.Fields[tc.field]; got != tc.want {
-				t.Errorf("%s = %v, want %q", tc.field, got, tc.want)
+				t.Errorf("%s = %#v, want %#v", tc.field, got, tc.want)
 			}
 		})
 	}
@@ -136,6 +138,10 @@ func TestTransformErrors(t *testing.T) {
 		{"non-time activity", importer.Row{Resource: "activities", ExternalID: "8",
 			Fields: map[string]any{"type": "ExpenseEntry"}}, importer.ErrUnmapped},
 		{"unknown resource", importer.Row{Resource: "tasks", ExternalID: "7"}, importer.ErrUnmapped},
+		{"bill total with sub-cent digits", importer.Row{Resource: "bills", ExternalID: "6",
+			Fields: map[string]any{"total": json.Number("12.345")}}, clio.ErrBadDecimal},
+		{"time entry with no rate", importer.Row{Resource: "activities", ExternalID: "5",
+			Fields: map[string]any{"type": "TimeEntry"}}, clio.ErrBadDecimal},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
