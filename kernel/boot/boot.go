@@ -6,14 +6,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
-	"slices"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
+	"github.com/dagi377/counsel/kernel/clock"
+	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/flags"
-	"github.com/dagi377/counsel/migrations"
+	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/notify"
+	"github.com/dagi377/counsel/kernel/registry"
+	"github.com/dagi377/counsel/kernel/report"
+	"github.com/dagi377/counsel/kernel/server"
+	"github.com/dagi377/counsel/kernel/webhook"
 
 	// Every kernel package, so each can register itself from its own files.
 	_ "github.com/dagi377/counsel/kernel/all"
@@ -42,22 +45,25 @@ const (
 	MigrateWaitVersion MigrateMode = "wait-version"
 )
 
-// waitPoll is how often wait-version reads the schema version.
-const waitPoll = 2 * time.Second
-
 // Sentinel errors.
 var (
 	ErrConfig         = errors.New("boot: invalid config")
 	ErrNotImplemented = errors.New("boot: role not implemented yet")
+	ErrConnect        = errors.New("boot: cannot connect to the database")
 )
 
 // Config is everything a binary passes to Run.
 type Config struct {
 	Role        Role
-	Addr        string      // listen address (server)
-	DatabaseURL string      // Postgres DSN; never logged
-	Flags       []string    // flag names to turn on; each must be defined by an app
-	MigrateMode MigrateMode // migrate only
+	Addr        string // listen address (server)
+	DatabaseURL string // Postgres DSN through the pooler; never logged
+	// DirectDatabaseURL is the Postgres DSN that bypasses the pooler, for the job queue and
+	// migrations (ARC-U-011). Never logged.
+	DirectDatabaseURL string
+	Zone              string      // IANA business time zone; the binary passes it, the kernel names none
+	MaxWorkers        int         // worker only: concurrent jobs on the default queue; 0 means 10
+	Flags             []string    // flag names to turn on; each must be defined by an app
+	MigrateMode       MigrateMode // migrate only
 	// SchemaVersion is the migration file wait-version waits for (migrate only); empty means
 	// the newest migration built into this binary.
 	SchemaVersion string
@@ -68,7 +74,17 @@ type Config struct {
 // Validate checks the fields the role needs.
 func (c Config) Validate() error {
 	switch c.Role {
-	case RoleServer, RoleWorker, RoleImport:
+	case RoleServer, RoleWorker:
+		if c.DatabaseURL == "" {
+			return fmt.Errorf("role %s: database url is empty: %w", c.Role, ErrConfig)
+		}
+		if c.DirectDatabaseURL == "" {
+			return fmt.Errorf("role %s: direct database url is empty: %w", c.Role, ErrConfig)
+		}
+		if c.Zone == "" {
+			return fmt.Errorf("role %s: zone is empty: %w", c.Role, ErrConfig)
+		}
+	case RoleImport:
 	case RoleMigrate:
 		switch c.MigrateMode {
 		case MigrateExpand, MigrateContract, MigrateWaitVersion:
@@ -83,84 +99,90 @@ func (c Config) Validate() error {
 
 // Kernel is what an app sees at registration. Fields are added as kernel modules land.
 type Kernel struct {
-	Flags *flags.Set
+	Flags    *flags.Set
+	Registry registry.Booter // nil when built without one (Build)
+	DB       db.DB
+	Clock    clock.Clock
+	Gates    gate.Engine
+	Reports  report.Engine
+	Server   server.Server
+	Events   *webhook.Types
+	Notify   *notify.Service
+	Jobs     *Jobs // River workers and periodic jobs apps add at Register
+
+	sealed bool // Registry.Seal passed; apply runs only then
 }
 
 // App is one application that registers with the kernel at boot.
 type App struct {
-	Name     string
+	Name string
+	// Define declares the app's feature flags. It runs before any flag is turned on and
+	// before any Register, so a Register can read the flags it gates on. Optional.
+	Define func(s *flags.Set) error
+	// Register adds the app's registrations to the kernel. Required.
 	Register func(ctx context.Context, k *Kernel) error
+	// Start runs once the kernel is built and sealed, before the role runs. Optional.
+	Start func(ctx context.Context, k *Kernel) error
+}
+
+// Deps are the kernel dependencies BuildWith hands to every app.
+type Deps struct {
+	Registry registry.Booter // sealed after every Register; nil skips Seal
+	DB       db.DB
+	Clock    clock.Clock
+	Gates    gate.Engine
+	Reports  report.Engine
+	Server   server.Server
+	Events   *webhook.Types
+	Notify   *notify.Service
 }
 
 // Build creates the kernel and calls every app's Register in order.
 func Build(ctx context.Context, apps ...App) (*Kernel, error) {
-	k := &Kernel{Flags: flags.New()}
+	return BuildWith(ctx, Deps{}, nil, apps...)
+}
+
+// BuildWith builds the kernel in a fixed order: every app's Define, then the flags in on are
+// turned on, then every app's Register (with the flag set in ctx), then Registry.Seal. A flag
+// in on that no app defined fails before any Register.
+func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kernel, error) {
+	k := &Kernel{
+		Flags: flags.New(), Registry: deps.Registry, DB: deps.DB, Clock: deps.Clock,
+		Gates: deps.Gates, Reports: deps.Reports, Server: deps.Server, Events: deps.Events,
+		Notify: deps.Notify,
+		Jobs:   NewJobs(),
+	}
 	for _, a := range apps {
 		if a.Register == nil {
 			return nil, fmt.Errorf("register app %q: nil Register: %w", a.Name, ErrConfig)
 		}
+	}
+	for _, a := range apps {
+		if a.Define == nil {
+			continue
+		}
+		if err := a.Define(k.Flags); err != nil {
+			return nil, fmt.Errorf("define flags of app %q: %w", a.Name, err)
+		}
+	}
+	for _, name := range on {
+		if err := k.Flags.Set(name, true); err != nil {
+			return nil, fmt.Errorf("turn on flag %q: %w: %w", name, ErrConfig, err)
+		}
+	}
+	ctx = flags.WithSet(ctx, k.Flags)
+	// rule: ARC-I-040
+	// Each app registers only its own modules' surface; the kernel seals the lot once.
+	for _, a := range apps {
 		if err := a.Register(ctx, k); err != nil {
 			return nil, fmt.Errorf("register app %q: %w", a.Name, err)
 		}
 	}
+	if k.Registry != nil {
+		if err := k.Registry.Seal(); err != nil {
+			return nil, fmt.Errorf("seal registry: %w", err)
+		}
+		k.sealed = true
+	}
 	return k, nil
-}
-
-// Run validates cfg, builds the kernel, turns on the requested flags and runs cfg.Role.
-func Run(ctx context.Context, cfg Config, apps ...App) error {
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
-	if cfg.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, cfg.Timeout)
-		defer cancel()
-	}
-	if cfg.Role == RoleMigrate && cfg.MigrateMode == MigrateWaitVersion {
-		return waitVersion(ctx, cfg)
-	}
-	k, err := Build(ctx, apps...)
-	if err != nil {
-		return err
-	}
-	for _, name := range cfg.Flags {
-		if err := k.Flags.Set(name, true); err != nil {
-			return fmt.Errorf("turn on flag: %w", err)
-		}
-	}
-	ctx = flags.WithSet(ctx, k.Flags)
-	slog.InfoContext(ctx, "kernel built", "role", string(cfg.Role), "apps", len(apps), "flags_on", len(cfg.Flags))
-	return fmt.Errorf("run %s: %w", cfg.Role, ErrNotImplemented)
-}
-
-// waitVersion blocks until the database at cfg.DatabaseURL has the expected schema version,
-// reconnecting after any connection or query error. It needs only read access, so app pods run
-// it with their own credentials. Errors from pgx can name the DSN host and user, so they are
-// never logged; only ctx ending or an unknown version stops the wait.
-func waitVersion(ctx context.Context, cfg Config) error {
-	want := cfg.SchemaVersion
-	if want == "" {
-		want = migrations.Latest()
-	}
-	if !slices.Contains(migrations.Names(), want) {
-		return fmt.Errorf("wait for schema version %q: %w", want, migrations.ErrUnknownVersion)
-	}
-	slog.InfoContext(ctx, "waiting for schema version", "version", want)
-	for {
-		conn, err := pgx.Connect(ctx, cfg.DatabaseURL)
-		if err == nil {
-			err = migrations.Wait(ctx, conn, want, waitPoll)
-			_ = conn.Close(context.WithoutCancel(ctx))
-			if err == nil {
-				slog.InfoContext(ctx, "schema version present", "version", want)
-				return nil
-			}
-		}
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("wait for schema version %s: %w", want, ctx.Err())
-		case <-time.After(waitPoll):
-			slog.WarnContext(ctx, "schema version not readable yet, retrying", "version", want)
-		}
-	}
 }

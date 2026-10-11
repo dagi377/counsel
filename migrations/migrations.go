@@ -48,27 +48,12 @@ func Read(name string) ([]byte, error) {
 // simple-protocol batch (one transaction, with its record), so it may hold several statements
 // and DO blocks; a file marked "-- migrate: no-transaction" runs statement by statement.
 func Apply(ctx context.Context, conn *pgx.Conn, upTo string) error {
-	if _, err := conn.PgConn().Exec(ctx, ensureVersionTable).ReadAll(); err != nil {
-		return fmt.Errorf("create schema version table: %w", err)
-	}
-	done, err := applied(ctx, conn)
-	if err != nil {
-		return err
-	}
+	var names []string
 	for _, name := range Names() {
 		if upTo != "" && name > upTo {
 			break
 		}
-		if done[name] {
-			continue
-		}
-		sql, err := Read(name)
-		if err != nil {
-			return err
-		}
-		if err := applyOne(ctx, conn, name, string(sql)); err != nil {
-			return err
-		}
+		names = append(names, name)
 	}
-	return nil
+	return applyNames(ctx, conn, names)
 }

@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/dagi377/counsel/migrations/migrationstest"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -39,6 +41,7 @@ func testPool(t *testing.T) *pgxpool.Pool {
 		t.Fatalf("random name: %v", err)
 	}
 	name := "bill_" + hex.EncodeToString(suffix)
+	defer migrationstest.LockClusterRoles(ctx, t, admin)()
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{name}.Sanitize()); err != nil {
 		t.Fatalf("create database: %v", err)
 	}

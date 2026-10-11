@@ -35,6 +35,7 @@ var noTransaction = regexp.MustCompile(`(?mi)^--[ \t]*migrate:[ \t]*no-transacti
 // Sentinel errors.
 var (
 	ErrUnknownVersion = errors.New("migrations: unknown schema version")
+	ErrExpandPending  = errors.New("migrations: expand files not applied")
 )
 
 // Querier is the read side of a Postgres connection or pool.

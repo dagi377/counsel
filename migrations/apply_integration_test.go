@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/dagi377/counsel/migrations/migrationstest"
 )
 
 // freshDB creates an empty database on COUNSEL_TEST_DB, applies the migrations up to upTo
@@ -32,6 +34,7 @@ func freshDB(t *testing.T, upTo string) *pgx.Conn {
 	b := make([]byte, 6)
 	_, _ = rand.Read(b)
 	name := "migrations_" + hex.EncodeToString(b)
+	defer migrationstest.LockClusterRoles(ctx, t, admin)()
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{name}.Sanitize()); err != nil {
 		t.Fatalf("create database: %v", err)
 	}
