@@ -55,6 +55,7 @@ func appDefs() []feature.Def {
 		conflict.ClearanceMemoDef(),
 		// matters
 		matter.OpeningPrefillDef(),
+		matter.CallSummaryDef(),
 		matter.RetainerWatchDef(),
 	}
 }
