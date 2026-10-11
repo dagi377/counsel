@@ -47,5 +47,6 @@ func appDefs() []feature.Def {
 		legaldocs.TemplateCurrencyDef(),
 		legaldocs.AutoFileDef(),
 		legaldocs.EmailAutoFileDef(),
+		legaldocs.DetectMatterContentDef(),
 	}
 }
