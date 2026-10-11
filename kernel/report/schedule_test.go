@@ -13,10 +13,10 @@ import (
 	"github.com/dagi377/counsel/kernel/report"
 )
 
-func newScheduler(t *testing.T) (*report.Reports, *report.Scheduler) {
+func newScheduler(t *testing.T) (*report.Reports, *report.Reports) {
 	t.Helper()
 	e, _ := newEngine(t)
-	s := report.NewScheduler(e)
+	s := e
 	sc := report.Schedule{
 		ID: "sch-1", ReportID: "ops.aging", Params: json.RawMessage(`{"period":"2026-09"}`),
 		Every: 24 * time.Hour, Anchor: t0, Owner: "ann",
@@ -143,7 +143,7 @@ func TestRunSlotErrors(t *testing.T) {
 
 func TestOwnerWithoutCapabilityCannotRunSlot(t *testing.T) {
 	e, _ := newEngine(t)
-	s := report.NewScheduler(e)
+	s := e
 	sc := report.Schedule{ID: "sch-b", ReportID: "ops.aging", Params: json.RawMessage(`{"period":"2026-09"}`), Every: time.Hour, Anchor: t0, Owner: "bob"}
 	if err := s.AddSchedule(context.Background(), nil, sc); err != nil {
 		t.Fatal(err)
@@ -166,7 +166,7 @@ func TestSlotJobIsRiverJob(t *testing.T) {
 
 	e, s := newScheduler(t)
 	txs := 0
-	w := &report.SlotWorker{Scheduler: s, InTx: func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
+	w := &report.SlotWorker{Reports: s, InTx: func(ctx context.Context, fn func(context.Context, pgx.Tx) error) error {
 		txs++
 		return fn(ctx, nil)
 	}}

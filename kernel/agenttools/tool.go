@@ -17,9 +17,18 @@ import (
 
 var _ Tools = (*Registry)(nil)
 
+// CallRecorder links an agent's tool call to its run's current plan step. Planner implements
+// it; a Plans without it records nothing.
+type CallRecorder interface {
+	RecordCall(ctx context.Context, runID, callID string) (int, error)
+}
+
+var _ CallRecorder = (*Planner)(nil)
+
 // Registry holds the tools modules register and runs calls against them. It checks
 // capability, the tool's JSON Schema and, for an agent's write tools, that the run has
-// reported a plan.
+// reported a plan. Every result's citations are checked, and an agent's calls are recorded
+// against its run's current step when the Plans is a CallRecorder.
 type Registry struct {
 	plans Plans
 
@@ -114,6 +123,9 @@ func (r *Registry) Call(ctx context.Context, p Principal, name string, in json.R
 			return ToolResult{}, fmt.Errorf("call %q: plan: %w", name, err)
 		}
 	}
+	if err := r.recordCall(ctx, p); err != nil {
+		return ToolResult{}, fmt.Errorf("call %q: %w", name, err)
+	}
 	// rule: ARC-U-029
 	// The same handler serves the manual path: a user principal calls a tool without an agent
 	// run or plan, so every agent action stays usable while the agent is unavailable.
@@ -130,5 +142,27 @@ func (r *Registry) Call(ctx context.Context, p Principal, name string, in json.R
 			return ToolResult{}, fmt.Errorf("call %q: %w", name, err)
 		}
 	}
+	// rule: ARC-I-038
+	// A result that quotes a document without a valid citation fails closed.
+	if err := CheckCitations(res); err != nil {
+		return ToolResult{}, fmt.Errorf("call %q: %w", name, err)
+	}
 	return res, nil
+}
+
+// recordCall links an agent's call to its run's first unfinished step. A run with no plan
+// yet (read tools before report_plan) or with every step done records nothing.
+func (r *Registry) recordCall(ctx context.Context, p Principal) error {
+	rec, ok := r.plans.(CallRecorder)
+	if !ok || p.Kind != registry.PrincipalAgent || p.RunID == "" {
+		return nil
+	}
+	callID, err := randomID()
+	if err != nil {
+		return err
+	}
+	if _, err := rec.RecordCall(ctx, p.RunID, callID); err != nil && !errors.Is(err, ErrNotFound) {
+		return fmt.Errorf("record call: %w", err)
+	}
+	return nil
 }

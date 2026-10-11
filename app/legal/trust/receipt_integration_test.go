@@ -110,10 +110,6 @@ func (itSealer) Seal(_ context.Context, p []byte) ([]byte, error) {
 	return append([]byte("sealed:"), p...), nil
 }
 
-type itFlags struct{}
-
-func (itFlags) Enabled(string) bool { return false }
-
 // rule: BIL-I-009
 func TestBIL_I_009_ReceiptIntegration(t *testing.T) {
 	pool, user, client, matters := trustDB(t)
@@ -126,7 +122,7 @@ func TestBIL_I_009_ReceiptIntegration(t *testing.T) {
 	clk := clockfake.New(now, loc)
 	// gl.* holds the operating book only (CF-02), so the trust book is the in-memory ledger.
 	gl := ledgerfake.New(clock.DateOf(now, loc), books.AcctTrustBank, books.AcctClientTrustLedger)
-	accts := NewAccountStore(pool, itUsers{}, itSealer{}, itFlags{})
+	accts := NewAccountStore(pool, itUsers{}, itSealer{})
 	s := NewLedgerStore(pool, accts, gl, clk)
 
 	var acct AccountID

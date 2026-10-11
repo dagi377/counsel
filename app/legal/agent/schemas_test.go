@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/schemas"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/agenttools/agenttoolsfake"
@@ -122,11 +123,16 @@ func handlers(defs []schemas.Def, called map[string]int) map[string]schemas.Hand
 	h := map[string]schemas.Handler{}
 	for _, d := range defs {
 		name := d.Name
+		// A write tool may only return a draft, a proposal or an opened gate (ARC-I-035).
+		out := json.RawMessage(`{}`)
+		if d.Kind == registry.ToolWrite {
+			out = json.RawMessage(`{"outcome":"draft","ref":"d1"}`)
+		}
 		h[name] = func(_ context.Context, _ registry.Principal, _ json.RawMessage) (registry.ToolResult, error) {
 			if called != nil {
 				called[name]++
 			}
-			return registry.ToolResult{Output: json.RawMessage(`{}`)}, nil
+			return registry.ToolResult{Output: out}, nil
 		}
 	}
 	return h
@@ -245,4 +251,35 @@ func num(t *testing.T, n json.Number) int64 {
 		t.Fatalf("schema number %s: %v", n, err)
 	}
 	return v
+}
+
+// TestHandlersUseA2Schemas keeps the read and write handlers on the a2 definitions that
+// schemas.Register gives kernel/agenttools, so no handler validates against its own copy.
+func TestHandlersUseA2Schemas(t *testing.T) {
+	rt, err := agent.NewReadTools(agent.ReadDeps{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wt, err := agent.NewWriteTools(agent.WriteDeps{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	specs := append(rt.Specs(), wt.Specs()...)
+	if len(specs) == 0 {
+		t.Fatal("no handler specs")
+	}
+	for _, s := range specs {
+		t.Run(s.Name, func(t *testing.T) {
+			d, err := schemas.ByName(s.Name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if s.Capability != d.Capability || string(s.Kind) != string(d.Kind) {
+				t.Errorf("spec %s/%s, a2 %s/%s", s.Kind, s.Capability, d.Kind, d.Capability)
+			}
+			if !bytes.Equal(s.InputSchema, d.Input) {
+				t.Errorf("input schema is not the a2 schema")
+			}
+		})
+	}
 }

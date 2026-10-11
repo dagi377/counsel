@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
 
+	"github.com/dagi377/counsel/app/legal/agent/schemas"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/roles"
@@ -64,39 +64,46 @@ type ReadTools struct {
 	schemas map[string]*jsonschema.Schema
 }
 
-const uuidDef = `"$defs":{"uuid":{"type":"string","format":"uuid"}}`
-
+// readSpecs name the read tools; capability and input schema come from the a2 definitions.
 var readSpecs = []ToolSpec{
-	{
-		Name: ToolSearchMatters, Kind: Read, Capability: CapMattersView,
-		InputSchema: json.RawMessage(`{"$schema":"https://json-schema.org/draft/2020-12/schema",` + uuidDef + `,"type":"object","additionalProperties":false,"required":["query"],"properties":{"query":{"type":"string","maxLength":200},"status":{"enum":["open","pending","closed"]},"cursor":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":50,"default":20}}}`),
-	},
-	{
-		Name: ToolGetMatter, Kind: Read, Capability: CapMattersView,
-		InputSchema: json.RawMessage(`{"$schema":"https://json-schema.org/draft/2020-12/schema",` + uuidDef + `,"type":"object","additionalProperties":false,"required":["matter_id"],"properties":{"matter_id":{"$ref":"#/$defs/uuid"}}}`),
-	},
-	{
-		Name: ToolReadDocument, Kind: Read, Capability: CapDocumentsView,
-		InputSchema: json.RawMessage(`{"$schema":"https://json-schema.org/draft/2020-12/schema",` + uuidDef + `,"type":"object","additionalProperties":false,"required":["doc_id"],"properties":{"doc_id":{"$ref":"#/$defs/uuid"},"version_id":{"$ref":"#/$defs/uuid"},"page_from":{"type":"integer","minimum":1},"page_to":{"type":"integer","minimum":1}}}`),
-	},
+	{Name: ToolSearchMatters, Kind: Read},
+	{Name: ToolGetMatter, Kind: Read},
+	{Name: ToolReadDocument, Kind: Read},
+}
+
+// a2Specs fills each spec's capability and input schema from its a2 definition in package
+// schemas, the one kernel/agenttools registers, and compiles that schema. A spec whose kind
+// differs from its definition fails.
+func a2Specs(in []ToolSpec) ([]ToolSpec, map[string]*jsonschema.Schema, error) {
+	out := make([]ToolSpec, 0, len(in))
+	compiled := map[string]*jsonschema.Schema{}
+	for _, s := range in {
+		d, err := schemas.ByName(s.Name)
+		if err != nil {
+			return nil, nil, err
+		}
+		if string(d.Kind) != string(s.Kind) {
+			return nil, nil, fmt.Errorf("tool %s: kind %s, a2 says %s", s.Name, s.Kind, d.Kind)
+		}
+		sch, err := d.Compile()
+		if err != nil {
+			return nil, nil, err
+		}
+		s.Capability = d.Capability
+		s.InputSchema = append(json.RawMessage(nil), d.Input...)
+		compiled[s.Name] = sch
+		out = append(out, s)
+	}
+	return out, compiled, nil
 }
 
 // NewReadTools returns the read tools over deps.
 func NewReadTools(deps ReadDeps) (*ReadTools, error) {
-	t := &ReadTools{deps: deps, specs: readSpecs, schemas: map[string]*jsonschema.Schema{}}
-	for _, s := range readSpecs {
-		c := jsonschema.NewCompiler()
-		url := "tool://" + s.Name + "/input.json"
-		if err := c.AddResource(url, bytes.NewReader(s.InputSchema)); err != nil {
-			return nil, fmt.Errorf("read tool %s schema: %w", s.Name, err)
-		}
-		sch, err := c.Compile(url)
-		if err != nil {
-			return nil, fmt.Errorf("read tool %s schema: %w", s.Name, err)
-		}
-		t.schemas[s.Name] = sch
+	specs, sch, err := a2Specs(readSpecs)
+	if err != nil {
+		return nil, fmt.Errorf("read tools: %w", err)
 	}
-	return t, nil
+	return &ReadTools{deps: deps, specs: specs, schemas: sch}, nil
 }
 
 // Specs returns the read tool specs.

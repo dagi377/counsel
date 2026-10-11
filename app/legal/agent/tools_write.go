@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -59,29 +58,18 @@ type parked struct {
 	preparer string
 }
 
+// writeSpecs name the write tools; capability and input schema come from the a2 definitions.
 var writeSpecs = []ToolSpec{
-	{
-		Name: ToolPrepareTrustWithdrawal, Kind: Write, Capability: CapTrustRequest, GateKind: GateTrustWithdrawal,
-		InputSchema: json.RawMessage(`{"$schema":"https://json-schema.org/draft/2020-12/schema","$defs":{"uuid":{"type":"string","format":"uuid"},"cents":{"type":"integer","minimum":0,"maximum":100000000000}},"type":"object","additionalProperties":false,"required":["matter_id","amount_cents","purpose_category","payee"],"properties":{"matter_id":{"$ref":"#/$defs/uuid"},"amount_cents":{"$ref":"#/$defs/cents"},"bill_id":{"$ref":"#/$defs/uuid"},"purpose_category":{"enum":["fees","disbursement","client_payment","third_party","refund"]},"payee":{"type":"string","maxLength":200},"method":{"enum":["eft","cheque","wire"]}}}`),
-	},
+	{Name: ToolPrepareTrustWithdrawal, Kind: Write, GateKind: GateTrustWithdrawal},
 }
 
 // NewWriteTools returns the write tools over deps.
 func NewWriteTools(deps WriteDeps) (*WriteTools, error) {
-	t := &WriteTools{deps: deps, specs: writeSpecs, schemas: map[string]*jsonschema.Schema{}, waiting: map[string]parked{}}
-	for _, s := range writeSpecs {
-		c := jsonschema.NewCompiler()
-		url := "tool://" + s.Name + "/input.json"
-		if err := c.AddResource(url, bytes.NewReader(s.InputSchema)); err != nil {
-			return nil, fmt.Errorf("write tool %s schema: %w", s.Name, err)
-		}
-		sch, err := c.Compile(url)
-		if err != nil {
-			return nil, fmt.Errorf("write tool %s schema: %w", s.Name, err)
-		}
-		t.schemas[s.Name] = sch
+	specs, sch, err := a2Specs(writeSpecs)
+	if err != nil {
+		return nil, fmt.Errorf("write tools: %w", err)
 	}
-	return t, nil
+	return &WriteTools{deps: deps, specs: specs, schemas: sch, waiting: map[string]parked{}}, nil
 }
 
 // Specs returns the write tool specs.

@@ -91,7 +91,7 @@ func newItEnv(t *testing.T, balance int64) itEnv {
 	env := itEnv{pool: pool, users: map[string]string{}, now: time.Date(2026, 3, 16, 12, 0, 0, 0, loc)}
 	clk := clockfake.New(env.now, loc)
 	gl := ledgerfake.New(clock.DateOf(env.now, loc), books.AcctTrustBank, books.AcctClientTrustLedger)
-	accts := trust.NewAccountStore(pool, itDir{}, itSeal{}, itFlags{})
+	accts := trust.NewAccountStore(pool, itDir{}, itSeal{})
 	env.store = trust.NewLedgerStore(pool, accts, gl, clk)
 	err = pool.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		var role string
@@ -244,10 +244,6 @@ type itSeal struct{}
 func (itSeal) Seal(_ context.Context, p []byte) ([]byte, error) {
 	return append([]byte("sealed:"), p...), nil
 }
-
-type itFlags struct{}
-
-func (itFlags) Enabled(string) bool { return false }
 
 type itSigners struct{}
 

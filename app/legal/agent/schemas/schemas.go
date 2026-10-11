@@ -4,11 +4,14 @@
 package schemas
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/santhosh-tekuri/jsonschema/v5"
 
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -25,6 +28,9 @@ const Count = 25
 
 // ErrMissingHandler: Register was given no handler for a tool.
 var ErrMissingHandler = errors.New("schemas: no handler for tool")
+
+// ErrUnknownTool: no a2 tool has the name.
+var ErrUnknownTool = errors.New("schemas: unknown tool")
 
 // Handler runs one tool after its input passed the schema.
 type Handler = func(ctx context.Context, p registry.Principal, in json.RawMessage) (registry.ToolResult, error)
@@ -44,6 +50,35 @@ func Defs() ([]Def, error) {
 		return nil, fmt.Errorf("schemas: decode tools: %w", err)
 	}
 	return defs, nil
+}
+
+// ByName returns the a2 definition of one tool, or ErrUnknownTool.
+func ByName(name string) (Def, error) {
+	defs, err := Defs()
+	if err != nil {
+		return Def{}, err
+	}
+	for _, d := range defs {
+		if d.Name == name {
+			return d, nil
+		}
+	}
+	return Def{}, fmt.Errorf("schemas: %q: %w", name, ErrUnknownTool)
+}
+
+// Compile compiles the tool's input schema, the same one Register gives kernel/agenttools,
+// so a handler that validates its own input checks against the a2 schema and no copy of it.
+func (d Def) Compile() (*jsonschema.Schema, error) {
+	c := jsonschema.NewCompiler()
+	url := "tool://" + d.Name + "/input.json"
+	if err := c.AddResource(url, bytes.NewReader(d.Input)); err != nil {
+		return nil, fmt.Errorf("schemas: %q: %w", d.Name, err)
+	}
+	sch, err := c.Compile(url)
+	if err != nil {
+		return nil, fmt.Errorf("schemas: %q: %w", d.Name, err)
+	}
+	return sch, nil
 }
 
 // Register registers every a2 tool with tools, each with its handler from handlers. It

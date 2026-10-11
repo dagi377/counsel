@@ -33,12 +33,21 @@ type Reports struct {
 	defs map[string]entry
 	runs []Run
 	seq  int
+
+	// schedMu guards the schedules and their slots. RunSlot holds it across a run so two
+	// workers on the same slot cannot both run it; it is never taken while mu is held.
+	schedMu   sync.Mutex
+	schedules map[string]Schedule
+	slots     map[slotKey]RunID
 }
+
+var _ Engine = (*Reports)(nil)
 
 // New returns an engine with no definitions. now stamps runs, auth checks capabilities and
 // log receives one event per run.
 func New(now func() time.Time, auth Authorizer, log audit.Log) *Reports {
-	return &Reports{now: now, auth: auth, audit: log, defs: map[string]entry{}}
+	return &Reports{now: now, auth: auth, audit: log, defs: map[string]entry{},
+		schedules: map[string]Schedule{}, slots: map[slotKey]RunID{}}
 }
 
 // Register adds a report definition. The id must be module-prefixed, the capability and Run

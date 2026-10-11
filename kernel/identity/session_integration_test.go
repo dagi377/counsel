@@ -96,7 +96,11 @@ func TestTxSessionRejectsMissingPrincipal(t *testing.T) {
 		t.Skip("COUNSEL_TEST_DB not set")
 	}
 	ctx := context.Background()
-	pool, err := db.Open(ctx, dsn)
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	pool, err := db.OpenConfig(ctx, cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}

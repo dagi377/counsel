@@ -196,3 +196,89 @@ func TestARC_U_029_ManualPathRunsWithoutAgentRun(t *testing.T) {
 		})
 	}
 }
+
+// rule: ARC-I-038
+func TestCallFailsClosedOnBadCitations(t *testing.T) {
+	cited := agenttools.Citation{VersionID: "v1", Page: 1, FromLine: 1, ToLine: 2}
+	quote := `{"quotes":[{"untrusted":true,"source":{"VersionID":"v1","Page":1,"FromLine":1,"ToLine":2},"text":"x"}]}`
+	tests := []struct {
+		name string
+		res  agenttools.ToolResult
+		want error
+	}{
+		{"no quotes", agenttools.ToolResult{Output: json.RawMessage(`{"ok":true}`)}, nil},
+		{"quote cited", agenttools.ToolResult{Output: json.RawMessage(quote), Citations: []agenttools.Citation{cited}}, nil},
+		{"quote uncited", agenttools.ToolResult{Output: json.RawMessage(quote)}, agenttools.ErrCitation},
+		{"bad citation", agenttools.ToolResult{Output: json.RawMessage(`{}`), Citations: []agenttools.Citation{{VersionID: "v1"}}}, agenttools.ErrCitation},
+		{"malformed quotes", agenttools.ToolResult{Output: json.RawMessage(`{"quotes":"x"}`)}, agenttools.ErrCitation},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := agenttools.NewRegistry(agenttoolsfake.New())
+			tl := tool("read_doc", registry.ToolRead, "")
+			res := tt.res
+			tl.Handle = func(context.Context, agenttools.Principal, json.RawMessage) (agenttools.ToolResult, error) {
+				return res, nil
+			}
+			if err := r.Register(tl); err != nil {
+				t.Fatal(err)
+			}
+			_, err := r.Call(context.Background(), user(), "read_doc", json.RawMessage(`{"subject":"s"}`))
+			if !errors.Is(err, tt.want) {
+				t.Fatalf("Call() = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}
+
+// rule: ARC-I-039
+func TestCallRecordsAgentCallsOnCurrentStep(t *testing.T) {
+	ctx := context.Background()
+	tests := []struct {
+		name      string
+		principal agenttools.Principal
+		plan      bool
+		wantCalls int
+	}{
+		{"agent with plan", agent("r1"), true, 1},
+		{"agent read before plan", agent("r1"), false, 0},
+		{"user manual path", user(), true, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pl := agenttools.NewPlanner(newMemStore())
+			r := agenttools.NewRegistry(pl)
+			if err := r.Register(tool("get_subject", registry.ToolRead, "")); err != nil {
+				t.Fatal(err)
+			}
+			if tt.plan {
+				if _, err := pl.ReportPlan(ctx, "r1", []string{"read"}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err := r.Call(ctx, tt.principal, "get_subject", json.RawMessage(`{"subject":"s"}`)); err != nil {
+				t.Fatalf("Call: %v", err)
+			}
+			p, _, err := pl.Current(ctx, "r1")
+			if !tt.plan {
+				if !errors.Is(err, agenttools.ErrNotFound) {
+					t.Fatalf("Current: %v, want ErrNotFound", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := len(p.Steps[0].CallIDs); got != tt.wantCalls {
+				t.Fatalf("step call ids = %d, want %d", got, tt.wantCalls)
+			}
+			wantStatus := agenttools.StepPending
+			if tt.wantCalls > 0 {
+				wantStatus = agenttools.StepRunning
+			}
+			if p.Steps[0].Status != wantStatus {
+				t.Fatalf("step status = %s, want %s", p.Steps[0].Status, wantStatus)
+			}
+		})
+	}
+}

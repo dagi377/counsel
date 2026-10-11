@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -29,41 +28,27 @@ func (SlotArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{UniqueOpts: river.UniqueOpts{ByArgs: true}}
 }
 
-// Scheduler stores schedules and runs each slot of a schedule through the report engine at
-// most once. A scheduled run uses the schedule owner's capabilities and records no user.
-type Scheduler struct {
-	reports *Reports
-
-	mu        sync.Mutex
-	schedules map[string]Schedule
-	slots     map[slotKey]RunID
-}
-
 type slotKey struct {
 	schedule string
 	slot     int64 // slot start, unix nanoseconds
 }
 
-// NewScheduler returns a scheduler with no schedules that runs reports through r.
-func NewScheduler(r *Reports) *Scheduler {
-	return &Scheduler{reports: r, schedules: map[string]Schedule{}, slots: map[slotKey]RunID{}}
-}
-
-// AddSchedule stores s. The report must be registered, Every positive, Owner set and Params
-// a JSON object.
-func (s *Scheduler) AddSchedule(_ context.Context, _ pgx.Tx, sc Schedule) error {
+// AddSchedule implements Engine. It stores sc; the report must be registered, Every positive,
+// Owner set and Params a JSON object. Each slot of a schedule runs at most once, with the
+// schedule owner's capabilities and no recording user.
+func (s *Reports) AddSchedule(_ context.Context, _ pgx.Tx, sc Schedule) error {
 	if sc.ID == "" || sc.Owner == "" || sc.Every <= 0 || sc.Anchor.IsZero() {
 		return fmt.Errorf("add schedule %q: %w", sc.ID, ErrInvalid)
 	}
-	if _, ok := s.reports.lookup(sc.ReportID); !ok {
+	if _, ok := s.lookup(sc.ReportID); !ok {
 		return fmt.Errorf("add schedule %q: report %q: %w", sc.ID, sc.ReportID, ErrNotFound)
 	}
 	if _, err := ParamsHash(sc.Params); err != nil {
 		return fmt.Errorf("add schedule %q: %w", sc.ID, err)
 	}
 	sc.Params = append(json.RawMessage(nil), sc.Params...)
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.schedMu.Lock()
+	defer s.schedMu.Unlock()
 	if _, ok := s.schedules[sc.ID]; ok {
 		return fmt.Errorf("add schedule %q: %w", sc.ID, ErrDuplicate)
 	}
@@ -81,12 +66,12 @@ func SlotStart(sc Schedule, at time.Time) (time.Time, error) {
 	return sc.Anchor.Add(n * sc.Every), nil
 }
 
-// RunSlot runs schedule scheduleID for the slot containing at. A slot that already ran
-// returns its run with created false and runs nothing.
-func (s *Scheduler) RunSlot(ctx context.Context, tx pgx.Tx, scheduleID string, at time.Time) (Run, bool, error) {
-	s.mu.Lock()
+// RunSlot implements Engine: it runs schedule scheduleID for the slot containing at. A slot
+// that already ran returns its run with created false and runs nothing.
+func (s *Reports) RunSlot(ctx context.Context, tx pgx.Tx, scheduleID string, at time.Time) (Run, bool, error) {
+	s.schedMu.Lock()
 	sc, ok := s.schedules[scheduleID]
-	s.mu.Unlock()
+	s.schedMu.Unlock()
 	if !ok {
 		return Run{}, false, fmt.Errorf("run slot %q: %w", scheduleID, ErrNotFound)
 	}
@@ -97,24 +82,24 @@ func (s *Scheduler) RunSlot(ctx context.Context, tx pgx.Tx, scheduleID string, a
 	key := slotKey{schedule: scheduleID, slot: slot.UnixNano()}
 
 	// Hold the lock across the run so two workers on the same slot cannot both run it.
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.schedMu.Lock()
+	defer s.schedMu.Unlock()
 	if id, done := s.slots[key]; done {
-		r, err := s.reports.runByID(id)
+		r, err := s.runByID(id)
 		if err != nil {
 			return Run{}, false, fmt.Errorf("run slot %q: %w", scheduleID, err)
 		}
 		return r, false, nil
 	}
-	en, ok := s.reports.lookup(sc.ReportID)
+	en, ok := s.lookup(sc.ReportID)
 	if !ok {
 		return Run{}, false, fmt.Errorf("run slot %q: report %q: %w", scheduleID, sc.ReportID, ErrNotFound)
 	}
-	r, _, err := s.reports.execute(ctx, tx, en, sc.Params, sc.Owner, "")
+	r, _, err := s.execute(ctx, tx, en, sc.Params, sc.Owner, "")
 	if err != nil {
 		return Run{}, false, fmt.Errorf("run slot %q: %w", scheduleID, err)
 	}
-	r = s.reports.markScheduled(r.ID, scheduleID, slot)
+	r = s.markScheduled(r.ID, scheduleID, slot)
 	s.slots[key] = r.ID
 	return r, true, nil
 }
@@ -151,15 +136,15 @@ type TxFunc func(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) er
 // SlotWorker is the River worker that runs one schedule slot.
 type SlotWorker struct {
 	river.WorkerDefaults[SlotArgs]
-	Scheduler *Scheduler
-	InTx      TxFunc
+	Reports *Reports
+	InTx    TxFunc
 }
 
 // Work implements river.Worker. A slot that already ran is a success, so a retried or
 // duplicated job creates no second run.
 func (w *SlotWorker) Work(ctx context.Context, job *river.Job[SlotArgs]) error {
 	return w.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		if _, _, err := w.Scheduler.RunSlot(ctx, tx, job.Args.ScheduleID, job.Args.Slot); err != nil {
+		if _, _, err := w.Reports.RunSlot(ctx, tx, job.Args.ScheduleID, job.Args.Slot); err != nil {
 			return fmt.Errorf("report slot job: %w", err)
 		}
 		return nil
