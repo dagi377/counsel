@@ -1,0 +1,335 @@
+{
+  "contract": "CONTRACT: rule ids are frozen; changes are additive only (AGENTS.md).",
+  "source": "spec/eng/a3-migration.json",
+  "rules": [
+    {
+      "id": "MIG-001",
+      "title": "Region-pinned source",
+      "rule": "The Clio connection base URL is chosen from {app.clio.com, ca.app.clio.com, eu.app.clio.com, au.app.clio.com} with a developer app registered in that region; default ca.app.clio.com. Data is written only to the firm's Canadian cell; no staging outside Canada regardless of source region.",
+      "test": "Connect with region=ca: all requests go to https://ca.app.clio.com/api/v4/. Region=us: requests go to app.clio.com and the staging bucket region is still ca-central; a test asserts no write path has a non-Canadian endpoint.",
+      "source": "r11: API regions"
+    },
+    {
+      "id": "MIG-002",
+      "title": "Read-only OAuth scopes",
+      "rule": "The import app requests read-only permissions for every area; a token with any write scope is rejected at connect. Tokens are stored in the cell vault, never logged, revoked at job end (or alongside-mode end).",
+      "test": "Token introspection returning matters:read_write -> connect fails with error 'write scope not allowed'. Log capture of a full job contains 0 occurrences of the token string.",
+      "source": ""
+    },
+    {
+      "id": "MIG-003",
+      "title": "Rate budget",
+      "rule": "Client-side token bucket per Clio token: 45 requests/min during Clio peak (Mon-Fri 04:00-19:00 PT = 07:00-22:00 America/Toronto); off-peak starts at 45/min and increases by 10/min each 5 minutes without a 429, capped at a configured max. Any 429 sets the bucket to wait Retry-After seconds and halves the off-peak rate. Bulk extraction is scheduled off-peak; peak window allows only delta sync and user-triggered single reads.",
+      "test": "Simulated clock Tue 10:00 Toronto: 100 queued requests take >= 2 min 13 s (45/min). Fake returns 429 Retry-After: 30 -> next request sent at >= +30 s and rate halves from 85 to 42.",
+      "source": "r11: rate limits 50/min peak, Retry-After"
+    },
+    {
+      "id": "MIG-004",
+      "title": "Checkpoint and resume",
+      "rule": "Extraction is per resource in id ascending order with field selection; after each page the cursor (resource, last_id, next page url, updated_since watermark) and the staged raw page (jsonb + sha256) are committed in one transaction. A restart resumes from the last committed cursor; re-staging the same page is a no-op (same sha256).",
+      "test": "Kill the extractor after page 37 of 95 (documents): restart fetches page 38 first; staged rows = 18,930 exactly, 0 duplicates by (resource, clio_id).",
+      "source": ""
+    },
+    {
+      "id": "MIG-005",
+      "title": "Money parse without floats",
+      "rule": "Clio monetary JSON numbers are decoded as decimal strings (json.Number / numeric parser), never float64. Convert to integer cents only if the value has <= 2 fractional digits; otherwise the record is an error in the dry run (no rounding). Currency must be CAD; any other currency is an error.",
+      "test": "'1234.5' -> 123450; '0.1' -> 10; '19.999' -> error MIG-005; '1e2' -> 10000; currency 'USD' -> error. Sum of 10 x '0.10' = 100 cents exactly.",
+      "source": ""
+    },
+    {
+      "id": "MIG-006",
+      "title": "Time zones",
+      "rule": "Instants are stored as UTC timestamptz; date-only Clio fields stay dates with no shift. Derived dates (e.g. journal date from a timestamp) use America/Toronto.",
+      "test": "Clio '2026-03-08T04:30:00Z' (time entry) -> local date 2026-03-07 (EST, UTC-5). Clio date '2026-11-01' -> date 2026-11-01 unchanged.",
+      "source": ""
+    },
+    {
+      "id": "MIG-007",
+      "title": "ID map is the only join",
+      "rule": "Every imported row has exactly one id_map row (firm, clio_region, clio_type, clio_id) -> (counsel_type, counsel_id), unique on the source key. All references are resolved through id_map; a missing reference is a dry-run error, never a silent null.",
+      "test": "Time entry referencing matter 999 absent from staging -> dry-run error 'unresolved reference matter:999', entry not imported. Running transform twice creates 0 new id_map rows.",
+      "source": ""
+    },
+    {
+      "id": "MIG-008",
+      "title": "Idempotent transform",
+      "rule": "Staging -> Counsel transform is a pure function of staged rows + mapping config; re-running it upserts by id_map and produces identical rows (same counsel_id, same field values).",
+      "test": "Run full transform twice on fixture firm: table checksums (ordered by id) identical; audit events for second run = 0 data changes.",
+      "source": ""
+    },
+    {
+      "id": "MIG-009",
+      "title": "Documents via archives",
+      "rule": "Document bytes come from Document Archives zips per matter; archives are polled until state completed, downloaded, unzipped in a sandbox (no symlinks, no absolute or '..' paths, total uncompressed size <= 4x zip and <= configured cap). Each file is matched to a Clio document version by path and byte size; sha256 recorded.",
+      "test": "Zip containing '../etc/passwd' -> entry rejected, job continues, issue logged. Zip of 10 MB expanding to 900 MB -> rejected as bomb. Matter with 120 docs -> 120 matched, 0 unmatched.",
+      "source": "r11: Document Archives"
+    },
+    {
+      "id": "MIG-010",
+      "title": "All versions, in order",
+      "rule": "Every document version is imported with original version number and upload time; current version in Counsel = highest Clio version.",
+      "test": "Doc with versions 1,2,3 (sizes 10,12,15 KB) -> 3 DocumentVersion rows n=1..3, current n=3, sizes equal.",
+      "source": ""
+    },
+    {
+      "id": "MIG-011",
+      "title": "Large documents background",
+      "rule": "Documents above the inline threshold import in the background; the matter becomes usable when its metadata is imported and shows 'n documents still arriving'.",
+      "test": "Matter with 2 x 600 MB videos: matter status usable after metadata; doc rows have state=pending_bytes; completion flips to available.",
+      "source": "readiness clio-import edge"
+    },
+    {
+      "id": "MIG-012",
+      "title": "What cannot be migrated is listed",
+      "rule": "The dry run lists every Clio resource type found with a non-zero count that has no import path (mapping migratable=no) with counts, so the owner sees what will be left behind.",
+      "test": "Fixture with 3 open trust requests and 2 report presets -> 'Not moved' table shows trust requests: 3 (cannot be read via API, list manually), report presets: 2.",
+      "source": ""
+    },
+    {
+      "id": "MIG-013",
+      "title": "Unknown fields preserved",
+      "rule": "Any Clio field not in the mapping is kept in the staged raw JSON for the retention period and surfaced in the dry run as 'unmapped field' with count; nothing is dropped silently.",
+      "test": "Fixture contact with field 'nickname' -> unmapped_fields contains {resource: contacts, field: nickname, count: 1}.",
+      "source": ""
+    },
+    {
+      "id": "MIG-014",
+      "title": "No auto-merge",
+      "rule": "Duplicate contacts are flagged, never merged by the importer; merging is a human action after import with its own audit.",
+      "test": "Two contacts sharing 'a@x.ca' -> both imported, 1 DuplicateCandidate pair, 0 merges.",
+      "source": ""
+    },
+    {
+      "id": "MIG-015",
+      "title": "Dry run before import",
+      "rule": "Import cannot start unless a dry run on the same snapshot (same staging hash set) completed with 0 errors and the owner approved it (gate G-IMP step 'Import'). Warnings are allowed if acknowledged one by one.",
+      "test": "Dry run with 1 error -> Import button disabled, API returns 409 'dry run has errors'. Staging changed after dry run (new page) -> approval invalid, new dry run required.",
+      "source": ""
+    },
+    {
+      "id": "MIG-020",
+      "title": "Count parity",
+      "rule": "For every imported entity type: imported + skipped(with reason) = Clio count (API list total or CSV row count). Any difference blocks verified state.",
+      "test": "Clio contacts 1,284; imported 1,284 incl. 44 duplicate-flagged; skipped 0 -> pass. Imported 1,283 -> fail VC-CNT.",
+      "source": ""
+    },
+    {
+      "id": "MIG-021",
+      "title": "Per-matter sums",
+      "rule": "Per matter: sum of time amount cents, expense cents, billed totals, payments allocated, and AR balance equal Clio values (Reports work_in_progress, accounts_receivable_aging). Tolerance 0 cents.",
+      "test": "Matter 2024-031: Clio WIP $4,512.50 -> Counsel unbilled sum 451250 cents: pass; 451249 -> fail.",
+      "source": ""
+    },
+    {
+      "id": "MIG-022",
+      "title": "No half-finished bills",
+      "rule": "Bills in Clio state awaiting_approval at freeze block the cut-over; the firm must approve or void them in Clio first. Draft bills are not imported; their entries stay unbilled in Counsel.",
+      "test": "Fixture with 1 awaiting_approval bill -> cut-over checklist item 'bills in approval: 1' red; G-IMP sign-off disabled.",
+      "source": ""
+    },
+    {
+      "id": "MIG-023",
+      "title": "Tax not recomputed",
+      "rule": "Imported bills keep Clio's tax amounts (HST/GST per line); Counsel re-computes only as a check and reports differences as warnings, never corrects them.",
+      "test": "Bill subtotal 100000 cents, Clio tax 13000 -> stored 13000. Clio tax 12999 -> stored 12999 + warning 'tax differs from 13% by 1 cent'.",
+      "source": ""
+    },
+    {
+      "id": "MIG-030",
+      "title": "Trust balance three-way match at cut-over",
+      "rule": "For each trust account at the cut-over date: (a) sum of Clio client ledger balances (Reports client_ledger/trust_listing as of cut-over) = (b) sum of trust.historical_line rows per ledger = (c) adjusted bank balance = bank statement closing balance + deposits in transit - outstanding cheques/withdrawals. Per client ledger, (a) = (b) exactly. Any difference blocks G-IMP until explained by a reconciling item or corrected in Clio.",
+      "test": "Account TA-1: statement 5,000,000; outstanding cheque 125,000; deposit in transit 0 -> adjusted 4,875,000. Client ledgers 3,000,000 + 1,875,000 = 4,875,000 -> pass. Readiness mock '1 off by $12.50': ledger history 101,250 vs Clio 100,000 -> blocked, issue shows 1,250 cents.",
+      "source": "By-Law 9 s.18 records and s.18(8) monthly comparison (verify subsection); readiness clio-import"
+    },
+    {
+      "id": "MIG-031",
+      "title": "Cut-over on a reconciled month end",
+      "rule": "The cut-over date must be the last day of a month whose Clio trust reconciliation is completed and signed for every trust account; all earlier months back to the start of history must be reconciled in Clio or listed as exceptions signed by the responsible lawyer.",
+      "test": "Cut-over 2026-10-31 with Clio reconciliation for October missing on TA-2 -> blocked. Cut-over 2026-10-15 -> rejected 'not a month end'.",
+      "source": "By-Law 9 monthly comparison (verify s.18(8) and 25-day timing)"
+    },
+    {
+      "id": "MIG-032",
+      "title": "No negative client ledger",
+      "rule": "If any client ledger in Clio history is negative at any month end or at cut-over, the dry run lists it as an error; G-IMP cannot be signed until the firm records the correction in Clio and a lawyer explains it in the sign-off.",
+      "test": "Ledger L-17 balance -2,500 cents on 2025-06-30 -> error 'overdrawn ledger L-17 on 2025-06-30 (-$25.00)'.",
+      "source": "By-Law 9 (client ledger never overdrawn, verify section)"
+    },
+    {
+      "id": "MIG-033",
+      "title": "Opening balance sign-off gate (G-IMP)",
+      "rule": "Opening balance lines are posted only after G-IMP signatures by owner, a licensee with signing authority on that account, and the bookkeeper, each signing the exact per-ledger list with the bank statement file hash. Until then the Counsel trust area is read-only for that firm (no receipts, withdrawals, transfers).",
+      "test": "Owner + bookkeeper signed, licensee not -> POST /trust/receipts returns 423 'trust locked pending G-IMP'. All three signed list hash H; list changed after signing -> signatures void.",
+      "source": "readiness gate G-IMP"
+    },
+    {
+      "id": "MIG-034",
+      "title": "History is read-only",
+      "rule": "Imported historical trust lines (trust.historical_line) and historical bills/payments can never be edited or deleted (forbid_mutation trigger + REVOKE UPDATE, DELETE from every app role). A correction found after cut-over is a new live-book row in trust.trust_transaction (an approved receipt, withdrawal or bank_charge_correction through the normal gates) whose purpose names the historical_line id; reverses_id is only for live rows and never points at history.",
+      "test": "UPDATE trust.historical_line SET amount_cents=... -> rejected by trigger. Correction of 1,000 cents for historical line H -> one new trust.trust_transaction row, purpose cites H, live ledger balance changes by exactly 1,000; H unchanged.",
+      "source": ""
+    },
+    {
+      "id": "MIG-037",
+      "title": "No double count of trust history",
+      "rule": "Live balances (trust.ledger_balance, trust.account_balance, client listing, reconciliation journal balance) read only trust.trust_transaction. trust.historical_line is reporting/evidence only and is never in a balance view. After G-IMP posting, each ledger's live balance equals its opening_balance row.",
+      "test": "Ledger L-1: 40 historical lines summing 3,000,000 + opening row 3,000,000 -> trust.ledger_balance(L-1) = 3,000,000 (not 6,000,000). Inserting a historical_line after cut-over does not change ledger_balance.",
+      "source": "RV2-005; By-Law 9 s.18 client ledger (verify)"
+    },
+    {
+      "id": "MIG-038",
+      "title": "Imported reconciliations do not block Counsel sign-off",
+      "rule": "Clio reconciliations are stored with status='imported' (not 'signed'). trust_account.live_from = first day of the month after cut-over. The reconciliation order check accepts M-1 with status IN ('signed','imported'), so the first Counsel month (live_from) can be signed. Imported months are month-locked like signed months; no Counsel reconciliation may be created for a month before live_from.",
+      "test": "Cut-over 2026-10-31, imported October row status='imported' -> November Counsel reconciliation signs (G12) on 2026-12-10 without error. Attempt to create a Counsel reconciliation for 2026-10 -> rejected 'month before live_from'. Attempt to post a live row dated 2026-10-15 -> rejected 'month locked'.",
+      "source": "RV2-006; By-Law 9 s.18(8) monthly comparison (verify)"
+    },
+    {
+      "id": "MIG-035",
+      "title": "Signatories before trust",
+      "rule": "Clio has no signatory/EFT-user record: before G-IMP each trust account needs signatories entered and approved via GA1.",
+      "test": "Account TA-1 with 0 approved signatories -> G-IMP checklist red 'no signatories'.",
+      "source": ""
+    },
+    {
+      "id": "MIG-036",
+      "title": "Retention of migrated records",
+      "rule": "Imported trust history, Clio reconciliation packages, the cut-over bank statement and raw staged JSON for trust resources are retained for the trust-record retention period (10 years, verify) and are included in every firm export.",
+      "test": "retain_until of a 2019-05-01 historical line with fiscal year end 2019-12-31 = 2029-12-31 or later; purge job skips it before that date.",
+      "source": "By-Law 9 retention (verify: 10 years before most recent fiscal year end)"
+    },
+    {
+      "id": "MIG-040",
+      "title": "Alongside is read-only",
+      "rule": "In alongside mode Clio is the system of record: Counsel never writes to Clio, and imported entities are read-only in Counsel (edit buttons replaced by 'edit in Clio'). Trust area stays locked.",
+      "test": "PATCH /matters/{imported id} in alongside mode -> 409 'source of record is Clio'. Outbound HTTP to clio.com with method != GET (except webhook management) -> test failure.",
+      "source": ""
+    },
+    {
+      "id": "MIG-041",
+      "title": "Webhook subscriptions",
+      "rule": "Subscribe to matter, activity, bill, calendar_entry, communication, contact, task, document, folder (and clio_payments_payment if used) with fields=id,etag,updated_at; verify X-Hook-Signature HMAC-SHA256 over the raw body with the handshake secret; reject unsigned or bad signatures with 401 and do not process.",
+      "test": "Delivery with valid signature -> enqueued fetch of the record. Body changed by 1 byte -> 401, no fetch. Replayed delivery (same id+etag) -> no-op.",
+      "source": "r11: webhooks"
+    },
+    {
+      "id": "MIG-042",
+      "title": "Webhook renewal",
+      "rule": "Webhooks are created with the maximum expiry (31 days); each one is a row in platform.source_subscription(source='clio', remote_id, events, expires_at, last_renewed_at, last_error), written in the same tx as the create call result. Owner: the migration worker's River periodic job subscription.renew (hourly) renews by PATCH every row with expires_at - now <= 7 days and updates expires_at/last_renewed_at; renewal failure keeps last_error, retries on the next hourly run and alerts the firm admin and platform on-call at 72 h before expiry. When a subscription lapses anyway, MIG-043 gap fill runs from the last delivered event. Deleting webhooks (R-14, alongside exit) deletes the rows. Task home: T-040b 'Clio alongside sync' (o1).",
+      "test": "Webhook expires 2026-11-30T00:00Z; subscription.renew at 2026-11-23T00:00Z PATCHes and sets expires_at=2026-12-24T00:00Z. Fake returns 500 on every attempt -> last_error set each hour, admin + on-call alert raised at 2026-11-27T00:00Z, expires_at unchanged. Two workers run the job at once -> one PATCH (River unique job).",
+      "source": "r11: max 31 days; RV2-013"
+    },
+    {
+      "id": "MIG-043",
+      "title": "Polling fallback and gap fill",
+      "rule": "Every 15 min (off-peak) / 60 min (peak) poll each resource with updated_since = last watermark - 10 min overlap; resources without webhooks (bank_transactions, trust_line_items, allocations, notes, bills content) are polled only. After any webhook lapse or suspension, poll from the last delivered event time. Weekly full id-list diff detects deletes.",
+      "test": "Webhook suspended 2026-11-02 10:00 to 14:00: gap job polls updated_since 09:50 and imports 7 changed matters. Clio deletes contact 55 (no webhook received): weekly diff marks it deleted_in_source.",
+      "source": ""
+    },
+    {
+      "id": "MIG-044",
+      "title": "Conflict-free sync",
+      "rule": "Sync applies a Clio record only if its etag/updated_at is newer than the stored one; older or equal versions are ignored.",
+      "test": "Stored matter etag v5 updated 10:00; webhook-triggered fetch returns v4 updated 09:58 -> ignored.",
+      "source": ""
+    },
+    {
+      "id": "MIG-050",
+      "title": "Freeze window",
+      "rule": "Between freeze start and go-live, no user may create trust, billing or payment records in Clio; the runbook records the Clio freeze time and the final delta sync must show 0 trust/bill/payment changes after it.",
+      "test": "Final delta finds 1 bank_transaction updated after freeze 2026-10-31T22:00-04:00 -> go-live blocked, item listed.",
+      "source": ""
+    },
+    {
+      "id": "MIG-051",
+      "title": "Point of no return",
+      "rule": "Rollback to Clio is a pure switch-back until the first trust or billing record is posted in Counsel; after that, rollback requires the 'Counsel-since-cut-over' export (all new records as Clio import CSV + trust lines) and a lawyer sign-off.",
+      "test": "0 Counsel trust lines -> rollback = disable firm and reopen Clio, no data steps. 3 lines posted -> rollback screen requires export file hash + licensee signature.",
+      "source": ""
+    },
+    {
+      "id": "MIG-052",
+      "title": "Keep Clio readable",
+      "rule": "The runbook requires the firm to keep Clio access (any plan that allows reports and export) for at least 60 days after go-live, and a final full Clio export (API raw + CSV + reconciliation PDFs) stored in Counsel before access ends.",
+      "test": "Go-live 2026-11-01: checklist item 'final Clio export stored' due 2026-12-31; missing -> admin alert.",
+      "source": ""
+    },
+    {
+      "id": "MIG-060",
+      "title": "Expand-contract only",
+      "rule": "A schema change that a running app version depends on ships in three releases: expand (add nullable column/table/view, dual-write), migrate (backfill, switch reads), contract (drop old) at least one release later. No release both adds and removes something the other version reads.",
+      "test": "CI check: migration that drops column X while app version N-1 (from release manifest) still selects X -> fail.",
+      "source": ""
+    },
+    {
+      "id": "MIG-061",
+      "title": "Lock-safe DDL",
+      "rule": "Each migration sets lock_timeout = '3s' and statement_timeout; indexes on existing tables use CREATE INDEX CONCURRENTLY (own non-transactional migration); new constraints are added NOT VALID then VALIDATE CONSTRAINT separately; no ALTER COLUMN TYPE that rewrites a table larger than 100k rows.",
+      "test": "Lint: 'CREATE INDEX ix ON trust.trust_transaction' without CONCURRENTLY -> fail. Migration test against a table locked by another session -> fails within 3 s, does not queue.",
+      "source": ""
+    },
+    {
+      "id": "MIG-062",
+      "title": "Batched backfills",
+      "rule": "Backfills run as resumable jobs, keyset-paginated by primary key, <= 5,000 rows or 1 s per batch, committing each batch with a checkpoint; idempotent (WHERE new_col IS NULL); throttled when replication lag > 5 s.",
+      "test": "Backfill 1,000,000 rows: >= 200 batches; kill at batch 120, restart resumes at 120; final count of NULLs = 0.",
+      "source": ""
+    },
+    {
+      "id": "MIG-063",
+      "title": "Never rewrite financial history",
+      "rule": "Migrations and backfills must not UPDATE or DELETE rows in financial or audit tables (trust.trust_transaction, trust.historical_line, bill, bill_line, payment, payment_allocation, trust.reconciliation, trust_audit_event, gl.journal_entry lines). New representation = new columns filled for new rows, plus a derived view or a new append-only table for old rows. Enforced by DB triggers (role app and role migrator) and a migration linter.",
+      "test": "Migration containing 'UPDATE bill SET' -> lint fail. Executing it anyway -> trigger raises 'financial history is append-only'. Trust balance per ledger before == after migration suite.",
+      "source": ""
+    },
+    {
+      "id": "MIG-064",
+      "title": "Snapshot rehearsal",
+      "rule": "Every migration is rehearsed against an anonymized copy of each cell's production data (made inside the Canada region; names, emails, phones, addresses, free text and document bytes replaced; amounts, dates, ids, counts kept) before it runs in production; the invariant suite (VC-INV) must pass and duration must be under the budget recorded in the migration header.",
+      "test": "Rehearsal on cell 'firm-07' snapshot: 412 matters, trust totals identical pre/post, migration ran 41 s vs budget 120 s -> pass. Snapshot containing a real email domain from the source -> anonymizer check fails.",
+      "source": ""
+    },
+    {
+      "id": "MIG-065",
+      "title": "Cell rollout",
+      "rule": "Migrations roll out to cells in waves: internal cell, 1 canary firm, then the rest; a wave starts only when the previous wave's post-migration invariants pass.",
+      "test": "Canary invariant fails -> rollout halts with remaining cells untouched (0 of N-2 migrated).",
+      "source": ""
+    },
+    {
+      "id": "MIG-066",
+      "title": "Audit chain survives migrations",
+      "rule": "The trust_audit_event hash chain is verified before and after every migration; migrations never re-hash existing events. A format change adds a new hash version for new events only.",
+      "test": "Chain of 10,000 events verifies pre/post; a migration that changes before_after JSON key order of an old event -> verification fails -> migration rejected.",
+      "source": ""
+    },
+    {
+      "id": "MIG-070",
+      "title": "Full firm export, any time",
+      "rule": "Owner can request a full firm export at any time, including for 90 days after cancellation (verify contract); export is approved by the owner (gate), built inside the cell, encrypted, and delivered by time-limited link (24 h).",
+      "test": "Cancelled firm on day 89 -> export allowed; day 91 -> refused with contract reference. Link used at 25 h -> 410.",
+      "source": ""
+    },
+    {
+      "id": "MIG-071",
+      "title": "Complete and verifiable",
+      "rule": "The export contains every entity in the firm (JSON per entity, CSV per entity), every document version's bytes, trust and general ledgers, reconciliation packages, the audit chain, and imported Clio raw archives; manifest lists each file's sha256 and row counts; a verifier checks counts against the live DB at export time.",
+      "test": "Fixture firm: manifest counts equal DB counts for all 31 entity files; altering one byte of a document -> verifier reports sha256 mismatch for that path.",
+      "source": ""
+    },
+    {
+      "id": "MIG-072",
+      "title": "Open formats, no lock-in",
+      "rule": "JSON uses the published schema (counsel-export/1); money as integer cents + currency; dates ISO 8601 (instants UTC 'Z', dates YYYY-MM-DD); ids are stable UUIDs plus legacy ids; CSVs are UTF-8 with header, RFC 4180 quoting. A 'Clio-compatible' preset also writes contacts, matters, tasks, calendar, notes, time and expense CSVs in Clio's import template columns (verify current templates).",
+      "test": "Amount 1234.5 never appears; '123450' with currency 'CAD' does. CSV field containing a comma and a quote round-trips through Python csv reader unchanged.",
+      "source": ""
+    },
+    {
+      "id": "MIG-073",
+      "title": "Export trust balances reconcile",
+      "rule": "The export includes a trust_balances.csv as of the export date; sum per account equals the sum of ledger lines in the export and the last signed reconciliation's client listing total if the export date is that month end.",
+      "test": "Export at 2027-01-31 after signed January reconciliation of 4,875,000 -> trust_balances total 4,875,000 = sum of exported lines.",
+      "source": ""
+    }
+  ]
+}

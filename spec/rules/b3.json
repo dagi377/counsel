@@ -1,0 +1,584 @@
+{
+  "contract": "CONTRACT: rule ids are frozen; changes are additive only (AGENTS.md).",
+  "source": "spec/eng/b3-billing-engine.json",
+  "rules": [
+    {
+      "id": "BIL-C-001",
+      "title": "Money representation",
+      "rule": "All amounts are int64 CAD cents. Hourly rates are int cents per hour. Every rate and percentage (tax, FX, discount, markup, split share, surcharge, contingency, interest) is int parts-per-million (1% = 10000 ppm; 13% = 130000; 9.975% = 99750); one unit across all docs (CF-01). Columns end in _ppm. No float or numeric-with-fraction column holds money. Every division uses rhu(num, den).",
+      "source": "design; o1 CF-01",
+      "test": "rate 9.975% stored as 99750; rhu(200000*99750, 1e6) = 19950; discount 10% stored as 100000",
+      "config": null
+    },
+    {
+      "id": "BIL-C-002",
+      "title": "Rounding mode: half away from zero, at fixed points only",
+      "rule": "rhu = round half away from zero (0.5 -> 1, -0.5 -> -1). Rounding happens only at: (1) time line amount, (2) percent discount / markup / surcharge / contingency, (3) each tax line, once per bill on the summed taxable base (never per line), (4) pro-rata tax share in an allocation, (5) cumulative interest per posting (BIL-C-072). Never round an intermediate that feeds another rounding. Banker's rounding is not used: each value is rounded once, so its bias advantage does not apply; half away from zero matches b2-sales-tax BIL-T-040 and what clients and Clio expect, and a bill a client re-computes by hand must match.",
+      "source": "design; b2-sales-tax rounding + BIL-T-040 (same half-away-from-zero rule)",
+      "test": "rhu(55885.7) = 55886; rhu(65.5) = 66; rhu(-65.5) = -66; lines 333/333/334 at 13%: rhu(1000 x 0.13) = 130, not 43+43+43 = 129",
+      "config": null
+    },
+    {
+      "id": "BIL-C-003",
+      "title": "Rate resolution chain (fixed order, not configurable)",
+      "rule": "First hit wins: 1 manual rate on the entry (needs time.rates or user override right); 2 flat activity amount; 3 matter rate for the user; 4 matter rate for the user's role group (incl. a named rate table assigned to the matter); 5 client rate for the user; 6 client rate for the role group (incl. client rate table); 7 activity-category custom hourly rate; 8 user default rate. Store rate_cents and rate_source on the entry; rate_source in {manual, flat_activity, matter_user, matter_role, client_user, client_role, activity, user_default}. This reconciles the brief (matter > client > user group > user default) with time.json (manual > flat > matter > client/table > activity > default) and Clio's documented chain; user-before-group within each level.",
+      "source": "time.json rates; Clio rate hierarchy (r05)",
+      "test": "BIL-X-002: matter-role $175 beats client-user $182 and user default $200",
+      "config": null
+    },
+    {
+      "id": "BIL-C-004",
+      "title": "Rate effective date",
+      "rule": "The rate is the one effective on the work date (TimeEntry.date). A rate change re-prices only unbilled entries dated on or after its effective_from. Firm setting rate_basis = work_date (default) | bill_date; bill_date re-resolves at draft build.",
+      "source": "time.json rates edge",
+      "test": "rate $400 -> $425 effective 2026-09-01; entry dated 2026-08-31 billed on 2026-09-30 at $400",
+      "config": {
+        "rate_basis": "work_date"
+      }
+    },
+    {
+      "id": "BIL-C-005",
+      "title": "Manual override survives a matter move",
+      "rule": "Moving an entry to another matter re-resolves tiers 2-8; a manual rate (tier 1) is kept and flagged rate_recheck=true until a user with time.rates confirms it.",
+      "source": "time.json time-entry-detail (deliberate difference from Clio)",
+      "test": "entry manual $300 moved to matter with matter rate $250: rate stays $300, flag set",
+      "config": null
+    },
+    {
+      "id": "BIL-C-010",
+      "title": "Time rounding per entry, at save",
+      "rule": "billed_minutes = round(raw_minutes, increment, mode) at save; increment in {1, 6, 15} minutes, mode in {up, nearest(half-up)}. increment and mode are copied onto the entry. Bills never re-round. A settings change applies to entries saved after it.",
+      "source": "time.json time-settings",
+      "test": "BIL-X-001: 23 min up -> 24; 20 nearest -> 18; 21 nearest -> 24",
+      "config": {
+        "rounding_increment": 6,
+        "rounding_mode": "up"
+      }
+    },
+    {
+      "id": "BIL-C-011",
+      "title": "Time line amount",
+      "rule": "amount_cents = rhu(billed_minutes * rate_cents, 60). Hours displayed = billed_minutes/60 to 2 decimals (display only).",
+      "source": "design",
+      "test": "24 min x 42500 -> 17000",
+      "config": null
+    },
+    {
+      "id": "BIL-C-012",
+      "title": "Minimum entry",
+      "rule": "If raw_minutes > 0 and billed_minutes < minimum_entry, billed_minutes = minimum_entry (default 0 = off).",
+      "source": "time.json TimeSettings.minimum_entry",
+      "test": "minimum 6, raw 2 -> 6",
+      "config": {
+        "minimum_entry": 0
+      }
+    },
+    {
+      "id": "BIL-C-013",
+      "title": "Write-down and write-up never change recorded minutes",
+      "rule": "TimeEntry.minutes and billed_minutes are the accepted record (G9). A WriteDown row (original, adjusted, reason, stage) changes the bill line amount only. Pre-bill write-down: G9d / G-B1; above firm threshold also the owner role.",
+      "source": "time.json write-downs; RPC 3.6-1",
+      "test": "3.4 h x $425 = $1,445.00 adjusted to $1,200.00: entry minutes stay 204",
+      "config": {
+        "writedown_threshold_cents": 50000
+      }
+    },
+    {
+      "id": "BIL-C-014",
+      "title": "Write-up",
+      "rule": "Allowed only as a separate 'value adjustment' bill line with reason code, added by the responsible lawyer at G-B1, flagged to the approver at G-B2; never raises minutes or rate. Not allowed on contingency or flat lines.",
+      "source": "LSO Rules of Professional Conduct r.3.6-1 (https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct/chapter-3) (fees fair and reasonable)",
+      "test": "adjustment +$200.00 with reason 'urgency premium per retainer s.4' -> line shown; without reason -> rejected",
+      "config": null
+    },
+    {
+      "id": "BIL-C-020",
+      "title": "Order of reductions on a draft",
+      "rule": "1 line write-down/up; 2 line discount; 3 bill discount on its eligible base (fees + own-cost lines | fees only | one line; never agent disbursements, b2 BIL-T-042); 4 tax on the reduced base; 5 after approval only: trust application, payments, client credit, credit notes. The spec's 'after credit notes' is moot because credit notes never exist on a draft (BIL-C-080).",
+      "source": "billing.json invoice-editor Discount order; Clio discounts (r05)",
+      "test": "BIL-X-005: $1,445 -> $1,200 write-down, then $100 fixed discount, then HST on $1,460.00",
+      "config": null
+    },
+    {
+      "id": "BIL-C-021",
+      "title": "Discount amount",
+      "rule": "percent: rhu(eligible_base * ppm, 1e6); fixed: min(amount, eligible_base). A discount never makes a line negative.",
+      "source": "design",
+      "test": "10% of $2,680.50 = $268.05; fixed $5,000 on a $1,000 base -> $1,000",
+      "config": null
+    },
+    {
+      "id": "BIL-C-022",
+      "title": "Spread of a bill discount",
+      "rule": "Spread over eligible lines by largest remainder on weight = line net amount; ties go to the earliest line (sort_order). The spread is stored per line (discount_share) and drives tax buckets and realization.",
+      "source": "billing.json invoice-editor",
+      "test": "BIL-X-005: $100 over $1,200 / $360 -> $76.92 / $23.08",
+      "config": null
+    },
+    {
+      "id": "BIL-C-023",
+      "title": "Write-down reason codes",
+      "rule": "reason in {duplicate, inefficiency, training, courtesy, over_estimate, scope, other}; 'other' needs text. show_on_bill true prints 'courtesy discount'.",
+      "source": "time.json write-downs",
+      "test": "write-down with reason null -> 422",
+      "config": null
+    },
+    {
+      "id": "BIL-C-024",
+      "title": "No discount after approval",
+      "rule": "Approved bills are immutable; any reduction after approval is a credit note (G-B5).",
+      "source": "billing.json invoice-editor edge",
+      "test": "PATCH discount on approved bill -> 409 bill_immutable",
+      "config": null
+    },
+    {
+      "id": "BIL-C-030",
+      "title": "Flat fee",
+      "rule": "Flat lines come from FeeArrangement (amount or milestone %: rhu(flat * ppm, 1e6)). Time on a flat matter is tracked non-billable and prints at $0 when show_on_bill. A flat activity on a flat-fee matter raises a double-charge warning.",
+      "source": "time.json matter-fee-arrangement",
+      "test": "BIL-X-016: 50% of $3,000 = $1,500.00",
+      "config": null
+    },
+    {
+      "id": "BIL-C-031",
+      "title": "Out-of-scope work",
+      "rule": "On a hybrid arrangement, entries tagged out_of_scope are billed hourly per BIL-C-003; on a pure flat arrangement they are blocked from the bill until a change-of-scope letter is approved.",
+      "source": "time.json matter-fee-arrangement",
+      "test": "BIL-X-016: 95 min -> 96 min x $300 = $480.00",
+      "config": null
+    },
+    {
+      "id": "BIL-C-032",
+      "title": "Contingency fee",
+      "rule": "fee = rhu(recovery_base * pct_ppm, 1e6), pct may step by stage. recovery_base is a stored field on the matter's settlement record = damages + costs recovered - disbursements designated in the settlement - taxes; BIL-C-032 and BIL-C-033 both read it. No interim fee bill unless the agreement allows it. The agreement must be the LSO standard form unless the business-client exception applies.",
+      "source": "O. Reg. 563/20 Contingency Fee Agreements (https://www.ontario.ca/laws/regulation/200563) (sections: verify)",
+      "test": "BIL-X-017: 25% of $85,000.00 = $21,250.00",
+      "config": null
+    },
+    {
+      "id": "BIL-C-033",
+      "title": "Contingency cap",
+      "rule": "Refuse approval (409 CFA_FEE_EXCEEDS_RECOVERY) if fee, excluding disbursements and taxes, exceeds recovery_base (BIL-C-032). Same formula as b1 BIL-L-020.",
+      "source": "O. Reg. 563/20 Contingency Fee Agreements (https://www.ontario.ca/laws/regulation/200563) s.1 per b1 BIL-L-020",
+      "test": "settlement $30,000 incl. costs $5,000 and disbursements $2,000 -> recovery_base $28,000; fee $29,000 -> 409; capped proposal $28,000",
+      "config": null
+    },
+    {
+      "id": "BIL-C-040",
+      "title": "Disbursement tax class",
+      "rule": "Expense.agency = agent (paid as the client's agent: no HST on rebill) | own (firm's cost: HST on rebill amount). Default per category table; tax adviser must confirm the table before launch.",
+      "source": "CRA GST/HST Policy P-209R Lawyers' disbursements (https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/p-209r/lawyers-disbursements.html); b2-sales-tax BIL-T-030..033",
+      "test": "court filing fee $229.00 agent -> no HST; photocopies $86.40 own -> HST $11.23 share",
+      "config": null
+    },
+    {
+      "id": "BIL-C-041",
+      "title": "Markup",
+      "rule": "Markup ppm applies to own (soft) costs only; never to agent disbursements. markup = rhu(cost * ppm, 1e6); markup is taxable with the cost. Default 0.",
+      "source": "time.json expenses; LSO Rules of Professional Conduct r.3.6-1 (https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct/chapter-3)",
+      "test": "BIL-X-016: $25.00 + 15% = $28.75",
+      "config": {
+        "soft_cost_markup_ppm": 0
+      }
+    },
+    {
+      "id": "BIL-C-042",
+      "title": "Disbursements paid from trust",
+      "rule": "An expense paid by trust withdrawal (G11) is listed on the bill in 'Paid from trust' and is excluded from amount due and AR.",
+      "source": "LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) s.9 (verify)",
+      "test": "bill with $1,200 trust-paid filing fees: amount due unchanged",
+      "config": null
+    },
+    {
+      "id": "BIL-C-043",
+      "title": "Foreign currency expense",
+      "rule": "Store original amount and currency plus CAD cents = rhu(original_minor * fx_ppm, 1e6) at a recorded rate and date.",
+      "source": "time.json expenses edge",
+      "test": "USD 100.00 at 1.372500 -> 13725 CAD cents",
+      "config": null
+    },
+    {
+      "id": "BIL-C-050",
+      "title": "Trust applied to fees",
+      "rule": "Allowed only when bill.delivered_at is set. amount <= min(bill balance - reserved_cents (BIL-C-054), trust available_cents of the same client-matter ledger (BIL-C-053)). For a combined client bill, only lines of that matter. Proposal does not touch AR. The trust row and both journals (BIL-J-008) post at execution, txn_date = executed_on; bank confirmation only matches the bank line.",
+      "source": "LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) ss.9-10 (verify)",
+      "test": "BIL-X-006: $3,000.00 against delivered bill; undelivered bill -> 409 bill_not_delivered",
+      "config": null
+    },
+    {
+      "id": "BIL-C-051",
+      "title": "Trust never overdraws",
+      "rule": "Authorization and execution each lock the client_ledger row (SELECT ... FOR UPDATE) and require available_cents >= amount; otherwise 409 trust_overdraw. Concurrent authorizations against the same funds therefore serialize and the second fails.",
+      "source": "LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) s.18 (verify)",
+      "test": "ledger $2,000.00, request $2,000.01 -> 409 trust_overdraw; BIL-X-023: two $3,000 authorizations on $5,000 -> second 409",
+      "config": null
+    },
+    {
+      "id": "BIL-C-052",
+      "title": "Auto-apply setting proposes only",
+      "rule": "auto_apply_trust_on_approval creates a TrustFeeTransfer in 'proposed'; G-B4/G11 still required.",
+      "source": "billing.json bill-settings",
+      "test": "setting on, bill approved: proposal exists, ledger unchanged",
+      "config": null
+    },
+    {
+      "id": "BIL-C-053",
+      "title": "Trust available balance",
+      "rule": "available_cents(ledger) = sum(posted rows with cleared_on <= today; receipts not yet cleared excluded) - protected_cents - minimum_balance_cents - sum(amount of withdrawal_request/TrustFeeTransfer in status authorized for that ledger). Every fee transfer, disbursement and refund from trust checks it under the ledger row lock at authorization and at execution.",
+      "source": "LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) (verify); r-review RV1-002, RV1-003",
+      "test": "BIL-X-023; cheque receipt $5,000 uncleared, fee withdrawal $1,000 -> 409 uncleared_funds; protected $2,000 on $5,000, withdrawal $3,000.01 -> 409 trust_overdraw",
+      "config": null
+    },
+    {
+      "id": "BIL-C-054",
+      "title": "Bill reservation for authorized fee transfers",
+      "rule": "bill.reserved_cents = sum of fee transfers for the bill in authorized or executed-not-yet-applied. A new fee transfer needs amount <= balance - reserved_cents; payment and client-credit allocation to the bill is capped at balance - reserved_cents, the excess goes to unapplied then client credit (BIL-C-063). Cancelling an authorized transfer releases its reservation.",
+      "source": "r-review RV1-002",
+      "test": "BIL-X-023: bill $5,086.76, $3,000 reserved, card $2,500 -> $2,086.76 allocated, $413.24 excess",
+      "config": null
+    },
+    {
+      "id": "BIL-C-055",
+      "title": "Executed fee transfer above the bill balance",
+      "rule": "If at application an executed fee transfer exceeds the bill balance, apply the balance, post the excess to OP-2300 Due to trust and create a G6 return-to-trust task due the same day.",
+      "source": "LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) (verify); r-review RV1-002",
+      "test": "BIL-X-024: $3,000 executed, balance $2,500 -> $500 due to trust",
+      "config": null
+    },
+    {
+      "id": "BIL-C-060",
+      "title": "Allocation within a bill (default fees_first)",
+      "rule": "Principal before interest: a payment first pays open principal (pre-tax + tax), then interest. Tax share per BIL-C-202. Pre-tax part order: fees, then own-cost disbursements, then agent disbursements. Alternative 'proportional' spreads the pre-tax part over the three buckets by largest remainder. Changing it is a G-B8 settings change effective for payments posted after it. The order is for revenue and fee-credit reporting; tax collected is unaffected (b2 BIL-T-082).",
+      "source": "billing.json invoice-editor edge (fees > disbursements > interest)",
+      "test": "BIL-X-007: $1,500 -> tax $164.80, fees $1,335.20",
+      "config": {
+        "allocation_within_bill": "fees_first"
+      }
+    },
+    {
+      "id": "BIL-C-061",
+      "title": "Pre-tax part fills buckets in order",
+      "rule": "pre = P - tax share; fee bucket takes min(pre, fee_open), the rest goes to dtx, then dnt. Stored per allocation row (fee, dtx, dnt, tax, interest) so reversals mirror it exactly.",
+      "source": "design",
+      "test": "BIL-X-014: $590 -> tax $65.00, fees $525.00",
+      "config": null
+    },
+    {
+      "id": "BIL-C-062",
+      "title": "Allocation across bills (default oldest_due_first)",
+      "rule": "A payment through a bill link or naming a bill number goes to that bill (excess per BIL-C-063). Otherwise order by (due_date, delivered_at, bill number) of the same client's open bills. Settings: oldest_due_first | proportional | manual. Payment plans use the same default and may be overridden per plan.",
+      "source": "billing.json payments-inbox, payment-plans; Clio payment plans (r06)",
+      "test": "BIL-X-008: 0131 then 0148",
+      "config": {
+        "allocation_across_bills": "oldest_due_first"
+      }
+    },
+    {
+      "id": "BIL-C-063",
+      "title": "Overpayment",
+      "rule": "Excess goes to ClientCredit (OP-2200) for that client under G-B3 (while G-B3 is pending it is an unapplied allocation, CF-13). Never to another client. Client credit is client money, not earned fees, so it is short-lived (BIL-C-067).",
+      "source": "billing.json payments-inbox edge",
+      "test": "BIL-X-008: $240.00 to client credit",
+      "config": null
+    },
+    {
+      "id": "BIL-C-064",
+      "title": "Refund",
+      "rule": "Refund <= client credit; to the original method up to its captured amount, else by cheque/EFT from operating; G-B6 by a lawyer not the requester.",
+      "source": "billing.json credit-notes, G-B6",
+      "test": "BIL-X-015: $955.00",
+      "config": null
+    },
+    {
+      "id": "BIL-C-065",
+      "title": "Reversal (chargeback, NSF, failed PAD)",
+      "rule": "Reverse every allocation of the payment with its stored bucket split, recompute bill status; fees debited to operating. A reversal of a trust deposit always opens a trust exception; in the same DB transaction, only if the ledger would go negative, insert a receipt from the firm general account for exactly the shortfall (G6) with Dr OP-1100 receivable from client (or OP-6100) / Cr OP-1000.",
+      "source": "billing.json payment-settings edge; LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) (verify)",
+      "test": "BIL-X-020: bill back to $2,086.76; BIL-X-026: shortfall 300000 replenished, ledger 0; ledger with 500000 -> reversal only",
+      "config": null
+    },
+    {
+      "id": "BIL-C-066",
+      "title": "Applying client credit",
+      "rule": "Same client only, to delivered bills, G-B3; allocated like a payment (BIL-C-060).",
+      "source": "billing.json receivables-aging",
+      "test": "BIL-X-022: $240 to bill 0155",
+      "config": null
+    },
+    {
+      "id": "BIL-C-067",
+      "title": "Client credit is short-lived",
+      "rule": "Within client_credit_max_business_days (firm setting, default 5, verify against By-Law 9) of creation, client credit must be (a) applied to a delivered bill of the same client under G-B3 with client direction, (b) refunded under G-B6, or (c) transferred to trust under G6 (BIL-J-019). A daily aging job opens a trust exception 'client money in operating' for credit older than the limit.",
+      "source": "b1 BIL-L-042; LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) money belonging to a client received in the general account (verify provision and time limit)",
+      "test": "BIL-X-025: $240 created 2026-10-07, open on 2026-10-15 -> exception task",
+      "config": {
+        "client_credit_max_business_days": 5
+      }
+    },
+    {
+      "id": "BIL-C-068",
+      "title": "Provider events apply by state precedence",
+      "rule": "Dedup on (provider, event_id). Handlers re-fetch the provider object by provider_ref and set payment state by precedence pending < received < posted < partially_refunded < refunded; reversed is terminal. Order of arrival does not matter; a lower-precedence event after a higher one is a no-op.",
+      "source": "r-review RV1-022",
+      "test": "dispute event before capture -> payment created then reversed once; capture replayed after refund -> no change",
+      "config": null
+    },
+    {
+      "id": "BIL-C-070",
+      "title": "Interest start and method",
+      "rule": "Simple interest, actual/365, on open principal (bill total excluding interest, less principal allocations, credit notes and write-offs) for each day in [start, paid_date). start = max(due_date, months_after(delivery_local_date, 1)) (BIL-C-073). No interest on interest.",
+      "source": "Solicitors Act, R.S.O. 1990, c. S.15 (https://www.ontario.ca/laws/statute/90s15) s.33(1); b1 BIL-L-008",
+      "test": "BIL-X-009: 43 days x 6% on $2,086.76 = $14.75; 2026-01-31 delivery -> start 2026-02-28",
+      "config": null
+    },
+    {
+      "id": "BIL-C-071",
+      "title": "Interest rate source",
+      "rule": "Charged only at a rate the client agreed in writing, printed on the bill. The rate is snapshotted to bill.interest_rate_ppm at approval; later profile changes affect only later bills. A firm may set its agreed rate equal to a CJA s.127 published rate as a benchmark, but the Act supplies no default rate. Default: off.",
+      "source": "Solicitors Act, R.S.O. 1990, c. S.15 (https://www.ontario.ca/laws/statute/90s15) s.33(3),(5); b1 BIL-L-009, BIL-L-010; Courts of Justice Act, R.S.O. 1990, c. C.43, s.127 (https://www.ontario.ca/laws/statute/90c43)",
+      "test": "retainer silent, profile 6% -> interest 0 and agent warning",
+      "config": {
+        "interest_default": "off"
+      }
+    },
+    {
+      "id": "BIL-C-072",
+      "title": "Interest posting",
+      "rule": "Interest is not a bill line on an approved bill. It accrues in InterestCharge rows posted at each month end and at payoff/credit/write-off, shown on statements and reminders, and may be carried as a non-taxable line on the next bill (BIL-C-204). Cumulative method: posting_k = rhu(sum over principal segments of principal_i * rate_ppm * days_i, 1e6 * 365) from interest start to the posting date, minus the sum of prior postings; a segment ends at each allocation, credit or write-off. Total charged always equals the one-shot figure.",
+      "source": "design; b1 BIL-L-008..011",
+      "test": "BIL-X-009: 2026-11-30 posts $9.95 (29 days); payoff posts $14.75 - $9.95 = $4.80; total exactly $14.75",
+      "config": null
+    },
+    {
+      "id": "BIL-C-073",
+      "title": "Dates for billing clocks",
+      "rule": "delivery_local_date = delivered_at AT TIME ZONE 'America/Toronto'. One-month windows use months_after(local_date, n) (same day n months later, clamped to month end, b1 BIL-L-003/004); day windows use days_after(local_date, n); the two never share code. Interest accrues for days >= months_after(d, 1); suit (Solicitors Act s.2) is allowed on days > months_after(d, 1) until counsel confirms otherwise.",
+      "source": "Solicitors Act, R.S.O. 1990, c. S.15 (https://www.ontario.ca/laws/statute/90s15) ss.2, 33; Legislation Act, 2006, S.O. 2006, c. 21, Sched. F, s.89 (verify); b1 BIL-L-003, BIL-L-004",
+      "test": "BIL-X-027: 2026-01-31 -> 2026-02-28; 2028-02-29 + 12 -> 2029-02-28; delivered 2026-11-01T03:30Z -> local 2026-10-31 -> 2026-11-30",
+      "config": null
+    },
+    {
+      "id": "BIL-C-080",
+      "title": "Credit notes never edit bills",
+      "rule": "A credit note references one bill (one payer bill on split), has its own gapless sequence assigned at issue, kind in {fee_reduction, billing_error, bad_debt_write_off, refund}, and lists pre-tax per bucket and tax per tax line.",
+      "source": "b2-sales-tax BIL-T-070, BIL-T-071",
+      "test": "CN-0012 on bill 2026-0147",
+      "config": null
+    },
+    {
+      "id": "BIL-C-081",
+      "title": "Where a credit goes",
+      "rule": "First reduces open AR of the bill. Excess goes back to the sources of payment: trust-sourced allocations first (OP-2300 Due to trust, repaid by a trust receipt under G6 the same day), then client credit (OP-2200), which follows BIL-C-067.",
+      "source": "billing.json credit-notes (refunds of trust-paid fees go back to trust first); LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) (verify)",
+      "test": "BIL-X-010: $3,955 -> trust $3,000, client credit $955",
+      "config": null
+    },
+    {
+      "id": "BIL-C-082",
+      "title": "Credit limits",
+      "rule": "Per bucket: credited pre-tax <= billed pre-tax minus prior credits and write-offs.",
+      "source": "design",
+      "test": "bill fees $1,000, prior CN $900, new CN $200 -> 409 credit_exceeds_bill",
+      "config": null
+    },
+    {
+      "id": "BIL-C-084",
+      "title": "Void",
+      "rule": "Draft/pending: discard (no number). Approved and delivered_at null: void under G-B2 (billing.approve, not the preparer) keeps number, posts exact reversal of the approval entry dated the void date, unlocks entries to approved; no credit note. delivered_at not null: 409 bill_delivered_use_credit_note (use POST /credit-notes). a2 voidBill must match.",
+      "source": "billing.json invoice-editor",
+      "test": "BIL-X-018; void on delivered bill -> 409 bill_delivered_use_credit_note",
+      "config": null
+    },
+    {
+      "id": "BIL-C-085",
+      "title": "Write-off of a balance",
+      "rule": "G-B5 (lawyer other than requester; owner role above threshold). Writes off all open buckets; open tax gives the bad-debt adjustment (BIL-C-205).",
+      "source": "billing.json credit-notes; b2-sales-tax BIL-T-080",
+      "test": "BIL-X-014: $590.00, adjustment $65.00",
+      "config": {
+        "writeoff_second_approval_cents": 100000
+      }
+    },
+    {
+      "id": "BIL-C-086",
+      "title": "Recovery after write-off",
+      "rule": "A payment on a written_off bill (billing.payments, G-B3) stays on that bill, up to the written-off amount: tax part = rhu(recovered * bill_tax, bill_total) per tax line, posted Cr OP-2100 in the recovery period; pre-tax part Cr OP-6100 (BIL-J-018). Status stays written_off; recovered_cents is tracked.",
+      "source": "b2-sales-tax BIL-T-081",
+      "test": "BIL-X-030: $118.00 -> tax $13.00, bad debt credit $105.00",
+      "config": null
+    },
+    {
+      "id": "BIL-C-090",
+      "title": "Split shares",
+      "rule": "BillSplit share_ppm per payer, sum = 1000000, payer order = sort_order (first payer = lowest). applies_to = all | fees | disbursements; non-covered lines go to the client payer.",
+      "source": "billing.json split-billing",
+      "test": "60/40 -> 600000/400000; 60/39 -> 422 split_sum",
+      "config": null
+    },
+    {
+      "id": "BIL-C-091",
+      "title": "Split per line with cumulative carry",
+      "rule": "Lines in sort_order; C_k = cumulative line amount through line k. Non-first payer p on line k = floor(C_k * share_ppm_p / 1e6) - amount already assigned to p; first payer takes the rest of the line. If the first payer's part would be negative (a line smaller than payers - 1 cents), cut the non-first parts from the last payer backwards; the cut carries to later lines. Each non-first payer ends within 1 cent of its share of the bill, so the first payer no longer absorbs a cent per line.",
+      "source": "billing.json split-billing edge; r-review RV1-024",
+      "test": "BIL-X-012: $1,000.01 -> $600.01 / $400.00; BIL-X-028: 200 x $1.01 at 50/50 -> $101.00 / $101.00",
+      "config": null
+    },
+    {
+      "id": "BIL-C-092",
+      "title": "Payer bills are independent",
+      "rule": "Each payer bill has its own number, tax computation (BIL-C-200), allocations, interest and aging; trust of one payer is never applied to another payer's bill.",
+      "source": "billing.json split-billing edge",
+      "test": "BIL-X-012: HST $80.60 + $53.73",
+      "config": null
+    },
+    {
+      "id": "BIL-C-100",
+      "title": "Surcharge eligibility",
+      "rule": "Only when all hold: firm setting on; card-network notice date passed; surcharge-free method offered; card funding = credit (not debit, prepaid, wallet); destination = operating; firm not in Quebec and card billing address not in Quebec; LSO position check attached at enable. Otherwise surcharge = 0.",
+      "source": "Card-network surcharge rules for Canada as published by processors (Clio Canada surcharging article, research r05/r06); Quebec Consumer Protection Act CQLR c P-40.1 (verify section); LSO position (verify)",
+      "test": "Visa debit -> 0; Quebec billing address -> 0; retainer to trust -> 0",
+      "config": null
+    },
+    {
+      "id": "BIL-C-101",
+      "title": "Surcharge amount",
+      "rule": "surcharge_ppm <= min(24000, cost_of_acceptance_ppm); surcharge = rhu(amount_applied * ppm, 1e6); shown as its own receipt line with the percent, plus its tax (BIL-C-208). Feature flag surcharge_enabled ships off until BIL-C-208 and CF-18 are verified.",
+      "source": "Card-network surcharge rules for Canada as published by processors (Clio Canada surcharging article, research r05/r06); Quebec Consumer Protection Act CQLR c P-40.1 (verify section)",
+      "test": "BIL-X-013: $1,130.00 x 2.40% = $27.12",
+      "config": {
+        "surcharge_ppm": 0,
+        "surcharge_enabled": false
+      }
+    },
+    {
+      "id": "BIL-C-102",
+      "title": "Refund of a surcharged payment",
+      "rule": "A refund of part or all of a surcharged payment refunds the surcharge and its tax pro rata: surcharge_refund = rhu(surcharge * refunded, amount_applied), tax per line = rhu(surcharge_tax * refunded, amount_applied); a full refund returns exactly the remaining surcharge and tax.",
+      "source": "r-review RV1-007",
+      "test": "BIL-X-029: $565 of $1,130 -> surcharge $13.56, HST $1.77",
+      "config": null
+    },
+    {
+      "id": "BIL-C-110",
+      "title": "Batch billing",
+      "rule": "Each draft is built in its own transaction with idempotency key (batch_run_id, matter_id | client_id, period_to). Matters under minimum_bill_cents are skipped and listed. Drafts go to G-B1; nothing is auto-approved. Cut-off: entries dated <= cutoff (default) or created <= cutoff.",
+      "source": "billing.json batch-billing",
+      "test": "re-running run R1 creates 0 new drafts; one matter failing does not roll back others",
+      "config": {
+        "cutoff_rule": "dated"
+      }
+    },
+    {
+      "id": "BIL-C-111",
+      "title": "Combined client bill",
+      "rule": "Lines grouped by matter; per-matter subtotals; tax computed once on the whole bill; trust applied per matter subtotal only.",
+      "source": "billing.json open question; trust per matter",
+      "test": "matter A $1,000 owed, matter B ledger $5,000 -> B trust cannot pay A lines",
+      "config": null
+    },
+    {
+      "id": "BIL-C-120",
+      "title": "Bill numbering",
+      "rule": "Number assigned in the approval transaction from a per-firm sequence row (SELECT ... FOR UPDATE), format prefix-YYYY-NNNN; gapless; voided numbers kept. Credit notes use their own sequence.",
+      "source": "billing.json invoice-editor",
+      "test": "two concurrent approvals get 0147 and 0148, never the same",
+      "config": null
+    },
+    {
+      "id": "BIL-C-121",
+      "title": "Bill date = approval date",
+      "rule": "Bill date is the approval date (Toronto). HST is reported in the period of the bill date.",
+      "source": "b2-sales-tax BIL-T-050",
+      "test": "approved 2026-09-30 23:30 Toronto, delivered 2026-10-01 -> HST in September",
+      "config": null
+    },
+    {
+      "id": "BIL-C-122",
+      "title": "Delivery starts the clocks",
+      "rule": "delivered_at is set only by the delivery effect handler on evidence (email provider accepted + message-id, portal first view, or clerk-entered mailing date with proof), only from null to a value <= now(), and never changed after (corrections are an audited delivery_correction under G-B2). It drives trust application eligibility, interest start, aging buckets, suit and assessment windows, always via delivery_local_date (BIL-C-073). A bounce leaves delivered_at null.",
+      "source": "Solicitors Act, R.S.O. 1990, c. S.15 (https://www.ontario.ca/laws/statute/90s15) ss.2, 3, 4 (verify electronic delivery)",
+      "test": "bounced email: trust proposal stays not_eligible",
+      "config": null
+    },
+    {
+      "id": "BIL-C-123",
+      "title": "Void across tax periods",
+      "rule": "A void reverses on the void date. If the bill-date period is already filed, the reversal is a negative adjustment in the void period; a void in the same unfiled period nets to zero. Preflight warning W-PERIOD-CROSS for any approved bill still undelivered at period end.",
+      "source": "b2-sales-tax BIL-T-090; r-review RV1-021",
+      "test": "BIL-X-031: approved 2026-09-30, Q3 filed, void 2026-10-05 -> Q4 adjustment -$130.00",
+      "config": null
+    },
+    {
+      "id": "BIL-C-200",
+      "title": "Tax once per bill per tax line",
+      "rule": "For each tax line: tax = rhu(sum(taxable line net after discounts) * rate_ppm, 1e6). Never per line. Rates from TaxRate rows effective on the tax point.",
+      "source": "b2-sales-tax BIL-T-040, BIL-T-001, BIL-T-002; CRA GST/HST rates (https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/charge-collect-which-rate/calculator.html)",
+      "test": "BIL-X-003: $4,298.90 x 13% -> $558.86",
+      "config": null
+    },
+    {
+      "id": "BIL-C-201",
+      "title": "Approval preconditions for tax",
+      "rule": "Approval refused if the firm GST/HST registration number is missing or invalid, or place of supply is not confirmed by the lawyer.",
+      "source": "b2-sales-tax BIL-T-010, BIL-T-060, BIL-T-061; b1 BIL-L-047",
+      "test": "no registration -> 409 tax_registration_missing",
+      "config": null
+    },
+    {
+      "id": "BIL-C-202",
+      "title": "Tax share of every allocation is proportional",
+      "rule": "Each principal allocation P on a bill carries tax = rhu(P * tax_open, principal_open) where principal_open = open pre-tax + open tax; an allocation that clears principal takes the exact remaining tax. The pre-tax part then follows BIL-C-061. With two tax lines, split the tax share by largest remainder over open tax per line.",
+      "source": "b2-sales-tax BIL-T-082",
+      "test": "BIL-X-006: rhu(300000 x 55886 / 508676) = $329.60",
+      "config": null
+    },
+    {
+      "id": "BIL-C-203",
+      "title": "Credit note tax (single rule for b2 and b3)",
+      "rule": "Per tax line: tax = rhu(credit_pre_tax * line_tax, bill_taxable_base), using the source bill's tax lines and rates; a credit that exhausts the remaining taxable base takes exactly the remaining tax.",
+      "source": "b2-sales-tax BIL-T-070 (same formula), BIL-T-002",
+      "test": "BIL-X-011: $0.44, $0.44, then remainder $0.43; base 5 c, tax 1 c, credit 3 c -> tax 1 c (rate x credit would give 0 and lets credits exceed bill tax)",
+      "config": null
+    },
+    {
+      "id": "BIL-C-204",
+      "title": "No tax on interest",
+      "rule": "Interest charges for late payment carry no GST/HST and appear on their own non-taxable line. Card surcharges are not covered here (BIL-C-208).",
+      "source": "b2-sales-tax BIL-T-043; b1 BIL-L-049; ETA s.161",
+      "test": "BIL-X-009 interest $14.75 tax 0",
+      "config": null
+    },
+    {
+      "id": "BIL-C-205",
+      "title": "Bad-debt tax adjustment",
+      "rule": "On write-off, tax adjustment = open tax of the bill (which equals rhu(bill_tax * written_off, bill_total) because BIL-C-202 keeps allocations proportional); posted in the period of write-off. Recovery later re-includes tax proportionally (BIL-C-086).",
+      "source": "b2-sales-tax BIL-T-080, BIL-T-081",
+      "test": "BIL-X-014: $65.00",
+      "config": null
+    },
+    {
+      "id": "BIL-C-206",
+      "title": "Two-line taxes",
+      "rule": "GST + QST/PST: each line on the same pre-tax base, rounded separately, no tax on tax; provincial line only if the firm holds that registration.",
+      "source": "b2-sales-tax BIL-T-041, BIL-T-020, BIL-T-022",
+      "test": "BIL-X-019: GST $100.00, QST $199.50",
+      "config": null
+    },
+    {
+      "id": "BIL-C-207",
+      "title": "Place of supply changed after approval",
+      "rule": "Before delivery: void and rebuild (new number). After delivery: full credit note + new bill. Replaces the spec's 'returns to draft', which would break approved-bill immutability.",
+      "source": "billing.json invoice-editor edge (reconciled); b2-sales-tax BIL-T-071",
+      "test": "ON bill $1,130.00 delivered, client is QC (firm QST-registered) -> CN $1,130.00 + new bill $1,149.75",
+      "config": null
+    },
+    {
+      "id": "BIL-C-208",
+      "title": "Card surcharge is taxable (verify)",
+      "rule": "A card surcharge is extra consideration for the supply being paid, so it is taxed at the paid bill's tax lines: per tax line, surcharge_tax = rhu(surcharge * line_tax, bill_total - bill_tax), i.e. the bill's effective rate on its pre-tax total (agency disbursements dilute it). Same rule as b2 BIL-T-044. (verify with CRA GST/HST guidance before enabling.)",
+      "source": "b2-sales-tax BIL-T-044 (verify); Excise Tax Act, R.S.C. 1985, c. E-15 (https://laws-lois.justice.gc.ca/eng/acts/E-15/)",
+      "test": "BIL-X-013: surcharge $27.12, HST $3.53, charged $1,160.65",
+      "config": null
+    }
+  ]
+}
