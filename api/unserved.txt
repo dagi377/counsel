@@ -14,9 +14,6 @@ GET /drafts
 POST /payments/{payment_id}/allocations
 POST /payments/{payment_id}/refunds
 GET /roles
-POST /trust/bank-lines/imports
-POST /trust/reconciliations
-POST /trust/reconciliations/{reconciliation_id}/submit
 GET /trust/requests
 POST /trust/requests
 POST /trust/transfers
