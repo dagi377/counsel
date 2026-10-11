@@ -311,11 +311,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.RetainerWatchDef().ID:                matter.RetainerWatchBinding,
 		matter.ConfigHygieneDef().ID:                matter.ConfigHygieneBinding,
 		matter.TemplateFitDef().ID:                  matter.TemplateFitBinding,
-		matter.FeatureChronology: func() (trigger.Binding, error) {
-			// F-MAT-12 refreshes on a new document or email on the matter, for the event's user
-			// (Q-INTEG-16-SCREENS); the screen action covers on-request runs.
-			return trigger.Bind(matter.ChronologyDef(), "", matter.EventDocumentUploaded, matter.EventEmailFiled)
-		},
+		matter.FeatureChronology:                    matter.ChronologyBinding,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {

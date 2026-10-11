@@ -3208,5 +3208,5 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - JobBindings: F-CON-05, F-CON-10 and F-DL-05 now act for their designated lawyer
   (JOB-ACTOR), and so do F-DOC-06 (TemplateCurrencyBinding, which also starts on
   court_form.changed), F-DOC-07, F-MAT-05, F-MAT-09 and F-MAT-14. F-DOC-09 still takes the
-  rule admin; open: switch CourtFormCurrencyBinding to BindDesignated. F-MAT-12 had no
-  binding; boot binds it to document.uploaded and email.filed for the event's user.
+  rule admin; open: switch CourtFormCurrencyBinding to BindDesignated. F-MAT-12 binds to
+  document.uploaded for the event's user (ChronologyBinding).
