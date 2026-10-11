@@ -2334,3 +2334,18 @@ Done in PORT-18:
   follow-up; none on main) must write both.
 - Built on main without HTTP-18b, so the interface check is in the test; after HTTP-18b merges,
   add `var _ Statements = (*PGStatements)(nil)` and wire it as `WriteHTTP.Statements` at boot.
+
+## Q-HTTP-15 Gated payment routes: proposed allocations and refund gate
+
+- POST /payments/{payment_id}/allocations: the sum must equal the payment (422
+  allocation_sum_mismatch, ARC-I-029). A set of operating bills only, each named once, is
+  proposed directly (200, allocation state `proposed`) through a new `payment.Proposals`
+  port; the route declares `payment.allocation=proposed` and never
+  `payment.allocation=applied`. Unapplied money (client credit) or a trust_ledger row opens
+  billing.payment_allocation (202). The payment version is 1, as GET reports it.
+- POST /payments/{payment_id}/refunds opens billing.refund (202) with payee = the payment's
+  payer of record and reason = reason_code; an amount above the payment answers 409
+  refund_exceeds_payment. The billing.refund effect (provider call keyed <gate_id>:<version>)
+  and its registration are not built yet: an approved refund pays nothing until they are.
+- Boot must wire `payment.Gated` (DB, Gates, Proposals and the HTTP dependencies); until it
+  does, both routes answer 503.
