@@ -1,4 +1,4 @@
-package conflicts
+package conflict_test
 
 import (
 	"context"
@@ -229,12 +229,12 @@ func TestAI_R_002_CON01_PartyExtraction(t *testing.T) {
 			}
 
 			// The agent never approves; the acting-for user never decides its own gate.
-			gf, err := gatesfake.New(gates.Kind{Code: con01GateKind, Approver: "conflict.clear"})
+			gf, err := gatesfake.New(gates.Kind{Code: con01GateKind, Approver: "conflicts.clear"})
 			if err != nil {
 				t.Fatal(err)
 			}
 			g := gates.Gate{ID: p.GateID, Code: p.GateKind, Preparer: gates.Principal{UserID: "agent", Agent: true, ActingFor: con01Actor}}
-			agentBy := gates.Principal{UserID: "agent", Agent: true, ActingFor: con01Actor, Capabilities: []string{"conflict.clear"}}
+			agentBy := gates.Principal{UserID: "agent", Agent: true, ActingFor: con01Actor, Capabilities: []string{"conflicts.clear"}}
 			if got := con01Status(gf.CheckDecision(ctx, g, agentBy, time.Unix(0, 0))); got != http.StatusForbidden {
 				t.Fatalf("agent decides gate: status %d, want 403", got)
 			}
