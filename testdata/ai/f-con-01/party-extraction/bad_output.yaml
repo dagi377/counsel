@@ -1,0 +1,5 @@
+synthetic: true
+feature: F-CON-01
+match:
+  last_user_regex: '\[bad_output\]'
+fault: malformed
