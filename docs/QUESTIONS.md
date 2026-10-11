@@ -298,3 +298,12 @@ Template:
   cannot import app/legal (it imports them), so each keeps one exported mirror per package;
   the private copies in clio and billing/assessment were folded into it, and
   `TestFlagMirrorsMatchCanonicalNames` checks every mirror against app/legal.
+
+## T-024.1: interest start day (day after months_after, or months_after itself)
+
+- The frozen contract (`Calendar.AccrualStart`) and the T-024.1 accept line start interest on
+  the day after `months_after(delivery, 1)` (delivered 2026-01-15 -> accrues from 2026-02-16).
+  BIL-C-073 and BIL-L-008 say interest accrues for days `>= months_after(d, 1)` (2026-02-15).
+- Done: `interest.Start` follows the contract and accept line, tagged (verify), behind
+  `billing.solicitors_act_verified`. Counsel must confirm which day is correct.
+- Integrator: add `interest.FlagSolicitorsActVerified` to `TestFlagMirrorsMatchCanonicalNames`.
