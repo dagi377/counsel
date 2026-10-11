@@ -195,3 +195,43 @@ UPDATE billing.bill
 	}
 	return nil
 }
+
+// Approve (PGService) assigns the next gapless number in tx and freezes the bill. The bill_guard trigger
+// also requires an approved billing.bill_approval gate on the bill.
+func (s *PGService) Approve(ctx context.Context, tx pgx.Tx, a Approval) (Bill, error) {
+	if a.ApprovalID == "" || a.ApprovedBy == "" || a.Prefix == "" || a.ApprovedAt.IsZero() {
+		return Bill{}, fmt.Errorf("approve %s: %w", a.BillID, ErrInvalid)
+	}
+	b, err := s.lock(ctx, tx, "approve", a.BillID)
+	if err != nil {
+		return Bill{}, err
+	}
+	if b.ApprovalID == a.ApprovalID && b.Status != StatusPendingApproval {
+		return b, nil // replay: already applied
+	}
+	if b.Status != StatusPendingApproval {
+		return Bill{}, fmt.Errorf("approve %s in %s: %w", b.ID, b.Status, ErrNotPending)
+	}
+	// rule: BIL-C-084
+	// The preparer never approves; checked before a number is taken.
+	if a.ApprovedBy == b.PreparedBy {
+		return Bill{}, fmt.Errorf("approve %s: %w", b.ID, ErrPreparerApproves)
+	}
+	next := s.Next
+	if next == nil {
+		next = NextNumber
+	}
+	// rule: BIL-C-120
+	number, err := next(ctx, tx, a.Prefix, businessDate(a.ApprovedAt).Year())
+	if err != nil {
+		return Bill{}, fmt.Errorf("approve %s: %w", b.ID, err)
+	}
+	approved, err := applyApproval(b, a, number)
+	if err != nil {
+		return Bill{}, err
+	}
+	if err := (PGStore{}).SaveApproval(ctx, tx, approved); err != nil {
+		return Bill{}, err
+	}
+	return s.read(ctx, tx, b.ID)
+}

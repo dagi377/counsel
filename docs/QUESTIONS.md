@@ -2487,3 +2487,14 @@ Done in PORT-18:
   (`boot.JobBindings`) lists `document.uploaded` and `email.filed`. Open: no HTTP route or
   inbound-mail rule calls `FileEmail` yet; the route that files an email must wire it with the
   outbox Emitter.
+## PG-BILL
+
+- `billing.bill_guard` (0001_init.sql) freezes `signed_by`, `signed_at` and `signature_hash` once a bill
+  leaves draft, but `bill.Service.Sign` signs an approved bill. `bill.PGService.Sign` issues the update
+  and the trigger refuses it, so on Postgres a bill cannot be signed and therefore not delivered. Needs
+  an additive guard change (allow NULL -> value once on an approved, undelivered bill) or signing before
+  approval. Not changed here.
+- `bill.PGService.Update` refuses a `Change.Lines` on a draft (`ErrInvalid`): bill lines are never
+  deleted, so lines change only through `draft.PGDrafts.Edit` line actions.
+- `draft.PGDrafts` taxes every draft at one component (boot: HST-ON at 130000 ppm). Place of supply
+  per payer (BIL-C-201/207) is not applied at draft time.
