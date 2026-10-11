@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
 var (
@@ -81,7 +81,7 @@ func OpeningListHash(lines []OpeningLine, statementSHA256 string) string {
 // CheckOpeningSigned returns nil only when owner, a licensee with signing authority and the
 // bookkeeper have each signed the current list hash. Signatures over another hash are void.
 func CheckOpeningSigned(ctx context.Context, s OpeningSignoff) error {
-	if !flags.Enabled(ctx, FlagBylaw9Verified) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return ErrOpeningUnverified
 	}
 	if s.AccountID == "" || s.StatementSHA256 == "" || len(s.Lines) == 0 {

@@ -1,18 +1,19 @@
 package feeshare
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/api"
-	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/money"
 )
 
-// feeshareFlag is legal.FlagContingencyFees (V-CFA). It is spelled out here because app/legal
-// imports this package. Every Checker method refuses with ErrOff while it is off.
-const feeshareFlag = "billing.contingency_fees"
+// feeshareFlag is legalflags.ContingencyFees (V-CFA). Every Checker method refuses with
+// ErrOff while it is off.
+const feeshareFlag = legalflags.ContingencyFees
 
 // ErrOff is returned by every Checker method while billing.contingency_fees is off.
 var ErrOff = errors.New("feeshare: fee splitting and referral fees are not enabled")
@@ -62,12 +63,11 @@ type Payable struct {
 
 // Checker checks fee-division and referral-fee payables. It is pure: callers load and store.
 type Checker struct {
-	Flags flags.Flags
 	Money money.Arithmetic
 }
 
-func (c Checker) on() error {
-	if c.Flags == nil || !c.Flags.Enabled(feeshareFlag) {
+func (c Checker) on(ctx context.Context) error {
+	if !legalflags.Enabled(ctx, feeshareFlag) {
 		return ErrOff
 	}
 	return nil
@@ -79,8 +79,8 @@ func problem(code, rule, title string) error {
 
 // CheckPayable refuses a payable that splits fees or pays a referral fee in breach of the
 // conduct rules. feesBilledCents is the fees billed on the matter, the base of the referral cap.
-func (c Checker) CheckPayable(p Payable, feesBilledCents money.Cents) error {
-	if err := c.on(); err != nil {
+func (c Checker) CheckPayable(ctx context.Context, p Payable, feesBilledCents money.Cents) error {
+	if err := c.on(ctx); err != nil {
 		return err
 	}
 	if p.AmountCents < 0 {
@@ -116,7 +116,7 @@ func (c Checker) CheckPayable(p Payable, feesBilledCents money.Cents) error {
 	case p.ClientConsentDocID == "":
 		return problem("REFERRAL_CONSENT_REQUIRED", "BIL-L-031", "the client's written consent is required")
 	}
-	limit, err := c.ReferralCap(feesBilledCents)
+	limit, err := c.ReferralCap(ctx, feesBilledCents)
 	if err != nil {
 		return err
 	}
@@ -127,8 +127,8 @@ func (c Checker) CheckPayable(p Payable, feesBilledCents money.Cents) error {
 }
 
 // ReferralCap returns min(15% of the first $50,000 of fees + 5% of the rest, $25,000).
-func (c Checker) ReferralCap(feesBilledCents money.Cents) (money.Cents, error) {
-	if err := c.on(); err != nil {
+func (c Checker) ReferralCap(ctx context.Context, feesBilledCents money.Cents) (money.Cents, error) {
+	if err := c.on(ctx); err != nil {
 		return 0, err
 	}
 	if feesBilledCents <= 0 {

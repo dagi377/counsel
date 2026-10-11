@@ -5,21 +5,22 @@ import (
 	"time"
 	_ "time/tzdata" // the expiry is a Toronto date on any host
 
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/flags"
 )
 
-// Verify flags gate code built on law nobody has confirmed yet. Each stays off until the owner
-// named on it confirms the rule; see docs/DECISIONS-NEEDED.md for the open question behind each.
+// Verify flag names. legalflags holds them, so module packages read the same names;
+// app/legal keeps these names for its callers.
 const (
-	FlagCardSurcharge          = "billing.card_surcharge"          // V-SURCHARGE
-	FlagContingencyFees        = "billing.contingency_fees"        // V-CFA
-	FlagBillingRecordsVerified = "billing.records_verified"        // V-TRUST
-	FlagSolicitorsActVerified  = "billing.solicitors_act_verified" // V-BILL
-	FlagIDVerification         = "conflict.id_verification"        // V-ID
-	FlagDeadlineOntarioPack    = "deadline.ontario_pack"           // V-DEADLINES
-	FlagExportPostCancelWindow = "export.post_cancel_window"       // customer contract
-	FlagTaxVerifyRules         = "tax.verify_rules"                // V-TAX
-	FlagTrustBylaw9Verified    = "trust.bylaw9_verified"           // V-TRUST
+	FlagCardSurcharge          = legalflags.CardSurcharge
+	FlagContingencyFees        = legalflags.ContingencyFees
+	FlagBillingRecordsVerified = legalflags.BillingRecordsVerified
+	FlagSolicitorsActVerified  = legalflags.SolicitorsActVerified
+	FlagIDVerification         = legalflags.IDVerification
+	FlagDeadlineOntarioPack    = legalflags.DeadlineOntarioPack
+	FlagExportPostCancelWindow = legalflags.ExportPostCancelWindow
+	FlagTaxVerifyRules         = legalflags.TaxVerifyRules
+	FlagTrustBylaw9Verified    = legalflags.TrustBylaw9Verified
 )
 
 // verifyExpiry is when every verify flag must be confirmed and made permanent, or removed.

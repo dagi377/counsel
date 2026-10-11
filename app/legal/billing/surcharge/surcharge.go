@@ -1,16 +1,16 @@
 package surcharge
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/money"
 )
 
-// Flag gates card surcharges (V-SURCHARGE). It is legal.FlagCardSurcharge, repeated here
-// because app/legal imports this package. Off by default.
-const Flag = "billing.card_surcharge"
+// Flag gates card surcharges (V-SURCHARGE). It is legalflags.CardSurcharge. Off by default.
+const Flag = legalflags.CardSurcharge
 
 // CapPPM is the card-network ceiling on a surcharge rate: 2.40%.
 const CapPPM int64 = 24000
@@ -76,14 +76,13 @@ type Charge struct {
 // Calc computes card surcharges. Money does every rounded division.
 type Calc struct {
 	Money money.Arithmetic
-	Flags flags.Flags
 }
 
 // Eligible reports whether every BIL-C-100 condition holds and the feature flag is on.
 //
 // rule: BIL-C-100
-func (c Calc) Eligible(s Snapshot) bool {
-	return c.Flags != nil && c.Flags.Enabled(Flag) &&
+func (c Calc) Eligible(ctx context.Context, s Snapshot) bool {
+	return legalflags.Enabled(ctx, Flag) &&
 		s.FirmSettingOn && s.NoticeDatePassed && s.SurchargeFreeOffered &&
 		s.Funding == FundingCredit &&
 		// rule: BIL-I-015
@@ -103,12 +102,12 @@ func Rate(configuredPPM, costPPM int64) int64 {
 // Compute returns the surcharge on appliedCents and its tax. An ineligible payment gets a
 // zero charge. billTotal and billTax are the paid bill's total and tax; billTaxLines its
 // tax lines.
-func (c Calc) Compute(s Snapshot, appliedCents, configuredPPM, costPPM, billTotal, billTax int64, billTaxLines []TaxLine) (Charge, error) {
+func (c Calc) Compute(ctx context.Context, s Snapshot, appliedCents, configuredPPM, costPPM, billTotal, billTax int64, billTaxLines []TaxLine) (Charge, error) {
 	if appliedCents < 0 || configuredPPM < 0 || costPPM < 0 {
 		return Charge{}, fmt.Errorf("surcharge compute: %w", ErrInvalid)
 	}
 	// rule: BIL-C-100
-	if !c.Eligible(s) {
+	if !c.Eligible(ctx, s) {
 		return Charge{}, nil
 	}
 	ppm := Rate(configuredPPM, costPPM)
@@ -181,7 +180,7 @@ func (c Calc) Refund(ch Charge, refunded, appliedCents int64) (Charge, error) {
 // BIL-C-100 condition in the capture snapshot, and a surcharge never posts to trust.
 //
 // rule: BIL-I-022
-func (c Calc) Check(s Snapshot, surchargeCents int64) error {
+func (c Calc) Check(ctx context.Context, s Snapshot, surchargeCents int64) error {
 	if surchargeCents <= 0 {
 		return nil
 	}
@@ -189,7 +188,7 @@ func (c Calc) Check(s Snapshot, surchargeCents int64) error {
 	if s.Destination == BookTrust {
 		return ErrTrust
 	}
-	if !c.Eligible(s) {
+	if !c.Eligible(ctx, s) {
 		return ErrIneligible
 	}
 	return nil

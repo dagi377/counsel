@@ -1,26 +1,19 @@
 package feeshare
 
 import (
+	"context"
 	"errors"
 	"testing"
-	"time"
 
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 	"github.com/dagi377/counsel/kernel/api"
-	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/money"
 	"github.com/dagi377/counsel/kernel/money/moneyfake"
 )
 
-func checker(t *testing.T, on bool) Checker {
+func checker(t *testing.T, on bool) (Checker, context.Context) {
 	t.Helper()
-	s := flags.New()
-	if err := s.Define(flags.Def{Name: feeshareFlag, Owner: "lawyer/LSO", Expiry: time.Date(2027, 6, 30, 0, 0, 0, 0, time.UTC)}); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Set(feeshareFlag, on); err != nil {
-		t.Fatal(err)
-	}
-	return Checker{Flags: s, Money: moneyfake.New()}
+	return Checker{Money: moneyfake.New()}, legalflagstest.Context(t, feeshareFlag, on)
 }
 
 func wantCode(t *testing.T, err error, code string) {
@@ -44,15 +37,15 @@ var (
 )
 
 func TestFlagOff(t *testing.T) {
-	c := checker(t, false)
-	if err := c.CheckPayable(Payable{Kind: KindOrdinary}, 0); !errors.Is(err, ErrOff) {
+	c, ctx := checker(t, false)
+	if err := c.CheckPayable(ctx, Payable{Kind: KindOrdinary}, 0); !errors.Is(err, ErrOff) {
 		t.Fatalf("err = %v, want ErrOff", err)
 	}
 }
 
 // rule: BIL-L-030
 func TestBIL_L_030_FeeDivisionNeedsConsent(t *testing.T) {
-	c := checker(t, true)
+	c, ctx := checker(t, true)
 	for _, tc := range []struct {
 		name string
 		p    Payable
@@ -63,13 +56,13 @@ func TestBIL_L_030_FeeDivisionNeedsConsent(t *testing.T) {
 		{"outside MDP member without licence, consent", Payable{Kind: KindFeeDivision, Payee: Payee{AffiliationID: "mdp-1", OutsideFirm: true}, AmountCents: 50_000, ClientConsentDocID: "c"}, "FEE_DIVISION_CONSENT_REQUIRED"},
 		{"in-firm licensee", Payable{Kind: KindFeeDivision, Payee: Payee{LicenceNumber: "9"}, AmountCents: 50_000}, ""},
 	} {
-		t.Run(tc.name, func(t *testing.T) { wantCode(t, c.CheckPayable(tc.p, 0), tc.code) })
+		t.Run(tc.name, func(t *testing.T) { wantCode(t, c.CheckPayable(ctx, tc.p, 0), tc.code) })
 	}
 }
 
 // rule: BIL-L-031
 func TestBIL_L_031_ReferralFee(t *testing.T) {
-	c := checker(t, true)
+	c, ctx := checker(t, true)
 	ok := Payable{Kind: KindReferral, Payee: outsideLawyer, ReferralAgreementDocID: "ra", ClientConsentDocID: "c"}
 	with := func(f func(*Payable)) Payable { p := ok; f(&p); return p }
 	for _, tc := range []struct {
@@ -85,7 +78,7 @@ func TestBIL_L_031_ReferralFee(t *testing.T) {
 		{"conflict referral", with(func(p *Payable) { p.AmountCents = 1; p.ConflictReferral = true }), 12_000_000, "REFERRAL_CONFLICT"},
 		{"MDP payee without licence", with(func(p *Payable) { p.AmountCents = 1; p.Payee = mdpPartner }), 12_000_000, "FEE_SPLIT_NON_LICENSEE"},
 	} {
-		t.Run(tc.name, func(t *testing.T) { wantCode(t, c.CheckPayable(tc.p, tc.fees), tc.code) })
+		t.Run(tc.name, func(t *testing.T) { wantCode(t, c.CheckPayable(ctx, tc.p, tc.fees), tc.code) })
 	}
 	for _, tc := range []struct {
 		fees, want money.Cents
@@ -96,7 +89,7 @@ func TestBIL_L_031_ReferralFee(t *testing.T) {
 		{0, 0},
 		{1 << 62, 2_500_000},
 	} {
-		got, err := c.ReferralCap(tc.fees)
+		got, err := c.ReferralCap(ctx, tc.fees)
 		if err != nil || got != tc.want {
 			t.Fatalf("ReferralCap(%d) = %d, %v; want %d", tc.fees, got, err, tc.want)
 		}
@@ -105,7 +98,7 @@ func TestBIL_L_031_ReferralFee(t *testing.T) {
 
 // rule: BIL-L-032
 func TestBIL_L_032_NoSplitWithNonLicensee(t *testing.T) {
-	c := checker(t, true)
+	c, ctx := checker(t, true)
 	for _, tc := range []struct {
 		name string
 		p    Payable
@@ -116,6 +109,6 @@ func TestBIL_L_032_NoSplitWithNonLicensee(t *testing.T) {
 		{"fixed-price ad invoice", Payable{Kind: KindOrdinary, Payee: agency, AmountCents: 20_000}, ""},
 		{"fee split within approved MDP", Payable{Kind: KindFeeDivision, Payee: mdpPartner, AmountCents: 20_000}, ""},
 	} {
-		t.Run(tc.name, func(t *testing.T) { wantCode(t, c.CheckPayable(tc.p, 10_000_000), tc.code) })
+		t.Run(tc.name, func(t *testing.T) { wantCode(t, c.CheckPayable(ctx, tc.p, 10_000_000), tc.code) })
 	}
 }

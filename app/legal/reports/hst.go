@@ -7,13 +7,12 @@ import (
 	"sort"
 	"time"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
 // FlagBillingRecordsVerified gates the fees book and retention checks below, which rest on
-// unconfirmed By-Law 9 text. It is off by default. It mirrors legal.FlagBillingRecordsVerified,
-// which this package cannot import.
-const FlagBillingRecordsVerified = "billing.records_verified"
+// unconfirmed By-Law 9 text. It is off by default. It is legalflags.BillingRecordsVerified.
+const FlagBillingRecordsVerified = legalflags.BillingRecordsVerified
 
 var (
 	// ErrUnverified is returned while FlagBillingRecordsVerified is off.
@@ -92,7 +91,7 @@ type FeesBookLine struct {
 
 // FeesBook lists every bill dated in p, voids included, in bill number order.
 func FeesBook(ctx context.Context, p Period, docs []TaxDoc) ([]FeesBookLine, error) {
-	if !flags.Enabled(ctx, FlagBillingRecordsVerified) {
+	if !legalflags.Enabled(ctx, FlagBillingRecordsVerified) {
 		return nil, ErrUnverified
 	}
 	var out []FeesBookLine
@@ -119,7 +118,7 @@ func RetainUntil(day time.Time, fyeMonth time.Month, fyeDay int) time.Time {
 
 // CheckPurge refuses a purge of a billing record dated day on today while it is retained.
 func CheckPurge(ctx context.Context, day, today time.Time, fyeMonth time.Month, fyeDay int) error {
-	if !flags.Enabled(ctx, FlagBillingRecordsVerified) {
+	if !legalflags.Enabled(ctx, FlagBillingRecordsVerified) {
 		return ErrUnverified
 	}
 	// rule: BIL-L-041 (verify)

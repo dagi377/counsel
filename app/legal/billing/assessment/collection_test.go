@@ -1,15 +1,13 @@
 package assessment
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/billing/interest/interestfake"
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 	"github.com/dagi377/counsel/kernel/clock/clockfake"
-	"github.com/dagi377/counsel/kernel/flags"
-	"github.com/dagi377/counsel/kernel/flags/flagsfake"
 )
 
 // rule: BIL-L-004 (verify)
@@ -45,15 +43,9 @@ func TestBIL_L_004_CollectionHeldOneMonth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := flagsfake.New()
-			if err := f.Define(flags.Def{Name: FlagSolicitorsActVerified, Owner: "lawyer/LSO"}); err != nil {
-				t.Fatal(err)
-			}
-			if err := f.Set(FlagSolicitorsActVerified, tt.flagOn); err != nil {
-				t.Fatal(err)
-			}
-			h := CollectionHold{Calendar: interestfake.New(loc), Clock: clockfake.New(at(tt.today), loc), Flags: f}
-			if err := h.Check(context.Background(), tt.action, tt.delivered.UTC()); !errors.Is(err, tt.want) {
+			h := CollectionHold{Calendar: interestfake.New(loc), Clock: clockfake.New(at(tt.today), loc)}
+			ctx := legalflagstest.Context(t, FlagSolicitorsActVerified, tt.flagOn)
+			if err := h.Check(ctx, tt.action, tt.delivered.UTC()); !errors.Is(err, tt.want) {
 				t.Errorf("Check = %v, want %v", err, tt.want)
 			}
 		})

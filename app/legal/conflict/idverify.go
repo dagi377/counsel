@@ -5,12 +5,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
-// FlagIDVerification turns the client ID verification check on. It is the same name as
-// legal.FlagIDVerification; app/legal imports this package, so the name is repeated here.
-const FlagIDVerification = "conflict.id_verification"
+// FlagIDVerification turns the client ID verification check on (legalflags.IDVerification).
+const FlagIDVerification = legalflags.IDVerification
 
 // CodeIDVerificationRequired is the problem+json code for a blocked trust movement.
 const CodeIDVerificationRequired = "ID_VERIFICATION_REQUIRED"
@@ -60,7 +59,7 @@ func CheckFunds(ctx context.Context, v IDVerifier, f Funds) (IDDecision, error) 
 	if f.ClientID == "" || !knownKind(f.Kind) || !knownExemption(f.Exemption) {
 		return IDDecision{}, ErrUnknownFunds
 	}
-	if !flags.Enabled(ctx, FlagIDVerification) {
+	if !legalflags.Enabled(ctx, FlagIDVerification) {
 		return IDDecision{}, nil
 	}
 	// rule: BIL-L-043 (verify)

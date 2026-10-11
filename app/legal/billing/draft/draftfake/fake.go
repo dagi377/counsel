@@ -43,7 +43,7 @@ func (f *Fake) Net(l draft.Line) int64 {
 
 // ApplyReduction implements draft.Calc.
 func (f *Fake) ApplyReduction(l draft.Line, r draft.Reduction) (draft.Line, error) {
-	// rule: BIL-C-023
+	// Stands in for BIL-C-023; the tagged rule lives in lines.go.
 	if r.Reason == "" || (r.Reason == draft.ReasonOther && strings.TrimSpace(r.ReasonText) == "") {
 		return l, fmt.Errorf("reduce line %s: %w", l.ID, draft.ErrReasonRequired)
 	}
@@ -78,7 +78,7 @@ func (f *Fake) ApplyDiscount(lines []draft.Line, d draft.Discount) ([]draft.Line
 			base += f.Net(out[i])
 		}
 	}
-	// rule: BIL-C-021
+	// Stands in for BIL-C-021; the tagged rule lives in T-017.2 (Q-DRAFT-001).
 	var total int64
 	switch d.Kind {
 	case draft.DiscountPercent:
@@ -101,7 +101,7 @@ func (f *Fake) ApplyDiscount(lines []draft.Line, d draft.Discount) ([]draft.Line
 	if total == 0 || base == 0 {
 		return out, nil
 	}
-	// rule: BIL-C-022
+	// Stands in for BIL-C-022; the tagged rule lives in lines.go.
 	type rem struct {
 		i    int
 		frac int64
@@ -130,7 +130,7 @@ func (f *Fake) ApplyDiscount(lines []draft.Line, d draft.Discount) ([]draft.Line
 
 // Markup implements draft.Calc.
 func (f *Fake) Markup(kind draft.LineKind, costCents, ppm int64) (int64, error) {
-	// rule: BIL-C-041
+	// Stands in for BIL-C-041; the tagged rule lives in T-017.3 (Q-DRAFT-001).
 	if kind == draft.LineAgentDis && ppm != 0 {
 		return 0, draft.ErrMarkupOnAgent
 	}
@@ -146,7 +146,7 @@ func (f *Fake) CheckDelivery(lines []draft.Line) error {
 		if l.Kind != draft.LineOwnCost && l.Kind != draft.LineAgentDis {
 			continue
 		}
-		// rule: BIL-L-002
+		// Stands in for BIL-L-002; the tagged rule lives in T-017.4 (Q-DRAFT-001).
 		if l.ItemCount > 1 {
 			if len(l.Items) != l.ItemCount {
 				return fmt.Errorf("line %s: %d of %d items itemized: %w", l.ID, len(l.Items), l.ItemCount, draft.ErrDeliveryBlocked)

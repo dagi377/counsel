@@ -10,17 +10,14 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/app/legal/trust/signatory"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/kernel/db"
 )
 
 // FlagBylaw9Verified gates the By-Law 9 checks marked (verify). Off by default.
-const FlagBylaw9Verified = "trust.bylaw9_verified"
-
-// FlagReader is the slice of kernel/flags this file reads.
-type FlagReader interface {
-	Enabled(name string) bool
-}
+const FlagBylaw9Verified = legalflags.TrustBylaw9Verified
 
 // Sealer encrypts a full bank account number before it is stored.
 type Sealer interface {
@@ -40,12 +37,11 @@ type AccountStore struct {
 	db    db.DB
 	users signatory.Directory
 	seal  Sealer
-	flags FlagReader
 }
 
 // NewAccountStore returns an AccountStore.
-func NewAccountStore(pool db.DB, users signatory.Directory, seal Sealer, flags FlagReader) *AccountStore {
-	return &AccountStore{db: pool, users: users, seal: seal, flags: flags}
+func NewAccountStore(pool db.DB, users signatory.Directory, seal Sealer) *AccountStore {
+	return &AccountStore{db: pool, users: users, seal: seal}
 }
 
 // ErrNeedsApproval means a contract method lacks data the table requires (Q-004): use
@@ -243,8 +239,8 @@ func (s *AccountStore) Account(ctx context.Context, id AccountID) (Account, erro
 
 // CheckDepositTarget refuses money received in trust for a client unless it goes to a trust
 // account. Behind FlagBylaw9Verified; off, it allows everything.
-func (s *AccountStore) CheckDepositTarget(fundsInTrust, toTrustAccount bool) error {
-	if !s.flags.Enabled(FlagBylaw9Verified) {
+func (s *AccountStore) CheckDepositTarget(ctx context.Context, fundsInTrust, toTrustAccount bool) error {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return nil
 	}
 	// rule: BIL-L-034 (verify)
@@ -254,23 +250,17 @@ func (s *AccountStore) CheckDepositTarget(fundsInTrust, toTrustAccount bool) err
 	return nil
 }
 
-// AvailableCents is a ledger's available balance: cleared minus protected, minimum and
-// authorised-not-executed withdrawal holds.
-func AvailableCents(clearedCents, protectedCents, minimumCents, heldCents int64) int64 {
-	// rule: ARC-I-025
-	return clearedCents - protectedCents - minimumCents - heldCents
-}
-
 // CheckOverdraw refuses a withdrawal larger than the ledger's available balance, so no client
 // ledger goes negative. The By-Law 9 reading is behind FlagBylaw9Verified; ARC-I-025 always
 // applies, so the check itself is never off.
-func (s *AccountStore) CheckOverdraw(b Balance, heldCents, amountCents int64) error {
+func (s *AccountStore) CheckOverdraw(ctx context.Context, b Balance, heldCents, amountCents int64) error {
 	if amountCents <= 0 {
 		return fmt.Errorf("amount: %w", ErrInvalid)
 	}
 	// rule: ARC-I-025
-	avail := AvailableCents(b.ClearedCents, b.ProtectedCents, b.MinimumCents, heldCents)
-	if s.flags.Enabled(FlagBylaw9Verified) {
+	avail := withdraw.Funds{ClearedCents: b.ClearedCents, ProtectedCents: b.ProtectedCents,
+		MinimumCents: b.MinimumCents, AuthorizedCents: heldCents}.Available()
+	if legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		// rule: BIL-L-036 (verify)
 		if b.PostedCents-amountCents < 0 {
 			return fmt.Errorf("ledger would go negative: %w", ErrInsufficientFunds)

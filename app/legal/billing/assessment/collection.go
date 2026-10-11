@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/billing/interest"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/clock"
-	"github.com/dagi377/counsel/kernel/flags"
 )
 
-// FlagSolicitorsActVerified gates the Solicitors Act collection hold (V-BILL). It mirrors
-// app/legal.FlagSolicitorsActVerified, which this package cannot import.
-const FlagSolicitorsActVerified = "billing.solicitors_act_verified"
+// FlagSolicitorsActVerified gates the Solicitors Act collection hold (V-BILL). It is
+// legalflags.SolicitorsActVerified.
+const FlagSolicitorsActVerified = legalflags.SolicitorsActVerified
 
 // Collection hold errors.
 var (
@@ -37,7 +37,6 @@ const (
 type CollectionHold struct {
 	Calendar interest.Calendar // the one shared months_after
 	Clock    clock.Clock
-	Flags    flags.Flags
 }
 
 // EarliestCollection is the first business date a fee suit may start: the day after
@@ -54,7 +53,7 @@ func (h CollectionHold) Check(ctx context.Context, action CollectionAction, deli
 	if action != ActionLegal && action != ActionClaimReferral {
 		return nil
 	}
-	if !h.Flags.Enabled(FlagSolicitorsActVerified) {
+	if !legalflags.Enabled(ctx, FlagSolicitorsActVerified) {
 		return ErrCollectionUnverified
 	}
 	t := h.Clock.Today(ctx)

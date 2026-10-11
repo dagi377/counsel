@@ -8,8 +8,7 @@ import (
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/books"
-	"github.com/dagi377/counsel/kernel/flags"
-	"github.com/dagi377/counsel/kernel/flags/flagsfake"
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 )
 
 type trustSource struct {
@@ -31,18 +30,6 @@ func (s *trustSource) ClientBalances(_ context.Context, account string, asOf tim
 func (s *trustSource) AccountBalance(_ context.Context, account, code string, _ time.Time) (int64, error) {
 	s.gotCode = code
 	return s.ledger[account], nil
-}
-
-func listingFlags(t *testing.T, on bool) flags.Flags {
-	t.Helper()
-	f := flagsfake.New()
-	if err := f.Define(flags.Def{Name: FlagBylaw9Verified, Owner: "test", Expiry: time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC)}); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Set(FlagBylaw9Verified, on); err != nil {
-		t.Fatal(err)
-	}
-	return f
 }
 
 func TestTrustListingTotalsEqualTR2500PerAccount(t *testing.T) {
@@ -82,8 +69,8 @@ func TestTrustListingTotalsEqualTR2500PerAccount(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			l := TrustLister{Flags: listingFlags(t, tc.flagOn), Source: src}
-			got, err := l.TrustListing(context.Background(), tc.account, mid)
+			l := TrustLister{Source: src}
+			got, err := l.TrustListing(legalflagstest.Context(t, FlagBylaw9Verified, tc.flagOn), tc.account, mid)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tc.wantErr)
 			}

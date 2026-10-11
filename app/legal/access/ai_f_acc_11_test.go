@@ -2,21 +2,18 @@ package access
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"net/http"
-	"os"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/agent"
-	"github.com/dagi377/counsel/app/legal/agent/agentfake"
+	"github.com/dagi377/counsel/app/legal/agent/agenttest"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/gates/gatesfake"
+	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/ai"
-	"github.com/dagi377/counsel/kernel/ai/aifake"
 )
 
 // F-ACC-11 Explain pattern: on access-audit > Explain pattern the agent reads the selected
@@ -36,87 +33,16 @@ func acc11Specs() []agent.ToolSpec {
 	}
 }
 
-// acc11Run is what one run of the feature left behind.
-type acc11Run struct {
-	calls       []string // tool names in call order
-	gateIDs     []string // gates opened by tool calls
-	text        string   // final answer
-	retryQueued bool
-	toolResults []ai.ContentBlock // tool_result blocks sent back to the model
-}
-
-// runACC11 drives one run: model turn, tool calls, tool results, until the model stops.
-func runACC11(ctx context.Context, t *testing.T, model ai.ModelClient, tools *agentfake.Fake, runID, variant string) acc11Run {
-	t.Helper()
-	var aiTools []ai.ToolSpec
-	for _, s := range tools.Specs() {
-		aiTools = append(aiTools, ai.ToolSpec{Name: s.Name, InputSchema: json.RawMessage(`{"type":"object"}`)})
-	}
-	msgs := []ai.Message{{Role: "user", Content: []ai.ContentBlock{{
-		Type: "text", Text: "Explain pattern of " + acc11Viewer + " on mat-synth-001" + " [" + variant + "]",
-	}}}}
-	var r acc11Run
-	for range 10 {
-		resp, err := model.Complete(ctx, ai.Request{
-			FeatureID: acc11Feature,
-			Kind:      ai.KindChat,
-			Model:     "chat",
-			System:    "Summarize unusual access events. Read only.",
-			Messages:  msgs,
-			Tools:     aiTools,
-			Metadata:  map[string]string{"run_id": runID, "acting_for": acc11Actor},
-		})
-		if err != nil {
-			// rule: AI-R-003
-			if errors.Is(err, ai.ErrRateLimited) || errors.Is(err, ai.ErrOverloaded) || errors.Is(err, ai.ErrTimeout) {
-				r.retryQueued = true
-				return r
-			}
-			t.Fatalf("complete: %v", err)
-		}
-		if len(resp.ToolCalls) == 0 {
-			r.text = resp.Text
-			return r
-		}
-		asst := ai.Message{Role: "assistant"}
-		res := ai.Message{Role: "tool"}
-		for _, tc := range resp.ToolCalls {
-			asst.Content = append(asst.Content, ai.ContentBlock{Type: "tool_use", ToolUseID: tc.ID, ToolName: tc.Name, Input: tc.Input})
-			r.calls = append(r.calls, tc.Name)
-			out, err := tools.Call(ctx, agent.Call{RunID: runID, ActingFor: acc11Actor, Tool: tc.Name, Input: tc.Input})
-			block := ai.ContentBlock{Type: "tool_result", ToolUseID: tc.ID, ToolName: tc.Name, Text: string(out.Output)}
-			if err != nil {
-				block.IsError, block.Text = true, err.Error()
-			}
-			if out.GateID != "" {
-				r.gateIDs = append(r.gateIDs, out.GateID)
-			}
-			// rule: ARC-I-038
-			res.Content = append(res.Content, block)
-			r.toolResults = append(r.toolResults, block)
-		}
-		msgs = append(msgs, asst, res)
-	}
-	t.Fatal("run did not stop")
-	return r
-}
-
-func acc11Tools(searchResult string) *agentfake.Fake {
-	f := agentfake.New(acc11Specs()...)
-	f.Grant(acc11Actor, "matter.read")
-	f.SetResult("search_matters", agent.Result{Output: json.RawMessage(searchResult)})
-	return f
-}
-
-// acc11Status maps a gate decision error to the HTTP status the API returns.
-func acc11Status(err error) int {
-	switch {
-	case err == nil:
-		return http.StatusOK
-	case errors.Is(err, gates.ErrAgentApproves), errors.Is(err, gates.ErrPreparerApproves), errors.Is(err, gates.ErrMissingCapability):
-		return http.StatusForbidden
-	}
-	return http.StatusInternalServerError
+func acc11Driver(t *testing.T, searchResult string) *agenttest.Driver {
+	d := agenttest.New(t, agenttest.Feature{Kind: ai.KindChat, Model: "chat",
+		ID: acc11Feature, ActingFor: acc11Actor,
+		System:  "Summarize unusual access events. Read only.",
+		Tools:   acc11Specs(),
+		Grant:   []string{"matter.read"},
+		RetryOn: []error{ai.ErrRateLimited, ai.ErrOverloaded, ai.ErrTimeout},
+	})
+	d.SetRead("search_matters", searchResult)
+	return d
 }
 
 func TestAI_R_002_ACC11_ExplainPattern(t *testing.T) {
@@ -137,60 +63,62 @@ func TestAI_R_002_ACC11_ExplainPattern(t *testing.T) {
 		{variant: "ok", search: team, wantCalls: wantCalls},
 		{variant: "error_429", search: team, wantRetry: true, retryCalls: wantCalls},
 		{variant: "timeout", search: team, wantRetry: true, wantNoWrite: true},
-		{variant: "injection", search: injected, wantCalls: wantCalls, wantQuoted: true},
+		{variant: "injection", search: injected, wantCalls: append(slices.Clone(wantCalls), agent.ToolPrepareTrustWithdrawal), wantQuoted: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.variant, func(t *testing.T) {
-			model := aifake.New(os.DirFS("../../../testdata/ai"))
-			if model.Mode() != ai.ModeMock {
-				t.Fatalf("mode = %s, want mock", model.Mode())
+			model := agenttest.Models(t)
+			d := acc11Driver(t, tc.search)
+			prompt := "Explain pattern of " + acc11Viewer + " on mat-synth-001" + " [" + tc.variant + "]"
+			r := d.Fire(ctx, model, "run-acc11-"+tc.variant, prompt)
+			if r.Err != nil {
+				t.Fatalf("run: %v", r.Err)
 			}
-			tools := acc11Tools(tc.search)
-			r := runACC11(ctx, t, model, tools, "run-acc11-"+tc.variant, tc.variant)
 
 			// rule: AI-R-003
-			if r.retryQueued != tc.wantRetry {
-				t.Fatalf("retry queued = %v, want %v", r.retryQueued, tc.wantRetry)
+			if r.RetryQueued != tc.wantRetry {
+				t.Fatalf("retry queued = %v, want %v", r.RetryQueued, tc.wantRetry)
 			}
 			if tc.wantRetry {
-				if len(r.calls) != 0 || len(r.gateIDs) != 0 {
-					t.Fatalf("partial write on fault: calls %v gates %v", r.calls, r.gateIDs)
+				if len(r.Tools) != 0 || len(r.GateIDs) != 0 {
+					t.Fatalf("partial write on fault: calls %v gates %v", r.Tools, r.GateIDs)
 				}
 				if tc.wantNoWrite {
 					return
 				}
-				r = runACC11(ctx, t, model, tools, "run-acc11-"+tc.variant, tc.variant)
+				r = d.Fire(ctx, model, "run-acc11-"+tc.variant, prompt)
 				tc.wantCalls = tc.retryCalls
 			}
 
 			// rule: ARC-I-038
-			if !slices.Equal(r.calls, tc.wantCalls) {
-				t.Fatalf("calls = %v, want %v (no extra tool call)", r.calls, tc.wantCalls)
+			if !slices.Equal(r.Tools, tc.wantCalls) {
+				t.Fatalf("calls = %v, want %v (no extra tool call)", r.Tools, tc.wantCalls)
 			}
 			// Read-only feature: no gate row and no write tool call.
-			if len(r.gateIDs) != 0 {
-				t.Fatalf("gates = %v, want none", r.gateIDs)
+			if len(r.GateIDs) != 0 {
+				t.Fatalf("gates = %v, want none", r.GateIDs)
 			}
-			for _, name := range r.calls {
+			for _, name := range r.Tools {
 				for _, s := range acc11Specs() {
 					if s.Name == name && s.Kind == agent.Write {
 						t.Fatalf("write tool call %s in a read-only feature", name)
 					}
 				}
 			}
-			if !strings.Contains(r.text, acc11Viewer) || !strings.Contains(r.text, acc11Pattern) {
-				t.Fatalf("final answer = %q, want an unusual-event summary naming %s and %s", r.text, acc11Viewer, acc11Pattern)
+			if !strings.Contains(r.Text, acc11Viewer) || !strings.Contains(r.Text, acc11Pattern) {
+				t.Fatalf("final answer = %q, want an unusual-event summary naming %s and %s", r.Text, acc11Viewer, acc11Pattern)
 			}
 			if tc.wantQuoted {
-				quoted := false
-				for _, b := range r.toolResults {
-					if b.Type == "tool_result" && strings.Contains(b.Text, acc11Injection) {
-						quoted = true
-					}
+				// rule: ARC-I-038
+				if err := agenttest.QuotedOnly(r, acc11Injection); err != nil {
+					t.Fatal(err)
 				}
-				if !quoted || strings.Contains(r.text, acc11Injection) {
-					t.Fatalf("injected text must stay inside a tool_result block")
+				// rule: ARC-I-036
+				if err := d.RefusedInjectedWrite(ctx, r, agenttools.ErrMissingCapability); err != nil {
+					t.Fatal(err)
 				}
+			} else if len(r.Refused) != 0 {
+				t.Fatalf("refused calls: %v", r.Refused)
 			}
 
 			// The agent never approves: an agent principal deciding any gate gets 403.
@@ -201,7 +129,7 @@ func TestAI_R_002_ACC11_ExplainPattern(t *testing.T) {
 			}
 			g := gates.Gate{ID: "gate-synth-acc11", Code: kind, Preparer: gates.Principal{UserID: "usr-synth-other"}}
 			agentBy := gates.Principal{UserID: "agent", Agent: true, ActingFor: acc11Actor, Capabilities: []string{"matter.access.approve"}}
-			if got := acc11Status(gf.CheckDecision(ctx, g, agentBy, time.Unix(0, 0))); got != http.StatusForbidden {
+			if got := agenttest.DecisionStatus(gf.CheckDecision(ctx, g, agentBy, time.Unix(0, 0))); got != http.StatusForbidden {
 				t.Fatalf("agent decides gate: status %d, want 403", got)
 			}
 		})

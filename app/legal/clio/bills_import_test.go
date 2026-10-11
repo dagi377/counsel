@@ -5,20 +5,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 )
-
-func flagSet(t *testing.T, on bool) *flags.Set {
-	t.Helper()
-	s := flags.New()
-	if err := s.Define(flags.Def{Name: FlagBylaw9Verified, Owner: "test"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Set(FlagBylaw9Verified, on); err != nil {
-		t.Fatal(err)
-	}
-	return s
-}
 
 // rule: MIG-023 (verify)
 func TestMIG_023_TaxNotRecomputed(t *testing.T) {
@@ -46,7 +34,7 @@ func TestMIG_023_TaxNotRecomputed(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := ImportBill(flagSet(t, tc.flag), tc.bill)
+			got, err := ImportBill(legalflagstest.Context(t, FlagBylaw9Verified, tc.flag), tc.bill)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tc.wantErr)
 			}
@@ -68,7 +56,7 @@ func TestMIG_023_TaxNotRecomputed(t *testing.T) {
 
 // rule: MIG-034
 func TestMIG_034_ImportedBillReadOnly(t *testing.T) {
-	imported, err := ImportBill(flagSet(t, true), SourceBill{SourceID: "b1", SubtotalCents: 100})
+	imported, err := ImportBill(legalflagstest.Context(t, FlagBylaw9Verified, true), SourceBill{SourceID: "b1", SubtotalCents: 100})
 	if err != nil {
 		t.Fatal(err)
 	}

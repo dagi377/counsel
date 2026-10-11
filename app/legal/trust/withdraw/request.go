@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
-// FlagBylaw9Verified gates every check here built on unconfirmed By-Law 9 text. It mirrors
-// legal.FlagTrustBylaw9Verified; this package cannot import app/legal (import cycle).
-const FlagBylaw9Verified = "trust.bylaw9_verified"
+// FlagBylaw9Verified gates every check here built on unconfirmed By-Law 9 text. It is
+// legalflags.TrustBylaw9Verified.
+const FlagBylaw9Verified = legalflags.TrustBylaw9Verified
 
 var (
 	// ErrUnverified is returned while FlagBylaw9Verified is off: no withdrawal is accepted
@@ -35,8 +35,11 @@ type Funds struct {
 	AuthorizedCents int64 // withdrawals and fee transfers authorized but not executed
 }
 
-// Available is the amount that may still be withdrawn.
+// Available is the amount that may still be withdrawn: cleared minus protected, minimum and
+// authorised-not-executed holds. It is the one available-balance formula; the trust account
+// overdraw check and trust-to-fees transfers use it too.
 func (f Funds) Available() int64 {
+	// rule: ARC-I-025
 	// rule: BIL-C-053 (verify)
 	return f.ClearedCents - f.ProtectedCents - f.MinimumCents - f.AuthorizedCents
 }
@@ -56,7 +59,7 @@ type Signer struct {
 // Validate checks a withdrawal request against the ledger's funds before it is recorded.
 // It returns ErrUnverified while FlagBylaw9Verified is off.
 func Validate(ctx context.Context, r Request, f Funds) error {
-	if !flags.Enabled(ctx, FlagBylaw9Verified) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return ErrUnverified
 	}
 	// rule: BIL-L-037 (verify)
@@ -95,7 +98,7 @@ func checkFunds(amount int64, f Funds) error {
 
 // ValidateFee checks a withdrawal for fees against the bill it pays, dated on (business date).
 func ValidateFee(ctx context.Context, r Request, b FeeBill, on time.Time) error {
-	if !flags.Enabled(ctx, FlagBylaw9Verified) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return ErrUnverified
 	}
 	// rule: BIL-L-035 (verify)
@@ -111,7 +114,7 @@ func ValidateFee(ctx context.Context, r Request, b FeeBill, on time.Time) error 
 // ValidateAuthorizer checks who may authorize w, and re-checks the funds at authorization.
 // The agent never reaches here as an authorizer: an agent principal only prepares.
 func ValidateAuthorizer(ctx context.Context, w Withdrawal, s Signer, f Funds) error {
-	if !flags.Enabled(ctx, FlagBylaw9Verified) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return ErrUnverified
 	}
 	// rule: ARC-I-019

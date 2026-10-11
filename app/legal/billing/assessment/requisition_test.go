@@ -7,12 +7,11 @@ import (
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/billing/interest/interestfake"
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 	"github.com/dagi377/counsel/kernel/clock/clockfake"
-	"github.com/dagi377/counsel/kernel/flags"
-	"github.com/dagi377/counsel/kernel/flags/flagsfake"
 )
 
-func requisitionFixture(t *testing.T, today string, flagOn bool) (*Requisitions, *time.Location) {
+func requisitionFixture(t *testing.T, today string, flagOn bool) (*Requisitions, *time.Location, context.Context) {
 	t.Helper()
 	loc, err := time.LoadLocation("America/Toronto")
 	if err != nil {
@@ -22,14 +21,8 @@ func requisitionFixture(t *testing.T, today string, flagOn bool) (*Requisitions,
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := flagsfake.New()
-	if err := f.Define(flags.Def{Name: FlagSolicitorsActVerified, Owner: "lawyer/LSO"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Set(FlagSolicitorsActVerified, flagOn); err != nil {
-		t.Fatal(err)
-	}
-	return &Requisitions{Calendar: interestfake.New(loc), Clock: clockfake.New(now.Add(12*time.Hour), loc), Flags: f}, loc
+	ctx := legalflagstest.Context(t, FlagSolicitorsActVerified, flagOn)
+	return &Requisitions{Calendar: interestfake.New(loc), Clock: clockfake.New(now.Add(12*time.Hour), loc)}, loc, ctx
 }
 
 // rule: BIL-L-005
@@ -51,9 +44,9 @@ func TestBIL_L_005_RequisitionWindowAndHold(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, loc := requisitionFixture(t, tt.today, tt.flagOn)
+			r, loc, ctx := requisitionFixture(t, tt.today, tt.flagOn)
 			b := AssessedBill{ID: "0141", DeliveredAt: time.Date(2026, 3, 15, 15, 0, 0, 0, loc)}
-			w, err := r.Windows(context.Background(), b)
+			w, err := r.Windows(ctx, b)
 			if err != nil {
 				t.Fatalf("Windows: %v", err)
 			}
@@ -66,7 +59,7 @@ func TestBIL_L_005_RequisitionWindowAndHold(t *testing.T) {
 			if w.Status != tt.wantStatus {
 				t.Errorf("Status = %q, want %q", w.Status, tt.wantStatus)
 			}
-			_, err = r.Record(context.Background(), b, tt.note)
+			_, err = r.Record(ctx, b, tt.note)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Record = %v, want %v", err, tt.wantErr)
 			}
@@ -79,8 +72,8 @@ func TestBIL_L_005_RequisitionWindowAndHold(t *testing.T) {
 			}
 		})
 	}
-	r, _ := requisitionFixture(t, "2026-04-01", true)
-	if _, err := r.Record(context.Background(), AssessedBill{ID: "draft"}, ""); !errors.Is(err, ErrNotDelivered) {
+	r, _, ctx := requisitionFixture(t, "2026-04-01", true)
+	if _, err := r.Record(ctx, AssessedBill{ID: "draft"}, ""); !errors.Is(err, ErrNotDelivered) {
 		t.Errorf("Record undelivered = %v, want %v", err, ErrNotDelivered)
 	}
 }
@@ -96,9 +89,9 @@ func TestBIL_L_006_PaidBillStillAssessable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, loc := requisitionFixture(t, "2026-05-01", true)
+			r, loc, ctx := requisitionFixture(t, "2026-05-01", true)
 			b := AssessedBill{ID: "0141", DeliveredAt: time.Date(2026, 4, 20, 10, 0, 0, 0, loc), Paid: tt.paid}
-			if _, err := r.Record(context.Background(), b, ""); err != nil {
+			if _, err := r.Record(ctx, b, ""); err != nil {
 				t.Fatalf("Record: %v", err)
 			}
 			if !r.OnHold(b.ID) {

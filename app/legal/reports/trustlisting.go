@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/books"
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
 // FlagBylaw9Verified gates the monthly client trust listing until the By-Law 9 provisions
 // are verified. It is off by default.
-const FlagBylaw9Verified = "trust.bylaw9_verified"
+const FlagBylaw9Verified = legalflags.TrustBylaw9Verified
 
 // ErrDisabled is returned while FlagBylaw9Verified is off.
 var ErrDisabled = errors.New("reports: trust listing is disabled")
@@ -30,7 +30,6 @@ type TrustSource interface {
 
 // TrustLister builds monthly client trust listings.
 type TrustLister struct {
-	Flags  flags.Flags
 	Source TrustSource
 }
 
@@ -43,7 +42,7 @@ func MonthEnd(day time.Time) time.Time {
 // are ordered by client then matter. The total is checked against the account's TR-2500
 // balance; when they differ the listing is returned with ErrOutOfBalance.
 func (l TrustLister) TrustListing(ctx context.Context, trustAccountID string, monthEnd time.Time) (TrustListing, error) {
-	if l.Flags == nil || !l.Flags.Enabled(FlagBylaw9Verified) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return TrustListing{}, ErrDisabled
 	}
 	if trustAccountID == "" {
