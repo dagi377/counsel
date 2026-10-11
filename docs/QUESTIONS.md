@@ -47,6 +47,20 @@ Template:
   is not committed by T-001.4 because it is not in the task's file list; versions are pinned exactly.
 - Answer: (owner)
 
+## Q-005 app/legal register test forbids any registration
+
+- Task: T-010L.1
+- Sources: T-010L.1 accept ("Chart OP-*/TR-* registered with the ledger engine");
+  app/legal/books/register.go (features `add` a registrar from init());
+  app/legal/register_test.go `TestRegisterWithNoFeaturesRecordsNothing` (owned by T-001.5)
+  fails once any feature registers anything.
+- Reading A: wave-1 features wire themselves with `add` from init(); the scaffold test is
+  replaced by one that checks the expected calls.
+- Reading B: features stay unwired until a later task.
+- Proposed: A. T-010L.1 ships `books.RegisterCharts` unwired; once the owner of
+  app/legal/register_test.go relaxes it, add `func init() { add(RegisterCharts) }` to chart.go.
+- Answer: (owner)
+
 ## Answered
 
 ## Q-003 GateKind has no field for the spec gate id
