@@ -279,6 +279,20 @@ func (s *SeedStore) MatterDocuments(_ context.Context, matterID string) ([]agent
 	return slices.Clone(s.docs[matterID]), nil
 }
 
+// Document implements agent.DocumentLookup over the seeded documents.
+func (s *SeedStore) Document(_ context.Context, id string) (legaldocs.Document, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, docs := range s.docs {
+		for _, d := range docs {
+			if d.Document.ID == id {
+				return d.Document, nil
+			}
+		}
+	}
+	return legaldocs.Document{}, fmt.Errorf("seed: document %s: %w", id, legaldocs.ErrNotFound)
+}
+
 // Folders implements agent.MatterFolders: one folder per matter that has documents.
 func (s *SeedStore) Folders(_ context.Context, matterID string) ([]legaldocs.Folder, error) {
 	s.mu.Lock()
