@@ -521,3 +521,18 @@ Template:
   unchanged, into `allocate.go` (where the contract header says it lives), so it also touches
   `money.go` (deletion only) and this file. New tests are in `allocate_test.go`; the existing
   `TestAllocate` in `money_test.go` is kept as is.
+
+## Q-T-011.5 Ledger balance guard mapping
+
+- Task: T-011.5 (BIL-I-010, DM-052, DM-064).
+- DM-052 is a DEFERRABLE INITIALLY DEFERRED constraint trigger, so it fails at COMMIT, after
+  any insert-level mapping. `ledgerlock.go` adds `LedgerStore.InLedgerTx` and `ledgerCheck`:
+  SQLSTATE 23514 whose message starts with `DM-052:` or `DM-064:` becomes
+  ErrInsufficientFunds (409 insufficient_trust_funds); deadlocks and other CHECK violations
+  pass through unchanged.
+- Follow-up for the integrator (receipt.go is outside T-011.5's file list): `insertTxn` maps
+  every 23514 to ErrInsufficientFunds, so an unrelated CHECK on trust_transaction (cash payout,
+  kind/sign) reads as insufficient funds. Switch it to `ledgerCheck`.
+- The 32-goroutine integration test seeds 32 withdrawals, each authorised under its own
+  approved trust.withdrawal gate. It is vetted with `-tags integration` and not yet run
+  (integration runs are on hold).
