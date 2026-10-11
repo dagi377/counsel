@@ -3,7 +3,6 @@
 # when a listed operation is served, when it leaves openapi.yaml, and when an operation is
 # neither served nor listed. Remove a line in the same change that mounts its handler.
 POST /agent/actions/{feature_id}
-POST /trust/receipts
 POST /trust/transfers
 GET /webhook-endpoints
 POST /webhook-endpoints
