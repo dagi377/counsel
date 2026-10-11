@@ -36,6 +36,7 @@ const (
 	recBalanced  = "0190d000-0000-7000-8000-000000000001"
 	recOff       = "0190d000-0000-7000-8000-000000000002"
 	recHidden    = "0190d000-0000-7000-8000-000000000003"
+	recStale     = "0190d000-0000-7000-8000-000000000004"
 )
 
 var (
@@ -50,6 +51,8 @@ type svc struct {
 	mu    sync.Mutex
 	calls map[string]int
 	ids   map[string]string // uuid -> fake id
+	// stored replaces the comparison Get returns, as a row stored by hand would.
+	stored map[string]recon.ThreeWay
 }
 
 func (s *svc) count(m string) {
@@ -95,6 +98,9 @@ func (s *svc) Get(ctx context.Context, id string) (recon.Reconciliation, error) 
 	}
 	rec, err := s.Fake.Get(ctx, fid)
 	rec.ID = id
+	if tw, ok := s.stored[id]; ok {
+		rec.Result = tw
+	}
 	return rec, err
 }
 
@@ -216,6 +222,11 @@ func wrNewRig(t *testing.T) rig {
 	seed(recBalanced, acctA, aug, 1000, 1000)
 	seed(recOff, acctA, jul, 900, 900)
 	seed(recHidden, wrAcctHidden, aug, 1000, 1000)
+	// rule: BIL-I-009
+	// A stored row whose totals agree but whose adjusted bank balance is not bank + items.
+	seed(recStale, acctA, recon.Period{Year: 2026, Month: time.May}, 1000, 1000)
+	s.stored = map[string]recon.ThreeWay{recStale: {BankCents: 1000, AdjustedBankCents: 1000, BookCents: 1000, ClientLedgerCents: 1000,
+		Items: []recon.ReconcilingItem{{Kind: recon.OutstandingDeposit, Reference: "d1", AmountCents: 50}}}}
 	// September's statement is imported but not prepared.
 	if _, err := f.ImportStatement(ctx, recon.Statement{AccountID: acctA, Period: recon.Period{Year: 2026, Month: time.June}, ClosingCents: 0}); err != nil {
 		t.Fatal(err)
@@ -400,6 +411,7 @@ func TestARC_I_051_ReconWriteProblems(t *testing.T) {
 		{"prepare locked or missing month", preparePath, "alice", jsonType, `{"account_id":"` + acctA + `","month":"2026-01","bank_balance_cents":0}`, key("118"), 404, recon.CodeNotFound, false},
 		// rule: BIL-I-009
 		{"submit unbalanced without explanations", submitPath(recOff), "alice", "", "", keyMatch("119", `"1"`), 422, recon.CodeUnexplainedDifference, false},
+		{"submit stored adjusted balance that disagrees with its items", submitPath(recStale), "alice", "", "", keyMatch("120", `"1"`), 422, recon.CodeUnbalanced, false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

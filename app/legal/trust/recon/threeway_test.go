@@ -117,3 +117,37 @@ func TestOutstandingItemsByLaw9(t *testing.T) {
 		})
 	}
 }
+
+// rule: BIL-I-009
+// TestBIL_I_009_StoredAdjustedBalanceMustMatchItems: under By-law 9 a stored reconciliation
+// whose adjusted bank balance is not the bank balance plus its items is unbalanced, even when
+// the stored adjusted, book and client totals agree, so no view reports it as balanced.
+func TestBIL_I_009_StoredAdjustedBalanceMustMatchItems(t *testing.T) {
+	deposit := ReconcilingItem{Kind: OutstandingDeposit, Reference: "dep-7", AmountCents: 2500}
+	tests := []struct {
+		name         string
+		tw           ThreeWay
+		wantAgree    bool
+		wantBalanced bool
+	}{
+		{"items explain the adjusted balance", ThreeWay{BankCents: 97500, AdjustedBankCents: 100000, BookCents: 100000, ClientLedgerCents: 100000, Items: []ReconcilingItem{deposit}}, true, true},
+		{"no items and no difference", ThreeWay{BankCents: 100000, AdjustedBankCents: 100000, BookCents: 100000, ClientLedgerCents: 100000}, true, true},
+		{"stored adjusted balance without its items", ThreeWay{BankCents: 97500, AdjustedBankCents: 100000, BookCents: 100000, ClientLedgerCents: 100000}, false, false},
+		{"items do not add up to the adjusted balance", ThreeWay{BankCents: 100000, AdjustedBankCents: 100000, BookCents: 100000, ClientLedgerCents: 100000, Items: []ReconcilingItem{deposit}}, false, false},
+		{"items agree but ledgers do not", ThreeWay{BankCents: 97500, AdjustedBankCents: 100000, BookCents: 100000, ClientLedgerCents: 99999, Items: []ReconcilingItem{deposit}}, true, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.tw.ItemsAgree(); got != tc.wantAgree {
+				t.Fatalf("ItemsAgree = %v, want %v", got, tc.wantAgree)
+			}
+			if got := tc.tw.Balanced(); got != tc.wantBalanced {
+				t.Fatalf("Balanced = %v, want %v", got, tc.wantBalanced)
+			}
+			rec := Reconciliation{Result: tc.tw}
+			if reconOf(rec).Balanced != tc.wantBalanced || viewOf(rec, 1).Balanced != tc.wantBalanced {
+				t.Fatalf("views report balanced %v/%v, want %v", reconOf(rec).Balanced, viewOf(rec, 1).Balanced, tc.wantBalanced)
+			}
+		})
+	}
+}
