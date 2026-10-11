@@ -42,7 +42,8 @@ func ListUnbilledHandler() Handler {
 	return Handler{Name: ToolListUnbilled, Build: buildListUnbilled}
 }
 
-// buildListUnbilled reads Deps: CapabilityCheck, roles.Walls, MatterTime.
+// buildListUnbilled reads Deps: CapabilityCheck, roles.Walls, MatterTime and the run's
+// *agenttools.Provenance.
 func buildListUnbilled(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)
 	if err != nil {
@@ -60,8 +61,23 @@ func buildListUnbilled(d Deps) (registry.Tool, error) {
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolListUnbilled, err)
 	}
+	pv, err := DepOf[*agenttools.Provenance](d)
+	if err != nil || pv == nil {
+		return registry.Tool{}, fmt.Errorf("%s: provenance: %w", ToolListUnbilled, ErrMissingDep)
+	}
 	l := listUnbilled{walls: walls, entries: mt, loc: loc}
-	return handlerTool(ToolListUnbilled, Read, can, l.handle)
+	t, err := handlerTool(ToolListUnbilled, Read, can, l.handle)
+	if err != nil {
+		return registry.Tool{}, err
+	}
+	// rule: ARC-U-027
+	// The cents this tool returns (rate, amount, total) are the figures a later write in the
+	// run may carry, so a draft_bill write-down taken from them is sourced.
+	t, err = pv.ReadTool(t)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", ToolListUnbilled, err)
+	}
+	return t, nil
 }
 
 type listUnbilled struct {

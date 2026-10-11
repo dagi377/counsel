@@ -95,19 +95,104 @@ func unbilledWorld(t *testing.T, actorCaps map[string]bool) (*agenttools.Registr
 	can := agent.CapabilityCheck(func(_ context.Context, user, capability string) (bool, error) {
 		return user == clerk && actorCaps[capability], nil
 	})
-	tool, err := agent.ListUnbilledHandler().Build(agent.NewDeps(can, walls, priced))
+	// The built tool records its results in pv itself; the test does not wrap it.
+	pv := agenttools.NewProvenance()
+	tool, err := agent.ListUnbilledHandler().Build(agent.NewDeps(can, walls, priced, pv))
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	pv := agenttools.NewProvenance()
-	if tool, err = pv.ReadTool(tool); err != nil {
-		t.Fatalf("provenance: %v", err)
+	plans := agenttoolsfake.New()
+	if _, err := plans.ReportPlan(ctx, "run-ub", []string{"draft the bill"}); err != nil {
+		t.Fatalf("plan: %v", err)
 	}
-	reg := agenttools.NewRegistry(agenttoolsfake.New())
+	reg := agenttools.NewRegistry(plans)
 	if err := reg.Register(tool); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	return reg, pv
+}
+
+// TestListUnbilledNeedsProvenance: list_unbilled is not built without the run's Provenance,
+// so it can never return amounts a later write cannot trace.
+//
+// rule: ARC-U-027
+func TestListUnbilledNeedsProvenance(t *testing.T) {
+	can := agent.CapabilityCheck(func(context.Context, string, string) (bool, error) { return true, nil })
+	priced := pricedTime{entries: timekeepingfake.New(nil, nil)}
+	cases := []struct {
+		name    string
+		deps    agent.Deps
+		wantErr error
+	}{
+		{"no provenance", agent.NewDeps(can, rolesfake.New(), priced), agent.ErrMissingDep},
+		{"nil provenance", agent.NewDeps(can, rolesfake.New(), priced, (*agenttools.Provenance)(nil)), agent.ErrMissingDep},
+		{"provenance", agent.NewDeps(can, rolesfake.New(), priced, agenttools.NewProvenance()), nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := agent.ListUnbilledHandler().Build(tc.deps); !errors.Is(err, tc.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+// TestARC_U_027_WriteDownFromListUnbilled: a write-down whose cents list_unbilled returned in
+// the same run is sourced; an invented figure, or one read in another run, is refused. The
+// write stub declares the same pointer draft_bill does.
+//
+// rule: ARC-U-027
+func TestARC_U_027_WriteDownFromListUnbilled(t *testing.T) {
+	view := map[string]bool{agent.CapBillingView: true}
+	agentP := func(run string) registry.Principal {
+		return registry.Principal{Kind: registry.PrincipalAgent, RunID: run, ActingFor: clerk, Grant: []string{agent.CapBillingView}}
+	}
+	cases := []struct {
+		name      string
+		readRun   string
+		writeRun  string
+		writeDown int64 // 0: use the first entry's amount
+		wantErr   error
+	}{
+		{"amount read in the run", "run-ub", "run-ub", 0, nil},
+		{"invented amount", "run-ub", "run-ub", 12345, agenttools.ErrUnsourcedValue},
+		{"amount read in another run", "run-other", "run-ub", 0, agenttools.ErrUnsourcedValue},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			reg, pv := unbilledWorld(t, view)
+			write, err := pv.SourcedWrite(registry.Tool{
+				Name: "write_down_stub", Kind: registry.ToolWrite, Capability: agent.CapBillingView,
+				Input: []byte(`{"type":"object"}`),
+				Handle: func(context.Context, registry.Principal, json.RawMessage) (registry.ToolResult, error) {
+					return registry.ToolResult{Output: json.RawMessage(`{"outcome":"draft","ref":"bill:stub"}`)}, nil
+				},
+			}, "/line_actions/*/write_down_cents")
+			if err != nil {
+				t.Fatalf("sourced write: %v", err)
+			}
+			if err := reg.Register(write); err != nil {
+				t.Fatalf("register: %v", err)
+			}
+			res, err := reg.Call(ctx, agentP(tc.readRun), agent.ToolListUnbilled, json.RawMessage(`{"matter_id":"`+ubOpenMatter+`"}`))
+			if err != nil {
+				t.Fatalf("list_unbilled: %v", err)
+			}
+			var out unbilledResult
+			if err := json.Unmarshal(res.Output, &out); err != nil || len(out.Entries) == 0 {
+				t.Fatalf("output %s: %v", res.Output, err)
+			}
+			cents := tc.writeDown
+			if cents == 0 {
+				cents = out.Entries[0].AmountCents
+			}
+			in, _ := json.Marshal(map[string]any{"line_actions": []map[string]int64{{"write_down_cents": cents}}})
+			if _, err := reg.Call(ctx, agentP(tc.writeRun), "write_down_stub", in); !errors.Is(err, tc.wantErr) {
+				t.Fatalf("write-down err = %v, want %v", err, tc.wantErr)
+			}
+		})
+	}
 }
 
 type unbilledResult struct {
