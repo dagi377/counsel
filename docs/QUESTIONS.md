@@ -3235,3 +3235,11 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   RFC 3339 `due_at`, which provenance cannot match. A date only inside quoted document text
   is not sourced: F-MAT-17's placeholder task no longer carries a due_on.
 - `spec/eng/a2-interfaces.html` still lists 25 tools; regenerate it if it is generated.
+
+## Q-SHIFT-FLAG shift_date business days behind deadline.ontario_pack
+
+- Answers the open point above: while `deadline.ontario_pack` is off, `shift_date` refuses
+  `unit: business` with `ErrHolidayPackUnverified` ("holiday pack not verified"); it fails
+  closed rather than counting weekends only. Calendar-day shifts are unaffected.
+- `spec/eng/a2-interfaces.html` now lists 26 tools (shift_date row appended, matching the
+  JSON order). The HTML row also notes the flag; the JSON description is unchanged.

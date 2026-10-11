@@ -422,6 +422,7 @@ app:
 <tr><td><code>prepare_trust_withdrawal</code></td><td>write</td><td>trust.request</td><td>withdrawal_requests(draft)</td><td>trust.withdrawal</td><td>data.write:drafts</td><td>Prepare a trust withdrawal request (e.g. fees against an approved bill). Authorization is human-only (gate trust.withdrawal).</td></tr>
 <tr><td><code>propose_conflict_parties</code></td><td>write</td><td>conflicts.run</td><td>check_parties(proposed)</td><td>conflict.clearance</td><td>data.write:drafts</td><td>Add proposed parties to a conflict check and run it; clearance is gate conflict.clearance.</td></tr>
 <tr><td><code>submit_for_approval</code></td><td>write</td><td>agent.ask</td><td>gates</td><td>-</td><td>data.write:gates</td><td>Open the gate for a draft the agent created in this run (if the draft tool did not already).</td></tr>
+<tr><td><code>shift_date</code></td><td>read</td><td>deadlines.view</td><td>-</td><td>-</td><td>data.read</td><td>Add or subtract calendar or business days (America/Toronto, Ontario holidays) from a date the run read; pure function, no write. The result is a date the run read. Business-day shifts are refused while deadline.ontario_pack is off.</td></tr>
 </table></div>
 <h3>5. Module boundaries</h3>
 <ul>

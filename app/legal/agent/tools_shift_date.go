@@ -3,9 +3,11 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/app/legal/rulepacks/ontario"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/clock"
@@ -15,9 +17,13 @@ import (
 
 // ToolShiftDate adds or subtracts calendar days or business days from a date the run read
 // (an agent run's start date must be in its provenance).
-// Business days skip weekends and the Ontario court holidays, in America/Toronto. It is a
-// pure computation: nothing is saved.
+// Business days skip weekends and the Ontario court holidays, in America/Toronto, and are
+// refused while deadline.ontario_pack is off. It is a pure computation: nothing is saved.
 const ToolShiftDate = "shift_date"
+
+// ErrHolidayPackUnverified: a business-day shift was asked for while deadline.ontario_pack is
+// off. The Ontario holiday calendar is not verified, so no business day is counted with it.
+var ErrHolidayPackUnverified = errors.New("agent: shift_date: holiday pack not verified (deadline.ontario_pack is off)")
 
 // Shift units.
 const (
@@ -83,7 +89,7 @@ type shiftDateOut struct {
 	Date string `json:"date"`
 }
 
-func (s shiftDate) handle(_ context.Context, _ string, raw json.RawMessage) (registry.ToolResult, error) {
+func (s shiftDate) handle(ctx context.Context, _ string, raw json.RawMessage) (registry.ToolResult, error) {
 	var in struct {
 		Date string `json:"date"`
 		Days int    `json:"days"`
@@ -102,6 +108,11 @@ func (s shiftDate) handle(_ context.Context, _ string, raw json.RawMessage) (reg
 	case ShiftCalendar:
 		to = from.AddDays(in.Days)
 	case ShiftBusiness:
+		// V-DEADLINES: fail closed: the holiday calendar is unverified until deadline.ontario_pack is on, so
+		// a business-day count is refused rather than computed on weekends alone.
+		if !legalflags.Enabled(ctx, legalflags.DeadlineOntarioPack) {
+			return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolShiftDate, ErrHolidayPackUnverified)
+		}
 		to = s.businessDays(from, in.Days)
 	default:
 		return registry.ToolResult{}, fmt.Errorf("%s: unit: %w", ToolShiftDate, ErrInvalidInput)
