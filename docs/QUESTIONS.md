@@ -2395,3 +2395,23 @@ Done in PORT-18:
   PlanStore step map (kernel `agenttools.Step` has no step id; needs an additive kernel field).
   `ForgetRunner` calls Provenance.Forget on run end; it wraps the action route's Runner, and the
   job-run worker must use it too once it exists.
+
+## Q-INTEG-15A-SCHEDULED Agent wiring after the pass 14 FEAT merges
+
+- BOOT-WIRE-A was cut before pass 14 landed F-CON-01..03 and F-DL-05, 07..13. Integration
+  pass 15a binds every new job feature through its own package Binding func and drops
+  BOOT-WIRE-A's local copies of the deadline event names (deadlines already exports them).
+- Scheduled runs (F-DL-06 rule watch, F-DL-05 digest, F-DL-09 daily coverage) all act for
+  AgentWiring.RuleAdmin. Open: should the digest and coverage check act for a separate
+  configured user?
+- AgentPorts gains UnbilledWIP, Matters (matter.Query), DocLookup and WriteTools, the
+  handler deps pass 14 added (draft_bill, get_matter/search_matters, read_document,
+  prepare_trust_withdrawal).
+
+## Q-INTEG-15A-SCREENS Action screens for the conflict and calendar features
+
+- The action route's screen map adds conflict-check-new, conflict-results and
+  conflict-clearance as matter subjects needing conflicts.run, and event-detail,
+  firm-calendar and rule-trigger-wizard as matter subjects needing deadlines.view. Open: a
+  conflict check before matter opening has no matter yet; confirm whether those screens
+  should select a conflict_check subject kind instead.

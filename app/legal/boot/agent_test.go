@@ -14,6 +14,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/conflict"
+	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/kernel/agenttools"
@@ -36,6 +37,9 @@ type (
 	stubDocs         struct{ docs agent.MatterDocuments }
 	stubFolders      struct{ agent.MatterFolders }
 	stubBills        struct{ agent.BillReader }
+	stubWIP          struct{ agent.UnbilledWIP }
+	stubMatterQuery  struct{ matter.Query }
+	stubDocLookup    struct{ agent.DocumentLookup }
 	stubBalances     struct{ agent.BillBalances }
 	stubTrust        struct{ agent.TrustAvailable }
 	stubTrustAccts   struct{ agent.MatterTrustAccounts }
@@ -74,6 +78,10 @@ func fullPorts() AgentPorts {
 		Documents:       stubDocs{},
 		Folders:         stubFolders{},
 		Bills:           stubBills{},
+		UnbilledWIP:     stubWIP{},
+		Matters:         stubMatterQuery{},
+		DocLookup:       stubDocLookup{},
+		WriteTools:      mustWriteTools(),
 		BillBalances:    stubBalances{},
 		Trust:           stubTrust{},
 		TrustAccounts:   stubTrustAccts{},
@@ -253,4 +261,12 @@ func (s stubMatterTime) MatterTime(ctx context.Context, m string) ([]agent.Price
 
 func (s stubPacks) PublishedPacks(ctx context.Context) ([]deadline.Pack, error) {
 	return s.packs.PublishedPacks(ctx)
+}
+
+func mustWriteTools() *agent.WriteTools {
+	w, err := agent.NewWriteTools(agent.WriteDeps{})
+	if err != nil {
+		panic(err)
+	}
+	return w
 }

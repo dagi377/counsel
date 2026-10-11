@@ -17,6 +17,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/kernel/agenttools"
@@ -25,14 +26,6 @@ import (
 	"github.com/dagi377/counsel/kernel/deadline"
 	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/registry"
-)
-
-// Event types the deadline job features start from that the deadline package does not name
-// itself. They are the a2 event names of the owning modules (Q-BOOT-WIRE-A).
-const (
-	eventDocumentUploaded = "document.uploaded" // F-DL-01: document filed to a matter
-	eventLeadCreated      = "lead.created"      // F-DL-02: intake created
-	eventMatterUpdated    = "matter.updated"    // F-DL-02: claim facts updated
 )
 
 // AgentPorts are the module query APIs the agent tool handlers read through, one field per
@@ -51,12 +44,17 @@ type AgentPorts struct {
 
 	Contacts      agent.ContactSearch
 	ClientMatters agent.ClientMatters
-	Work          agent.WorkList
-	Text          agent.DocumentText
-	Documents     agent.MatterDocuments
-	Folders       agent.MatterFolders
+	Matters       matter.Query
+	DocLookup     agent.DocumentLookup
+	// WriteTools serves prepare_trust_withdrawal; boot builds it with agent.NewWriteTools.
+	WriteTools *agent.WriteTools
+	Work       agent.WorkList
+	Text       agent.DocumentText
+	Documents  agent.MatterDocuments
+	Folders    agent.MatterFolders
 
 	Bills          agent.BillReader
+	UnbilledWIP    agent.UnbilledWIP
 	BillBalances   agent.BillBalances
 	Trust          agent.TrustAvailable
 	TrustAccounts  agent.MatterTrustAccounts
@@ -102,12 +100,16 @@ func (p AgentPorts) ports() []port {
 		{"Provenance", p.Provenance, p.Provenance != nil},
 		{"Contacts", p.Contacts, p.Contacts != nil},
 		{"ClientMatters", p.ClientMatters, p.ClientMatters != nil},
+		{"Matters", p.Matters, p.Matters != nil},
+		{"DocLookup", p.DocLookup, p.DocLookup != nil},
+		{"WriteTools", p.WriteTools, p.WriteTools != nil},
 		{"Work", p.Work, p.Work != nil},
 		{"Text", p.Text, p.Text != nil},
 		{"Documents", p.Documents, p.Documents != nil},
 		{"Folders", p.Folders, p.Folders != nil},
 		{"Bills", p.Bills, p.Bills != nil},
 		{"BillBalances", p.BillBalances, p.BillBalances != nil},
+		{"UnbilledWIP", p.UnbilledWIP, p.UnbilledWIP != nil},
 		{"Trust", p.Trust, p.Trust != nil},
 		{"TrustAccounts", p.TrustAccounts, p.TrustAccounts != nil},
 		{"Entries", p.Entries, p.Entries != nil},
@@ -250,24 +252,27 @@ func gateKindCodes() ([]string, error) {
 }
 
 // JobBindings binds every job feature of s to the events and schedule that start it.
-// ruleAdmin is the user the scheduled F-DL-06 rule watch acts for (the rule-pack
-// administrator); empty fails with trigger.ErrBadBinding. A job feature with no binding
+// ruleAdmin is the user the scheduled runs act for (F-DL-06 rule watch, F-DL-05 digest,
+// F-DL-09 daily coverage check; Q-INTEG-15A-SCHEDULED); empty fails with
+// trigger.ErrBadBinding. A job feature with no binding
 // listed here fails, so a new job feature cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
+	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
+		return func() (trigger.Binding, error) { return bind(ruleAdmin) }
+	}
 	byID := map[string]func() (trigger.Binding, error){
-		deadlines.FeatureExtractDeadlines: func() (trigger.Binding, error) {
-			d, _ := s.ByID(deadlines.FeatureExtractDeadlines)
-			return trigger.Bind(d, "", eventDocumentUploaded)
-		},
-		deadlines.FeatureLimitationAssessment: func() (trigger.Binding, error) {
-			d, _ := s.ByID(deadlines.FeatureLimitationAssessment)
-			return trigger.Bind(d, "", eventLeadCreated, eventMatterUpdated)
-		},
+		deadlines.FeatureExtractDeadlines:           deadlines.ExtractDeadlinesBinding,
+		deadlines.FeatureLimitationAssessment:       deadlines.LimitationAssessmentBinding,
 		deadlines.RecomputeDependantsDef().ID:       deadlines.RecomputeDependantsBinding,
 		deadlines.ComplianceEvidenceMatcherDef().ID: deadlines.ComplianceEvidenceMatcherBinding,
-		deadlines.RuleWatchDef().ID: func() (trigger.Binding, error) {
-			return deadlines.RuleWatchBinding(ruleAdmin)
-		},
+		deadlines.RuleWatchDef().ID:                 scheduled(deadlines.RuleWatchBinding),
+		deadlines.DigestDef().ID:                    scheduled(deadlines.DigestBinding),
+		deadlines.PostEventFollowUpDef().ID:         deadlines.PostEventFollowUpBinding,
+		deadlines.AdjournmentWatcherDef().ID:        deadlines.AdjournmentWatcherBinding,
+		deadlines.AbsenceCoverageCheckDef().ID:      scheduled(deadlines.AbsenceCoverageCheckBinding),
+		conflict.FeaturePartyExtraction:             conflict.PartyExtractionBinding,
+		conflict.SearchRankingDef().ID:              conflict.SearchRankingBinding,
+		conflict.ClearanceMemoDef().ID:              conflict.ClearanceMemoBinding,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -303,6 +308,15 @@ func AddTickJob(j *kboot.Jobs, b *trigger.Bindings) error {
 var actionScreens = map[string]trigger.Screen{
 	"matter-deadlines":      {SubjectKind: "matter", Capability: "deadlines.view"},
 	"limitation-assessment": {SubjectKind: "matter", Capability: "deadlines.view"},
+	// Conflict checks belong to a matter (conflict.conflict_check.matter_id); the user
+	// needs to be able to run checks on it (Q-INTEG-15A-SCREENS).
+	"conflict-check-new": {SubjectKind: "matter", Capability: "conflicts.run"},
+	"conflict-results":   {SubjectKind: "matter", Capability: "conflicts.run"},
+	"conflict-clearance": {SubjectKind: "matter", Capability: "conflicts.run"},
+	// Calendar screens act on the matter the event or deadline belongs to.
+	"event-detail":        {SubjectKind: "matter", Capability: "deadlines.view"},
+	"firm-calendar":       {SubjectKind: "matter", Capability: "deadlines.view"},
+	"rule-trigger-wizard": {SubjectKind: "matter", Capability: "deadlines.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
