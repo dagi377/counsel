@@ -359,6 +359,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		work.DailyDigestDef().ID:           work.DailyDigestBinding,
 		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
 		platform.DestructionBatchDef().ID:  platform.DestructionBatchBinding,
+		platform.AccessReviewDef().ID:      platform.AccessReviewBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -528,6 +529,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Platform. archive-retention is firm-level: a destruction batch spans closed matters
 	// (F-PLT-07). platform.retention is a kernel id, so the screen asks for matters.close.
 	"archive-retention": {SubjectKind: FirmSubject, Capability: "matters.close"},
+	// users-roles is firm-level: an access review covers every matter (F-PLT-08).
+	"users-roles": {SubjectKind: FirmSubject, Capability: "admin.access_review"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

@@ -4268,3 +4268,12 @@ of FEAT-TIM-01 above.
   `platform.retention` is a kernel id the app may not register (TestAppIDsAvoidKernelPrefix).
 - Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
   (binding and screen), the generated plugin skill.
+
+## Q-FEAT-PLT-10 F-PLT-08 access review on the firm subject
+
+- Access is the firm's, so F-PLT-08 drafts its fix proposals on the firm subject and opens
+  `platform.access_change` (G-PERM, `platform.GateAccessChange`, the first const for the kind)
+  on that draft. Its grant names `intake.forms` for the firm draft, as F-PLT-07's does.
+- `users-roles` maps to `boot.FirmSubject` with capability `admin.access_review`.
+- Branch is based on task/FEAT-PLT-09 so the platform package and its one helper file
+  (`ai_pltd_helpers_test.go`) merge cleanly.
