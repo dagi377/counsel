@@ -1901,3 +1901,14 @@ Done in PORT-18:
 - The request goes out as a draft email; `submit_for_approval` on the `email_draft` subject
   opens `platform.portal_message`. `draft_email` is called without `submit`, so it never opens
   `platform.outgoing_email`, which is outside the Def's gate kinds.
+
+## Q-FEAT-DOC-17 F-DOC-05 citation-staleness
+
+- Files beyond the task list: the featureset registration of `docs.CitationStalenessDef()`
+  and its generated plugin skill. The branch builds on task/FEAT-DOC-16 for the shared
+  `docf` test helpers.
+- a2 has no "new version" event; a new version is a `document.uploaded` (it carries
+  `version_id`), so F-DOC-05 binds that event. The prompt has the agent flag only drafts that
+  cite an older version.
+- The flags are the run's extraction output (`OutputSchema`: ranked items with a citation);
+  there is no write tool, so nothing is stored and no gate opens.

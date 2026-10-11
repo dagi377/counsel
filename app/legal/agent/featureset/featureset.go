@@ -45,5 +45,6 @@ func appDefs() []feature.Def {
 		conflict.ClearanceMemoDef(),
 		// documents
 		docs.RequestDocumentsDef(),
+		docs.CitationStalenessDef(),
 	}
 }
