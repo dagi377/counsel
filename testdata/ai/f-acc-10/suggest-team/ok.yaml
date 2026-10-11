@@ -1,33 +1,39 @@
 synthetic: true
 feature: F-ACC-10
 match:
+  prompt_hash: "91efdbe0d9900ab10b79fcd2297f7ab3997a5b41be63e0a2c48ef9d69f38c3d1"
   last_user_regex: '\[ok\]'
-latency_ms: 40
-chunk_delay_ms: 5
+latency_ms: 0
 turns:
-  - expect_tools: [report_plan]
-    reply:
+  - reply:
       tool_calls:
         - name: report_plan
-          input: {steps: [{id: search, title: "Find lawyers by practice area and workload"}, {id: team, title: "Draft team for approval"}]}
+          input: {steps: [{step_id: search, title: "Find matters in the practice area"}, {step_id: team, title: "Draft the proposed team"}, {step_id: submit, title: "Submit the team for approval"}]}
       stop_reason: tool_use
-      usage: {input_tokens: 610, output_tokens: 44}
+      usage: {input_tokens: 640, output_tokens: 48}
   - expect_tool_results: [report_plan]
     reply:
       tool_calls:
         - name: search_matters
-          input: {practice_area: "real-estate", matter: "mat-synth-010"}
+          input: {query: "synth", limit: 20}
       stop_reason: tool_use
-      usage: {input_tokens: 700, output_tokens: 30}
+      usage: {input_tokens: 720, output_tokens: 30}
   - expect_tool_results: [search_matters]
     reply:
       tool_calls:
         - name: draft_document
-          input: {template: matter_team, matter: "mat-synth-010", members: ["usr-synth-lawyer-a", "usr-synth-clerk-b"]}
+          input: {matter_id: "matter-1", title: "Proposed team: matter 2026-0601", body_markdown: "Lead: user-synthetic-lawyer (litigation, 4 open matters). Associate: user-synthetic-associate (litigation, 2 open matters)."}
       stop_reason: tool_use
-      usage: {input_tokens: 880, output_tokens: 90}
+      usage: {input_tokens: 910, output_tokens: 120}
   - expect_tool_results: [draft_document]
     reply:
-      text: "Suggested a team of 2 for mat-synth-010 from practice area and workload, for your review."
+      tool_calls:
+        - name: submit_for_approval
+          input: {subject_type: draft, subject_id: "draft-document-1", gate_kind: core.matter_visibility}
+      stop_reason: tool_use
+      usage: {input_tokens: 960, output_tokens: 40}
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      text: "Proposed a two-person team from the practice area and workload; it waits for approval."
       stop_reason: end_turn
-      usage: {input_tokens: 940, output_tokens: 26}
+      usage: {input_tokens: 980, output_tokens: 24}

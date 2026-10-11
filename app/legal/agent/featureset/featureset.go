@@ -193,5 +193,7 @@ func appDefs() []feature.Def {
 		access.LicenceCheckDef(),
 		access.AccessReviewPreFillDef(),
 		access.BreakGlassSummaryDef(),
+		// access
+		access.SuggestTeamDef(),
 	}
 }

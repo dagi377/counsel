@@ -4560,3 +4560,17 @@ and has a one-outbox-event test.
   moved the same way as AI-014.
 - Event types with no publisher yet: `user.invited` (F-ACC-02), `break_glass.ended` (F-ACC-04;
   identity writes only the `core.break_glass_expire` audit action today).
+
+## Q-FEAT-ACC-06 Suggest team: tool-gap gate core.matter_visibility
+
+- core.matter_visibility is not registered by any module; F-ACC-10 opens it as a tool-gap
+  kind (draft_document of the proposed team, then submit_for_approval). The matter-access
+  screen already selects a matter, so no boot screen entry changed.
+- search_matters returns no workload or practice-area counts, so the team's reasons come from
+  the matters the run can see; a workload read tool would make them exact.
+- draft_document and submit_for_approval declare no provenance fields, so no write can be
+  refused with ErrUnsourcedValue at the handler; the tests check every date in the run's write
+  inputs against the run's Provenance (accbSourcedDates).
+- The AI-021 test (ai_f_acc_10_test.go) now runs through agenttest.FromFeature with no
+  stand-ins; the fixtures use a2 inputs, the injection variant makes no extra tool call, and
+  ok pins match.prompt_hash.
