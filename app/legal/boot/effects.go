@@ -8,6 +8,7 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/credit"
+	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/trust/signatory"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
@@ -152,6 +153,10 @@ type wiring struct {
 	catalog *gates.Catalog
 	// unwired are the app gate kinds with no effect, sorted; they are not registered.
 	unwired []string
+	// checks runs conflict checks; clearance is the only conflict.Clearer and decides G2 on
+	// those checks' runs. Both are built when Options.Clearance is set.
+	checks    *conflict.Checks
+	clearance *conflict.Clearance
 }
 
 // registerGates registers the gate kinds that have an effect (gates.RegisterWired), so no

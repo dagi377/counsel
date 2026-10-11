@@ -466,6 +466,15 @@ Template:
   a kernel boot container), and should `kernel/identity` gain an additive per-user capability
   lookup, or should `conflict.Capabilities` be satisfied by an adapter over `Access.Can`?
   Until then `NewClearance` is wired only in tests.
+- Answer: owner (2026-10-11): `app/legal/boot` builds Clearance with Capabilities from a kernel
+  `identity.CapabilityLookup`. The lookup is generic: it reads the registered roles and the role
+  assignments and returns the capabilities a user holds. It fails closed for unknown users.
+  `core.*` kinds are registered by kernel/identity's own admin gates in kernel boot. Done in
+  BOOT-17: `kernel/identity/capabilities.go` (additive: `CapabilityLookup`, `ErrUnknownUser` for a
+  user with no roles, `ErrUnknownRole` for an unregistered role) and `app/legal/boot/clearance.go`
+  (`Options.Clearance` builds `conflict.NewClearance(checks, catalog, lookup, clock.Now)` over the
+  catalog BOOT-16 keeps). `kernel/identity` is outside BOOT-17's file list; the owner's answer
+  names it.
 
 ## Q-GL-BOOK Trust book in gl: book column, trust source kind, per-book close
 

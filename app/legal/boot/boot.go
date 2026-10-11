@@ -28,6 +28,8 @@ type Options struct {
 	// Gates, when set, builds the gate effect services and registers every gate kind that
 	// has an effect. When nil no app gate kind is registered.
 	Gates *GatePorts
+	// Clearance, when set, builds conflict Clearance (gate G2) over the gate catalog.
+	Clearance *ClearancePorts
 }
 
 // PaymentHook is the configured payment provider. Webhook.ID is the hook provider name from
@@ -48,7 +50,7 @@ func App(opts Options) kboot.App {
 
 // registerHooks lists the Register steps, in order. Later boot tasks append theirs here.
 func registerHooks(w *wiring) []hook {
-	return []hook{registerModules, w.opts.registerPayment, w.registerGates}
+	return []hook{registerModules, w.opts.registerPayment, w.registerGates, w.buildClearance}
 }
 
 // startHooks lists the Start steps (seed and start jobs), in order. None exist yet.
