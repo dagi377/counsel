@@ -3572,3 +3572,61 @@ of FEAT-TIM-01 above.
   Switch the firm-level ones to the firm subject once boot has one.
 - The features' end-to-end tests give list_unbilled a test MatterTime port over the Seed's
   time entries (the Seed has no MatterTime); the handler itself is the app's.
+
+## Q-FEAT-WRK-01 F-WRK-01 events, the work-item screen and create_task's due date
+
+- Task: FEAT-WRK-01 (F-WRK-01 Pick up agent-ready items).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs), `app/legal/boot/agent.go` (the job binding and the `work-item` screen),
+  `app/legal/work/ai_wrk_helpers_test.go` (shared wrk test helpers) and the generated skill
+  `paploo/counsel-plugin/skills/f-wrk-01-pick-up-agent-ready-items/SKILL.md`.
+- No work event exists in spec/eng/a2-interfaces.json for "item enters Agent-ready" or
+  "assigned to agent". The Def binds `work.item_agent_ready` and `work.item_assigned_to_agent`
+  (consts in app/legal/work); nothing publishes them yet. Confirm the names when kernel/work
+  publishes item events.
+- The `work-item` action screen selects subject kind `work_item` with `work.edit`; no
+  registry constant names that kind yet.
+- `create_task`'s `due_on` is not held to the run's provenance in production (only
+  propose_deadline, draft_bill and payment allocation use `SourcedWrite`). The wrk tests wrap
+  create_task with `SourcedWrite("/due_on")` and check an unread date is refused with
+  `ErrUnsourcedValue`. Proposed: wrap create_task the same way in
+  `app/legal/agent/tools_task.go`. Note that none of the F-WRK tools returns a bare
+  `YYYY-MM-DD` value (list_work_items gives RFC 3339 `due_at`), so once wrapped an agent can
+  write no due date until a read tool returns one.
+
+## Q-FEAT-WRK-02 create_task returns a proposal, so F-WRK-02 cannot open work.plan in the run
+
+- Task: FEAT-WRK-02 (F-WRK-02 Propose matter plan). Same gap as Q-FEAT-MAT-13 for work.plan.
+- `agent.WorkItemGateKinds` holds `work.absence` and `work.output` only, so under F-WRK-02's
+  scope (work.plan) `create_task` returns `OutcomeProposal`, the run records no draft and the
+  in-run `submit_for_approval` for `work.plan` is refused with `ErrNotFound`: the run fails
+  closed (tasks proposed, no gate). `TestFWRK02_FromFeature` pins that, then opens work.plan
+  on the proposed plan as the acting user and checks pending, the agent principal 403 and
+  `ErrSelfApproval` for the acting user.
+- work.plan's payload schema is `{matter_id, template_id}` (a matter's plan, not one item), so
+  adding it to `WorkItemGateKinds` does not fit. Proposed: let `submit_for_approval` open
+  work.plan on the matter (`subject_type: matter`) when the run created proposals on it, and
+  pass the template id the trigger carries (FEAT-TOOL-16 follow-up in
+  `app/legal/agent/tools_task.go` / `tools_submit.go`).
+- `matter.template_applied` is not in spec/eng/a2-interfaces.json; nothing publishes it yet.
+  `matter.opened` is the a2 event.
+- Files beyond the list: featureset.go and its test, boot/agent.go (the job binding), the
+  shared `ai_wrk_helpers_test.go` and the generated skill
+  `paploo/counsel-plugin/skills/f-wrk-02-propose-matter-plan/SKILL.md`.
+
+## Q-FEAT-WRK-03 F-WRK-04 date shift: work.plan in the run, and no sourced shifted date
+
+- Task: FEAT-WRK-03 (F-WRK-04 Date-shift on key date change).
+- Same work.plan gap as Q-FEAT-WRK-02: the change tasks are proposals and the in-run
+  `submit_for_approval` fails closed with `ErrNotFound`; `TestFWRK04_FromFeature` opens
+  work.plan on the change as the acting user and checks pending, 403 and `ErrSelfApproval`.
+- The Def's tools return no bare `YYYY-MM-DD` date (list_work_items gives RFC 3339 `due_at`)
+  and there is no date-shift tool, so the agent cannot source a shifted due date. The prompt
+  has it leave `due_on` out and let the lawyer set it; the tests check an invented shifted
+  date is refused with `ErrUnsourcedValue` (with create_task wrapped as in Q-FEAT-WRK-01).
+  Proposed: a read tool that returns each dependent item's shifted date (offset from the key
+  date, in America/Toronto business days where the template says so), so a date-shift
+  proposal can carry dates.
+- `matter.key_date_changed` is not in spec/eng/a2-interfaces.json; nothing publishes it yet.
+- Files beyond the list: featureset.go and its test, boot/agent.go (the job binding) and the
+  generated skill `paploo/counsel-plugin/skills/f-wrk-04-date-shift-on-key-date-change/SKILL.md`.

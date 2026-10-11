@@ -24,6 +24,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
+	"github.com/dagi377/counsel/app/legal/work"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
@@ -338,12 +339,15 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		intake.WeeklyIntakeDigestDef().ID:           intake.WeeklyIntakeDigestBinding,
 		// F-TIM-01 runs at the end of each business day once per active timekeeper, each
 		// run acting for that timekeeper (TIME-FIX); the screen actions cover on-request runs.
-		tk.RebuildDayDef().ID:         tk.RebuildDayBinding,
-		tk.ReceiptCaptureDef().ID:     tk.ReceiptCaptureBinding,
-		tk.PreBillCheckDef().ID:       tk.PreBillCheckBinding,
-		tk.TimesheetPreReviewDef().ID: tk.TimesheetPreReviewBinding,
-		tk.EngagementTermsDef().ID:    tk.EngagementTermsBinding,
-		tk.RateChangeImpactDef().ID:   tk.RateChangeImpactBinding,
+		tk.RebuildDayDef().ID:          tk.RebuildDayBinding,
+		tk.ReceiptCaptureDef().ID:      tk.ReceiptCaptureBinding,
+		tk.PreBillCheckDef().ID:        tk.PreBillCheckBinding,
+		tk.TimesheetPreReviewDef().ID:  tk.TimesheetPreReviewBinding,
+		tk.EngagementTermsDef().ID:     tk.EngagementTermsBinding,
+		tk.RateChangeImpactDef().ID:    tk.RateChangeImpactBinding,
+		work.PickUpAgentReadyDef().ID:  work.PickUpAgentReadyBinding,
+		work.ProposeMatterPlanDef().ID: work.ProposeMatterPlanBinding,
+		work.DateShiftDef().ID:         work.DateShiftBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -486,6 +490,8 @@ var actionScreens = map[string]trigger.Screen{
 	"utilization":         {SubjectKind: "matter", Capability: "reports.firm"},
 	"activity-categories": {SubjectKind: "matter", Capability: "time.view_all"},
 	"timekeeper-targets":  {SubjectKind: "matter", Capability: "reports.firm"},
+	// Work: the work-item screen selects the item the agent posts its result on.
+	"work-item": {SubjectKind: "work_item", Capability: "work.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
