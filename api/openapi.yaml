@@ -1651,6 +1651,136 @@ paths:
         '429': *id001
         '503': *id001
         default: *id001
+  /deadlines/{deadline_id}/trigger:
+    post:
+      tags: [other]
+      operationId: changeDeadlineTrigger
+      summary: Sets a stored deadline's trigger date and publishes deadline.trigger_date_changed; due dates are re-proposed, not changed (Q-EVENTS-WIRE-2)
+      parameters:
+      - name: deadline_id
+        in: path
+        required: true
+        schema: {type: string}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [trigger_on]
+              properties:
+                trigger_on: {type: string, format: date}
+      responses:
+        '200': {description: Trigger date set}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+        '429': *id001
+        '503': *id001
+        default: *id001
+  /filings/{filing_id}/issue:
+    post:
+      tags: [other]
+      operationId: issueClaim
+      summary: Records the court's issue of a filed claim and publishes claim.issued (Q-EVENTS-WIRE-2)
+      parameters:
+      - name: filing_id
+        in: path
+        required: true
+        schema: {type: string}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [court_file_no, issued_on]
+              properties:
+                court_file_no: {type: string}
+                issued_on: {type: string, format: date}
+      responses:
+        '200': {description: Filing issued}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+        '429': *id001
+        '503': *id001
+        default: *id001
+  /filings/affidavits-of-service:
+    post:
+      tags: [other]
+      operationId: recordAffidavitOfService
+      summary: Records a filed affidavit of service and publishes service.affidavit_received (Q-EVENTS-WIRE-2)
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [matter_id, document_id, court, filed_on]
+              properties:
+                matter_id: {type: string}
+                document_id: {type: string}
+                court: {type: string}
+                reference: {type: string}
+                filed_on: {type: string, format: date}
+      responses:
+        '201': {description: Filing recorded}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+        '429': *id001
+        '503': *id001
+        default: *id001
+  /emails/{comm_item_id}/filings:
+    post:
+      tags: [other]
+      operationId: fileEmail
+      summary: Files an email to a matter and publishes email.filed (Q-EVENTS-WIRE-2)
+      parameters:
+      - name: comm_item_id
+        in: path
+        required: true
+        schema: {type: string}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [matter_id]
+              properties:
+                matter_id: {type: string}
+      responses:
+        '200': {description: Already filed}
+        '201': {description: Filed}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+        '429': *id001
+        '503': *id001
+        default: *id001
   /hooks/{provider}:
     post:
       tags: [payments]

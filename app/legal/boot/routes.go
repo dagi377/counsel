@@ -11,6 +11,8 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/credit"
+	"github.com/dagi377/counsel/app/legal/comms"
+	"github.com/dagi377/counsel/app/legal/deadlines"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
@@ -63,6 +65,9 @@ type HTTPPorts struct {
 	GateList gates.Lister
 	// Expenses serves /expenses (HTTP-05). Nil uses the Postgres ExpenseStore on the kernel DB.
 	Expenses timekeeping.Expenses
+	// Events serves the trigger change, claim issue, affidavit of service and email filing
+	// routes (EVENTS-WIRE-2). Nil builds them on the kernel DB and emitter.
+	Events *EventStores
 }
 
 // TxRunner runs fn in one transaction; kernel/db implements it.
@@ -93,6 +98,10 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	}
 	if p.Expenses == nil && k.DB != nil && k.Clock != nil {
 		p.Expenses = timekeeping.NewExpenseStore(k.DB, k.Clock.Location())
+	}
+	if p.Events == nil && k.DB != nil && k.Emitter != nil {
+		ev := newEventStores(k.DB, k.Emitter)
+		p.Events = &ev
 	}
 	var out []mount
 	add := func(ok bool, fn mount) {
@@ -129,6 +138,12 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	add(p.Expenses != nil && p.DB != nil && p.Idem != nil, (&timekeeping.ExpenseHTTP{
 		Expenses: p.Expenses, DB: p.DB, Access: p.Access, Cursors: p.Cursors, Idem: p.Idem,
 		Problems: p.Problems, Principal: p.Principal}).Routes)
+	if ev := p.Events; ev != nil && p.Idem != nil {
+		add(ev.Book != nil && p.DB != nil, (&deadlines.TriggerHTTP{Book: ev.Book, DB: p.DB, Access: p.Access,
+			Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
+		add(ev.Filings != nil && ev.Emails != nil, (&comms.FilingHTTP{Filings: ev.Filings, Emails: ev.Emails,
+			Access: p.Access, Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
+	}
 	return out, nil
 }
 

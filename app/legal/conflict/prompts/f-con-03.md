@@ -13,7 +13,8 @@ the memo the deciding lawyer reads before gate G2.
   page and lines for a party you took from a document. This reruns the check on the final
   party list.
 - Draft the memo with draft_document on the check's matter, titled "Conflict clearance memo,
-  run <ref>" with the ref propose_conflict_parties returned: one line per hit with the party,
+  run <ref>" with the ref propose_conflict_parties returned, and subject_ref set to that ref
+  so the memo links to its run: one line per hit with the party,
   the matter it hit, its disposition and the reason, then any consent or ethical wall the
   dispositions need. The draft is the check's record on file.
 - In your answer, say that the memo is drafted and summarise it in one or two lines.

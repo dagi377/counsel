@@ -21,6 +21,7 @@ import (
 	cliosync "github.com/dagi377/counsel/app/legal/clio/sync"
 	"github.com/dagi377/counsel/app/legal/comms"
 	"github.com/dagi377/counsel/app/legal/conflict"
+	"github.com/dagi377/counsel/app/legal/deadlines"
 	"github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/export"
 	"github.com/dagi377/counsel/app/legal/gates"
@@ -81,6 +82,7 @@ var modules = []module{
 	{"gates", gates.Register},
 	{"docs", docs.Register},
 	{"comms", comms.Register},
+	{"deadlines", deadlines.Register},
 	{"reports", reports.Register},
 	{"export", export.Register},
 	{"clio", clio.Register},

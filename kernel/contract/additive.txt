@@ -10,3 +10,7 @@
 /paths/~1webhook-endpoints~1{webhook_id}/patch/parameters/1 Q-T-008.2
 /paths/~1bills~1{bill_id}~1submit/post/requestBody Q-HTTP-08b
 /paths/~1agent~1actions~1{feature_id} Q-FEAT-CORE-12
+/paths/~1deadlines~1{deadline_id}~1trigger Q-EVENTS-WIRE-2
+/paths/~1filings~1{filing_id}~1issue Q-EVENTS-WIRE-2
+/paths/~1filings~1affidavits-of-service Q-EVENTS-WIRE-2
+/paths/~1emails~1{comm_item_id}~1filings Q-EVENTS-WIRE-2

@@ -2074,6 +2074,10 @@
      "template_id": {
       "$ref": "#/$defs/uuid"
      },
+     "subject_ref": {
+      "type": "string",
+      "maxLength": 200
+     },
      "body_markdown": {
       "type": "string",
       "maxLength": 200000
