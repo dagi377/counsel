@@ -916,6 +916,56 @@ Left open: the second accept line (refuse a route that sets state owned by a gat
 unless it is the gate decision endpoint) needs a per-route "gate-owned state" marker that no
 contract declares yet. Not built.
 
+## HTTP-00: gate-owned-state guard (files outside the task, decisions taken)
+
+- Write declarations live next to the route: `r.Method(m, path, server.Declare(h, keys...))`.
+  `server.DeclaredWrites` walks the mounted router (unwrapping `chi.ChainHandler`) and
+  `server.CheckWrites` refuses an undeclared POST/PUT/PATCH/DELETE route and any declaration
+  naming a `legal.GateOwned` key, except on `server.DecisionRoute`. Kernel mounters that do not
+  use Declare (inbound hooks) are declared in `app/legal/conformance_test.go` (`kernelWrites`).
+- `kernel/gate/decide.go` (not in the task's files): `runDecidedEffect` now hands the effect
+  `WithEffect(ctx, g.ID)`, so "set only by the effect runner" holds. One line.
+- `app/legal/register_test.go`: `MethodRoutes` joins the "always" set. Routes always mount;
+  each handler fails closed per request (the withdrawal execution route answers 503 until boot
+  wiring supplies its dependencies, and trust_rules_unverified while its flag is off). The
+  OpenAPI conformance test needs every route mounted with no features on, so routes cannot be
+  feature-gated at registration.
+- Fakes: `matterfake` (Create, AddMember) and `withdrawfake` (Authorize) gain
+  `GuardEffects(tb)`: effect-owned methods fail tb and return `gate.ErrOutsideEffect` outside
+  an effect. Other module fakes gain it when their handler task lands.
+- Q-HTTP-00 (open): `bill.delivered_at` is effect-owned (openapi deliverBill: "set only by the
+  delivery effect on evidence"; 0001 trigger RV1-008 mentions an approved delivery_correction),
+  but spec/gates.json has no delivery or delivery-correction kind. It is mapped to
+  `billing.bill_delivery`, listed pending and in the test's `unspecifiedKinds`. Needed: add the
+  kind to spec/gates.json (additive) or name the existing kind that owns it.
+- Mapping choices to confirm: write_off.status=approved -> billing.credit_note (the openapi op
+  "Request a credit note or write-off; opens gate billing.credit_note"); matter.team and
+  matter.restricted -> matter.widen_access; matter.status=closed -> platform.closing;
+  trust_account.signatories -> core.trust_signatory; trust_txn.posted is split into
+  `=receipt` (trust.receipt_classification) and `=transfer` (trust.transfer).
+
+## HTTP-01 / HTTP-02: matter routes (decisions taken, open items)
+
+- Routes register a zero-value `matter.HTTP` / `matter.Writes` through `Registry.Routes`;
+  every route answers 503 `unavailable` and calls nothing until boot wiring supplies the
+  dependencies (same as the withdrawal execution route). The BOOT tasks must inject them.
+- GET /matters: one capability check per request (ARC-I-042); walled and restricted matters
+  are left out by Query under the caller's RLS session, not by per-row checks. openapi
+  declares no `cursor`/`limit` parameters and no 200 schema for /matters; the handler takes
+  both (api.FromRequest) and the 200 bodies are not schema-checked.
+- POST /matters: the rule wins over the task text. Same key + different body returns 422
+  `idempotency_key_reused` (ARC-I-008), not 409. kernel/idem's own problem bodies omit the
+  required `type` field of the Problem schema; the handler checks the missing key itself so
+  that 400 validates, but the 422/409 bodies from `idem.New` do not (fix in kernel/idem).
+- POST /matters opens `matter.opening` with subject `party.contact`/client_id: the matter
+  row does not exist until the effect creates it. Needed: the matter.opening effect
+  (service gap) and a confirmation of the subject.
+- PATCH: plain-field writes go through a new `matter.Updater` port (declared in
+  http_write.go, not the frozen contract); its Postgres implementation is a service gap.
+  status=open opens matter.opening; closing/closed/archived open platform.closing (verify);
+  team and restricted open matter.widen_access. One gated change per request; mixing plain
+  and gated fields is 400.
+
 ## BOOT-09: Run wiring gaps
 
 - Additive `Config` fields beyond `Zone`: `DirectDatabaseURL` (db.Open validates both DSNs and
@@ -1145,31 +1195,7 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   core.app_user/core.role through a test-local one.
 ## HTTP-00: gate-owned-state guard (files outside the task, decisions taken)
 
-- Write declarations live next to the route: `r.Method(m, path, server.Declare(h, keys...))`.
-  `server.DeclaredWrites` walks the mounted router (unwrapping `chi.ChainHandler`) and
-  `server.CheckWrites` refuses an undeclared POST/PUT/PATCH/DELETE route and any declaration
-  naming a `legal.GateOwned` key, except on `server.DecisionRoute`. Kernel mounters that do not
-  use Declare (inbound hooks) are declared in `app/legal/conformance_test.go` (`kernelWrites`).
-- `kernel/gate/decide.go` (not in the task's files): `runDecidedEffect` now hands the effect
-  `WithEffect(ctx, g.ID)`, so "set only by the effect runner" holds. One line.
-- `app/legal/register_test.go`: `MethodRoutes` joins the "always" set. Routes always mount;
-  each handler fails closed per request (the withdrawal execution route answers 503 until boot
-  wiring supplies its dependencies, and trust_rules_unverified while its flag is off). The
-  OpenAPI conformance test needs every route mounted with no features on, so routes cannot be
-  feature-gated at registration.
-- Fakes: `matterfake` (Create, AddMember) and `withdrawfake` (Authorize) gain
-  `GuardEffects(tb)`: effect-owned methods fail tb and return `gate.ErrOutsideEffect` outside
-  an effect. Other module fakes gain it when their handler task lands.
-- Q-HTTP-00 (open): `bill.delivered_at` is effect-owned (openapi deliverBill: "set only by the
-  delivery effect on evidence"; 0001 trigger RV1-008 mentions an approved delivery_correction),
-  but spec/gates.json has no delivery or delivery-correction kind. It is mapped to
-  `billing.bill_delivery`, listed pending and in the test's `unspecifiedKinds`. Needed: add the
-  kind to spec/gates.json (additive) or name the existing kind that owns it.
-- Mapping choices to confirm: write_off.status=approved -> billing.credit_note (the openapi op
-  "Request a credit note or write-off; opens gate billing.credit_note"); matter.team and
-  matter.restricted -> matter.widen_access; matter.status=closed -> platform.closing;
-  trust_account.signatories -> core.trust_signatory; trust_txn.posted is split into
-  `=receipt` (trust.receipt_classification) and `=transfer` (trust.transfer).
+## HTTP-03: contacts routes (files outside the task)
 
 ## HTTP-01 / HTTP-02: matter routes (decisions taken, open items)
 
@@ -1400,3 +1426,14 @@ Done in PORT-18:
   note). Q-INTEG-12.1 (lawyer): when a bill was paid partly by a trust fee transfer, is the
   write-off split computed on the outstanding balance after the transfer (fee portion only),
   or must the transfer itself be apportioned across fee, disbursement and tax first?
+- `party.Contacts` gains `List(ctx, Filter)` in contract.go (additive, as the task's accept
+  line asks), so `partyfake` gains `List` too. Pages run by id (uuidv7, so creation order);
+  `ListLimit` is 201, one more than the openapi page maximum, so the handler can see a next page.
+- `ErrDuplicate` (409 duplicate_contact, proposed code) maps a unique violation on insert;
+  party.contact has no unique key yet, so it fires only once one is added.
+- A malformed contact_id answers 400 validation_failed after the capability check (accept
+  line), unlike GET /matters/{id}, which answers 404.
+- app/legal/boot TestRegisterNoFlagsRecordsOnlyAlwaysSet failed on HTTP-02 merged with main
+  (main's test predates the matter routes): Routes calls join the "always" set, since
+  HTTP-00 mounts every handler route unconditionally (unwired routes answer 503). The exact
+  comparison with legal.Register's calls is unchanged.
