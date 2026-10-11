@@ -4755,3 +4755,28 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   main: its tick reached the Postgres timekeepers over the fake DB. The test now wires one
   timekeeper and checks more, not less: F-TIM-01 must enqueue a run acting for that
   timekeeper, and every other scheduled run still acts for the designated lawyer.
+## Q-GATE-EFFECTS approval effect for the 74 formerly unwired app gate kinds
+- Every kind listed in app/legal/boot/unwired_gates.txt (now empty) gets `boot.ApprovalEffect`
+  (app/legal/boot/effects_approval.go, `ApprovalKinds`), registered always, so every spec kind and
+  every feature Def kind resolves in the production catalogue. The effect fails closed on an
+  agent approver or the preparer (or the user an agent preparer acted for), then by subject:
+  document_draft -> docs.draft status 'approved' (tool-gap kinds, e.g. intake.consult_outcome,
+  timekeeping.fee_arrangement, platform.summary_accuracy); email_draft -> comm_item stamped with
+  approval_id and queued for delivery (G-B7 billing.collections_message, outgoing email);
+  agent_note -> matter.note confirmed_by the approver. Each statement re-matches a row the same
+  gate already approved, so it is idempotent.
+- Open (owner): for subjects the effect does not move (lead, conflict run, work item, deadline,
+  time entry, bill, ...) the approval is recorded by the gate decision only. Kinds whose
+  approval should change domain state beyond that (cal.change, trust.transfer,
+  timekeeping.writedown, trust.cash_over_limit, platform.export, conflict.wall, ...) need a
+  dedicated effect each; replace ApprovalEffect for the kind when one is built.
+## Q-GATE-EFFECTS-CORE core.offboarding and core.matter_visibility cannot be app-registered
+- Both are core.* kinds (registry.KernelPrefixes). gates.RegisterWired skips core.* and
+  kernel/gate.ValidateKind rejects an app kind with a kernel prefix, and the kernel has no path
+  that registers a core.* kind passed through identity.WithCoreEffect (core.trust_signatory has
+  the same gap). Needs a kernel change: kernel boot registers AdminGates.Effects() kinds itself.
+  Left for an owner decision; the production-catalogue test skips core.* kinds.
+## Q-GATE-EFFECTS-PORTS trust.receipt_classification and billing.refund unregistered in production
+- Their dedicated effects need RestPorts.Receipts (Poster) and RestPorts.Refunds (Ledger), which
+  Production leaves nil, so both kinds are unregistered in production. They were never in
+  unwired_gates.txt (the list is computed with test ports). Wire them in Production.
