@@ -16,9 +16,6 @@ POST /bills/{bill_id}/void
 GET /contacts
 POST /contacts
 GET /contacts/{contact_id}
-GET /credit-notes
-POST /credit-notes
-GET /credit-notes/{credit_note_id}
 GET /deadlines
 POST /deadlines
 GET /deadlines/{deadline_id}
