@@ -531,6 +531,8 @@ var actionScreens = map[string]trigger.Screen{
 	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
 	// Platform: the comms log selects the matter the email, reply or call is filed on.
 	"comms-log": {SubjectKind: "matter", Capability: "matters.view"},
+	// The esign request selects the document it sends for signature.
+	"esign-request": {SubjectKind: legaldocs.SubjectKind, Capability: "documents.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

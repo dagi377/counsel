@@ -4312,3 +4312,17 @@ of FEAT-TIM-01 above.
 - Branch base: task/FEAT-PLT-06 (not main), so the plti helpers stay in the one platform
   helper file ai_plt_helpers_test.go that FEAT-PLT-05 started. Outside the task's files:
   featureset (Def and its list entry), boot JobBindings and the helper file.
+
+## Q-FEAT-PLT-25 F-PLT-17 prepare signature fields: screen, output shape and helpers
+
+- The esign-request screen (/matters/:id/documents/:docId/sign) selects the document it sends,
+  so boot maps it to subject `legaldocs.SubjectKind` with capability `documents.view`, like
+  the library screens.
+- Read-only extraction: no write tool, no gate kind. Its OutputSchema is run.AnswerSchema, so
+  the runner refuses any output that is not {answer, citations} (run.ErrBadOutput) and the
+  answer is checked with run.CheckAnswer: a ranked list of signature, initial and date
+  blocks, then "Flag:" rows, every one cited.
+- pltCheckDefMatchesSpec now counts a screen-action feature's trigger action as one of its
+  on-request actions (features.json lists it in trigger, not in on_request).
+- Branch base: task/FEAT-PLT-24 (chain FEAT-PLT-05, 06, 24, 25), for the one platform helper
+  file. Outside the task's files: featureset, boot actionScreens and the helper file.

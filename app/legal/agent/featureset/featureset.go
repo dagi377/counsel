@@ -172,5 +172,6 @@ func appDefs() []feature.Def {
 		// platform
 		platform.CallSummarizerDef(),
 		platform.FilingScopeReevaluationDef(),
+		platform.PrepareSignatureFieldsDef(),
 	}
 }

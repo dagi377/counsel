@@ -84,6 +84,16 @@ func pltSpec(t *testing.T, id string) pltFeatureSpec {
 	return spec.Features[i]
 }
 
+// pltActions is the screen actions sf runs on: its on_request list, plus the action a
+// screen-action feature's trigger names ("on request: screen > Button").
+func pltActions(sf pltFeatureSpec) []string {
+	out := slices.Clone(sf.OnRequest)
+	if a, ok := strings.CutPrefix(sf.Trigger, "on request: "); ok && sf.Source == "screen-action" {
+		out = append(out, a)
+	}
+	return out
+}
+
 // pltCheckDefMatchesSpec fails t unless d matches its spec/ai/features.json entry (the spec
 // sync check for this id), a feature Set takes it once and its run scope is its gate kinds.
 func pltCheckDefMatchesSpec(t *testing.T, d feature.Def) {
@@ -102,7 +112,7 @@ func pltCheckDefMatchesSpec(t *testing.T, d feature.Def) {
 		{"area", d.Area, "platform"},
 		{"source", string(d.Source), sf.Source},
 		{"trigger", d.Trigger, sf.Trigger},
-		{"on request", sorted(d.Actions), sorted(sf.OnRequest)},
+		{"on request", sorted(d.Actions), sorted(pltActions(sf))},
 		{"tools", sorted(d.Tools), sorted(sf.Tools)},
 		{"gate kinds", sorted(d.GateKinds), sorted(sf.Gate.Kind)},
 		{"model call", string(kind), sf.ModelCall},
