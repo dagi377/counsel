@@ -2203,3 +2203,17 @@ Done in PORT-18:
 - Events: `lead.created` (intake submitted) and `document.uploaded` (document added), a2 events.
 - The landed test retried on `ai.ErrTimeout`; FromFeature's default RetryOn does not, so the
   test sets it as the landed test did.
+
+## Q-FEAT-CON-02 F-CON-02 opens G2 through propose_conflict_parties
+
+- No F-CON tool drafts, so the run scope never holds a draft and an agent's
+  submit_for_approval is refused (404). The run's G2 gate is the conflict run that
+  propose_conflict_parties starts: conflict.Clearance decides it with gate kind
+  conflict.clearance, and the run's preparer is the acting user. The feature test checks that
+  run is open, that an agent principal deciding is 403 (ErrAgentApproves) and that the
+  acting user deciding is 403 (conflict.ErrPreparerApproves, the conflict module's
+  self-approval refusal).
+- The Def starts from the a2 event `conflict.check_completed` ("event: check run").
+- No F-CON-02 write carries an amount or a date, so ErrUnsourcedValue (ARC-U-027) has no
+  case here. propose_conflict_parties checks a party source's shape but not that the run
+  read it (Scope.Cites); that is a handler follow-up.
