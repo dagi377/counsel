@@ -1901,3 +1901,27 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   and `place_of_supply_province = 'EX'` (`draft.ExportProvince`): the column is char(2) and the 0001 approval CHECK
   needs it non-NULL, so approval accepts the export. Open: reports by province must treat `EX` as export, not a province.
 - PG-BILL-FIX's `5620_bill_sign_after_approval.sql` collided with WO-FIX (5620/5621); renumbered to 5622.
+
+## Q-TAX-API (task MATTER-TAX-API) Matter court and property provinces and firm tax registrations over the API
+
+Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive only:
+- `PATCH /matters/{matter_id}` accepts `court_province` and `property_province`, plain fields written at
+  the If-Match version like `short_name`. A value must be a Canadian province or territory code
+  (`matter.ProvinceCodes`, upper case; `EX` is refused) or `""` to clear it. `matter.PlainChange` gains
+  `CourtProvince` and `PropertyProvince` (additive contract fields); the matter view returns both.
+- `GET` and `PATCH /firm/tax-registrations` (`tax.RegistrationsHTTP`, `tax.PGRegistrations`) read and
+  replace `core.firm.tax_registration_provinces`: unique province or territory codes, stored sorted.
+  Reading needs `billing.view`; changing needs `billing.approve`, since the list decides which
+  provincial tax a bill charges. Open: is a firm-settings capability (e.g. `admin.firm_settings`) wanted?
+- ARC-I-006 needs an integer version for the PATCH: `migrations/5624_firm_tax_registrations_version.sql`
+  adds `core.firm.tax_registrations_version integer NOT NULL DEFAULT 1` (billing block, as 5623).
+- openapi: `/paths/~1firm~1tax-registrations` and the schemas `ProvinceCode`, `PlaceOfSupplyPatch` (the two
+  matter fields) and `FirmTaxRegistrations`, each listed in `kernel/contract/additive.txt`.
+- Open: the matter PATCH has no `requestBody` in openapi, and adding one cannot be listed: its pointer
+  `/paths/~1matters~1{matter_id}/patch/requestBody` puts the legal term `matter` into
+  `kernel/contract/additive.txt`, which `TestKernelHasNoLegalTerms` refuses, and `tools/kernel_allow.txt`
+  is a ratchet that may not grow (`TestKernelRatchet`). Decide: exempt additive.txt from the term scan (it
+  lists app paths by design), or move the approval list out of `kernel/`. Then add the requestBody as
+  `allOf` of the plain fields and `PlaceOfSupplyPatch`.
+- Not wired at boot: no Postgres `matter.Updater` exists yet and boot mounts neither `matter.Writes` nor
+  `tax.RegistrationsHTTP`. The boot follow-up wires both (and the Updater writes the two columns).

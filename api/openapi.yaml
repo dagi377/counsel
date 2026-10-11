@@ -1180,6 +1180,61 @@ paths:
         '428': *id001
         '429': *id001
         default: *id001
+  /firm/tax-registrations:
+    get:
+      tags: [billing]
+      operationId: getFirmTaxRegistrations
+      summary: The provincial sales taxes the firm is registered to collect (BIL-T-020).
+      responses:
+        '200':
+          description: Registrations
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FirmTaxRegistrations'}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    patch:
+      tags: [billing]
+      operationId: updateFirmTaxRegistrations
+      summary: Replace the firm's provincial sales tax registrations (billing.approve).
+      parameters:
+      - {$ref: '#/components/parameters/IfMatch'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [provinces]
+              properties:
+                provinces:
+                  type: array
+                  uniqueItems: true
+                  items: {$ref: '#/components/schemas/ProvinceCode'}
+      responses:
+        '200':
+          description: Updated
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FirmTaxRegistrations'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
   /contacts:
     get:
       tags: [matters]
@@ -1865,6 +1920,36 @@ components:
         line_actions:
           type: array
           items: {$ref: '#/components/schemas/LineAction'}
+    ProvinceCode:
+      type: string
+      description: Canadian province or territory code.
+      enum: [AB, BC, MB, NB, NL, NS, NT, NU, ON, PE, QC, SK, YT]
+    PlaceOfSupplyPatch:
+      type: object
+      additionalProperties: false
+      description: The place-of-supply fields PATCH /matters/{matter_id} accepts besides short_name
+        and practice_area_id. They are plain fields, written at the If-Match version (200), and
+        cannot be sent with status, restricted or team.
+      properties:
+        court_province:
+          description: Province whose court or tribunal has the litigation (BIL-T-012); "" clears it.
+          anyOf:
+          - {$ref: '#/components/schemas/ProvinceCode'}
+          - {type: string, maxLength: 0}
+        property_province:
+          description: Province where the matter's real property is situated (BIL-T-011); "" clears it.
+          anyOf:
+          - {$ref: '#/components/schemas/ProvinceCode'}
+          - {type: string, maxLength: 0}
+    FirmTaxRegistrations:
+      type: object
+      required: [provinces, version]
+      properties:
+        provinces:
+          type: array
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/ProvinceCode'}
+        version: {type: integer}
     LineAction:
       type: object
       additionalProperties: false
