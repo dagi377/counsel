@@ -25,15 +25,12 @@ POST /payments/{payment_id}/refunds
 GET /roles
 POST /trust/bank-lines/imports
 POST /trust/receipts
-GET /trust/reconciliations
 POST /trust/reconciliations
 POST /trust/reconciliations/{reconciliation_id}/submit
 GET /trust/requests
 POST /trust/requests
 POST /trust/transfers
-GET /trust/withdrawals
 POST /trust/withdrawals
-GET /trust/withdrawals/{withdrawal_id}
 POST /trust/withdrawals/{withdrawal_id}/cancel
 GET /users
 PUT /users/{user_id}/roles
