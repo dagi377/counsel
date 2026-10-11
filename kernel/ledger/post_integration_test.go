@@ -10,15 +10,15 @@ import (
 	"fmt"
 	mrand "math/rand/v2"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/dagi377/counsel/migrations"
 	"github.com/jackc/pgx/v5"
 )
 
-// freshDB creates a database on COUNSEL_TEST_DB, applies the init migration and seeds one
+// freshDB creates a database on COUNSEL_TEST_DB, applies every migration and seeds one
 // user and a small chart. It returns a connection and the user id.
 func freshDB(t *testing.T) (*pgx.Conn, string) {
 	t.Helper()
@@ -52,12 +52,8 @@ func freshDB(t *testing.T) (*pgx.Conn, string) {
 		t.Fatalf("connect %s: %v", name, err)
 	}
 	t.Cleanup(func() { conn.Close(context.Background()) })
-	ddl, err := os.ReadFile(filepath.FromSlash("../../migrations/0001_init.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := conn.PgConn().Exec(ctx, string(ddl)).ReadAll(); err != nil {
-		t.Fatalf("apply migration: %v", err)
+	if err := migrations.Apply(ctx, conn, ""); err != nil {
+		t.Fatalf("apply migrations: %v", err)
 	}
 	var user string
 	err = conn.QueryRow(ctx, `WITH r AS (INSERT INTO core.role(key, name, status) VALUES ('poster', 'Poster', 'active') RETURNING id)

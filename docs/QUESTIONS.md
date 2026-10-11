@@ -393,3 +393,77 @@ Template:
   ("sha256:" + hex SHA-256 of the normalised quote). docsfake hashes the same way. Comment only.
 - Resolved at wave 2a integration: interest runs from `months_after(delivery, 1)` itself
   (Solicitors Act s.33). The contract comment, `Months.AccrualStart` and tests now say so.
+
+## Q-GL-BOOK Trust book in gl: book column, trust source kind, per-book close
+
+- Task: T-011.2, T-010 follow-up; CF-02.
+- Sources: 0001 header ("gl.* holds the operating book only"); By-law 9 (trust records kept
+  separately); `ledger.Entry.Book`; `books.BookOperating`, `books.BookTrust`.
+- Answer: owner (2026-10-11): additive migration `0400_ledger_book.sql` (kernel/ledger).
+  `gl.account.book` and `gl.journal_entry.book` (default `operating`), source kind `trust`
+  appended to the `source_type` CHECK, and a per-book close in the new `gl.book_period`
+  (book, month). `gl.period` stays and keeps meaning the operating book; `gl.period_closed`
+  and the DM-062 trigger check the entry's book. The trust ledger posts with book `trust` and
+  source kind `trust`. CF-02 is reread as "operating views show the operating book only":
+  `gl.operating_journal_entry` and `gl.operating_journal_line`. The book CHECK is a format
+  check, not `IN ('operating','trust')`, because the kernel engine knows no book name (the
+  app's chart registers them). This supersedes "a period close covers all books".
+
+## Q-T-007.3-SCHEMA Gate payload bytes and the recommend decision
+
+- Task: T-007.3 (see Q-T-007.3 above).
+- Answer: owner (2026-10-11): additive migration `0300_gate_payload_recommend.sql`
+  (kernel/gate). `gate.approval_request.payload_jcs` (JCS bytes) and `payload_sha256`
+  (= sha256(payload_jcs) = payload_hash, checked in the DB). `gate.gate_decision.decision`
+  gains `recommend`; `gate.check_decision` records it and leaves the request pending. Open
+  stores the payload; Decide reads the stored payload (the app hook only serves rows opened
+  before the migration) and records an approval above the authority limit as `recommend`
+  instead of returning ErrRecommendOnly and storing nothing. A recommendation carries a fixed
+  reason because `reason` is required for every non-approve decision.
+
+## Q-T-008.4 Gap-free subject_seq on the outbox
+
+- Task: T-008.4.
+- Answer: owner (2026-10-11): additive migration `0500_outbox_subject_seq.sql`
+  (kernel/outbox): `platform.outbox.subject_seq bigint`, unique per (aggregate, aggregate_id)
+  where set. T-008.4 is requeued; its integration test stays on hold.
+
+## Q-T-036.2 Webhook delivery subject, message and acknowledgement
+
+- Task: T-036.2.
+- Answer: owner (2026-10-11): additive migration `1400_webhook_delivery_subject.sql`
+  (kernel/webhook): `platform.webhook_delivery.subject`, `message_id`, `payload_ref` (the
+  outbox row id; no raw payload) and `acked_at`. T-036.2 is requeued.
+
+## Q-T-034.1 Work items on generic subjects
+
+- Task: T-034.1.
+- Answer: owner (2026-10-11): additive migrations `1000_work_item_subject.sql` (kernel/work:
+  nullable `work.work_item.subject_kind`, `subject_id`) and
+  `6100_work_item_subject_backfill.sql` (app/legal/work: backfill `('matter', matter_id)` in
+  batches of 10000). The backfill sits in the app block so no legal term enters a kernel
+  migration. `matter_id` stays for app/legal. T-034.1 is requeued.
+
+## Q-T-035L.2 Court filing table
+
+- Task: T-035L.2 (see T-035L.2 above).
+- Answer: owner (2026-10-11): additive migration `6000_court_filing.sql` (app/legal/comms):
+  schema `legal`, table `legal.court_filing` (court, reference, status draft|filed|rejected,
+  document, filed_by, filed_on), RLS forced like every matter table. T-035L.2 is requeued.
+
+## Q-T-008.2 Idempotency-Key on PATCH /webhook-endpoints/{webhook_id}
+
+- Task: T-008.2.
+- Sources: every `x-external-effect` operation must take `Idempotency-Key`; renewWebhookEndpoint
+  had only `If-Match`.
+- Answer: owner (2026-10-11): option A. Add the `IdempotencyKey` parameter (additive; listed in
+  kernel/contract/additive.txt). T-008.2 is requeued with its draft.
+
+## Migration numbering for the 2026-10-11 additive schema
+
+- The changes above were asked for as one `0002_additive.sql`. migrations/README.md and
+  tools/migration_blocks_test.go reserve 0001-0099 for `0001_init.sql` alone and require each
+  file in its owning module's block, so they ship as one file per owner: 0300 (kernel/gate),
+  0400 (kernel/ledger), 0500 (kernel/outbox), 1000 (kernel/work), 1400 (kernel/webhook),
+  6000 (app/legal/comms), 6100 (app/legal/work). The Go package `migrations` embeds them
+  in order for counsel-migrate and the integration tests.

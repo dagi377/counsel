@@ -45,7 +45,8 @@ func (e *PG) SetSelfApprovalPolicy(p SelfApprovalPolicy) {
 type opened struct {
 	kind      GateKind
 	label     string
-	hash      []byte
+	jcs       []byte // RFC 8785 bytes of the payload, stored with the version
+	hash      []byte // SHA-256 of jcs
 	requester string
 	runID     string
 }
@@ -73,11 +74,12 @@ func (e *PG) prepareOpen(kind string, subject Subject, payload json.RawMessage, 
 	if err := schema.Validate(doc); err != nil {
 		return opened{}, fmt.Errorf("open %q: %w", kind, ErrInvalidPayload)
 	}
-	sum, err := payloadSum(payload)
+	jcs, err := JCS(payload)
 	if err != nil {
 		return opened{}, fmt.Errorf("open %q: %w", kind, err)
 	}
-	o := opened{kind: k, label: label, hash: sum}
+	sum := sha256.Sum256(jcs)
+	o := opened{kind: k, label: label, jcs: jcs, hash: sum[:]}
 	switch preparer.Kind {
 	case PrincipalUser:
 		o.requester = preparer.UserID
@@ -108,11 +110,11 @@ func (e *PG) Open(ctx context.Context, tx pgx.Tx, kind string, subject Subject, 
 	err = tx.QueryRow(ctx, `
 INSERT INTO gate.approval_request
   (gate_code, spec_gate, version, payload_type, payload_id, payload_hash, requested_by,
-   agent_run_id, eligible_role, required_approvals, risk, expires_at)
-VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, $9, $10, now() + make_interval(hours => $11))
+   agent_run_id, eligible_role, required_approvals, risk, expires_at, payload_jcs, payload_sha256)
+VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, $9, $10, now() + make_interval(hours => $11), $12, $5)
 RETURNING id::text`,
 		o.kind.Slug, o.label, subject.Kind, subject.ID, o.hash, o.requester,
-		runID, o.kind.Approver, o.kind.MinApprovers, string(o.kind.Risk), int(o.kind.TTL.Hours()),
+		runID, o.kind.Approver, o.kind.MinApprovers, string(o.kind.Risk), int(o.kind.TTL.Hours()), o.jcs,
 	).Scan(&id)
 	if err != nil {
 		return "", fmt.Errorf("open %q: insert: %w", kind, err)

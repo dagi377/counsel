@@ -92,7 +92,7 @@ func (c *Charts) Check(e Entry) error {
 
 // Statements Sync issues. Sync inserts missing accounts and never rewrites a stored type.
 const (
-	sqlInsertAccount = `INSERT INTO gl.account (code, name, type) VALUES ($1, $2, $3)
+	sqlInsertAccount = `INSERT INTO gl.account (code, name, type, book) VALUES ($1, $2, $3, $4)
 ON CONFLICT (code) DO NOTHING`
 	sqlAccountType = `SELECT type FROM gl.account WHERE code = $1`
 )
@@ -105,8 +105,9 @@ var syncStatements = []string{sqlInsertAccount, sqlAccountType}
 // ErrChartConflict.
 func (c *Charts) Sync(ctx context.Context, tx pgx.Tx) error {
 	for _, code := range c.Codes() {
-		a := c.byCode[code].acct
-		if _, err := tx.Exec(ctx, sqlInsertAccount, a.Code, a.Name, string(a.Type)); err != nil {
+		ca := c.byCode[code]
+		a := ca.acct
+		if _, err := tx.Exec(ctx, sqlInsertAccount, a.Code, a.Name, string(a.Type), ca.book); err != nil {
 			return fmt.Errorf("sync account %q: insert: %w", a.Code, err)
 		}
 		var typ string

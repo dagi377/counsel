@@ -18,10 +18,11 @@ const sourceReversal = "reversal"
 // Statements Reverse issues. Reverse only reads and inserts.
 // rule: BIL-I-003
 const (
-	sqlEntryExists    = `SELECT EXISTS (SELECT 1 FROM gl.journal_entry WHERE id = $1::uuid)`
-	sqlReversalOf     = `SELECT id::text FROM gl.journal_entry WHERE reverses_id = $1::uuid`
-	sqlInsertReversal = `INSERT INTO gl.journal_entry (entry_date, memo, source_type, source_id, reverses_id, posted_by)
-VALUES ($1, $2, 'reversal', $3::uuid, $3::uuid, $4::uuid)
+	sqlEntryExists = `SELECT EXISTS (SELECT 1 FROM gl.journal_entry WHERE id = $1::uuid)`
+	sqlReversalOf  = `SELECT id::text FROM gl.journal_entry WHERE reverses_id = $1::uuid`
+	// The reversal stays in the original entry's book.
+	sqlInsertReversal = `INSERT INTO gl.journal_entry (entry_date, memo, source_type, source_id, reverses_id, posted_by, book)
+SELECT $1, $2, 'reversal', $3::uuid, $3::uuid, $4::uuid, o.book FROM gl.journal_entry o WHERE o.id = $3::uuid
 ON CONFLICT (reverses_id) DO NOTHING
 RETURNING id::text`
 )

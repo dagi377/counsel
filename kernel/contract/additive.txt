@@ -7,3 +7,4 @@
 /paths/~1hooks~1{provider}/post/responses/404 Q-004
 /paths/~1hooks~1{provider}/post/responses/409 Q-004
 /paths/~1hooks~1{provider}/post/responses/422 Q-004
+/paths/~1webhook-endpoints~1{webhook_id}/patch/parameters/1 Q-T-008.2

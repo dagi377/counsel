@@ -37,3 +37,6 @@ shrink a block once a migration uses it.
 
 Non-migration files here (this README, `smoke.sql`) do not start with a digit and are not
 numbered.
+
+`migrations.go` embeds the numbered files: `migrations.Apply` runs them in file-name order,
+for `counsel-migrate` and for integration tests that need the current schema.

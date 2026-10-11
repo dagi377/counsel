@@ -12,11 +12,12 @@ import (
 // Statements the period code issues. Closing marks a month closed; it never reopens one.
 // rule: BIL-I-025
 const (
-	sqlClosePeriod = `INSERT INTO gl.period (month, status, closed_by, closed_at)
-VALUES ($1, 'closed', $2::uuid, now())
-ON CONFLICT (month) DO UPDATE SET status = 'closed', closed_by = EXCLUDED.closed_by, closed_at = EXCLUDED.closed_at
-WHERE gl.period.status = 'open'`
-	sqlPeriodClosed = `SELECT EXISTS (SELECT 1 FROM gl.period WHERE month = $1 AND status = 'closed')`
+	sqlClosePeriod = `INSERT INTO gl.book_period (book, month, status, closed_by, closed_at)
+VALUES ($1, $2, 'closed', $3::uuid, now())
+ON CONFLICT (book, month) DO UPDATE SET status = 'closed', closed_by = EXCLUDED.closed_by, closed_at = EXCLUDED.closed_at
+WHERE gl.book_period.status = 'open'`
+	// gl.period_closed also honours a whole-ledger gl.period row written by an older release.
+	sqlPeriodClosed = `SELECT gl.period_closed($1, $2)`
 )
 
 // months returns the first day of every month p covers. A period is whole months: From is
@@ -42,10 +43,10 @@ func monthStart(d Date) time.Time {
 	return time.Date(d.Year, d.Month, 1, 0, 0, 0, 0, time.UTC)
 }
 
-// ClosePeriod marks every month of p closed inside tx. After commit the journal_entry_period
+// ClosePeriod marks every month of p closed for book inside tx. After commit the journal_entry_period
 // trigger refuses any entry dated inside p; corrections post in the current period, e.g.
-// with Reverse. Closing a month that is already closed changes nothing. gl.period is kept
-// per month for the whole ledger, so book is required but every book shares the close.
+// with Reverse. Closing a month that is already closed changes nothing. The close is per
+// book (gl.book_period): closing one book leaves every other book open.
 // rule: BIL-I-025
 func (g *PG) ClosePeriod(ctx context.Context, tx pgx.Tx, book string, p Period) error {
 	if book == "" {
@@ -63,23 +64,26 @@ func (g *PG) ClosePeriod(ctx context.Context, tx pgx.Tx, book string, p Period) 
 		return fmt.Errorf("close period %s..%s: %w", p.From, p.To, errors.Join(ErrNoPoster, err))
 	}
 	for _, m := range ms {
-		if _, err := tx.Exec(ctx, sqlClosePeriod, monthStart(m), by); err != nil {
+		if _, err := tx.Exec(ctx, sqlClosePeriod, book, monthStart(m), by); err != nil {
 			return fmt.Errorf("close period %s: %w", m, err)
 		}
 	}
 	return nil
 }
 
-// CheckOpen returns ErrPeriodClosed when d falls in a closed month. Callers use it to refuse
-// a posting before the database trigger does, with an error they can match.
+// CheckOpen returns ErrPeriodClosed when d falls in a month closed for book. Callers use it
+// to refuse a posting before the database trigger does, with an error they can match.
 // rule: BIL-I-025
-func (g *PG) CheckOpen(ctx context.Context, tx pgx.Tx, d Date) error {
+func (g *PG) CheckOpen(ctx context.Context, tx pgx.Tx, book string, d Date) error {
+	if book == "" {
+		return fmt.Errorf("check period %s: book required: %w", d, ErrInvalidEntry)
+	}
 	var closed bool
-	if err := tx.QueryRow(ctx, sqlPeriodClosed, monthStart(d)).Scan(&closed); err != nil {
-		return fmt.Errorf("check period %s: %w", d, err)
+	if err := tx.QueryRow(ctx, sqlPeriodClosed, book, monthStart(d)).Scan(&closed); err != nil {
+		return fmt.Errorf("check period %s %s: %w", book, d, err)
 	}
 	if closed {
-		return fmt.Errorf("date %s: %w", d, ErrPeriodClosed)
+		return fmt.Errorf("book %s date %s: %w", book, d, ErrPeriodClosed)
 	}
 	return nil
 }

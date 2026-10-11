@@ -3,6 +3,7 @@ package gate
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -21,16 +22,23 @@ const mfaWindow = 15 * time.Minute
 // amountField is the payload field an authority limit is compared with (integer cents).
 const amountField = "amount_cents"
 
-// ErrRecommendOnly reports that an approval exceeded the decider's authority limit, so it
-// counts as a recommendation and another decider with a higher limit is still required.
-var ErrRecommendOnly = errors.New("gate: amount above decider authority limit; counted as recommendation")
+// decisionRecommend is the gate_decision value of an approval above the decider's authority
+// limit: recorded, never counted as an approval, and the gate stays pending
+// (migrations/0300_gate_payload_recommend.sql). A caller never sends it as a Verdict.
+const decisionRecommend = "recommend"
+
+// recommendReason is stored when a recommendation carries no reason of its own; the table
+// requires a reason on every decision other than approve.
+const recommendReason = "approval above the decider's authority limit; recorded as a recommendation"
 
 // DecideHooks are the inputs to Decide that only the app can supply.
 type DecideHooks struct {
 	// Preparers returns more users who count as preparers of g: every editor of the
 	// underlying item and its requester. The gate's own requesters are always included.
 	Preparers func(ctx context.Context, tx pgx.Tx, g Gate) ([]string, error)
-	// Payload returns the payload of g. Its hash must equal the gate's stored hash.
+	// Payload returns the payload of g. Its hash must equal the gate's stored hash. Decide
+	// uses it only for a gate version opened before payloads were stored
+	// (gate.approval_request.payload_jcs is NULL); otherwise it reads the stored bytes.
 	Payload func(ctx context.Context, tx pgx.Tx, g Gate) (json.RawMessage, error)
 	// LimitKinds maps a gate kind slug to the core.authority_limit kind whose value_int
 	// (cents) caps the payload amount a decider may approve. Kinds not listed have no cap.
@@ -194,9 +202,39 @@ func payloadAmount(payload json.RawMessage) (*int64, error) {
 	return &c, nil
 }
 
-// Decide records one decision on gate id at version, in tx. An approval above the
-// decider's authority limit stores nothing and returns ErrRecommendOnly. When the gate
-// reaches its approvals and the kind has no cooling-off, the effect runs in tx.
+// storedPayload returns the payload stored with a gate version, checked against the
+// version's hash. ok is false when the row predates stored payloads (jcs is NULL).
+func storedPayload(jcs, sha, hash []byte) (p json.RawMessage, ok bool, err error) {
+	if jcs == nil {
+		return nil, false, nil
+	}
+	sum := sha256.Sum256(jcs)
+	if !bytes.Equal(sum[:], sha) || !bytes.Equal(sha, hash) {
+		return nil, true, ErrPayloadChanged
+	}
+	return json.RawMessage(jcs), true, nil
+}
+
+// decisionRow is the gate_decision value and reason one checked decision is stored with.
+func decisionRow(d Decision, out verdictOut) (decision string, reason any) {
+	switch {
+	case out.recommend && d.Reason != "":
+		return decisionRecommend, d.Reason
+	case out.recommend:
+		return decisionRecommend, recommendReason
+	case d.Reason != "":
+		return string(d.Verdict), d.Reason
+	case out.selfApproved:
+		return string(d.Verdict), d.SelfApprovalReason
+	}
+	return string(d.Verdict), nil
+}
+
+// Decide records one decision on gate id at version, in tx. The payload is the one stored
+// with the gate version (the app hook serves only versions opened before payloads were
+// stored). An approval above the decider's authority limit is recorded as a
+// recommendation: it returns nil, never counts as an approval and the gate stays pending.
+// When the gate reaches its approvals and the kind has no cooling-off, the effect runs in tx.
 func (e *PG) Decide(ctx context.Context, tx pgx.Tx, id GateID, version int, d Decision, by Principal) error {
 	clk, err := clock.From(ctx)
 	if err != nil {
@@ -204,13 +242,15 @@ func (e *PG) Decide(ctx context.Context, tx pgx.Tx, id GateID, version int, d De
 	}
 	g := Gate{ID: id}
 	var (
-		hash   []byte
-		status string
+		hash, jcs, sha []byte
+		status         string
 	)
 	err = tx.QueryRow(ctx, `
-SELECT gate_code, version, status, payload_hash, payload_type, payload_id::text, requested_by::text, expires_at
+SELECT gate_code, version, status, payload_hash, payload_type, payload_id::text, requested_by::text, expires_at,
+       payload_jcs, payload_sha256
   FROM gate.approval_request WHERE id = $1 FOR UPDATE`, string(id)).
-		Scan(&g.Kind, &g.Version, &status, &hash, &g.Subject.Kind, &g.Subject.ID, &g.Preparer.UserID, &g.ExpiresAt)
+		Scan(&g.Kind, &g.Version, &status, &hash, &g.Subject.Kind, &g.Subject.ID, &g.Preparer.UserID, &g.ExpiresAt,
+			&jcs, &sha)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return fmt.Errorf("decide %s: %w", id, ErrNotFound)
 	}
@@ -228,7 +268,13 @@ SELECT gate_code, version, status, payload_hash, payload_type, payload_id::text,
 	if err != nil {
 		return err
 	}
-	if h.Payload != nil {
+	stored, ok, err := storedPayload(jcs, sha, hash)
+	switch {
+	case err != nil:
+		return fmt.Errorf("decide %s: stored payload: %w", id, err)
+	case ok:
+		g.Payload = stored
+	case h.Payload != nil:
 		p, err := h.Payload(ctx, tx, g)
 		if err != nil {
 			return fmt.Errorf("decide %s: payload: %w", id, err)
@@ -258,16 +304,7 @@ SELECT gate_code, version, status, payload_hash, payload_type, payload_id::text,
 	if err != nil {
 		return err
 	}
-	if out.recommend {
-		// TODO(T-007.3): persist the recommendation (no table holds it yet; see QUESTIONS.md).
-		return fmt.Errorf("decide %s: %w", id, ErrRecommendOnly)
-	}
-	var reason any
-	if d.Reason != "" {
-		reason = d.Reason
-	} else if out.selfApproved {
-		reason = d.SelfApprovalReason
-	}
+	decision, reason := decisionRow(d, out)
 	effectiveAt := clk.Now()
 	if out.selfApproved {
 		effectiveAt = effectiveAt.Add(k.CoolingOff)
@@ -276,8 +313,13 @@ SELECT gate_code, version, status, payload_hash, payload_type, payload_id::text,
 INSERT INTO gate.gate_decision
   (approval_id, decided_by, decision, reason, payload_hash, self_approval_exception, effective_at, mfa_verified_at)
 VALUES ($1, $2, $3, $4, $5, $6, greatest($7::timestamptz, now()), $8)`,
-		string(id), by.UserID, string(d.Verdict), reason, hash, out.selfApproved, effectiveAt, d.MFAVerifiedAt); err != nil {
+		string(id), by.UserID, decision, reason, hash, out.selfApproved, effectiveAt, d.MFAVerifiedAt); err != nil {
 		return fmt.Errorf("decide %s: insert: %w", id, err)
+	}
+	// rule: ARC-I-020
+	// A recommendation is recorded and the gate stays pending for a decider with a higher limit.
+	if out.recommend {
+		return nil
 	}
 	if err := tx.QueryRow(ctx, `SELECT status FROM gate.approval_request WHERE id = $1`, string(id)).Scan(&status); err != nil {
 		return fmt.Errorf("decide %s: reread: %w", id, err)
