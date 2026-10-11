@@ -128,5 +128,6 @@ func appDefs() []feature.Def {
 		intake.DraftFormFromDescriptionDef(),
 		intake.EngagementLetterDraftDef(),
 		intake.DraftSequenceDef(),
+		intake.ReceptionistCriteriaDef(),
 	}
 }
