@@ -103,6 +103,7 @@ func appDefs() []feature.Def {
 		matter.ConfigHygieneDef(),
 		matter.TemplateFitDef(),
 		matter.RerunConflictDef(),
+		matter.OpeningPlanDef(),
 		matter.ProposeRelationshipDef(),
 		matter.RequestIDDef(),
 	}
