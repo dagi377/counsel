@@ -4255,3 +4255,23 @@ of FEAT-TIM-01 above.
   draft_document schema FORM-SUBJECT changed. list_unbilled now records provenance itself
   (sourcedRead) and boot also wraps every read tool (TIME-FIX); recording a value twice is
   harmless, but one of the two can go.
+
+## Q-FEAT-RDY-01 F-RDY-01 questionnaire filler event, subject and gate
+
+- F-RDY-01 binds a new `readiness.EventQuestionnaireReceived`
+  (`readiness.questionnaire_received`), acting for the user who filed the questionnaire (the
+  event's `user_id`). No module emits it yet: trust-center has no questionnaire intake on
+  main. Open: trust-center should publish it with the matter that holds the questionnaire.
+- trust-center is firm-level and main has `boot.FirmSubject`, but the Def's only read tool,
+  search_documents, takes a matter, and a firm draft needs `intake.forms`
+  (Q-FORM-SUBJECT). So the run searches and drafts on the matter the event names (the firm's
+  readiness matter holding the controls list). Switch to the firm subject once
+  search_documents and draft_document accept it for this feature.
+- The answers are drafted with draft_document and open the tool-gap kind
+  `platform.security_answer` with submit_for_approval (the Q-FEAT-INT-06 pattern).
+- The feature tests run agent.Handlers() with every read tool wrapped in the run's
+  provenance, as boot.AgentTools does (agenttest.FromFeature serves search_documents
+  unwrapped).
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (binding), the generated plugin skill, and the shared test helpers
+  `app/legal/readiness/ai_rdy_helpers_test.go`.
