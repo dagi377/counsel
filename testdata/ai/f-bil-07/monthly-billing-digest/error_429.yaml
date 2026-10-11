@@ -1,0 +1,15 @@
+synthetic: true
+feature: F-BIL-07
+match: {last_user_regex: "monthly billing digest"}
+fault: rate_limit
+turns:
+  - reply:
+      tool_calls:
+        - name: list_unbilled
+          input: {older_than_days: 60, limit: 50}
+  - reply:
+      tool_calls:
+        - name: get_trust_balance
+          input: {matter_id: "8c1f6a52-3d0e-4b7a-9a61-2f4e7b0c9d15"}
+  - reply:
+      text: "Billing digest for 2026-09: M-2026-0007 has $18,400.00 of unbilled time older than 60 days; trust holds $120.00."
