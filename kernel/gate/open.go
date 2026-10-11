@@ -1,14 +1,11 @@
 package gate
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"slices"
-	"strconv"
 	"sync"
 
 	"github.com/jackc/pgx/v5"
@@ -63,11 +60,9 @@ func (e *PG) prepareOpen(kind string, subject Subject, payload json.RawMessage, 
 	if subject.Kind == "" || subject.ID == "" {
 		return opened{}, fmt.Errorf("open %q: empty subject: %w", kind, ErrInvalidPayload)
 	}
-	var doc any
-	dec := json.NewDecoder(bytes.NewReader(payload))
-	dec.UseNumber()
-	if err := dec.Decode(&doc); err != nil {
-		return opened{}, fmt.Errorf("open %q: %w", kind, ErrInvalidPayload)
+	doc, err := decodeJSON(payload)
+	if err != nil {
+		return opened{}, fmt.Errorf("open %q: %w", kind, err)
 	}
 	if _, ok := doc.(map[string]any); !ok {
 		return opened{}, fmt.Errorf("open %q: payload is not an object: %w", kind, ErrInvalidPayload)
@@ -123,9 +118,8 @@ RETURNING id::text`,
 }
 
 // rule: ARC-I-014
-// PayloadHash returns "sha256:" + hex(SHA-256(canonical JSON of payload)). Canonical JSON
-// follows RFC 8785 for the payloads gates carry: object keys sorted by UTF-16 code unit,
-// no insignificant whitespace, no HTML escaping, integers in plain decimal.
+// PayloadHash returns "sha256:" + hex(SHA-256(JCS(payload))); see JCS for the RFC 8785
+// canonical form and the integer-only rule for payload numbers.
 func PayloadHash(payload json.RawMessage) (string, error) {
 	sum, err := payloadSum(payload)
 	if err != nil {
@@ -134,94 +128,12 @@ func PayloadHash(payload json.RawMessage) (string, error) {
 	return "sha256:" + hex.EncodeToString(sum), nil
 }
 
+// payloadSum is SHA-256(JCS(payload)), the hash stored on a gate version.
 func payloadSum(payload json.RawMessage) ([]byte, error) {
-	var doc any
-	dec := json.NewDecoder(bytes.NewReader(payload))
-	dec.UseNumber()
-	if err := dec.Decode(&doc); err != nil {
-		return nil, fmt.Errorf("payload: %w", ErrInvalidPayload)
-	}
-	var b bytes.Buffer
-	if err := canonical(&b, doc); err != nil {
+	b, err := JCS(payload)
+	if err != nil {
 		return nil, err
 	}
-	sum := sha256.Sum256(b.Bytes())
+	sum := sha256.Sum256(b)
 	return sum[:], nil
-}
-
-func canonical(b *bytes.Buffer, v any) error {
-	switch t := v.(type) {
-	case nil:
-		b.WriteString("null")
-	case bool:
-		b.WriteString(strconv.FormatBool(t))
-	case json.Number:
-		if i, err := t.Int64(); err == nil {
-			b.WriteString(strconv.FormatInt(i, 10))
-			return nil
-		}
-		// Amounts are integer cents and rates integer ppm, so a payload number with a
-		// fraction or exponent is never valid.
-		return fmt.Errorf("payload number: %w", ErrInvalidPayload)
-	case string:
-		writeString(b, t)
-	case []any:
-		b.WriteByte('[')
-		for i, e := range t {
-			if i > 0 {
-				b.WriteByte(',')
-			}
-			if err := canonical(b, e); err != nil {
-				return err
-			}
-		}
-		b.WriteByte(']')
-	case map[string]any:
-		keys := make([]string, 0, len(t))
-		for k := range t {
-			keys = append(keys, k)
-		}
-		slices.SortFunc(keys, compareUTF16)
-		b.WriteByte('{')
-		for i, k := range keys {
-			if i > 0 {
-				b.WriteByte(',')
-			}
-			writeString(b, k)
-			b.WriteByte(':')
-			if err := canonical(b, t[k]); err != nil {
-				return err
-			}
-		}
-		b.WriteByte('}')
-	default:
-		return fmt.Errorf("payload value %T: %w", v, ErrInvalidPayload)
-	}
-	return nil
-}
-
-func writeString(b *bytes.Buffer, s string) {
-	var enc bytes.Buffer
-	e := json.NewEncoder(&enc)
-	e.SetEscapeHTML(false)
-	_ = e.Encode(s) // a Go string always encodes
-	b.Write(bytes.TrimSuffix(enc.Bytes(), []byte("\n")))
-}
-
-func compareUTF16(a, b string) int {
-	ua, ub := utf16Units(a), utf16Units(b)
-	return slices.Compare(ua, ub)
-}
-
-func utf16Units(s string) []uint16 {
-	out := make([]uint16, 0, len(s))
-	for _, r := range s {
-		if r >= 0x10000 {
-			r -= 0x10000
-			out = append(out, uint16(0xD800+(r>>10)), uint16(0xDC00+(r&0x3FF)))
-			continue
-		}
-		out = append(out, uint16(r))
-	}
-	return out
 }

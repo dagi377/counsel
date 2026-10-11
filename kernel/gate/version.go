@@ -31,11 +31,9 @@ func (e *PG) prepareRevise(cur Gate, curHash []byte, payload json.RawMessage, by
 	if err != nil {
 		return revision{}, fmt.Errorf("revise %s: %w", cur.ID, err)
 	}
-	var doc any
-	dec := json.NewDecoder(bytes.NewReader(payload))
-	dec.UseNumber()
-	if err := dec.Decode(&doc); err != nil {
-		return revision{}, fmt.Errorf("revise %s: %w", cur.ID, ErrInvalidPayload)
+	doc, err := decodeJSON(payload)
+	if err != nil {
+		return revision{}, fmt.Errorf("revise %s: %w", cur.ID, err)
 	}
 	if _, ok := doc.(map[string]any); !ok {
 		return revision{}, fmt.Errorf("revise %s: payload is not an object: %w", cur.ID, ErrInvalidPayload)
