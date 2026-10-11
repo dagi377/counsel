@@ -1,0 +1,2 @@
+# Exact (file, term) pairs allowed in kernel/ despite tools/kernel_terms.txt.
+# Ratchet: this list may only shrink. Format: <repo-relative path>: <term>

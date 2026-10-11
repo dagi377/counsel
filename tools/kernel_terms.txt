@@ -1,0 +1,22 @@
+# Legal terms that may not appear in kernel/ or web/src/kernel (identifiers, strings,
+# comments, SQL, YAML). One term per line; matching is whole-word and case-insensitive.
+matter
+trust
+lawyer
+licensee
+paralegal
+solicitor
+client ledger
+retainer
+conflict check
+ethical wall
+court
+docket
+HST
+GST
+QST
+LSO
+By-Law
+Clio
+Ontario
+bill of costs
