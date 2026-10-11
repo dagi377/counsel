@@ -2377,3 +2377,19 @@ Done in PORT-18:
 - A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008), not
   the 409 the accept line names; same as the other HTTP routes.
 - openapi has no body schemas for these operations; the views are documented here.
+## Q-CON-03-MEMO Clearance memo kept on file; conflict.hits_disposed published
+
+- Decided as counsel (LSO Rule 3.4 records): F-CON-03 files the memo as a draft document on
+  the check's matter through draft_document (DocumentDrafts), not only as the run's answer.
+  F-CON-03 gains draft_document in its Def and in spec/ai/features.json, and the grant
+  documents.edit.
+- The a2 draft_document input has no field that links a draft to a conflict run, so the
+  memo is titled "Conflict clearance memo, run <ref>" with the ref propose_conflict_parties
+  returned, and the draft carries the agent run id. A structured link (an additive subject on
+  NewDraftDocument, or the run storing the memo draft id) is a follow-up. A check on a lead
+  with no matter has nowhere to file the memo yet.
+- conflict.Checks publishes conflict.hits_disposed (subject conflict.run) through its
+  Events outbox.Emitter once, on the disposition that leaves every hit of the run disposed.
+  The body is ids and a count, with acting_for set to the run's preparer. Dispositions are
+  kept in memory (Q-PORT-18 C), so the event is emitted with no tx; boot must set Events, and
+  while it is nil no event is published.

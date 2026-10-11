@@ -834,6 +834,7 @@
     "search_matters",
     "read_document",
     "propose_conflict_parties",
+    "draft_document",
     "report_plan",
     "report_step",
     "submit_for_approval"

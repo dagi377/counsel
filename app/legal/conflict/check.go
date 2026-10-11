@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/dagi377/counsel/kernel/outbox"
 )
 
 // Searcher finds the party records that match one search term. The party index behind it is
@@ -174,6 +176,9 @@ type Checks struct {
 	search Searcher
 	runs   RunStore
 	now    func() time.Time
+	// Events receives EventHitsDisposed when a disposition leaves every hit of a run disposed.
+	// Boot sets it; while nil, no event is published and F-CON-03 does not start.
+	Events outbox.Emitter
 
 	mu           sync.Mutex
 	decisions    []decision
@@ -273,26 +278,42 @@ func (c *Checks) Dispose(ctx context.Context, runID string, hit int, lawyer Acto
 	if err != nil {
 		return fmt.Errorf("conflict dispose: %w", err)
 	}
+	run, last, err := c.dispose(runID, stored, hit, lawyer, d, note)
+	if err != nil || !last || c.Events == nil {
+		return err
+	}
+	// Dispositions are kept in memory (Q-PORT-18 C), so there is no tx to share.
+	if err := c.Events.Emit(ctx, nil, outbox.Subject{Kind: SubjectRun, ID: runID}, EventHitsDisposed, hitsDisposedOf(run)); err != nil {
+		return fmt.Errorf("conflict dispose %s: event: %w", runID, err)
+	}
+	return nil
+}
+
+// dispose checks and appends one disposition. last is true when it disposed the run's last
+// undisposed hit, so the hits-disposed event fires once; re-disposing a hit of a fully
+// disposed run is not last.
+func (c *Checks) dispose(runID string, stored Run, hit int, lawyer Actor, d Disposition, note string) (run Run, last bool, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	run := c.view(stored)
+	run = c.view(stored)
 	if err := approverErr(run, lawyer); err != nil {
-		return fmt.Errorf("conflict dispose %s: %w", runID, err)
+		return run, false, fmt.Errorf("conflict dispose %s: %w", runID, err)
 	}
 	switch d {
 	case DispositionNotAConflict, DispositionNeedsConsent, DispositionNeedsWall, DispositionConflict:
 	default:
-		return fmt.Errorf("conflict dispose %s: %w", runID, ErrBadDisposition)
+		return run, false, fmt.Errorf("conflict dispose %s: %w", runID, ErrBadDisposition)
 	}
 	if hit < 0 || hit >= len(run.Hits) {
-		return fmt.Errorf("conflict dispose %s hit %d: %w", runID, hit, ErrBadDisposition)
+		return run, false, fmt.Errorf("conflict dispose %s hit %d: %w", runID, hit, ErrBadDisposition)
 	}
 	note = strings.TrimSpace(note)
 	if note == "" {
-		return fmt.Errorf("conflict dispose %s hit %d: %w", runID, hit, ErrDispositionNote)
+		return run, false, fmt.Errorf("conflict dispose %s hit %d: %w", runID, hit, ErrDispositionNote)
 	}
+	before := len(c.latestDispositions(runID))
 	c.dispositions = append(c.dispositions, dispositionOf{runID: runID, hit: hit, d: d, note: note, by: lawyer.UserID, at: c.now()})
-	return nil
+	return run, before < len(run.Hits) && len(c.latestDispositions(runID)) == len(run.Hits), nil
 }
 
 // decide records a G2 decision on an open run. Only Clearance calls it, after the gate check. Clearing needs every hit disposed as

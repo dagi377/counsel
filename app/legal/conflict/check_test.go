@@ -2,10 +2,15 @@ package conflict
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dagi377/counsel/kernel/outbox"
+	"github.com/dagi377/counsel/kernel/outbox/outboxfake"
 )
 
 type nameIndex map[string][]Hit
@@ -258,4 +263,66 @@ func TestDisposeChecks(t *testing.T) {
 			t.Fatalf("err = %v", err)
 		}
 	})
+}
+
+// F-CON-03 starts on conflict.hits_disposed: published once, when a disposition leaves every
+// hit of the run disposed, with ids and a count only.
+func TestDisposePublishesHitsDisposed(t *testing.T) {
+	law3 := Actor{UserID: "u-law3", IsLawyer: true}
+	type disp struct {
+		hit int
+		d   Disposition
+	}
+	tests := []struct {
+		name   string
+		terms  []string
+		disps  []disp
+		wantAt []int // index into disps after which the event count rises
+	}{
+		{"one hit disposed", []string{"acme"}, []disp{{0, DispositionNotAConflict}}, []int{0}},
+		{"a real conflict still counts as disposed", []string{"acme"}, []disp{{0, DispositionConflict}}, []int{0}},
+		{"last of two hits", []string{"acme", "beta"}, []disp{{0, DispositionNeedsConsent}, {1, DispositionNeedsWall}}, []int{1}},
+		{"same hit twice is not every hit", []string{"acme", "beta"}, []disp{{0, DispositionNotAConflict}, {0, DispositionConflict}}, nil},
+		{"re-disposing publishes nothing more", []string{"acme"}, []disp{{0, DispositionNotAConflict}, {0, DispositionConflict}}, []int{0}},
+		{"a run without hits publishes nothing", []string{"other"}, nil, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			idx := nameIndex{
+				"acme": {{Term: "acme", PartyID: "p1", MatterID: "m9", Role: "adverse"}},
+				"beta": {{Term: "beta", PartyID: "p2", MatterID: "m8", Role: "adverse"}},
+			}
+			c := checksOn(idx)
+			out := outboxfake.New()
+			c.Events = out
+			r, err := c.Check(ctx, Request{MatterID: "m1", CheckID: "chk-1", Terms: tt.terms, Preparer: preparer})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var at []int
+			for i, d := range tt.disps {
+				before := len(out.Messages())
+				if err := c.Dispose(ctx, r.ID, d.hit, law3, d.d, "note"); err != nil {
+					t.Fatalf("Dispose: %v", err)
+				}
+				if len(out.Messages()) > before {
+					at = append(at, i)
+				}
+			}
+			if !slices.Equal(at, tt.wantAt) {
+				t.Fatalf("published after dispositions %v, want %v", at, tt.wantAt)
+			}
+			for _, m := range out.Messages() {
+				var body HitsDisposed
+				if err := json.Unmarshal(m.Payload, &body); err != nil {
+					t.Fatal(err)
+				}
+				want := HitsDisposed{RunID: r.ID, CheckID: "chk-1", MatterID: "m1", ActingFor: preparer.UserID, Hits: len(r.Hits)}
+				if m.Type != EventHitsDisposed || m.Subject != (outbox.Subject{Kind: SubjectRun, ID: r.ID}) || body != want {
+					t.Fatalf("event = %s %+v %+v, want %+v", m.Type, m.Subject, body, want)
+				}
+			}
+		})
+	}
 }
