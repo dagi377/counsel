@@ -1154,3 +1154,11 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   addNotifyJobs and addWebhookJobs. The legal app schedules
   trust.withdrawal_release_expired every 15 minutes when gate services are built. kernel/idem
   problem bodies carry `type` (urn:counsel:problem:<code>, now api.ProblemTypePrefix).
+- PORT-27 (logged, autopilot): `kernel/portal/auth.go` is edited outside the task's file list,
+  because Shell has to use the new `SessionStore` (field `Shell.Store`; NewShell sets an
+  in-memory store). The migration is `1500_portal_token.sql` in the kernel/portal block, not
+  `6240` (an app block). `core.user_session` has no hash or expiry column, so
+  `platform.portal_token` holds the SHA-256 keys of sign-in tokens and session handles, the
+  grants and the expiry, and links each session to its `core.user_session` row
+  (platform 'portal'). Ending that row (logout or revocation) ends the portal session. Guest
+  ids must be `core.app_user` ids.
