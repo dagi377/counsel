@@ -90,6 +90,9 @@ type Binding struct {
 	Events    []string // kernel event types (outbox Message.Type): "document.uploaded", "gate.decided"
 	Cadence   Cadence
 	ActingFor string // user a scheduled run acts for; event runs act for the event's user
+	// Designated: a scheduled run acts for the feature's designated lawyer, read from firm
+	// settings at each tick, instead of ActingFor. Set by BindDesignated.
+	Designated bool
 }
 
 // Bind builds d's binding: the cadence comes from d.Trigger, the event types from events,
@@ -111,7 +114,7 @@ func (b Binding) validate() error {
 		return fmt.Errorf("bind: feature id required: %w", ErrBadBinding)
 	case len(b.Events) == 0 && b.Cadence == CadenceNone:
 		return fmt.Errorf("bind %s: no event and no schedule: %w", b.FeatureID, ErrBadBinding)
-	case b.Cadence != CadenceNone && b.ActingFor == "":
+	case b.Cadence != CadenceNone && b.ActingFor == "" && !b.Designated:
 		return fmt.Errorf("bind %s: scheduled run needs an acting user: %w", b.FeatureID, ErrBadBinding)
 	}
 	for _, e := range b.Events {
@@ -185,6 +188,7 @@ type Bindings struct {
 	byEvent  map[string][]Binding
 	features map[string]bool
 	sched    []Binding
+	lawyers  DesignatedLawyers
 }
 
 // New returns an empty set that enqueues on q, reads time from clk and skips holidays.
@@ -257,7 +261,9 @@ func (s *Bindings) OnEvent(ctx context.Context, m outbox.Message) (int, error) {
 }
 
 // Tick enqueues the scheduled runs due at the clock's now. It returns how many it asked to
-// enqueue; a slot already enqueued is a River duplicate and inserts nothing.
+// enqueue; a slot already enqueued is a River duplicate and inserts nothing. A designated
+// binding whose feature has no designated lawyer is skipped (fail closed); Readiness
+// reports it.
 func (s *Bindings) Tick(ctx context.Context) (int, error) {
 	now := s.clk.Now()
 	n := 0
@@ -266,7 +272,15 @@ func (s *Bindings) Tick(ctx context.Context) (int, error) {
 		if !ok {
 			continue
 		}
-		args := RunArgs{FeatureID: b.FeatureID, ActingFor: b.ActingFor, Slot: slot}
+		actingFor, err := s.actingFor(ctx, b)
+		if errors.Is(err, ErrNoDesignatedLawyer) {
+			slog.WarnContext(ctx, "scheduled agent feature not started: no designated lawyer", "feature", b.FeatureID, "slot", slot)
+			continue
+		}
+		if err != nil {
+			return n, err
+		}
+		args := RunArgs{FeatureID: b.FeatureID, ActingFor: actingFor, Slot: slot}
 		if err := s.insert(ctx, args); err != nil {
 			return n, err
 		}
