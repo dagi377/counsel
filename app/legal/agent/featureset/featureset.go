@@ -176,5 +176,8 @@ func appDefs() []feature.Def {
 		platform.AnswerWithCitationsDef(),
 		platform.DescribeReportDef(),
 		platform.ExplainChangeDef(),
+		platform.SummarizeThreadDef(),
+		platform.SuggestReplyDef(),
+		platform.ResearchDef(),
 	}
 }

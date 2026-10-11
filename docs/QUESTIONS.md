@@ -4303,3 +4303,9 @@ of FEAT-TIM-01 above.
   search_documents, read_document) take a matter id, so on a firm subject the run reads only
   the matters the screen context names; a firm-wide read tool is out of this task's scope.
 - The pltj test helpers live in the platform helper file `ai_pltf_helpers_test.go`.
+
+## FEAT-PLT-27 Action screens of F-PLT-25 to F-PLT-27
+
+- `internal-messages`, `mail-add-in` and `research-workspace` select a matter with
+  `documents.view`; `research-workspace` matches the entry on task/FEAT-PLT-13, so the merge
+  keeps one.

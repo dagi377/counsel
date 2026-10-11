@@ -531,6 +531,11 @@ var actionScreens = map[string]trigger.Screen{
 	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
 	"work-categories": {SubjectKind: "matter", Capability: "work.view"},
 	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
+	// Platform: internal messages, the mail add-in and the research workspace act on the
+	// selected matter and read its documents.
+	"internal-messages":  {SubjectKind: "matter", Capability: "documents.view"},
+	"mail-add-in":        {SubjectKind: "matter", Capability: "documents.view"},
+	"research-workspace": {SubjectKind: "matter", Capability: "documents.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
