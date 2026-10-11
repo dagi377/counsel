@@ -998,3 +998,20 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   snake_case citation keys (`version_id`, `page`, `from_line`, `to_line`); `AnswerSchema` is the
   matching `Spec.OutputSchema`. A cited range may be a sub-range of a citation a tool result of
   the same run returned (same version and page).
+
+## Q-FEAT-CORE-12 screen-action route (additive OpenAPI operation)
+
+- Owner approved the additive screen-action operation (FEAT plan answers, 2026-10-11). Proposed
+  addition to `api/openapi.yaml`, not yet made (the task does not list that file):
+  `POST /api/agent/actions/{feature_id}`, body `{screen: string, record_ids: string[1..100]}`
+  (no other fields, so no free text reaches the run). Responses: 200 `{answer, citations[]}`
+  (chat features, run inline, nothing persisted; citations use the `run.AnswerSchema` shape),
+  202 `{run_id}` (every other feature, queued), problem+json 400, 401, 403
+  (`missing_capability`, rule ARC-I-036), 404 (unknown feature or a walled record), 422
+  (screen not an action of the feature, or bad record ids), 503 (model busy, Retry-After).
+- `app/legal/agent/trigger.Actions` serves it. Boot wires `Screens` (screen id -> subject kind
+  and read capability), `Access` (kernel identity), the runner and an `ActionQueue` that inserts
+  the ids-only run job. The route is not mounted until the OpenAPI operation lands, so the
+  route conformance test stays green.
+- Branch base: task/FEAT-CORE-11 (shared `SubjectRef`) with task/FEAT-CORE-02 (`CheckAnswer`)
+  merged in; both are on top of task/FEAT-CORE-08.
