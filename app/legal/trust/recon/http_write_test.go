@@ -32,7 +32,7 @@ import (
 
 const (
 	acctA       = "0190a000-0000-7000-8000-0000000000aa"
-	acctHidden  = "0190a000-0000-7000-8000-0000000000ff"
+	wAcctHidden  = "0190a000-0000-7000-8000-0000000000ff"
 	recBalanced = "0190d000-0000-7000-8000-000000000001"
 	recOff      = "0190d000-0000-7000-8000-000000000002"
 	recHidden   = "0190d000-0000-7000-8000-000000000003"
@@ -169,10 +169,10 @@ func (txStub) InTx(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) 
 	return fn(ctx, nil)
 }
 
-type stubAccess map[string][]string
+type wStubAccess map[string][]string
 
-func (a stubAccess) Can(_ context.Context, p registry.Principal, capability string, s registry.Subject) (bool, error) {
-	if s.ID == acctHidden {
+func (a wStubAccess) Can(_ context.Context, p registry.Principal, capability string, s registry.Subject) (bool, error) {
+	if s.ID == wAcctHidden {
 		return false, identity.ErrNotVisible
 	}
 	for _, c := range a[p.UserID] {
@@ -183,7 +183,7 @@ func (a stubAccess) Can(_ context.Context, p registry.Principal, capability stri
 	return false, nil
 }
 
-var testAccess = stubAccess{"alice": {recon.CapReconcile}, "viewer": {"trust.view"}}
+var testAccess = wStubAccess{"alice": {recon.CapReconcile}, "viewer": {"trust.view"}}
 
 func testPrincipal(r *http.Request) (registry.Principal, bool) {
 	u := r.Header.Get("X-Test-User")
@@ -196,7 +196,7 @@ type rig struct {
 	gates *countingGates
 }
 
-func newRig(t *testing.T) rig {
+func wNewRig(t *testing.T) rig {
 	t.Helper()
 	ctx := context.Background()
 	f := reconfake.New()
@@ -215,7 +215,7 @@ func newRig(t *testing.T) rig {
 	}
 	seed(recBalanced, acctA, aug, 1000, 1000)
 	seed(recOff, acctA, jul, 900, 900)
-	seed(recHidden, acctHidden, aug, 1000, 1000)
+	seed(recHidden, wAcctHidden, aug, 1000, 1000)
 	// September's statement is imported but not prepared.
 	if _, err := f.ImportStatement(ctx, recon.Statement{AccountID: acctA, Period: recon.Period{Year: 2026, Month: time.June}, ClosingCents: 0}); err != nil {
 		t.Fatal(err)
@@ -237,7 +237,7 @@ func newRig(t *testing.T) rig {
 	return rig{h: m.Handler(), svc: s, gates: g}
 }
 
-func do(h http.Handler, path, user, ctype, body string, hdr map[string]string) *httptest.ResponseRecorder {
+func wDo(h http.Handler, path, user, ctype, body string, hdr map[string]string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 	if ctype != "" {
 		req.Header.Set("Content-Type", ctype)
@@ -278,7 +278,7 @@ func upload(t *testing.T, fields map[string]string, file string) (string, string
 	return mw.FormDataContentType(), b.String()
 }
 
-var openAPISchemas = sync.OnceValues(func() (*jsonschema.Compiler, error) {
+var wOpenAPISchemas = sync.OnceValues(func() (*jsonschema.Compiler, error) {
 	raw, err := os.ReadFile("../../../../api/openapi.yaml")
 	if err != nil {
 		return nil, err
@@ -299,9 +299,9 @@ var openAPISchemas = sync.OnceValues(func() (*jsonschema.Compiler, error) {
 	return c, nil
 })
 
-func validate(t *testing.T, ref string, body []byte) {
+func wValidate(t *testing.T, ref string, body []byte) {
 	t.Helper()
-	c, err := openAPISchemas()
+	c, err := wOpenAPISchemas()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -314,11 +314,11 @@ func validate(t *testing.T, ref string, body []byte) {
 		t.Fatalf("body is not JSON: %v", err)
 	}
 	if err := s.Validate(v); err != nil {
-		t.Errorf("body does not validate against %s: %v", ref, err)
+		t.Errorf("body does not wValidate against %s: %v", ref, err)
 	}
 }
 
-func checkProblem(t *testing.T, rec *httptest.ResponseRecorder, status int, code string) {
+func wCheckProblem(t *testing.T, rec *httptest.ResponseRecorder, status int, code string) {
 	t.Helper()
 	if rec.Code != status {
 		t.Fatalf("status = %d, want %d (body %s)", rec.Code, status, rec.Body)
@@ -326,7 +326,7 @@ func checkProblem(t *testing.T, rec *httptest.ResponseRecorder, status int, code
 	if ct := rec.Header().Get("Content-Type"); ct != api.ProblemContentType {
 		t.Errorf("Content-Type = %q, want %q", ct, api.ProblemContentType)
 	}
-	validate(t, "#/components/schemas/Problem", rec.Body.Bytes())
+	wValidate(t, "#/components/schemas/Problem", rec.Body.Bytes())
 	var p api.Problem
 	if err := json.Unmarshal(rec.Body.Bytes(), &p); err != nil {
 		t.Fatal(err)
@@ -357,7 +357,7 @@ func keyMatch(n, v string) map[string]string {
 
 func TestARC_I_051_ReconWriteProblems(t *testing.T) {
 	upType, upBody := upload(t, map[string]string{"account_id": acctA}, goodCSV)
-	hiddenType, hiddenBody := upload(t, map[string]string{"account_id": acctHidden}, goodCSV)
+	hiddenType, hiddenBody := upload(t, map[string]string{"account_id": wAcctHidden}, goodCSV)
 	extraType, extraBody := upload(t, map[string]string{"account_id": acctA, "post": "true"}, goodCSV)
 	badType, badBody := upload(t, map[string]string{"account_id": acctA}, "garbage")
 	offType, offBody := upload(t, map[string]string{"account_id": acctA}, "0,1600\nb1,1000\nb2,500")
@@ -382,7 +382,7 @@ func TestARC_I_051_ReconWriteProblems(t *testing.T) {
 		{"submit without trust.reconcile", submitPath(recBalanced), "viewer", "", "", keyMatch("106", `"1"`), 403, recon.CodeMissingCapability, true},
 		// rule: ARC-I-042
 		{"import on hidden account is 404", importPath, "alice", hiddenType, hiddenBody, key("107"), 404, recon.CodeNotFound, true},
-		{"prepare on hidden account is 404", preparePath, "alice", jsonType, `{"account_id":"` + acctHidden + `","month":"2026-08","bank_balance_cents":0}`, key("108"), 404, recon.CodeNotFound, true},
+		{"prepare on hidden account is 404", preparePath, "alice", jsonType, `{"account_id":"` + wAcctHidden + `","month":"2026-08","bank_balance_cents":0}`, key("108"), 404, recon.CodeNotFound, true},
 		{"submit hidden reconciliation is 404", submitPath(recHidden), "alice", "", "", keyMatch("109", `"1"`), 404, recon.CodeNotFound, false},
 		{"import unknown form field", importPath, "alice", extraType, extraBody, key("110"), 400, server.CodeValidationFailed, true},
 		{"prepare unknown body field", preparePath, "alice", jsonType, `{"account_id":"` + acctA + `","month":"2026-06","bank_balance_cents":0,"status":"signed"}`, key("111"), 400, server.CodeValidationFailed, true},
@@ -403,9 +403,9 @@ func TestARC_I_051_ReconWriteProblems(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			r := newRig(t)
-			rec := do(r.h, tc.path, tc.user, tc.ctype, tc.body, tc.hdr)
-			checkProblem(t, rec, tc.status, tc.code)
+			r := wNewRig(t)
+			rec := wDo(r.h, tc.path, tc.user, tc.ctype, tc.body, tc.hdr)
+			wCheckProblem(t, rec, tc.status, tc.code)
 			if tc.zeroCalls && r.svc.total() != 0 {
 				t.Errorf("service calls = %v, want 0", r.svc.calls)
 			}
@@ -417,26 +417,26 @@ func TestARC_I_051_ReconWriteProblems(t *testing.T) {
 }
 
 func TestReconDuplicateStatement(t *testing.T) {
-	r := newRig(t)
+	r := wNewRig(t)
 	ctype, body := upload(t, map[string]string{"account_id": acctA}, goodCSV)
-	first := do(r.h, importPath, "alice", ctype, body, key("201"))
+	first := wDo(r.h, importPath, "alice", ctype, body, key("201"))
 	if first.Code != http.StatusAccepted {
 		t.Fatalf("first = %d %s", first.Code, first.Body)
 	}
 	ctype, body = upload(t, map[string]string{"account_id": acctA}, goodCSV)
-	checkProblem(t, do(r.h, importPath, "alice", ctype, body, key("202")), 409, recon.CodeDuplicateStatement)
+	wCheckProblem(t, wDo(r.h, importPath, "alice", ctype, body, key("202")), 409, recon.CodeDuplicateStatement)
 	if r.svc.calls["ImportStatement"] != 2 || r.svc.calls["Prepare"] != 0 || r.gates.opens != 0 {
 		t.Errorf("calls = %v opens = %d; import posts nothing else", r.svc.calls, r.gates.opens)
 	}
 }
 
 func TestReconPrepare(t *testing.T) {
-	r := newRig(t)
-	rec := do(r.h, preparePath, "alice", jsonType, `{"account_id":"`+acctA+`","month":"2026-06","bank_balance_cents":0}`, key("301"))
+	r := wNewRig(t)
+	rec := wDo(r.h, preparePath, "alice", jsonType, `{"account_id":"`+acctA+`","month":"2026-06","bank_balance_cents":0}`, key("301"))
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
 	}
-	validate(t, "#/components/schemas/Reconciliation", rec.Body.Bytes())
+	wValidate(t, "#/components/schemas/Reconciliation", rec.Body.Bytes())
 }
 
 func TestBIL_I_009_PrepareBankBalanceMatchesStatement(t *testing.T) {
@@ -457,16 +457,16 @@ func TestBIL_I_009_PrepareBankBalanceMatchesStatement(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			r := newRig(t)
+			r := wNewRig(t)
 			body := `{"account_id":"` + acctA + `","month":"` + tc.month + `","bank_balance_cents":` + tc.balance + `}`
-			rec := do(r.h, preparePath, "alice", jsonType, body, key(tc.key))
+			rec := wDo(r.h, preparePath, "alice", jsonType, body, key(tc.key))
 			if tc.code == "" {
 				if rec.Code != tc.status {
 					t.Fatalf("status = %d, want %d (%s)", rec.Code, tc.status, rec.Body)
 				}
 				return
 			}
-			checkProblem(t, rec, tc.status, tc.code)
+			wCheckProblem(t, rec, tc.status, tc.code)
 			if r.svc.calls["Prepare"] != 0 {
 				t.Errorf("Prepare called %d times on a refused balance", r.svc.calls["Prepare"])
 			}
@@ -476,12 +476,12 @@ func TestBIL_I_009_PrepareBankBalanceMatchesStatement(t *testing.T) {
 
 // rule: ARC-I-012
 func TestARC_I_012_ReconSubmitOpensGateOnly(t *testing.T) {
-	r := newRig(t)
-	rec := do(r.h, submitPath(recBalanced), "alice", "", "", keyMatch("401", `"1"`))
+	r := wNewRig(t)
+	rec := wDo(r.h, submitPath(recBalanced), "alice", "", "", keyMatch("401", `"1"`))
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
 	}
-	validate(t, "#/components/schemas/Gate", rec.Body.Bytes())
+	wValidate(t, "#/components/schemas/Gate", rec.Body.Bytes())
 	if r.gates.opens != 1 || r.gates.kinds[0] != recon.GateSignOff {
 		t.Errorf("gates = %v, want one %s", r.gates.kinds, recon.GateSignOff)
 	}
@@ -507,34 +507,34 @@ func TestARC_I_008_ReconIdempotency(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			r := newRig(t)
-			first := do(r.h, tc.path, "alice", jsonType, tc.body, key("501"))
+			r := wNewRig(t)
+			first := wDo(r.h, tc.path, "alice", jsonType, tc.body, key("501"))
 			if first.Code != tc.want {
 				t.Fatalf("first = %d %s", first.Code, first.Body)
 			}
-			again := do(r.h, tc.path, "alice", jsonType, tc.body, key("501"))
+			again := wDo(r.h, tc.path, "alice", jsonType, tc.body, key("501"))
 			if again.Code != tc.want || again.Body.String() != first.Body.String() {
 				t.Errorf("replay = %d %s, want %s", again.Code, again.Body, first.Body)
 			}
 			// rule: ARC-I-008
 			// A reused key with a different body answers 422, as kernel/idem does.
-			checkProblem(t, do(r.h, tc.path, "alice", jsonType, tc.other, key("501")), 422, idem.CodeKeyReused)
+			wCheckProblem(t, wDo(r.h, tc.path, "alice", jsonType, tc.other, key("501")), 422, idem.CodeKeyReused)
 			if r.svc.calls["Prepare"] != 1 {
 				t.Errorf("Prepare called %d times, want 1", r.svc.calls["Prepare"])
 			}
 		})
 	}
-	r := newRig(t)
+	r := wNewRig(t)
 	hdr := keyMatch("502", `"1"`)
-	first := do(r.h, submitPath(recBalanced), "alice", "", "", hdr)
-	again := do(r.h, submitPath(recBalanced), "alice", "", "", hdr)
+	first := wDo(r.h, submitPath(recBalanced), "alice", "", "", hdr)
+	again := wDo(r.h, submitPath(recBalanced), "alice", "", "", hdr)
 	if first.Code != http.StatusAccepted || again.Body.String() != first.Body.String() || r.gates.opens != 1 {
 		t.Errorf("submit replay = %d/%d opens = %d", first.Code, again.Code, r.gates.opens)
 	}
 }
 
 func TestARC_I_012_ReconWritesDeclared(t *testing.T) {
-	writes, err := server.DeclaredWrites(newRig(t).h)
+	writes, err := server.DeclaredWrites(wNewRig(t).h)
 	if err != nil {
 		t.Fatal(err)
 	}

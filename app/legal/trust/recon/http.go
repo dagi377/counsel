@@ -23,7 +23,7 @@ const CapView = "trust.view"
 // AccountSubject is the access subject kind of a trust account.
 const AccountSubject = "trust.account"
 
-// Problem codes the reconciliation read route writes.
+// Problem codes the reconciliation read and write routes share.
 const (
 	CodeUnauthenticated   = "unauthenticated"
 	CodeMissingCapability = "missing_capability"
@@ -73,7 +73,7 @@ func (h *Reads) Routes(r chi.Router) {
 // reconView is the openapi Reconciliation.
 type reconView struct {
 	ID                      string `json:"id"`
-	Version                 int    `json:"version"`
+	Version                 int64  `json:"version"`
 	AccountID               string `json:"account_id"`
 	Month                   string `json:"month"`
 	BankBalanceCents        int64  `json:"bank_balance_cents"`
