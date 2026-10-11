@@ -98,6 +98,10 @@ func ValidateKind(module string, k GateKind) error {
 		bad("payload schema is required")
 	} else if _, err := compileSchema(k.Slug, k.PayloadSchema); err != nil {
 		bad("payload schema: %v", err)
+	} else if err := checkAmountPath(k); err != nil {
+		// rule: ARC-I-020
+		// A money kind names its amount field; nothing falls back to a fixed field name.
+		bad("%v", err)
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("gate kind %q: %w: %w", k.Slug, ErrInvalidKind, errors.Join(errs...))
