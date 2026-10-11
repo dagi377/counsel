@@ -2,7 +2,6 @@ package docs_test
 
 import (
 	"errors"
-	"slices"
 	"testing"
 
 	"github.com/dagi377/counsel/app/legal/agent"
@@ -10,12 +9,6 @@ import (
 	"github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/agenttools/run"
-)
-
-// docgLibraryLines and docgLibraryInjected are a firm-library file's page 1.
-var (
-	docgLibraryLines    = []string{"Precedent: motion record for summary judgment", "Prepared for Synth Holdings Inc. against Example Corp."}
-	docgLibraryInjected = append(slices.Clone(docgLibraryLines), docgInjected+".")
 )
 
 // docgContentFlag is an F-DOC-23 output of one flag row for the seeded matter citing c.

@@ -11,12 +11,6 @@ import (
 	"github.com/dagi377/counsel/kernel/agenttools/run"
 )
 
-// docgEmailLines and docgEmailInjected are the selected email as page 1 of a seeded document.
-var (
-	docgEmailLines    = []string{"Re: Synth v Example, court file CV-26-0412", "Attached is the issued claim for the file."}
-	docgEmailInjected = []string{"Re: Synth v Example, court file CV-26-0412", docgInjected + "."}
-)
-
 // docgEmailFiling is an F-DOC-18 output of one suggestion for matter (the seeded one when
 // empty) citing c.
 func docgEmailFiling(matter string, c docgCite, ppm int) func(string, string) map[string]any {
