@@ -4,7 +4,6 @@ package withdraw
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
@@ -62,7 +61,7 @@ func TestWithdrawalEffectReplayOnce(t *testing.T) {
 			env := newItEnv(t, balance)
 			wid, gid := env.request(t, amount)
 			e := env.effect()
-			p, _ := json.Marshal(EffectPayload{WithdrawalID: wid})
+			p := env.terms(t, wid)
 			g := registry.Approved{GateID: gid, Kind: GateKind, Payload: p,
 				Approvers: []registry.Principal{{Kind: registry.PrincipalUser, UserID: env.users["lawyer1"]}}}
 			executor := registry.Principal{Kind: registry.PrincipalUser, UserID: env.users["bookkeeper"]}

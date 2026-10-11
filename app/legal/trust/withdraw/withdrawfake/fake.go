@@ -7,9 +7,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
+	"github.com/dagi377/counsel/kernel/gate"
 )
 
 var _ withdraw.Service = (*Fake)(nil)
@@ -29,6 +31,32 @@ type Fake struct {
 	byID    map[string]*withdraw.Withdrawal
 	byKey   map[string]string
 	seq     int
+	guard   testing.TB
+}
+
+// GuardEffects makes the effect-owned methods (Authorize: withdrawal.status=authorized,
+// gate trust.withdrawal) fail tb and refuse when called outside a gate effect, so a handler
+// test proves its route never reaches an effect-owned write.
+func (f *Fake) GuardEffects(tb testing.TB) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.guard = tb
+}
+
+func (f *Fake) effectOnly(ctx context.Context, method string) error {
+	f.mu.Lock()
+	tb := f.guard
+	f.mu.Unlock()
+	if tb == nil {
+		return nil
+	}
+	// rule: ARC-I-012
+	if err := gate.RequireEffect(ctx); err != nil {
+		tb.Helper()
+		tb.Errorf("withdrawfake: effect-owned %s called outside a gate effect", method)
+		return fmt.Errorf("withdrawfake: %s: %w", method, err)
+	}
+	return nil
 }
 
 // New returns an empty Fake whose authorizations expire after ttl.
@@ -96,7 +124,10 @@ func (f *Fake) Request(_ context.Context, r withdraw.Request) (withdraw.Withdraw
 }
 
 // Authorize re-checks the available balance and authorizes the withdrawal.
-func (f *Fake) Authorize(_ context.Context, id, by string, at time.Time) (withdraw.Withdrawal, error) {
+func (f *Fake) Authorize(ctx context.Context, id, by string, at time.Time) (withdraw.Withdrawal, error) {
+	if err := f.effectOnly(ctx, "Authorize"); err != nil {
+		return withdraw.Withdrawal{}, err
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	w, ok := f.byID[id]

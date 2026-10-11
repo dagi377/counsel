@@ -26,6 +26,20 @@ const (
 	CodeUnclearedFunds         = "uncleared_funds"
 )
 
+// AuthorizationTTL is how long an authorised withdrawal may be executed; after it the
+// authorisation has expired, Execute fails closed and the hold is released.
+const AuthorizationTTL = 72 * time.Hour
+
+var (
+	// ErrAuthorizationExpired is returned when an authorisation is past its expiry (or has
+	// none recorded). It matches ErrNotAuthorized.
+	ErrAuthorizationExpired = fmt.Errorf("withdraw: authorization expired: %w", ErrNotAuthorized)
+	// ErrTermsMismatch is returned when the withdrawal's amount, payee, method or matter differ
+	// from the approved gate payload, or the payload does not state them. It matches
+	// ErrNotAuthorized.
+	ErrTermsMismatch = fmt.Errorf("withdraw: terms differ from the approved gate: %w", ErrNotAuthorized)
+)
+
 // AuditSoloException is the audit action recorded when a sole practitioner executes a
 // withdrawal they authorised (ARC-I-027).
 const AuditSoloException = "sod_solo_exception"
@@ -44,9 +58,46 @@ func (e *EffectError) Unwrap() []error { return []error{gate.ErrEffectFailed, e.
 
 func failed(code string, err error) error { return &EffectError{Code: code, Err: err} }
 
-// EffectPayload is the trust.withdrawal gate payload.
+// EffectPayload is the trust.withdrawal gate payload. The gate's payload hash covers every
+// field, so the approval binds the withdrawal, its matter, amount, payee and method.
 type EffectPayload struct {
 	WithdrawalID string `json:"withdrawal_id"`
+	MatterID     string `json:"matter_id"`
+	AmountCents  *int64 `json:"amount_cents"`
+	Payee        string `json:"payee"`
+	Method       Method `json:"method"`
+}
+
+// PayloadFor is the gate payload that approves exactly h's terms.
+func PayloadFor(h Held) EffectPayload {
+	amount := h.Request.AmountCents
+	return EffectPayload{WithdrawalID: h.ID, MatterID: h.Request.MatterID, AmountCents: &amount,
+		Payee: h.Request.Payee, Method: h.Request.Method}
+}
+
+// checkTerms fails closed unless the approved payload states h's terms exactly.
+func (p EffectPayload) checkTerms(h Held) error {
+	// rule: ARC-I-019
+	switch {
+	case p.WithdrawalID == "" || p.WithdrawalID != h.ID:
+		return fmt.Errorf("withdrawal id: %w", ErrTermsMismatch)
+	case p.MatterID == "" || p.MatterID != h.Request.MatterID:
+		return fmt.Errorf("matter: %w", ErrTermsMismatch)
+	case p.AmountCents == nil || *p.AmountCents != h.Request.AmountCents:
+		return fmt.Errorf("amount: %w", ErrTermsMismatch)
+	case p.Payee == "" || p.Payee != h.Request.Payee:
+		return fmt.Errorf("payee: %w", ErrTermsMismatch)
+	case p.Method == "" || p.Method != h.Request.Method:
+		return fmt.Errorf("method: %w", ErrTermsMismatch)
+	}
+	return nil
+}
+
+// ApprovedPayloads reads the stored payload of an approved trust.withdrawal gate.
+type ApprovedPayloads interface {
+	// ApprovedPayload returns the payload of gateID when it is an approved trust.withdrawal
+	// gate bound to withdrawalID, or ErrNotFound.
+	ApprovedPayload(ctx context.Context, tx pgx.Tx, gateID, withdrawalID string) (json.RawMessage, error)
 }
 
 // Held is a withdrawal locked for its effect, with the client ledger it draws on.
@@ -57,9 +108,11 @@ type Held struct {
 
 // EffectStore keeps withdrawal state. Every method runs in the caller's tx.
 type EffectStore interface {
-	// Lock reads the withdrawal FOR UPDATE, or returns ErrNotFound.
+	// Lock reads the withdrawal FOR UPDATE, or returns ErrNotFound. An authorised withdrawal
+	// whose authorisation has expired returns ErrAuthorizationExpired.
 	Lock(ctx context.Context, tx pgx.Tx, id string) (Held, error)
-	// MarkAuthorized records the authorisation; the withdrawal then holds its amount.
+	// MarkAuthorized records the authorisation at at, expiring AuthorizationTTL later; the
+	// withdrawal then holds its amount until it is executed or the authorisation expires.
 	MarkAuthorized(ctx context.Context, tx pgx.Tx, id, by, gateID string, at time.Time) error
 	// MarkExecuted records who executed the withdrawal at the bank and on which date.
 	MarkExecuted(ctx context.Context, tx pgx.Tx, id, by string, on time.Time) error
@@ -102,6 +155,9 @@ type Effect struct {
 	Now     func() time.Time
 	// EFT reads Form 9A records; while nil, every EFT execution fails closed.
 	EFT EFTRecords
+	// Approvals reads the approved gate payload at execution; while nil, every execution
+	// fails closed.
+	Approvals ApprovedPayloads
 }
 
 // Apply is the trust.withdrawal EffectFunc. It runs in the gate's tx: it locks the withdrawal,
@@ -125,6 +181,11 @@ func (e *Effect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approved) erro
 	if h.Status != StatusRequested {
 		return failed(CodeNotAuthorized, fmt.Errorf("status %s: %w", h.Status, ErrNotAuthorized))
 	}
+	// The approval binds the terms it was given: a gate approved at one amount, payee or
+	// method never authorises another.
+	if err := p.checkTerms(h); err != nil {
+		return failed(CodeNotAuthorized, err)
+	}
 	// rule: ARC-I-027
 	// The agent never approves; the preparer never approves their own withdrawal.
 	if approver.Kind != registry.PrincipalUser || approver.UserID == "" {
@@ -139,6 +200,13 @@ func (e *Effect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approved) erro
 	}
 	if !ok {
 		return failed(CodeNotAuthorized, ErrSignerNotAuthorized)
+	}
+	// Expired authorisations on this ledger can never execute: release their holds first so
+	// they do not keep the client's money out of reach.
+	if r, ok := e.Store.(ledgerExpiryReleaser); ok {
+		if _, err := r.ReleaseExpiredOnLedger(ctx, tx, h.LedgerID, e.Now()); err != nil {
+			return fmt.Errorf("withdrawal effect: %w", err)
+		}
 	}
 	// rule: ARC-I-024
 	// rule: ARC-I-025
@@ -175,8 +243,27 @@ func (e *Effect) Execute(ctx context.Context, tx pgx.Tx, id string, by registry.
 	if h.Status != StatusAuthorized || h.GateID == "" {
 		return "", failed(CodeNotAuthorized, fmt.Errorf("status %s: %w", h.Status, ErrNotAuthorized))
 	}
-	if !h.ExpiresAt.IsZero() && !e.Now().Before(h.ExpiresAt) {
-		return "", failed(CodeNotAuthorized, fmt.Errorf("authorization expired: %w", ErrNotAuthorized))
+	// An authorisation with no recorded expiry is treated as expired: fail closed.
+	if h.ExpiresAt.IsZero() || !e.Now().Before(h.ExpiresAt) {
+		return "", failed(CodeNotAuthorized, ErrAuthorizationExpired)
+	}
+	// Re-check the terms against the approved payload: the row posts only what was approved.
+	if e.Approvals == nil {
+		return "", failed(CodeNotAuthorized, fmt.Errorf("no approved payload source: %w", ErrTermsMismatch))
+	}
+	raw, err := e.Approvals.ApprovedPayload(ctx, tx, h.GateID, h.ID)
+	if errors.Is(err, ErrNotFound) {
+		return "", failed(CodeNotAuthorized, fmt.Errorf("approved payload missing: %w", ErrTermsMismatch))
+	}
+	if err != nil {
+		return "", fmt.Errorf("execute withdrawal: approved payload: %w", err)
+	}
+	var p EffectPayload
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return "", failed(CodeNotAuthorized, fmt.Errorf("approved payload: %w", ErrTermsMismatch))
+	}
+	if err := p.checkTerms(h); err != nil {
+		return "", failed(CodeNotAuthorized, err)
 	}
 	// rule: ARC-I-027
 	if by.UserID == h.AuthorizedBy {
@@ -227,7 +314,8 @@ type PGStore struct{}
 // "requested".
 const lockWithdrawalSQL = `SELECT w.id::text, w.ledger_id::text, l.account_id::text, l.matter_id::text, w.amount_cents,
   w.payee, w.method, coalesce(w.form_9a_doc_id::text, ''), w.purpose_category, w.initiated_by::text, w.status,
-  coalesce(w.approval_id::text, ''), coalesce(w.authorized_by::text, ''), coalesce(w.executed_by::text, '')
+  coalesce(w.approval_id::text, ''), coalesce(w.authorized_by::text, ''), coalesce(w.executed_by::text, ''),
+  w.authorized_at, w.expires_at, now()
 FROM trust.withdrawal_request w JOIN trust.client_ledger l ON l.id = w.ledger_id
 WHERE w.id = $1::uuid FOR UPDATE OF w`
 
@@ -235,9 +323,11 @@ WHERE w.id = $1::uuid FOR UPDATE OF w`
 func (PGStore) Lock(ctx context.Context, tx pgx.Tx, id string) (Held, error) {
 	var h Held
 	var ledger, method, status string
+	var authorizedAt, expiresAt *time.Time
+	var dbNow time.Time
 	err := tx.QueryRow(ctx, lockWithdrawalSQL, id).Scan(&h.ID, &ledger, &h.Request.TrustAccountID, &h.Request.MatterID,
 		&h.Request.AmountCents, &h.Request.Payee, &method, &h.Request.EFTAuthorizationID, &h.Request.Reason,
-		&h.Request.PreparedBy, &status, &h.GateID, &h.AuthorizedBy, &h.ExecutedBy)
+		&h.Request.PreparedBy, &status, &h.GateID, &h.AuthorizedBy, &h.ExecutedBy, &authorizedAt, &expiresAt, &dbNow)
 	if err != nil {
 		var pg *pgconn.PgError
 		if errors.Is(err, pgx.ErrNoRows) || (errors.As(err, &pg) && pg.Code == "22P02") {
@@ -256,16 +346,87 @@ func (PGStore) Lock(ctx context.Context, tx pgx.Tx, id string) (Held, error) {
 	default:
 		h.Status = StatusRejected
 	}
+	if authorizedAt != nil {
+		h.AuthorizedAt = *authorizedAt
+	}
+	if expiresAt != nil {
+		h.ExpiresAt = *expiresAt
+	}
+	// rule: ARC-I-012
+	// An authorisation is executable only until it expires; one with no expiry recorded
+	// (authorised before expiry was stored) has expired.
+	if h.Status == StatusAuthorized && (h.ExpiresAt.IsZero() || !dbNow.Before(h.ExpiresAt)) {
+		return Held{}, failed(CodeNotAuthorized, fmt.Errorf("withdrawal %s: %w", h.ID, ErrAuthorizationExpired))
+	}
 	return h, nil
 }
 
 // MarkAuthorized implements EffectStore.
-func (PGStore) MarkAuthorized(ctx context.Context, tx pgx.Tx, id, by, gateID string, _ time.Time) error {
-	if _, err := tx.Exec(ctx, `UPDATE trust.withdrawal_request SET status = 'authorized', authorized_by = $2::uuid,
-  approval_id = $3::uuid WHERE id = $1::uuid`, id, by, gateID); err != nil {
+func (PGStore) MarkAuthorized(ctx context.Context, tx pgx.Tx, id, by, gateID string, at time.Time) error {
+	if at.IsZero() {
+		return fmt.Errorf("mark authorized: no time: %w", ErrInvalid)
+	}
+	if _, err := tx.Exec(ctx, markAuthorizedSQL, id, by, gateID, at, at.Add(AuthorizationTTL)); err != nil {
 		return fmt.Errorf("mark authorized: %w", err)
 	}
 	return nil
+}
+
+const markAuthorizedSQL = `UPDATE trust.withdrawal_request SET status = 'authorized', authorized_by = $2::uuid,
+  approval_id = $3::uuid, authorized_at = $4, expires_at = $5 WHERE id = $1::uuid`
+
+// releaseExpiredSQL cancels authorisations that have expired (or have no expiry recorded),
+// which drops their hold from trust.available_cents and the ledger sums.
+const releaseExpiredSQL = `UPDATE trust.withdrawal_request SET status = 'cancelled'
+WHERE status = 'authorized' AND (expires_at IS NULL OR expires_at <= $1)`
+
+// ledgerExpiryReleaser is an EffectStore that can release expired holds on one ledger.
+type ledgerExpiryReleaser interface {
+	ReleaseExpiredOnLedger(ctx context.Context, tx pgx.Tx, ledger trust.LedgerID, now time.Time) (int64, error)
+}
+
+var _ ledgerExpiryReleaser = PGStore{}
+
+// ReleaseExpiredOnLedger cancels the authorisations on one ledger that expired at now.
+func (PGStore) ReleaseExpiredOnLedger(ctx context.Context, tx pgx.Tx, ledger trust.LedgerID, now time.Time) (int64, error) {
+	tag, err := tx.Exec(ctx, releaseExpiredSQL+` AND ledger_id = $2::uuid`, now, string(ledger))
+	if err != nil {
+		return 0, fmt.Errorf("release expired withdrawals: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+
+// ReleaseExpired cancels every authorisation expired at now and returns how many it released.
+// The withdrawal expiry job runs it; an expired authorisation can never be executed, so its
+// hold must not keep the client's money out of reach.
+func (PGStore) ReleaseExpired(ctx context.Context, tx pgx.Tx, now time.Time) (int64, error) {
+	tag, err := tx.Exec(ctx, releaseExpiredSQL, now)
+	if err != nil {
+		return 0, fmt.Errorf("release expired withdrawals: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+
+// PGApprovals reads approved trust.withdrawal gate payloads from the stored JCS bytes. A gate
+// with no stored payload is not evidence of the approved terms, so it reads as ErrNotFound.
+type PGApprovals struct{}
+
+var _ ApprovedPayloads = PGApprovals{}
+
+const approvedPayloadSQL = `SELECT payload_jcs FROM gate.approval_request
+WHERE id = $1::uuid AND gate_code = $2 AND status = 'approved' AND payload_id = $3::uuid AND payload_jcs IS NOT NULL`
+
+// ApprovedPayload implements ApprovedPayloads.
+func (PGApprovals) ApprovedPayload(ctx context.Context, tx pgx.Tx, gateID, withdrawalID string) (json.RawMessage, error) {
+	var raw []byte
+	if err := tx.QueryRow(ctx, approvedPayloadSQL, gateID, GateKind, withdrawalID).Scan(&raw); err != nil {
+		var pg *pgconn.PgError
+		if errors.Is(err, pgx.ErrNoRows) || (errors.As(err, &pg) && pg.Code == "22P02") {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("approved payload: %w", err)
+	}
+	return raw, nil
 }
 
 // MarkExecuted implements EffectStore.

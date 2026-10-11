@@ -16,16 +16,21 @@ import (
 	"github.com/dagi377/counsel/kernel/db/dbfake"
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/gate/gatefake"
+	"github.com/dagi377/counsel/kernel/notify"
+	"github.com/dagi377/counsel/kernel/outbox"
+	"github.com/dagi377/counsel/kernel/outbox/outboxfake"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/kernel/server"
 )
 
 // runRig is a fake env that records the order of boot steps.
 type runRig struct {
-	steps   []string
-	opened  db.Config
-	worker  WorkerConfig
-	openErr error
+	steps  []string
+	opened db.Config
+	worker WorkerConfig
+	// consumers are the outbox consumer names the kernel had when its role ran.
+	consumers []string
+	openErr   error
 }
 
 func (r *runRig) env(t *testing.T) env {
@@ -45,8 +50,15 @@ func (r *runRig) env(t *testing.T) env {
 		},
 		registry: func() (registry.Booter, error) { return registry.NewBoot(schemas), nil },
 		gates:    func(db.DB) (gate.Engine, error) { return gatefake.New(time.Now, nil), nil },
+		outbox: func(pool db.DB) (*outbox.Deliverer, error) {
+			ob := outboxfake.New()
+			return &outbox.Deliverer{Relay: ob, Inbox: ob, DB: pool}, nil
+		},
 		server: func(_ context.Context, _ Config, k *Kernel) error {
 			r.steps = append(r.steps, "role:server")
+			for _, c := range k.Outbox.Consumers {
+				r.consumers = append(r.consumers, c.Name)
+			}
 			return nil
 		},
 		worker: func(_ context.Context, _ *Kernel, cfg WorkerConfig) error {
@@ -157,7 +169,6 @@ func TestRunRolesNotImplemented(t *testing.T) {
 		name string
 		cfg  Config
 	}{
-		{"migrate", Config{Role: RoleMigrate, MigrateMode: MigrateExpand}},
 		{"import", Config{Role: RoleImport}},
 	}
 	for _, tt := range tests {
@@ -232,5 +243,26 @@ func TestProductionRegistryFromAnyDir(t *testing.T) {
 				t.Fatal("registry() = nil")
 			}
 		})
+	}
+}
+
+// Run puts the notification delivery consumer on the outbox relay, so a notification
+// emitted by an app is delivered by the worker (addNotifyJobs runs inside Run).
+func TestRunAddsNotifyConsumer(t *testing.T) {
+	rig := &runRig{}
+	if err := run(context.Background(), baseConfig(RoleServer), rig.env(t), routeApp(rig, nil)); err != nil {
+		t.Fatalf("run() = %v", err)
+	}
+	if !slices.Contains(rig.consumers, notify.ConsumerName) {
+		t.Fatalf("outbox consumers = %v, want %s", rig.consumers, notify.ConsumerName)
+	}
+}
+
+func TestPGOutboxNeedsPlainStatements(t *testing.T) {
+	if _, err := pgOutbox(dbfake.New()); !errors.Is(err, ErrConfig) {
+		t.Fatalf("pgOutbox(fake without Exec) = %v, want %v", err, ErrConfig)
+	}
+	if _, err := pgOutbox(&db.Pool{}); err != nil {
+		t.Fatalf("pgOutbox(*db.Pool) = %v, want nil", err)
 	}
 }

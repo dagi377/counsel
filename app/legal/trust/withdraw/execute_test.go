@@ -92,7 +92,7 @@ func TestARC_I_012_ExecutionOnlyAfterAuthorization(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			rig := newEffectRig(t, balance, amount, false)
 			if tc.authorize != "" {
-				if err := rig.e.Apply(context.Background(), nil, approved(user(tc.authorize))); err != nil {
+				if err := rig.e.Apply(context.Background(), nil, rig.approved(user(tc.authorize))); err != nil {
 					t.Fatalf("authorize: %v", err)
 				}
 			}
@@ -205,13 +205,15 @@ func TestARC_I_025_ConcurrentAuthorizationsHoldFunds(t *testing.T) {
 			rig.e.Ledgers = holdingLedgers{TrustLedgers: rig.e.Ledgers, store: ls}
 			var wg sync.WaitGroup
 			errs := make([]error, 2)
+			gates := map[string]registry.Approved{}
+			for _, id := range []string{"w1", "w2"} {
+				gates[id] = approvedPayload(termsPayload(rig.store.w[id]), user("lawyer1"))
+			}
 			for i, id := range []string{"w1", "w2"} {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					p, _ := json.Marshal(EffectPayload{WithdrawalID: id})
-					g := approved(user("lawyer1"))
-					g.Payload = p
+					g := gates[id]
 					ls.mu.Lock()
 					defer ls.mu.Unlock()
 					errs[i] = rig.e.Apply(context.Background(), nil, g)

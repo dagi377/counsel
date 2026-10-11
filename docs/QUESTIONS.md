@@ -786,11 +786,64 @@ BOOT tasks are not in docs/TASKS.md, so their progress is tracked here.
   - `withdraw.PGEFTRecords` has a unit test on a fake DB. Its integration test is still
     to be written (vet only).
   - Kernel boot `Run` now uses the real kernel job adder (gate.run_due, outbox.relay); the
-    BOOT-09 stub is gone. `addNotifyJobs` and `addWebhookJobs` are not yet called from Run.
+    BOOT-09 stub is gone.
+- Merged to main (wave 4c): fix/w3-trust, fix/w3-deploy, fix/migrate-role (migrate role
+  expand/contract and wait-version), PORT-03, PORT-04, PORT-05, PORT-06, PORT-08, PORT-09,
+  PORT-13, PORT-14, HTTP-00, HTTP-01, HTTP-02. Applied at integration:
+  - `Run` builds the outbox relay over the request pool and calls `addNotifyJobs` and
+    `addWebhookJobs` after every app's Register.
+  - The legal app schedules `trust.withdrawal_release_expired` (PGStore.ReleaseExpired)
+    every 15 minutes when gate services are built.
+  - `billing.bill_delivery` is in spec/gates.json (unwired); idem problems carry `type`;
+    the billing/bill integration helper applies every migration.
 - Still open: register the kernel admin kinds (core.role_change, core.user_activation) with
   the admin gates' effects once a Postgres AdminStore exists; build the Assessor from the
   app's Register once limitation ports have production implementations.
 
+
+## Q-MIG-LINT-SHIPPED Migration lint on migrations/: edits in place on unreleased files
+
+- Review item 19 (migrations) and 18 (deploy). `make migration-lint` and
+  `TestMIG_061_ShippedMigrationsPass` now lint every numbered file in migrations/. Only the
+  frozen `0001_init.sql` is baselined (`tools/migration_lint_baseline.txt`, two lines: no
+  timeouts; it builds an empty database). The lint itself is unchanged except `--baseline` and
+  skipping non-numbered files (smoke.sql).
+- The lint is per file, so a forward migration cannot make an earlier failing file pass. No
+  release has shipped and no cell has run the migrate Job (boot's migrate role is not
+  implemented yet), so these unreleased files were edited in place, each with its fix in a
+  new forward file:
+  - 0300, 0400, 0500, 1000, 1400, 5500, 5600, 6000, 6100: add `SET lock_timeout = '2s'` and
+    `SET statement_timeout = '5min'` (RESET at the end).
+  - 0300, 0400, 0500, 1000, 1400: VALIDATE CONSTRAINT moved to 0301, 0401, 0501, 1001, 1401.
+  - 0400, 0500, 1000, 1400: CREATE INDEX moved to no-transaction files 0402, 0502, 1002, 1402
+    (`CREATE INDEX CONCURRENTLY IF NOT EXISTS`).
+  - 1400: `payload_ref ... REFERENCES platform.outbox(id)` inline became
+    `webhook_delivery_payload_ref_fk ... NOT VALID`, validated in 1401.
+  - Forward only: 5501 narrows the trust.exception UPDATE grant to (resolved_at, resolved_by,
+    resolution).
+- A dev database migrated before this change has no `schema_meta.applied` and would re-run
+  0001; recreate it.
+- Still open: 6100 is a backfill in a migration (ARC-U-018 says backfills never run there);
+  move it to a kernel/migrate backfill job. The migrate Job still uses the app DB secret;
+  give it a dedicated migrator role secret.
+
+## Q-HELM-NAMES Cell namespaces use Counsel names (ARC-U-001)
+
+- ARC-U-001 (spec/eng/a1-uptime.html) lists namespaces counsel-<cell>, paploo-<cell>,
+  paploo-<cell>-agents. The chart now creates counsel-<cell>, counsel-<cell>-runtime (agent
+  runtime) and counsel-<cell>-agents (agent containers), plus counsel-<cell>-agents quota,
+  limit range and counsel-<cell>-agent-scheduling. Owner decision (W3 review item 18): no other
+  product name in this repo. The spec text needs the same rename; it was not edited here.
+
+## Q-HELM-MIGRATE First install and the migrate Job
+
+- Decision (autopilot): the migrate Job is a `pre-upgrade` hook only. On install it is an
+  ordinary release resource (`counsel-<cell>-migrate-install`), because a pre-install hook runs
+  before its namespace, service account, priority class and database secret exist. The chart
+  fails on any other hook value.
+- Every Deployment has a `wait-schema` init container: `counsel-migrate -mode=wait-version`
+  waits, with the app credentials, until `schema_meta.applied` holds the newest migration
+  built into the image.
 
 ## T-009.4: concrete server, two-way OpenAPI check, unserved list (owner decision)
 
@@ -984,6 +1037,123 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   CheckCitations validates it; quotes[i] is the name of contacts[i].
 - `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
   Q-FEAT-TOOL agent handler set), so the branches merge cleanly.
+
+## Q-W3-TRUST Trust review fixes: additive contract changes
+
+- Source: wave 2-3 review, trust items 2, 3, 10 and 11 (By-Law 9).
+- `migrations/5501_withdrawal_authority.sql` (app/legal/trust block, additive):
+  - `trust.withdrawal_request.authorized_at` / `expires_at` (nullable). `MarkAuthorized` sets
+    `expires_at = authorized_at + 72h` (`withdraw.AuthorizationTTL`, the G11 gate TTL).
+    `PGStore.Lock` fails closed once it has passed, and on any authorised row with no expiry
+    (rows authorised before this migration must be re-authorised). Expired holds are released
+    to `cancelled`: on the same ledger at the next authorisation, and by
+    `PGStore.ReleaseExpired`, which the boot-wiring task set must schedule as a periodic job.
+  - Trigger `withdrawal_terms_frozen`: amount, payee, ledger, method, bill, purpose, preparer
+    and receiving account never change once a withdrawal is proposed; editing is a new
+    request. `form_9a_doc_id` may be attached once while awaiting authorisation.
+  - Trigger `transfer_terms_frozen` on `trust.trust_transfer` once it leaves draft.
+  - Table `trust.form_9a_signature` (append-only): the Form 9A signer and signing time.
+    `PGEFTRecords` reads the signer from it, never the document uploader; no row, no record.
+    `PGEFTRecords.RecordSignature` writes it. (verify the Form 9A signing requirements)
+- `spec/gates.json` (additive): `trust.withdrawal` payload gains `withdrawal_id` and requires
+  it and `method`; `trust.transfer` gains and requires `transfer_id`.
+- `withdraw.EffectPayload` / `TransferPayload` carry the terms (amount, payee, method, matter;
+  for transfers amount and both matters). Apply and Execute fail closed on any mismatch with
+  the row. Execute re-reads the approved payload through `Effect.Approvals`
+  (`PGApprovals`: stored `payload_jcs` of the approved gate); nil means no execution.
+- `trust.Receipt.CashGateID`, `payment.Capture.Method/MatterID/CashExceptionCode/CashGateID`
+  (additive): an exception code passes the $7,500 cash limit only with an approved
+  `trust.cash_over_limit` (G6c) gate for the same matter, amount and code.
+  `trust.LedgerStore.CheckOperatingCash` is the operating-path check (same per-matter lock);
+  `payment.CheckCash` must be called by the Postgres Capture when it lands.
+- Not fixed here: `billing.cash_received_cents` still counts operating cash only through
+  allocations (billing.payment has no matter_id); needs its own additive change.
+
+## fix/migrate-role: migrate role, gate verdict order, test role lock
+
+- `counsel-migrate -mode=expand` applies the files without a `-- contract: <release>` mark;
+  `-mode=contract` applies only the marked files and refuses while any expand file is
+  unapplied (`migrations.ErrExpandPending`). Both record in `schema_meta.applied` and use the
+  direct DSN when given (ARC-U-011). A failure exits non-zero.
+- 0302 re-creates `gate.check_decision` so an unknown verdict fails as
+  `gate_decision_verdict_ck` before any DM rule: a BEFORE trigger runs ahead of CHECK
+  constraints, so DM-070 used to win (TestGatePayloadAndRecommend).
+- Integration helpers hold `migrationstest.LockClusterRoles` while building their database:
+  the frozen 0001 names the cluster roles, so they cannot be unique per package; schema setup
+  is serialised instead.
+- Still open: move the 6100 backfill into a `kernel/migrate` Backfill step run by a worker job
+  (needs a durable Checkpoints store and an app hook for the step), and the migrator role secret.
+
+## PORT-03 (kernel/boot: identity-backed report Authorizer)
+
+- Built on task/PORT-02's merge of origin/task/BOOT-09 into main (run.go lives only there).
+- run.go gains an optional `env.identity` (Access + PrincipalResolver from the pool). Production
+  leaves it nil until the identity store is wired (BOOT-20), so reports stay on denyAll there;
+  `reportAuthorizer` switches to `reportAuth` as soon as an Access is supplied.
+- "Firm subject" is the zero identity.Subject (organisation-wide); the kernel names it
+  `orgSubject` so no app term enters kernel code.
+- There is no Postgres RoleAssignments in the kernel yet; the integration test reads
+  core.app_user/core.role through a test-local one.
+## HTTP-00: gate-owned-state guard (files outside the task, decisions taken)
+
+- Write declarations live next to the route: `r.Method(m, path, server.Declare(h, keys...))`.
+  `server.DeclaredWrites` walks the mounted router (unwrapping `chi.ChainHandler`) and
+  `server.CheckWrites` refuses an undeclared POST/PUT/PATCH/DELETE route and any declaration
+  naming a `legal.GateOwned` key, except on `server.DecisionRoute`. Kernel mounters that do not
+  use Declare (inbound hooks) are declared in `app/legal/conformance_test.go` (`kernelWrites`).
+- `kernel/gate/decide.go` (not in the task's files): `runDecidedEffect` now hands the effect
+  `WithEffect(ctx, g.ID)`, so "set only by the effect runner" holds. One line.
+- `app/legal/register_test.go`: `MethodRoutes` joins the "always" set. Routes always mount;
+  each handler fails closed per request (the withdrawal execution route answers 503 until boot
+  wiring supplies its dependencies, and trust_rules_unverified while its flag is off). The
+  OpenAPI conformance test needs every route mounted with no features on, so routes cannot be
+  feature-gated at registration.
+- Fakes: `matterfake` (Create, AddMember) and `withdrawfake` (Authorize) gain
+  `GuardEffects(tb)`: effect-owned methods fail tb and return `gate.ErrOutsideEffect` outside
+  an effect. Other module fakes gain it when their handler task lands.
+- Q-HTTP-00 (open): `bill.delivered_at` is effect-owned (openapi deliverBill: "set only by the
+  delivery effect on evidence"; 0001 trigger RV1-008 mentions an approved delivery_correction),
+  but spec/gates.json has no delivery or delivery-correction kind. It is mapped to
+  `billing.bill_delivery`, listed pending and in the test's `unspecifiedKinds`. Needed: add the
+  kind to spec/gates.json (additive) or name the existing kind that owns it.
+- Mapping choices to confirm: write_off.status=approved -> billing.credit_note (the openapi op
+  "Request a credit note or write-off; opens gate billing.credit_note"); matter.team and
+  matter.restricted -> matter.widen_access; matter.status=closed -> platform.closing;
+  trust_account.signatories -> core.trust_signatory; trust_txn.posted is split into
+  `=receipt` (trust.receipt_classification) and `=transfer` (trust.transfer).
+
+## HTTP-01 / HTTP-02: matter routes (decisions taken, open items)
+
+- Routes register a zero-value `matter.HTTP` / `matter.Writes` through `Registry.Routes`;
+  every route answers 503 `unavailable` and calls nothing until boot wiring supplies the
+  dependencies (same as the withdrawal execution route). The BOOT tasks must inject them.
+- GET /matters: one capability check per request (ARC-I-042); walled and restricted matters
+  are left out by Query under the caller's RLS session, not by per-row checks. openapi
+  declares no `cursor`/`limit` parameters and no 200 schema for /matters; the handler takes
+  both (api.FromRequest) and the 200 bodies are not schema-checked.
+- POST /matters: the rule wins over the task text. Same key + different body returns 422
+  `idempotency_key_reused` (ARC-I-008), not 409. kernel/idem's own problem bodies omit the
+  required `type` field of the Problem schema; the handler checks the missing key itself so
+  that 400 validates, but the 422/409 bodies from `idem.New` do not (fix in kernel/idem).
+- POST /matters opens `matter.opening` with subject `party.contact`/client_id: the matter
+  row does not exist until the effect creates it. Needed: the matter.opening effect
+  (service gap) and a confirmation of the subject.
+- PATCH: plain-field writes go through a new `matter.Updater` port (declared in
+  http_write.go, not the frozen contract); its Postgres implementation is a service gap.
+  status=open opens matter.opening; closing/closed/archived open platform.closing (verify);
+  team and restricted open matter.widen_access. One gated change per request; mixing plain
+  and gated fields is 400.
+- Q-HTTP-00 (answered, wave 4c merge): `billing.bill_delivery` is added to spec/gates.json and
+  the a2 gate_kinds table (additive; G-B2, billing.approve, medium, 168h, effect
+  `billing.deliver_bill`, ARC-I-052). It leaves `unspecifiedKinds`; its delivery effect is not
+  built yet, so it is listed unwired.
+- Wave 4c merge notes: migrations 1401_webhook_expiry_notice and 5501_withdrawal_authority
+  clashed with same-numbered files and are renumbered 1403 and 5502; the withdrawal expiry
+  index moves to 5503_withdrawal_authority_index.sql (CONCURRENTLY, MIG-061). Run wires the
+  outbox relay over the request pool (db.Pool gains plain Exec/Query/QueryRow) and calls
+  addNotifyJobs and addWebhookJobs. The legal app schedules
+  trust.withdrawal_release_expired every 15 minutes when gate services are built. kernel/idem
+  problem bodies carry `type` (urn:counsel:problem:<code>, now api.ProblemTypePrefix).
 
 ## FEAT-CORE-06 run scope (gate-kind allowlist and drafts made in this run)
 

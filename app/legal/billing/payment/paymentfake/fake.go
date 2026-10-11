@@ -22,6 +22,10 @@ type bill struct {
 
 // Fake keeps bills, payments and allocations in memory.
 type Fake struct {
+	// Cash is the cash limit every cash payment is checked against; while nil a cash payment
+	// fails closed with payment.ErrCashUnchecked.
+	Cash payment.CashLimit
+
 	mu       sync.Mutex
 	bills    map[string]*bill
 	payments map[string]*payment.Payment
@@ -57,7 +61,7 @@ func (f *Fake) Open(id string) (fee, tax int64) {
 var rounder = moneyfake.New()
 
 // Capture records and allocates c.
-func (f *Fake) Capture(_ context.Context, c payment.Capture) (payment.Payment, []payment.Allocation, error) {
+func (f *Fake) Capture(ctx context.Context, c payment.Capture) (payment.Payment, []payment.Allocation, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	key := c.IdempotencyKey
@@ -79,6 +83,9 @@ func (f *Fake) Capture(_ context.Context, c payment.Capture) (payment.Payment, [
 	}
 	if b.client != c.ClientID {
 		return payment.Payment{}, nil, payment.ErrOtherClient
+	}
+	if err := payment.CheckCash(ctx, nil, f.Cash, c); err != nil {
+		return payment.Payment{}, nil, err
 	}
 	f.seq++
 	p := &payment.Payment{ID: "pay_" + strconv.Itoa(f.seq), Capture: c, Status: payment.StatusCaptured}

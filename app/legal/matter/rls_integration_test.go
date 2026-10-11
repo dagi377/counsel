@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/dagi377/counsel/migrations/migrationstest"
 )
 
 // rlsDB creates a database on COUNSEL_TEST_DB and applies the init migration.
@@ -31,6 +33,7 @@ func rlsDB(t *testing.T) *pgx.Conn {
 	b := make([]byte, 6)
 	_, _ = rand.Read(b)
 	name := "matter_rls_" + hex.EncodeToString(b)
+	defer migrationstest.LockClusterRoles(ctx, t, admin)()
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{name}.Sanitize()); err != nil {
 		t.Fatalf("create database: %v", err)
 	}

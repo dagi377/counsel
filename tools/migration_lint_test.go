@@ -161,3 +161,84 @@ func TestMIG_060_ExpandContract(t *testing.T) {
 func TestMIG_061_LockSafe(t *testing.T) {
 	checkLintCases(t, "MIG-061")
 }
+
+// runLint runs the lint from the repo root, as make migration-lint does, and returns its
+// output and exit code.
+func runLint(t *testing.T, args ...string) (string, int) {
+	t.Helper()
+	py, err := exec.LookPath("python3")
+	if err != nil {
+		t.Fatalf("python3 is required by make check: %v", err)
+	}
+	cmd := exec.Command(py, append([]string{"-I", "tools/migration_lint.py"}, args...)...)
+	cmd.Dir = ".."
+	out, err := cmd.Output()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		return string(out), exit.ExitCode()
+	}
+	if err != nil {
+		t.Fatalf("lint: %v", err)
+	}
+	return string(out), 0
+}
+
+// The shipped migrations pass the lint. Only the frozen contract file may sit in the baseline.
+// rule: MIG-060
+// rule: MIG-061
+// rule: ARC-U-017
+// rule: ARC-U-018
+func TestMIG_061_ShippedMigrationsPass(t *testing.T) {
+	const baseline = "tools/migration_lint_baseline.txt"
+	out, code := runLint(t, "--baseline", baseline, "migrations")
+	if code != 0 || strings.TrimSpace(out) != "" {
+		t.Fatalf("migration lint on migrations/: exit %d\n%s", code, out)
+	}
+	b, err := os.ReadFile("../" + baseline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range strings.Split(string(b), "\n") {
+		l = strings.TrimSpace(l)
+		if l == "" || strings.HasPrefix(l, "#") {
+			continue
+		}
+		if !strings.HasPrefix(l, "migrations/0001_init.sql:") {
+			t.Errorf("baseline entry %q: only the frozen 0001_init.sql may be baselined", l)
+		}
+	}
+}
+
+// Without the baseline the frozen file still fails, a stale baseline entry fails, and a
+// directory run skips files that are not numbered migrations.
+// rule: MIG-061
+func TestMIG_061_LintBaseline(t *testing.T) {
+	stale := filepath.Join(t.TempDir(), "baseline.txt")
+	if err := os.WriteFile(stale, []byte("migrations/0001_init.sql:1: MIG-061: missing SET lock_timeout\nmigrations/0001_init.sql:1: MIG-061: missing SET statement_timeout\nmigrations/0300_gate_payload_recommend.sql:1: MIG-061: missing SET lock_timeout\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name     string
+		args     []string
+		wantCode int
+		want     string
+	}{
+		{"no baseline", []string{"migrations"}, 1, "migrations/0001_init.sql:1: MIG-061: missing SET lock_timeout"},
+		{"stale entry", []string{"--baseline", stale, "migrations"}, 1, "stale entry"},
+		{"smoke.sql skipped", []string{"--baseline", "tools/migration_lint_baseline.txt", "migrations"}, 0, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out, code := runLint(t, tt.args...)
+			if code != tt.wantCode {
+				t.Fatalf("exit %d, want %d\n%s", code, tt.wantCode, out)
+			}
+			if tt.want != "" && !strings.Contains(out, tt.want) {
+				t.Fatalf("output lacks %q:\n%s", tt.want, out)
+			}
+			if strings.Contains(out, "smoke.sql") {
+				t.Fatalf("lint read smoke.sql:\n%s", out)
+			}
+		})
+	}
+}

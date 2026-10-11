@@ -122,6 +122,9 @@ type Receipt struct {
 	ClearedOn         time.Time // zero only for cheque or bank draft
 	CashExceptionCode string    // lets a cash receipt over the limit through, with evidence
 	PostedBy          string
+	// CashGateID is the approved trust.cash_over_limit (G6c) gate that holds the evidence for
+	// CashExceptionCode. An exception code without it is refused.
+	CashGateID string
 }
 
 // Disbursement is money paid out of one ledger for an approved withdrawal. It is called

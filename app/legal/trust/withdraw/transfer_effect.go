@@ -15,10 +15,30 @@ import (
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
-// TransferPayload is the trust.transfer gate payload.
+// TransferPayload is the trust.transfer gate payload. The gate's payload hash covers every
+// field, so the approval binds the transfer, both matters and the amount.
 type TransferPayload struct {
-	TransferID string `json:"transfer_id"`
-	Reason     string `json:"reason"`
+	TransferID   string `json:"transfer_id"`
+	FromMatterID string `json:"from_matter_id"`
+	ToMatterID   string `json:"to_matter_id"`
+	AmountCents  *int64 `json:"amount_cents"`
+	Reason       string `json:"reason"`
+}
+
+// checkTerms fails closed unless the approved payload states h's terms exactly.
+func (p TransferPayload) checkTerms(h HeldTransfer) error {
+	// rule: ARC-I-019
+	switch {
+	case p.TransferID != h.ID:
+		return fmt.Errorf("transfer id: %w", ErrTermsMismatch)
+	case p.FromMatterID == "" || p.FromMatterID != h.FromMatterID:
+		return fmt.Errorf("source matter: %w", ErrTermsMismatch)
+	case p.ToMatterID == "" || p.ToMatterID != h.ToMatterID:
+		return fmt.Errorf("destination matter: %w", ErrTermsMismatch)
+	case p.AmountCents == nil || *p.AmountCents != h.AmountCents:
+		return fmt.Errorf("amount: %w", ErrTermsMismatch)
+	}
+	return nil
 }
 
 // HeldTransfer is a trust.trust_transfer row locked for its effect.
@@ -28,7 +48,10 @@ type HeldTransfer struct {
 	ToLedger    trust.LedgerID
 	AccountID   trust.AccountID // the source ledger's trust account
 	AmountCents int64
-	Status      string // database status
+	// FromMatterID and ToMatterID are the matters of the source and destination ledgers.
+	FromMatterID string
+	ToMatterID   string
+	Status       string // database status
 }
 
 // TransferGateStore keeps transfer state for the gate effect. Every method runs in the caller's tx.
@@ -80,6 +103,11 @@ func (e *TransferEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approv
 	if h.Status != "pending_authorization" {
 		return failed(CodeNotAuthorized, fmt.Errorf("transfer status %s: %w", h.Status, ErrNotAuthorized))
 	}
+	// The approval binds the terms it was given: a gate approved for one amount or pair of
+	// matters never moves another.
+	if err := p.checkTerms(h); err != nil {
+		return failed(CodeNotAuthorized, err)
+	}
 	ok, err := e.Signers.IsSignatory(ctx, tx, h.AccountID, approver.UserID)
 	if err != nil {
 		return fmt.Errorf("transfer effect: signatory: %w", err)
@@ -109,14 +137,18 @@ func (e *TransferEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approv
 	return nil
 }
 
+const lockTransferSQL = `SELECT x.id::text, x.from_ledger_id::text, x.to_ledger_id::text, l.account_id::text,
+  x.amount_cents, x.status, l.matter_id::text, d.matter_id::text
+FROM trust.trust_transfer x JOIN trust.client_ledger l ON l.id = x.from_ledger_id
+  JOIN trust.client_ledger d ON d.id = x.to_ledger_id
+WHERE x.id = $1::uuid FOR UPDATE OF x`
+
 // LockTransfer implements TransferGateStore.
 func (PGTransferStore) LockTransfer(ctx context.Context, tx pgx.Tx, id string) (HeldTransfer, error) {
 	var h HeldTransfer
 	var from, to, acct string
-	err := tx.QueryRow(ctx, `SELECT x.id::text, x.from_ledger_id::text, x.to_ledger_id::text, l.account_id::text,
-  x.amount_cents, x.status
-FROM trust.trust_transfer x JOIN trust.client_ledger l ON l.id = x.from_ledger_id
-WHERE x.id = $1::uuid FOR UPDATE OF x`, id).Scan(&h.ID, &from, &to, &acct, &h.AmountCents, &h.Status)
+	err := tx.QueryRow(ctx, lockTransferSQL, id).Scan(&h.ID, &from, &to, &acct, &h.AmountCents, &h.Status,
+		&h.FromMatterID, &h.ToMatterID)
 	if err != nil {
 		var pg *pgconn.PgError
 		if errors.Is(err, pgx.ErrNoRows) || (errors.As(err, &pg) && pg.Code == "22P02") {

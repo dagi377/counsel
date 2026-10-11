@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/db"
@@ -38,15 +39,19 @@ const (
 type MigrateMode string
 
 // Migrate modes. Expand is the default; contract (destructive) steps run only when asked.
+// Wait-version applies nothing: it waits until the database has SchemaVersion, so an app pod
+// (as an init container) starts only on the schema its image expects.
 const (
-	MigrateExpand   MigrateMode = "expand"
-	MigrateContract MigrateMode = "contract"
+	MigrateExpand      MigrateMode = "expand"
+	MigrateContract    MigrateMode = "contract"
+	MigrateWaitVersion MigrateMode = "wait-version"
 )
 
 // Sentinel errors.
 var (
 	ErrConfig         = errors.New("boot: invalid config")
 	ErrNotImplemented = errors.New("boot: role not implemented yet")
+	ErrConnect        = errors.New("boot: cannot connect to the database")
 )
 
 // Config is everything a binary passes to Run.
@@ -61,7 +66,11 @@ type Config struct {
 	MaxWorkers        int         // worker only: concurrent jobs on the default queue; 0 means 10
 	Flags             []string    // flag names to turn on; each must be defined by an app
 	MigrateMode       MigrateMode // migrate only
-	ImportFrom        string      // import only: source export path
+	// SchemaVersion is the migration file wait-version waits for (migrate only); empty means
+	// the newest migration built into this binary.
+	SchemaVersion string
+	Timeout       time.Duration // stop Run after this long; 0 means no limit
+	ImportFrom    string        // import only: source export path
 }
 
 // Validate checks the fields the role needs.
@@ -80,7 +89,7 @@ func (c Config) Validate() error {
 	case RoleImport:
 	case RoleMigrate:
 		switch c.MigrateMode {
-		case MigrateExpand, MigrateContract:
+		case MigrateExpand, MigrateContract, MigrateWaitVersion:
 		default:
 			return fmt.Errorf("migrate mode %q: %w", c.MigrateMode, ErrConfig)
 		}

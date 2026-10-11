@@ -18,6 +18,8 @@ import (
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/migrations"
 	"github.com/jackc/pgx/v5"
+
+	"github.com/dagi377/counsel/migrations/migrationstest"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -37,6 +39,7 @@ func effectDB(t *testing.T) *pgxpool.Pool {
 	suffix := make([]byte, 6)
 	_, _ = rand.Read(suffix)
 	name := "gate_effect_" + hex.EncodeToString(suffix)
+	defer migrationstest.LockClusterRoles(ctx, t, admin)()
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{name}.Sanitize()); err != nil {
 		t.Fatalf("create database: %v", err)
 	}

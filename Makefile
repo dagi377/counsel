@@ -4,9 +4,9 @@ GOFMT   ?= gofmt
 PYTHON  ?= python3
 OPENAPI ?= api/openapi.yaml
 
-.PHONY: check fmt vet test web-test spec-lint openapi-lint rule-coverage tasks-lint ai-fixture-lint build
+.PHONY: check fmt vet test web-test spec-lint openapi-lint rule-coverage tasks-lint ai-fixture-lint migration-lint build
 
-check: fmt vet test web-test spec-lint openapi-lint rule-coverage tasks-lint ai-fixture-lint
+check: fmt vet test web-test spec-lint openapi-lint rule-coverage tasks-lint ai-fixture-lint migration-lint
 
 build:
 	$(GO) build ./...
@@ -48,3 +48,7 @@ ai-fixture-lint:
 	$(PYTHON) -I tools/ai_fixture_lint.py --self-test
 	$(PYTHON) -I tools/ai_fixture_lint.py
 
+
+# MIG-060 / MIG-061 on the shipped migrations. Only the frozen 0001_init.sql has a baseline.
+migration-lint:
+	$(PYTHON) -I tools/migration_lint.py --baseline tools/migration_lint_baseline.txt migrations

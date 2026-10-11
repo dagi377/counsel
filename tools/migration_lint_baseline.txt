@@ -1,0 +1,5 @@
+# Known migration lint problems (tools/migration_lint.py --baseline). Only the frozen contract
+# file 0001_init.sql may appear here: it cannot be edited, and it builds an empty database, so
+# no lock waits behind live traffic. Every other file must pass the lint. This file only shrinks.
+migrations/0001_init.sql:1: MIG-061: missing SET lock_timeout
+migrations/0001_init.sql:1: MIG-061: missing SET statement_timeout

@@ -86,7 +86,7 @@ func TestEFTExecutionNeedsAuthorizationRecord(t *testing.T) {
 			r.store.w["w1"] = h
 			r.e.EFT = tt.recs
 			ctx := context.Background()
-			if err := r.e.Apply(ctx, nil, approved(user("lawyer1"))); err != nil {
+			if err := r.e.Apply(ctx, nil, r.approved(user("lawyer1"))); err != nil {
 				t.Fatalf("apply: %v", err)
 			}
 			_, err := r.e.Execute(ctx, nil, "w1", user("bookkeeper"), execDay)

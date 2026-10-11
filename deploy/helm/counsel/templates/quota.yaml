@@ -65,8 +65,8 @@ spec:
 apiVersion: v1
 kind: ResourceQuota
 metadata:
-  name: paploo-{{ $cell }}-agents
-  namespace: paploo-{{ $cell }}-agents
+  name: counsel-{{ $cell }}-agents
+  namespace: counsel-{{ $cell }}-agents
   labels:
     counsel.io/cell: {{ $cell | quote }}
 spec:
@@ -78,8 +78,8 @@ spec:
 apiVersion: v1
 kind: LimitRange
 metadata:
-  name: paploo-{{ $cell }}-agents
-  namespace: paploo-{{ $cell }}-agents
+  name: counsel-{{ $cell }}-agents
+  namespace: counsel-{{ $cell }}-agents
   labels:
     counsel.io/cell: {{ $cell | quote }}
 spec:
@@ -98,8 +98,8 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: paploo-{{ $cell }}-agent-scheduling
-  namespace: paploo-{{ $cell }}-agents
+  name: counsel-{{ $cell }}-agent-scheduling
+  namespace: counsel-{{ $cell }}-agents
   labels:
     counsel.io/cell: {{ $cell | quote }}
 data:

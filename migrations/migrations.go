@@ -43,20 +43,17 @@ func Read(name string) ([]byte, error) {
 }
 
 // Apply runs every migration whose name sorts at or before upTo (all of them when upTo is
-// empty) on conn, in order. Each file runs as one simple-protocol batch, so a file may hold
-// several statements and DO blocks.
+// empty) on conn, in order, and records each in the schema version table. A file already
+// recorded is skipped, so Apply can run again on a migrated database. A file runs as one
+// simple-protocol batch (one transaction, with its record), so it may hold several statements
+// and DO blocks; a file marked "-- migrate: no-transaction" runs statement by statement.
 func Apply(ctx context.Context, conn *pgx.Conn, upTo string) error {
+	var names []string
 	for _, name := range Names() {
 		if upTo != "" && name > upTo {
 			break
 		}
-		sql, err := Read(name)
-		if err != nil {
-			return err
-		}
-		if _, err := conn.PgConn().Exec(ctx, string(sql)).ReadAll(); err != nil {
-			return fmt.Errorf("apply migration %s: %w", name, err)
-		}
+		names = append(names, name)
 	}
-	return nil
+	return applyNames(ctx, conn, names)
 }

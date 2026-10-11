@@ -65,6 +65,14 @@ type Capture struct {
 	ProviderEventID string
 	IdempotencyKey  string
 	RecordedBy      string
+	// Method is how the money arrived (billing.payment.method); MethodCash payments count
+	// toward the By-Law 9 cash limit on MatterID.
+	Method   string
+	MatterID string
+	// CashExceptionCode and CashGateID let cash at or over the limit in: a By-Law 9 s.6
+	// exception code and the approved trust.cash_over_limit (G6c) gate that evidences it.
+	CashExceptionCode string
+	CashGateID        string
 }
 
 // Payment is a captured payment.

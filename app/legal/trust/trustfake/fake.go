@@ -182,6 +182,10 @@ func (f *Fake) Receive(ctx context.Context, _ pgx.Tx, r trust.Receipt) (trust.Tx
 		if c.Blocked && r.CashExceptionCode == "" {
 			return "", fmt.Errorf("receive: %w", trust.ErrCashLimit)
 		}
+		// The fake knows no gates: an exception code without a G6c gate id fails closed.
+		if c.Blocked && r.CashGateID == "" {
+			return "", fmt.Errorf("receive: %w: %w", trust.ErrCashLimit, trust.ErrCashGateRequired)
+		}
 	}
 	t := trust.Txn{
 		ID: trust.TxnID(f.next("txn")), AccountID: l.AccountID, LedgerID: l.ID, Kind: trust.KindReceipt,

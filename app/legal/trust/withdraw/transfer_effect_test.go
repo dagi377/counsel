@@ -43,8 +43,17 @@ func TestTransferEffectPostsThroughTransfers(t *testing.T) {
 		"led-a": {ID: "led-a", AccountID: "acct-1", MatterID: "M1"},
 		"led-b": {ID: "led-b", AccountID: "acct-1", MatterID: "M2"},
 	}
-	row := HeldTransfer{ID: "x1", FromLedger: "led-b", ToLedger: "led-a", AccountID: "acct-1", AmountCents: 2500}
-	payload, _ := json.Marshal(TransferPayload{TransferID: "x1", Reason: "same client, new matter"})
+	row := HeldTransfer{ID: "x1", FromLedger: "led-b", ToLedger: "led-a", AccountID: "acct-1", AmountCents: 2500,
+		FromMatterID: "M2", ToMatterID: "M1"}
+	terms := func(mod func(p *TransferPayload)) []byte {
+		amount := int64(2500)
+		p := TransferPayload{TransferID: "x1", FromMatterID: "M2", ToMatterID: "M1", AmountCents: &amount, Reason: "same client, new matter"}
+		mod(&p)
+		b, _ := json.Marshal(p)
+		return b
+	}
+	payload := terms(func(*TransferPayload) {})
+	other := int64(2400)
 	lawyer := registry.Principal{Kind: registry.PrincipalUser, UserID: "lawyer1"}
 	clerk := registry.Principal{Kind: registry.PrincipalUser, UserID: "clerk1"}
 	agent := registry.Principal{Kind: registry.PrincipalAgent, RunID: "run-1", ActingFor: "lawyer1"}
@@ -68,6 +77,11 @@ func TestTransferEffectPostsThroughTransfers(t *testing.T) {
 		{"already authorized", lawyer, clerk, payload, "authorized", 2500, false, ErrNotAuthorized, CodeNotAuthorized, 0},
 		{"no reason", lawyer, clerk, []byte(`{"transfer_id":"x1"}`), "pending_authorization", 2500, false, ErrInvalid, CodeNotAuthorized, 0},
 		{"flag off fails closed", lawyer, clerk, payload, "pending_authorization", 2500, true, ErrUnverified, "", 0},
+		{"approved amount differs", lawyer, clerk, terms(func(p *TransferPayload) { p.AmountCents = &other }), "pending_authorization", 2500, false, ErrTermsMismatch, CodeNotAuthorized, 0},
+		{"approved amount missing", lawyer, clerk, terms(func(p *TransferPayload) { p.AmountCents = nil }), "pending_authorization", 2500, false, ErrTermsMismatch, CodeNotAuthorized, 0},
+		{"approved source matter differs", lawyer, clerk, terms(func(p *TransferPayload) { p.FromMatterID = "M9" }), "pending_authorization", 2500, false, ErrTermsMismatch, CodeNotAuthorized, 0},
+		{"approved destination matter differs", lawyer, clerk, terms(func(p *TransferPayload) { p.ToMatterID = "M9" }), "pending_authorization", 2500, false, ErrTermsMismatch, CodeNotAuthorized, 0},
+		{"approved destination matter missing", lawyer, clerk, terms(func(p *TransferPayload) { p.ToMatterID = "" }), "pending_authorization", 2500, false, ErrTermsMismatch, CodeNotAuthorized, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

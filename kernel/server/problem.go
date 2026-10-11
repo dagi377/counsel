@@ -14,7 +14,7 @@ import (
 )
 
 // ProblemTypePrefix is the URN prefix of every problem type; the stable code follows it.
-const ProblemTypePrefix = "urn:counsel:problem:"
+const ProblemTypePrefix = api.ProblemTypePrefix
 
 // Stable problem codes written by this package.
 const (

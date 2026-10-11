@@ -70,10 +70,17 @@ func TestReceive(t *testing.T) {
 			r: func(l trust.LedgerID) trust.Receipt { return receipt(l, 250000, trust.MethodCash) }, want: trust.ErrCashLimit},
 		{name: "operating cash counts", signatory: true, limits: Limits{CashLimitCents: 750000}, opCash: 500000,
 			r: func(l trust.LedgerID) trust.Receipt { return receipt(l, 250000, trust.MethodCash) }, want: trust.ErrCashLimit},
-		{name: "cash at limit with exception", signatory: true, limits: Limits{CashLimitCents: 750000}, prior: 500000,
+		{name: "cash at limit with exception but no G6c gate", signatory: true, limits: Limits{CashLimitCents: 750000}, prior: 500000,
 			r: func(l trust.LedgerID) trust.Receipt {
 				r := receipt(l, 250000, trust.MethodCash)
 				r.CashExceptionCode = "ex-1"
+				return r
+			}, want: trust.ErrCashGateRequired},
+		{name: "cash at limit with exception and G6c gate", signatory: true, limits: Limits{CashLimitCents: 750000}, prior: 500000,
+			r: func(l trust.LedgerID) trust.Receipt {
+				r := receipt(l, 250000, trust.MethodCash)
+				r.CashExceptionCode = "ex-1"
+				r.CashGateID = "g6c-1"
 				return r
 			}},
 	}

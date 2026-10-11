@@ -10,6 +10,7 @@ import (
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/identity"
 	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -25,12 +26,20 @@ type env struct {
 	open func(ctx context.Context, cfg db.Config) (db.DB, error)
 	// registry returns the empty registry that apps record into and the kernel seals.
 	registry func() (registry.Booter, error)
+	// identity returns the access checker and principal resolver report runs are authorized
+	// with. Nil, or a nil Access, keeps reports on denyAll.
+	identity func(pool db.DB) (identity.Access, PrincipalResolver, error)
 	// gates returns the gate engine, reading from pool.
 	gates func(pool db.DB) (gate.Engine, error)
+	// outbox returns the outbox relay over pool, which carries every outbox consumer (notify
+	// delivery, webhook queueing). Nil leaves the kernel with no outbox.
+	outbox func(pool db.DB) (*outbox.Deliverer, error)
 	// server runs the server role.
 	server func(ctx context.Context, cfg Config, k *Kernel) error
 	// worker runs the worker role.
 	worker func(ctx context.Context, k *Kernel, cfg WorkerConfig) error
+	// apply applies the migration files of one migrate mode.
+	apply applier
 }
 
 func productionEnv() env {
@@ -44,10 +53,12 @@ func productionEnv() env {
 			return registry.NewBoot(s), nil
 		},
 		gates:  pgGates,
+		outbox: pgOutbox,
 		server: runServer,
 		worker: func(ctx context.Context, k *Kernel, cfg WorkerConfig) error {
 			return runWorker(ctx, k, cfg, newRiverClient)
 		},
+		apply: pgApply,
 	}
 }
 
@@ -62,8 +73,17 @@ func run(ctx context.Context, cfg Config, e env, apps ...App) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
+	if cfg.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, cfg.Timeout)
+		defer cancel()
+	}
+	if cfg.Role == RoleMigrate {
+		// Migrations change the schema the apps register against, so no app is built.
+		return runMigrate(ctx, cfg, e.apply)
+	}
 	if cfg.Role != RoleServer && cfg.Role != RoleWorker {
-		// Migrate and import build the kernel with no database until their tasks land.
+		// Import builds the kernel with no database until its task lands.
 		if _, err := BuildWith(ctx, Deps{}, cfg.Flags, apps...); err != nil {
 			return err
 		}
@@ -88,13 +108,29 @@ func run(ctx context.Context, cfg Config, e env, apps ...App) error {
 	if err != nil {
 		return fmt.Errorf("run %s: %w", cfg.Role, err)
 	}
+	var (
+		access  identity.Access
+		resolve PrincipalResolver
+	)
+	if e.identity != nil {
+		if access, resolve, err = e.identity(pool); err != nil {
+			return fmt.Errorf("run %s: identity: %w", cfg.Role, err)
+		}
+	}
+	var relay *outbox.Deliverer
+	if e.outbox != nil {
+		if relay, err = e.outbox(pool); err != nil {
+			return fmt.Errorf("run %s: %w", cfg.Role, err)
+		}
+	}
 	deps := Deps{
+		Outbox:   relay,
 		Registry: reg,
 		DB:       pool,
 		Clock:    clk,
 		Gates:    gates,
-		// Reports fail closed until identity wiring supplies an authorizer.
-		Reports: report.New(time.Now, denyAll{}, audit.New(nil, nil, audit.Options{})),
+		// Reports check capabilities through identity; with no identity they fail closed.
+		Reports: report.New(time.Now, reportAuthorizer(access, resolve), audit.New(nil, nil, audit.Options{})),
 		Server:  server.New(nil),
 		Events:  webhook.NewTypes(),
 		Notify:  notify.New(notify.PGStore{DB: pool}, outbox.NewPG(nil)),
@@ -104,6 +140,14 @@ func run(ctx context.Context, cfg Config, e env, apps ...App) error {
 		return fmt.Errorf("run %s: %w", cfg.Role, err)
 	}
 	if err := apply(k); err != nil {
+		return fmt.Errorf("run %s: %w", cfg.Role, err)
+	}
+	// Notify and webhook consumers join the outbox relay after every app's Register, so an
+	// app's sender and dispatcher are in place.
+	if err := addNotifyJobs(k); err != nil {
+		return fmt.Errorf("run %s: %w", cfg.Role, err)
+	}
+	if err := addWebhookJobs(k); err != nil {
 		return fmt.Errorf("run %s: %w", cfg.Role, err)
 	}
 	if err := addKernelJobs(k); err != nil {
@@ -152,4 +196,15 @@ func pgGates(pool db.DB) (gate.Engine, error) {
 	g := gate.NewPG()
 	g.SetDB(pool)
 	return g, nil
+}
+
+// pgOutbox returns the Postgres outbox relay over pool. The relay reads and marks outbox rows
+// outside any caller's transaction, so pool must also run plain statements (outbox.Conn).
+func pgOutbox(pool db.DB) (*outbox.Deliverer, error) {
+	conn, ok := pool.(outbox.Conn)
+	if !ok {
+		return nil, fmt.Errorf("outbox relay: database cannot run plain statements: %w", ErrConfig)
+	}
+	pg := outbox.NewPG(conn)
+	return &outbox.Deliverer{Relay: pg, Inbox: pg, DB: pool}, nil
 }

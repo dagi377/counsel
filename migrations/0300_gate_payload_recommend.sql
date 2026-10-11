@@ -4,6 +4,8 @@
 -- reads the stored payload instead of trusting an app hook. An approval above the decider's
 -- authority limit is recorded as decision 'recommend': it never counts as an approval and
 -- never closes the request.
+SET lock_timeout = '2s';
+SET statement_timeout = '5min';
 
 ALTER TABLE gate.approval_request
   ADD COLUMN payload_jcs    bytea,                  -- JCS bytes of the payload; NULL on rows opened before this migration
@@ -13,8 +15,6 @@ ALTER TABLE gate.approval_request
   ADD CONSTRAINT approval_request_payload_pair_ck CHECK ((payload_jcs IS NULL) = (payload_sha256 IS NULL)) NOT VALID,
   ADD CONSTRAINT approval_request_payload_sha_ck CHECK (
     payload_jcs IS NULL OR (payload_sha256 = sha256(payload_jcs) AND payload_sha256 = payload_hash)) NOT VALID;
-ALTER TABLE gate.approval_request VALIDATE CONSTRAINT approval_request_payload_pair_ck;
-ALTER TABLE gate.approval_request VALIDATE CONSTRAINT approval_request_payload_sha_ck;
 
 -- Append 'recommend' to the decision values (widening only; every stored row still passes).
 -- 0001 left the column CHECK unnamed, so it is found by its definition.
@@ -29,7 +29,6 @@ END $$;
 ALTER TABLE gate.gate_decision
   ADD CONSTRAINT gate_decision_verdict_ck
     CHECK (decision IN ('approve','reject','changes_requested','recommend')) NOT VALID;
-ALTER TABLE gate.gate_decision VALIDATE CONSTRAINT gate_decision_verdict_ck;
 
 -- Same checks as 0001; only the closing branch changes: a 'recommend' leaves the request
 -- pending, so another decider with a high enough limit still has to approve.
@@ -84,3 +83,6 @@ BEGIN
   PERFORM set_config('counsel.gate_tx', 'off', true);
   RETURN NEW;
 END $$;
+
+RESET lock_timeout;
+RESET statement_timeout;

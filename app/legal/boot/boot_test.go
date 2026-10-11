@@ -80,7 +80,8 @@ func TestRegisterNoFlagsRecordsOnlyAlwaysSet(t *testing.T) {
 			got := methods(rec.Calls())
 			for _, m := range got {
 				switch m {
-				case registry.MethodChartOfAccounts, registry.MethodGateKind, registry.MethodCapability, registry.MethodRole:
+				// Routes are always mounted so the OpenAPI conformance test sees every route (Q-HTTP-00).
+				case registry.MethodChartOfAccounts, registry.MethodGateKind, registry.MethodCapability, registry.MethodRole, registry.MethodRoutes:
 				default:
 					t.Errorf("feature-gated call %s with no flags on", m)
 				}
