@@ -55,5 +55,6 @@ func appDefs() []feature.Def {
 		conflict.ClearanceMemoDef(),
 		// matters
 		matter.StageAdvanceDef(),
+		matter.PartyExtractionDef(),
 	}
 }
