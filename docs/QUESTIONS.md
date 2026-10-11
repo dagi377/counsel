@@ -1048,3 +1048,14 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   (main's test predates the matter routes): Routes calls join the "always" set, since
   HTTP-00 mounts every handler route unconditionally (unwired routes answer 503). The exact
   comparison with legal.Register's calls is unchanged.
+
+## HTTP-04: time-entry routes (files outside the task)
+
+- Additive contract changes in timekeeping/contract.go: `TimeEntry.RowVersion` (the ETag) and
+  `Entries.List(ctx, EntryFilter)`; timekeepingfake implements both. No Postgres `Entries`
+  exists yet (service gap), so the routes answer 503 until boot wires one.
+- `time_entry_id` is a plain string in openapi; ids outside `[0-9A-Za-z-]{1,64}` are 400.
+- ErrOutOfScope maps to 422 activity_out_of_scope, but the service flags out-of-scope
+  paralegal entries instead of refusing them (BIL-L-046), so no route returns it today.
+- A reused Idempotency-Key with a different body answers 422 (rule ARC-I-008, kernel/idem),
+  not the 409 in the task text, as in HTTP-02.
