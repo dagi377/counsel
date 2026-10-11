@@ -86,6 +86,17 @@ func TestRegisterNoFlagsRecordsOnlyAlwaysSet(t *testing.T) {
 					t.Errorf("feature-gated call %s with no flags on", m)
 				}
 			}
+			// Every ApprovalKinds kind registers with no flags and no ports (GATE-EFFECTS).
+			var kinds []string
+			for _, m := range got {
+				if m != registry.MethodGateKind {
+					kinds = append(kinds, m)
+				}
+			}
+			if n := len(got) - len(kinds); n != len(ApprovalKinds) {
+				t.Errorf("registered %d gate kinds, want %d", n, len(ApprovalKinds))
+			}
+			got = kinds
 			if !reflect.DeepEqual(got, methods(want.Calls())) {
 				t.Errorf("calls = %v, want exactly legal.Register's always set %v", got, methods(want.Calls()))
 			}

@@ -100,7 +100,7 @@ func applyCall(k *kboot.Kernel, c registry.Call) error {
 }
 
 // wantWiredGates is the gate kinds with an effect over testGatePorts.
-const wantWiredGates = 9
+const wantWiredGates = 9 + 74 // + ApprovalKinds (GATE-EFFECTS)
 
 func TestComposeOverFakes(t *testing.T) {
 	all := legalFlagNames(t)

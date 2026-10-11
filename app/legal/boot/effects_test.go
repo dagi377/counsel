@@ -301,9 +301,9 @@ func TestBootSealsWithGateEffects(t *testing.T) {
 		gates     *GatePorts
 		wantKinds int // registered app gate kinds
 	}{
-		{name: "no flags, no gate ports", wantKinds: 0},
-		{name: "no flags, gate ports", gates: testGatePorts(), wantKinds: 7},
-		{name: "every legal flag, gate ports", on: all, gates: testGatePorts(), wantKinds: 7},
+		{name: "no flags, no gate ports", wantKinds: len(ApprovalKinds)},
+		{name: "no flags, gate ports", gates: testGatePorts(), wantKinds: 7 + len(ApprovalKinds)},
+		{name: "every legal flag, gate ports", on: all, gates: testGatePorts(), wantKinds: 7 + len(ApprovalKinds)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -322,7 +322,7 @@ func TestBootSealsWithGateEffects(t *testing.T) {
 				}
 				// rule: BIL-C-085
 				// A rejected G-B5 write-off gate closes its draft (WO-FIX).
-				if g.Slug == credit.GateKindCreditNote && g.OnReject == nil {
+				if g.Slug == credit.GateKindCreditNote && tt.gates != nil && g.OnReject == nil {
 					t.Errorf("gate kind %s has no OnReject", g.Slug)
 				}
 				if strings.HasPrefix(g.Slug, "core.") {
