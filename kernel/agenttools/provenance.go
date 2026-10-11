@@ -56,6 +56,29 @@ func (pv *Provenance) Observe(runID string, output json.RawMessage) {
 	}
 	var keys []string
 	collectValues(v, &keys)
+	pv.add(runID, keys)
+}
+
+// ObserveTrigger records the values of a run's trigger payload as read: the event's dates,
+// amounts and ids reach the model as quoted trigger data, so a write may use them (a bill
+// period sourced from the event's date). A JSON payload records every number and date in
+// it; any other text records the dates and numbers it states.
+func (pv *Provenance) ObserveTrigger(runID, payload string) {
+	if runID == "" || strings.TrimSpace(payload) == "" {
+		return
+	}
+	// rule: ARC-U-027
+	if json.Valid([]byte(payload)) {
+		pv.Observe(runID, json.RawMessage(payload))
+		return
+	}
+	var keys []string
+	collectQuoted(payload, &keys)
+	pv.add(runID, keys)
+}
+
+// add records keys against runID.
+func (pv *Provenance) add(runID string, keys []string) {
 	if len(keys) == 0 {
 		return
 	}

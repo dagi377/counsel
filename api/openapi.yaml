@@ -2061,6 +2061,30 @@ paths:
         '429': *id001
         '503': *id001
         default: *id001
+  /leads/{lead_id}/awaiting-info:
+    post:
+      tags: [other]
+      operationId: setLeadAwaitingInfo
+      summary: Sets a lead to awaiting info and publishes intake.lead_awaiting_info (Q-LEAD-STATUS)
+      description: Needs intake.leads. A lead already awaiting info publishes nothing more; a converted, declined or
+        sealed lead answers 409 lead_closed.
+      parameters:
+      - name: lead_id
+        in: path
+        required: true
+        schema: {type: string}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '200': {description: Lead awaiting info}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+        '429': *id001
+        '503': *id001
+        default: *id001
   /hooks/{provider}:
     post:
       tags: [payments]

@@ -865,6 +865,132 @@
     "error_code"
    ],
    "note": "alerts when expires_at - now < 72 h"
+  },
+  {
+   "type": "consultation.booked",
+   "version": 1,
+   "module": "intake",
+   "subject_type": "consultation",
+   "payload": [
+    "consultation_id",
+    "lead_id",
+    "user_id",
+    "starts_at"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-7): a consultation booked against a lead (intake.Consultations.Book); starts F-INT-05."
+  },
+  {
+   "type": "bill.draft_requested",
+   "version": 1,
+   "module": "billing",
+   "subject_type": "matter",
+   "payload": [
+    "matter_id",
+    "user_id",
+    "period_to?"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-7): a user asked for a draft bill; starts F-TIM-03. Minimal publisher until the request write point lands."
+  },
+  {
+   "type": "timesheet.week_submitted",
+   "version": 1,
+   "module": "timekeeping",
+   "subject_type": "user",
+   "payload": [
+    "user_id",
+    "week_start"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-7): a timekeeper submitted a week for review (G9c); starts F-TIM-04. Minimal publisher."
+  },
+  {
+   "type": "engagement_letter.signed",
+   "version": 1,
+   "module": "docs",
+   "subject_type": "matter",
+   "payload": [
+    "matter_id",
+    "document_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-7): a matter's engagement letter reached signed; starts F-TIM-05. Ids only. Minimal publisher."
+  },
+  {
+   "type": "rate_change.drafted",
+   "version": 1,
+   "module": "timekeeping",
+   "subject_type": "rate_change",
+   "payload": [
+    "rate_change_id",
+    "effective_from",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-7): a rate change drafted before its effective day; starts F-TIM-06. Minimal publisher."
+  },
+  {
+   "type": "work.automation_run_failed",
+   "version": 1,
+   "module": "work",
+   "subject_type": "automation_run",
+   "payload": [
+    "run_id",
+    "automation_id",
+    "work_item_id?",
+    "reason_code",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-7): an automation run failed; starts F-WRK-08. Ids and a reason code only. Minimal publisher."
+  },
+  {
+   "type": "work.automation_run_skipped",
+   "version": 1,
+   "module": "work",
+   "subject_type": "automation_run",
+   "payload": [
+    "run_id",
+    "automation_id",
+    "work_item_id?",
+    "reason_code",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-7): an automation run was skipped; starts F-WRK-08. Minimal publisher."
+  },
+  {
+   "type": "work.absence_requested",
+   "version": 1,
+   "module": "work",
+   "subject_type": "absence",
+   "payload": [
+    "absence_id",
+    "user_id",
+    "from",
+    "to"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-7): a user asked for time away; starts F-WRK-09. No reason text. Minimal publisher."
+  },
+  {
+   "type": "billing.cycle_requested",
+   "version": 1,
+   "module": "billing",
+   "subject_type": "billing_cycle",
+   "payload": [
+    "batch_run_id",
+    "period_to",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-7): a user asked for a billing cycle (batch run); starts F-BIL-01. Minimal publisher."
+  },
+  {
+   "type": "bank_feed.line_imported",
+   "version": 1,
+   "module": "billing",
+   "subject_type": "bank_feed_line",
+   "payload": [
+    "line_id",
+    "account_id",
+    "amount_cents",
+    "posted_on"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-7): one operating bank-feed line imported; starts F-BIL-04. Never payee text or memo. Minimal publisher."
   }
  ],
  "tools": [

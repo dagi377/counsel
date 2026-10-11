@@ -3,22 +3,21 @@ feature: F-BIL-04
 match:
   last_user_regex: '\[bad_output\]'
 turns:
-  - expect_tools: [report_plan]
-    reply:
+  - reply:
       tool_calls:
         - name: report_plan
-          input: {steps: [{id: bills, title: "Read open bills on the matter"}, {id: allocate, title: "Propose an allocation"}]}
+          input: {"steps": [{"step_id": "read", "title": "Read the open bill"}]}
       stop_reason: tool_use
       usage: {input_tokens: 640, output_tokens: 48}
   - expect_tool_results: [report_plan]
     reply:
       tool_calls:
         - name: get_bill
-          input: {matter: "mat-synth-001", status: open}
+          input: {"bill_id": "00000000-0000-4000-8000-0000000b1b01"}
       stop_reason: tool_use
       usage: {input_tokens: 720, output_tokens: 30}
   - expect_tool_results: [get_bill]
     reply:
-      text: '{"payment": 750, "allocations": "bill-synth-001"}'
+      text: '{"payment": 750, "allocations": "bill-synth-001"'
       stop_reason: end_turn
       usage: {input_tokens: 910, output_tokens: 20}

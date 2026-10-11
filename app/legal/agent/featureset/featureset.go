@@ -13,14 +13,19 @@ package featureset
 //go:generate go test -run TestExportSkillsCheckedIn -update-skills .
 
 import (
+	"github.com/dagi377/counsel/app/legal/access"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/platform"
+	"github.com/dagi377/counsel/app/legal/readiness"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
+	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/work"
 )
 
@@ -168,5 +173,36 @@ func appDefs() []feature.Def {
 		work.ExplainFailedRunDef(),
 		work.SuggestCategoriesDef(),
 		work.ExplainNumberDef(),
+		work.TriageDef(),
+		work.AskQuestionDef(),
+		work.SuggestRebalanceDef(),
+		work.PlainLanguageFilterDef(),
+		// billing
+		billing.BillingCycleDraftsDef(),
+		billing.BillRenderDef(),
+		billing.PaymentMatchingDef(),
+		billing.EvergreenWatchDef(),
+		billing.AgingCollectionsDef(),
+		// trust
+		trust.AnnualReportPrepDef(),
+		trust.RetainerCoverageScanDef(),
+		trust.SpotAuditPackDef(),
+		trust.BankFeedSyncDef(),
+		trust.MonthEndReconciliationDef(),
+		trust.RetainerReplenishmentDef(),
+		// access
+		access.LicenceCheckDef(),
+		access.AccessReviewPreFillDef(),
+		access.BreakGlassSummaryDef(),
+		access.SuggestTeamDef(),
+		access.OffboardingPlanDef(),
+		access.InviteListCheckDef(),
+		// platform
+		platform.StaleMatterSweepDef(),
+		platform.CitationCheckerDef(),
+		// readiness
+		readiness.QuestionnaireFillerDef(),
+		readiness.InsurerAnswersDef(),
+		readiness.ServiceCreditDef(),
 	}
 }

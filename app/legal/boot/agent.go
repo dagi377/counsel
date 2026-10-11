@@ -7,10 +7,12 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/dagi377/counsel/app/legal/access"
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/featureset"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/billing/batch"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
@@ -22,13 +24,17 @@ import (
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
+	"github.com/dagi377/counsel/app/legal/platform"
+	"github.com/dagi377/counsel/app/legal/readiness"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
+	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/app/legal/work"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
+	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/deadline"
 	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -164,13 +170,79 @@ func (p AgentPorts) Deps() agent.Deps {
 	return agent.NewDeps(values...)
 }
 
-// AgentTools builds every tool in agent.Handlers() over p. A port the set needs and p lacks
+// draftTools are the write tools whose free text carries figures a trust feature drafts.
+var draftTools = []string{agent.ToolDraftDocument, agent.ToolDraftEmail}
+
+// AgentHandlers is the production handler set: agent.Handlers() with every read tool
+// recording its results in the run's Provenance (recordReads), and, for every trust feature
+// in trust.SourcedFeatures(), draft_document and draft_email wrapped with
+// trust.SourcedCents. The wraps are listed here, not registered from init(); the set
+// resolves them per (feature, tool), so a non-trust feature's draft runs the default handler.
+func AgentHandlers() (agent.HandlerSet, error) {
+	set, err := recordReads(agent.Handlers())
+	if err != nil {
+		return agent.HandlerSet{}, err
+	}
+	for _, id := range trust.SourcedFeatures() {
+		for _, tool := range draftTools {
+			// rule: ARC-U-027
+			// A trust draft carries figures for the regulator or a client: every amount in it
+			// must be one the run read.
+			if set, err = set.WithFeatureWrap(id, tool, sourcedTrustDraft); err != nil {
+				return agent.HandlerSet{}, fmt.Errorf("trust draft wrap: %w", err)
+			}
+		}
+	}
+	return set, nil
+}
+
+// recordReads wraps every handler of hs so a built read tool records its results in the
+// Provenance of its Deps. A read tool built without one fails with agent.ErrMissingDep, so
+// no read is served unrecorded.
+func recordReads(hs agent.HandlerSet) (agent.HandlerSet, error) {
+	var out []agent.Handler
+	for _, name := range hs.Names() {
+		h, _ := hs.For(name)
+		build := h.Build
+		out = append(out, agent.Handler{Name: name, Build: func(d agent.Deps) (registry.Tool, error) {
+			t, err := build(d)
+			if err != nil || t.Kind != registry.ToolRead {
+				return t, err
+			}
+			pv, err := agent.DepOf[*agenttools.Provenance](d)
+			if err != nil || pv == nil {
+				return registry.Tool{}, fmt.Errorf("%s: provenance: %w", name, agent.ErrMissingDep)
+			}
+			// rule: ARC-U-027
+			// Every read result records its dates and numbers, quoted text included, so a
+			// sourced write (propose_time_entries, propose_deadline, a trust draft) can carry them.
+			return pv.ReadTool(t)
+		}})
+	}
+	return agent.NewHandlerSet(out...)
+}
+
+// sourcedTrustDraft wraps a built draft tool with trust.SourcedCents over the Provenance in
+// d. With no Provenance it fails with agent.ErrMissingDep, so a trust draft is never served
+// unchecked.
+func sourcedTrustDraft(d agent.Deps, t registry.Tool) (registry.Tool, error) {
+	pv, err := agent.DepOf[*agenttools.Provenance](d)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("sourced trust draft %s: %w", t.Name, err)
+	}
+	return trust.SourcedCents(pv, t)
+}
+
+// AgentTools builds every tool in AgentHandlers() over p. A port the set needs and p lacks
 // fails with agent.ErrMissingDep naming the tool; nothing is half-built.
 func AgentTools(p AgentPorts) ([]registry.Tool, error) {
 	if p.Provenance == nil {
 		p.Provenance = agenttools.NewProvenance()
 	}
-	set := agent.Handlers()
+	set, err := AgentHandlers()
+	if err != nil {
+		return nil, err
+	}
 	deps := p.Deps()
 	var (
 		tools []registry.Tool
@@ -182,15 +254,6 @@ func AgentTools(p AgentPorts) ([]registry.Tool, error) {
 		if err != nil {
 			errs = append(errs, fmt.Errorf("agent tool %s: %w", name, err))
 			continue
-		}
-		if t.Kind == registry.ToolRead {
-			// rule: ARC-U-027
-			// Every read result records its dates and numbers, quoted text included, so a
-			// sourced write (propose_time_entries, propose_deadline) can carry them.
-			if t, err = p.Provenance.ReadTool(t); err != nil {
-				errs = append(errs, fmt.Errorf("agent tool %s: %w", name, err))
-				continue
-			}
 		}
 		tools = append(tools, t)
 	}
@@ -327,9 +390,12 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		matter.ConfigHygieneDef().ID:                matter.ConfigHygieneBinding,
 		matter.TemplateFitDef().ID:                  matter.TemplateFitBinding,
 		matter.MatterDigestDef().ID:                 matter.MatterDigestBinding,
+		billing.EvergreenWatchDef().ID:              billing.EvergreenWatchBinding,
+		billing.AgingCollectionsDef().ID:            billing.AgingCollectionsBinding,
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		work.WorkflowLintDef().ID:                   work.WorkflowLintBinding,
+		work.TriageDef().ID:                         work.TriageBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		intake.FeatureTriageNewLead:                 intake.TriageNewLeadBinding,
 		intake.MailboxWatcherDef().ID:               intake.MailboxWatcherBinding,
@@ -343,25 +409,43 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		intake.WeeklyIntakeDigestDef().ID:           intake.WeeklyIntakeDigestBinding,
 		// F-TIM-01 runs at the end of each business day once per active timekeeper, each
 		// run acting for that timekeeper (TIME-FIX); the screen actions cover on-request runs.
-		tk.RebuildDayDef().ID:              tk.RebuildDayBinding,
-		tk.ReceiptCaptureDef().ID:          tk.ReceiptCaptureBinding,
-		tk.PreBillCheckDef().ID:            tk.PreBillCheckBinding,
-		tk.TimesheetPreReviewDef().ID:      tk.TimesheetPreReviewBinding,
-		tk.EngagementTermsDef().ID:         tk.EngagementTermsBinding,
-		tk.RateChangeImpactDef().ID:        tk.RateChangeImpactBinding,
-		work.PickUpAgentReadyDef().ID:      work.PickUpAgentReadyBinding,
-		work.ProposeMatterPlanDef().ID:     work.ProposeMatterPlanBinding,
-		work.DateShiftDef().ID:             work.DateShiftBinding,
-		work.WorkflowLintDef().ID:          work.WorkflowLintBinding,
-		work.RuleSuggesterDef().ID:         work.RuleSuggesterBinding,
-		work.AbsenceCoverPlannerDef().ID:   work.AbsenceCoverPlannerBinding,
-		work.DailyDigestDef().ID:           work.DailyDigestBinding,
-		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
+		tk.RebuildDayDef().ID:                 tk.RebuildDayBinding,
+		tk.ReceiptCaptureDef().ID:             tk.ReceiptCaptureBinding,
+		tk.PreBillCheckDef().ID:               tk.PreBillCheckBinding,
+		tk.TimesheetPreReviewDef().ID:         tk.TimesheetPreReviewBinding,
+		tk.EngagementTermsDef().ID:            tk.EngagementTermsBinding,
+		tk.RateChangeImpactDef().ID:           tk.RateChangeImpactBinding,
+		work.PickUpAgentReadyDef().ID:         work.PickUpAgentReadyBinding,
+		work.ProposeMatterPlanDef().ID:        work.ProposeMatterPlanBinding,
+		work.DateShiftDef().ID:                work.DateShiftBinding,
+		work.WorkflowLintDef().ID:             work.WorkflowLintBinding,
+		work.RuleSuggesterDef().ID:            work.RuleSuggesterBinding,
+		work.AbsenceCoverPlannerDef().ID:      work.AbsenceCoverPlannerBinding,
+		work.DailyDigestDef().ID:              work.DailyDigestBinding,
+		work.ExplainAutomationRunsDef().ID:    work.ExplainAutomationRunsBinding,
+		billing.FeaturePaymentMatching:        billing.PaymentMatchingBinding,
+		billing.FeatureBillRender:             billing.BillRenderBinding,
+		billing.FeatureBillingCycleDrafts:     billing.BillingCycleDraftsBinding,
+		trust.AnnualReportPrepDef().ID:        trust.AnnualReportPrepBinding,
+		trust.RetainerCoverageScanDef().ID:    trust.RetainerCoverageScanBinding,
+		trust.FeatureMonthEndReconciliation:   trust.MonthEndReconciliationBinding,
+		trust.FeatureRetainerReplenishment:    trust.RetainerReplenishmentBinding,
+		access.LicenceCheckDef().ID:           access.LicenceCheckBinding,
+		access.AccessReviewPreFillDef().ID:    access.AccessReviewPreFillBinding,
+		access.BreakGlassSummaryDef().ID:      access.BreakGlassSummaryBinding,
+		access.FeatureOffboardingPlan:         access.OffboardingPlanBinding,
+		access.FeatureInviteListCheck:         access.InviteListCheckBinding,
+		platform.StaleMatterSweepDef().ID:     platform.StaleMatterSweepBinding,
+		platform.CitationCheckerDef().ID:      platform.CitationCheckerBinding,
+		readiness.QuestionnaireFillerDef().ID: readiness.QuestionnaireFillerBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
 	onRequest := map[string]bool{
 		matter.FeatureMatterQuestionAnswering: true,
+		// F-TRU-01's schedule binds with its write path (FEAT-TRU-02); until then its screen
+		// actions start it.
+		trust.FeatureBankFeedSync: true,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -523,6 +607,44 @@ var actionScreens = map[string]trigger.Screen{
 	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
 	"work-categories": {SubjectKind: "matter", Capability: "work.view"},
 	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
+	// work-list triage selects the matter whose untriaged items get suggestions.
+	"work-list": {SubjectKind: "matter", Capability: "work.view"},
+	// saved-filters is firm-wide, but no firm subject exists yet, so it selects the matter
+	// (Q-FEAT-WRK-12). workload and work-item are listed once above.
+	"saved-filters": {SubjectKind: "matter", Capability: "work.view"},
+	// Billing: a retainer request is drafted for the selected matter (FEAT-BIL-05).
+	"retainer-requests": {SubjectKind: "matter", Capability: "billing.view"},
+	// Trust. Main has no firm subject yet, so a firm-level trust screen selects the matters
+	// it covers (Q-FEAT-TRU-06).
+	"lso-annual-report": {SubjectKind: "matter", Capability: "trust.view"},
+	// A client trust ledger is one matter's (Q-FEAT-TRU-07).
+	"client-trust-ledger": {SubjectKind: "matter", Capability: "trust.view"},
+	"retainer-coverage":   {SubjectKind: "matter", Capability: "trust.view"},
+	"trust-audit-trail":   {SubjectKind: "matter", Capability: "trust.view"},
+	// Trust. The bank feed, the receipts journal and the monthly reconciliation are firm-level
+	// screens; with no firm subject yet they select a matter (docs/QUESTIONS.md Q-FEAT-TRU-01).
+	"trust-receipts-journal": {SubjectKind: "matter", Capability: "trust.view"},
+	"bank-feed-import":       {SubjectKind: "matter", Capability: "trust.view"},
+	"monthly-reconciliation": {SubjectKind: "matter", Capability: "trust.view"},
+	// Access administration. The firm has no firm-level subject yet, so the screen selects a
+	// matter (Q-FEAT-ACC-01).
+	"access-review": {SubjectKind: "matter", Capability: "admin.access_review"},
+	// Access. main has no firm subject yet, so a firm-level admin screen selects a matter
+	// (Q-FEAT-ACC-04).
+	"offboard-user": {SubjectKind: "matter", Capability: "admin.offboard"},
+	// Access. main has no firm subject yet, so a firm-level admin screen selects a matter
+	// (Q-FEAT-ACC-05).
+	"user-list": {SubjectKind: "matter", Capability: "admin.users"},
+	// Platform. matter-closing is a matter screen (/matters/:id/close) every matter role
+	// views (F-PLT-11).
+	"matter-closing": {SubjectKind: "matter", Capability: "matters.view"},
+	// research-workspace is a matter screen (/matters/:id/research) over its documents
+	// (F-PLT-12).
+	"research-workspace": {SubjectKind: "matter", Capability: "documents.view"},
+	// Readiness. trust-center is firm-level, but its features search and draft on the
+	// readiness matter that holds the controls list, so it selects that matter
+	// (Q-FEAT-RDY-04).
+	"trust-center": {SubjectKind: "matter", Capability: "documents.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
@@ -575,15 +697,24 @@ func NewFlagSink(store agent.FlagStore, notify agent.Sender) *agent.FlagSink {
 	return &agent.FlagSink{Store: store, Notify: notify, BlocksGate: blocks}
 }
 
-// ForgetRunner drops a run's provenance values when the run ends, whatever its outcome.
+// ForgetRunner drops a run's provenance values when the run ends, whatever its outcome, and
+// scopes the run's tool calls to its feature.
 type ForgetRunner struct {
 	agentrun.Runner
 	Provenance *agenttools.Provenance
 }
 
-// Run implements the run Runner.
+// Run implements the run Runner. It also puts the run's feature in ctx (agent.WithFeature),
+// so a tool with a feature wrap (AgentHandlers) runs the wrapped handler for that feature.
 func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Principal, prompt string, triggers ...agentrun.Trigger) (agentrun.Outcome, error) {
 	defer r.Provenance.Forget(p.RunID)
+	// rule: ARC-U-027
+	// The trigger's event values (dates, amounts) are what the run was given, so they count as
+	// read: F-BIL-01 may take its bill period from the event that started it.
+	for _, t := range triggers {
+		r.Provenance.ObserveTrigger(p.RunID, t.Text)
+	}
+	ctx = agent.WithFeature(ctx, spec.FeatureID)
 	return r.Runner.Run(ctx, spec, p, prompt, triggers...)
 }
 
@@ -601,7 +732,8 @@ type AgentWiring struct {
 	// Bindings receives the job-feature bindings; nil skips triggers and the tick job.
 	Bindings *trigger.Bindings
 	// Timekeepers lists the users a per-user scheduled feature (F-TIM-01) runs for on each
-	// tick. Nil leaves those features unready (trigger.ReasonNoUserSource).
+	// tick. Nil means the kernel database's active timekeepers (timekeeping.PGTimekeepers);
+	// with no database either, those features stay unready (trigger.ReasonNoUserSource).
 	Timekeepers trigger.ActiveUsers
 	// Actions, when set, is mounted as the screen-action route. Boot sets its Features,
 	// Screens and Queue.
@@ -613,6 +745,18 @@ type AgentWiring struct {
 	// Runners are every other agent runner boot hands out (the job-run worker's among them).
 	// Boot wraps each in place so it forgets a run's provenance values when the run ends.
 	Runners []*agentrun.Runner
+}
+
+// timekeepers is the per-user features' user source: the wired one, else the active
+// timekeepers in pool, else nil (no database: the features stay unready).
+func timekeepers(wired trigger.ActiveUsers, pool db.DB) trigger.ActiveUsers {
+	if wired != nil {
+		return wired
+	}
+	if pool == nil {
+		return nil
+	}
+	return tk.PGTimekeepers{DB: pool}
 }
 
 // registerAgent registers the agent tools and features: every handler tool, the job
@@ -658,8 +802,8 @@ func registerAgent(w *AgentWiring) hook {
 			if d := designatedOrPG(k, w.Designated); d != nil {
 				w.Bindings.WithDesignated(d)
 			}
-			if w.Timekeepers != nil {
-				w.Bindings.WithUsers(w.Timekeepers)
+			if users := timekeepers(w.Timekeepers, k.DB); users != nil {
+				w.Bindings.WithUsers(users)
 			}
 			if err := JobBindings(features, w.Bindings); err != nil {
 				return err

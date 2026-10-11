@@ -115,6 +115,8 @@ func (fd *FeatureDriver) Fire(ctx context.Context, model ai.ModelClient, runID, 
 	// rule: ARC-I-039
 	// The run scope is the Def's gate kinds; every gate the run opens is checked against it.
 	ctx = agenttools.WithScope(ctx, agenttools.NewScope(runID, fd.Def.GateKinds))
+	// The run serves fd.Def, as boot's runner scopes it, so a feature wrap applies.
+	ctx = agent.WithFeature(ctx, fd.Def.ID)
 	run := fd.Driver.Fire(ctx, model, runID, prompt)
 	out := FeatureRun{Run: run}
 	for _, name := range run.Tools {

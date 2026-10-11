@@ -19,6 +19,7 @@ import (
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/eventroute"
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
@@ -206,6 +207,7 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 			Revisions: ev.Revisions, CourtForms: ev.CourtForms, Now: now}).Routes)
 		add(ev.Inbound != nil, (&comms.InboundHTTP{Route: rt, Inbound: ev.Inbound}).Routes)
 		add(ev.Calendar != nil, (&deadlines.CalendarHTTP{Route: rt, Calendar: ev.Calendar}).Routes)
+		add(ev.LeadStatuses != nil, (&intake.StatusHTTP{Route: rt, Leads: ev.LeadStatuses}).Routes)
 	}
 	add(p.WithdrawRequests != nil && p.WithdrawLedgers != nil && p.WithdrawCancels != nil && p.WithdrawGates != nil &&
 		p.DB != nil && p.Idem != nil, (&withdraw.RequestHTTP{Withdrawals: p.WithdrawRequests,

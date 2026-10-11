@@ -42,8 +42,7 @@ func ListUnbilledHandler() Handler {
 	return Handler{Name: ToolListUnbilled, Build: buildListUnbilled}
 }
 
-// buildListUnbilled reads Deps: CapabilityCheck, roles.Walls, MatterTime and the run's
-// *agenttools.Provenance.
+// buildListUnbilled reads Deps: CapabilityCheck, roles.Walls and MatterTime.
 func buildListUnbilled(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)
 	if err != nil {
@@ -67,8 +66,10 @@ func buildListUnbilled(d Deps) (registry.Tool, error) {
 		return registry.Tool{}, err
 	}
 	// rule: ARC-U-027
-	// The dates this tool returns are values a later write in the run may carry.
-	return sourcedRead(d, t)
+	// The cents this tool returns (rate, amount, total) are the figures a later write in the
+	// run may carry. Boot's AgentTools records every read tool's results in the run's
+	// Provenance, so a draft_bill write-down taken from them is sourced.
+	return t, nil
 }
 
 type listUnbilled struct {

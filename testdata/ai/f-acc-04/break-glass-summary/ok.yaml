@@ -1,7 +1,7 @@
 synthetic: true
 feature: F-ACC-04
 match:
-  prompt_hash: ""
+  prompt_hash: "5fe3882fb5d611d80a7cd767724f77b7b9bd796957e0cf87412a86b61724d691"
   last_user_regex: "break-glass session ended"
 latency_ms: 0
 turns:
@@ -15,21 +15,25 @@ turns:
     reply:
       tool_calls:
         - name: report_plan
-          input: {steps: [{id: summarise-session, title: "Summarise break-glass session bg-0042"}]}
+          input: {steps: [{step_id: summarise-session, title: "Summarise break-glass session bg-0042"}]}
       stop_reason: tool_use
       usage: {input_tokens: 720, output_tokens: 28}
   - expect_tool_results: [report_plan]
     reply:
       tool_calls:
-        - name: submit_for_approval
-          input:
-            kind: core.break_glass_review
-            session: "bg-0042"
-            summary: "Opened M-2026-0007 under break-glass for 18 minutes; viewed 3 documents; no edits."
+        - name: draft_document
+          input: {matter_id: "00000000-0000-4000-8000-0000000000ac", title: "Break-glass session bg-0042: summary", body_markdown: "Session bg-0042 on 2026-10-09 opened matter 2026-0042 for 18 minutes; 3 documents viewed; no edits."}
       stop_reason: tool_use
       usage: {input_tokens: 810, output_tokens: 96}
+  - expect_tool_results: [draft_document]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input: {subject_type: document, subject_id: "00000000-0000-4000-8000-00000000a001", gate_kind: core.break_glass_review}
+      stop_reason: tool_use
+      usage: {input_tokens: 880, output_tokens: 32}
   - expect_tool_results: [submit_for_approval]
     reply:
       text: "Drafted the break-glass summary for your review."
       stop_reason: end_turn
-      usage: {input_tokens: 860, output_tokens: 12}
+      usage: {input_tokens: 960, output_tokens: 12}
