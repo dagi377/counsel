@@ -3257,3 +3257,22 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   `boot.JobBindings` and the `lead-detail` screen (subject `intake.lead`, capability
   `intake.leads`) to `actionScreens`.
   byte-for-byte with FEAT-INT-02 and FEAT-INT-03.
+
+## Q-FEAT-INT-06 F-INT-06 drafts its consult note: draft_document added to the Def and spec
+
+- FEAT-INT-06 asks for gate intake.consult_outcome (G3) pending after a run whose first write
+  is draft_note. draft_note always opens matter.agent_note (G-NT) on its own note, and that
+  note is not a run draft, so submit_for_approval cannot open G3 on it. A consultation is on a
+  lead, not yet a matter, so G-NT is not the outcome gate either.
+- As decided for F-DL-02 (Q-FEAT-DL-04) and F-DOC-01 (Q-FEAT-DOC-02), draft_document is added
+  to F-INT-06 in spec/ai/features.json and in ConsultNoteDef, and intake.consult_outcome is
+  listed as a tool-gap kind (F-INT-06 tool_gap and tool_gaps.kinds; the kind count in
+  kernel/agenttools/scope_test.go goes from 38 to 39). The run drafts the note
+  with draft_document and opens G3 with submit_for_approval. draft_note stays in the Def as
+  the spec lists it; the prompt tells the model not to use it. F-INT-15 has the same shape.
+- Open: draft_note opens matter.agent_note through the plain GateOpener, not
+  agenttools.ScopedOpener, so an agent run whose feature does not declare matter.agent_note
+  (F-INT-06, F-INT-15, F-PLT-04) can still open it (ARC-I-035). Wrapping it in ScopedOpener
+  is a one-line change to app/legal/agent/tools_draft_note.go, left to its owner.
+- Events: consultation.ended and consultation.dictation_uploaded. The consult-outcome screen
+  selects the consultation and needs intake.convert, the G3 approver capability.

@@ -120,5 +120,8 @@ func appDefs() []feature.Def {
 		intake.TriageNewLeadDef(),
 		intake.MailboxWatcherDef(),
 		intake.MissingInfoChaserDef(),
+		intake.DeclineReferLetterDef(),
+		intake.ConsultNoteDef(),
+		intake.ConversionPrefillDef(),
 	}
 }

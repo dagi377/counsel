@@ -319,6 +319,9 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		intake.FeatureTriageNewLead:                 intake.TriageNewLeadBinding,
 		intake.MailboxWatcherDef().ID:               intake.MailboxWatcherBinding,
 		intake.MissingInfoChaserDef().ID:            intake.MissingInfoChaserBinding,
+		intake.DeclineReferLetterDef().ID:           intake.DeclineReferLetterBinding,
+		intake.ConversionPrefillDef().ID:            intake.ConversionPrefillBinding,
+		intake.ConsultNoteDef().ID:                  intake.ConsultNoteBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -425,6 +428,9 @@ var actionScreens = map[string]trigger.Screen{
 	// Intake screens select the lead ("intake.lead", the outbox subject of a lead).
 	"phone-and-email-capture": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 	"lead-detail":             {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	// Intake screens select the lead.
+	"lead-conversion": {SubjectKind: "lead", Capability: "intake.convert"},
+	"consult-outcome": {SubjectKind: "consultation", Capability: "intake.convert"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
