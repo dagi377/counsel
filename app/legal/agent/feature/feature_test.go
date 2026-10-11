@@ -36,6 +36,7 @@ func TestARC_I_035_AddRejectsBadDefs(t *testing.T) {
 		{"write tool without gate kinds", func(d *Def) { d.GateKinds = nil }},
 		{"unknown tool", func(d *Def) { d.Tools = append(d.Tools, "send_email") }},
 		{"repeated tool", func(d *Def) { d.Tools = append(d.Tools, "report_plan") }},
+		{"uncited answer outside chat", func(d *Def) { d.Uncited = true }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -104,6 +105,7 @@ func TestARC_I_035_Spec(t *testing.T) {
 	}{
 		{"default kind is tool-use", func(*Def) {}, ai.KindToolUse},
 		{"extraction keeps kind and schema", func(d *Def) { d.Kind = ai.KindExtraction; d.OutputSchema = schema }, ai.KindExtraction},
+		{"uncited chat", func(d *Def) { d.Kind = ai.KindChat; d.Uncited = true }, ai.KindChat},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -126,6 +128,10 @@ func TestARC_I_035_Spec(t *testing.T) {
 			}
 			if strings.Join(s.GateKinds, ",") != "time.entries" || strings.Join(s.Grant, ",") != "time.draft,work.view" {
 				t.Fatalf("gate kinds %v grant %v", s.GateKinds, s.Grant)
+			}
+			// rule: AI-R-005
+			if s.AnswerMayBeUncited != d.Uncited {
+				t.Fatalf("AnswerMayBeUncited = %v, want %v", s.AnswerMayBeUncited, d.Uncited)
 			}
 			if len(s.Tools) != len(d.Tools) {
 				t.Fatalf("tools = %d, want %d", len(s.Tools), len(d.Tools))

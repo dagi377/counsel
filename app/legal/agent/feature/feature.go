@@ -50,6 +50,10 @@ type Def struct {
 	PromptPath   string          // path of the system prompt in Prompt
 	Fixture      string          // mock fixture dir, "testdata/ai/f-tim-01/..."
 	OutputSchema json.RawMessage // extraction: JSON Schema the final output must satisfy
+	// Uncited marks a chat feature whose tools return no document to cite (search_matters
+	// only): its answer may carry zero citations (run.Spec.AnswerMayBeUncited). A citation it
+	// does carry must still come from this run. Only a chat feature may set it.
+	Uncited bool
 }
 
 // Preamble is the first line of every feature's system prompt. The mock LLM routes a call by
@@ -67,6 +71,8 @@ func (d Def) Validate() error {
 		return fmt.Errorf("feature %s: source %q: %w", d.ID, d.Source, ErrBadDef)
 	case d.Prompt == nil || d.PromptPath == "":
 		return fmt.Errorf("feature %s: prompt required: %w", d.ID, ErrBadDef)
+	case d.Uncited && d.Kind != ai.KindChat:
+		return fmt.Errorf("feature %s: uncited answer outside a chat feature: %w", d.ID, ErrBadDef)
 	}
 	if _, err := d.tools(); err != nil {
 		return err
@@ -129,6 +135,8 @@ func (d Def) Spec() (run.Spec, error) {
 		Grant:        slices.Clone(d.Grant),
 		GateKinds:    slices.Clone(d.GateKinds),
 		OutputSchema: slices.Clone(d.OutputSchema),
+		// rule: AI-R-005
+		AnswerMayBeUncited: d.Uncited,
 	}, nil
 }
 

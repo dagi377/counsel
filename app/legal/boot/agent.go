@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/dagi377/counsel/app/legal/access"
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/featureset"
@@ -318,6 +319,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
+		access.DutyScanDef().ID:                     access.DutyScanBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -426,6 +428,9 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Access administration screens act on the firm.
+	"role-editor": {SubjectKind: FirmSubject, Capability: "admin.roles"},
+	"duty-rules":  {SubjectKind: FirmSubject, Capability: "admin.roles"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

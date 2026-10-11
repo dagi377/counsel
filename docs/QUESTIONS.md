@@ -3720,3 +3720,23 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   lawyer like every other scheduled feature.
 - Open: PROPOSAL-DRAFT mapped `matter-open-wizard` to `matters.open`; main's pass-16 mapping
   (`matters.view`, Q-INTEG-16-SCREENS) was kept. Decide which capability the wizard needs.
+
+## Q-FEAT-ACC-07 Read-only access features answer without citations
+
+- Tasks: FEAT-ACC-07 (F-ACC-01), FEAT-ACC-08 (F-ACC-05), FEAT-ACC-09 (F-ACC-08, F-ACC-09).
+- The spec gives these chat features one tool, search_matters, which returns no document, so
+  `run.CheckAnswer` would refuse every answer (no citation) on the screen-action route and in
+  job runs. Additive, outside the task's files: `feature.Def.Uncited` (chat only, else
+  ErrBadDef) sets `run.Spec.AnswerMayBeUncited` (FEAT-CORE-02). A citation the answer does carry
+  must still come from the run. The tests also check that every matter number an answer names
+  came from a search_matters result of the run.
+- Each Def joins `featureset.appDefs` and its test; chat Defs export no plugin skill.
+  `app/legal/boot/agent.go` binds the job features and lists their screens as firm-level
+  (`boot.FirmSubject`): role-editor and duty-rules (admin.roles).
+- F-ACC-01 binds the a2 event `user.role_changed` (access.EventUserRoleChanged) and its daily
+  schedule (designated lawyer). a2 has no grant-change event, so "on grant change" is not bound
+  yet. "Blocks GA1 submit on hard conflicts" is the answer's `hard:` lines; the GA1
+  (core.role_change) submit path that reads them is not in this task.
+- The shared test harness is `ai_accc_helpers_test.go` (prefix `accc`); the screen actions are
+  driven through the production `trigger.Actions` route over `run.Loop` and the real
+  search_matters handler.
