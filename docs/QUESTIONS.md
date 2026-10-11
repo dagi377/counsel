@@ -1870,3 +1870,9 @@ Done in PORT-18:
   `search_contacts` returns its quotes under `quotes[]`.
 - Defs set `Grant` to the capabilities of their tools: an empty grant refuses every call.
 - The event types named here (`conflict.clearance_subject_to_consent`, ...) have no publisher yet.
+- F-CON-05: `propose_conflict_parties` opens no kernel gate. Its G2 is the open conflict run
+  that `conflict.Clearance` decides through app/legal/gates, so the F-CON-05 test checks the
+  run is open and prepared by the acting user, and that the agent (`conflict.ErrAgentApproves`)
+  and the acting user (`conflict.ErrPreparerApproves`, the G2 self-approval refusal; kernel
+  `gate.ErrSelfApproval` does not apply) are refused with 403. `submit_for_approval` cannot open
+  conflict.clearance on a run: the run scope only records drafts, not proposals.
