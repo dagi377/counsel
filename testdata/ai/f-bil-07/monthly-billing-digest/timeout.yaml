@@ -1,0 +1,4 @@
+synthetic: true
+feature: F-BIL-07
+match: {last_user_regex: "monthly billing digest"}
+fault: timeout
