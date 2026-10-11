@@ -41,7 +41,6 @@ matter.key_fact
 matter.party_conflict
 matter.practice_config
 matter.renumber
-matter.stage_move
 matter.widen_access
 platform.access_change
 platform.closing

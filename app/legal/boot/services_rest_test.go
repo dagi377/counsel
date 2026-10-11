@@ -246,6 +246,7 @@ func TestRegisterRestLeadsAndOpeningUnconditional(t *testing.T) {
 	}{
 		{"leads without ports", w.Wired().Leads != nil && w.Wired().Leads.Events != nil},
 		{"matter.opening effect", fx[matter.GateOpening] != nil},
+		{"matter.stage_move effect", fx[matter.GateStageMove] != nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
