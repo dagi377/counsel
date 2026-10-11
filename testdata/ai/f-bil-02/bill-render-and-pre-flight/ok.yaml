@@ -1,0 +1,33 @@
+synthetic: true
+feature: F-BIL-02
+match:
+  last_user_regex: '\[ok\]'
+latency_ms: 40
+chunk_delay_ms: 5
+turns:
+  - expect_tools: [report_plan]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: read, title: "Read the pre-bill and its lines"}, {id: render, title: "Render the bill and run pre-flight"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 640, output_tokens: 48}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: get_bill
+          input: {id: "bill-synth-001"}
+      stop_reason: tool_use
+      usage: {input_tokens: 720, output_tokens: 30}
+  - expect_tool_results: [get_bill]
+    reply:
+      tool_calls:
+        - name: draft_document
+          input: {template: bill, bill: "bill-synth-001", matter: "mat-synth-001", total_cents: 113000}
+      stop_reason: tool_use
+      usage: {input_tokens: 910, output_tokens: 120}
+  - expect_tool_results: [draft_document]
+    reply:
+      text: "Drafted bill bill-synth-001 (total 1130.00) for your approval."
+      stop_reason: end_turn
+      usage: {input_tokens: 980, output_tokens: 24}
