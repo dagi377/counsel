@@ -1504,3 +1504,16 @@ Done in PORT-18:
   consumer that calls bill.Service.Deliver is a boot follow-up.
 - Gate subject kind for bills is `billing.bill` (bill.SubjectBill).
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+
+## FEAT-TOOL-08 list_unbilled
+
+- `timekeeping.Entries` has no list by matter and carries no amounts, so the tool reads a new
+  consumer-side `agent.MatterTime` (wired at boot over timekeeping entries priced with
+  timekeeping/rates, as reports.WIPReporter prices WIP). No timekeeping contract change.
+- Unbilled = state approved, billable, no BillID (b3 WIP). `period_to` is inclusive on the
+  work date read in America/Toronto. Amounts and the total are int64 cents; a negative amount
+  or an overflowing total fails closed. Provenance.ReadTool records every amount and the total.
+- The narrative is client text: returned as an untrusted Quoted envelope cited to the entry
+  record (`time_entry:<id>`, page 1, line 1), as search_contacts does for contact names.
+- Not yet in `agent.Handlers()`: `ListUnbilledHandler()` is added there (and to its test)
+  when boot wires MatterTime.
