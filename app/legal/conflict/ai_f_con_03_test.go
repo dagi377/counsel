@@ -93,7 +93,7 @@ func TestAI_F_CON_03_ClearanceMemo(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			fd, w, mid := conFeature(t, conflict.ClearanceMemoDef())
+			fd, w, mid := conWorldFeature(t, conflict.ClearanceMemoDef())
 			if len(fd.StandIns) != 0 {
 				t.Fatalf("stand-ins = %v, want none", fd.StandIns)
 			}

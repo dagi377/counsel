@@ -8,6 +8,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/matter/matterkind"
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/outbox/outboxfake"
+	"github.com/dagi377/counsel/kernel/registry"
 )
 
 // rule: ARC-I-030
@@ -23,6 +24,21 @@ func TestMatterWritesPublishOneEvent(t *testing.T) {
 		{name: "open", row: stubRow{vals: []any{"2026-0001", "c1", "pa1", "u1"}}, want: EventOpened,
 			write: func(ctx context.Context, s *Store) error {
 				return s.Open(ctx, "m1", clock.Date{Year: 2026, Month: 10, Day: 11}, "u2")
+			}},
+		{name: "note added", row: stubRow{vals: []any{"n1"}}, want: EventNoteAdded,
+			write: func(ctx context.Context, s *Store) error {
+				_, err := s.AddNote(ctx, NewNote{MatterID: "m1", AuthorID: "u1", BodyRef: "obj/n1"})
+				return err
+			}},
+		{name: "opening gate effect", row: stubRow{vals: []any{"2026-0001", "c1", "pa1", "u1"}}, want: EventOpened,
+			write: func(ctx context.Context, s *Store) error {
+				clk, err := clock.New("America/Toronto")
+				if err != nil {
+					return err
+				}
+				return s.OpeningEffect(clk)(ctx, &stubTx{row: stubRow{vals: []any{"2026-0001", "c1", "pa1", "u1"}}}, registry.Approved{
+					GateID: "g1", Kind: GateOpening, Payload: []byte(`{"matter_id":"m1","status":"open"}`),
+					Approvers: []registry.Principal{{Kind: registry.PrincipalUser, UserID: "u3"}}})
 			}},
 		{name: "stage change", row: stubRow{vals: []any{"sc1"}}, want: EventStageChanged,
 			write: func(ctx context.Context, s *Store) error {
@@ -53,5 +69,20 @@ func TestMatterWritesNeedEmitter(t *testing.T) {
 	s := NewStore(&stubDB{tx: &stubTx{}}, nil)
 	if err := s.Open(context.Background(), "m1", clock.Date{Year: 2026, Month: 10, Day: 11}, "u2"); err == nil {
 		t.Fatal("Open without emitter succeeded")
+	}
+}
+
+// The opening effect applies only a status change to open; the create shape is refused.
+func TestOpeningEffectRefusesCreateShape(t *testing.T) {
+	clk, err := clock.New("America/Toronto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := NewStore(&stubDB{tx: &stubTx{}}, nil)
+	em := outboxfake.New()
+	s.Events = em
+	err = s.OpeningEffect(clk)(context.Background(), &stubTx{}, registry.Approved{GateID: "g1", Payload: []byte(`{"client_id":"c1"}`)})
+	if err == nil || len(em.Messages()) != 0 {
+		t.Fatalf("err = %v, events = %d", err, len(em.Messages()))
 	}
 }

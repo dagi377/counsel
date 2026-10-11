@@ -47,10 +47,13 @@ type Subject = registry.Subject
 
 // Item is one work item. Type is a registered item type (for example "task" or "review").
 type Item struct {
-	ID              ItemID
-	Key             string
-	Type            string
-	Title           string
+	ID    ItemID
+	Key   string
+	Type  string
+	Title string
+	// Description is the item's Markdown body, or nil for none (work_item.description,
+	// nullable). Additive; see docs/QUESTIONS.md TOOL16-DESC.
+	Description     *string
 	WorkflowID      string
 	StatusID        string
 	Subject         Subject
@@ -88,6 +91,9 @@ type Filter struct {
 	AssigneeUserID string
 	StatusID       string
 	Limit          int
+	// After is a page cursor: only items after this one in id order. Empty starts at the
+	// first item. Added for the paged work-item list (docs/QUESTIONS.md HTTP-23).
+	After ItemID
 }
 
 // Expr is an automation condition, stored as JSON.

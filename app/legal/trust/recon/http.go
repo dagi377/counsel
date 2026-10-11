@@ -73,7 +73,7 @@ func (h *Reads) Routes(r chi.Router) {
 // reconView is the openapi Reconciliation.
 type reconView struct {
 	ID                      string `json:"id"`
-	Version                 int    `json:"version"`
+	Version                 int64  `json:"version"`
 	AccountID               string `json:"account_id"`
 	Month                   string `json:"month"`
 	BankBalanceCents        int64  `json:"bank_balance_cents"`

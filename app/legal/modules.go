@@ -1,6 +1,7 @@
 package legal
 
 import (
+	"github.com/dagi377/counsel/app/legal/access"
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/billing/assessment"
 	"github.com/dagi377/counsel/app/legal/billing/batch"
@@ -38,6 +39,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/trust/recon"
 	"github.com/dagi377/counsel/app/legal/trust/signatory"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
+	"github.com/dagi377/counsel/app/legal/work"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -52,6 +54,7 @@ type module struct {
 // a new feature inside a package adds a file that appends to that package's registrars.
 var modules = []module{
 	{"roles", roles.Register},
+	{"access", access.Register},
 	{"party", party.Register},
 	{"matter", matter.Register},
 	{"conflict", conflict.Register},
@@ -65,6 +68,7 @@ var modules = []module{
 	{"trust/signatory", signatory.Register},
 	{"trust/withdraw", withdraw.Register},
 	{"trust/recon", recon.Register},
+	{"work", work.Register},
 	{"billing/draft", draft.Register},
 	{"billing/split", split.Register},
 	{"billing/tax", tax.Register},

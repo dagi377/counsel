@@ -33,3 +33,13 @@ func registerRoutes(r registry.Registry) error {
 	r.Routes((&HTTP{}).Routes)
 	return nil
 }
+
+func init() { add(registerGatedRoutes) }
+
+// registerGatedRoutes mounts POST /payments/{payment_id}/allocations and
+// POST /payments/{payment_id}/refunds through Registry.Routes. Boot wiring supplies the
+// dependencies; until it does, the routes answer 503.
+func registerGatedRoutes(r registry.Registry) error {
+	r.Routes((&Gated{}).Routes)
+	return nil
+}

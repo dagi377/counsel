@@ -87,7 +87,7 @@ func newConflictWorld(t *testing.T, actorCaps map[string]bool) conflictWorld {
 		checks:  conflictfake.New(conflictfake.Party{ID: "party-1", Name: "Synth Holdings Inc.", MatterID: "m-old", Role: "adverse"}),
 	}
 	var checker conflict.Checker = w.checks
-	tool, err := agent.ProposeConflictPartiesHandler().Build(agent.NewDeps(can, walls, w.parties, checker))
+	tool, err := agent.ProposeConflictPartiesHandler().Build(agent.NewDeps(can, walls, w.parties, checker, agenttools.RunScopes{}))
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -118,9 +118,15 @@ func cpSource(from, to int) string {
 	return `,"kind":"org","source":` + string(b)
 }
 
+// cpRead is a citation of lines from..to on page 1 of cpVersion, as read_document returns it.
+func cpRead(from, to int) *agenttools.Citation {
+	return &agenttools.Citation{VersionID: cpVersion, Page: 1, FromLine: from, ToLine: to}
+}
+
 // rule: ARC-I-035
 // rule: ARC-I-036
 // rule: ARC-I-039
+// rule: ARC-U-027
 func TestARC_I_035_ProposeConflictParties(t *testing.T) {
 	run := map[string]bool{cpCap: true}
 	grant := []string{cpCap}
@@ -138,26 +144,39 @@ func TestARC_I_035_ProposeConflictParties(t *testing.T) {
 		wantMat   string
 		wantHits  int
 		wantCites int
+		// read is the citation a tool result returned to the run before the call, if any.
+		read *agenttools.Citation
 	}{
-		{"agent proposes a party with a hit", agentP(cpRun, grant), run, one, nil, cpMatter, 1, 0},
-		{"agent proposes cited parties", agentP(cpRun, grant), run, cpInput(cpCheck, cpParty("Avery Synth", cpSource(2, 3)), cpParty("Synth Holdings", "")), nil, cpMatter, 1, 1},
-		{"check on a lead only", agentP(cpRun, grant), run, cpInput(cpLeadCheck, cpParty("Avery Synth", "")), nil, "", 0, 0},
-		{"manual path", user, run, one, nil, cpMatter, 1, 0},
-		{"walled matter", agentP(cpRun, grant), run, cpInput(cpWallCheck, cpParty("Avery Synth", "")), agent.ErrNotVisible, "", 0, 0},
-		{"walled matter on the manual path", user, run, cpInput(cpWallCheck, cpParty("Avery Synth", "")), agent.ErrNotVisible, "", 0, 0},
-		{"unknown check", agentP(cpRun, grant), run, cpInput(cpUnknown, cpParty("Avery Synth", "")), errNoCheck, "", 0, 0},
-		{"run without the capability", agentP(cpRun, nil), run, one, agenttools.ErrMissingCapability, "", 0, 0},
-		{"acting user without the capability", agentP(cpRun, grant), map[string]bool{}, one, agent.ErrForbidden, "", 0, 0},
-		{"no report_plan in the run", agentP(cpNoPlan, grant), run, one, agenttools.ErrPlanRequired, "", 0, 0},
-		{"citation with reversed lines", agentP(cpRun, grant), run, cpInput(cpCheck, cpParty("Avery Synth", cpSource(5, 2))), agenttools.ErrCitation, "", 0, 0},
-		{"no parties", agentP(cpRun, grant), run, cpInput(cpCheck), agenttools.ErrInvalidInput, "", 0, 0},
-		{"party without a role", agentP(cpRun, grant), run, cpInput(cpCheck, `{"name":"Avery Synth"}`), agenttools.ErrInvalidInput, "", 0, 0},
-		{"clearance in the input", agentP(cpRun, grant), run, `{"check_id":"` + cpCheck + `","parties":[` + cpParty("x", "") + `],"clear":true}`, agenttools.ErrInvalidInput, "", 0, 0},
+		{"agent proposes a party with a hit", agentP(cpRun, grant), run, one, nil, cpMatter, 1, 0, nil},
+		{"agent proposes cited parties", agentP(cpRun, grant), run, cpInput(cpCheck, cpParty("Avery Synth", cpSource(2, 3)), cpParty("Synth Holdings", "")), nil, cpMatter, 1, 1, cpRead(1, 4)},
+		// rule: ARC-U-027
+		{"agent cites a passage the run never read", agentP(cpRun, grant), run, cpInput(cpCheck, cpParty("Avery Synth", cpSource(2, 3))), agenttools.ErrUnsourcedValue, "", 0, 0, nil},
+		{"agent cites past the lines the run read", agentP(cpRun, grant), run, cpInput(cpCheck, cpParty("Avery Synth", cpSource(2, 6))), agenttools.ErrUnsourcedValue, "", 0, 0, cpRead(1, 4)},
+		{"cited lines on another page", agentP(cpRun, grant), run, cpInput(cpCheck, cpParty("Avery Synth", cpSource(2, 3))), agenttools.ErrUnsourcedValue, "", 0, 0, &agenttools.Citation{VersionID: cpVersion, Page: 2, FromLine: 1, ToLine: 9}},
+		{"manual path cites without a read", user, run, cpInput(cpCheck, cpParty("Avery Synth", cpSource(2, 3))), nil, cpMatter, 0, 1, nil},
+		{"check on a lead only", agentP(cpRun, grant), run, cpInput(cpLeadCheck, cpParty("Avery Synth", "")), nil, "", 0, 0, nil},
+		{"manual path", user, run, one, nil, cpMatter, 1, 0, nil},
+		{"walled matter", agentP(cpRun, grant), run, cpInput(cpWallCheck, cpParty("Avery Synth", "")), agent.ErrNotVisible, "", 0, 0, nil},
+		{"walled matter on the manual path", user, run, cpInput(cpWallCheck, cpParty("Avery Synth", "")), agent.ErrNotVisible, "", 0, 0, nil},
+		{"unknown check", agentP(cpRun, grant), run, cpInput(cpUnknown, cpParty("Avery Synth", "")), errNoCheck, "", 0, 0, nil},
+		{"run without the capability", agentP(cpRun, nil), run, one, agenttools.ErrMissingCapability, "", 0, 0, nil},
+		{"acting user without the capability", agentP(cpRun, grant), map[string]bool{}, one, agent.ErrForbidden, "", 0, 0, nil},
+		{"no report_plan in the run", agentP(cpNoPlan, grant), run, one, agenttools.ErrPlanRequired, "", 0, 0, nil},
+		{"citation with reversed lines", agentP(cpRun, grant), run, cpInput(cpCheck, cpParty("Avery Synth", cpSource(5, 2))), agenttools.ErrCitation, "", 0, 0, nil},
+		{"no parties", agentP(cpRun, grant), run, cpInput(cpCheck), agenttools.ErrInvalidInput, "", 0, 0, nil},
+		{"party without a role", agentP(cpRun, grant), run, cpInput(cpCheck, `{"name":"Avery Synth"}`), agenttools.ErrInvalidInput, "", 0, 0, nil},
+		{"clearance in the input", agentP(cpRun, grant), run, `{"check_id":"` + cpCheck + `","parties":[` + cpParty("x", "") + `],"clear":true}`, agenttools.ErrInvalidInput, "", 0, 0, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			w := newConflictWorld(t, tc.actorCaps)
+			// The run's scope holds the citations its tool results returned.
+			scope := agenttools.NewScope(tc.p.RunID, []string{conflict.GateClearance})
+			if tc.read != nil {
+				scope.AddCitations([]agenttools.Citation{*tc.read})
+			}
+			ctx = agenttools.WithScope(ctx, scope)
 			res, err := w.reg.Call(ctx, tc.p, agent.ToolProposeConflictParties, json.RawMessage(tc.in))
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tc.wantErr)

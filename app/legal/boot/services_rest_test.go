@@ -3,6 +3,7 @@ package boot
 import (
 	"context"
 	"errors"
+	"github.com/dagi377/counsel/app/legal/matter"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -96,6 +97,11 @@ func TestRegisterRestWiresEveryPiece(t *testing.T) {
 		{"filing store emits", s.Filings != nil && s.Filings.Events != nil},
 		{"sole sync job", len(k.Jobs.Periodic()) == 1},
 		{"intake leads publish", s.Leads != nil && s.Leads.Events != nil},
+		{"matter store emits", s.Events.Matters != nil && s.Events.Matters.Events != nil},
+		{"document write points emit", s.Events.Revisions != nil && s.Events.Revisions.Events != nil &&
+			s.Events.CourtForms != nil && s.Events.CourtForms.Events != nil},
+		{"inbound email emits", s.Events.Inbound != nil && s.Events.Inbound.Events != nil},
+		{"calendar emits", s.Events.Calendar != nil && s.Events.Calendar.Events != nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -217,6 +223,34 @@ func TestStartSyncsSoleOnlyWithRest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := len(startHooks(tt.opts)); got != tt.want {
 				t.Fatalf("start hooks = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+// intake.Leads is built on the Postgres stores when no override is given, and the
+// matter.opening effect is wired with the rest services.
+func TestRegisterRestLeadsAndOpeningUnconditional(t *testing.T) {
+	w := &wiring{opts: Options{Rest: &RestPorts{}}}
+	k := restKernel()
+	if err := w.registerRest(context.Background(), k); err != nil {
+		t.Fatalf("registerRest: %v", err)
+	}
+	fx, err := restEffects(k, &RestPorts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name string
+		ok   bool
+	}{
+		{"leads without ports", w.Wired().Leads != nil && w.Wired().Leads.Events != nil},
+		{"matter.opening effect", fx[matter.GateOpening] != nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if !tt.ok {
+				t.Fatalf("%s not wired", tt.name)
 			}
 		})
 	}

@@ -17,8 +17,11 @@ import (
 	"github.com/dagi377/counsel/app/legal/comms"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
+	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/kernel/agenttools"
@@ -78,6 +81,7 @@ type AgentPorts struct {
 	Deadlines       deadline.Lister
 	DeadlineCompute agent.DeadlineCompute
 	DeadlineSaver   agent.DeadlineSaver
+	DeadlineGet     agent.DeadlineGetter
 	PublishedPacks  agent.PublishedPacks
 
 	Tasks           agent.TaskCreator
@@ -131,6 +135,7 @@ func (p AgentPorts) ports() []port {
 		{"Deadlines", p.Deadlines, p.Deadlines != nil},
 		{"DeadlineCompute", p.DeadlineCompute, p.DeadlineCompute != nil},
 		{"DeadlineSaver", p.DeadlineSaver, p.DeadlineSaver != nil},
+		{"DeadlineGet", p.DeadlineGet, p.DeadlineGet != nil},
 		{"PublishedPacks", p.PublishedPacks, p.PublishedPacks != nil},
 		{"Tasks", p.Tasks, p.Tasks != nil},
 		{"ProposedTasks", p.ProposedTasks, p.ProposedTasks != nil},
@@ -279,8 +284,27 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		deadlines.RuleWatchDef().ID: func() (trigger.Binding, error) {
 			return deadlines.RuleWatchBinding(ruleAdmin)
 		},
-		conflict.SearchRankingDef().ID: conflict.SearchRankingBinding,
-		conflict.ClearanceMemoDef().ID: conflict.ClearanceMemoBinding,
+		deadlines.PostEventFollowUpDef().ID:    deadlines.PostEventFollowUpBinding,
+		deadlines.AdjournmentWatcherDef().ID:   deadlines.AdjournmentWatcherBinding,
+		deadlines.DigestDef().ID:               func() (trigger.Binding, error) { return deadlines.DigestBinding(ruleAdmin) },
+		deadlines.AbsenceCoverageCheckDef().ID: func() (trigger.Binding, error) { return deadlines.AbsenceCoverageCheckBinding(ruleAdmin) },
+		conflict.PartyExtractionDef().ID:       conflict.PartyExtractionBinding,
+		conflict.SearchRankingDef().ID:         conflict.SearchRankingBinding,
+		conflict.ClearanceMemoDef().ID:         conflict.ClearanceMemoBinding,
+		conflict.ConsentDraftingDef().ID:       conflict.ConsentDraftingBinding,
+		conflict.IDObligationWatcherDef().ID:   conflict.IDObligationWatcherBinding,
+		conflict.IDEvidenceCheckDef().ID:       conflict.IDEvidenceCheckBinding,
+		conflict.BeneficialOwnershipDef().ID:   conflict.BeneficialOwnershipBinding,
+		conflict.ReverseSweepDef().ID:          func() (trigger.Binding, error) { return conflict.ReverseSweepBinding(ruleAdmin) },
+		conflict.WallMonitorDef().ID:           func() (trigger.Binding, error) { return conflict.WallMonitorBinding(ruleAdmin) },
+		conflict.ExpiryRetentionDef().ID:       func() (trigger.Binding, error) { return conflict.ExpiryRetentionBinding(ruleAdmin) },
+		conflict.AuditAnomalyDigestDef().ID:    func() (trigger.Binding, error) { return conflict.AuditAnomalyDigestBinding(ruleAdmin) },
+		conflict.DuplicateFinderDef().ID:       func() (trigger.Binding, error) { return conflict.DuplicateFinderBinding(ruleAdmin) },
+		legaldocs.EngagementLetterDef().ID:     legaldocs.EngagementLetterBinding,
+		// F-DOC-06 runs weekly and on a court form change (Q-EVENTS-WIRE-4).
+		legaldocs.TemplateCurrencyDef().ID: func() (trigger.Binding, error) {
+			return trigger.Bind(legaldocs.TemplateCurrencyDef(), ruleAdmin, legaldocs.EventCourtFormChanged)
+		},
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -318,6 +342,22 @@ var actionScreens = map[string]trigger.Screen{
 	"limitation-assessment": {SubjectKind: "matter", Capability: "deadlines.view"},
 	"conflict-results":      {SubjectKind: conflict.SubjectRun, Capability: "conflicts.run"},
 	"conflict-clearance":    {SubjectKind: conflict.SubjectRun, Capability: "conflicts.run"},
+	// Screens of the conflict, calendar and document features merged from main
+	// (Q-EVENTS-WIRE-4). The capability is the screen's view or edit right on its record.
+	"conflict-check-new":          {SubjectKind: "matter", Capability: "conflicts.run"},
+	"consents-waivers":            {SubjectKind: "matter", Capability: "documents.edit"},
+	"identity-portal":             {SubjectKind: intake.SubjectLead, Capability: "contacts.view"},
+	"organization-identification": {SubjectKind: party.SubjectContact, Capability: "contacts.view"},
+	"compliance-audit-log":        {SubjectKind: "matter", Capability: "matters.view"},
+	"party-records-hygiene":       {SubjectKind: party.SubjectContact, Capability: "contacts.view"},
+	"client-identification":       {SubjectKind: party.SubjectContact, Capability: "contacts.view"},
+	"ethical-walls":               {SubjectKind: "matter", Capability: "matters.view"},
+	"lateral-hire-intake":         {SubjectKind: party.SubjectContact, Capability: "contacts.view"},
+	"conflict-search-settings":    {SubjectKind: "matter", Capability: "matters.view"},
+	"event-detail":                {SubjectKind: "matter", Capability: "deadlines.view"},
+	"firm-calendar":               {SubjectKind: "matter", Capability: "deadlines.view"},
+	"rule-trigger-wizard":         {SubjectKind: "matter", Capability: "deadlines.view"},
+	"engagement-letter-composer":  {SubjectKind: "matter", Capability: "documents.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

@@ -135,7 +135,7 @@ func TestModulesUnique(t *testing.T) {
 		}
 		seen[m.name] = true
 	}
-	if len(modules) != 37 {
-		t.Errorf("modules = %d, want 37 (one per app/legal package with a register.go)", len(modules))
+	if len(modules) != 39 {
+		t.Errorf("modules = %d, want 39 (one per app/legal package with a register.go)", len(modules))
 	}
 }

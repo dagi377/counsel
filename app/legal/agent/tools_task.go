@@ -15,8 +15,14 @@ import (
 )
 
 // ToolCreateTask proposes a work item. It starts in the task workflow's proposed status and
-// becomes work only when its assignee or approver accepts it.
+// becomes work only when its assignee or approver accepts it. When the agent run's feature
+// declares a gate kind on work items (WorkItemGateKinds), the item is returned as a draft of
+// the run instead, so submit_for_approval can open that gate on it.
 const ToolCreateTask = "create_task"
+
+// WorkItemGateKinds are the gate kinds whose subject is a work item an agent drafts: the
+// cover task of an absence (work.absence) and a work output (work.output).
+var WorkItemGateKinds = []string{"work.absence", "work.output"}
 
 // WorkTypeTask is the work item type create_task creates.
 const WorkTypeTask = "task"
@@ -90,6 +96,8 @@ type createTaskIn struct {
 	Title      string `json:"title"`
 	AssigneeID string `json:"assignee_id"`
 	DueOn      string `json:"due_on"`
+	// Description is the task's Markdown body; it is stored on the work item.
+	Description string `json:"description_markdown"`
 }
 
 func (t createTask) handle(ctx context.Context, p registry.Principal, raw json.RawMessage) (registry.ToolResult, error) {
@@ -107,6 +115,10 @@ func (t createTask) handle(ctx context.Context, p registry.Principal, raw json.R
 		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolCreateTask, ErrInvalidInput)
 	}
 	it := work.Item{Type: WorkTypeTask, Title: in.Title, ReporterID: user, AssigneeUserID: in.AssigneeID}
+	if in.Description != "" {
+		d := in.Description
+		it.Description = &d
+	}
 	if in.MatterID != "" {
 		// rule: ARC-I-036
 		if err := visibleTo(ctx, t.walls, user, in.MatterID); err != nil {
@@ -140,9 +152,34 @@ func (t createTask) handle(ctx context.Context, p registry.Principal, raw json.R
 	if err != nil {
 		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
 	}
-	out, err := json.Marshal(agenttools.WriteOutput{Outcome: agenttools.OutcomeProposal, Ref: string(id)})
+	outcome := agenttools.OutcomeProposal
+	if draftsWorkItems(ctx, p) {
+		// rule: AI-R-003
+		// A draft of the run: only submit_for_approval moves it on, and the gate it opens is
+		// decided by a person other than the acting user, never by the agent.
+		outcome = agenttools.OutcomeDraft
+	}
+	out, err := json.Marshal(agenttools.WriteOutput{Outcome: outcome, Ref: string(id)})
 	if err != nil {
 		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
 	}
 	return registry.ToolResult{Output: out}, nil
+}
+
+// draftsWorkItems reports whether p is an agent whose run scope declares a gate kind on work
+// items. A user principal, or an agent with no such kind, gets a proposal.
+func draftsWorkItems(ctx context.Context, p registry.Principal) bool {
+	if p.Kind != registry.PrincipalAgent {
+		return false
+	}
+	s, ok := agenttools.ScopeOf(ctx)
+	if !ok || s.RunID != p.RunID {
+		return false
+	}
+	for _, k := range WorkItemGateKinds {
+		if s.AllowsGateKind(k) {
+			return true
+		}
+	}
+	return false
 }

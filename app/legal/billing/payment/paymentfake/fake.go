@@ -78,7 +78,7 @@ func (f *Fake) Capture(ctx context.Context, c payment.Capture) (payment.Payment,
 	if c.Kind == payment.KindRetainer {
 		return payment.Payment{}, nil, payment.ErrRetainerToOperating
 	}
-	if c.AmountCents <= 0 || c.ClientID == "" {
+	if c.AmountCents <= 0 || c.ClientID == "" || c.ProcessorFeeCents < 0 || c.ProcessorFeeCents > c.AmountCents {
 		return payment.Payment{}, nil, payment.ErrInvalid
 	}
 	b, ok := f.bills[c.BillID]

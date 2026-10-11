@@ -3,6 +3,7 @@ package work_test
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/dagi377/counsel/kernel/registry"
@@ -111,6 +112,8 @@ func TestPrepareItemFields(t *testing.T) {
 		{"no workflow", func(it *work.Item) { it.WorkflowID = "" }, 0, true},
 		{"no status", func(it *work.Item) { it.StatusID = "" }, 0, true},
 		{"no reporter", func(it *work.Item) { it.ReporterID = "" }, 0, true},
+		{"description at the limit", func(it *work.Item) { d := strings.Repeat("é", work.MaxDescriptionLen); it.Description = &d }, work.DefaultPriority, false},
+		{"description too long", func(it *work.Item) { d := strings.Repeat("a", work.MaxDescriptionLen+1); it.Description = &d }, 0, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -150,6 +153,33 @@ func TestSubjectColumnsRoundTrip(t *testing.T) {
 			}
 			if got := work.SubjectFromColumns(kind, id); got != tt.subject {
 				t.Errorf("round trip = %+v, want %+v", got, tt.subject)
+			}
+		})
+	}
+}
+
+func TestPrepareItemDescription(t *testing.T) {
+	str := func(s string) *string { return &s }
+	tests := []struct {
+		name string
+		in   *string
+		want *string
+	}{
+		{"none", nil, nil},
+		{"markdown kept", str("**Call** opposing counsel"), str("**Call** opposing counsel")},
+		{"empty becomes none", str(""), nil},
+		{"blank becomes none", str("  \n\t"), nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			it := validItem()
+			it.Description = tt.in
+			got, err := appKinds().PrepareItem(it)
+			if err != nil {
+				t.Fatalf("PrepareItem: %v", err)
+			}
+			if (got.Description == nil) != (tt.want == nil) || (got.Description != nil && *got.Description != *tt.want) {
+				t.Fatalf("description = %v, want %v", got.Description, tt.want)
 			}
 		})
 	}

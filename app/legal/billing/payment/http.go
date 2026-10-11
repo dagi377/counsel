@@ -148,17 +148,18 @@ type allocationView struct {
 
 // view is a payment as the API returns it (openapi Payment).
 type view struct {
-	ID             string           `json:"id"`
-	Version        int              `json:"version"`
-	ReceivedAt     string           `json:"received_at"`
-	PayerContactID string           `json:"payer_contact_id,omitempty"`
-	AmountCents    int64            `json:"amount_cents"`
-	Method         string           `json:"method"`
-	Account        string           `json:"account"`
-	Provider       string           `json:"provider,omitempty"`
-	ProviderRef    string           `json:"provider_ref,omitempty"`
-	Status         string           `json:"status"`
-	Allocations    []allocationView `json:"allocations"`
+	ID                string           `json:"id"`
+	Version           int              `json:"version"`
+	ReceivedAt        string           `json:"received_at"`
+	PayerContactID    string           `json:"payer_contact_id,omitempty"`
+	AmountCents       int64            `json:"amount_cents"`
+	Method            string           `json:"method"`
+	Account           string           `json:"account"`
+	Provider          string           `json:"provider,omitempty"`
+	ProviderRef       string           `json:"provider_ref,omitempty"`
+	ProcessorFeeCents int64            `json:"processor_fee_cents"`
+	Status            string           `json:"status"`
+	Allocations       []allocationView `json:"allocations"`
 }
 
 // allocationID names allocation i of a payment stably in uuid form; allocations have no id
@@ -176,7 +177,8 @@ func viewOf(p Payment, as []Allocation) view {
 	c := p.Capture
 	v := view{ID: p.ID, Version: 1, ReceivedAt: c.ReceivedOn.UTC().Format(time.RFC3339), AmountCents: c.AmountCents,
 		Method: c.Method, Account: "operating", Provider: c.Provider, ProviderRef: c.ProviderEventID,
-		Status: "received", Allocations: []allocationView{}}
+		ProcessorFeeCents: c.ProcessorFeeCents,
+		Status:            "received", Allocations: []allocationView{}}
 	if idPattern.MatchString(c.ClientID) {
 		v.PayerContactID = c.ClientID
 	}
@@ -298,7 +300,7 @@ const maxCents = 100_000_000_000
 func (b createBody) valid() bool {
 	ok := !b.ReceivedAt.IsZero() && idPattern.MatchString(b.PayerContactID) && b.AmountCents != nil &&
 		*b.AmountCents >= 0 && *b.AmountCents <= maxCents && methods[b.Method] && len(b.ProviderRef) <= 120 &&
-		b.ProcessorFeeCents >= 0 && b.ProcessorFeeCents <= maxCents
+		b.ProcessorFeeCents >= 0 && b.ProcessorFeeCents <= *b.AmountCents
 	for _, a := range b.Allocations {
 		ok = ok && targetTypes[a.TargetType] && a.AmountCents >= 0 && a.AmountCents <= maxCents &&
 			(a.TargetID == "" || idPattern.MatchString(a.TargetID))
@@ -370,7 +372,8 @@ func (h *HTTP) record(w http.ResponseWriter, r *http.Request, p registry.Princip
 	}
 	c := Capture{ClientID: b.PayerContactID, Kind: KindBillPayment, AmountCents: *b.AmountCents,
 		ReceivedOn: time.Date(y, m, d, 0, 0, 0, 0, loc), Provider: b.Provider, ProviderEventID: b.ProviderRef,
-		IdempotencyKey: r.Header.Get(idem.HeaderName), RecordedBy: by, Method: b.Method}
+		IdempotencyKey: r.Header.Get(idem.HeaderName), RecordedBy: by, Method: b.Method,
+		ProcessorFeeCents: b.ProcessorFeeCents}
 	if len(bills) == 1 {
 		c.BillID = bills[0].TargetID
 	}

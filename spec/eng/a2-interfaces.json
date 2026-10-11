@@ -89,6 +89,19 @@
    "note": ""
   },
   {
+   "type": "matter.note_added",
+   "version": 1,
+   "module": "matter",
+   "subject_type": "matter",
+   "payload": [
+    "matter_id",
+    "note_id",
+    "author_id",
+    "visibility"
+   ],
+   "note": "Q-EVENTS-WIRE-4; never the note body"
+  },
+  {
    "type": "conflict.check_completed",
    "version": 1,
    "module": "conflict",
@@ -204,6 +217,32 @@
    "note": ""
   },
   {
+   "type": "document.revision_requested",
+   "version": 1,
+   "module": "docs",
+   "subject_type": "document",
+   "payload": [
+    "document_id",
+    "version_id",
+    "matter_id?",
+    "requested_by"
+   ],
+   "note": "Q-EVENTS-WIRE-4; ids only, never the reviewer's comments"
+  },
+  {
+   "type": "court_form.changed",
+   "version": 1,
+   "module": "docs",
+   "subject_type": "court_form",
+   "payload": [
+    "court_form_id",
+    "rule_set",
+    "form_number",
+    "version_date"
+   ],
+   "note": "Q-EVENTS-WIRE-4; a new version of a court form was recorded"
+  },
+  {
    "type": "email.filed",
    "version": 1,
    "module": "comms",
@@ -214,6 +253,18 @@
     "filed_by"
    ],
    "note": "Additive (docs/QUESTIONS.md Q-DRAFT-FIX): an email filed to a matter; starts F-DL-01 like document.uploaded."
+  },
+  {
+   "type": "email.received",
+   "version": 1,
+   "module": "comms",
+   "subject_type": "comm_item",
+   "payload": [
+    "comm_item_id",
+    "connector_id?",
+    "occurred_at"
+   ],
+   "note": "Q-EVENTS-WIRE-4; ids only, never the subject, body or addresses"
   },
   {
    "type": "deadline.proposed",
@@ -265,6 +316,21 @@
     "gate_id?"
    ],
    "note": ""
+  },
+  {
+   "type": "calendar_event.added",
+   "version": 1,
+   "module": "cal",
+   "subject_type": "calendar_event",
+   "payload": [
+    "event_id",
+    "calendar_id",
+    "matter_id?",
+    "type",
+    "starts_at",
+    "ends_at"
+   ],
+   "note": "Q-EVENTS-WIRE-4; never the title or location"
   },
   {
    "type": "work_item.created",
@@ -2414,7 +2480,7 @@
    "name": "propose_deadline",
    "kind": "write",
    "capability": "deadlines.edit",
-   "description": "Propose a deadline with its source; stays proposed until gate cal.confirm.",
+   "description": "Propose a deadline with its source; stays proposed until gate cal.confirm. With deadline_id, propose a new date for that stored deadline under gate cal.change; the date is applied only on approval.",
    "input_schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$defs": {
@@ -2479,6 +2545,10 @@
      "source"
     ],
     "properties": {
+     "deadline_id": {
+      "type": "string",
+      "minLength": 1
+     },
      "matter_id": {
       "$ref": "#/$defs/uuid"
      },

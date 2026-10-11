@@ -116,7 +116,7 @@ func (t *draftTx) QueryRow(_ context.Context, sql string, args ...any) pgx.Row {
 		if err != nil {
 			return valsRow{err: err}
 		}
-		return valsRow{vals: []any{d.w.ID, d.w.BillID, d.w.AmountCents, d.w.Reason, string(d.w.Status), d.w.PreparedBy, d.w.ApprovedBy, d.w.ApprovedAt}}
+		return valsRow{vals: []any{d.w.ID, d.w.BillID, d.w.AmountCents, d.w.Reason, string(d.w.Status), d.w.PreparedBy, d.w.ApprovedBy, d.w.ApprovedAt, d.split.Interest}}
 	case writeOffAwaitingSQL:
 		d, err := t.draft(args[0])
 		if err != nil {

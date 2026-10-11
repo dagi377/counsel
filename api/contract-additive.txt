@@ -14,3 +14,5 @@
 /paths/~1filings~1{filing_id}~1issue Q-EVENTS-WIRE-2
 /paths/~1filings~1affidavits-of-service Q-EVENTS-WIRE-2
 /paths/~1emails~1{comm_item_id}~1filings Q-EVENTS-WIRE-2
+/components/schemas/TrustLedger/properties/overdrawn Q-HTTP-10c
+/components/schemas/TrustLedger/properties/shortfall_cents Q-HTTP-10c

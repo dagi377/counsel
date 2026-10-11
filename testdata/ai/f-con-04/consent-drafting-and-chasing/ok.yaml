@@ -1,7 +1,7 @@
 synthetic: true
 feature: F-CON-04
 match:
-  prompt_hash: ""
+  prompt_hash: "0337bd0febbc45e5ab136db6c6ca0de3eeac35f4ed109d17de41ac344c32c680"
   last_user_regex: "consent letters for matter"
 latency_ms: 0
 turns:
@@ -15,23 +15,25 @@ turns:
     reply:
       tool_calls:
         - name: report_plan
-          input: {steps: [{id: draft-letters, title: "Draft consent letters for M-2026-0042"}]}
+          input: {steps: [{step_id: draft-letters, title: "Draft consent letters for M-2026-0042"}]}
       stop_reason: tool_use
-      usage: {input_tokens: 720, output_tokens: 28}
+      usage: {input_tokens: 720, output_tokens: 32}
   - expect_tool_results: [report_plan]
     reply:
       tool_calls:
-        - name: submit_for_approval
-          input:
-            kind: conflict.consent_text
-            matter: "M-2026-0042"
-            letters:
-              - {to: "Northwind Ltd", basis: "former client, unrelated matter M-2025-0107", ask: "written consent to act"}
-              - {to: "Harbour Credit Union", basis: "current client on M-2026-0019", ask: "written consent to act"}
+        - name: draft_document
+          input: {matter_id: "00000000-0000-4000-8000-0000000000c4", title: "Consent to act: Northwind Ltd", body_markdown: "To Northwind Ltd: former client, unrelated matter M-2025-0107. We ask for your written consent to act."}
       stop_reason: tool_use
-      usage: {input_tokens: 810, output_tokens: 96}
+      usage: {input_tokens: 800, output_tokens: 32}
+  - expect_tool_results: [draft_document]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input: {subject_type: document, subject_id: "00000000-0000-4000-8000-00000000d001", gate_kind: conflict.consent_text}
+      stop_reason: tool_use
+      usage: {input_tokens: 880, output_tokens: 32}
   - expect_tool_results: [submit_for_approval]
     reply:
       text: "Drafted consent letters for your review."
       stop_reason: end_turn
-      usage: {input_tokens: 860, output_tokens: 12}
+      usage: {input_tokens: 1100, output_tokens: 12}

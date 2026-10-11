@@ -7,6 +7,8 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/comms"
 	"github.com/dagi377/counsel/app/legal/conflict"
+	"github.com/dagi377/counsel/app/legal/deadlines"
+	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
@@ -31,6 +33,15 @@ type EventStores struct {
 	// OwnTx is the emitter for write points with no transaction of their own (the wall
 	// check, intake.Leads publishing identity.portal_submission).
 	OwnTx outbox.Emitter
+	// Matters publishes matter.opened, matter.stage_changed and matter.note_added; its
+	// OpeningEffect applies the matter.opening gate (EVENTS-WIRE-4).
+	Matters *matter.Store
+	// Revisions, CourtForms, Inbound and Calendar publish document.revision_requested,
+	// court_form.changed, email.received and calendar_event.added (Q-EVENTS-WIRE-4).
+	Revisions  *legaldocs.Revisions
+	CourtForms *legaldocs.CourtForms
+	Inbound    *comms.Inbound
+	Calendar   *deadlines.CalendarEvents
 }
 
 // newEventStores builds the deadline book (rulepack.published,
@@ -46,8 +57,15 @@ func newEventStores(pool db.DB, em outbox.Emitter) EventStores {
 	contacts := party.NewStore(pool)
 	contacts.Events = em
 	own := ownTxEmitter{db: pool, em: em}
+	matters := matter.NewStore(pool, contacts)
+	matters.Events = em
 	return EventStores{
-		Book: book, Filings: filings, Emails: comms.NewEmailFilingStore(pool, em),
+		Matters:    matters,
+		Revisions:  &legaldocs.Revisions{DB: pool, Events: em},
+		CourtForms: &legaldocs.CourtForms{DB: pool, Events: em},
+		Inbound:    &comms.Inbound{DB: pool, Events: em},
+		Calendar:   &deadlines.CalendarEvents{DB: pool, Events: em},
+		Book:       book, Filings: filings, Emails: comms.NewEmailFilingStore(pool, em),
 		Contacts: contacts, OwnTx: own,
 		Walls: roles.NewWallResolver(matter.PGWallStore{DB: pool}, nil).WithEvents(own),
 	}

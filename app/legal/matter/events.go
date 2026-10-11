@@ -2,6 +2,7 @@ package matter
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/matter/matterkind"
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/outbox"
+	"github.com/dagi377/counsel/kernel/registry"
 )
 
 // Outbox event types the matter store publishes (spec/eng/a2-interfaces.json).
@@ -54,23 +56,58 @@ func (s *Store) Open(ctx context.Context, id ID, on clock.Date, by string) error
 		return fmt.Errorf("open matter: no event emitter: %w", ErrInvalid)
 	}
 	err := s.db.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		ev := Opened{MatterID: string(id), OpenedOn: on.String()}
-		err := tx.QueryRow(ctx, openMatterSQL, string(id), on.String(), by).
-			Scan(&ev.Number, &ev.ClientID, &ev.PracticeAreaID, &ev.ResponsibleUserID)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
-		}
-		if err != nil {
-			return err
-		}
-		// rule: ARC-I-030
-		// The event commits with the status change.
-		return s.Events.Emit(ctx, tx, outbox.Subject{Kind: matterkind.Subject, ID: string(id)}, EventOpened, ev)
+		return s.openTx(ctx, tx, id, on, by)
 	})
 	if err != nil {
 		return fmt.Errorf("open matter %s: %w", id, err)
 	}
 	return nil
+}
+
+// openTx is Open inside the caller's tx.
+func (s *Store) openTx(ctx context.Context, tx pgx.Tx, id ID, on clock.Date, by string) error {
+	ev := Opened{MatterID: string(id), OpenedOn: on.String()}
+	err := tx.QueryRow(ctx, openMatterSQL, string(id), on.String(), by).
+		Scan(&ev.Number, &ev.ClientID, &ev.PracticeAreaID, &ev.ResponsibleUserID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	// rule: ARC-I-030
+	// The event commits with the status change.
+	return s.Events.Emit(ctx, tx, outbox.Subject{Kind: matterkind.Subject, ID: string(id)}, EventOpened, ev)
+}
+
+// openingChange is the payload PATCH /matters/{matter_id} puts on a matter.opening gate.
+type openingChange struct {
+	MatterID string `json:"matter_id"`
+	Status   string `json:"status"`
+}
+
+// OpeningEffect is the matter.opening gate effect for a status change to open: it opens the
+// pending matter on clk's business date inside the gate's tx, publishing EventOpened. A gate
+// whose payload is not a status change to open (the POST /matters create shape) fails, so
+// nothing is applied half-way.
+func (s *Store) OpeningEffect(clk clock.Clock) registry.EffectFunc {
+	return func(ctx context.Context, tx pgx.Tx, g registry.Approved) error {
+		var c openingChange
+		if err := json.Unmarshal(g.Payload, &c); err != nil || c.MatterID == "" || c.Status != string(Open) {
+			return fmt.Errorf("matter.opening %s: not a status change to open: %w", g.GateID, ErrInvalid)
+		}
+		if s.Events == nil || clk == nil {
+			return fmt.Errorf("matter.opening %s: no event emitter or clock: %w", g.GateID, ErrInvalid)
+		}
+		by := ""
+		if len(g.Approvers) > 0 {
+			by = g.Approvers[0].UserID
+		}
+		if err := s.openTx(ctx, tx, ID(c.MatterID), clk.Today(ctx), by); err != nil {
+			return fmt.Errorf("matter.opening %s: %w", g.GateID, err)
+		}
+		return nil
+	}
 }
 
 // changeStageSQL moves the matter only from the stage the change names and appends the

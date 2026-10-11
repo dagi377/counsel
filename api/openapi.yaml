@@ -2209,6 +2209,10 @@ components:
         pending_withdrawals_cents: {$ref: '#/components/schemas/Cents', description: 'sum of authorized, not yet executed
             withdrawals'}
         last_activity_on: {type: string, format: date}
+        overdrawn: {type: boolean, description: true when the posted or available balance is below zero (By-law 9);
+            shown as an error state}
+        shortfall_cents: {$ref: '#/components/schemas/Cents', description: amount below zero of the lower of the posted
+            and available balances; 0 when not overdrawn}
     TrustJournalLine:
       type: object
       required: [id, account_id, ledger_id, kind, posted_on, amount_cents, posted_by, posted_at]

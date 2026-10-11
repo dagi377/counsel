@@ -2,34 +2,8 @@
 # per line (paths without the /v1 base). This list only shrinks: the conformance tests fail
 # when a listed operation is served, when it leaves openapi.yaml, and when an operation is
 # neither served nor listed. Remove a line in the same change that mounts its handler.
-POST /agent/actions/{feature_id}
-POST /agent/runs
-GET /agent/runs/{run_id}
-GET /audit-events
-GET /deadlines
-POST /deadlines
-GET /deadlines/{deadline_id}
-GET /documents
-POST /documents
-POST /documents/{document_id}/release
-GET /documents/{document_id}/versions/{version_id}/pages/{page}
-GET /drafts
-POST /payments/{payment_id}/allocations
-POST /payments/{payment_id}/refunds
-GET /roles
-POST /trust/bank-lines/imports
-POST /trust/reconciliations
-POST /trust/reconciliations/{reconciliation_id}/submit
-GET /trust/requests
-POST /trust/requests
-POST /trust/transfers
-POST /trust/withdrawals
-POST /trust/withdrawals/{withdrawal_id}/cancel
-GET /users
-PUT /users/{user_id}/roles
 GET /webhook-endpoints
-POST /webhook-endpoints
 PATCH /webhook-endpoints/{webhook_id}
-GET /work-items
-POST /work-items
-PATCH /work-items/{work_item_id}
+POST /agent/actions/{feature_id}
+POST /trust/transfers
+POST /webhook-endpoints

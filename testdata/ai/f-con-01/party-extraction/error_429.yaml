@@ -8,25 +8,25 @@ turns:
     reply:
       tool_calls:
         - name: report_plan
-          input: {steps: [{id: read, title: "Read the intake document"}, {id: parties, title: "Propose check parties"}]}
+          input: {steps: [{step_id: read, title: "Read the intake document"}, {step_id: parties, title: "Propose check parties"}]}
       stop_reason: tool_use
       usage: {input_tokens: 640, output_tokens: 48}
   - expect_tool_results: [report_plan]
     reply:
       tool_calls:
         - name: read_document
-          input: {document: "doc-synth-001"}
+          input: {doc_id: "doc-1", version_id: "version-1"}
       stop_reason: tool_use
       usage: {input_tokens: 720, output_tokens: 30}
   - expect_tool_results: [read_document]
     reply:
       tool_calls:
         - name: propose_conflict_parties
-          input: {check: "chk-synth-001", parties: [{name: "Synth Holdings Inc.", role: adverse}, {name: "Avery Synth", role: client}]}
+          input: {check_id: "chk-synth-001", parties: [{name: "Synth Holdings Inc.", role: adverse, kind: org, source: {doc_id: "doc-1", version_id: "version-1", page: 1, line_start: 1, line_end: 1, quote_hash: "sha256:abababababababababababababababababababababababababababababababab"}}, {name: "Avery Synth", role: client, kind: person, source: {doc_id: "doc-1", version_id: "version-1", page: 1, line_start: 1, line_end: 1, quote_hash: "sha256:abababababababababababababababababababababababababababababababab"}}]}
       stop_reason: tool_use
       usage: {input_tokens: 910, output_tokens: 120}
   - expect_tool_results: [propose_conflict_parties]
     reply:
-      text: "Extracted two parties from doc-synth-001 and proposed them for the conflict check."
+      text: "Extracted two parties from doc-1 and proposed them for the conflict check."
       stop_reason: end_turn
       usage: {input_tokens: 980, output_tokens: 24}

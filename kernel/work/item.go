@@ -5,12 +5,16 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
 // DefaultPriority is the priority of an item created with Priority 0.
 const DefaultPriority = 3
+
+// MaxDescriptionLen is the longest item description, in characters (work_item.description).
+const MaxDescriptionLen = 10000
 
 // subjectKindPattern mirrors work_item_subject_kind_ck (migrations/1000_work_item_subject.sql).
 var subjectKindPattern = regexp.MustCompile(`^[a-z][a-z0-9_.]*$`)
@@ -78,7 +82,8 @@ func (ks *SubjectKinds) CheckSubject(s Subject) error {
 
 // PrepareItem validates it for Create and returns it with defaults applied: Priority 0
 // becomes DefaultPriority and the subject id is lower-cased. A missing title, type,
-// workflow, status or reporter, a priority outside 1..5, or a bad subject is ErrInvalidItem.
+// workflow, status or reporter, a priority outside 1..5, a description longer than
+// MaxDescriptionLen, or a bad subject is ErrInvalidItem. A blank description becomes nil.
 func (ks *SubjectKinds) PrepareItem(it Item) (Item, error) {
 	if it.Priority == 0 {
 		it.Priority = DefaultPriority
@@ -96,6 +101,12 @@ func (ks *SubjectKinds) PrepareItem(it Item) (Item, error) {
 		return Item{}, fmt.Errorf("work item: no reporter: %w", ErrInvalidItem)
 	case it.Priority < 1 || it.Priority > 5:
 		return Item{}, fmt.Errorf("work item: priority %d outside 1..5: %w", it.Priority, ErrInvalidItem)
+	case it.Description != nil && utf8.RuneCountInString(*it.Description) > MaxDescriptionLen:
+		return Item{}, fmt.Errorf("work item: description longer than %d: %w", MaxDescriptionLen, ErrInvalidItem)
+	}
+	// A blank description is stored as none (NULL), never as an empty string.
+	if it.Description != nil && strings.TrimSpace(*it.Description) == "" {
+		it.Description = nil
 	}
 	if err := ks.CheckSubject(it.Subject); err != nil {
 		return Item{}, err

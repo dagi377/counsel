@@ -4,6 +4,8 @@ package legal
 import (
 	"fmt"
 
+	"github.com/dagi377/counsel/app/legal/matter/matterkind"
+	"github.com/dagi377/counsel/kernel/deadline"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -20,5 +22,23 @@ func Register(r registry.Registry) error {
 			return fmt.Errorf("legal: register %s: %w", m.name, err)
 		}
 	}
+	// The deadline routes live in the kernel; the app mounts them with its configuration.
+	if err := registerDeadlines(r); err != nil {
+		return fmt.Errorf("legal: register deadlines: %w", err)
+	}
+	return nil
+}
+
+// DeadlineRoutes is the legal configuration of the kernel deadline routes (HTTP-22).
+var DeadlineRoutes = deadline.HTTPConfig{
+	CapView: "deadlines.view", CapEdit: "deadlines.edit",
+	SubjectKind: matterkind.Subject, SubjectKey: "matter_id",
+	DeadlineKind: "deadline.deadline", ConfirmGate: "cal.confirm",
+}
+
+// registerDeadlines mounts the kernel deadline routes with the legal configuration. Boot
+// wiring supplies the dependencies; until it does, the routes answer 503.
+func registerDeadlines(r registry.Registry) error {
+	r.Routes((&deadline.HTTP{Config: DeadlineRoutes}).Routes)
 	return nil
 }

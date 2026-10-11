@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -189,8 +190,8 @@ func TestARC_I_051_GateDecisionProblems(t *testing.T) {
 		// rule: ARC-I-016
 		{name: "self-approval", path: dec(dGateBill), user: "alice", status: 403, code: gates.CodeSelfApproval},
 		// rule: ARC-I-017
-		{name: "no step-up", path: dec(dGateBill), user: "partner", hdr: hdrs(`"1"`, key1, "X-Test-StepUp", "none"), status: 403, code: gates.CodeStepUpRequired},
-		{name: "high risk with stale step-up", path: dec(dGateBill), user: "partner", hdr: hdrs(`"1"`, key1, "X-Test-StepUp", "stale"), status: 403, code: gates.CodeStepUpRequired},
+		{name: "no step-up", path: dec(dGateBill), user: "partner", hdr: hdrs(`"1"`, key1, "X-Test-StepUp", "none"), status: 401, code: gates.CodeStepUpRequired},
+		{name: "high risk with stale step-up", path: dec(dGateBill), user: "partner", hdr: hdrs(`"1"`, key1, "X-Test-StepUp", "stale"), status: 401, code: gates.CodeStepUpRequired},
 		{name: "payload changed", path: dec(dGateBill), user: "partner",
 			body: func(decideRig) string { return decision("approve", 1, hashA, "") }, status: 409, code: gates.CodePayloadChanged},
 		{name: "withdrawn gate", path: dec(dGateGone), user: "partner", status: 409, code: gates.CodeGateNotOpen},
@@ -215,6 +216,7 @@ func TestARC_I_051_GateDecisionProblems(t *testing.T) {
 			}
 			rec := do(r.h, "POST", tc.path, tc.user, body, hdr)
 			checkProblem(t, rec, tc.status, tc.code)
+			checkStepUpChallenge(t, rec, tc.code)
 			if tc.zeroCalls && r.eng.calls() != 0 {
 				t.Errorf("engine calls = %d, want 0", r.eng.calls())
 			}
@@ -237,7 +239,7 @@ func TestGateDecisionSentinelsMapToProblems(t *testing.T) {
 		{gate.ErrNotPending, 409, gates.CodeGateNotOpen},
 		{fmt.Errorf("%w: %w", gate.ErrEffectFailed, trust.ErrInsufficientFunds), 409, gates.CodeInsufficientTrustFunds},
 		{gate.ErrSelfApproval, 403, gates.CodeSelfApproval},
-		{gate.ErrMFARequired, 403, gates.CodeStepUpRequired},
+		{gate.ErrMFARequired, 401, gates.CodeStepUpRequired},
 		{gate.ErrAgentApprover, 403, gates.CodeAgentCannotDecide},
 		{gate.ErrStaleVersion, 412, server.CodeVersionConflict},
 	}
@@ -248,6 +250,7 @@ func TestGateDecisionSentinelsMapToProblems(t *testing.T) {
 			rec := do(r.h, "POST", "/v1/gates/"+dGateBill+"/decisions", "partner",
 				decision("approve", 1, r.hashes[dGateBill], ""), hdrs(`"1"`, key1))
 			checkProblem(t, rec, tc.status, tc.code)
+			checkStepUpChallenge(t, rec, tc.code)
 		})
 	}
 }
@@ -361,5 +364,20 @@ func TestDecideRoutesUnwiredAnswer503(t *testing.T) {
 	}
 	for _, p := range []string{"/v1/gates/" + dGateBill + "/decisions", "/v1/gates/" + dGateBill + "/withdraw"} {
 		checkProblem(t, do(m.Handler(), "POST", p, "partner", "", hdrs(`"1"`, key1)), 503, gates.CodeUnavailable)
+	}
+}
+
+// checkStepUpChallenge asserts the RFC 9470 challenge is sent with step_up_required, and
+// only with it.
+// rule: ARC-I-017
+func checkStepUpChallenge(t *testing.T, rec *httptest.ResponseRecorder, code string) {
+	t.Helper()
+	got := rec.Header().Get("WWW-Authenticate")
+	want := ""
+	if code == gates.CodeStepUpRequired {
+		want = gates.StepUpChallenge
+	}
+	if got != want {
+		t.Errorf("WWW-Authenticate = %q, want %q", got, want)
 	}
 }
