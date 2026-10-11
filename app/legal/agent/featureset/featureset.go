@@ -122,5 +122,7 @@ func appDefs() []feature.Def {
 		trust.RetainerReplenishmentDef(),
 		trust.DraftTransferDef(),
 		trust.ProposeDispositionDef(),
+		trust.PayeeFraudCheckDef(),
+		trust.WithdrawalDrafterDef(),
 	}
 }

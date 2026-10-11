@@ -321,14 +321,14 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		trust.FeatureMonthEndReconciliation:         trust.MonthEndReconciliationBinding,
 		trust.FeatureRetainerReplenishment:          trust.RetainerReplenishmentBinding,
+		trust.FeaturePayeeFraudCheck:                trust.PayeeFraudCheckBinding,
+		trust.FeatureBankFeedSync:                   trust.BankFeedSyncBinding,
+		trust.FeatureWithdrawalDrafter:              trust.WithdrawalDrafterBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
 	onRequest := map[string]bool{
 		matter.FeatureMatterQuestionAnswering: true,
-		// F-TRU-01's schedule binds with its write path (FEAT-TRU-02); until then its screen
-		// actions start it.
-		trust.FeatureBankFeedSync: true,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -443,6 +443,8 @@ var actionScreens = map[string]trigger.Screen{
 	// The clearance screen lists matters that still hold trust money; it selects the matter
 	// (docs/QUESTIONS.md Q-FEAT-TRU-10).
 	"trust-balance-clearance": {SubjectKind: "matter", Capability: "trust.request"},
+	// A withdrawal request is one matter's (Q-FEAT-TRU-03).
+	"withdrawal-request": {SubjectKind: "matter", Capability: "trust.request"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
