@@ -43,5 +43,6 @@ func appDefs() []feature.Def {
 		docs.EngagementLetterDef(),
 		docs.ProposeFieldsDef(),
 		docs.AskClientForMissingAnswersDef(),
+		docs.AnonymizeDef(),
 	}
 }
