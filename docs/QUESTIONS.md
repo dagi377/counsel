@@ -805,3 +805,14 @@ contract declares yet. Not built.
   is wired at boot. No kernel module owns a River job yet, so `addKernelJobs` adds none.
 - `TestRunFlags` now runs the import role and declares its flag in `Define`: Run builds
   through BuildWith, which turns flags on before Register (ARC-I-040).
+
+## PORT-03 (kernel/boot: identity-backed report Authorizer)
+
+- Built on task/PORT-02's merge of origin/task/BOOT-09 into main (run.go lives only there).
+- run.go gains an optional `env.identity` (Access + PrincipalResolver from the pool). Production
+  leaves it nil until the identity store is wired (BOOT-20), so reports stay on denyAll there;
+  `reportAuthorizer` switches to `reportAuth` as soon as an Access is supplied.
+- "Firm subject" is the zero identity.Subject (organisation-wide); the kernel names it
+  `orgSubject` so no app term enters kernel code.
+- There is no Postgres RoleAssignments in the kernel yet; the integration test reads
+  core.app_user/core.role through a test-local one.

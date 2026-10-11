@@ -11,6 +11,7 @@ import (
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/identity"
 	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -28,6 +29,9 @@ type env struct {
 	open func(ctx context.Context, cfg db.Config) (db.DB, error)
 	// registry returns the empty registry that apps record into and the kernel seals.
 	registry func() (registry.Booter, error)
+	// identity returns the access checker and principal resolver report runs are authorized
+	// with. Nil, or a nil Access, keeps reports on denyAll.
+	identity func(pool db.DB) (identity.Access, PrincipalResolver, error)
 	// gates returns the gate engine.
 	gates func() (gate.Engine, error)
 	// server runs the server role.
@@ -91,13 +95,22 @@ func run(ctx context.Context, cfg Config, e env, apps ...App) error {
 	if err != nil {
 		return fmt.Errorf("run %s: %w", cfg.Role, err)
 	}
+	var (
+		access  identity.Access
+		resolve PrincipalResolver
+	)
+	if e.identity != nil {
+		if access, resolve, err = e.identity(pool); err != nil {
+			return fmt.Errorf("run %s: identity: %w", cfg.Role, err)
+		}
+	}
 	deps := Deps{
 		Registry: reg,
 		DB:       pool,
 		Clock:    clk,
 		Gates:    gates,
-		// Reports fail closed until identity wiring supplies an authorizer.
-		Reports: report.New(time.Now, denyAll{}, audit.New(nil, nil, audit.Options{})),
+		// Reports check capabilities through identity; with no identity they fail closed.
+		Reports: report.New(time.Now, reportAuthorizer(access, resolve), audit.New(nil, nil, audit.Options{})),
 		Server:  server.New(nil),
 		Events:  webhook.NewTypes(),
 		Notify:  notify.New(notify.PGStore{DB: pool}, outbox.NewPG(nil)),
