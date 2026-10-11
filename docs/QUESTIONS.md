@@ -2127,19 +2127,6 @@ Done in PORT-18:
 - Defs set `Grant` to the capabilities of their tools: an empty grant refuses every call.
 - The event type `calendar.event_ended` is named here; no calendar module publishes it yet.
 
-## FEAT-TOOL-05 list_deadlines
-
-- Additive contract change (named in the task's accept text): `kernel/deadline` gains
-  `Filter` and a separate `Lister` interface (`List(ctx, Filter)`), so `Engine` and its
-  implementations are unchanged. deadlinefake implements it; the Postgres store has no List
-  yet and must implement `Lister` before boot wires list_deadlines.
-- Visibility: a named walled matter is refused with ErrNotVisible (404). Without a matter id,
-  deadlines of walled matters are omitted, and deadlines on a subject that is not a matter
-  are omitted too (walls cannot be checked on them: fail closed).
-- The result carries ids, rule references and dates only, no document or client text, so it
-  has no quoted envelope. Due dates are YYYY-MM-DD strings, which Provenance.ReadTool records.
-- Registered through `ListDeadlinesHandler()` for the boot HandlerSet, not init().
-
 ## FEAT-DL-11 F-DL-05 daily digest (also FEAT-DL-12, FEAT-DL-13)
 
 - appDefs (FEAT-CORE-17) lives in `app/legal/agent/feature`, and every feature Def imports
@@ -2315,55 +2302,6 @@ Done in PORT-18:
 - Open: `ApproveWriteOff` computes the tax adjustment on the whole amount, interest included
   (`BadDebtTax(amount, billTax, billTotal)`). Interest carries no HST, so the relief should
   probably be on the amount less interest, or simply the draft's tax bucket. Not changed here.
-
-## Q-HTTP-16 Direct trust receipt posting versus the gate-owned receipt key
-
-- HTTP-16 accept said an unambiguous, under-limit POST /trust/receipts answers 201 and posts
-  the receipt in the route, but app/legal/gateowned.go gives `trust_txn.posted=receipt` to
-  trust.receipt_classification (ARC-I-012). Options were (A) split the key, or (B) send every
-  receipt through trust.receipt_classification.
-- **Closed (decided as counsel):** the gate-owned key is not split. Classifying money as trust
-  is the control, so every receipt goes through trust.receipt_classification. For By-law 9
-  same-day record-keeping, POST /trust/receipts records the receipt at once in the trust
-  receipts journal (`trust.receipt_journal`, migration 5520) in state
-  `received_pending_classification`, opens the gate with the proposed classification in the
-  same transaction and answers 202 with the Gate. Only the gate effect
-  (`trust.ReceiptClassificationEffect`) posts to the client ledger. Built in HTTP-16b; the
-  route declares `trust_receipt.status=received_pending_classification`, never the gate-owned
-  key. Follow-up: boot wires ReceiptHTTP and the effect (gates.RegisterWired).
-
-## REFUND-EFFECT billing.refund gate effect
-
-- Built `payment.RefundEffect` (app/legal/billing/payment/refund_effect.go), the G-B6
-  billing.refund effect HTTP-15 needs. Integer cents; the refund never exceeds the payment
-  less earlier refunds; replay by gate id records nothing twice; the approver must be a user
-  who is not the requester (BIL-C-064).
-- Operating refund: records billing.refund (status approved, approval_id = gate) and the
-  negative client credit through the `RefundStore` port, and posts Dr OP-2200 / Cr OP-1000
-  (gl source_type `refund`, source id = refund id).
-- Trust refund: never pays out in the effect. It becomes a trust withdrawal (cheque, payee
-  from the payload, prepared by the G-B6 approver so they cannot also authorise it) checked by
-  `withdraw.Validate` (bearer payee, overdraw, uncleared funds, By-law 9 flag) and opened
-  through the `TrustRefunds` port; the refund row links trust_withdrawal_id, and the trust book
-  moves when that withdrawal executes.
-- Follow-ups: Postgres `RefundStore` and `TrustRefunds` implementations, and boot wiring of
-  `payment.Gated` plus this effect in app/legal/boot/effects.go (gates.RegisterWired). No
-  migration: billing.refund already has approval_id, trust_withdrawal_id and status.
-
-## WD-BILL: trust withdrawal names its bill
-
-- Additive in `app/legal/trust/withdraw/contract.go`: `Request.BillID`
-  (`trust.withdrawal_request.bill_id`, already in 0001_init.sql, so no migration). The agent's
-  prepare_trust_withdrawal passes its `bill_id` on (FEAT-FIX-B). The trust.withdrawal gate
-  payload gains `bill_id` (omitempty), so an approval binds the bill.
-- `Effect.Apply` re-checks a fee withdrawal at authorization (By-Law 9 s.9(1), BIL-L-035/037):
-  it names a bill, the bill is on the same matter, delivered on or before now, and the amount
-  is no more than its unpaid balance. A withdrawal with a bill id, or purpose `fees` /
-  `fees_to_operating`, is a fee withdrawal. `Effect.Bills` (new port `withdraw.FeeBills`, read
-  in the gate tx) nil fails closed. Open (BOOT): wire a billing adapter returning the bill's
-  matter, delivery date and balance net of reserved fee transfers.
-- Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
-  resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.
 
 ## DL-EVENTS: the owning modules publish the deadline trigger events
 
@@ -2643,17 +2581,6 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   /trust/withdrawals and the reconciliation write routes keep answering 503 until they do.
 
 
-## PORT-STMT: Postgres recon Statements.Closing
-
-- `recon.PGStatements` (statements_pg.go) implements the HTTP-18b `Statements` port: the
-  closing balance, in cents, of the latest trust.bank_import whose period covers the month's
-  last day. No statement (or only imports without a stored balance) is `ErrNotFound`.
-- trust.bank_import had no balance columns, so `5530_bank_import_balances.sql` (app/legal/trust
-  block) adds nullable `opening_cents` and `closing_cents`. The Postgres ImportStatement (boot
-  follow-up; none on main) must write both.
-- Built on main without HTTP-18b, so the interface check is in the test; after HTTP-18b merges,
-  add `var _ Statements = (*PGStatements)(nil)` and wire it as `WriteHTTP.Statements` at boot.
-
 ## PG-WRITES: Postgres write ports at boot
 
 - Branch merges task/PORT-STMT onto task/PG-READERS. Boot (`withWrites`, services_writes.go)
@@ -2683,21 +2610,6 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   independent check. Prepare re-prepares an open draft/ready month in place; a signed or
   imported month is ErrPeriodLocked. ImportStatement refuses with ErrNoParser.
 
-
-## WD-BILL: trust withdrawal names its bill
-
-- Additive in `app/legal/trust/withdraw/contract.go`: `Request.BillID`
-  (`trust.withdrawal_request.bill_id`, already in 0001_init.sql, so no migration). The agent's
-  prepare_trust_withdrawal passes its `bill_id` on (FEAT-FIX-B). The trust.withdrawal gate
-  payload gains `bill_id` (omitempty), so an approval binds the bill.
-- `Effect.Apply` re-checks a fee withdrawal at authorization (By-Law 9 s.9(1), BIL-L-035/037):
-  it names a bill, the bill is on the same matter, delivered on or before now, and the amount
-  is no more than its unpaid balance. A withdrawal with a bill id, or purpose `fees` /
-  `fees_to_operating`, is a fee withdrawal. `Effect.Bills` (new port `withdraw.FeeBills`, read
-  in the gate tx) nil fails closed. Open (BOOT): wire a billing adapter returning the bill's
-  matter, delivery date and balance net of reserved fee transfers.
-- Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
-  resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.
 
 ## PG-WRITES-FIX
 
@@ -2732,21 +2644,6 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   struct's `Lister` field now has type PageLister. This is a kernel Go interface change
   made at integration without a prior entry; it is recorded here. The field name `Lister`
   was kept; open: rename the field to `Pages` when the Postgres store implements ListPage.
-## Q-HTTP-16 Direct trust receipt posting versus the gate-owned receipt key
-
-- HTTP-16 accept said an unambiguous, under-limit POST /trust/receipts answers 201 and posts
-  the receipt in the route, but app/legal/gateowned.go gives `trust_txn.posted=receipt` to
-  trust.receipt_classification (ARC-I-012). Options were (A) split the key, or (B) send every
-  receipt through trust.receipt_classification.
-- **Closed (decided as counsel):** the gate-owned key is not split. Classifying money as trust
-  is the control, so every receipt goes through trust.receipt_classification. For By-law 9
-  same-day record-keeping, POST /trust/receipts records the receipt at once in the trust
-  receipts journal (`trust.receipt_journal`, migration 5520) in state
-  `received_pending_classification`, opens the gate with the proposed classification in the
-  same transaction and answers 202 with the Gate. Only the gate effect
-  (`trust.ReceiptClassificationEffect`) posts to the client ledger. Built in HTTP-16b; the
-  route declares `trust_receipt.status=received_pending_classification`, never the gate-owned
-  key. Follow-up: boot wires ReceiptHTTP and the effect (gates.RegisterWired).
 ## REFUND-EFFECT billing.refund gate effect
 ## Q-FEAT-CORE-15 Read and trust withdrawal handlers join the explicit handler set
 
@@ -2787,26 +2684,6 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   agenttools.Quoted), so an instruction in a matter name reaches the model outside quoted
   data (ARC-I-038). That is a handler follow-up.
 
-## DL-EVENTS: the owning modules publish the deadline trigger events
-
-- Published now, each in the writer's tx through `outbox.Emitter`:
-  - `rulepack.published` (`deadline.EventPackPublished`): kernel/deadline `PGBook.Repack`,
-    subject `cal.rule_pack`/pack id, body pack id, version and recomputed count. New
-    `PGBook.Events` field; nil refuses Repack before any write.
-  - `filing.receipt_received` (`comms.EventFilingReceiptReceived`): `FilingStore.RecordFiling`
-    for a filing recorded as filed, subject `legal.court_filing`/filing id. New
-    `FilingStore.Events` field; nil refuses a filed filing before any tx.
-  - `holiday.added` (`ontario.EventHolidayAdded`): `ontario.PublishAddedHolidays(ctx, tx, em,
-    known)` emits one event per calendar holiday not in `known`. Boot calls it when it loads
-    the calendar, passing the holidays the engine used before.
-  - `app/legal/deadlines/events_test.go` pins the bound names to the published constants.
-- Open (no write point exists yet, so nothing publishes them):
-  - `deadline.trigger_date_changed`: cal has no operation that changes a stored trigger date
-    (`cal.deadline.trigger_on` is set once by Save). It belongs to that operation when added.
-  - `claim.issued` and `service.affidavit_received`: comms records court filings only; there is
-    no issued-claim or affidavit-of-service record to publish from.
-- BOOT: set `PGBook.Events` and `FilingStore.Events` to the outbox emitter.
-
 ## Q-CON-03-MEMO Clearance memo kept on file; conflict.hits_disposed published
 
 - Decided as counsel (LSO Rule 3.4 records): F-CON-03 files the memo as a draft document on
@@ -2823,21 +2700,6 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   The body is ids and a count, with acting_for set to the run's preparer. Dispositions are
   kept in memory (Q-PORT-18 C), so the event is emitted with no tx; boot must set Events, and
   while it is nil no event is published.
-## WO-FIX: write-off draft outcomes and the split after a trust fee transfer
-
-- Additive in `app/legal/billing/credit/contract.go`: `StatusRejected` and `StatusWithdrawn`.
-  `PGWriteOffs.Close(ctx, tx, id, status)` moves a submitted draft to one of them; both are
-  final. Migration 5620 widens the `billing.write_off_draft` status check (NOT VALID,
-  validated in 5621) and replaces the guard so a row that has left `draft` never changes.
-  Only `status = 'draft'` drafts count toward the second-approval total (BIL-C-085).
-  Open (BOOT): call `Close(..., StatusRejected)` from the G-B5 gate rejection outcome and
-  `Close(..., StatusWithdrawn)` from a preparer withdraw route.
-- Q-INTEG-12.1 applied: on a bill with trust fee transfers (authorized, executed or applied,
-  net of excess) the draft split uses `DraftOpenBuckets`: the bucket outstanding less the
-  transfer must equal the balance, and the balance less open interest is apportioned over
-  fees, disbursements and tax in the bill's issued proportions (BIL-C-205, ETA s.231). The
-  transfer itself is never re-split. An apportioned bucket above its outstanding fails closed.
-
 ## BOOT-REST: services wired last
 
 - Wired in app/legal/boot/services_rest.go behind `Options.Rest` (nil builds nothing): PGGrants
@@ -2890,23 +2752,6 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
 - Resolves the PORT-16b open point (decided as counsel): `ApproveWriteOff` computes the ETA
   s.231 relief as `BadDebtTax(amount - interest, billTax, billTotal)`. A write-off that is all
   interest gets no relief; interest above the amount fails with `ErrInvalidAmount`.
-## EVENTS-2: publishers for the remaining F-DL-03 / F-DL-04 events
-
-- Branch carries origin/task/DL-EVENTS (merged in) because it reuses `PGBook.Events` and
-  `FilingStore.Events`; merge DL-EVENTS first or together.
-- New minimal write points (no schema change), each emitting in the writer's tx and refusing
-  before any write when its emitter is nil (DL-EVENTS pattern):
-  - `deadline.trigger_date_changed`: kernel/deadline `PGBook.ChangeTrigger(ctx, tx, id, date)`
-    updates `cal.deadline.trigger_on` only (due date stays until F-DL-03's proposal is
-    confirmed), subject `cal.deadline`/id, body ids plus old and new trigger. Same date is a
-    no-op. Not on the frozen `Engine` interface.
-  - `claim.issued`: comms `FilingStore.IssueClaim(ctx, filingID, courtFileNo, issuedOn)` sets
-    the court file number on a filed `legal.court_filing` row (ErrNotFound otherwise).
-  - `service.affidavit_received`: comms `FilingStore.RecordAffidavitOfService(ctx, f)` records
-    a filed filing whose document is the affidavit; it emits this event instead of
-    `filing.receipt_received`, so F-DL-04 runs once per record.
-- Open: no handler or route calls these yet (boot/handler task). Whether an affidavit of
-  service received but not filed with the court should also publish (verify).
 ## Q-JOB-ACTOR Scheduled AI features act for a designated lawyer (decided as counsel)
 
 - A scheduled job feature acts for the lawyer the firm names for it in firm settings. The
@@ -2925,34 +2770,6 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   keep compiling with a fixed acting user. Boot wiring and a readiness HTTP surface are not
   built yet: boot calls `WithDesignated(agent.NewPGDesignatedLawyers(pool))` when it builds
   the Bindings, and surfaces `Readiness` on the setup checks.
-
-## Q-HTTP-15 Gated payment routes: proposed allocations and refund gate
-
-- POST /payments/{payment_id}/allocations: the sum must equal the payment (422
-  allocation_sum_mismatch, ARC-I-029). A set of operating bills only, each named once, is
-  proposed directly (200, allocation state `proposed`) through a new `payment.Proposals`
-  port; the route declares `payment.allocation=proposed` and never
-  `payment.allocation=applied`. Unapplied money (client credit) or a trust_ledger row opens
-  billing.payment_allocation (202). The payment version is 1, as GET reports it.
-- POST /payments/{payment_id}/refunds opens billing.refund (202) with payee = the payment's
-  payer of record and reason = reason_code; an amount above the payment answers 409
-  refund_exceeds_payment. The billing.refund effect (provider call keyed <gate_id>:<version>)
-  and its registration are not built yet: an approved refund pays nothing until they are.
-- Boot must wire `payment.Gated` (DB, Gates, Proposals and the HTTP dependencies); until it
-  does, both routes answer 503.
-
-## PG-WRITES-FIX
-
-- Additive: migration `5505_withdrawal_gate.sql` adds nullable `trust.withdrawal_request.gate_id`
-  (5504 is taken by another task branch). The request route stores the opened gate in the same tx;
-  cancel withdraws that gate; only the preparer (the user, or the user an agent acts for) may cancel.
-- Additive: `withdraw.Cancels` gains `RecordGate`, and `withdraw.Row` gains `GateID` (not contract files).
-- Open: no Postgres `withdraw.FeeBills` adapter exists yet (billing owns the bill balance), so
-  `Effect.Bills` is unwired at boot and every fee withdrawal fails closed at authorization.
-- Open: the route opens `billing.trust_fee_withdrawal` for a bill withdrawal, but that kind has no
-  effect wired (boot/unwired_gates.txt) and execution reads only `trust.withdrawal` approvals.
-- Open: `PGService.Request` opens no gate, so the agent tool's `w.GateID == ""` check refuses every
-  agent withdrawal on Postgres until the gate is opened in the service path.
 
 ## Q-BOOT-REST-2a payment.Gated, refund stores, WO-FIX close path, fee withdrawals
 
@@ -2977,62 +2794,6 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   executor is still a second person (sole-practice exception audited). `PGService.Gates`, set
   at boot, opens the gate in the request tx and stores gate_id; the route skips opening when
   the service already did, so agent withdrawals are gated on Postgres.
-## HTTP-18: trust reconciliation import, prepare and submit routes
-
-- New ports in http_write.go (Service stays frozen): Parser (CSV/OFX file -> Statement,
-  ErrUnparseable), Versions (row version for If-Match), Gates (Open, Get). No parser exists on
-  main yet; boot wiring must supply one.
-- Import answers 202 `{statement_id, lines}` (openapi has no body schema) and posts no journal
-  entry. A statement whose lines do not sum to its closing balance answers 422
-  unparseable_statement.
-- Prepare: the imported statement's closing balance is the bank balance (answered, HTTP-18b).
-  A bank_balance_cents that differs from it answers 422 `bank_balance_mismatch` before
-  anything is prepared; it is never ignored. The check reads the closing balance through a new
-  `Statements` port (Closing), since Service is frozen; reconfake implements it and boot
-  wiring must supply the Postgres one (until then the routes answer 503).
-- Submit is refused 422 unexplained_difference unless the three-way totals agree after
-  reconciling items; a signed-off reconciliation answers 409 period_locked.
-- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
-## PORT-STMT: Postgres recon Statements.Closing
-
-- `recon.PGStatements` (statements_pg.go) implements the HTTP-18b `Statements` port: the
-  closing balance, in cents, of the latest trust.bank_import whose period covers the month's
-  last day. No statement (or only imports without a stored balance) is `ErrNotFound`.
-- trust.bank_import had no balance columns, so `5530_bank_import_balances.sql` (app/legal/trust
-  block) adds nullable `opening_cents` and `closing_cents`. The Postgres ImportStatement (boot
-  follow-up; none on main) must write both.
-- Built on main without HTTP-18b, so the interface check is in the test; after HTTP-18b merges,
-  add `var _ Statements = (*PGStatements)(nil)` and wire it as `WriteHTTP.Statements` at boot.
-
-## PG-WRITES: Postgres write ports at boot
-
-- Branch merges task/PORT-STMT onto task/PG-READERS. Boot (`withWrites`, services_writes.go)
-  now fills credit.Bills (PGBills), withdraw.Service (PGService), recon.Service (PGService) and
-  recon.Statements (TxStatements over PGStatements); WithdrawGates defaults to the route gates
-  when they can withdraw. POST /credit-notes, POST /trust/withdrawals (+cancel) and the
-  reconciliation prepare and submit routes no longer answer 503 on Postgres.
-- withdraw.PGService and recon.PGService never approve: Authorize and RecordExecution refuse
-  (ErrEffectOnly, ErrNotAuthorized), and recon Approve refuses (ErrEffectOnly; an agent gets
-  ErrAgentApproval). Authorization stays in Effect.Apply; sign-off in PGSignOff.Sign. No
-  trust.reconciliation_signoff effect is registered at boot yet; open.
-- purpose_category: openapi (fees, disbursement, client_payment, third_party, refund) and the
-  DDL (fees_to_operating, disbursement, client_refund, third_party, transfer_out) differ.
-  PGService stores client_payment and refund as client_refund. `fees` is refused 422:
-  fees_to_operating needs bill_id and withdraw.Request has no bill field. Proposed: an additive
-  Request.BillID. The read side still reports the stored name; please confirm the mapping.
-- POST /trust/withdrawals passes `PreparedBy: p.UserID`, which is empty for an agent, so an
-  agent's request fails closed (422) instead of being prepared for its acting-for user.
-  Proposed fix in http_request.go: use the acting-for user, as recon's preparerOf does.
-- The route opens the gate after Request in its own transaction and does not store the gate
-  id, so approval_id stays NULL until the effect authorizes and cancel does not withdraw an
-  open gate. Proposed: a Cancels/Service hook to record approval_id at open.
-- Request.IdempotencyKey is not stored (no column); the route's idem layer replays keys.
-- Reconciliation book and client ledgers both come from trust.trust_transaction at month end
-  (the trust journal); bank is the imported statement's closing balance. Proposed follow-up:
-  read the book from the general-ledger trust bank control account so book vs ledgers is an
-  independent check. Prepare re-prepares an open draft/ready month in place; a signed or
-  imported month is ErrPeriodLocked. ImportStatement refuses with ErrNoParser.
-
 ## BOOT-REST-2b
 
 - T-031.4 reminder worker (kernel/deadline/remind.go) added here; BOOT-21 jobs live in app/legal/boot/services_rest2.go (one boot file) instead of jobs_deadlines.go. The sent log defaults to in memory, so a restart can repeat that day's reminder once; a Postgres SentLog is open. No Postgres deadline Lister exists yet, so RestPorts.Deadlines takes it from the composition root.
