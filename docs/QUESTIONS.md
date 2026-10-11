@@ -1964,3 +1964,58 @@ Done in PORT-18:
   (`boot.JobBindings`) lists `document.uploaded` and `email.filed`. Open: no HTTP route or
   inbound-mail rule calls `FileEmail` yet; the route that files an email must wire it with the
   outbox Emitter.
+## Q-FEAT-CORE-15 Read and trust withdrawal handlers join the explicit handler set
+
+- `handlerset.go` `Handlers()` lists four more handlers (search_matters, get_matter,
+  read_document, prepare_trust_withdrawal) so the set covers all 25 a2 tools;
+  `handlerset_test.go` lists them too. The handlers live in `handlers.go`.
+- prepare_trust_withdrawal builds from the `*agent.WriteTools` boot passes in Deps, so the
+  run it parks is the one that WriteTools resumes on gate.decided.
+- `agenttest/seed.go`: `SeedStore.Document` implements `agent.DocumentLookup`, so
+  read_document runs its real handler in feature tests instead of a stand-in.
+
+## Q-FEAT-CON-02 F-CON-02 opens G2 through propose_conflict_parties
+
+- No F-CON tool drafts, so the run scope never holds a draft and an agent's
+  submit_for_approval is refused (404). The run's G2 gate is the conflict run that
+  propose_conflict_parties starts: conflict.Clearance decides it with gate kind
+  conflict.clearance, and the run's preparer is the acting user. The feature test checks that
+  run is open, that an agent principal deciding is 403 (ErrAgentApproves) and that the
+  acting user deciding is 403 (conflict.ErrPreparerApproves, the conflict module's
+  self-approval refusal).
+- The Def starts from the a2 event `conflict.check_completed` ("event: check run").
+- No F-CON-02 write carries an amount or a date, so ErrUnsourcedValue (ARC-U-027) has no
+  case here. propose_conflict_parties checks a party source's shape but not that the run
+  read it (Scope.Cites); that is a handler follow-up.
+
+## Q-FEAT-CON-03 Clearance memo is the run's answer; new event conflict.hits_disposed
+
+- As in Q-FEAT-CON-02, the G2 gate is the conflict run propose_conflict_parties starts; no
+  F-CON tool drafts, so the memo is the run's final answer, not a stored draft. A memo draft
+  store with a draft tool would let submit_for_approval carry it.
+- a2 lists no event for "all hits disposed"; F-CON-03 binds `conflict.hits_disposed`, which
+  the conflict module does not publish yet.
+- The AI-035 test (app/legal/conflict/ai_f_con_03_test.go; the task's
+  app/legal/conflicts/ path is a typo) now runs through agenttest.FromFeature with no
+  stand-ins. The f-con-03 fixtures use a2 inputs, the injection variant no longer makes an
+  extra tool call, and ok pins match.prompt_hash.
+- search_matters and get_matter return matter short names unquoted (not as
+  agenttools.Quoted), so an instruction in a matter name reaches the model outside quoted
+  data (ARC-I-038). That is a handler follow-up.
+
+## Q-CON-03-MEMO Clearance memo kept on file; conflict.hits_disposed published
+
+- Decided as counsel (LSO Rule 3.4 records): F-CON-03 files the memo as a draft document on
+  the check's matter through draft_document (DocumentDrafts), not only as the run's answer.
+  F-CON-03 gains draft_document in its Def and in spec/ai/features.json, and the grant
+  documents.edit.
+- The a2 draft_document input has no field that links a draft to a conflict run, so the
+  memo is titled "Conflict clearance memo, run <ref>" with the ref propose_conflict_parties
+  returned, and the draft carries the agent run id. A structured link (an additive subject on
+  NewDraftDocument, or the run storing the memo draft id) is a follow-up. A check on a lead
+  with no matter has nowhere to file the memo yet.
+- conflict.Checks publishes conflict.hits_disposed (subject conflict.run) through its
+  Events outbox.Emitter once, on the disposition that leaves every hit of the run disposed.
+  The body is ids and a count, with acting_for set to the run's preparer. Dispositions are
+  kept in memory (Q-PORT-18 C), so the event is emitted with no tx; boot must set Events, and
+  while it is nil no event is published.

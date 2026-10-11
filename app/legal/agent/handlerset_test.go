@@ -14,7 +14,8 @@ func TestHandlersIsExplicitList(t *testing.T) {
 		agent.ToolListWorkItems, agent.ToolReportPlan, agent.ToolReportStep, agent.ToolSearchContacts, agent.ToolSearchDocuments,
 		agent.ToolListDeadlines, agent.ToolComputeDeadline, agent.ToolListUnbilled, agent.ToolGetBill, agent.ToolGetTrustBalance,
 		agent.ToolProposeTimeEntries, agent.ToolProposeDeadline, agent.ToolCreateTask, agent.ToolProposeConflictParties,
-		agent.ToolSubmitForApproval, agent.ToolDraftBill, agent.ToolProposePaymentAllocation}
+		agent.ToolSubmitForApproval, agent.ToolDraftBill, agent.ToolProposePaymentAllocation, agent.ToolSearchMatters,
+		agent.ToolGetMatter, agent.ToolReadDocument, agent.ToolPrepareTrustWithdrawal}
 	slices.Sort(want)
 	if got := agent.HandlerNames(); !slices.Equal(got, want) {
 		t.Fatalf("HandlerNames() = %v, want %v", got, want)

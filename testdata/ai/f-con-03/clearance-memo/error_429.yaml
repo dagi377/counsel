@@ -5,19 +5,40 @@ fault: rate_limit
 turns:
   - reply:
       tool_calls:
-        - name: search_contacts
-          input: {query: "M-2026-0042 parties", limit: 20}
-  - reply:
-      tool_calls:
         - name: report_plan
-          input: {steps: [{id: draft-memo, title: "Draft clearance memo for M-2026-0042"}]}
-  - reply:
+          input: {steps: [{step_id: search, title: "Search contacts and matters"}, {step_id: confirm, title: "Confirm the check parties"}, {step_id: draft-memo, title: "Draft the clearance memo"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 640, output_tokens: 40}
+  - expect_tool_results: [report_plan]
+    reply:
       tool_calls:
-        - name: submit_for_approval
+        - name: search_contacts
+          input: {query: "Northwind", limit: 20}
+        - name: search_matters
+          input: {query: "Northwind", limit: 20}
+      stop_reason: tool_use
+      usage: {input_tokens: 720, output_tokens: 36}
+  - expect_tool_results: [search_contacts, search_matters]
+    reply:
+      tool_calls:
+        - name: propose_conflict_parties
           input:
-            kind: conflict.clearance
-            matter: "M-2026-0042"
-            memo:
-              - {party: "Northwind Ltd", hit: "M-2025-0107", disposition: "no conflict", reason: "former matter closed, unrelated subject"}
-  - reply:
-      text: "Drafted the clearance memo for your review."
+            check_id: "00000000-0000-4000-8000-0000000000c1"
+            parties:
+              - {name: "Northwind Ltd", role: "former client", kind: org}
+              - {name: "J. Rivera", role: "witness", kind: person}
+      stop_reason: tool_use
+      usage: {input_tokens: 810, output_tokens: 72}
+  - expect_tool_results: [propose_conflict_parties]
+    reply:
+      tool_calls:
+        - name: draft_document
+          input:
+            matter_id: "matter-1"
+            title: "Conflict clearance memo, run run-1"
+            body_markdown: "Conflict clearance memo, run run-1.\n\n- Northwind Ltd: not a conflict.\n- J. Rivera: witness only; not a conflict."
+      stop_reason: tool_use
+  - expect_tool_results: [draft_document]
+    reply:
+      text: "Drafted the clearance memo for G2 as a draft for conflict run run-1: Northwind Ltd, no conflict; J. Rivera, witness only, no conflict."
+      stop_reason: end_turn
