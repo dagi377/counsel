@@ -5,7 +5,5 @@
 kernel/ai/types.go  # model sampling temperature and embedding vectors (provider wire format)
 kernel/ai/usage_test.go  # embedding vector literal in a stub response
 kernel/ai/fixture/fixture.go  # pinned embedding vectors in AI fixtures
-kernel/ai/fixture/hash.go  # canonical JSON number formatting for fixture hashes (display)
 kernel/ai/aifake/fake.go  # deterministic fake embedding vectors
 kernel/ai/aifake/fake_test.go  # cosine similarity of fake embedding vectors
-kernel/gate/jcs.go  # RFC 8785 sec. 3.2.2.3 ES6 number serialisation (wire format); payload numbers stay integer-only

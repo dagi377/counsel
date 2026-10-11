@@ -309,14 +309,15 @@ Template:
   the optional columns from the catalog and copies every one unchanged, with sides swapped.
   Post also calls `CheckOpen`, so a closed period is `ErrPeriodClosed` before any write.
 
-## Q-JCS-FLOAT: kernel/gate/jcs.go in tools/nofloat_allow.txt
+## Q-JCS-FLOAT: canonical JSON numbers without floats (resolved)
 
-- RFC 8785 requires ECMAScript 6 number serialisation, which needs float64 formatting. The
-  one canonical serialiser (`kernel/gate/jcs.go`) is listed in `tools/nofloat_allow.txt`
-  although that list is a shrink-only ratchet. Gate payload numbers stay integer-only
-  (`integersOnly`, |n| <= 2^53-1); floats appear only inside the serialiser. Owner to confirm.
-  `kernel/ai/fixture/hash.go` still has its own canonical-JSON writer; folding it into this
-  one is left open.
+- Resolved: no float formatting. Gate payload numbers are integers within +-(2^53-1), and
+  the ES6 form of such an integer is its decimal form, so the one canonical writer
+  (`kernel/canon`) formats numbers with integer math only and rejects a fraction, an
+  exponent or an out-of-range integer (`canon.ErrNumber`). `kernel/gate` (`JCS`,
+  `PayloadHash`, API unchanged) and `kernel/ai/fixture` (`PromptHash`) both use it, and
+  neither is in `tools/nofloat_allow.txt`. RFC 8785 Appendix B float vectors are tested as
+  rejected inputs.
 
 ## Q-INTAKE-PARTY: intake/party import cycle
 
