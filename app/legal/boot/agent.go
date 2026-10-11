@@ -316,6 +316,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.MatterDigestDef().ID:                 matter.MatterDigestBinding,
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
+		work.WorkflowLintDef().ID:                   work.WorkflowLintBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
@@ -424,6 +425,9 @@ var actionScreens = map[string]trigger.Screen{
 	"work-item": {SubjectKind: "work_item", Capability: "work.edit"},
 	// work-item-create selects the matter the drafted items go on.
 	"work-item-create": {SubjectKind: "matter", Capability: "work.edit"},
+	// Work. The workflow editor is firm-level; it maps to matter until boot has a firm
+	// subject (Q-FEAT-WRK-04).
+	"workflow-editor": {SubjectKind: "matter", Capability: "work.workflows"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

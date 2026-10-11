@@ -119,5 +119,6 @@ func appDefs() []feature.Def {
 		// work
 		work.PickUpAgentReadyDef(),
 		work.CreateFromNoteDef(),
+		work.WorkflowLintDef(),
 	}
 }

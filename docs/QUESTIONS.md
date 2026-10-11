@@ -3250,3 +3250,13 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   `app/legal/work/ai_wrkc_helpers_test.go` (shared wrkc test helpers).
 - `work-item-create` selects subject kind `matter` with `work.edit`: the drafted items go on
   that matter. F-WRK-11 is an extraction feature, so no plugin skill is generated for it.
+
+## Q-FEAT-WRK-04 F-WRK-06 workflow lint: event, screen subject and G-W3 subject
+
+- Task: FEAT-WRK-04 (F-WRK-06). New event `work.workflow_draft_saved` (work.EventWorkflowDraftSaved)
+  has no publisher yet; add it to the next events task with the workflow editor's save.
+- boot.FirmSubject is not on main, so the firm-level `workflow-editor` screen maps to the matter
+  subject (capability work.workflows) until BOOT-24 merges; then switch it to FirmSubject.
+- work.workflow_publish is a tool-gap kind: the run drafts the lint report with draft_document
+  and opens G-W3 on that draft. The G-W3 payload schema names {workflow_id, version}; the gate
+  payload is the draft. Open: carry workflow_id/version once the workflow editor exists.
