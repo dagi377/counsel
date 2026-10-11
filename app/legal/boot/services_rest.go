@@ -165,6 +165,10 @@ func restEffects(k *kboot.Kernel, p *RestPorts) (map[string]registry.EffectFunc,
 		m := matter.NewStore(k.DB, nil)
 		m.Events = k.Emitter
 		out[matter.GateOpening] = m.OpeningEffect(k.Clock)
+		// rule: ARC-I-017
+		// An approved matter.stage_move (G-ST, F-MAT-03) moves the stage, publishing
+		// matter.stage_changed; the agent only prepares it.
+		out[matter.GateStageMove] = m.StageMoveEffect(k.Clock)
 	}
 	if p.Receipts != nil {
 		if p.Receipts.Poster == nil {

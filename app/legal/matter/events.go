@@ -111,22 +111,27 @@ RETURNING number, client_id::text, practice_area_id::text, responsible_lawyer_id
 // other than its preparer.
 var ErrOpeningApprover = errors.New("matter: opening needs a human approver other than the preparer")
 
-// openingApprover returns the approving user of g. It refuses a gate with no approver, an
-// agent approver, or an approver who prepared it (directly or through an agent run).
+// openingApprover returns the approving user of a matter.opening gate g.
 func openingApprover(g registry.Approved) (string, error) {
+	return humanApprover(g, ErrOpeningApprover)
+}
+
+// humanApprover returns the approving user of g. It refuses, with refused, a gate with no
+// approver, an agent approver, or an approver who prepared it (directly or through an agent run).
+func humanApprover(g registry.Approved, refused error) (string, error) {
 	if len(g.Approvers) == 0 {
-		return "", ErrOpeningApprover
+		return "", refused
 	}
 	for _, a := range g.Approvers {
 		// rule: ARC-I-017
 		// The agent never approves.
 		if a.Kind != registry.PrincipalUser || a.UserID == "" {
-			return "", ErrOpeningApprover
+			return "", refused
 		}
 		// rule: ARC-I-016
 		// The preparer never approves, nor the user an agent run prepared it for.
 		if a.UserID == g.Preparer.UserID || a.UserID == g.Preparer.ActingFor {
-			return "", ErrOpeningApprover
+			return "", refused
 		}
 	}
 	return g.Approvers[0].UserID, nil
@@ -213,21 +218,27 @@ func (s *Store) ChangeStage(ctx context.Context, c StageChange, gateID string) e
 		return fmt.Errorf("change stage: no event emitter: %w", ErrInvalid)
 	}
 	err := s.db.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		var changeID string
-		err := tx.QueryRow(ctx, changeStageSQL, string(c.MatterID), c.FromStageID, c.ToStageID, c.ApprovedBy, c.At).
-			Scan(&changeID)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
-		}
-		if err != nil {
-			return err
-		}
-		// rule: ARC-I-030
-		body := StageChanged{MatterID: string(c.MatterID), FromStageID: c.FromStageID, ToStageID: c.ToStageID, GateID: gateID}
-		return s.Events.Emit(ctx, tx, outbox.Subject{Kind: matterkind.Subject, ID: string(c.MatterID)}, EventStageChanged, body)
+		return s.changeStageTx(ctx, tx, c, gateID)
 	})
 	if err != nil {
 		return fmt.Errorf("change stage %s: %w", c.MatterID, err)
 	}
 	return nil
+}
+
+// changeStageTx is ChangeStage inside the caller's tx.
+func (s *Store) changeStageTx(ctx context.Context, tx pgx.Tx, c StageChange, gateID string) error {
+	var changeID string
+	err := tx.QueryRow(ctx, changeStageSQL, string(c.MatterID), c.FromStageID, c.ToStageID, c.ApprovedBy, c.At).
+		Scan(&changeID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	// rule: ARC-I-030
+	// The event commits with the stage change.
+	body := StageChanged{MatterID: string(c.MatterID), FromStageID: c.FromStageID, ToStageID: c.ToStageID, GateID: gateID}
+	return s.Events.Emit(ctx, tx, outbox.Subject{Kind: matterkind.Subject, ID: string(c.MatterID)}, EventStageChanged, body)
 }
