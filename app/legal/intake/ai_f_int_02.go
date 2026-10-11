@@ -37,7 +37,7 @@ func MailboxWatcherDef() feature.Def {
 			"report_plan", "report_step", "submit_for_approval",
 		},
 		// rule: ARC-I-035
-		GateKinds: []string{"intake.lead_decision"},
+		GateKinds: []string{GateLeadDecision},
 		// The run's agent principal holds the capabilities of its tools and no other.
 		Grant:      []string{"contacts.view", "matters.view", "documents.edit", "agent.ask"},
 		Prompt:     promptFINT02,

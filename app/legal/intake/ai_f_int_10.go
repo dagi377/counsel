@@ -41,7 +41,7 @@ func AIReceptionistDef() feature.Def {
 		},
 		// rule: ARC-I-035
 		// intake.lead_decision is spec gate G1, the lawyer's accept-or-decline of a lead.
-		GateKinds: []string{"intake.lead_decision"},
+		GateKinds: []string{GateLeadDecision},
 		// The run's agent principal holds the capabilities of its tools and no other.
 		Grant:      []string{"contacts.view", "matters.view", "documents.edit", "agent.ask"},
 		Prompt:     promptFINT10,
