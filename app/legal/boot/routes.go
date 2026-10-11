@@ -173,6 +173,7 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	if m := runMount(p, p.Runs, p.RunAccess); m != nil {
 		add(true, m)
 	}
+	out = append(out, moduleMounts(k, p)...)
 	return out, nil
 }
 

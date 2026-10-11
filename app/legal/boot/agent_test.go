@@ -190,12 +190,10 @@ func TestJobBindings(t *testing.T) {
 		t.Fatal(err)
 	}
 	tests := []struct {
-		name      string
-		ruleAdmin string
-		wantErr   error
+		name    string
+		wantErr error
 	}{
-		{"every job feature binds", "admin-1", nil},
-		{"scheduled rule watch needs an acting user", "", trigger.ErrBadBinding},
+		{"every job feature binds, scheduled ones to their designated lawyer", nil},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -204,7 +202,8 @@ func TestJobBindings(t *testing.T) {
 				t.Fatal(err)
 			}
 			b := trigger.New(stubEnqueuerNone{}, clk, nil)
-			err = JobBindings(s, b, tc.ruleAdmin)
+			// rule: ARC-I-040
+			err = JobBindings(s, b)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tc.wantErr)
 			}
