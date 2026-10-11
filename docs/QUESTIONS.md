@@ -3233,3 +3233,14 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   service exists.
 - The weekly run acts for the designated lawyer (BindDesignated, JOB-ACTOR); the firm-level
   work-automations screen maps to matter until boot.FirmSubject lands (see Q-FEAT-WRK-04).
+
+## Q-FEAT-WRK-06 F-WRK-09 absence cover planner: absence events and screens
+
+- Task: FEAT-WRK-06 (F-WRK-09). New event `work.absence_requested` (work.EventAbsenceRequested)
+  has no publisher yet; the approved event reuses deadlines.EventAbsenceApproved
+  (`work.absence_approved`, F-DL-09). Add both publishers to the next events task with the
+  team-availability service.
+- The daily run and both events act for the designated lawyer (BindDesignated, JOB-ACTOR) and
+  fail closed with none set.
+- workload and team-availability are firm-level screens (capability work.edit); they map to
+  matter until boot.FirmSubject lands (see Q-FEAT-WRK-04).

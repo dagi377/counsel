@@ -109,5 +109,6 @@ func appDefs() []feature.Def {
 		// work
 		work.WorkflowLintDef(),
 		work.RuleSuggesterDef(),
+		work.AbsenceCoverPlannerDef(),
 	}
 }
