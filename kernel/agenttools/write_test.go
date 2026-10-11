@@ -133,7 +133,8 @@ func TestARC_I_035_OpenGateToolOpensWithCallerAsPreparer(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			// The run scope declares both kinds, so the gate engine itself refuses the unknown one.
+			ctx := agenttools.WithScope(context.Background(), agenttools.NewScope("r1", []string{kindSlug, "records.nope"}))
 			e := newEngine(t)
 			plans := agenttoolsfake.New()
 			if _, err := plans.ReportPlan(ctx, "r1", []string{"open-gate"}); err != nil {

@@ -77,6 +77,9 @@ func (l *Loop) Run(ctx context.Context, spec Spec, p Principal, prompt string, t
 	if alias == "" {
 		alias = "drafting"
 	}
+	// rule: ARC-I-035
+	// One scope per run: the feature's gate kinds and the drafts this run creates.
+	ctx = agenttools.WithScope(ctx, agenttools.NewScope(p.RunID, spec.GateKinds))
 	msgs, err := firstMessages(prompt, triggers)
 	if err != nil {
 		return Outcome{}, fmt.Errorf("run %s: %w", spec.FeatureID, err)
@@ -170,6 +173,8 @@ func Code(err error) string {
 		return "missing_capability"
 	case errors.Is(err, agenttools.ErrAgentDecides):
 		return "agent_cannot_decide"
+	case errors.Is(err, agenttools.ErrGateKindNotAllowed):
+		return "gate_kind_not_allowed"
 	case errors.Is(err, agenttools.ErrUnknownTool):
 		return "unknown_tool"
 	case errors.Is(err, agenttools.ErrInvalidInput):

@@ -984,3 +984,21 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   CheckCitations validates it; quotes[i] is the name of contacts[i].
 - `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
   Q-FEAT-TOOL agent handler set), so the branches merge cleanly.
+
+## FEAT-CORE-06 run scope (gate-kind allowlist and drafts made in this run)
+
+- Additive to the frozen kernel/agenttools contract (new file scope.go): `Scope{RunID,
+  GateKinds, Drafts}`, `NewScope`, `WithScope`, `ScopeOf`, `CheckGateKind`, `RecordDraft`,
+  `ScopedOpener`, `ErrGateKindNotAllowed` (403 gate_kind_not_allowed), and the kernel
+  `submit_for_approval` tool (`SubmitForApprovalTool`, capability `agent.ask`).
+- Outside the task's files, each a few lines: `run/runner.go` stores one Scope per run in the
+  context (Spec.GateKinds) and maps ErrGateKindNotAllowed to its problem code;
+  `tool.go` Registry.Call records a write tool's draft outcome in the scope; `write.go`
+  OpenGateTool opens through ScopedOpener.
+- Fail closed: an agent principal with no scope for its run id opens no gate. User
+  principals (the manual path) have no run scope and are not checked. The existing
+  open_gate test now runs its agent cases inside a scope declaring both kinds it uses; its
+  assertions are unchanged.
+- Drafts are keyed by the write output ref (the subject id); submit_for_approval on any other
+  subject is ErrNotFound (404). The gate payload carries subject ids only; the model's note is
+  not stored (AI-R-005).

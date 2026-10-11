@@ -125,7 +125,8 @@ func OpenGateTool(open GateOpener, capability string) (Tool, error) {
 				return ToolResult{}, fmt.Errorf("open gate: %w", ErrInvalidInput)
 			}
 			subject := registry.Subject{Kind: in.Subject.Kind, ID: in.Subject.ID}
-			id, err := open(ctx, in.Kind, subject, in.Payload, p)
+			// rule: ARC-I-035
+			id, err := ScopedOpener(open)(ctx, in.Kind, subject, in.Payload, p)
 			if err != nil {
 				return ToolResult{}, fmt.Errorf("open gate %q: %w", in.Kind, err)
 			}

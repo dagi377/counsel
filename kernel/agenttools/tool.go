@@ -141,6 +141,9 @@ func (r *Registry) Call(ctx context.Context, p Principal, name string, in json.R
 		if err := CheckWriteResult(res); err != nil {
 			return ToolResult{}, fmt.Errorf("call %q: %w", name, err)
 		}
+		// rule: ARC-I-035
+		// A draft the run created is recorded in its scope, so submit_for_approval can find it.
+		RecordDraft(ctx, p, res)
 	}
 	// rule: ARC-I-038
 	// A result that quotes a document without a valid citation fails closed.
