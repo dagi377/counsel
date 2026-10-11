@@ -4703,3 +4703,26 @@ and has a one-outbox-event test.
 - No uptime read tool exists; the run reads the month's uptime from the status page record
   filed on the selected matter with search_documents. When uptime meets target it drafts
   nothing.
+
+## Q-PAYLOAD-BUILDERS gate payloads are built from records
+
+- Decision (AUTOPILOT SYSTEMIC): submit_for_approval no longer opens a gate with the subject
+  ids alone. `kernel/agenttools.PayloadBuilders` is a per-kind registry; when it is in the
+  agent Deps, submit_for_approval calls the kind's builder and a kind with no builder, a
+  missing record or a payload that fails its schema opens nothing (ErrNoPayloadBuilder,
+  ErrPayloadSource). Without a registry the old subject-only payload stays (manual path).
+- `app/legal/agent.PayloadBuilderSet` builds one builder for every spec/gates.json kind whose
+  schema requires a field beyond the subject (all 99 today). Each reads the subject's record
+  through the `SubjectRecords` port and checks the payload against the kind's schema. G13
+  reads the signed trust balance through `MatterTrustBalances`.
+- spec/gates.json (and its copy app/legal/gates/kinds.json), additive: G13 `platform.closing`
+  gains optional `overdrawn` (boolean), `shortfall_cents` (integer >= 0) and `blockers`
+  (string array), the Q-HTTP-10c pattern. `trust_balance_cents` keeps `minimum: 0`: an
+  overdrawn matter sends 0 there with `overdrawn: true`, the shortfall and the
+  `trust_overdrawn` (By-law 9) blocker, so its closing gate still opens for review.
+- Trigger values: `Provenance.ObserveTrigger` records a trigger payload's dates and numbers
+  as read; boot's ForgetRunner calls it for each trigger, so F-BIL-01 can take period_to from
+  its event.
+- Open: boot does not yet put a registry in the agent Deps, because production has no
+  Postgres `SubjectRecords`/`MatterTrustBalances` adapters yet (AgentPorts.OpenGate is not
+  wired in production either). The adapters and the wiring are the next task.

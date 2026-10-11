@@ -709,6 +709,11 @@ type ForgetRunner struct {
 func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Principal, prompt string, triggers ...agentrun.Trigger) (agentrun.Outcome, error) {
 	defer r.Provenance.Forget(p.RunID)
 	// rule: ARC-U-027
+	// The trigger's event values (dates, amounts) are what the run was given, so they count as
+	// read: F-BIL-01 may take its bill period from the event that started it.
+	for _, t := range triggers {
+		r.Provenance.ObserveTrigger(p.RunID, t.Text)
+	}
 	ctx = agent.WithFeature(ctx, spec.FeatureID)
 	return r.Runner.Run(ctx, spec, p, prompt, triggers...)
 }

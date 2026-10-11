@@ -2120,6 +2120,20 @@
         "trust_balance_cents": {
           "type": "integer",
           "minimum": 0
+        },
+        "overdrawn": {
+          "type": "boolean"
+        },
+        "shortfall_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     }
