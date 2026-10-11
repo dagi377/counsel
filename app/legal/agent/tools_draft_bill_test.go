@@ -118,7 +118,7 @@ func newDraftBillWorld(t *testing.T, actorCaps map[string]bool) draftBillWorld {
 		return w.gates.Open(ctx, nil, kind, s, payload, by)
 	})
 	pv := agenttools.NewProvenance()
-	pv.Observe(draftBillRun, json.RawMessage(`{"unbilled_cents":5000}`))
+	pv.Observe(draftBillRun, json.RawMessage(`{"unbilled_cents":5000,"period_from":"2026-09-01","period_to":"2026-09-30"}`))
 	var drafts batch.Drafts = w.drafts
 	var wip agent.UnbilledWIP = w.drafts
 	var lines draft.Store = store
@@ -191,6 +191,8 @@ func TestARC_I_035_DraftBill(t *testing.T) {
 		{"no report_plan in the run", billScope(billNoPlan, agent.GatePrebillReview), agentP(billNoPlan, grant), caps, billInput(draftBillMatter), agenttools.ErrPlanRequired, nil},
 		{"gate kind outside the run scope", billScope(draftBillRun, "billing.payment_allocation"), agentP(draftBillRun, grant), caps, billInput(draftBillMatter), agenttools.ErrGateKindNotAllowed, nil},
 		{"invented write-down amount", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, writeDown(4999)), agenttools.ErrUnsourcedValue, nil},
+		{"invented period end", inScope, agentP(draftBillRun, grant), caps, `{"matter_id":"` + draftBillMatter + `","period_from":"2026-09-01","period_to":"2026-10-31"}`, agenttools.ErrUnsourcedValue, nil},
+		{"invented period start", inScope, agentP(draftBillRun, grant), caps, `{"matter_id":"` + draftBillMatter + `","period_from":"2026-08-01","period_to":"2026-09-30"}`, agenttools.ErrUnsourcedValue, nil},
 		{"write-down without amount", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, `{"source_id":"`+billEntryA+`","action":"write_down"}`), agent.ErrInvalidInput, nil},
 		{"source not on the draft", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, `{"source_id":"`+billEntryX+`","action":"hold"}`), agent.ErrInvalidInput, nil},
 		{"one bad source among good ones", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, hold, `{"source_id":"`+billEntryX+`","action":"no_charge"}`), agent.ErrInvalidInput, nil},

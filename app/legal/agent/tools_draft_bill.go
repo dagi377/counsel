@@ -99,8 +99,9 @@ func buildDraftBill(d Deps) (registry.Tool, error) {
 		return wrap(err)
 	}
 	// rule: ARC-U-027
-	// A write-down amount must be a figure the run read; the model never invents money.
-	tool, err = pv.SourcedWrite(tool, "/line_actions/*/write_down_cents")
+	// A write-down amount and the billing period's dates must be figures the run read; the
+	// model never invents money or a date, so the pre-bill gate shows sourced values.
+	tool, err = pv.SourcedWrite(tool, "/line_actions/*/write_down_cents", "/period_from", "/period_to")
 	if err != nil {
 		return wrap(err)
 	}

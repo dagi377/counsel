@@ -28,7 +28,7 @@ turns:
     reply:
       tool_calls:
         - name: draft_bill
-          input: {"matter_id": "00000000-0000-4000-8000-0000000b1001", "period_from": "2026-09-01", "period_to": "2026-09-30"}
+          input: {"matter_id": "00000000-0000-4000-8000-0000000b1001", "period_to": "2026-09-30"}
       stop_reason: tool_use
       usage: {input_tokens: 940, output_tokens: 40}
   - expect_tool_results: [draft_bill]

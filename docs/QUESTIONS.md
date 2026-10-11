@@ -4623,3 +4623,24 @@ and has a one-outbox-event test.
 - FEAT-ACC-06 did not carry ACC-04 and ACC-05 (each branch was one commit on main), so pass 18
   merged task/FEAT-ACC-04 (F-ACC-06) and task/FEAT-ACC-05 (F-ACC-07) after it. Their accb
   helpers were identical to the copy ACC-06 brought, so `ai_acc_helpers_test.go` keeps one copy.
+
+## Q-BILL-PERIOD draft_bill's period dates are a production SourcedWrite
+
+- draft_bill now checks `/period_from` and `/period_to` with the run's provenance, as well as
+  `/line_actions/*/write_down_cents`: an agent's invented period date is `ErrUnsourcedValue`
+  (422 unsourced_value). The manual path is not checked.
+- list_unbilled does not echo its `period_to`, so a run must read its period dates elsewhere:
+  F-BIL-01 from get_trust_balance's `as_of` (today, the billing day), a work_date, or the
+  trigger; F-PLT-20 from a document it read. Open: should the billing-day trigger payload
+  count as read (it is not observed today)?
+
+## Q-INTEG-19B-PERIOD pass 19b: F-BIL-01 tests under BILL-PERIOD
+
+- BILL-PERIOD makes draft_bill's period dates a SourcedWrite, but main's F-BIL-01 script and
+  fixtures stated `period_from` 2026-09-01 and `period_to` 2026-09-30, which no read returns.
+  The tests now record the billing-day event's payload (timekeeping.EventBillDraftRequested:
+  matter_id, period_to, user_id) in the run's provenance before firing, as the approved
+  PAYLOAD-BUILDERS decision says triggers will; the scripts and fixtures drop `period_from`
+  (optional; no read states it). The `period_to` payload check is unchanged.
+- Open: production does not yet record the trigger payload, so a production F-BIL-01 run is
+  refused at draft_bill until the trigger-provenance step of PAYLOAD-BUILDERS lands.
