@@ -2377,3 +2377,13 @@ Done in PORT-18:
 - A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008), not
   the 409 the accept line names; same as the other HTTP routes.
 - openapi has no body schemas for these operations; the views are documented here.
+
+## Q-FEAT-MAT-13 propose_conflict_parties and create_task return proposals, so their gates open outside the run
+
+- Tasks: FEAT-MAT-13 (F-MAT-16), FEAT-MAT-14 (F-MAT-17), FEAT-MAT-15 (F-MAT-18). Same gap as Q-FEAT-DL-10.
+- `propose_conflict_parties` and `create_task` return `OutcomeProposal`, which the run scope does not record as a draft,
+  so an in-run `submit_for_approval` for `matter.party_conflict` or `work.plan` is refused with `ErrNotFound`.
+- The FromFeature tests check the real proposal (the open re-run check, prepared by the acting user, or the proposed task),
+  then open the Def's gate on it as the acting user and check: pending, agent principal 403, acting user `ErrSelfApproval`.
+- Proposed: record a proposal as a run draft when the run scope allows the Def's gate kind (FEAT-TOOL-16/19), so the agent
+  can submit it in the run.
