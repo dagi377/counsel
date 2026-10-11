@@ -11,10 +11,7 @@ GET /credit-notes/{credit_note_id}
 GET /deadlines
 POST /deadlines
 GET /deadlines/{deadline_id}
-GET /documents
-POST /documents
 POST /documents/{document_id}/release
-GET /documents/{document_id}/versions/{version_id}/pages/{page}
 GET /drafts
 GET /gates
 GET /gates/{gate_id}
