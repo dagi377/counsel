@@ -1220,3 +1220,53 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
 - No note-draft API exists yet. The handler writes through `NoteDrafts` (`CreateNoteDraft`)
   and opens `matter.agent_note` through `agenttools.GateOpener` with subject kind
   `agent_note`; the caller is the preparer (an agent's acting-for user).
+## Q-PORT-15 write-off store has no table for draft write-offs (answered)
+
+PORT-15 asks for `PGWriteOffs` over `billing.write_off`, adding only a second-gate column in
+`6220_write_off_second_gate.sql`. The 0001 table cannot hold what `WriteOffStore` needs:
+
+- `billing.write_off` is the approved record only: `approval_id` is NOT NULL, the row is
+  immutable (`write_off_immutable` trigger, UPDATE/DELETE revoked), and `billing.bill_balance`
+  subtracts every row's `amount_cents` at once (`bill_not_overpaid_wo` fires on INSERT). A
+  draft row would reduce the bill's balance before G-B5 is approved, and `MarkAwaitingSecond`
+  could never set a column on it.
+- It has no `status`, `prepared_by`, `approved_by` or `approved_at`, which `Lock` must return
+  (`ApproveWriteOff` checks the preparer and the draft status).
+- Its CHECK needs `fee_cents + dtx_cents + dnt_cents + tax_cents + interest_cents =
+  amount_cents`, but `SaveApproved(w WriteOff)` only carries `AmountCents`; the tax part is in
+  the `BadDebtAdjustment` that `PostBadDebt` gets, not in `SaveApproved`.
+- `WriteOffBills` needs `Bill.ResponsibleUser`, which lives on `matter.matter`; billing may not
+  join another module's table.
+
+Proposal (needs approval; all additive):
+A. `6220_write_off_draft.sql` adds `billing.write_off_draft` (id uuid PK, bill_id, amount_cents
+   > 0, reason, prepared_by uuid, credit_gate_id uuid NULL, second_gate_id uuid NULL,
+   created_at), append-only except a one-time `second_gate_id` NULL -> value guarded by a
+   trigger. `Lock` = draft row FOR UPDATE LEFT JOIN `billing.write_off` on the same id
+   (approved when that row exists; approved_by from the gate decision through the gate
+   engine, not a join). `SaveApproved` inserts `billing.write_off` with the draft's id and
+   `approval_id` = the G-B5 gate id, `ON CONFLICT (id) DO NOTHING` for idempotency.
+B. Bucket split: additive `SaveApprovedSplit(ctx, tx, w, adj)` (or `WriteOff.TaxCents`) so
+   `tax_cents` = adj.TaxCents and `fee_cents` = amount - tax; or approve putting the whole
+   amount in `fee_cents` (loses the tax split in the row; the journal still has it).
+C. `ResponsibleUser`: `PGWriteOffBills` takes a `matter.Query`-style lookup port (matter id ->
+   responsible lawyer) instead of joining `matter.matter`.
+
+Answer (owner): approve an additive `billing.write_off_draft` table (status, preparer,
+approvers, total). The fee, disbursement and tax split is computed at draft time with
+`money.Allocate` in proportion to the bill's outstanding components (largest remainder, then
+verified). Only the effect writes the approved row to `billing.write_off`. The responsible
+lawyer is read through a matter port, never a SQL join.
+
+Done in PORT-15:
+- `migrations/5610_write_off_draft.sql` (billing block 5600-5699; the task text named 6220,
+  which is the app/legal/agent block): the draft row with its five-bucket split,
+  `credit_gate_id` (G-B5) and `second_gate_id`, each set once, and draft -> approved once,
+  guarded by a trigger; no deletes.
+- `PGWriteOffs` implements `WriteOffStore` and `WriteOffBills`. `Draft` locks the bill, reads
+  its outstanding buckets from billing tables only and fails closed when they do not add up to
+  the bill balance net of reserved fee transfers (a trust fee transfer has no bucket split).
+  `Submit` records the G-B5 gate id; `SaveApproved` refuses a draft without it and inserts
+  `billing.write_off` with `approval_id` = that gate, `ON CONFLICT (id) DO NOTHING`.
+- `ResponsibleLawyers` is the matter port `WriteOffBill` reads the lawyer through; nil or an
+  empty lawyer fails closed. The matter-side adapter is wired at boot (BOOT-15/16).
