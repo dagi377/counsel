@@ -97,6 +97,13 @@ type Kernel struct {
 	NotifySender notify.Sender
 	// WebhookExpiry is the outbound endpoint expiry store (kind webhook.endpoint_expiry).
 	WebhookExpiry webhook.ExpiryStore
+	// Dispatcher queues outbound webhook deliveries in order per (endpoint, subject). Nil
+	// leaves kind webhook.deliver out.
+	Dispatcher WebhookQueue
+	// WebhookEndpoints lists the endpoints to drain; WebhookPoster sends one delivery. Both
+	// are required when Dispatcher is set.
+	WebhookEndpoints WebhookEndpoints
+	WebhookPoster    WebhookPoster
 
 	sealed bool // Registry.Seal passed; apply runs only then
 }
@@ -128,6 +135,10 @@ type Deps struct {
 	// NotifySender is optional; nil keeps the count-only sender.
 	NotifySender  notify.Sender
 	WebhookExpiry webhook.ExpiryStore
+	// Dispatcher is optional; nil leaves outbound webhook delivery off.
+	Dispatcher       WebhookQueue
+	WebhookEndpoints WebhookEndpoints
+	WebhookPoster    WebhookPoster
 }
 
 // Build creates the kernel and calls every app's Register in order.
@@ -144,6 +155,7 @@ func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kerne
 		Gates: deps.Gates, Reports: deps.Reports, Server: deps.Server, Events: deps.Events,
 		Jobs: NewJobs(), Outbox: deps.Outbox, Emitter: deps.Emitter, Notify: deps.Notify,
 		NotifySender: deps.NotifySender, WebhookExpiry: deps.WebhookExpiry,
+		Dispatcher: deps.Dispatcher, WebhookEndpoints: deps.WebhookEndpoints, WebhookPoster: deps.WebhookPoster,
 	}
 	for _, a := range apps {
 		if a.Register == nil {
