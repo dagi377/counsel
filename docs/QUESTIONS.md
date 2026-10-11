@@ -1280,6 +1280,19 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   subject is ErrNotFound (404). The gate payload carries subject ids only; the model's note is
   not stored (AI-R-005).
 
+## FEAT-TOOL-21 prepare_trust_withdrawal amount provenance
+
+- Closed by FEAT-FIX-A: `WriteDeps.Provenance` is checked only when set. Now nil fails closed
+  (ErrMissingDep, nothing recorded). `agenttest.New` builds one Provenance per driver, and a
+  read stand-in whose text is JSON records its figures for the run, as the real read would.
+  Boot wiring (BOOT-FEAT-WIRE) must pass the run's Provenance.
+- `WriteDeps.Withdrawals` is now the narrow `agent.Withdrawals` interface (Request, Available).
+  `withdraw.Service` and `withdrawfake.Fake` satisfy it, so callers are unchanged.
+- Closed by FEAT-FIX-A: payee was free text. Now `WriteDeps.Contacts` (the FEAT-TOOL-12
+  `MatterContacts` port, required, nil fails closed) and payee must be one of the matter's
+  contact ids (`ErrPayeeNotContact`, 422, rule BIL-L-037). The F-TRU-02, F-TRU-10 and
+  F-BIL-03 fixtures now pay `agenttest.PayeeContact`.
+
 ## FEAT-CORE-10
 
 - Q-FEAT-CORE-10.1: `prompts/rules.md` is embedded and exposed as `feature.Rules()`, but
@@ -1647,8 +1660,28 @@ Done in PORT-18:
 - The result is outcome `proposal` with the run id as ref, not `gate`: G2 is decided on the run
   through `conflict.Clearer`, not a kernel gate the runner could park on. The run stays open.
 
-## FEAT-TOOL-21 prepare_trust_withdrawal amount provenance
+## FEAT-FIX-A trust withdrawal fails closed; draft_bill checks sources first
 
+- Closed by FEAT-FIX-B: a fee transfer to the firm's own general account (spec trust.json
+  "Payee is firm general account (known)") was refused because it is not a matter contact.
+  Decision: a separate firm-payee id. See the FEAT-FIX-B entry below.
+- draft_bill reads a new `agent.UnbilledWIP` port (matter's unbilled entry ids up to
+  period_to) from Deps; boot (BOOT-FEAT-WIRE) must wire it. Every line action source is
+  checked against it before `batch.Drafts.Create`, so a bad source creates no draft.
+
+## FEAT-FIX-B firm general account as a fee payee (By-Law 9 s.9(1))
+
+- Decision: `WriteDeps.FirmAccount` (the firm general account's payee id) and `WriteDeps.Bills`
+  (`agent.FeeBills`, returns `withdraw.FeeBill` for a bill on the matter) are new required
+  ports; nil fails closed (ErrMissingDep). No BillBalances port existed, so FeeBills is the
+  equivalent.
+- The firm account is a payee only when purpose_category is fees, bill_id is a bill on the
+  same matter, the bill is delivered and amount_cents <= its balance due (rules BIL-L-037,
+  BIL-L-035). Otherwise `ErrFirmPayeeNeedsBill` (422), `withdraw.ErrBillNotDelivered` or
+  `withdraw.ErrExceedsBillBalance`. Every other payee must still be a matter contact id.
+- `withdraw.Request` has no bill field, so the bill id is checked by the agent but not carried
+  into the trust request. Boot (BOOT-FEAT-WIRE) must wire FirmAccount and Bills; the trust
+  module's own ValidateFee remains the authoritative check at authorization.
 - `WriteDeps.Provenance` is checked only when set. `agenttest.New` (not this task's file) builds
   WriteTools without one, and its read stand-ins return quoted text with no numbers to observe,
   so a fail-closed nil would break the F-TRU/F-BIL/F-ACC feature tests. Boot wiring
@@ -1939,3 +1972,19 @@ Done in PORT-18:
   read the book from the general-ledger trust bank control account so book vs ledgers is an
   independent check. Prepare re-prepares an open draft/ready month in place; a signed or
   imported month is ErrPeriodLocked. ImportStatement refuses with ErrNoParser.
+
+
+## WD-BILL: trust withdrawal names its bill
+
+- Additive in `app/legal/trust/withdraw/contract.go`: `Request.BillID`
+  (`trust.withdrawal_request.bill_id`, already in 0001_init.sql, so no migration). The agent's
+  prepare_trust_withdrawal passes its `bill_id` on (FEAT-FIX-B). The trust.withdrawal gate
+  payload gains `bill_id` (omitempty), so an approval binds the bill.
+- `Effect.Apply` re-checks a fee withdrawal at authorization (By-Law 9 s.9(1), BIL-L-035/037):
+  it names a bill, the bill is on the same matter, delivered on or before now, and the amount
+  is no more than its unpaid balance. A withdrawal with a bill id, or purpose `fees` /
+  `fees_to_operating`, is a fee withdrawal. `Effect.Bills` (new port `withdraw.FeeBills`, read
+  in the gate tx) nil fails closed. Open (BOOT): wire a billing adapter returning the bill's
+  matter, delivery date and balance net of reserved fee transfers.
+- Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
+  resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.

@@ -66,13 +66,15 @@ type EffectPayload struct {
 	AmountCents  *int64 `json:"amount_cents"`
 	Payee        string `json:"payee"`
 	Method       Method `json:"method"`
+	// BillID is the bill a fee withdrawal pays; empty for any other withdrawal. Additive.
+	BillID string `json:"bill_id,omitempty"`
 }
 
 // PayloadFor is the gate payload that approves exactly h's terms.
 func PayloadFor(h Held) EffectPayload {
 	amount := h.Request.AmountCents
 	return EffectPayload{WithdrawalID: h.ID, MatterID: h.Request.MatterID, AmountCents: &amount,
-		Payee: h.Request.Payee, Method: h.Request.Method}
+		Payee: h.Request.Payee, Method: h.Request.Method, BillID: h.Request.BillID}
 }
 
 // checkTerms fails closed unless the approved payload states h's terms exactly.
@@ -89,6 +91,8 @@ func (p EffectPayload) checkTerms(h Held) error {
 		return fmt.Errorf("payee: %w", ErrTermsMismatch)
 	case p.Method == "" || p.Method != h.Request.Method:
 		return fmt.Errorf("method: %w", ErrTermsMismatch)
+	case p.BillID != h.Request.BillID:
+		return fmt.Errorf("bill: %w", ErrTermsMismatch)
 	}
 	return nil
 }
@@ -132,6 +136,13 @@ type SignatoryCheck interface {
 	IsSignatory(ctx context.Context, tx pgx.Tx, account trust.AccountID, userID string) (bool, error)
 }
 
+// FeeBills reads the bill a fee withdrawal pays, in the caller's tx: its matter, delivery
+// date and unpaid balance (net of fee transfers already reserved). The billing module owns
+// the bill; boot wires the adapter.
+type FeeBills interface {
+	FeeBill(ctx context.Context, tx pgx.Tx, billID string) (FeeBill, error)
+}
+
 // FirmPolicy reads core.firm.sole_practitioner.
 type FirmPolicy interface {
 	SolePractitioner(ctx context.Context) (bool, error)
@@ -158,6 +169,9 @@ type Effect struct {
 	// Approvals reads the approved gate payload at execution; while nil, every execution
 	// fails closed.
 	Approvals ApprovedPayloads
+	// Bills reads the bill a fee withdrawal pays; while nil, every fee withdrawal fails
+	// closed at authorization.
+	Bills FeeBills
 }
 
 // Apply is the trust.withdrawal EffectFunc. It runs in the gate's tx: it locks the withdrawal,
@@ -200,6 +214,26 @@ func (e *Effect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approved) erro
 	}
 	if !ok {
 		return failed(CodeNotAuthorized, ErrSignerNotAuthorized)
+	}
+	// rule: BIL-L-035 (verify)
+	// rule: BIL-L-037 (verify)
+	// Money for fees leaves trust only for a delivered bill on this matter, and for no more
+	// than its unpaid balance (By-Law 9 s.9(1)); re-checked here, at authorization, whatever
+	// the request path checked.
+	if NeedsFeeBill(h.Request) {
+		if e.Bills == nil {
+			return failed(CodeNotAuthorized, fmt.Errorf("fee bill: no bill reader: %w", ErrNotAuthorized))
+		}
+		if h.Request.BillID == "" {
+			return failed(CodeNotAuthorized, fmt.Errorf("fee withdrawal names no bill: %w", ErrBillMatter))
+		}
+		b, err := e.Bills.FeeBill(ctx, tx, h.Request.BillID)
+		if err != nil {
+			return fmt.Errorf("withdrawal effect: fee bill: %w", err)
+		}
+		if err := CheckFeeBill(h.Request, b, e.Now()); err != nil {
+			return failed(CodeNotAuthorized, err)
+		}
 	}
 	// Expired authorisations on this ledger can never execute: release their holds first so
 	// they do not keep the client's money out of reach.
@@ -315,7 +349,7 @@ type PGStore struct{}
 const lockWithdrawalSQL = `SELECT w.id::text, w.ledger_id::text, l.account_id::text, l.matter_id::text, w.amount_cents,
   w.payee, w.method, coalesce(w.form_9a_doc_id::text, ''), w.purpose_category, w.initiated_by::text, w.status,
   coalesce(w.approval_id::text, ''), coalesce(w.authorized_by::text, ''), coalesce(w.executed_by::text, ''),
-  w.authorized_at, w.expires_at, now()
+  w.authorized_at, w.expires_at, now(), coalesce(w.bill_id::text, '')
 FROM trust.withdrawal_request w JOIN trust.client_ledger l ON l.id = w.ledger_id
 WHERE w.id = $1::uuid FOR UPDATE OF w`
 
@@ -327,7 +361,8 @@ func (PGStore) Lock(ctx context.Context, tx pgx.Tx, id string) (Held, error) {
 	var dbNow time.Time
 	err := tx.QueryRow(ctx, lockWithdrawalSQL, id).Scan(&h.ID, &ledger, &h.Request.TrustAccountID, &h.Request.MatterID,
 		&h.Request.AmountCents, &h.Request.Payee, &method, &h.Request.EFTAuthorizationID, &h.Request.Reason,
-		&h.Request.PreparedBy, &status, &h.GateID, &h.AuthorizedBy, &h.ExecutedBy, &authorizedAt, &expiresAt, &dbNow)
+		&h.Request.PreparedBy, &status, &h.GateID, &h.AuthorizedBy, &h.ExecutedBy, &authorizedAt, &expiresAt, &dbNow,
+		&h.Request.BillID)
 	if err != nil {
 		var pg *pgconn.PgError
 		if errors.Is(err, pgx.ErrNoRows) || (errors.As(err, &pg) && pg.Code == "22P02") {
