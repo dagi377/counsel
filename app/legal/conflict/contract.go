@@ -34,6 +34,9 @@ type Request struct {
 	MatterID string
 	Terms    []string
 	Preparer Actor
+	// CheckID is the conflict.conflict_check record the run belongs to (Q-PORT-18, additive).
+	// The Postgres run store refuses a run without it.
+	CheckID string
 }
 
 // Hit is one record that matches a term.
@@ -42,6 +45,13 @@ type Hit struct {
 	PartyID  string
 	MatterID string
 	Role     string // role of the party on MatterID, e.g. adverse
+
+	// Filled by the Searcher (Q-PORT-18, additive). The Postgres run store refuses a hit
+	// missing any of them; nothing defaults them.
+	CheckPartyID string // the conflict.check_party searched
+	MatchedKind  string // contact, party_role, sealed_prospect or lateral_disclosure; PartyID is the matched id
+	MatchType    string // exact, fuzzy, phonetic, identifier or relationship
+	ScorePPM     int64  // match score, 1..1000000 ppm
 }
 
 // Run is one check run. Runs are append-only: a re-check adds a new run.
@@ -56,6 +66,14 @@ type Run struct {
 	Reason     string
 	RanAt      time.Time
 	DecidedAt  time.Time
+
+	// Q-PORT-18, additive. CheckID comes from Request.CheckID; Version is assigned by the
+	// RunStore (1, 2, ... per check); IndexVersion is the party index version the Searcher
+	// reports; Complete is true once every term was searched.
+	CheckID      string
+	Version      int
+	IndexVersion int64
+	Complete     bool
 }
 
 // Wall screens a user from a matter. Walled users get 404 on the matter and agent search omits it.

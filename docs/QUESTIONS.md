@@ -1270,3 +1270,52 @@ Done in PORT-15:
   `billing.write_off` with `approval_id` = that gate, `ON CONFLICT (id) DO NOTHING`.
 - `ResponsibleLawyers` is the matter port `WriteOffBill` reads the lawyer through; nil or an
   empty lawyer fails closed. The matter-side adapter is wired at boot (BOOT-15/16).
+## Q-PORT-18 conflict run model does not map onto conflict.check_run / conflict.hit (answered)
+
+PORT-18 asks for `PGRuns` over `conflict.check_run` / `conflict.hit` behind an additive
+`RunStore`. The 0001 tables need values the conflict domain never has, so a store would have
+to invent regulator-facing conflict records:
+
+- `check_run` hangs off `conflict.conflict_check` (`check_id` NOT NULL, which itself needs
+  `trigger`, `settings_version` -> `conflict_settings` and `requested_by`), plus
+  `index_version` and `complete` NOT NULL. `Request`/`Run` carry only a matter id, terms and
+  the preparer: no check id, no version, no index version.
+- `conflict.hit` needs `check_party_id` NOT NULL (a `check_party` row with `kind`
+  person/organization and `role`), `matched_kind`, `matched_id`, `match_type` and `score_ppm`.
+  `Hit` is `{Term, PartyID, MatterID, Role}`: the term is not a check party, and the match
+  kind, match type and score are not known. `Hit.MatterID`/`Role` have no column.
+- G2 decisions and hit dispositions live on `conflict.clearance` (approval_id, signed_by) and
+  on `hit.disposition*`, which is UPDATEd in place; the in-memory `Checks` keeps both as
+  append-only logs. Replacing only the run slice leaves `Dispose`/`decide` needing a run
+  lookup by id, which `RunStore{Append, Runs}` does not offer.
+
+Proposal (needs approval; additive):
+A. `RunStore` = `Append(ctx, Run) (Run, error)`, `Runs(ctx, matterID)`, `Run(ctx, id)`; memory
+   default keeps `NewChecks` as is; `NewChecksWith(s, store, now)`.
+B. Additive fields: `Request.CheckID`, `Run.CheckID`, `Run.Version`, `Run.IndexVersion`,
+   `Run.Complete`; `Hit.CheckPartyID`, `Hit.MatchedKind`, `Hit.MatchType`, `Hit.ScorePPM`,
+   filled by the Searcher (the party index knows them). `PGRuns.Append` refuses
+   (ErrInvalid) a run or hit missing any of them, never defaults them; version is
+   `max(version)+1` under `SELECT ... FOR UPDATE` on the conflict_check row, and a 23505 on
+   UNIQUE(check_id, version) maps to a new `ErrRunExists`.
+C. Dispositions and G2 decisions stay in memory in this task; a follow-up maps them onto
+   `conflict.hit` dispositions and `conflict.clearance` (or an additive append-only
+   disposition table, since `hit.disposition` is updated in place).
+
+Answer (owner): approve the additive domain fields on conflict Run/Hit (check record, party,
+match type, score ppm), filled by the searcher. Missing values are refused. Add
+RunStore.Get(id).
+
+Done in PORT-18:
+- `contract.go` (additive): `Request.CheckID`; `Run.CheckID`, `Version`, `IndexVersion`,
+  `Complete`; `Hit.CheckPartyID`, `MatchedKind`, `MatchType`, `ScorePPM` (`Hit.PartyID` is
+  `conflict.hit.matched_id`).
+- `RunStore{Append, Runs, Get}`, `ErrRunExists`, `ErrInvalidRun` and the optional
+  `IndexVersioner` searcher in `check.go`; `NewChecks` keeps the in-memory store,
+  `NewChecksWith(s, store, now)` takes `PGRuns`. `clearance.go` reads a run through the store
+  (one helper call, needed because the run slice is gone).
+- `migrations/5200_check_run_detail.sql` (conflict block): nullable `check_run.prepared_by`,
+  `check_run.terms`, `hit.ordinal`, `hit.term`, `hit.party_matter_id`, `hit.party_role`, so a
+  stored run reads back whole. `PGRuns` refuses (ErrInvalidRun) a run or hit missing any value,
+  a hit whose check party is on another check, and on read a run without a preparer or with a
+  gap in hit order. Dispositions and G2 decisions stay in memory (proposal C).

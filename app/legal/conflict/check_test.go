@@ -17,9 +17,14 @@ func (n nameIndex) Search(_ context.Context, term string) ([]Hit, error) {
 	return n[strings.ToLower(term)], nil
 }
 
+// checksOn builds the Checks the cases below run on. It is the in-memory default here;
+// runs_pg_test.go runs the same cases again with checksOn over PGRuns.
+var checksOn = func(s Searcher) *Checks {
+	return NewChecks(s, func() time.Time { return time.Date(2026, 3, 2, 14, 0, 0, 0, time.UTC) })
+}
+
 func newChecks() *Checks {
-	idx := nameIndex{"acme": {{Term: "acme", PartyID: "p1", MatterID: "m9", Role: "adverse"}}}
-	return NewChecks(idx, func() time.Time { return time.Date(2026, 3, 2, 14, 0, 0, 0, time.UTC) })
+	return checksOn(nameIndex{"acme": {{Term: "acme", PartyID: "p1", MatterID: "m9", Role: "adverse"}}})
 }
 
 var (
@@ -192,7 +197,7 @@ func TestG2ClearNeedsEveryHitDisposed(t *testing.T) {
 				"acme": {{Term: "acme", PartyID: "p1", MatterID: "m9", Role: "adverse"}},
 				"beta": {{Term: "beta", PartyID: "p2", MatterID: "m8", Role: "adverse"}},
 			}
-			c := NewChecks(idx, func() time.Time { return time.Date(2026, 3, 2, 14, 0, 0, 0, time.UTC) })
+			c := checksOn(idx)
 			r, err := c.Check(ctx, Request{MatterID: "m1", Terms: tt.terms, Preparer: preparer})
 			if err != nil {
 				t.Fatal(err)
