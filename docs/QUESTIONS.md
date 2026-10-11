@@ -1154,3 +1154,11 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   addNotifyJobs and addWebhookJobs. The legal app schedules
   trust.withdrawal_release_expired every 15 minutes when gate services are built. kernel/idem
   problem bodies carry `type` (urn:counsel:problem:<code>, now api.ProblemTypePrefix).
+
+## FEAT-TOOL-13 draft_note
+
+- No init(): `DraftNoteHandler()` returns the Handler and boot adds it to the explicit
+  HandlerSet (owner decision); agenttest.FromFeature keeps its stand-in until boot does.
+- No note-draft API exists yet. The handler writes through `NoteDrafts` (`CreateNoteDraft`)
+  and opens `matter.agent_note` through `agenttools.GateOpener` with subject kind
+  `agent_note`; the caller is the preparer (an agent's acting-for user).
