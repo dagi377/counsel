@@ -314,6 +314,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.TemplateFitDef().ID:                  matter.TemplateFitBinding,
 		matter.MatterDigestDef().ID:                 matter.MatterDigestBinding,
 		billing.EvergreenWatchDef().ID:              billing.EvergreenWatchBinding,
+		billing.AgingCollectionsDef().ID:            billing.AgingCollectionsBinding,
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,

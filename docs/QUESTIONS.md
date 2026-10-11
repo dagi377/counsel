@@ -3234,3 +3234,12 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   ReadTool in its own file (FEAT-TOOL-08).
 - The retainer-requests screen selects a matter (billing.view); main has no boot.FirmSubject.
 - F-BIL-05 binds with trigger.BindDesignated (daily, the designated lawyer).
+
+## FEAT-BIL-06 Aging and collections: gate kind const and email guard
+
+- billing.GateCollectionsMessage names billing.collections_message (G-B7); no earlier const
+  existed on main or a pushed branch. The kind is still listed in boot/unwired_gates.txt: a
+  decided reminder has no effect wired yet. Open: wire its effect.
+- F-BIL-06 drafts with draft_email (no submit) and opens G-B7 with submit_for_approval on the
+  email_draft. It shares the sourced-amount guard of FEAT-BIL-05 (SourcedEmailHandlers), with
+  the same open boot-wiring question.
