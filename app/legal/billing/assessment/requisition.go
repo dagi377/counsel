@@ -22,6 +22,9 @@ var (
 	ErrNotDelivered = errors.New("assessment: bill not delivered")
 	// ErrRequisitionUnverified means the Solicitors Act flag is off.
 	ErrRequisitionUnverified = errors.New("assessment: requisitions disabled until Solicitors Act rules are verified")
+	// ErrPaidReferralBarred means the bill was paid more than 12 months ago, so the court may
+	// no longer refer it for assessment on the client's application (Solicitors Act s.11).
+	ErrPaidReferralBarred = errors.New("assessment: referral barred 12 months after payment")
 )
 
 // Requisition statuses. A window never shows "expired" (BIL-L-005). Within one month of
@@ -32,13 +35,23 @@ const (
 	StatusWindowOpen           = "requisition window open"
 	StatusCourtReferral        = "court referral available"
 	StatusSpecialCircumstances = "special circumstances required"
+	// StatusPaidBarred is shown for a bill paid more than 12 months ago (Solicitors Act s.11).
+	StatusPaidBarred = "referral barred: paid more than 12 months ago"
 )
 
 // AssessedBill is what a requisition needs to know about one bill.
 type AssessedBill struct {
 	ID          string
 	DeliveredAt time.Time // zero when not delivered
-	Paid        bool      // payment never closes the assessment option
+	TotalCents  int64     // bill total including tax
+	PaidCents   int64     // sum of payments applied to the bill
+	PaidAt      time.Time // date the bill became paid in full; zero when not paid
+}
+
+// Paid reports whether b has been paid in full. A part payment is not payment of the bill
+// for Solicitors Act s.11.
+func (b AssessedBill) Paid() bool {
+	return !b.PaidAt.IsZero() && b.TotalCents > 0 && b.PaidCents >= b.TotalCents
 }
 
 // Requisition is one recorded assessment requisition.
@@ -52,6 +65,7 @@ type Requisition struct {
 type Windows struct {
 	ClientRequisitionTo time.Time // months_after(delivery date, 1)
 	TwelveMonthTo       time.Time // months_after(delivery date, 12)
+	PaidReferralTo      time.Time // months_after(payment date, 12); zero when not paid
 	Status              string
 }
 
@@ -70,9 +84,7 @@ func (r *Requisitions) Windows(ctx context.Context, b AssessedBill) (Windows, er
 	if b.DeliveredAt.IsZero() {
 		return Windows{}, ErrNotDelivered
 	}
-	loc := r.Clock.Location()
-	y, m, d := b.DeliveredAt.In(loc).Date()
-	delivered := time.Date(y, m, d, 0, 0, 0, 0, loc)
+	delivered := r.localDate(b.DeliveredAt)
 	// rule: BIL-L-005
 	w := Windows{
 		ClientRequisitionTo: r.Calendar.MonthsAfter(delivered, 1),
@@ -86,11 +98,22 @@ func (r *Requisitions) Windows(ctx context.Context, b AssessedBill) (Windows, er
 	case today.After(w.ClientRequisitionTo):
 		w.Status = StatusCourtReferral
 	}
+	// rule: BIL-L-006 (verify)
+	// Solicitors Act s.11: once paid, a referral needs special circumstances and is barred
+	// after 12 months from payment.
+	if b.Paid() {
+		w.PaidReferralTo = r.Calendar.MonthsAfter(r.localDate(b.PaidAt), 12)
+		w.Status = StatusSpecialCircumstances
+		if r.today(ctx).After(w.PaidReferralTo) {
+			w.Status = StatusPaidBarred
+		}
+	}
 	return w, nil
 }
 
-// Record records a requisition on b today. After the 12-month window it needs a
-// special-circumstances note. A paid bill can still be assessed.
+// Record records a requisition on b today. After the 12-month window, or once the bill is
+// paid, it needs a special-circumstances note. A bill paid more than 12 months ago is
+// refused with ErrPaidReferralBarred.
 func (r *Requisitions) Record(ctx context.Context, b AssessedBill, note string) (Requisition, error) {
 	if !r.Flags.Enabled(FlagSolicitorsActVerified) {
 		return Requisition{}, ErrRequisitionUnverified
@@ -100,12 +123,15 @@ func (r *Requisitions) Record(ctx context.Context, b AssessedBill, note string) 
 		return Requisition{}, fmt.Errorf("bill %s: %w", b.ID, err)
 	}
 	note = strings.TrimSpace(note)
+	// rule: BIL-L-006 (verify)
+	if w.Status == StatusPaidBarred {
+		return Requisition{}, fmt.Errorf("bill %s: %w", b.ID, ErrPaidReferralBarred)
+	}
 	// rule: BIL-L-005 (verify)
+	// rule: BIL-L-006 (verify)
 	if w.Status == StatusSpecialCircumstances && note == "" {
 		return Requisition{}, fmt.Errorf("bill %s: %w", b.ID, ErrSpecialCircumstances)
 	}
-	// rule: BIL-L-006
-	// b.Paid is deliberately not checked: payment does not close the assessment option.
 	req := Requisition{BillID: b.ID, RecordedOn: r.today(ctx), SpecialCircumstances: note}
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -135,6 +161,12 @@ func (r *Requisitions) RemindersAllowed(billID string) bool {
 func (r *Requisitions) InterestAllowed(billID string) bool {
 	// rule: BIL-L-005
 	return !r.OnHold(billID)
+}
+
+func (r *Requisitions) localDate(t time.Time) time.Time {
+	loc := r.Clock.Location()
+	y, m, d := t.In(loc).Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, loc)
 }
 
 func (r *Requisitions) today(ctx context.Context) time.Time {
