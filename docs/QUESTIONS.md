@@ -2553,3 +2553,11 @@ Done in PORT-18:
   keep compiling with a fixed acting user. Boot wiring and a readiness HTTP surface are not
   built yet: boot calls `WithDesignated(agent.NewPGDesignatedLawyers(pool))` when it builds
   the Bindings, and surfaces `Readiness` on the setup checks.
+
+## Q-FEAT-DOC-05 F-DOC-04 trigger event and gated subject
+
+- "document enters the review queue" binds `document.draft_created`: a new draft is what
+  enters the review queue.
+- The spec gives F-DOC-04 only draft_document and submit_for_approval as writes, so the
+  pre-check report is a draft the run submits under docs.outgoing (G8); the reviewing lawyer
+  reads it beside the document under review.

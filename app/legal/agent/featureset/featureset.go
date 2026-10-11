@@ -72,5 +72,6 @@ func appDefs() []feature.Def {
 		legaldocs.EngagementLetterDef(),
 		legaldocs.IngestDocumentDef(),
 		legaldocs.DraftWithCitationsDef(),
+		legaldocs.PrecheckOutgoingDef(),
 	}
 }
