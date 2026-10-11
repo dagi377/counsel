@@ -118,5 +118,6 @@ func appDefs() []feature.Def {
 		matter.SummarizeThisWeekDef(),
 		// trust
 		trust.AnnualReportPrepDef(),
+		trust.RetainerCoverageScanDef(),
 	}
 }

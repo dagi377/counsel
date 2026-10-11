@@ -3234,3 +3234,12 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   draft_document and one draft_email for every feature, so SourcedDraft is not yet applied to
   live trust runs; proposed: boot wraps the draft tools with trust.SourcedDraft for runs of a
   trust-area Def (or the draft tools gain an amounts field the Provenance pointers cover).
+
+## Q-FEAT-TRU-07 F-TRU-07 screens and the top-up amount
+
+- client-trust-ledger is one matter's ledger and selects the matter; retainer-coverage is a
+  firm-level screen and, with no boot.FirmSubject on main, also selects matters (trust.view).
+- The request asks for the unpaid balance of the delivered bills, a figure get_bill
+  returned, never a worked-out shortfall: trust.SourcedDraft refuses any cents figure the run
+  did not read. Open: a sourced "agreed retainer floor" read (engagement terms) would let the
+  request name the floor too; get_matter does not return it today.

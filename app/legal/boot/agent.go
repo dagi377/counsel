@@ -317,6 +317,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		trust.AnnualReportPrepDef().ID:              trust.AnnualReportPrepBinding,
+		trust.RetainerCoverageScanDef().ID:          trust.RetainerCoverageScanBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -423,6 +424,9 @@ var actionScreens = map[string]trigger.Screen{
 	// Trust. Main has no firm subject yet, so a firm-level trust screen selects the matters
 	// it covers (Q-FEAT-TRU-06).
 	"lso-annual-report": {SubjectKind: "matter", Capability: "trust.view"},
+	// A client trust ledger is one matter's (Q-FEAT-TRU-07).
+	"client-trust-ledger": {SubjectKind: "matter", Capability: "trust.view"},
+	"retainer-coverage":   {SubjectKind: "matter", Capability: "trust.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
