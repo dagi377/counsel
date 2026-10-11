@@ -2187,6 +2187,12 @@ Done in PORT-18:
 - Event types `calendar.event_moved` and `calendar.event_cancelled` are named here; no calendar
   module publishes them yet.
 
+- Resolved by TOOL-FIX-C: `propose_deadline` with a `deadline_id` opens `cal.change` on that
+  stored deadline and holds the new date in the gate payload without applying it; without one
+  it saves a new deadline under `cal.confirm`. The run scope's gate-kind check still applies.
+  `TestFDL08_FromFeature` now checks the pending gate, the 403 for the agent, `ErrSelfApproval`
+  for the acting user and another lawyer's approval; a Def without `cal.change` is refused.
+
 ## Q-FEAT-DL-10 create_task returns a proposal, so F-DL-09 cannot open work.absence
 
 - Task: FEAT-DL-10 (F-DL-09 Absence coverage check)
@@ -2393,3 +2399,21 @@ Done in PORT-18:
   The body is ids and a count, with acting_for set to the run's preparer. Dispositions are
   kept in memory (Q-PORT-18 C), so the event is emitted with no tx; boot must set Events, and
   while it is nil no event is published.
+- Resolved by TOOL-FIX-C: when the run scope declares a gate kind on work items
+  (`agent.WorkItemGateKinds`: `work.absence`, `work.output`), `create_task` returns its task
+  (still proposed, no approver) as an `OutcomeDraft` of the run, so `submit_for_approval` can
+  open the gate on it. `TestFDL09_FromFeature` now checks the pending gate, the 403 for the
+  agent, `ErrSelfApproval` for the acting user and another lawyer's approval; a Def without
+  `work.absence` still gets a proposal and the submit is refused.
+
+## Q-TOOL-FIX-C propose_deadline input gains deadline_id (additive a2 change)
+
+- Task: TOOL-FIX-C (FEAT-TOOL-15, FEAT-TOOL-16 follow-up; closes Q-FEAT-DL-09, Q-FEAT-DL-10)
+- `propose_deadline`'s input schema gains an optional `deadline_id` (string) in
+  `spec/eng/a2-interfaces.json` and its copy `app/legal/agent/schemas/tools.json`. Additive:
+  every input valid before is still valid. The cal.change payload's `reason` is the input
+  `title`; there is no separate reason field.
+- `propose_deadline` now also reads a `DeadlineGetter` dep (kernel/deadline `Get`), which the
+  deadline engine and its fakes already implement.
+- `work.output` is counted as a work-item gate kind beside `work.absence` because its payload
+  names an `item_id`; confirm when the F-WRK features that use it are built.
