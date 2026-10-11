@@ -514,3 +514,10 @@ Template:
   0400 (kernel/ledger), 0500 (kernel/outbox), 1000 (kernel/work), 1400 (kernel/webhook),
   6000 (app/legal/comms), 6100 (app/legal/work). The Go package `migrations` embeds them
   in order for counsel-migrate and the integration tests.
+
+## T-003.2: Allocate moved out of money.go
+
+- T-003.1 already shipped `Allocate` in `kernel/money/money.go`. T-003.2 moves the body,
+  unchanged, into `allocate.go` (where the contract header says it lives), so it also touches
+  `money.go` (deletion only) and this file. New tests are in `allocate_test.go`; the existing
+  `TestAllocate` in `money_test.go` is kept as is.
