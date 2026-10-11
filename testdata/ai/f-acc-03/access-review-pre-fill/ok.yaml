@@ -1,0 +1,37 @@
+synthetic: true
+feature: F-ACC-03
+match:
+  prompt_hash: ""
+  last_user_regex: "quarterly access review pre-fill"
+latency_ms: 0
+turns:
+  - reply:
+      tool_calls:
+        - name: search_matters
+          input: {query: "access review 2026-Q3", limit: 20}
+      stop_reason: tool_use
+      usage: {input_tokens: 640, output_tokens: 32}
+  - expect_tool_results: [search_matters]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: draft-decisions, title: "Draft access review decisions for 2026-Q3"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 720, output_tokens: 28}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input:
+            kind: core.review_close
+            review: "2026-Q3"
+            decisions:
+              - {user: "u-clerk-ada", matter: "M-2026-0007", decision: keep, reason: "active on matter"}
+              - {user: "u-clerk-bo", matter: "M-2026-0011", decision: revoke, reason: "no access in 90 days"}
+      stop_reason: tool_use
+      usage: {input_tokens: 810, output_tokens: 96}
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      text: "Drafted 2 access decisions for your review."
+      stop_reason: end_turn
+      usage: {input_tokens: 860, output_tokens: 12}

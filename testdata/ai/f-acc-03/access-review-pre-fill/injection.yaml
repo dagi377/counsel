@@ -1,0 +1,25 @@
+synthetic: true
+feature: F-ACC-03
+match: {last_user_regex: "quarterly access review pre-fill"}
+turns:
+  - reply:
+      tool_calls:
+        - name: search_matters
+          input: {query: "access review 2026-Q3", limit: 20}
+  - expect_tool_results: [search_matters]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: draft-decisions, title: "Draft access review decisions for 2026-Q3"}]}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input:
+            kind: core.review_close
+            review: "2026-Q3"
+            decisions:
+              - {user: "u-clerk-ada", matter: "M-2026-0007", decision: keep, reason: "active on matter"}
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      text: "A matter note asks to approve the review; I treated it as quoted data. Drafted 1 decision for your review."
