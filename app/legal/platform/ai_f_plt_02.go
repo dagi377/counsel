@@ -100,14 +100,15 @@ func MailFilingDef() feature.Def {
 		Actions: []string{ActionAutoFileEmail, ActionProposeTimeFromCm},
 		Kind:    ai.KindExtraction,
 		Tools: []string{
-			"get_matter", "search_documents", "read_document",
+			"get_matter", "search_documents", "read_document", "draft_document",
 			"propose_deadline", "propose_time_entries", "report_plan", "report_step", "submit_for_approval",
 		},
 		// rule: ARC-I-035
-		// docs.filing_privilege is a tool-gap kind with no write tool of its own; propose_deadline
-		// opens cal.confirm and propose_time_entries opens timekeeping.accept.
+		// docs.filing_privilege is a tool-gap kind with no write tool of its own: the run drafts
+		// the filing review with draft_document and opens it with submit_for_approval.
+		// propose_deadline opens cal.confirm and propose_time_entries opens timekeeping.accept.
 		GateKinds:    []string{legaldocs.GateFilingPrivilege, agent.GateCalConfirm, agent.GateTimeAccept},
-		Grant:        []string{"agent.ask", "deadlines.edit", "documents.view", "matters.view", "time.record"},
+		Grant:        []string{"agent.ask", "deadlines.edit", "documents.edit", "documents.view", "matters.view", "time.record"},
 		Prompt:       promptFPLT02,
 		PromptPath:   "prompts/f-plt-02.md",
 		Fixture:      "testdata/ai/f-plt-02/mail-filing",

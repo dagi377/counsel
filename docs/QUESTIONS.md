@@ -4321,3 +4321,20 @@ of FEAT-TIM-01 above.
   `agent.GateTimeAccept`; the auto-file threshold reuses `legaldocs.AutoFileReviewBelowPPM`.
 - The platform test helpers of F-PLT-02, F-PLT-03 and F-PLT-04 share one file,
   `app/legal/platform/ai_pltc_helpers_test.go` (prefix `pltc`), identical on the three branches.
+
+## Q-FEAT-PLT-03 F-PLT-02 mail filing: write path, gates and trigger
+
+- Base: task/FEAT-PLT-27 (platform chain tip) with origin/task/FEAT-PLT-02 merged in. The
+  merge keeps one `package platform` doc comment (F-PLT-02's).
+- Write path, as decided for F-DOC-01 and F-PLT-04 (Q-FEAT-PLT-06): the accept line opens
+  the tool-gap kind docs.filing_privilege with draft_document then submit_for_approval, so
+  draft_document is added to F-PLT-02 in spec/ai/features.json and in MailFilingDef (Grant
+  `documents.edit`), and the prompt says how a run with tools writes through G7, G9 and G-D1.
+  docs.filing_privilege is already F-PLT-02's tool_gap kind, so the tool_gaps count is
+  unchanged.
+- `platform.EventEmailReceived` ("email.received") mirrors `comms.EventEmailReceived` (a
+  domain module does not import comms; the test pins the two equal). `MailFilingBinding`
+  replaces the inline binding in boot.JobBindings.
+- Outside the listed files: ai_f_plt_02.go (Def), prompts/f-plt-02.md, spec/ai/features.json,
+  app/legal/boot/agent.go. The feature test reuses the pltc helpers of FEAT-PLT-02; its own
+  names carry the pltj prefix.
