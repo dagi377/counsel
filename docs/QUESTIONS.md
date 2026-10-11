@@ -3560,3 +3560,15 @@ of FEAT-TIM-01 above.
   whose proposals come from activity signals, so it is left to a tool-level decision.
 - The gate kind is spelled "timekeeping.accept" in the Def (as in F-TIM-01) because
   app/legal/agent, which owns GateTimeAccept, imports this package.
+
+## Q-FEAT-TIM-08-SCREENS Timekeeping screen actions select matters
+
+- main has no `boot.FirmSubject`, so the timekeeping screens that are not about one matter
+  (activity-list, and for FEAT-TIM-09/10 utilization, activity-categories and
+  timekeeper-targets) select the matters of the rows on screen: `SubjectKind: "matter"` in
+  `app/legal/boot/agent.go` actionScreens. matter-fee-arrangement is a matter screen.
+- Capabilities: activity-list `time.record`, matter-fee-arrangement `billing.view`,
+  utilization and timekeeper-targets `reports.firm`, activity-categories `time.view_all`.
+  Switch the firm-level ones to the firm subject once boot has one.
+- The features' end-to-end tests give list_unbilled a test MatterTime port over the Seed's
+  time entries (the Seed has no MatterTime); the handler itself is the app's.

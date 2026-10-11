@@ -148,5 +148,10 @@ func appDefs() []feature.Def {
 		timekeeping.EngagementTermsDef(),
 		timekeeping.RateChangeImpactDef(),
 		timekeeping.RewriteNarrativeDef(),
+		timekeeping.FindInconsistenciesDef(),
+		timekeeping.FlagOutOfScopeDef(),
+		timekeeping.ExplainTrendDef(),
+		timekeeping.SuggestCategoriesDef(),
+		timekeeping.ExplainShortfallDef(),
 	}
 }

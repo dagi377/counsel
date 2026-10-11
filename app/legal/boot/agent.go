@@ -480,6 +480,12 @@ var actionScreens = map[string]trigger.Screen{
 	"matter-fee-arrangement": {SubjectKind: "matter", Capability: "billing.view"},
 	// A time entry is checked on its matter (timekeeping HTTP does the same).
 	"time-entry-detail": {SubjectKind: "matter", Capability: "time.record"},
+	// Time. Firm-level time screens select the matters of the rows on screen until boot has a
+	// firm subject (Q-FEAT-TIM-08-SCREENS).
+	"activity-list":       {SubjectKind: "matter", Capability: "time.record"},
+	"utilization":         {SubjectKind: "matter", Capability: "reports.firm"},
+	"activity-categories": {SubjectKind: "matter", Capability: "time.view_all"},
+	"timekeeper-targets":  {SubjectKind: "matter", Capability: "reports.firm"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
