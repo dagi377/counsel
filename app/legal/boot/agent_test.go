@@ -62,7 +62,6 @@ type (
 	stubDocDrafts    struct{ agent.DocumentDrafts }
 	stubEmailDrafts  struct{ agent.EmailDrafts }
 	stubNoteDrafts   struct{ agent.NoteDrafts }
-	stubWIP          struct{ agent.UnbilledWIP }
 	stubEnqueuerNone struct{ trigger.Enqueuer }
 )
 
@@ -79,7 +78,6 @@ func fullPorts() AgentPorts {
 		Documents:       stubDocs{},
 		Folders:         stubFolders{},
 		Bills:           stubBills{},
-		UnbilledWIP:     stubWIP{},
 		Matters:         stubMatterQuery{},
 		DocLookup:       stubDocLookup{},
 		WriteTools:      mustWriteTools(),

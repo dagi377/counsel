@@ -94,6 +94,13 @@ func (r *reportTools) buildPlan(d Deps) (registry.Tool, error) {
 		if err != nil {
 			return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolReportPlan, err)
 		}
+		// A Plans that stores step ids (the Planner over PGPlans) keeps them across a restart;
+		// the in-process map covers a Plans that does not.
+		if named, ok := plans.(agenttools.StepIDs); ok {
+			if err := named.SetStepIDs(ctx, plan.ID, ids); err != nil {
+				return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolReportPlan, err)
+			}
+		}
 		r.mu.Lock()
 		r.steps[runID] = ids
 		r.mu.Unlock()
@@ -153,9 +160,12 @@ func (r *reportTools) buildStep(d Deps) (registry.Tool, error) {
 		if err != nil {
 			return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolReportStep, err)
 		}
-		r.mu.Lock()
-		index := slices.Index(r.steps[runID], in.StepID)
-		r.mu.Unlock()
+		index := agenttools.StepIndex(plan, in.StepID)
+		if index < 0 {
+			r.mu.Lock()
+			index = slices.Index(r.steps[runID], in.StepID)
+			r.mu.Unlock()
+		}
 		if index < 0 || index >= len(plan.Steps) {
 			return registry.ToolResult{}, fmt.Errorf("%s: step: %w", ToolReportStep, agenttools.ErrNotFound)
 		}

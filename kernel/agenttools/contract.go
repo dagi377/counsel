@@ -74,6 +74,9 @@ type Step struct {
 	Title   string
 	Status  StepStatus
 	CallIDs []string // tool calls made during the step
+	// ID is the step id the agent named in its plan (report_plan step_id), empty when the
+	// agent named none. Additive (Q-BOOT-PORTS-B).
+	ID string
 }
 
 // Plan is the plan an agent run reports before its first write tool.
@@ -108,4 +111,11 @@ type Plans interface {
 	ReportStep(ctx context.Context, planID string, index int, status StepStatus) error
 	// Current returns the run's plan and the index of its first unfinished step (-1 if none).
 	Current(ctx context.Context, runID string) (Plan, int, error)
+}
+
+// StepIDs names the steps of a stored plan by the ids the agent gave them, so a step id
+// survives a restart (Q-BOOT-PORTS-B). Planner implements it.
+type StepIDs interface {
+	// SetStepIDs sets the id of each step of plan planID, in step order.
+	SetStepIDs(ctx context.Context, planID string, ids []string) error
 }

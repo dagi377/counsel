@@ -318,7 +318,7 @@ func TestPGPlansBodyHoldsToolStepsOnly(t *testing.T) {
 			if err := json.Unmarshal(tbl.rows[0].body, &steps); err != nil {
 				t.Fatalf("body %s: %v", tbl.rows[0].body, err)
 			}
-			allowed := map[string]bool{"index": true, "title": true, "status": true, "call_ids": true}
+			allowed := map[string]bool{"index": true, "title": true, "status": true, "call_ids": true, "id": true}
 			for _, s := range steps {
 				for k := range s {
 					if !allowed[k] {
@@ -338,5 +338,45 @@ func TestPGPlansBodyHoldsToolStepsOnly(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, tc.check)
+	}
+}
+
+// TestPGPlansStepIDs: the step ids an agent names in its plan are stored with the plan, so a
+// new Planner over the same table (a restarted process) finds a step by id (Q-BOOT-PORTS-B).
+func TestPGPlansStepIDs(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		name   string
+		ids    []string
+		lookup string
+		want   int
+		err    error
+	}{
+		{"named steps", []string{"read", "draft"}, "draft", 1, nil},
+		{"unknown id", []string{"read", "draft"}, "send", -1, nil},
+		{"empty lookup", []string{"read", "draft"}, "", -1, nil},
+		{"too few ids", []string{"read"}, "read", -1, agenttools.ErrStepTitle},
+		{"repeated id", []string{"read", "read"}, "read", -1, agenttools.ErrStepTitle},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store, _ := newPGPlans()
+			pl := agenttools.NewPlanner(store)
+			p, err := pl.ReportPlan(ctx, "run-1", []string{"Read the file", "Draft the reply"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = pl.SetStepIDs(ctx, p.ID, tc.ids)
+			if !errors.Is(err, tc.err) {
+				t.Fatalf("SetStepIDs err = %v, want %v", err, tc.err)
+			}
+			got, _, err := agenttools.NewPlanner(store).Current(ctx, "run-1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if i := agenttools.StepIndex(got, tc.lookup); i != tc.want {
+				t.Fatalf("StepIndex(%q) = %d, want %d", tc.lookup, i, tc.want)
+			}
+		})
 	}
 }

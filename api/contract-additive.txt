@@ -11,3 +11,4 @@
 /paths/~1bills~1{bill_id}~1submit/post/requestBody Q-HTTP-08b
 /components/schemas/TrustLedger/properties/overdrawn Q-HTTP-10c
 /components/schemas/TrustLedger/properties/shortfall_cents Q-HTTP-10c
+/paths/~1agent~1actions~1{feature_id} Q-FEAT-CORE-12
