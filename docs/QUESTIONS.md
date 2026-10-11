@@ -3457,6 +3457,38 @@ the same way as F-INT-06 (Q-FEAT-INT-06) and F-DL-02 (Q-FEAT-DL-04):
   rule admin; open: switch CourtFormCurrencyBinding to BindDesignated. F-MAT-12 had no
   binding; boot binds it to document.uploaded and email.filed for the event's user.
 
+## Q-FEAT-WRK-01 F-WRK-01 events, the work-item screen and create_task's due date
+
+- Task: FEAT-WRK-01 (F-WRK-01 Pick up agent-ready items).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs), `app/legal/boot/agent.go` (the job binding and the `work-item` screen),
+  `app/legal/work/ai_wrk_helpers_test.go` (shared wrk test helpers) and the generated skill
+  `paploo/counsel-plugin/skills/f-wrk-01-pick-up-agent-ready-items/SKILL.md`.
+- No work event exists in spec/eng/a2-interfaces.json for "item enters Agent-ready" or
+  "assigned to agent". The Def binds `work.item_agent_ready` and `work.item_assigned_to_agent`
+  (consts in app/legal/work); nothing publishes them yet. Confirm the names when kernel/work
+  publishes item events.
+- The `work-item` action screen selects subject kind `work_item` with `work.edit`; no
+  registry constant names that kind yet.
+- `create_task`'s `due_on` is not held to the run's provenance in production (only
+  propose_deadline, draft_bill and payment allocation use `SourcedWrite`). The wrk tests wrap
+  create_task with `SourcedWrite("/due_on")` and check an unread date is refused with
+  `ErrUnsourcedValue`. Proposed: wrap create_task the same way in
+  `app/legal/agent/tools_task.go`. Note that none of the F-WRK tools returns a bare
+  `YYYY-MM-DD` value (list_work_items gives RFC 3339 `due_at`), so once wrapped an agent can
+  write no due date until a read tool returns one.
+
+## Q-FEAT-WRK-07 F-WRK-11 base branch, the work-item-create screen and its skill
+
+- Task: FEAT-WRK-07 (F-WRK-11 Create from email / call note).
+- Based on `task/FEAT-WRK-01` (not yet on main) to reuse `work.GateWorkOutput` and the wrk
+  test helpers; `origin/main` is merged in.
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs), `app/legal/boot/agent.go` (the `work-item-create` action screen) and
+  `app/legal/work/ai_wrkc_helpers_test.go` (shared wrkc test helpers).
+- `work-item-create` selects subject kind `matter` with `work.edit`: the drafted items go on
+  that matter. F-WRK-11 is an extraction feature, so no plugin skill is generated for it.
+
 ## FEAT-TIM-01 Rebuild day: per-user end-of-day run and sourced time entries
 
 - F-TIM-01 runs "end of day per user", but a `trigger.Binding` acts for one user. Boot binds
@@ -3668,3 +3700,17 @@ of FEAT-TIM-01 above.
   work.plan gate instead of failing closed (Q-FEAT-WRK-02). Their tests now assert the one
   in-run gate on a proposed item, pending, prepared for the acting user, decided only by
   another lawyer.
+## Q-FEAT-WRK-08 F-WRK-14 base branch and the workflow-templates screen
+
+- Task: FEAT-WRK-08 (F-WRK-14 Draft template from past matters).
+- Based on `task/FEAT-WRK-07` with `task/FEAT-WRK-04` merged in, to reuse
+  `work.GateWorkflowPublish` and the wrkb draft_document test helpers (neither is on main yet).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs), `app/legal/boot/agent.go` (the `workflow-templates` action screen) and the
+  generated skill `paploo/counsel-plugin/skills/f-wrk-14-draft-template-from-past-matters/SKILL.md`.
+- boot.FirmSubject is not on main, so the firm-level `workflow-templates` screen selects the
+  completed matters to mine (subject `matter`, capability `work.workflows`); switch it to
+  FirmSubject with `workflow-editor` once BOOT-24 merges.
+- work.workflow_publish is a tool-gap kind: the run drafts the template with draft_document on
+  the first selected matter and opens G-W3 on that draft. Open: carry a workflow template id
+  in the G-W3 payload once workflow templates are stored.

@@ -161,5 +161,7 @@ func appDefs() []feature.Def {
 		work.WorkflowLintDef(),
 		work.RuleSuggesterDef(),
 		work.AbsenceCoverPlannerDef(),
+		work.CreateFromNoteDef(),
+		work.DraftTemplateDef(),
 	}
 }
