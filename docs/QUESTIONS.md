@@ -985,7 +985,7 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
 - `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
   Q-FEAT-TOOL agent handler set), so the branches merge cleanly.
 
-## Q-PORT-15 write-off store has no table for draft write-offs (blocked, stopped)
+## Q-PORT-15 write-off store has no table for draft write-offs (answered)
 
 PORT-15 asks for `PGWriteOffs` over `billing.write_off`, adding only a second-gate column in
 `6220_write_off_second_gate.sql`. The 0001 table cannot hold what `WriteOffStore` needs:
@@ -1016,3 +1016,22 @@ B. Bucket split: additive `SaveApprovedSplit(ctx, tx, w, adj)` (or `WriteOff.Tax
    amount in `fee_cents` (loses the tax split in the row; the journal still has it).
 C. `ResponsibleUser`: `PGWriteOffBills` takes a `matter.Query`-style lookup port (matter id ->
    responsible lawyer) instead of joining `matter.matter`.
+
+Answer (owner): approve an additive `billing.write_off_draft` table (status, preparer,
+approvers, total). The fee, disbursement and tax split is computed at draft time with
+`money.Allocate` in proportion to the bill's outstanding components (largest remainder, then
+verified). Only the effect writes the approved row to `billing.write_off`. The responsible
+lawyer is read through a matter port, never a SQL join.
+
+Done in PORT-15:
+- `migrations/5610_write_off_draft.sql` (billing block 5600-5699; the task text named 6220,
+  which is the app/legal/agent block): the draft row with its five-bucket split,
+  `credit_gate_id` (G-B5) and `second_gate_id`, each set once, and draft -> approved once,
+  guarded by a trigger; no deletes.
+- `PGWriteOffs` implements `WriteOffStore` and `WriteOffBills`. `Draft` locks the bill, reads
+  its outstanding buckets from billing tables only and fails closed when they do not add up to
+  the bill balance net of reserved fee transfers (a trust fee transfer has no bucket split).
+  `Submit` records the G-B5 gate id; `SaveApproved` refuses a draft without it and inserts
+  `billing.write_off` with `approval_id` = that gate, `ON CONFLICT (id) DO NOTHING`.
+- `ResponsibleLawyers` is the matter port `WriteOffBill` reads the lawyer through; nil or an
+  empty lawyer fails closed. The matter-side adapter is wired at boot (BOOT-15/16).
