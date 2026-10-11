@@ -9,10 +9,8 @@ GET /roles
 GET /time-entries
 GET /trust/requests
 GET /users
-GET /webhook-endpoints
 GET /work-items
 PATCH /time-entries/{time_entry_id}
-PATCH /webhook-endpoints/{webhook_id}
 PATCH /work-items/{work_item_id}
 POST /agent/runs
 POST /deadlines
@@ -21,6 +19,5 @@ POST /documents/{document_id}/release
 POST /time-entries
 POST /trust/requests
 POST /trust/withdrawals/{withdrawal_id}/execution
-POST /webhook-endpoints
 POST /work-items
 PUT /users/{user_id}/roles
