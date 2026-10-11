@@ -25,6 +25,9 @@ var ErrNoRegistry = errors.New("legal boot: kernel has no registry")
 type Options struct {
 	// Payment, when set, registers the payment provider's webhook as an inbound provider.
 	Payment *PaymentHook
+	// Gates, when set, builds the gate effect services and registers every gate kind that
+	// has an effect. When nil no app gate kind is registered.
+	Gates *GatePorts
 }
 
 // PaymentHook is the configured payment provider. Webhook.ID is the hook provider name from
@@ -39,12 +42,13 @@ type hook func(ctx context.Context, k *kboot.Kernel) error
 
 // App returns the legal app for kernel boot.
 func App(opts Options) kboot.App {
-	return newApp(registerHooks(opts), startHooks(opts))
+	w := &wiring{opts: opts}
+	return newApp(registerHooks(w), startHooks(opts))
 }
 
 // registerHooks lists the Register steps, in order. Later boot tasks append theirs here.
-func registerHooks(opts Options) []hook {
-	return []hook{registerModules, opts.registerPayment}
+func registerHooks(w *wiring) []hook {
+	return []hook{registerModules, w.opts.registerPayment, w.registerGates}
 }
 
 // startHooks lists the Start steps (seed and start jobs), in order. None exist yet.

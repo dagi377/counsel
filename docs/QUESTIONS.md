@@ -804,3 +804,14 @@ contract declares yet. Not built.
   is wired at boot. No kernel module owns a River job yet, so `addKernelJobs` adds none.
 - `TestRunFlags` now runs the import role and declares its flag in `Define`: Run builds
   through BuildWith, which turns flags on before Register (ARC-I-040).
+## Q-BOOT-16-FILES: BOOT-16 touches app/legal/boot/boot.go
+
+- Task: BOOT-16. Files listed: `effects.go`, `unwired_gates.txt`, `effects_test.go`.
+- Reason: "Register calls gates.RegisterWired" needs a Register hook, and the hook list and
+  `Options` live in `boot.go`. The change is additive: `Options.Gates *GatePorts` (nil keeps
+  the old behaviour: no app gate kind registered), and `App` builds a `wiring` value that
+  Register fills with the gate Catalog so a later step (BOOT-17 Clearance) can read it.
+- Wired: signatory (core.trust_signatory is ignored by RegisterWired, the kernel owns it),
+  trust.withdrawal, billing.bill_approval, billing.bill_void (bill.VoidEffects, per the
+  integrator decision) and the two write-off kinds. CreditPorts come from the caller
+  (no Postgres write-off store yet, Q-BOOT-13-PORTS).
