@@ -15,6 +15,7 @@ package featureset
 import (
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/deadlines"
+	"github.com/dagi377/counsel/app/legal/docs"
 )
 
 // App returns the set of the app's feature definitions. Each feature task adds its Def to
@@ -38,5 +39,7 @@ func appDefs() []feature.Def {
 		deadlines.RecomputeDependantsDef(),
 		deadlines.ComplianceEvidenceMatcherDef(),
 		deadlines.RuleWatchDef(),
+		// documents
+		docs.EngagementLetterDef(),
 	}
 }

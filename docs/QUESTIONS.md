@@ -1861,3 +1861,14 @@ Done in PORT-18:
   run it parks is the one that WriteTools resumes on gate.decided.
 - `agenttest/seed.go`: `SeedStore.Document` implements `agent.DocumentLookup`, so
   read_document runs its real handler in feature tests instead of a stand-in.
+
+## Q-FEAT-DOC-03 QuotedOnly accepts a real read handler's untrusted output
+
+- The document drafting features run read_document's real handler over Seed documents (no
+  stand-ins). Its output is `{"untrusted": true, "doc_id", "version_id", "pages": [...]}`, not
+  an `agenttools.Quoted`, so `agenttest.QuotedOnly` reported the quoted lines as unquoted.
+- `agenttest/agenttest.go`: QuotedOnly now also accepts a tool_result marked untrusted at its
+  top level whose string values hold the text (additive; the Quoted path is unchanged).
+  `agenttest/quoted_test.go` covers both shapes and the refusals.
+- F-DOC-02 binds both `conflict.cleared` and `lead.converted` (the spec trigger names G2 and
+  G1); the prompt has the agent draft only when the matter shows both done.
