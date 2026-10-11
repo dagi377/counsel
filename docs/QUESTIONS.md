@@ -1154,3 +1154,12 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   addNotifyJobs and addWebhookJobs. The legal app schedules
   trust.withdrawal_release_expired every 15 minutes when gate services are built. kernel/idem
   problem bodies carry `type` (urn:counsel:problem:<code>, now api.ProblemTypePrefix).
+- PORT-26 (logged, autopilot): `kernel/identity/breakglass.go` is edited outside the task's file
+  list, because `NewBreakGlassWith` and the `GrantStore` field must live on `BreakGlass`. The
+  in-memory store is the default. `audit.break_glass` (frozen) has no expiry column, so
+  `PGGrants` treats a grant as expired once its `core.break_glass_expire` audit event with
+  detail `grant_id` exists. The boot audit masker must allow `grant_id` as `audit.KindID`;
+  otherwise ExpireDue audits the same grant again on every run. The other option is an
+  additive `expired_at` column in the kernel/audit block (needs approval). The table holds
+  one subject kind in an app-named column, so boot sets `PGGrants.SubjectKind` and
+  `SubjectColumn` (the kernel names no legal term); other kinds are refused.
