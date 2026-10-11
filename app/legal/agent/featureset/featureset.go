@@ -172,5 +172,6 @@ func appDefs() []feature.Def {
 		// readiness
 		readiness.QuestionnaireFillerDef(),
 		readiness.CitationCheckerDef(),
+		readiness.RulePackImpactDef(),
 	}
 }

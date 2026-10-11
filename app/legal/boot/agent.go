@@ -360,6 +360,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		work.ExplainAutomationRunsDef().ID:    work.ExplainAutomationRunsBinding,
 		readiness.QuestionnaireFillerDef().ID: readiness.QuestionnaireFillerBinding,
 		readiness.CitationCheckerDef().ID:     readiness.CitationCheckerBinding,
+		readiness.RulePackImpactDef().ID:      readiness.RulePackImpactBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).

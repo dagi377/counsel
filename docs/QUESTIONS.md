@@ -4289,3 +4289,22 @@ of FEAT-TIM-01 above.
   extraction (spec), so it exports no plugin skill.
 - Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (binding and
   screen), and the shared helpers `app/legal/readiness/ai_rdy_helpers_test.go` (unchanged).
+
+## Q-FEAT-RDY-03 F-RDY-03 rule pack impact event, matter and deadline subject
+
+- F-RDY-03 binds the kernel's `deadline.EventPackPublished` (`rulepack.published`, also
+  F-DL-03's), acting for the event's user. That event's subject is the rule pack, but the
+  Def's only read tool, search_documents, takes a matter (no search_matters or
+  list_deadlines in the spec), so the run works on the matter the trigger names. Open: a
+  fan-out of one run per matter with deadlines under the pack, or adding list_deadlines to
+  the spec.
+- propose_deadline with the stored deadline's id opens `cal.change` and stores nothing; the
+  date moves only on approval. Its production SourcedWrite refuses a due_on or trigger_date
+  no search returned (`ErrUnsourcedValue`).
+- agenttest `Seed.Deadline` saves with subject kind `roles.SubjectMatter`, while
+  propose_deadline (both paths) uses `agent.WorkSubjectMatter` ("matter"), so a seeded
+  deadline reads as on another matter. The test saves its deadline as propose_deadline does.
+  Open: align Seed.Deadline with propose_deadline.
+- Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (binding), the
+  generated plugin skill, and the shared helpers `app/legal/readiness/ai_rdy_helpers_test.go`
+  (unchanged).
