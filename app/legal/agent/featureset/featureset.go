@@ -172,5 +172,6 @@ func appDefs() []feature.Def {
 		// platform
 		platform.RecommendSettingsDef(),
 		platform.PrepareFinalBillDef(),
+		platform.SuggestPracticeAreaDef(),
 	}
 }

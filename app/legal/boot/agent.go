@@ -529,6 +529,10 @@ var actionScreens = map[string]trigger.Screen{
 	"automation-settings": {SubjectKind: FirmSubject, Capability: "documents.edit"},
 	// matter-closing acts on the matter being closed (F-PLT-20 drafts its final bill).
 	"matter-closing": {SubjectKind: "matter", Capability: "matters.close"},
+	// firm-profile is firm-level: a practice area F-PLT-22 proposes is the firm's
+	// configuration. platform.firm_profile is a kernel id, so the screen asks for
+	// documents.edit, the run's drafting capability (Q-FEAT-PLT-20).
+	"firm-profile": {SubjectKind: FirmSubject, Capability: "documents.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

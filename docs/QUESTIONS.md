@@ -4287,3 +4287,16 @@ of FEAT-TIM-01 above.
 - `matter-closing` maps to `matter` with capability `matters.close`.
 - Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
   (screen), the generated plugin skill, ai_pltg_helpers_test.go (shared helpers).
+
+## Q-FEAT-PLT-20 F-PLT-22 suggest practice area setup on the firm subject
+
+- A practice area is the firm's configuration, so F-PLT-22 drafts its proposal on the firm
+  subject (`subject_ref` `"firm"`, no `matter_id`) and opens `matter.practice_config` (G-CF,
+  `matter.GatePracticeConfig`) on that draft with submit_for_approval. The grant names
+  `intake.forms` because draft_document gates firm drafts on it (Q-FORM-SUBJECT).
+- `firm-profile` maps to `boot.FirmSubject` with capability `documents.edit`: the approver
+  capability `platform.firm_profile` is a kernel id the app may not register.
+- G-CF's payload schema requires `practice_area` and `change`; submit_for_approval sends the
+  draft's subject only (same open point as Q-FEAT-PLT-17).
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (screen), the generated plugin skill.
