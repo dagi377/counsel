@@ -3720,3 +3720,46 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   lawyer like every other scheduled feature.
 - Open: PROPOSAL-DRAFT mapped `matter-open-wizard` to `matters.open`; main's pass-16 mapping
   (`matters.view`, Q-INTEG-16-SCREENS) was kept. Decide which capability the wizard needs.
+## Q-FEAT-TRU-01 bank-feed-sync: screens, binding and files outside the task list
+
+- Registering F-TRU-01 in featureset.App() (FEAT-CORE-17) makes the boot tests require its
+  screens and a job binding, so the task also touches app/legal/agent/featureset and
+  app/legal/boot/agent.go.
+- trust-receipts-journal and bank-feed-import are firm-level screens. main has no
+  boot.FirmSubject yet, so both select a matter (trust.view). Open: switch them to the firm
+  subject once it lands.
+- The schedule ("daily, plus when a statement is uploaded") binds with the write path in
+  FEAT-TRU-02; until then JobBindings lists F-TRU-01 as served by its screen actions.
+- The pipeline takes every amount and date from the cited bank-feed line: an amount is
+  integer cents ("125000 cents") or dollars and cents ("$1,250.00") in the line, else
+  agenttools.ErrUnsourcedValue and nothing is written. Its ReceiptProposals sink (opening
+  trust.receipt_classification with the acting user as preparer) is wired in FEAT-TRU-02.
+
+## Q-FEAT-TRU-04 month-end-reconciliation: trigger event, gate kind and amount provenance
+
+- No kernel event names a received bank statement. F-TRU-04 binds to the new
+  `trust.statement_received` (trust.EventStatementReceived) plus a daily check (the spec's
+  "schedule"), acting for the firm's designated lawyer (BindDesignated, JOB-ACTOR). Open: the
+  module that files statements publishes the event.
+- recon imports trust, so trust restates G12 as trust.GateReconciliationSignOff; a test holds
+  it equal to recon.GateSignOff.
+- draft_document and draft_email check citations but not amounts. trust.SourcedCents wraps
+  them so a trust write may state only integer cents and dates a read of the run returned
+  (signed, so an overdraft cannot be written unsigned), else agenttools.ErrUnsourcedValue and
+  no draft or gate. The FromFeature tests wire it; open: boot wraps the draft tools of trust
+  feature runs with it (the shared handler set has no per-feature wrapping yet).
+- monthly-reconciliation is a firm-level screen and selects a matter until boot.FirmSubject
+  lands (Q-FEAT-TRU-01).
+
+## Q-FEAT-TRU-05 retainer-replenishment: trigger event and the shortfall's figures
+
+- No kernel event names a ledger below its retainer floor. F-TRU-05 binds to the new
+  `trust.ledger_below_floor` (trust.EventLedgerBelowFloor), acting for the event's user.
+  Open: the trust module publishes it when a posting takes a ledger below the floor agreed
+  in the engagement.
+- The shortfall is Counsel's figure, never the model's: trust.NewRetainerShortfall keeps the
+  balance signed, flags an overdraft and covers it (floor - balance), and Observe records
+  its figures into the run's provenance before the run starts (fails closed without one).
+  Open: the event handler calls it and passes Prompt() as the run's request.
+- agent imports trust, so trust restates G-OUT as trust.GateOutgoingEmail; a test holds it
+  equal to agent.GateOutgoingEmail.
