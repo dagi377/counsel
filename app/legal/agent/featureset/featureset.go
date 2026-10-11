@@ -22,6 +22,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
+	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/work"
 )
 
@@ -180,5 +181,12 @@ func appDefs() []feature.Def {
 		// billing
 		billing.EvergreenWatchDef(),
 		billing.AgingCollectionsDef(),
+		// trust
+		trust.AnnualReportPrepDef(),
+		trust.RetainerCoverageScanDef(),
+		trust.SpotAuditPackDef(),
+		trust.BankFeedSyncDef(),
+		trust.MonthEndReconciliationDef(),
+		trust.RetainerReplenishmentDef(),
 	}
 }

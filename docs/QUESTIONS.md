@@ -4423,3 +4423,109 @@ and has a one-outbox-event test.
   (package billing, the F-BIL-05/06 internal tests) are one file per Go package; folding them
   needs the F-BIL-05/06 tests moved to billing_test (follow-up HELPER-DEDUP).
 - F-BIL-02's ok fixture prompt_hash was rehashed (draft_document's schema changed on main).
+
+## Q-FEAT-TRU-06 F-TRU-06 schedule, screen subject and sourced worksheet amounts
+
+- "schedule (after fiscal year end)" names no cadence, so trigger.ParseCadence checks daily.
+  F-TRU-06 binds with trigger.BindDesignated (the firm's designated lawyer acts) and its
+  prompt writes nothing until the fiscal year has ended. Open: a yearly cadence keyed to the
+  firm's fiscal year end.
+- Main has no boot.FirmSubject, so the firm-level lso-annual-report screen selects matters
+  (SubjectKind matter, capability trust.view) in boot actionScreens.
+- draft_document carries its amounts in body_markdown, which the Provenance field pointers
+  cannot reach. app/legal/trust/ai_sourced.go adds CheckSourcedCents and SourcedDraft: every
+  "N cents" figure in an agent's draft must be one a read returned in the run, and a dollar
+  figure, a fraction of a cent or a missing Provenance fails closed (ErrUnsourcedValue). The
+  feature tests wrap draft_document and draft_email with it. Open: boot registers one
+  draft_document and one draft_email for every feature, so SourcedDraft is not yet applied to
+  live trust runs; proposed: boot wraps the draft tools with trust.SourcedDraft for runs of a
+  trust-area Def (or the draft tools gain an amounts field the Provenance pointers cover).
+
+## Q-FEAT-TRU-07 F-TRU-07 screens and the top-up amount
+
+- client-trust-ledger is one matter's ledger and selects the matter; retainer-coverage is a
+  firm-level screen and, with no boot.FirmSubject on main, also selects matters (trust.view).
+- The request asks for the unpaid balance of the delivered bills, a figure get_bill
+  returned, never a worked-out shortfall: trust.SourcedDraft refuses any cents figure the run
+  did not read. Open: a sourced "agreed retainer floor" read (engagement terms) would let the
+  request name the floor too; get_matter does not return it today.
+
+## Q-FEAT-TRU-09 F-TRU-09 screen subject and gate path
+
+- trust-audit-trail is a firm-level screen; with no boot.FirmSubject on main it selects the
+  matters the pack covers (SubjectKind matter, capability trust.view).
+- draft_document opens no gate itself, so the pack's docs.outgoing (G-REL) gate opens through
+  submit_for_approval on the draft, and submit_for_approval refuses any other kind
+  (ErrGateKindNotAllowed). Amounts are checked by trust.SourcedDraft (Q-FEAT-TRU-06).
+## Q-FEAT-TRU-01 bank-feed-sync: screens, binding and files outside the task list
+
+- Registering F-TRU-01 in featureset.App() (FEAT-CORE-17) makes the boot tests require its
+  screens and a job binding, so the task also touches app/legal/agent/featureset and
+  app/legal/boot/agent.go.
+- trust-receipts-journal and bank-feed-import are firm-level screens. main has no
+  boot.FirmSubject yet, so both select a matter (trust.view). Open: switch them to the firm
+  subject once it lands.
+- The schedule ("daily, plus when a statement is uploaded") binds with the write path in
+  FEAT-TRU-02; until then JobBindings lists F-TRU-01 as served by its screen actions.
+- The pipeline takes every amount and date from the cited bank-feed line: an amount is
+  integer cents ("125000 cents") or dollars and cents ("$1,250.00") in the line, else
+  agenttools.ErrUnsourcedValue and nothing is written. Its ReceiptProposals sink (opening
+  trust.receipt_classification with the acting user as preparer) is wired in FEAT-TRU-02.
+
+## Q-FEAT-TRU-04 month-end-reconciliation: trigger event, gate kind and amount provenance
+
+- No kernel event names a received bank statement. F-TRU-04 binds to the new
+  `trust.statement_received` (trust.EventStatementReceived) plus a daily check (the spec's
+  "schedule"), acting for the firm's designated lawyer (BindDesignated, JOB-ACTOR). Open: the
+  module that files statements publishes the event.
+- recon imports trust, so trust restates G12 as trust.GateReconciliationSignOff; a test holds
+  it equal to recon.GateSignOff.
+- draft_document and draft_email check citations but not amounts. trust.SourcedCents wraps
+  them so a trust write may state only integer cents and dates a read of the run returned
+  (signed, so an overdraft cannot be written unsigned), else agenttools.ErrUnsourcedValue and
+  no draft or gate. The FromFeature tests wire it; open: boot wraps the draft tools of trust
+  feature runs with it (the shared handler set has no per-feature wrapping yet).
+- monthly-reconciliation is a firm-level screen and selects a matter until boot.FirmSubject
+  lands (Q-FEAT-TRU-01).
+
+## Q-FEAT-TRU-05 retainer-replenishment: trigger event and the shortfall's figures
+
+- No kernel event names a ledger below its retainer floor. F-TRU-05 binds to the new
+  `trust.ledger_below_floor` (trust.EventLedgerBelowFloor), acting for the event's user.
+  Open: the trust module publishes it when a posting takes a ledger below the floor agreed
+  in the engagement.
+- The shortfall is Counsel's figure, never the model's: trust.NewRetainerShortfall keeps the
+  balance signed, flags an overdraft and covers it (floor - balance), and Observe records
+  its figures into the run's provenance before the run starts (fails closed without one).
+  Open: the event handler calls it and passes Prompt() as the run's request.
+- agent imports trust, so trust restates G-OUT as trust.GateOutgoingEmail; a test holds it
+  equal to agent.GateOutgoingEmail.
+
+## TRUST-DRAFT-WRAP trust drafts are checked in production (decided)
+
+- Decided as counsel (trust exception): trust drafts carry figures that go to the regulator
+  or to clients, so every trust feature's draft_document and draft_email runs behind the one
+  trust sourced-figures check, trust.SourcedCents. It merges TRU-05's SourcedCents and
+  TRU-06's SourcedDraft and keeps the stricter rule of each: signed amounts (an overdraft
+  written without its minus sign is refused), dates, "*_cents" fields, thousands
+  separators, and refusal of dollars, decimals and fractions of a cent. A nil Provenance
+  or an empty run id fails closed.
+- agent.HandlerSet resolves per (feature, tool): WithFeatureWrap adds a wrap for one
+  feature, and the built tool picks per call by agent.FeatureOf(ctx). boot.AgentHandlers
+  lists the wraps explicitly (trust.SourcedFeatures; no init()), and boot.ForgetRunner puts
+  the run's feature in ctx. An agent call with no feature fails with agent.ErrNoFeature.
+- Files outside a task list: app/legal/agent/handlerset.go, agenttest/feature.go (Fire
+  scopes the feature), boot/agent.go. Non-trust drafts keep the default handler (BIL-02/05
+  policy unchanged).
+
+## Q-INTEG-18-TRUST pass 18 trust merge
+
+- Read recording is one mechanism: `boot.AgentHandlers` wraps every read tool (recordReads)
+  so it records its results in the run's Provenance, and `AgentTools` no longer wraps reads
+  a second time. Tests that build on `boot.AgentHandlers()` (the trust helpers) now get read
+  recording from production; the trust helper's own `ReadTool` wrap was removed. A read tool
+  built without a Provenance fails with agent.ErrMissingDep.
+- `ai_trub_helpers_test.go` was folded into `ai_tru_helpers_test.go` (one helper file for
+  trust_test); its two checks of trust.SourcedCents moved to `ai_sourced_test.go`.
+- JobBindings keeps main's designated-lawyer form (no ruleAdmin); the trust bindings plug in
+  unchanged. `TRU-09` was already inside TRUST-DRAFT-WRAP's chain.
