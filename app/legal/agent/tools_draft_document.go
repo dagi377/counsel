@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/kernel/agenttools"
@@ -18,6 +19,16 @@ const ToolDraftDocument = "draft_document"
 // ErrUncitedSource means a draft cites a source no tool result of its run returned.
 var ErrUncitedSource = errors.New("agent: draft cites a source not returned by this run")
 
+// SubjectFirm is the subject_ref of a firm-level draft: wording that belongs to the firm, not
+// to a matter, such as an intake form's public questions (F-INT-12). A firm draft names no
+// matter; it never borrows one.
+const SubjectFirm = "firm"
+
+// CapIntakeForms is the capability to build the firm's intake forms. draft_document stores a
+// firm-level draft only when the acting user holds it and, for an agent run, the run's grant
+// names it (Q-FORM-SUBJECT).
+const CapIntakeForms = "intake.forms"
+
 // DraftCitation is one citation in a draft body: the anchor in the body and the source it
 // points at.
 type DraftCitation struct {
@@ -27,7 +38,8 @@ type DraftCitation struct {
 	Source    agenttools.Citation
 }
 
-// NewDraftDocument is a draft document to store in a matter.
+// NewDraftDocument is a draft document to store in a matter, or on the firm when MatterID is
+// empty and SubjectRef is SubjectFirm.
 type NewDraftDocument struct {
 	MatterID   string
 	Title      string
@@ -142,8 +154,7 @@ func (t draftDocument) handle(ctx context.Context, p registry.Principal, raw jso
 	if err := json.Unmarshal(raw, &in); err != nil {
 		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolDraftDocument, ErrInvalidInput)
 	}
-	// rule: ARC-I-036
-	if err := visibleTo(ctx, t.walls, user, in.MatterID); err != nil {
+	if err := t.subject(ctx, p, user, in); err != nil {
 		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolDraftDocument, err)
 	}
 	agentRun := p.Kind == registry.PrincipalAgent
@@ -189,4 +200,33 @@ func (t draftDocument) handle(ctx context.Context, p registry.Principal, raw jso
 		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolDraftDocument, err)
 	}
 	return registry.ToolResult{Output: out, Citations: sources}, nil
+}
+
+// subject checks what the draft is on. A matter draft needs the matter visible to user. A
+// firm draft (no matter, subject_ref SubjectFirm) needs CapIntakeForms for user and, for an
+// agent run, in the run's grant; any other draft without a matter is invalid input.
+func (t draftDocument) subject(ctx context.Context, p registry.Principal, user string, in draftDocumentIn) error {
+	if in.MatterID != "" {
+		if in.SubjectRef == SubjectFirm {
+			return ErrInvalidInput
+		}
+		// rule: ARC-I-036
+		return visibleTo(ctx, t.walls, user, in.MatterID)
+	}
+	if in.SubjectRef != SubjectFirm {
+		return ErrInvalidInput
+	}
+	// rule: ARC-I-036
+	// A firm draft borrows no matter: the run's grant and the acting user must both allow it.
+	if p.Kind == registry.PrincipalAgent && !slices.Contains(p.Grant, CapIntakeForms) {
+		return ErrForbidden
+	}
+	ok, err := t.can(ctx, user, CapIntakeForms)
+	if err != nil {
+		return fmt.Errorf("capability: %w", err)
+	}
+	if !ok {
+		return ErrForbidden
+	}
+	return nil
 }

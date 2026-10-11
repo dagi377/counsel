@@ -1223,7 +1223,6 @@
    "type": "object",
    "additionalProperties": false,
    "required": [
-    "matter_id",
     "title",
     "body_markdown"
    ],

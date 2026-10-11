@@ -3037,3 +3037,22 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   does not build Leads yet (no Postgres FormStore/LeadStore).
 - Outside the listed files: app/legal/register_test.go (module count 36 -> 37 for deadlines),
   the F-CON-03 ok fixture prompt_hash and the regenerated plugin skill (prompt change).
+
+## Q-FORM-SUBJECT F-INT-12 drafts public form wording on the firm subject
+
+Decided as counsel: an intake form is firm-level, so F-INT-12 must not borrow a matter.
+- draft_document accepts a firm draft: no `matter_id` and `subject_ref` `"firm"`
+  (`agent.SubjectFirm`). It is stored only when the acting user holds `intake.forms`
+  (`agent.CapIntakeForms`) and, for an agent run, the run's grant names it; else
+  `ErrForbidden`. A firm subject with a matter, or no matter without the firm subject, is
+  `ErrInvalidInput`. F-INT-12's Def grant gains `intake.forms`.
+- Contract change, loosening only: `matter_id` is no longer in draft_document's `required`
+  (`spec/eng/a2-interfaces.json`, `app/legal/agent/schemas/tools.json`); the handler still
+  requires it for every draft that is not a firm draft.
+- Migration `5802_draft_firm_subject.sql` drops NOT NULL on `docs.draft.matter_id`.
+  `PGDocumentDrafts` stores a firm draft with a null matter, and the submit lookup returns
+  `""` for it, so submit_for_approval checks no wall.
+- Merged `task/EVENTS-WIRE-2` (the subject_ref field) into this branch, which is based on
+  `task/FEAT-INT-09`. The register module count is 39 after the merge.
+- Loosening the draft_document schema changes the prompt hash of every tool-use Def that
+  offers it; the pinned `ok.yaml` prompt hashes of F-CON-03 and F-CON-04 are rehashed.
