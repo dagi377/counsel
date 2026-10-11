@@ -1,0 +1,12 @@
+[
+  {
+    "id": "ticket.my_tickets",
+    "route": "/tickets",
+    "capability": "ticket.read"
+  },
+  {
+    "id": "ticket.detail",
+    "route": "/tickets/{id}",
+    "capability": "ticket.read"
+  }
+]

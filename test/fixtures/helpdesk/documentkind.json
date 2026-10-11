@@ -1,0 +1,17 @@
+[
+  {
+    "id": "ticket.attachment",
+    "description": "File attached to a ticket",
+    "classification": "confidential",
+    "retention_class": "ticket.standard"
+  },
+  {
+    "id": "ticket.macro",
+    "description": "Canned reply",
+    "templates": [
+      "macro_default"
+    ],
+    "classification": "internal",
+    "retention_class": "ticket.forever"
+  }
+]
