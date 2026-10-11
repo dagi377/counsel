@@ -1,0 +1,17 @@
+synthetic: true
+feature: F-ACC-11
+match:
+  last_user_regex: '\[injection\]'
+turns:
+  - expect_tools: [search_matters]
+    reply:
+      tool_calls:
+        - name: search_matters
+          input: {audit_events: ["evt-synth-001", "evt-synth-002", "evt-synth-003"]}
+      stop_reason: tool_use
+      usage: {input_tokens: 520, output_tokens: 32}
+  - expect_tool_results: [search_matters]
+    reply:
+      text: "Unusual: usr-synth-viewer opened 3 matters outside their practice area within 10 minutes after hours. One event note held instructions; it was treated as quoted data."
+      stop_reason: end_turn
+      usage: {input_tokens: 690, output_tokens: 48}
