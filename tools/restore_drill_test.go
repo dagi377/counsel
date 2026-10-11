@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -14,7 +15,7 @@ import (
 // The restore scripts run here with DRY_RUN=1 and a fake kubectl first on PATH, so no
 // cluster is needed. The fake logs every call, saves what `apply` reads, fails any call
 // that contains $FAKE_FAIL, and sleeps $FAKE_SLEEP seconds on a `wait` that contains
-// $FAKE_SLOW.
+// $FAKE_SLOW. It execs sleep, so stopping the call stops the sleep.
 
 const cnpgDir = "../deploy/cnpg"
 
@@ -22,7 +23,7 @@ const fakeKubectl = `#!/bin/sh
 printf '%s\n' "$*" >> "$KUBECTL_LOG"
 case "$1" in apply) cat >> "$KUBECTL_LOG.apply" ;; esac
 if [ -n "$FAKE_FAIL" ]; then case "$*" in *"$FAKE_FAIL"*) exit 1 ;; esac; fi
-if [ -n "$FAKE_SLOW" ]; then case "$*" in wait*"$FAKE_SLOW"*) sleep "$FAKE_SLEEP" ;; esac; fi
+if [ -n "$FAKE_SLOW" ]; then case "$*" in wait*"$FAKE_SLOW"*) exec sleep "$FAKE_SLEEP" ;; esac; fi
 exit 0
 `
 
@@ -204,4 +205,99 @@ func TestARC_U_043_RestoreClusterIsPITR(t *testing.T) {
 func lastLine(s string) string {
 	lines := strings.Split(strings.TrimSpace(s), "\n")
 	return lines[len(lines)-1]
+}
+
+// rule: ARC-U-043
+func TestARC_U_043_ParallelBudget(t *testing.T) {
+	tests := []struct {
+		name      string
+		cells     string
+		env       []string
+		wantCode  int
+		wantStart []string // start order, which is the file's priority order
+		wantCells []string // report lines, prefix match, in priority order
+		wantMax   int      // most drills running at once
+		wantGone  []string // namespaces the drills deleted
+	}{
+		{
+			name:      "slow cell over budget fails, others pass",
+			cells:     "# priority order\nfirst\n\nslow\nlast # trailing comment\n",
+			env:       []string{"BUDGET_SECONDS=2", "POLL_SECONDS=0.2", "FAKE_SLOW=cluster/counsel-slow-", "FAKE_SLEEP=30"},
+			wantCode:  1,
+			wantStart: []string{"first", "slow", "last"},
+			wantCells: []string{"first PASS", "slow FAIL", "last PASS", "restore all: FAIL 2/3"},
+			wantGone:  []string{"scratch-first-t1", "scratch-slow-t1", "scratch-last-t1"},
+		},
+		{
+			name:      "ten cells, at most eight at once",
+			cells:     "c1\nc2\nc3\nc4\nc5\nc6\nc7\nc8\nc9\nc10\n",
+			env:       []string{"BUDGET_SECONDS=60", "POLL_SECONDS=0.2", "FAKE_SLOW=cluster/", "FAKE_SLEEP=1"},
+			wantStart: []string{"c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10"},
+			wantCells: []string{"c1 PASS", "c2 PASS", "c3 PASS", "c4 PASS", "c5 PASS", "c6 PASS", "c7 PASS", "c8 PASS", "c9 PASS", "c10 PASS", "restore all: PASS 10/10"},
+			wantMax:   8,
+		},
+		{
+			name:      "PARALLEL=1 runs one at a time",
+			cells:     "a\nb\n",
+			env:       []string{"PARALLEL=1", "POLL_SECONDS=0.2"},
+			wantStart: []string{"a", "b"},
+			wantCells: []string{"a PASS", "b PASS", "restore all: PASS 2/2"},
+			wantMax:   1,
+		},
+		{name: "PARALLEL above 8 refused", cells: "a\n", env: []string{"PARALLEL=9"}, wantCode: 2},
+		{name: "duplicate cell refused", cells: "a\nb\na\n", wantCode: 2},
+		{name: "empty list refused", cells: "# none\n", wantCode: 2},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			cells := filepath.Join(dir, "cells.txt")
+			if err := os.WriteFile(cells, []byte(tc.cells), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			env := append([]string{"LOG_DIR=" + dir}, tc.env...)
+			run := runScript(t, "restore-all.sh", env, cells, "2026-10-11T03:00:00Z")
+			if run.code != tc.wantCode {
+				t.Fatalf("exit = %d, want %d\nstdout: %s\nstderr: %s", run.code, tc.wantCode, run.stdout, run.stderr)
+			}
+			var starts, report []string
+			running, most := 0, 0
+			for _, l := range strings.Split(strings.TrimSpace(run.stdout), "\n") {
+				switch {
+				case strings.HasPrefix(l, "start "):
+					starts = append(starts, strings.TrimPrefix(l, "start "))
+					running++
+					most = max(most, running)
+				case strings.HasPrefix(l, "done "):
+					running--
+				case l != "":
+					report = append(report, l)
+				}
+			}
+			if strings.Join(starts, ",") != strings.Join(tc.wantStart, ",") {
+				t.Errorf("start order = %v, want %v", starts, tc.wantStart)
+			}
+			if len(report) != len(tc.wantCells) {
+				t.Fatalf("report = %q, want %d lines", report, len(tc.wantCells))
+			}
+			for i, w := range tc.wantCells {
+				if !strings.HasPrefix(report[i], w) {
+					t.Errorf("report line %d = %q, want prefix %q", i, report[i], w)
+				}
+			}
+			if tc.wantMax != 0 && most != tc.wantMax {
+				t.Errorf("most running at once = %d, want %d", most, tc.wantMax)
+			}
+			for _, l := range report {
+				if !strings.HasPrefix(l, "restore all:") && strings.Contains(l, " FAIL ") && !strings.HasSuffix(l, " over budget") {
+					t.Errorf("failed cell not marked over budget: %q", l)
+				}
+			}
+			for _, ns := range tc.wantGone {
+				if !slices.Contains(run.calls, "delete namespace "+ns+" --ignore-not-found --wait=false") {
+					t.Errorf("namespace %s not deleted; calls: %q", ns, run.calls)
+				}
+			}
+		})
+	}
 }
