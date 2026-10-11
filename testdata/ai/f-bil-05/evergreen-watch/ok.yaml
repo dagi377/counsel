@@ -1,37 +1,39 @@
 synthetic: true
 feature: F-BIL-05
 match:
-  prompt_hash: ""
+  prompt_hash: "09e6d69da1de6b5ba8d455a36f8e69651aa92fa1f964b78c3be8b19fd4559001"
   last_user_regex: "daily evergreen watch"
 latency_ms: 0
 turns:
   - reply:
       tool_calls:
         - name: get_trust_balance
-          input: {matter_id: "8c1f6a52-3d0e-4b7a-9a61-2f4e7b0c9d15"}
+          input: {matter_id: "00000000-0000-4000-8000-0000000000a1"}
       stop_reason: tool_use
-      usage: {input_tokens: 640, output_tokens: 32}
+      usage: {input_tokens: 680, output_tokens: 32}
   - expect_tool_results: [get_trust_balance]
     reply:
       tool_calls:
-        - name: report_plan
-          input: {steps: [{id: draft-retainer-request, title: "Draft retainer request for M-2026-0007"}]}
+        - name: list_unbilled
+          input: {matter_id: "00000000-0000-4000-8000-0000000000a1"}
       stop_reason: tool_use
-      usage: {input_tokens: 720, output_tokens: 28}
+      usage: {input_tokens: 760, output_tokens: 32}
+  - expect_tool_results: [list_unbilled]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{step_id: draft-retainer-request, title: "Draft retainer request for the matter"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 840, output_tokens: 32}
   - expect_tool_results: [report_plan]
     reply:
       tool_calls:
-        - name: submit_for_approval
-          input:
-            kind: platform.outgoing_email
-            matter_id: "8c1f6a52-3d0e-4b7a-9a61-2f4e7b0c9d15"
-            to_contact_ids: ["4b2d9e10-7c3a-4f61-8e25-91a0c6d3b7f4"]
-            subject: "Request to top up your retainer for M-2026-0007"
-            body_markdown: "Your trust balance is $120.00, below the agreed $5,000.00 evergreen floor. Please deposit $4,880.00."
+        - name: draft_email
+          input: {matter_id: "00000000-0000-4000-8000-0000000000a1", to_contact_ids: ["00000000-0000-4000-8000-0000000000e1"], subject: "Request to top up your retainer", body_markdown: "Your available trust balance is $1,200.00. Unbilled work stands at 60000 cents. Please replenish the retainer to the agreed level.", submit: true}
       stop_reason: tool_use
-      usage: {input_tokens: 810, output_tokens: 96}
-  - expect_tool_results: [submit_for_approval]
+      usage: {input_tokens: 920, output_tokens: 32}
+  - expect_tool_results: [draft_email]
     reply:
       text: "Drafted 1 retainer request for your approval."
       stop_reason: end_turn
-      usage: {input_tokens: 860, output_tokens: 12}
+      usage: {input_tokens: 1200, output_tokens: 12}

@@ -329,6 +329,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		matter.ConfigHygieneDef().ID:                matter.ConfigHygieneBinding,
 		matter.TemplateFitDef().ID:                  matter.TemplateFitBinding,
 		matter.MatterDigestDef().ID:                 matter.MatterDigestBinding,
+		billing.EvergreenWatchDef().ID:              billing.EvergreenWatchBinding,
+		billing.AgingCollectionsDef().ID:            billing.AgingCollectionsBinding,
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		work.WorkflowLintDef().ID:                   work.WorkflowLintBinding,
@@ -534,6 +536,8 @@ var actionScreens = map[string]trigger.Screen{
 	// saved-filters is firm-wide, but no firm subject exists yet, so it selects the matter
 	// (Q-FEAT-WRK-12). workload and work-item are listed once above.
 	"saved-filters": {SubjectKind: "matter", Capability: "work.view"},
+	// Billing: a retainer request is drafted for the selected matter (FEAT-BIL-05).
+	"retainer-requests": {SubjectKind: "matter", Capability: "billing.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

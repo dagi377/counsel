@@ -177,5 +177,8 @@ func appDefs() []feature.Def {
 		billing.BillingCycleDraftsDef(),
 		billing.BillRenderDef(),
 		billing.PaymentMatchingDef(),
+		// billing
+		billing.EvergreenWatchDef(),
+		billing.AgingCollectionsDef(),
 	}
 }

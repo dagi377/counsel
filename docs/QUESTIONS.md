@@ -4377,3 +4377,49 @@ and has a one-outbox-event test.
 - No kernel event exists for an imported bank feed line, so F-BIL-04 binds
   payment.received (already used by F-MAT-03) and the new bank_feed.line_imported
   (billing.EventBankFeedLineAdded). Open: which module emits the bank feed event.
+
+## FEAT-BIL-05 Evergreen watch: amount provenance in email text and wiring
+
+- draft_email has no cents field: the figures a retainer request states live in its subject
+  and body text. billing.SourcedEmailHandlers wraps draft_email so, for an agent principal,
+  every dollar ("$1,200.00") or cents ("60000 cents") figure in the text must be a value a
+  read tool of the run returned, else agenttools.ErrUnsourcedValue and no draft or gate row.
+  It also records list_unbilled's figures in the run's provenance (list_unbilled does not
+  wrap itself with Provenance.ReadTool, unlike get_bill and get_trust_balance).
+- The feature tests run over SourcedEmailHandlers(agent.Handlers()). Boot still builds one
+  registry from agent.Handlers() for every feature, so the guard is not yet live at boot.
+  Open: wire SourcedEmailHandlers in boot.AgentTools (it then applies to every feature's
+  draft_email, e.g. F-MAT-08 cites cents from quoted engagement terms, which the guard does
+  not accept), or give draft_email a per-run amount check; and wrap list_unbilled with
+  ReadTool in its own file (FEAT-TOOL-08).
+- The retainer-requests screen selects a matter (billing.view); main has no boot.FirmSubject.
+- F-BIL-05 binds with trigger.BindDesignated (daily, the designated lawyer).
+
+## FEAT-BIL-06 Aging and collections: gate kind const and email guard
+
+- billing.GateCollectionsMessage names billing.collections_message (G-B7); no earlier const
+  existed on main or a pushed branch. The kind is still listed in boot/unwired_gates.txt: a
+  decided reminder has no effect wired yet. Open: wire its effect.
+- F-BIL-06 drafts with draft_email (no submit) and opens G-B7 with submit_for_approval on the
+  email_draft. It shares the sourced-amount guard of FEAT-BIL-05 (SourcedEmailHandlers), with
+  the same open boot-wiring question.
+
+## Q-INTEG-18-BIL pass 18 billing merge
+
+- Production handlers only (AUTOPILOT policy): BIL-02's `SourcedBillDraftHandler` and BIL-05's
+  `SourcedEmailHandlers` (with its `observedRead` list_unbilled wrapper and the now unused
+  `EmailAmounts` parser and its test) were not wired by boot and are removed. Free-text bill
+  drafts and billing emails go to the lawyer's gate; `TestFBIL02_FreeTextDraftAwaitsApproval`
+  and the F-BIL-05/06 "unsourced figure awaits lawyer approval" cases now assert that
+  production behaviour (draft stored, gate pending, preparer rules hold).
+- `billing.EventBillingCycleRequested` and `billing.EventBankFeedLineAdded` now point at
+  EVENTS-7's `batch.EventCycleRequested` and `payment.EventBankFeedLineImported`.
+  `payment.received` has no EVENTS-7 publisher constant yet and stays in F-BIL-04.
+- list_unbilled no longer records its own results (PROV-UNBILLED and TIME-FIX both did); boot's
+  AgentTools read-tool wrapper is the one mechanism, proved for list_unbilled by
+  `boot.TestAgentToolsRecordListUnbilled`. PROV-UNBILLED's build-without-provenance test went
+  with the self-recording; its write-down sourcing cases moved to the boot test.
+- Test helpers: `ai_bil_helpers_test.go` (package billing_test) and `ai_bilb_helpers_test.go`
+  (package billing, the F-BIL-05/06 internal tests) are one file per Go package; folding them
+  needs the F-BIL-05/06 tests moved to billing_test (follow-up HELPER-DEDUP).
+- F-BIL-02's ok fixture prompt_hash was rehashed (draft_document's schema changed on main).
