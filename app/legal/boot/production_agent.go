@@ -15,11 +15,14 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
+	"github.com/dagi377/counsel/app/legal/billing/batch"
 	"github.com/dagi377/counsel/app/legal/billing/bill"
+	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
+	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/kernel/agenttools"
@@ -27,7 +30,9 @@ import (
 	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/ai/httpclient"
 	kboot "github.com/dagi377/counsel/kernel/boot"
+	kdb "github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/deadline"
+	kdocs "github.com/dagi377/counsel/kernel/docs"
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/kernel/work"
@@ -299,7 +304,7 @@ func (p Production) agentPorts(k *kboot.Kernel, opts *Options, w *AgentWiring) e
 	if ports.Matters == nil {
 		ports.Matters = matters
 	}
-	if ports.DocLookup == nil || ports.Folders == nil {
+	if ports.DocLookup == nil || ports.Folders == nil || ports.Documents == nil {
 		folders, err := legaldocs.NewFolderStore(k.DB, nil)
 		if err != nil {
 			return fmt.Errorf("folders: %w", err)
@@ -309,6 +314,27 @@ func (p Production) agentPorts(k *kboot.Kernel, opts *Options, w *AgentWiring) e
 		}
 		if ports.Folders == nil {
 			ports.Folders = folders
+		}
+		if ports.Documents == nil {
+			ports.Documents = filedDocuments{s: folders}
+		}
+	}
+	if ports.Text == nil {
+		ports.Text = kdocs.PGText{DB: k.DB}
+	}
+	if ports.Entries == nil {
+		ports.Entries = tk.PGEntries{DB: k.DB}
+	}
+	if ports.DraftCalc == nil {
+		ports.DraftCalc = draft.Calculator{}
+	}
+	if ports.DraftStore == nil || ports.BatchDrafts == nil {
+		drafts := postgresDrafts(k, matters)
+		if ports.DraftStore == nil {
+			ports.DraftStore = draft.PGStore{DB: k.DB, Drafts: drafts}
+		}
+		if ports.BatchDrafts == nil {
+			ports.BatchDrafts = draft.PGBatch{DB: k.DB, Drafts: drafts, PreparedBy: runActingFor(k.DB)}
 		}
 	}
 	items := &work.PG{DB: k.DB}
@@ -409,6 +435,45 @@ func gateOpener(k *kboot.Kernel) agenttools.GateOpener {
 			return "", fmt.Errorf("open gate %s: %w", kind, err)
 		}
 		return id, nil
+	}
+}
+
+// filedDocuments lists a matter's filed documents through legaldocs.FolderStore.
+type filedDocuments struct{ s *legaldocs.FolderStore }
+
+// MatterDocuments implements agent.MatterDocuments.
+func (f filedDocuments) MatterDocuments(ctx context.Context, matterID string) ([]agent.ListedDocument, error) {
+	filed, err := f.s.Filed(ctx, matterID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]agent.ListedDocument, len(filed))
+	for i, d := range filed {
+		out[i] = agent.ListedDocument{Document: d.Document, VersionID: kdocs.VersionID(d.VersionID)}
+	}
+	return out, nil
+}
+
+// runActingForSQL reads the user an agent run acts for (agent.run_record, ids only).
+const runActingForSQL = `SELECT acting_for::text FROM agent.run_record WHERE id = $1::uuid`
+
+// runActingFor names the preparer of a draft bill an agent run builds: the user the run acts
+// for, read from the run in ctx. A call outside a recorded run has no preparer and fails
+// closed; the agent itself is never the preparer or the approver.
+func runActingFor(pool kdb.DB) func(ctx context.Context, t batch.Target) (string, error) {
+	return func(ctx context.Context, t batch.Target) (string, error) {
+		s, ok := agenttools.ScopeOf(ctx)
+		if !ok || s.RunID == "" {
+			return "", fmt.Errorf("draft of %s: no agent run: %w", t.MatterID, agent.ErrMissingDep)
+		}
+		var user string
+		err := pool.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+			return tx.QueryRow(ctx, runActingForSQL, s.RunID).Scan(&user)
+		})
+		if err != nil {
+			return "", fmt.Errorf("draft of %s: run %s: %w", t.MatterID, s.RunID, err)
+		}
+		return user, nil
 	}
 }
 

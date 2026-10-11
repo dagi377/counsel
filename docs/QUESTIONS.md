@@ -3720,3 +3720,30 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   lawyer like every other scheduled feature.
 - Open: PROPOSAL-DRAFT mapped `matter-open-wizard` to `matters.open`; main's pass-16 mapping
   (`matters.view`, Q-INTEG-16-SCREENS) was kept. Decide which capability the wizard needs.
+
+## AGENT-PROD-2a: Postgres for the six unwired agent tool ports
+
+Production now wires Text, Documents, Entries, DraftCalc, DraftStore and BatchDrafts, so
+search_documents, list_documents, the read tools, propose_time_entries and draft_bill are
+served and readiness no longer reports their features `tool_unwired`. Additive changes:
+
+- `kernel/docs.PGText` over a new append-only `docs.version_text` (0900): one row per stored
+  version holding its text layer (firm document content, never conversation text). Nothing
+  writes it yet except `PGText.Put`; the upload/OCR pipeline must call it, until then a
+  version reads as not found and the tools fail closed.
+- `app/legal/docs.FolderStore.Filed` lists a matter's live documents with a current version.
+- `timekeeping.PGEntries`: a suggestion lives in `time_suggestion` (state suggested) until its
+  owner accepts it; accepting writes the `time_entry` (origin suggestion) at the resolved rate
+  (the default rate table, else the activity rate; none is ErrInvalid). Open: a matter's own
+  rate table is read through the `PGEntries.RateTable` hook, which boot leaves nil because
+  matter.Query does not expose `rate_table_id` (ARC-I-041 forbids reading matter.matter). The
+  `time_entry` subject resolver also reads `time_suggestion`. Transition to on_draft_bill or
+  billed is refused: the draft builder sets the bill.
+- `draft.Calculator` (pure), `draft.PGStore` and `draft.PGBatch`. 5640 adds the write-down,
+  markup and discount columns to `billing.bill_line` (amount_cents stays the net before the
+  bill discount); 5641/5642 add `billing.bill.idempotency_key` for batch.Key (BIL-C-110).
+- Open: bill lines are never deleted, so `PGStore.SaveLines` refuses a line missing from the
+  saved set; draft_bill's `hold` action therefore fails closed in production. Decide whether
+  hold should be passed to `PGDrafts.Create` as a line action instead.
+- Open: `PGBatch` names the preparer from the agent run in ctx (`agent.run_record.acting_for`);
+  a scheduled batch run with no recorded run has no preparer and fails closed.

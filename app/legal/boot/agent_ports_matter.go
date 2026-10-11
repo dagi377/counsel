@@ -227,8 +227,10 @@ var subjectMatterSQL = map[string]string{
 	agent.SubjectEmailDraft: `SELECT matter_id::text FROM comms.comm_filing WHERE comm_item_id = $1 ORDER BY matter_id LIMIT 1`,
 	agent.SubjectDeadline:   `SELECT COALESCE(matter_id::text, '') FROM cal.deadline WHERE id = $1`,
 	agent.SubjectBill:       `SELECT matter_id::text FROM billing.bill WHERE id = $1`,
-	agent.SubjectTimeEntry:  `SELECT matter_id::text FROM timekeeping.time_entry WHERE id = $1`,
-	subjectConflictCheck:    `SELECT COALESCE(matter_id::text, '') FROM conflict.conflict_check WHERE id = $1`,
+	// A suggested entry stays in time_suggestion until its owner accepts it (tk.PGEntries).
+	agent.SubjectTimeEntry: `SELECT matter_id::text FROM timekeeping.time_entry WHERE id = $1
+UNION ALL SELECT COALESCE(matter_id::text, '') FROM timekeeping.time_suggestion WHERE id = $1 LIMIT 1`,
+	subjectConflictCheck: `SELECT COALESCE(matter_id::text, '') FROM conflict.conflict_check WHERE id = $1`,
 	// A proposal the run submits (PROPOSAL-DRAFT): a re-run conflict check is on its check's
 	// matter; a proposed task on the matter it was created for.
 	conflict.SubjectRun: `SELECT COALESCE(c.matter_id::text, '') FROM conflict.check_run r

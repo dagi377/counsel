@@ -145,3 +145,47 @@ func (noLawyer) DesignatedLawyer(context.Context, string) (string, error) { retu
 // noLawyerWiring is an agent wiring whose firm settings name no designated lawyer; boot
 // fills every other port.
 func noLawyerWiring() *AgentWiring { return &AgentWiring{Designated: noLawyer{}} }
+
+// TestProductionAgentToolPortsReady: production wires Text, Documents, Entries, DraftCalc,
+// DraftStore and BatchDrafts over Postgres, so the tools reading them are served and no
+// feature is reported not ready for an unwired tool.
+func TestProductionAgentToolPortsReady(t *testing.T) {
+	ready := &AgentReadiness{}
+	w := noLawyerWiring()
+	c := compose(t, legalFlagNames(t), Options{Production: mockProduction(ready), Agent: w})
+	var served []string
+	for _, call := range c.boot.Method(registry.MethodTool) {
+		served = append(served, call.Args[0].(registry.Tool).Name)
+	}
+	unready, err := ready.Unready(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range unready {
+		if u.Reason == ReasonToolUnwired {
+			t.Errorf("%s not ready: a tool port has no implementation", u.FeatureID)
+		}
+	}
+	missing := w.Ports.Missing()
+	tests := []struct {
+		port string
+		tool string
+	}{
+		{"Text", agent.ToolSearchDocuments},
+		{"Documents", agent.ToolListDocuments},
+		{"Entries", agent.ToolProposeTimeEntries},
+		{"DraftCalc", agent.ToolDraftBill},
+		{"DraftStore", agent.ToolDraftBill},
+		{"BatchDrafts", agent.ToolDraftBill},
+	}
+	for _, tc := range tests {
+		t.Run(tc.port, func(t *testing.T) {
+			if slices.Contains(missing, tc.port) {
+				t.Errorf("port %s not wired", tc.port)
+			}
+			if !slices.Contains(served, tc.tool) {
+				t.Errorf("tool %s not served", tc.tool)
+			}
+		})
+	}
+}
