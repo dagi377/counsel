@@ -1876,3 +1876,13 @@ Done in PORT-18:
   and the acting user (`conflict.ErrPreparerApproves`, the G2 self-approval refusal; kernel
   `gate.ErrSelfApproval` does not apply) are refused with 403. `submit_for_approval` cannot open
   conflict.clearance on a run: the run scope only records drafts, not proposals.
+
+## Q-FEAT-CORE-15 Read and trust withdrawal handlers join the explicit handler set
+
+- `handlerset.go` `Handlers()` lists four more handlers (search_matters, get_matter,
+  read_document, prepare_trust_withdrawal) so the set covers all 25 a2 tools;
+  `handlerset_test.go` lists them too. The handlers live in `handlers.go`.
+- prepare_trust_withdrawal builds from the `*agent.WriteTools` boot passes in Deps, so the
+  run it parks is the one that WriteTools resumes on gate.decided.
+- `agenttest/seed.go`: `SeedStore.Document` implements `agent.DocumentLookup`, so
+  read_document runs its real handler in feature tests instead of a stand-in.

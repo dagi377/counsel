@@ -114,6 +114,10 @@ func Handlers() HandlerSet {
 		SubmitForApprovalHandler(),
 		DraftBillHandler(),
 		ProposePaymentAllocationHandler(),
+		SearchMattersHandler(),
+		GetMatterHandler(),
+		ReadDocumentHandler(),
+		PrepareTrustWithdrawalHandler(),
 	}
 	hs = append(hs, ReportHandlers()...)
 	s, err := NewHandlerSet(hs...)

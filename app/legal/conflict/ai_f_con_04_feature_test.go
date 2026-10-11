@@ -30,8 +30,8 @@ import (
 
 // The conflict features' end-to-end tests drive a Def with agenttest.FromFeatureWith over the
 // app's real handlers. The agenttest Seed carries no subject lookup for submit_for_approval,
-// so conToolEnv adds one, and a draft store whose ids are a2 uuids. search_matters and
-// read_document have no Handler yet and run as agenttest stand-ins when a script calls them.
+// so conHandlers adds one, and a draft store whose ids are a2 uuids. search_matters and
+// read_document run as agenttest stand-ins (see conStandIns).
 
 // conMatter is the synthetic matter the conflict scripts draft in; it is visible to the
 // acting user.
@@ -43,7 +43,9 @@ const conOtherLawyer = "user-synthetic-conflicts-lawyer"
 // conDecideAt is the fake gate store's clock: a weekday morning in America/Toronto.
 var conDecideAt = time.Date(2026, 10, 5, 9, 0, 0, 0, time.FixedZone("EDT", -4*60*60))
 
-// conStandIns are the conflict tools with no real handler yet.
+// conStandIns are the conflict tools the scripts run as stand-ins. agent.Handlers() has real
+// read_document and search_matters handlers, but the conflict scripts and fixtures read a fixed
+// doc id with no version_id through SetRead, so conHandlers leaves both out.
 var conStandIns = []string{agent.ToolReadDocument, "search_matters"}
 
 // conDrafts stores drafts with deterministic uuid ids and maps each to its matter.
@@ -91,6 +93,9 @@ func conHandlers(t *testing.T, extra ...any) agent.HandlerSet {
 	app := agent.Handlers()
 	var hs []agent.Handler
 	for _, name := range app.Names() {
+		if slices.Contains(conStandIns, name) {
+			continue
+		}
 		h, _ := app.For(name)
 		build := h.Build
 		hs = append(hs, agent.Handler{Name: name, Build: func(d agent.Deps) (registry.Tool, error) {
