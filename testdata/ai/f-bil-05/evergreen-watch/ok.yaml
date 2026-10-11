@@ -1,0 +1,37 @@
+synthetic: true
+feature: F-BIL-05
+match:
+  prompt_hash: ""
+  last_user_regex: "daily evergreen watch"
+latency_ms: 0
+turns:
+  - reply:
+      tool_calls:
+        - name: get_trust_balance
+          input: {matter_id: "8c1f6a52-3d0e-4b7a-9a61-2f4e7b0c9d15"}
+      stop_reason: tool_use
+      usage: {input_tokens: 640, output_tokens: 32}
+  - expect_tool_results: [get_trust_balance]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: draft-retainer-request, title: "Draft retainer request for M-2026-0007"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 720, output_tokens: 28}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input:
+            kind: platform.outgoing_email
+            matter_id: "8c1f6a52-3d0e-4b7a-9a61-2f4e7b0c9d15"
+            to_contact_ids: ["4b2d9e10-7c3a-4f61-8e25-91a0c6d3b7f4"]
+            subject: "Request to top up your retainer for M-2026-0007"
+            body_markdown: "Your trust balance is $120.00, below the agreed $5,000.00 evergreen floor. Please deposit $4,880.00."
+      stop_reason: tool_use
+      usage: {input_tokens: 810, output_tokens: 96}
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      text: "Drafted 1 retainer request for your approval."
+      stop_reason: end_turn
+      usage: {input_tokens: 860, output_tokens: 12}
