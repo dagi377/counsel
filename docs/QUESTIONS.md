@@ -4300,3 +4300,13 @@ of FEAT-TIM-01 above.
 - The platform helper `pltdCheckDefMatchesSpec` now reads a screen action's button from its
   trigger when `on_request` is empty (Q-FEAT-CON-10), as the intake helpers do.
 - Branch is based on task/FEAT-PLT-11 (one platform helper file).
+
+## Q-FEAT-PLT-22 F-PLT-05 risk digest: screen and record
+
+- F-PLT-05 is a read-only chat: no write tool, no gate kind. Its scheduled run acts for the
+  designated lawyer (`trigger.BindDesignated`, weekly).
+- `reports` is firm-level and maps to `boot.FirmSubject` with capability `reports.firm`.
+- Open: where the scheduled run's digest is shown. The spec says "Counsel records Internal
+  digest (no gate)"; the answer goes back through the run outcome only and is never stored
+  (AI-R-005), so the reports screen needs a place to show the latest digest.
+- Branch is based on task/FEAT-PLT-21 (one platform helper file).

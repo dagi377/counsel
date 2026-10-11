@@ -17,8 +17,10 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/agenttest"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
+	"github.com/dagi377/counsel/app/legal/agent/schemas"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
 	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/agenttools/run"
 	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
 	"github.com/dagi377/counsel/kernel/gate"
@@ -549,4 +551,102 @@ func pltdCheckEmailRun(t *testing.T, w pltdWorld, run agenttest.FeatureRun, call
 		t.Fatalf("drafts = %+v, want one email on %s prepared by %s", ds, w.matterID, agenttest.FeatureActingFor)
 	}
 	pltdCheckGate(t, w.fd, run, kind)
+}
+
+// plthAnswer is a chat run's final answer ({answer, citations}) citing line of page 1 of
+// version, the shape run.CheckAnswer reads.
+func plthAnswer(t *testing.T, text, version string, line int) string {
+	t.Helper()
+	return pltdJSON(t, map[string]any{
+		"answer":    text,
+		"citations": []map[string]any{{"version_id": version, "page": 1, "from_line": line, "to_line": line}},
+	})
+}
+
+// plthOutcome is the run.Outcome of r for run.CheckAnswer: its final text and every citation
+// a tool result of the run carried as quoted data.
+func plthOutcome(r agenttest.FeatureRun) run.Outcome {
+	out := run.Outcome{Text: r.Text, JSON: r.JSON, GateIDs: r.GateIDs}
+	var walk func(v any)
+	walk = func(v any) {
+		switch x := v.(type) {
+		case map[string]any:
+			if x["untrusted"] == true {
+				var q agenttools.Quoted
+				if b, err := json.Marshal(x); err == nil && json.Unmarshal(b, &q) == nil && q.Source.Page > 0 {
+					out.Citations = append(out.Citations, q.Source)
+				}
+			}
+			for _, e := range x {
+				walk(e)
+			}
+		case []any:
+			for _, e := range x {
+				walk(e)
+			}
+		}
+	}
+	for _, b := range r.ToolResults {
+		var v any
+		if !b.IsError && json.Unmarshal([]byte(b.Text), &v) == nil {
+			walk(v)
+		}
+	}
+	return out
+}
+
+// plthCheckReadOnlyDef fails t unless d is a read-only chat feature: every tool is a read,
+// and it names no gate kind, so its run scope opens none.
+func plthCheckReadOnlyDef(t *testing.T, d feature.Def) {
+	t.Helper()
+	// rule: AI-R-003
+	for _, name := range d.Tools {
+		s, err := schemas.ByName(name)
+		if err != nil || s.Kind != registry.ToolRead {
+			t.Fatalf("tool %s: kind %v (%v), want read", name, s.Kind, err)
+		}
+	}
+	if d.Kind != ai.KindChat || len(d.GateKinds) != 0 {
+		t.Fatalf("kind %s gate kinds %v, want a chat with no gate kind", d.Kind, d.GateKinds)
+	}
+	rs, err := d.Spec()
+	if err != nil || len(rs.GateKinds) != 0 {
+		t.Fatalf("run gate kinds = %v (%v), want none", rs.GateKinds, err)
+	}
+}
+
+// plthCheckChatRun fails t unless run used no stand-in, ran exactly calls on their real
+// handlers, read every seeded document at its version, wrote nothing and opened no gate, and
+// its answer meets run.CheckAnswer with want (nil: every citation came from a tool result of
+// this run).
+func plthCheckChatRun(t *testing.T, w pltdWorld, d feature.Def, r agenttest.FeatureRun, calls []pltdCall, want error) {
+	t.Helper()
+	if r.Err != nil || len(r.Refused) != 0 {
+		t.Fatalf("run err = %v, refused = %v", r.Err, r.Refused)
+	}
+	if len(w.fd.StandIns) != 0 || len(r.StandIns) != 0 {
+		t.Fatalf("stand-ins = %v, run used %v; want every tool on its real handler", w.fd.StandIns, r.StandIns)
+	}
+	if wantTools := pltdToolNames(calls); !slices.Equal(r.Tools, wantTools) {
+		t.Fatalf("tools = %v, want %v", r.Tools, wantTools)
+	}
+	pltdCheckReads(t, w, r)
+	// rule: AI-R-003
+	// No write ran, nothing was drafted and no gate row was opened.
+	if r.FirstWrite >= 0 || len(r.GateIDs) != 0 || len(w.fd.Seed.Store.Drafts) != 0 {
+		t.Fatalf("first write %d, gates %v, drafts %d; want none", r.FirstWrite, r.GateIDs, len(w.fd.Seed.Store.Drafts))
+	}
+	spec, err := d.Spec()
+	if err != nil {
+		t.Fatalf("Spec: %v", err)
+	}
+	// rule: AI-R-005
+	// rule: ARC-I-038
+	ans, err := run.CheckAnswer(spec, plthOutcome(r))
+	if !errors.Is(err, want) {
+		t.Fatalf("CheckAnswer = %v, want %v", err, want)
+	}
+	if err == nil && (len(ans.Citations) == 0 || !slices.ContainsFunc(w.docs, func(doc pltdDoc) bool { return doc.version == ans.Citations[0].VersionID })) {
+		t.Fatalf("citations = %v, want a seeded version", ans.Citations)
+	}
 }

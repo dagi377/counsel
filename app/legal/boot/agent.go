@@ -361,6 +361,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		platform.DestructionBatchDef().ID:  platform.DestructionBatchBinding,
 		platform.AccessReviewDef().ID:      platform.AccessReviewBinding,
 		platform.TextTriageDef().ID:        platform.TextTriageBinding,
+		platform.RiskDigestDef().ID:        platform.RiskDigestBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -536,6 +537,8 @@ var actionScreens = map[string]trigger.Screen{
 	"text-messaging": {SubjectKind: "matter", Capability: "documents.edit"},
 	// email-settings is firm-level: a proposed email template is the firm's (F-PLT-28).
 	"email-settings": {SubjectKind: FirmSubject, Capability: "documents.edit"},
+	// reports is firm-level: a risk digest covers every open matter (F-PLT-05).
+	"reports": {SubjectKind: FirmSubject, Capability: "reports.firm"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

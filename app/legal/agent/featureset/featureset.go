@@ -174,5 +174,6 @@ func appDefs() []feature.Def {
 		platform.AccessReviewDef(),
 		platform.TextTriageDef(),
 		platform.ProposeTemplateDef(),
+		platform.RiskDigestDef(),
 	}
 }
