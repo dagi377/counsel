@@ -1520,3 +1520,12 @@ Done in PORT-18:
 - One change adds or removes exactly one user (the GA6 payload is one user); a bonded
   non-licensee grant stores bond_cents 0 with no expiry and keeps the evidence on the change
   (verify: the real bond amount and expiry need their own input).
+
+## Q-PORT-12: shared signatory validity helper
+
+- Task: PORT-12. "Shared helper in signatory" needs one file outside the task list:
+  `app/legal/trust/signatory/validity.go` adds `CanSignTx(ctx, tx, account, user)`, which runs
+  PGService.CanSign's query and validity rule in the caller's tx. `withdraw.PGSigners` calls
+  it, so the withdrawal gate and the signatory list use one rule. Branch is based on
+  `task/PORT-10`, so PORT-10 must merge first. Boot wires `withdraw.PGSigners{}` into
+  `TrustPorts.Signers` with no new SQL.
