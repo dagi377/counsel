@@ -24,9 +24,6 @@ POST /trust/withdrawals
 POST /trust/withdrawals/{withdrawal_id}/cancel
 GET /users
 PUT /users/{user_id}/roles
-GET /webhook-endpoints
-POST /webhook-endpoints
-PATCH /webhook-endpoints/{webhook_id}
 GET /work-items
 POST /work-items
 PATCH /work-items/{work_item_id}
