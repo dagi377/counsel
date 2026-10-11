@@ -1,0 +1,24 @@
+# Go
+/bin/
+*.exe
+*.test
+*.out
+coverage.*
+go.work
+go.work.sum
+
+# Node
+node_modules/
+web/dist/
+*.tsbuildinfo
+npm-debug.log*
+
+# Python (spec tools)
+__pycache__/
+
+# Local
+.env
+.env.*
+.DS_Store
+.idea/
+.vscode/

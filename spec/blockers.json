@@ -1,0 +1,373 @@
+[
+  {
+    "id": "CF-01",
+    "question": "Should every rate and percentage (tax, discount, markup, interest, contingency share) be stored in one unit, parts per million, with money in whole cents?",
+    "options": [
+      "Parts per million everywhere (13% = 130000)",
+      "Basis points (13% = 1300), which cannot hold Quebec QST 9.975%"
+    ],
+    "recommendation": "Parts per million everywhere: it is the only unit that holds QST 9.975% exactly, and the spec has already been restated this way.",
+    "answerer": "engineering",
+    "blocks": [
+      "T-003",
+      "T-002L",
+      "T-014",
+      "T-017",
+      "T-018",
+      "T-024",
+      "T-025"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "V-TRUST",
+    "question": "Do our trust rules match the current text of LSO By-Law 9? We could not read it (lso.ca returned HTTP 403).",
+    "options": [
+      "A lawyer reads By-Law 9 and confirms or corrects each listed rule",
+      "Ship the trust features without confirmation (not acceptable)"
+    ],
+    "recommendation": "A lawyer confirms each listed By-Law 9 rule: trust money is the highest-risk area for an Ontario firm, and every trust rule in the spec is marked (verify).",
+    "answerer": "lawyer/LSO",
+    "blocks": [
+      "T-011",
+      "T-012",
+      "T-013",
+      "T-022",
+      "T-038L",
+      "T-041"
+    ],
+    "flaggable": true
+  },
+  {
+    "id": "CF-03",
+    "question": "Can the missing plumbing and billing tables (outbox, inbox, idempotency keys, gate versions, interest charges, client credit, trust fee transfers, write-offs, feature flags) be added to the first database migration?",
+    "options": [
+      "Add them to the first migration now (nothing is released yet)",
+      "Add them later as separate migrations"
+    ],
+    "recommendation": "Add them to the first migration now: nothing is released, so there is no upgrade cost; coders must not invent tables.",
+    "answerer": "engineering",
+    "blocks": [
+      "T-008",
+      "T-008b",
+      "T-007",
+      "T-002L",
+      "T-021",
+      "T-040b"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "CF-02",
+    "question": "Should the trust records be kept as a separate per-client trust transaction book (the By-Law 9 book of record), with the general ledger holding only the operating (firm) account?",
+    "options": [
+      "Separate trust book of record; trust totals derived from it; general ledger is operating only",
+      "One double-entry journal for trust and operating, tagged by book"
+    ],
+    "recommendation": "Separate trust book of record: it mirrors the client trust ledgers By-Law 9 requires and keeps trust money physically apart from firm money in the data.",
+    "answerer": "owner, accountant/CRA",
+    "blocks": [
+      "T-010",
+      "T-002L",
+      "T-010L",
+      "T-011"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "CF-05",
+    "question": "Should the database schema names be the single source for module names (for example 'gl' not 'books', 'cal' not 'deadlines')?",
+    "options": [
+      "Database schema name = code package = module",
+      "Keep the interface document's names and map them"
+    ],
+    "recommendation": "Database schema name = code package = module: one name per thing; the interface spec has already been updated to match.",
+    "answerer": "engineering",
+    "blocks": [
+      "T-002",
+      "T-007",
+      "T-002L",
+      "T-010b"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "CF-07",
+    "question": "When someone is added to or removed from the trust signing authority, should it need two people (an owner with signing authority plus a second signatory)?",
+    "options": [
+      "Two-person approval (access gate GA6)",
+      "One approval by the responsible lawyer (trust gate G-TSIG)"
+    ],
+    "recommendation": "Two-person approval (GA6): it is the stricter control on who can move client money; the spec already adopted it.",
+    "answerer": "owner",
+    "blocks": [
+      "T-007L",
+      "T-011",
+      "T-039L"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "CF-12",
+    "question": "How should coders handle 12 record types defined two different ways and 29 record types with no fields defined yet?",
+    "options": [
+      "Use the data model's merge decisions; for empty ones, stop and file a question",
+      "Let coders choose fields"
+    ],
+    "recommendation": "Use the data model's merges; file a question for each empty one: invented fields in a law-practice system become compliance and migration debt.",
+    "answerer": "engineering, owner",
+    "blocks": [
+      "T-006L",
+      "T-028",
+      "T-029"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "V-BILL",
+    "question": "Are the Solicitors Act one-month periods counted as calendar months from delivery, and is our rules numbering and assessment-notice wording correct?",
+    "options": [
+      "A lawyer confirms the counting method, the RPC r.3.6 numbering and the assessment notice text",
+      "Ship with the spec's reading unconfirmed"
+    ],
+    "recommendation": "A lawyer confirms: these dates decide when the firm may sue on a bill and what the client is told about assessment.",
+    "answerer": "lawyer/LSO",
+    "blocks": [
+      "T-019",
+      "T-024",
+      "T-024b"
+    ],
+    "flaggable": true
+  },
+  {
+    "id": "CF-10",
+    "question": "Is the tax point the earlier of payment and the bill's due date, with 'due' meaning the bill date, and a trust retainer not counting as payment until applied?",
+    "options": [
+      "Yes, per b2 BIL-T-050 and BIL-T-051",
+      "Some other reading"
+    ],
+    "recommendation": "Yes, per BIL-T-050/051: this fixes a wrong cross-reference in the tax spec; the reading itself should be sanity-checked by the accountant.",
+    "answerer": "engineering, accountant/CRA",
+    "blocks": [
+      "T-019",
+      "T-024"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "CF-11",
+    "question": "Should paying the firm's fees out of trust use one approval type, needing one trust signatory, allowed only after the bill is delivered?",
+    "options": [
+      "One approval kind (billing.trust_fee_withdrawal) with one signatory",
+      "Two approvals (bill gate plus generic trust withdrawal)"
+    ],
+    "recommendation": "One approval kind with one signatory: one clear control; the amount is capped at the unpaid bill and the available trust balance.",
+    "answerer": "owner",
+    "blocks": [
+      "T-012",
+      "T-022"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "CF-15",
+    "question": "Should the system never delete financial, audit or client-ID records in version 1, until the legal retention periods are confirmed?",
+    "options": [
+      "Keep everything; no purge feature in v1",
+      "Build purge now using the spec's unconfirmed periods (10 / 6 years)"
+    ],
+    "recommendation": "Keep everything; no purge in v1: over-keeping is safe and reversible; deleting early is not. Periods are still (verify).",
+    "answerer": "owner, lawyer/LSO",
+    "blocks": [
+      "T-011",
+      "T-032L"
+    ],
+    "flaggable": true
+  },
+  {
+    "id": "CF-04",
+    "question": "Which names do approval records use?",
+    "options": [
+      "Data-model tables, gate code = slug such as billing.bill_approval, plus a spec id column",
+      "Interface-document tables"
+    ],
+    "recommendation": "Data-model tables with slug codes: already applied in the spec (RV2-001).",
+    "answerer": "engineering",
+    "blocks": [
+      "T-007",
+      "T-007L"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "CF-06",
+    "question": "With one database per firm, is it fine that messages carry a constant firm id but data tables do not?",
+    "options": [
+      "Constant firm id in messages only",
+      "Add a firm id column to every table"
+    ],
+    "recommendation": "Constant firm id in messages only: each firm already has its own database.",
+    "answerer": "engineering",
+    "blocks": [
+      "T-002",
+      "T-002L"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "CF-08",
+    "question": "Can a time entry or expense appear again on a new bill after the old bill is voided?",
+    "options": [
+      "Yes: uniqueness applies only among non-void bills",
+      "No: once billed, never re-billed"
+    ],
+    "recommendation": "Yes, uniqueness only among non-void bills: otherwise void-and-rebill is impossible, which b3 requires.",
+    "answerer": "engineering",
+    "blocks": [
+      "T-016",
+      "T-020"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "CF-09",
+    "question": "Should each approved bill permanently record its interest rate, place of supply for tax, signer and signature, with the bill date equal to the approval date?",
+    "options": [
+      "Add and freeze these fields at approval",
+      "Look them up live when needed"
+    ],
+    "recommendation": "Add and freeze them at approval: the interest rate printed on the bill (Solicitors Act s.33(3)) and the signature (s.2(1)) must not change later.",
+    "answerer": "engineering",
+    "blocks": [
+      "T-017",
+      "T-019"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "CF-13",
+    "question": "When a client pays more than they owe, should the excess sit briefly as unapplied, then become client credit that must be applied, refunded or moved to trust within a set number of business days?",
+    "options": [
+      "Short-lived credit, default 5 business days, then a trust exception",
+      "Hold credit in the operating account indefinitely"
+    ],
+    "recommendation": "Short-lived credit, 5 business days default: the excess is client money, not earned fees; the 5-day default is (verify) against By-Law 9.",
+    "answerer": "owner, lawyer/LSO",
+    "blocks": [
+      "T-021"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "CF-16",
+    "question": "Should the AI need approval before auto-deleting documents, and send e-sign reminders or warm-transfer calls only from templates and lists you approved in advance?",
+    "options": [
+      "Auto-purge behind the deletion approval (G14); reminders and transfers only from pre-approved templates (G-SK)",
+      "Let the AI do these without approval"
+    ],
+    "recommendation": "Approval for deletion; pre-approved templates for reminders and transfers: nothing leaves the firm or is destroyed without a human having approved it.",
+    "answerer": "owner",
+    "blocks": [
+      "T-032L"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "V-CFA",
+    "question": "Are the contingency fee cap formula and the required LSO standard form (and its date) correct?",
+    "options": [
+      "Lawyer confirms O. Reg. 563/20 cap formula and the standard-form date",
+      "Ship unconfirmed"
+    ],
+    "recommendation": "Lawyer confirms: an over-cap contingency fee is unenforceable and a conduct issue.",
+    "answerer": "lawyer/LSO",
+    "blocks": [
+      "T-027"
+    ],
+    "flaggable": true
+  },
+  {
+    "id": "V-DEADLINES",
+    "question": "Has a lawyer checked every Ontario deadline rule in our rule pack against the Rules of Civil Procedure and the Limitations Act, 2002?",
+    "options": [
+      "Lawyer checks each (verify) entry before the pack is switched on",
+      "Ship unconfirmed (not acceptable: missed deadlines are malpractice risk)"
+    ],
+    "recommendation": "Lawyer checks each entry before switch-on: a wrong computed deadline is a direct malpractice exposure.",
+    "answerer": "lawyer/LSO, owner",
+    "blocks": [
+      "T-031L"
+    ],
+    "flaggable": true
+  },
+  {
+    "id": "V-ID",
+    "question": "Are the client ID verification exemptions and the 6-year record retention under By-Law 7.1 Part III correct?",
+    "options": [
+      "Lawyer confirms By-Law 7.1 Part III exemptions and retention",
+      "Ship unconfirmed"
+    ],
+    "recommendation": "Lawyer confirms: ID verification gates opening matters and moving money.",
+    "answerer": "lawyer/LSO",
+    "blocks": [
+      "T-029"
+    ],
+    "flaggable": true
+  },
+  {
+    "id": "V-SURCHARGE",
+    "question": "May the firm add a credit-card surcharge, up to what cap, where is it banned, and is it subject to HST?",
+    "options": [
+      "Keep the surcharge feature off until confirmed",
+      "Confirm the card-network cap, provincial bans, the LSO position and CRA tax treatment, then enable"
+    ],
+    "recommendation": "Keep it off until confirmed: the 2.4% cap and conditions come from card-network rules reported by processors, not cited law, and the HST treatment is (verify).",
+    "answerer": "accountant/CRA, lawyer/LSO",
+    "blocks": [
+      "T-026"
+    ],
+    "flaggable": true
+  },
+  {
+    "id": "V-TAX",
+    "question": "Are our rules right for (1) where a litigation service is supplied for HST purposes and (2) Indian Act s.87 relief for First Nations clients?",
+    "options": [
+      "Accountant confirms both rules against CRA sources",
+      "Ship with both unconfirmed"
+    ],
+    "recommendation": "Accountant confirms both: wrong tax on a bill is the firm's liability with CRA.",
+    "answerer": "accountant/CRA",
+    "blocks": [
+      "T-014"
+    ],
+    "flaggable": true
+  },
+  {
+    "id": "CF-14",
+    "question": "If the place of supply changes after a bill is approved, should the bill be voided (before delivery) or credited (after), rather than sent back to draft?",
+    "options": [
+      "Never return to draft: void before delivery, credit note after",
+      "Return the bill to draft"
+    ],
+    "recommendation": "Never return to draft: approved bills stay immutable; already applied in the spec.",
+    "answerer": "engineering",
+    "blocks": [
+      "T-020"
+    ],
+    "flaggable": false
+  },
+  {
+    "id": "CF-20",
+    "question": "Should a bill be voidable only before it is delivered, approved by someone other than its preparer, with a credit note required after delivery?",
+    "options": [
+      "Void only before delivery, by a second person; credit note after",
+      "Allow void any time with a credit note"
+    ],
+    "recommendation": "Void only before delivery, by a second person: a delivered bill has started the Solicitors Act clocks, so it must be corrected visibly, not erased.",
+    "answerer": "engineering",
+    "blocks": [
+      "T-020"
+    ],
+    "flaggable": false
+  }
+]
