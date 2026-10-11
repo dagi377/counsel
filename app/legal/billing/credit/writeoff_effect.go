@@ -60,6 +60,9 @@ type WriteOffStore interface {
 	MarkAwaitingSecond(ctx context.Context, tx pgx.Tx, id, gateID string) error
 	// SaveApproved stores an approved write-off.
 	SaveApproved(ctx context.Context, tx pgx.Tx, w WriteOff) error
+	// AwaitingSecond returns the pending second-approval gate id MarkAwaitingSecond recorded
+	// for write-off id, or "" when there is none.
+	AwaitingSecond(ctx context.Context, tx pgx.Tx, id string) (string, error)
 }
 
 // WriteOffBills reads the bill a write-off reduces, in the caller's tx.
@@ -91,6 +94,28 @@ type WriteOffEffect struct {
 	Clock  clock.Clock
 }
 
+// Effects returns the write-off effect handlers for gates.RegisterKinds: the G-B5
+// billing.credit_note write-off effect and the managing lawyer's
+// billing.writeoff_second_approval, both slugs from spec/gates.json. Every error a handler
+// returns wraps gate.ErrEffectFailed, so nothing is applied and the gate stays undone.
+func Effects(e *WriteOffEffect, second SecondApproval) map[string]registry.EffectFunc {
+	s := &WriteOffSecondEffect{WriteOff: e, Second: second}
+	return map[string]registry.EffectFunc{
+		GateKindCreditNote:     effectFailed(e.Apply),
+		GateKindWriteOffSecond: effectFailed(s.Apply),
+	}
+}
+
+// effectFailed wraps every error of fn in gate.ErrEffectFailed.
+func effectFailed(fn registry.EffectFunc) registry.EffectFunc {
+	return func(ctx context.Context, tx pgx.Tx, g registry.Approved) error {
+		if err := fn(ctx, tx, g); err != nil {
+			return fmt.Errorf("%w: %w", gate.ErrEffectFailed, err)
+		}
+		return nil
+	}
+}
+
 // Apply is the EffectFunc of billing.credit_note for a write-off. A credit-note payload is
 // not a write-off and is rejected.
 func (e *WriteOffEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approved) error {
@@ -101,13 +126,27 @@ func (e *WriteOffEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approv
 	if len(g.Approvers) == 0 {
 		return fmt.Errorf("write-off effect %s: %w", g.GateID, ErrSelfApproval)
 	}
-	first := approverOf(g.Approvers[len(g.Approvers)-1])
+	// The approver is the gate's first approver, never its preparer; approverOf makes an
+	// agent or guest an agent, which ApproveWriteOff refuses.
+	first := approverOf(g.Approvers[0])
 	w, err := e.Store.Lock(ctx, tx, g.Subject.ID)
 	if err != nil {
 		return fmt.Errorf("write-off effect %s: %w", g.GateID, err)
 	}
 	if w.BillID != p.BillID || w.AmountCents != p.AmountCents {
 		return fmt.Errorf("write-off effect %s: payload does not match write-off %s: %w", g.GateID, w.ID, ErrInvalidState)
+	}
+	// A replay of an applied effect changes nothing: the write-off is already approved (its
+	// adjustment posted), or its second-approval gate is already open.
+	if w.Status == StatusApproved {
+		return nil
+	}
+	awaiting, err := e.Store.AwaitingSecond(ctx, tx, w.ID)
+	if err != nil {
+		return fmt.Errorf("write-off effect %s: %w", g.GateID, err)
+	}
+	if awaiting != "" {
+		return nil
 	}
 	b, err := e.Bills.WriteOffBill(ctx, tx, w.BillID)
 	if err != nil {

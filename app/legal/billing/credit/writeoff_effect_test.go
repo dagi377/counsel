@@ -39,6 +39,10 @@ func (m *memWriteOffs) MarkAwaitingSecond(_ context.Context, _ pgx.Tx, id, gateI
 	return nil
 }
 
+func (m *memWriteOffs) AwaitingSecond(_ context.Context, _ pgx.Tx, id string) (string, error) {
+	return m.awaiting[id], nil
+}
+
 func (m *memWriteOffs) SaveApproved(_ context.Context, _ pgx.Tx, w WriteOff) error {
 	m.w[w.ID] = w
 	return nil
@@ -247,6 +251,113 @@ func TestBIL_C_085_WriteOffEffectOpensSecondGate(t *testing.T) {
 			}
 			if w.Status != StatusApproved || w.ApprovedBy != "lawyer" {
 				t.Fatalf("write-off = %+v, want approved by lawyer", w)
+			}
+		})
+	}
+}
+
+func TestWriteOffEffectsSlugsFromSpec(t *testing.T) {
+	data, err := os.ReadFile(specGatesFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds, err := gates.ParseKinds(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := map[string]bool{}
+	for _, k := range kinds {
+		spec[k.Code] = true
+	}
+	r := newWriteOffRig(t, 59000, SecondApprovalConfig{})
+	effects := Effects(r.e, SecondApproval{})
+	tests := []struct{ slug string }{{GateKindCreditNote}, {GateKindWriteOffSecond}}
+	if len(effects) != len(tests) {
+		t.Fatalf("Effects = %d slugs, want %d", len(effects), len(tests))
+	}
+	for _, tt := range tests {
+		t.Run(tt.slug, func(t *testing.T) {
+			if !spec[tt.slug] {
+				t.Fatalf("%s is not a gate kind in spec/gates.json", tt.slug)
+			}
+			if effects[tt.slug] == nil {
+				t.Fatalf("Effects has no func for %s", tt.slug)
+			}
+		})
+	}
+}
+
+func TestWriteOffEffectApproverIsFirstApprover(t *testing.T) {
+	agent := gate.Principal{Kind: gate.PrincipalAgent, RunID: "run1", ActingFor: "lawyer"}
+	tests := []struct {
+		name      string
+		approvers []gate.Principal
+		wantErr   []error
+		wantBy    string
+	}{
+		{"responsible lawyer approves", []gate.Principal{user("lawyer")}, nil, "lawyer"},
+		{"first approver counts, not the last", []gate.Principal{user("lawyer"), agent}, nil, "lawyer"},
+		{"agent approver fails the effect", []gate.Principal{agent}, []error{gate.ErrEffectFailed, ErrAgentApproval}, ""},
+		{"agent first fails even with a lawyer after", []gate.Principal{agent, user("lawyer")}, []error{gate.ErrEffectFailed, ErrAgentApproval}, ""},
+		{"preparer approver fails the effect", []gate.Principal{user("clerk")}, []error{gate.ErrEffectFailed, ErrSelfApproval}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newWriteOffRig(t, 59000, SecondApprovalConfig{})
+			g := gb5Approved(59000, user("lawyer"))
+			g.Approvers = tt.approvers
+			err := Effects(r.e, SecondApproval{})[GateKindCreditNote](context.Background(), nil, g)
+			for _, want := range tt.wantErr {
+				if !errors.Is(err, want) {
+					t.Fatalf("err = %v, want %v", err, want)
+				}
+			}
+			w := r.store.w["w1"]
+			if tt.wantErr != nil {
+				if len(r.ledger.posts) != 0 || w.Status != StatusDraft {
+					t.Fatalf("posts = %v, status %s; want nothing applied", r.ledger.posts, w.Status)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("err = %v", err)
+			}
+			if w.Status != StatusApproved || w.ApprovedBy != tt.wantBy {
+				t.Fatalf("write-off = %+v, want approved by %s", w, tt.wantBy)
+			}
+		})
+	}
+}
+
+func TestWriteOffEffectReplayChangesNothing(t *testing.T) {
+	tests := []struct {
+		name       string
+		cfg        SecondApprovalConfig
+		wantPosts  int
+		wantSecond bool
+	}{
+		{"approved at or below the threshold", SecondApprovalConfig{}, 1, false},
+		{"second gate opened above the threshold", SecondApprovalConfig{WriteOffSecondApprovalCents: 50000}, 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newWriteOffRig(t, 59000, tt.cfg)
+			apply := Effects(r.e, SecondApproval{})[GateKindCreditNote]
+			g := gb5Approved(59000, user("lawyer"))
+			for i := 0; i < 2; i++ {
+				if err := apply(context.Background(), nil, g); err != nil {
+					t.Fatalf("run %d: %v", i+1, err)
+				}
+			}
+			if len(r.ledger.posts) != tt.wantPosts {
+				t.Fatalf("posts = %d, want %d", len(r.ledger.posts), tt.wantPosts)
+			}
+			_, err := r.gates.Get(context.Background(), "gate-1")
+			if opened := err == nil; opened != tt.wantSecond {
+				t.Fatalf("second gate opened = %v, want %v", opened, tt.wantSecond)
+			}
+			if _, err := r.gates.Get(context.Background(), "gate-2"); !errors.Is(err, gate.ErrNotFound) {
+				t.Fatalf("replay opened another gate: %v", err)
 			}
 		})
 	}
