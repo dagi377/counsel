@@ -21,6 +21,7 @@ import (
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/platform"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
@@ -195,5 +196,8 @@ func appDefs() []feature.Def {
 		access.SuggestTeamDef(),
 		access.OffboardingPlanDef(),
 		access.InviteListCheckDef(),
+		// platform
+		platform.StaleMatterSweepDef(),
+		platform.CitationCheckerDef(),
 	}
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
+	"github.com/dagi377/counsel/app/legal/platform"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
@@ -433,6 +434,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		access.BreakGlassSummaryDef().ID:    access.BreakGlassSummaryBinding,
 		access.FeatureOffboardingPlan:       access.OffboardingPlanBinding,
 		access.FeatureInviteListCheck:       access.InviteListCheckBinding,
+		platform.StaleMatterSweepDef().ID:   platform.StaleMatterSweepBinding,
+		platform.CitationCheckerDef().ID:    platform.CitationCheckerBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -630,6 +633,12 @@ var actionScreens = map[string]trigger.Screen{
 	// Access. main has no firm subject yet, so a firm-level admin screen selects a matter
 	// (Q-FEAT-ACC-05).
 	"user-list": {SubjectKind: "matter", Capability: "admin.users"},
+	// Platform. matter-closing is a matter screen (/matters/:id/close) every matter role
+	// views (F-PLT-11).
+	"matter-closing": {SubjectKind: "matter", Capability: "matters.view"},
+	// research-workspace is a matter screen (/matters/:id/research) over its documents
+	// (F-PLT-12).
+	"research-workspace": {SubjectKind: "matter", Capability: "documents.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

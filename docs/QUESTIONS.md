@@ -4623,3 +4623,40 @@ and has a one-outbox-event test.
 - FEAT-ACC-06 did not carry ACC-04 and ACC-05 (each branch was one commit on main), so pass 18
   merged task/FEAT-ACC-04 (F-ACC-06) and task/FEAT-ACC-05 (F-ACC-07) after it. Their accb
   helpers were identical to the copy ACC-06 brought, so `ai_acc_helpers_test.go` keeps one copy.
+## Q-FEAT-PLT-12 F-PLT-11 stale matter sweep drafts on the matter
+- F-PLT-11 drafts each closing checklist (or closing letter) on the matter it read
+  (`matter_id`), not on the firm: `platform.closing` (G13, `matter.GateClosing`) is about one
+  matter. A weekly sweep that finds several stale matters drafts and submits one per matter.
+  The agent never closes a matter; a lawyer with `matters.close` approves.
+- The a2 payload schema of `platform.closing` names `trust_balance_cents`; submit_for_approval
+  opens the gate on the draft and the closing route that fills the payload is not in this
+  task. The tests use the fake gate store.
+- The weekly schedule acts for the designated lawyer (trigger.BindDesignated). The plte test
+  helpers (`ai_plte_helpers_test.go`) are shared with FEAT-PLT-13.
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (binding, and `matter-closing` as a matter screen with `matters.view`), the generated plugin
+  skill.
+## Q-FEAT-PLT-13 F-PLT-12 citation checker: memo event and G-RES constant
+- a2 names no "memo drafted" event, so F-PLT-12 binds `docs.EventDraftCreated`
+  (`document.draft_created`) and the prompt checks only a research memo, drafting nothing for
+  any other document. Open: a dedicated research-memo event.
+- No Go constant named `platform.research_memo` (G-RES, approver `documents.release`), so
+  `platform.GateResearchMemo` holds it. It is still in boot's unwired_gates.txt; the report is
+  drafted on the memo's matter and submit_for_approval opens the gate there.
+- F-PLT-12 is an extraction model call with no OutputSchema, like F-DOC-15: the report is the
+  draft_document body, and extraction Defs export no plugin skill.
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (binding, and `research-workspace` as a matter screen with `documents.view`). Built on
+  task/FEAT-PLT-12 for the shared plte test helpers.
+## Q-PLT-FIX F-PLT-11 closing checklist carries a sourced trust balance
+- `platform.NewClosingChecklist` fills the `platform.closing` payload's `trust_balance_cents`
+  from a get_trust_balance read in the same run (provenance-checked, else
+  `ErrUnsourcedValue`) and flags `BlockerTrustBalance` for any non-zero balance (By-Law 9).
+  The signed balance is never clamped: an overdrawn ledger stays negative, so the payload then
+  fails the G13 schema (`minimum: 0`) and the gate cannot open. That is fail-closed on purpose.
+- Open: spec/ai/features.json lists no get_trust_balance for F-PLT-11, so the Def's tools are
+  unchanged, and the kernel submit_for_approval payload is `{subject_type, subject_id}` only.
+  Wiring the checklist into the closing submit path (or adding get_trust_balance to the
+  spec's F-PLT-11 tools) needs a spec decision. No closing gate effect exists yet; when one
+  lands it must re-check the ledger at zero (ARC-I-024).
+- No rule id names "close only at $0.00 trust"; the blocker is tagged BIL-L-036.
