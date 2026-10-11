@@ -984,3 +984,15 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   CheckCitations validates it; quotes[i] is the name of contacts[i].
 - `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
   Q-FEAT-TOOL agent handler set), so the branches merge cleanly.
+
+## FEAT-TOOL-11 draft_document
+
+- Depends on FEAT-CORE-06 (run Scope), which has no branch yet. The handler takes a
+  `RunScope` dep (`Returned` for "citations must come from this run", `RecordDraft` for the
+  run's drafts); boot adapts the CORE-06 Scope to it once that lands. On the manual path (a
+  user principal, no run) citations are only shape-checked.
+- No init(): per the owner decision, `DraftDocumentHandler()` returns the Handler and boot
+  adds it to the explicit HandlerSet. Until boot does, agenttest.FromFeature keeps its
+  stand-in for draft_document.
+- The docs module has no draft API yet; the handler writes through `DocumentDrafts`
+  (`CreateDraft`), which app/legal/docs implements at boot.
