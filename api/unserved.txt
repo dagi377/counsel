@@ -33,8 +33,6 @@ GET /gates
 GET /gates/{gate_id}
 POST /gates/{gate_id}/decisions
 POST /gates/{gate_id}/withdraw
-POST /matters
-PATCH /matters/{matter_id}
 GET /payments
 POST /payments
 GET /payments/{payment_id}
