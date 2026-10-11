@@ -625,3 +625,18 @@ integrator did not change the no-rate behaviour (ErrNoAgreedRate stays). It seed
 quarterly CJA prejudgment table (2020 Q1 to 2026 Q4, from ontario.ca, verify) as
 `interest.PrejudgmentRate`, usable as the agreed rate's CJA benchmark. Needed: a lawyer reads
 s.33 as amended and either the rules or the decision change.
+
+
+## T-020.1c: bill void effect
+
+- Approval entry: the billing.bill_approval effect posts no BIL-J-003 journal entry yet, and
+  kernel/ledger has no lookup by source. `VoidEffect` finds the entry to reverse through the
+  `ApprovalEntries` port, which has no Postgres implementation. Options: (a) the approval
+  effect posts BIL-J-003 and stores its entry id on the bill (additive column), or (b) an
+  additive `ledger.FindBySource(ctx, tx, kind, id)` over the existing source index. The
+  integration test posts the approval entry itself.
+- Extra file: `void_effect_test.go` holds the unit tests and the route-table guard
+  (TestBIL_C_084_OnlyGateVoids), so they run in `make check`; the listed
+  `void_integration_test.go` is integration-only.
+- Integrator: pass `bill.VoidEffects(*VoidEffect)` into the gates.RegisterKinds effects map
+  at boot, as for `bill.Effects`.
