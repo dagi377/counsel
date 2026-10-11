@@ -750,3 +750,21 @@ s.33 as amended and either the rules or the decision change.
   signatory service, the firm-policy reader, the withdrawal auditor and a kernel ledger value
   that joins `PG` and `Balances`. BOOT-16 fills `TrustPorts` from them.
 - Answer: (owner)
+
+## BOOT progress
+
+BOOT tasks are not in docs/TASKS.md, so their progress is tracked here.
+
+- Merged to main (wave 4a): BOOT-01, BOOT-02, BOOT-03, BOOT-04, BOOT-05, BOOT-06, BOOT-08,
+  BOOT-10, BOOT-11, BOOT-12, BOOT-13, BOOT-14, BOOT-15.
+- In progress: BOOT-07, BOOT-09.
+- Applied at integration (logged decisions):
+  - `identity.NewAdminGates(gates, store, opts...)` with `identity.WithCoreEffect(kind,
+    effect)`: the app supplies handlers for core.* kinds the kernel owns.
+    `boot.CoreGateEffects(svc)` supplies the core.trust_signatory effect.
+  - `boot.LimitationStatute(schedule)` attaches `ontario.Holidays()` (embedded
+    holidays.yaml) with `WithHolidays`, so the s.88 roll applies; tested on 2027 holidays.
+  - `withdraw.PGEFTRecords` has a unit test on a fake DB. Its integration test is still
+    to be written (vet only).
+- Still open: kernel boot must call `identity.NewAdminGates` with `CoreGateEffects` and
+  register the result's effects; the limitation Assessor must take `LimitationStatute`.

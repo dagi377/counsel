@@ -1,0 +1,34 @@
+package boot
+
+import (
+	"fmt"
+
+	"github.com/dagi377/counsel/app/legal/limitation"
+	"github.com/dagi377/counsel/app/legal/rulepacks/ontario"
+	"github.com/dagi377/counsel/app/legal/trust/signatory"
+	"github.com/dagi377/counsel/kernel/identity"
+)
+
+// LimitationStatute builds the Limitations Act calculator with the Ontario holiday calendar
+// attached, so the Legislation Act, 2006 s.88 roll applies: a period that ends on a holiday
+// or a weekend runs to the next business day. schedule may be nil.
+func LimitationStatute(schedule limitation.Schedule) (*limitation.Statute, error) {
+	s, err := limitation.NewStatute(schedule)
+	if err != nil {
+		return nil, fmt.Errorf("limitation statute: %w", err)
+	}
+	holidays, err := ontario.Holidays()
+	if err != nil {
+		return nil, fmt.Errorf("limitation statute: %w", err)
+	}
+	return s.WithHolidays(holidays), nil
+}
+
+// CoreGateEffects are the effects the legal app supplies for core.* gate kinds. The kernel
+// owns those kinds (kernel/identity admin gates); the app supplies only the handlers, which
+// kernel boot passes to identity.NewAdminGates. svc applies signatory changes.
+func CoreGateEffects(svc signatory.Service) []identity.AdminOption {
+	return []identity.AdminOption{
+		identity.WithCoreEffect(signatory.KindChange, signatory.Effects(svc)[signatory.KindChange]),
+	}
+}

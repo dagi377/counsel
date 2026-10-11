@@ -11,6 +11,7 @@ import (
 
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/gate/gatefake"
+	"github.com/dagi377/counsel/kernel/registry"
 )
 
 type adminStore struct {
@@ -146,5 +147,64 @@ func TestAdminGatesRejectInvalidPayload(t *testing.T) {
 	}
 	if len(store.roles)+len(store.activations) != 0 {
 		t.Error("invalid change applied")
+	}
+}
+
+func TestNewAdminGatesWithCoreEffect(t *testing.T) {
+	var called string
+	effect := func(_ context.Context, _ pgx.Tx, g registry.Approved) error {
+		called = g.Kind
+		return nil
+	}
+	tests := []struct {
+		name    string
+		opts    []AdminOption
+		wantErr error
+		kinds   []string
+	}{
+		{name: "no options", kinds: []string{KindRoleChange, KindUserActivation}},
+		{
+			name:  "core kind added",
+			opts:  []AdminOption{WithCoreEffect("core.app_kind", effect)},
+			kinds: []string{KindRoleChange, KindUserActivation, "core.app_kind"},
+		},
+		{name: "not a core kind", opts: []AdminOption{WithCoreEffect("app.kind", effect)}, wantErr: ErrInvalidCoreEffect},
+		{name: "bare core prefix", opts: []AdminOption{WithCoreEffect("core.", effect)}, wantErr: ErrInvalidCoreEffect},
+		{name: "overrides a kernel kind", opts: []AdminOption{WithCoreEffect(KindRoleChange, effect)}, wantErr: ErrInvalidCoreEffect},
+		{name: "nil effect", opts: []AdminOption{WithCoreEffect("core.app_kind", nil)}, wantErr: ErrInvalidCoreEffect},
+		{
+			name:    "given twice",
+			opts:    []AdminOption{WithCoreEffect("core.app_kind", effect), WithCoreEffect("core.app_kind", effect)},
+			wantErr: ErrInvalidCoreEffect,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			called = ""
+			ag, err := NewAdminGates(nil, &adminStore{}, tt.opts...)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr != nil {
+				return
+			}
+			effects := ag.Effects()
+			if len(effects) != len(tt.kinds) {
+				t.Fatalf("got %d effects, want %d", len(effects), len(tt.kinds))
+			}
+			for _, k := range tt.kinds {
+				if effects[k] == nil {
+					t.Fatalf("no effect for %s", k)
+				}
+			}
+			if fn := effects["core.app_kind"]; fn != nil {
+				if err := fn(context.Background(), nil, registry.Approved{GateID: "g1", Kind: "core.app_kind"}); err != nil {
+					t.Fatal(err)
+				}
+				if called != "core.app_kind" {
+					t.Fatalf("app effect not called, got %q", called)
+				}
+			}
+		})
 	}
 }
