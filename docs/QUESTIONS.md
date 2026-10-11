@@ -1448,3 +1448,15 @@ Done in PORT-18:
   paralegal entries instead of refusing them (BIL-L-046), so no route returns it today.
 - A reused Idempotency-Key with a different body answers 422 (rule ARC-I-008, kernel/idem),
   not the 409 in the task text, as in HTTP-02.
+
+## HTTP-05: expense routes (approved scope)
+
+- No expense service existed; the owner approved a minimal one. `timekeeping/expense.go` adds
+  `Expense`, `Expenses` (Record, Get, List) and the Postgres `ExpenseStore` on
+  timekeeping.expense (draft rows only; approval and billing set the other statuses). Boot
+  wiring supplies the store; until then the routes answer 503. Its integration test is on hold.
+- An agent principal never records an expense (403), as with time entries.
+- `paid_from: trust` is accepted as a draft record only (the DDL allows it while draft); the
+  trust transaction link and any trust movement stay with the trust gates.
+- A reused Idempotency-Key with a different body answers 422 (rule ARC-I-008, kernel/idem),
+  not the 409 in the task text, as in HTTP-02 and HTTP-04.

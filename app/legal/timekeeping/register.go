@@ -34,3 +34,12 @@ func registerEntryRoutes(r registry.Registry) error {
 	r.Routes((&HTTP{}).Routes)
 	return nil
 }
+
+func init() { add(registerExpenseRoutes) }
+
+// registerExpenseRoutes mounts GET /expenses and POST /expenses through Registry.Routes.
+// Boot wiring supplies the dependencies (ExpenseStore); until it does, the routes answer 503.
+func registerExpenseRoutes(r registry.Registry) error {
+	r.Routes((&ExpenseHTTP{}).Routes)
+	return nil
+}
