@@ -1,0 +1,639 @@
+# Prometheus recording rules and alerts for SLO-01..10 (spec/eng/a1-uptime.json).
+# Every SLI is exported per cell as slo_bad_total / slo_valid_total with label slo.
+# rule: ARC-U-034 multi-window burn rate: page 14.4x (1h and 5m), page 6x (6h and 30m),
+# ticket 1x (3d). rule: ARC-U-037 a fast burn is a SEV2 incident.
+# rule: ARC-U-029 SLO-08 counts only while the agent platform is healthy; while it is down
+# jobs stay queued and AgentJobsQueuedWhileDown tickets instead of burning budget.
+# rule: ARC-U-036 status_component maps each SLO to a public status page component.
+# Generated shape is checked by kernel/metrics/synthetic_test.go.
+groups:
+  - name: slo-01
+    rules:
+      - record: slo:error_ratio:rate5m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-01"}[5m])) / sum(rate(slo_valid_total{slo="SLO-01"}[5m]))'
+        labels:
+          slo: SLO-01
+      - record: slo:error_ratio:rate30m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-01"}[30m])) / sum(rate(slo_valid_total{slo="SLO-01"}[30m]))'
+        labels:
+          slo: SLO-01
+      - record: slo:error_ratio:rate1h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-01"}[1h])) / sum(rate(slo_valid_total{slo="SLO-01"}[1h]))'
+        labels:
+          slo: SLO-01
+      - record: slo:error_ratio:rate6h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-01"}[6h])) / sum(rate(slo_valid_total{slo="SLO-01"}[6h]))'
+        labels:
+          slo: SLO-01
+      - record: slo:error_ratio:rate3d
+        expr: 'sum(rate(slo_bad_total{slo="SLO-01"}[3d])) / sum(rate(slo_valid_total{slo="SLO-01"}[3d]))'
+        labels:
+          slo: SLO-01
+      - alert: SLOFastBurn
+        expr: 'slo:error_ratio:rate1h{slo="SLO-01"} > (14.4 * 0.001) and slo:error_ratio:rate5m{slo="SLO-01"} > (14.4 * 0.001)'
+        for: 2m
+        labels:
+          slo: SLO-01
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "14.4"
+          status_component: app
+        annotations:
+          summary: SLO-01 cell web/API availability burning error budget at 14.4x
+      - alert: SLOSlowBurn
+        expr: 'slo:error_ratio:rate6h{slo="SLO-01"} > (6 * 0.001) and slo:error_ratio:rate30m{slo="SLO-01"} > (6 * 0.001)'
+        for: 15m
+        labels:
+          slo: SLO-01
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "6"
+          status_component: app
+        annotations:
+          summary: SLO-01 cell web/API availability burning error budget at 6x
+      - alert: SLOBudgetBurn
+        expr: 'slo:error_ratio:rate3d{slo="SLO-01"} > (1 * 0.001)'
+        for: 1h
+        labels:
+          slo: SLO-01
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "1"
+          status_component: app
+        annotations:
+          summary: SLO-01 cell web/API availability burning error budget at 1x
+  - name: slo-02
+    rules:
+      - record: slo:error_ratio:rate5m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-02"}[5m])) / sum(rate(slo_valid_total{slo="SLO-02"}[5m]))'
+        labels:
+          slo: SLO-02
+      - record: slo:error_ratio:rate30m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-02"}[30m])) / sum(rate(slo_valid_total{slo="SLO-02"}[30m]))'
+        labels:
+          slo: SLO-02
+      - record: slo:error_ratio:rate1h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-02"}[1h])) / sum(rate(slo_valid_total{slo="SLO-02"}[1h]))'
+        labels:
+          slo: SLO-02
+      - record: slo:error_ratio:rate6h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-02"}[6h])) / sum(rate(slo_valid_total{slo="SLO-02"}[6h]))'
+        labels:
+          slo: SLO-02
+      - record: slo:error_ratio:rate3d
+        expr: 'sum(rate(slo_bad_total{slo="SLO-02"}[3d])) / sum(rate(slo_valid_total{slo="SLO-02"}[3d]))'
+        labels:
+          slo: SLO-02
+      - alert: SLOFastBurn
+        expr: 'slo:error_ratio:rate1h{slo="SLO-02"} > (14.4 * 0.001) and slo:error_ratio:rate5m{slo="SLO-02"} > (14.4 * 0.001)'
+        for: 2m
+        labels:
+          slo: SLO-02
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "14.4"
+          status_component: payments
+        annotations:
+          summary: SLO-02 money write path availability burning error budget at 14.4x
+      - alert: SLOSlowBurn
+        expr: 'slo:error_ratio:rate6h{slo="SLO-02"} > (6 * 0.001) and slo:error_ratio:rate30m{slo="SLO-02"} > (6 * 0.001)'
+        for: 15m
+        labels:
+          slo: SLO-02
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "6"
+          status_component: payments
+        annotations:
+          summary: SLO-02 money write path availability burning error budget at 6x
+      - alert: SLOBudgetBurn
+        expr: 'slo:error_ratio:rate3d{slo="SLO-02"} > (1 * 0.001)'
+        for: 1h
+        labels:
+          slo: SLO-02
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "1"
+          status_component: payments
+        annotations:
+          summary: SLO-02 money write path availability burning error budget at 1x
+  - name: slo-03
+    rules:
+      - record: slo:error_ratio:rate5m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-03"}[5m])) / sum(rate(slo_valid_total{slo="SLO-03"}[5m]))'
+        labels:
+          slo: SLO-03
+      - record: slo:error_ratio:rate30m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-03"}[30m])) / sum(rate(slo_valid_total{slo="SLO-03"}[30m]))'
+        labels:
+          slo: SLO-03
+      - record: slo:error_ratio:rate1h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-03"}[1h])) / sum(rate(slo_valid_total{slo="SLO-03"}[1h]))'
+        labels:
+          slo: SLO-03
+      - record: slo:error_ratio:rate6h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-03"}[6h])) / sum(rate(slo_valid_total{slo="SLO-03"}[6h]))'
+        labels:
+          slo: SLO-03
+      - record: slo:error_ratio:rate3d
+        expr: 'sum(rate(slo_bad_total{slo="SLO-03"}[3d])) / sum(rate(slo_valid_total{slo="SLO-03"}[3d]))'
+        labels:
+          slo: SLO-03
+      - alert: SLOFastBurn
+        expr: 'slo:error_ratio:rate1h{slo="SLO-03"} > (14.4 * 0.05) and slo:error_ratio:rate5m{slo="SLO-03"} > (14.4 * 0.05)'
+        for: 2m
+        labels:
+          slo: SLO-03
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "14.4"
+          status_component: app
+        annotations:
+          summary: SLO-03 interactive latency burning error budget at 14.4x
+      - alert: SLOSlowBurn
+        expr: 'slo:error_ratio:rate6h{slo="SLO-03"} > (6 * 0.05) and slo:error_ratio:rate30m{slo="SLO-03"} > (6 * 0.05)'
+        for: 15m
+        labels:
+          slo: SLO-03
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "6"
+          status_component: app
+        annotations:
+          summary: SLO-03 interactive latency burning error budget at 6x
+      - alert: SLOBudgetBurn
+        expr: 'slo:error_ratio:rate3d{slo="SLO-03"} > (1 * 0.05)'
+        for: 1h
+        labels:
+          slo: SLO-03
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "1"
+          status_component: app
+        annotations:
+          summary: SLO-03 interactive latency burning error budget at 1x
+  - name: slo-04
+    rules:
+      - record: slo:error_ratio:rate5m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-04"}[5m])) / sum(rate(slo_valid_total{slo="SLO-04"}[5m]))'
+        labels:
+          slo: SLO-04
+      - record: slo:error_ratio:rate30m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-04"}[30m])) / sum(rate(slo_valid_total{slo="SLO-04"}[30m]))'
+        labels:
+          slo: SLO-04
+      - record: slo:error_ratio:rate1h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-04"}[1h])) / sum(rate(slo_valid_total{slo="SLO-04"}[1h]))'
+        labels:
+          slo: SLO-04
+      - record: slo:error_ratio:rate6h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-04"}[6h])) / sum(rate(slo_valid_total{slo="SLO-04"}[6h]))'
+        labels:
+          slo: SLO-04
+      - record: slo:error_ratio:rate3d
+        expr: 'sum(rate(slo_bad_total{slo="SLO-04"}[3d])) / sum(rate(slo_valid_total{slo="SLO-04"}[3d]))'
+        labels:
+          slo: SLO-04
+      - alert: SLOFastBurn
+        expr: 'slo:error_ratio:rate1h{slo="SLO-04"} > (14.4 * 0.001) and slo:error_ratio:rate5m{slo="SLO-04"} > (14.4 * 0.001)'
+        for: 2m
+        labels:
+          slo: SLO-04
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "14.4"
+          status_component: app
+        annotations:
+          summary: SLO-04 deadline reminder delivery burning error budget at 14.4x
+      - alert: SLOSlowBurn
+        expr: 'slo:error_ratio:rate6h{slo="SLO-04"} > (6 * 0.001) and slo:error_ratio:rate30m{slo="SLO-04"} > (6 * 0.001)'
+        for: 15m
+        labels:
+          slo: SLO-04
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "6"
+          status_component: app
+        annotations:
+          summary: SLO-04 deadline reminder delivery burning error budget at 6x
+      - alert: SLOBudgetBurn
+        expr: 'slo:error_ratio:rate3d{slo="SLO-04"} > (1 * 0.001)'
+        for: 1h
+        labels:
+          slo: SLO-04
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "1"
+          status_component: app
+        annotations:
+          summary: SLO-04 deadline reminder delivery burning error budget at 1x
+  - name: slo-05
+    rules:
+      - record: slo:error_ratio:rate5m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-05"}[5m])) / sum(rate(slo_valid_total{slo="SLO-05"}[5m]))'
+        labels:
+          slo: SLO-05
+      - record: slo:error_ratio:rate30m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-05"}[30m])) / sum(rate(slo_valid_total{slo="SLO-05"}[30m]))'
+        labels:
+          slo: SLO-05
+      - record: slo:error_ratio:rate1h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-05"}[1h])) / sum(rate(slo_valid_total{slo="SLO-05"}[1h]))'
+        labels:
+          slo: SLO-05
+      - record: slo:error_ratio:rate6h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-05"}[6h])) / sum(rate(slo_valid_total{slo="SLO-05"}[6h]))'
+        labels:
+          slo: SLO-05
+      - record: slo:error_ratio:rate3d
+        expr: 'sum(rate(slo_bad_total{slo="SLO-05"}[3d])) / sum(rate(slo_valid_total{slo="SLO-05"}[3d]))'
+        labels:
+          slo: SLO-05
+      - alert: SLOFastBurn
+        expr: 'slo:error_ratio:rate1h{slo="SLO-05"} > (14.4 * 0.001) and slo:error_ratio:rate5m{slo="SLO-05"} > (14.4 * 0.001)'
+        for: 2m
+        labels:
+          slo: SLO-05
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "14.4"
+          status_component: app
+        annotations:
+          summary: SLO-05 WAL archive freshness burning error budget at 14.4x
+      - alert: SLOSlowBurn
+        expr: 'slo:error_ratio:rate6h{slo="SLO-05"} > (6 * 0.001) and slo:error_ratio:rate30m{slo="SLO-05"} > (6 * 0.001)'
+        for: 15m
+        labels:
+          slo: SLO-05
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "6"
+          status_component: app
+        annotations:
+          summary: SLO-05 WAL archive freshness burning error budget at 6x
+      - alert: SLOBudgetBurn
+        expr: 'slo:error_ratio:rate3d{slo="SLO-05"} > (1 * 0.001)'
+        for: 1h
+        labels:
+          slo: SLO-05
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "1"
+          status_component: app
+        annotations:
+          summary: SLO-05 WAL archive freshness burning error budget at 1x
+  - name: slo-05b
+    rules:
+      - record: slo:error_ratio:rate5m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-05b"}[5m])) / sum(rate(slo_valid_total{slo="SLO-05b"}[5m]))'
+        labels:
+          slo: SLO-05b
+      - record: slo:error_ratio:rate30m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-05b"}[30m])) / sum(rate(slo_valid_total{slo="SLO-05b"}[30m]))'
+        labels:
+          slo: SLO-05b
+      - record: slo:error_ratio:rate1h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-05b"}[1h])) / sum(rate(slo_valid_total{slo="SLO-05b"}[1h]))'
+        labels:
+          slo: SLO-05b
+      - record: slo:error_ratio:rate6h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-05b"}[6h])) / sum(rate(slo_valid_total{slo="SLO-05b"}[6h]))'
+        labels:
+          slo: SLO-05b
+      - record: slo:error_ratio:rate3d
+        expr: 'sum(rate(slo_bad_total{slo="SLO-05b"}[3d])) / sum(rate(slo_valid_total{slo="SLO-05b"}[3d]))'
+        labels:
+          slo: SLO-05b
+      - alert: SLOFastBurn
+        expr: 'slo:error_ratio:rate1h{slo="SLO-05b"} > (14.4 * 0.001) and slo:error_ratio:rate5m{slo="SLO-05b"} > (14.4 * 0.001)'
+        for: 2m
+        labels:
+          slo: SLO-05b
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "14.4"
+          status_component: documents
+        annotations:
+          summary: SLO-05b document DR replication burning error budget at 14.4x
+      - alert: SLOSlowBurn
+        expr: 'slo:error_ratio:rate6h{slo="SLO-05b"} > (6 * 0.001) and slo:error_ratio:rate30m{slo="SLO-05b"} > (6 * 0.001)'
+        for: 15m
+        labels:
+          slo: SLO-05b
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "6"
+          status_component: documents
+        annotations:
+          summary: SLO-05b document DR replication burning error budget at 6x
+      - alert: SLOBudgetBurn
+        expr: 'slo:error_ratio:rate3d{slo="SLO-05b"} > (1 * 0.001)'
+        for: 1h
+        labels:
+          slo: SLO-05b
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "1"
+          status_component: documents
+        annotations:
+          summary: SLO-05b document DR replication burning error budget at 1x
+  - name: slo-06
+    rules:
+      - record: slo:error_ratio:rate5m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-06"}[5m])) / sum(rate(slo_valid_total{slo="SLO-06"}[5m]))'
+        labels:
+          slo: SLO-06
+      - record: slo:error_ratio:rate30m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-06"}[30m])) / sum(rate(slo_valid_total{slo="SLO-06"}[30m]))'
+        labels:
+          slo: SLO-06
+      - record: slo:error_ratio:rate1h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-06"}[1h])) / sum(rate(slo_valid_total{slo="SLO-06"}[1h]))'
+        labels:
+          slo: SLO-06
+      - record: slo:error_ratio:rate6h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-06"}[6h])) / sum(rate(slo_valid_total{slo="SLO-06"}[6h]))'
+        labels:
+          slo: SLO-06
+      - record: slo:error_ratio:rate3d
+        expr: 'sum(rate(slo_bad_total{slo="SLO-06"}[3d])) / sum(rate(slo_valid_total{slo="SLO-06"}[3d]))'
+        labels:
+          slo: SLO-06
+      - alert: SLOFastBurn
+        expr: 'slo:error_ratio:rate1h{slo="SLO-06"} > (14.4 * 0.001) and slo:error_ratio:rate5m{slo="SLO-06"} > (14.4 * 0.001)'
+        for: 2m
+        labels:
+          slo: SLO-06
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "14.4"
+          status_component: app
+        annotations:
+          summary: SLO-06 recovery time burning error budget at 14.4x
+      - alert: SLOSlowBurn
+        expr: 'slo:error_ratio:rate6h{slo="SLO-06"} > (6 * 0.001) and slo:error_ratio:rate30m{slo="SLO-06"} > (6 * 0.001)'
+        for: 15m
+        labels:
+          slo: SLO-06
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "6"
+          status_component: app
+        annotations:
+          summary: SLO-06 recovery time burning error budget at 6x
+      - alert: SLOBudgetBurn
+        expr: 'slo:error_ratio:rate3d{slo="SLO-06"} > (1 * 0.001)'
+        for: 1h
+        labels:
+          slo: SLO-06
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "1"
+          status_component: app
+        annotations:
+          summary: SLO-06 recovery time burning error budget at 1x
+  - name: slo-07
+    rules:
+      - record: slo:error_ratio:rate5m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-07"}[5m])) / sum(rate(slo_valid_total{slo="SLO-07"}[5m]))'
+        labels:
+          slo: SLO-07
+      - record: slo:error_ratio:rate30m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-07"}[30m])) / sum(rate(slo_valid_total{slo="SLO-07"}[30m]))'
+        labels:
+          slo: SLO-07
+      - record: slo:error_ratio:rate1h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-07"}[1h])) / sum(rate(slo_valid_total{slo="SLO-07"}[1h]))'
+        labels:
+          slo: SLO-07
+      - record: slo:error_ratio:rate6h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-07"}[6h])) / sum(rate(slo_valid_total{slo="SLO-07"}[6h]))'
+        labels:
+          slo: SLO-07
+      - record: slo:error_ratio:rate3d
+        expr: 'sum(rate(slo_bad_total{slo="SLO-07"}[3d])) / sum(rate(slo_valid_total{slo="SLO-07"}[3d]))'
+        labels:
+          slo: SLO-07
+      - alert: SLOFastBurn
+        expr: 'slo:error_ratio:rate1h{slo="SLO-07"} > (14.4 * 0.001) and slo:error_ratio:rate5m{slo="SLO-07"} > (14.4 * 0.001)'
+        for: 2m
+        labels:
+          slo: SLO-07
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "14.4"
+          status_component: email
+        annotations:
+          summary: SLO-07 outbox delivery burning error budget at 14.4x
+      - alert: SLOSlowBurn
+        expr: 'slo:error_ratio:rate6h{slo="SLO-07"} > (6 * 0.001) and slo:error_ratio:rate30m{slo="SLO-07"} > (6 * 0.001)'
+        for: 15m
+        labels:
+          slo: SLO-07
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "6"
+          status_component: email
+        annotations:
+          summary: SLO-07 outbox delivery burning error budget at 6x
+      - alert: SLOBudgetBurn
+        expr: 'slo:error_ratio:rate3d{slo="SLO-07"} > (1 * 0.001)'
+        for: 1h
+        labels:
+          slo: SLO-07
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "1"
+          status_component: email
+        annotations:
+          summary: SLO-07 outbox delivery burning error budget at 1x
+  - name: slo-08
+    rules:
+      - record: slo:error_ratio:rate5m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-08"}[5m])) / sum(rate(slo_valid_total{slo="SLO-08"}[5m])) unless on() (dependency_up{dependency="agent_platform"} == 0)'
+        labels:
+          slo: SLO-08
+      - record: slo:error_ratio:rate30m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-08"}[30m])) / sum(rate(slo_valid_total{slo="SLO-08"}[30m])) unless on() (dependency_up{dependency="agent_platform"} == 0)'
+        labels:
+          slo: SLO-08
+      - record: slo:error_ratio:rate1h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-08"}[1h])) / sum(rate(slo_valid_total{slo="SLO-08"}[1h])) unless on() (dependency_up{dependency="agent_platform"} == 0)'
+        labels:
+          slo: SLO-08
+      - record: slo:error_ratio:rate6h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-08"}[6h])) / sum(rate(slo_valid_total{slo="SLO-08"}[6h])) unless on() (dependency_up{dependency="agent_platform"} == 0)'
+        labels:
+          slo: SLO-08
+      - record: slo:error_ratio:rate3d
+        expr: 'sum(rate(slo_bad_total{slo="SLO-08"}[3d])) / sum(rate(slo_valid_total{slo="SLO-08"}[3d])) unless on() (dependency_up{dependency="agent_platform"} == 0)'
+        labels:
+          slo: SLO-08
+      - alert: SLOFastBurn
+        expr: 'slo:error_ratio:rate1h{slo="SLO-08"} > (14.4 * 0.01) and slo:error_ratio:rate5m{slo="SLO-08"} > (14.4 * 0.01)'
+        for: 2m
+        labels:
+          slo: SLO-08
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "14.4"
+          status_component: agent
+        annotations:
+          summary: SLO-08 agent job start burning error budget at 14.4x
+      - alert: SLOSlowBurn
+        expr: 'slo:error_ratio:rate6h{slo="SLO-08"} > (6 * 0.01) and slo:error_ratio:rate30m{slo="SLO-08"} > (6 * 0.01)'
+        for: 15m
+        labels:
+          slo: SLO-08
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "6"
+          status_component: agent
+        annotations:
+          summary: SLO-08 agent job start burning error budget at 6x
+      - alert: SLOBudgetBurn
+        expr: 'slo:error_ratio:rate3d{slo="SLO-08"} > (1 * 0.01)'
+        for: 1h
+        labels:
+          slo: SLO-08
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "1"
+          status_component: agent
+        annotations:
+          summary: SLO-08 agent job start burning error budget at 1x
+  - name: slo-09
+    rules:
+      - record: slo:error_ratio:rate5m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-09"}[5m])) / sum(rate(slo_valid_total{slo="SLO-09"}[5m]))'
+        labels:
+          slo: SLO-09
+      - record: slo:error_ratio:rate30m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-09"}[30m])) / sum(rate(slo_valid_total{slo="SLO-09"}[30m]))'
+        labels:
+          slo: SLO-09
+      - record: slo:error_ratio:rate1h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-09"}[1h])) / sum(rate(slo_valid_total{slo="SLO-09"}[1h]))'
+        labels:
+          slo: SLO-09
+      - record: slo:error_ratio:rate6h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-09"}[6h])) / sum(rate(slo_valid_total{slo="SLO-09"}[6h]))'
+        labels:
+          slo: SLO-09
+      - record: slo:error_ratio:rate3d
+        expr: 'sum(rate(slo_bad_total{slo="SLO-09"}[3d])) / sum(rate(slo_valid_total{slo="SLO-09"}[3d]))'
+        labels:
+          slo: SLO-09
+      - alert: SLOFastBurn
+        expr: 'slo:error_ratio:rate1h{slo="SLO-09"} > (14.4 * 0.001) and slo:error_ratio:rate5m{slo="SLO-09"} > (14.4 * 0.001)'
+        for: 2m
+        labels:
+          slo: SLO-09
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "14.4"
+          status_component: documents
+        annotations:
+          summary: SLO-09 document availability burning error budget at 14.4x
+      - alert: SLOSlowBurn
+        expr: 'slo:error_ratio:rate6h{slo="SLO-09"} > (6 * 0.001) and slo:error_ratio:rate30m{slo="SLO-09"} > (6 * 0.001)'
+        for: 15m
+        labels:
+          slo: SLO-09
+          severity: page
+          incident_severity: SEV2
+          burn_rate: "6"
+          status_component: documents
+        annotations:
+          summary: SLO-09 document availability burning error budget at 6x
+      - alert: SLOBudgetBurn
+        expr: 'slo:error_ratio:rate3d{slo="SLO-09"} > (1 * 0.001)'
+        for: 1h
+        labels:
+          slo: SLO-09
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "1"
+          status_component: documents
+        annotations:
+          summary: SLO-09 document availability burning error budget at 1x
+  - name: slo-10
+    rules:
+      - record: slo:error_ratio:rate5m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-10"}[5m])) / sum(rate(slo_valid_total{slo="SLO-10"}[5m]))'
+        labels:
+          slo: SLO-10
+      - record: slo:error_ratio:rate30m
+        expr: 'sum(rate(slo_bad_total{slo="SLO-10"}[30m])) / sum(rate(slo_valid_total{slo="SLO-10"}[30m]))'
+        labels:
+          slo: SLO-10
+      - record: slo:error_ratio:rate1h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-10"}[1h])) / sum(rate(slo_valid_total{slo="SLO-10"}[1h]))'
+        labels:
+          slo: SLO-10
+      - record: slo:error_ratio:rate6h
+        expr: 'sum(rate(slo_bad_total{slo="SLO-10"}[6h])) / sum(rate(slo_valid_total{slo="SLO-10"}[6h]))'
+        labels:
+          slo: SLO-10
+      - record: slo:error_ratio:rate3d
+        expr: 'sum(rate(slo_bad_total{slo="SLO-10"}[3d])) / sum(rate(slo_valid_total{slo="SLO-10"}[3d]))'
+        labels:
+          slo: SLO-10
+      - alert: SLOFastBurn
+        expr: 'slo:error_ratio:rate1h{slo="SLO-10"} > (14.4 * 0.005) and slo:error_ratio:rate5m{slo="SLO-10"} > (14.4 * 0.005)'
+        for: 2m
+        labels:
+          slo: SLO-10
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "14.4"
+          status_component: agent
+        annotations:
+          summary: SLO-10 agent platform dependency (informational) burning error budget at 14.4x
+      - alert: SLOSlowBurn
+        expr: 'slo:error_ratio:rate6h{slo="SLO-10"} > (6 * 0.005) and slo:error_ratio:rate30m{slo="SLO-10"} > (6 * 0.005)'
+        for: 15m
+        labels:
+          slo: SLO-10
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "6"
+          status_component: agent
+        annotations:
+          summary: SLO-10 agent platform dependency (informational) burning error budget at 6x
+      - alert: SLOBudgetBurn
+        expr: 'slo:error_ratio:rate3d{slo="SLO-10"} > (1 * 0.005)'
+        for: 1h
+        labels:
+          slo: SLO-10
+          severity: ticket
+          incident_severity: SEV3
+          burn_rate: "1"
+          status_component: agent
+        annotations:
+          summary: SLO-10 agent platform dependency (informational) burning error budget at 1x
+  - name: synthetic
+    rules:
+      # rule: ARC-U-035 synthetic checks run every 60 s; a cell failing for 3 min pages.
+      - alert: SyntheticCheckFailing
+        expr: 'sum by (check) (increase(synthetic_check_failed_total[3m])) >= 3'
+        for: 0m
+        labels:
+          slo: SLO-01
+          severity: page
+          incident_severity: SEV2
+          status_component: app
+        annotations:
+          summary: synthetic check failing for 3 min
+  - name: agent-queue
+    rules:
+      - alert: AgentJobsQueuedWhileDown
+        expr: 'max(job_queue_age_seconds{job="agent"}) > 1800 and on() (dependency_up{dependency="agent_platform"} == 0)'
+        for: 5m
+        labels:
+          slo: SLO-08
+          severity: ticket
+          incident_severity: SEV2
+          status_component: agent
+        annotations:
+          summary: agent jobs queued over 30 min while the agent platform is down
