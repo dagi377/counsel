@@ -3002,7 +3002,26 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
 
-## Q-FEAT-INT-11 F-INT-15 non-engagement letter: draft_note cannot open intake.consult_outcome (blocked)
+## Q-FEAT-INT-06 F-INT-06 drafts its consult note: draft_document added to the Def and spec
+
+- FEAT-INT-06 asks for gate intake.consult_outcome (G3) pending after a run whose first write
+  is draft_note. draft_note always opens matter.agent_note (G-NT) on its own note, and that
+  note is not a run draft, so submit_for_approval cannot open G3 on it. A consultation is on a
+  lead, not yet a matter, so G-NT is not the outcome gate either.
+- As decided for F-DL-02 (Q-FEAT-DL-04) and F-DOC-01 (Q-FEAT-DOC-02), draft_document is added
+  to F-INT-06 in spec/ai/features.json and in ConsultNoteDef, and intake.consult_outcome is
+  listed as a tool-gap kind (F-INT-06 tool_gap and tool_gaps.kinds; the kind count in
+  kernel/agenttools/scope_test.go goes from 38 to 39). The run drafts the note
+  with draft_document and opens G3 with submit_for_approval. draft_note stays in the Def as
+  the spec lists it; the prompt tells the model not to use it. F-INT-15 has the same shape.
+- Open: draft_note opens matter.agent_note through the plain GateOpener, not
+  agenttools.ScopedOpener, so an agent run whose feature does not declare matter.agent_note
+  (F-INT-06, F-INT-15, F-PLT-04) can still open it (ARC-I-035). Wrapping it in ScopedOpener
+  is a one-line change to app/legal/agent/tools_draft_note.go, left to its owner.
+- Events: consultation.ended and consultation.dictation_uploaded. The consult-outcome screen
+  selects the consultation and needs intake.convert, the G3 approver capability.
+
+## Q-FEAT-INT-11 F-INT-15 non-engagement letter: draft_note cannot open intake.consult_outcome (decided)
 
 The spec has F-INT-15 (and F-INT-06) open `intake.consult_outcome` (G3) through `draft_note`,
 with no tool gap. The real `draft_note` handler cannot do that:
@@ -3026,3 +3045,18 @@ and screen-action tests; the FromFeature and injection tests are written in full
 this question. The Def is not added to featureset or the boot screen map, so no live route
 runs a feature that cannot finish; add `intake.NonEngagementLetterDef()` there and the
 `consult-outcome` screen (subject `intake.lead`, capability `intake.leads`) once answered.
+
+Decided (INT-11-FIX): a non-engagement letter is a risk-management record, so it goes to G3
+the same way as F-INT-06 (Q-FEAT-INT-06) and F-DL-02 (Q-FEAT-DL-04):
+
+- draft_document is added to F-INT-15 in spec/ai/features.json and in
+  NonEngagementLetterDef (Grant `documents.edit`), and F-INT-15 lists `intake.consult_outcome`
+  as its tool gap (the kind is already in tool_gaps.kinds from Q-FEAT-INT-06). The run drafts
+  the letter with draft_document and opens G3 with submit_for_approval; draft_note stays in the
+  Def as the spec lists it and the prompt tells the model not to use it.
+- The G3 payload schema (app/legal/gates/kinds.json and spec/gates.json) gains an optional
+  `draft_id` (uuid), additively: the payload is `{lead_id, outcome, draft_id}`, where
+  `draft_id` names the drafted letter or note the lawyer approves. Existing payloads stay valid.
+- The FromFeature and injection tests run unskipped. The Def is in featureset; the
+  consult-outcome screen is the one F-INT-06 registered in boot.
+- The draft_note scoped-opener fix is SCOPE-FIX's.
