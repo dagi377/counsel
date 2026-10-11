@@ -169,6 +169,9 @@ type Service interface {
 	Sign(ctx context.Context, tx pgx.Tx, id ID, s Signature) error
 	// Deliver records delivery evidence. It needs a signature and sets DeliveredAt once.
 	Deliver(ctx context.Context, tx pgx.Tx, id ID, ev DeliveryEvidence) (Bill, error)
+	// Submit moves a draft to pending_approval in tx, the same tx that opens the
+	// billing.bill_approval gate (added for HTTP-08b). Any other status is ErrNotSubmittable.
+	Submit(ctx context.Context, tx pgx.Tx, id ID) (Bill, error)
 }
 
 // Sentinel errors.
@@ -184,4 +187,6 @@ var (
 	ErrNotApproved       = errors.New("bill: not approved")
 	ErrAlreadyDelivered  = errors.New("bill: already delivered")
 	ErrFutureEvidence    = errors.New("bill: delivery evidence in the future")
+	// ErrNotSubmittable is returned by Submit for a bill that is not a draft.
+	ErrNotSubmittable = errors.New("bill: only a draft can be submitted")
 )
