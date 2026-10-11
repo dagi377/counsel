@@ -2704,3 +2704,15 @@ Done in PORT-18:
   is based on task/FEAT-MAT-03, which carries task/JOB-ACTOR and the shared matb helpers.
 - `matter.contact_merge` is a tool-gap kind: the run drafts the proposal with draft_document
   and opens G-CM with submit_for_approval on that draft.
+## Q-FEAT-MAT-12 F-MAT-14's "weekly sweep" has no "schedule" word
+
+- spec/ai/features.json words F-MAT-14's trigger "event: matter opened without a template;
+  weekly sweep". trigger.ParseCadence finds a schedule only where the trigger says
+  "schedule" (or "monthly"), so it reads this trigger as CadenceNone and BindDesignated
+  refuses it.
+- FEAT-MAT-12 keeps Def.Trigger equal to the spec and has TemplateFitBinding bind a copy of
+  the Def whose trigger reads "schedule: weekly sweep" (weekly, designated lawyer), plus
+  the matter.opened event. app/legal/agent/trigger is not in the task's files.
+- Proposed: ParseCadence also treats "sweep" as a schedule word; the binding then uses the
+  Def unchanged. "Without a template" is checked by the run (get_matter), since
+  matter.opened carries no template field.

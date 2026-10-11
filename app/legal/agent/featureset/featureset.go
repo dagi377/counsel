@@ -100,5 +100,7 @@ func appDefs() []feature.Def {
 		matter.ContactDedupeDef(),
 		matter.OpeningPrefillDef(),
 		matter.RetainerWatchDef(),
+		matter.ConfigHygieneDef(),
+		matter.TemplateFitDef(),
 	}
 }
