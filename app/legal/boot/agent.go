@@ -356,6 +356,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
+	// Intake screens. The form builder selects the intake form it edits.
+	"intake-form-builder": {SubjectKind: "intake.intake_form", Capability: "intake.forms"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

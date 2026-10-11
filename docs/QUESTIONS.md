@@ -3001,3 +3001,11 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-FEAT-INT-09 F-INT-12 draft form from description: screen and draft target
+
+- Boot maps every action screen (TestActionScreensCoverFeatures), so `app/legal/boot/agent.go`
+  gains `intake-form-builder` (subject `intake.intake_form`, capability `intake.forms`).
+- draft_document needs a matter_id and a form has none; the prompt has the agent draft on the
+  matter the screen context names. A form-draft tool would remove that indirection.
+- `intake.GatePublicWording` is new: no branch on main or pushed declares `intake.public_wording`.
