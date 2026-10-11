@@ -13,6 +13,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
+	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/kernel/api"
 	"github.com/dagi377/counsel/kernel/audit"
 	kboot "github.com/dagi377/counsel/kernel/boot"
@@ -46,6 +47,12 @@ type Production struct {
 	// that fails login.Config.Validate, such as a dev login outside a dev environment,
 	// fails boot.
 	Login *Login
+	// SealKey, when set, turns on the gate effects (gatePortsPG): it is the AES-256 key that
+	// seals trust account numbers. Nil leaves Options.Gates unset, so no app gate kind with
+	// a money effect is registered (fail closed).
+	SealKey *trust.SealKey
+	// BillPrefix is the bill number series prefix; empty uses DefaultBillPrefix.
+	BillPrefix string
 }
 
 // Login is the member sign-in configuration (kernel/identity/login).
@@ -147,17 +154,26 @@ func (p Production) options(k *kboot.Kernel) (Options, error) {
 	if principal == nil {
 		principal = noPrincipal
 	}
+	access := identity.NewChecker(roles, assign)
+	auditLog := audit.New(conn, AuditMasker(), audit.Options{})
 	o := Options{
 		HTTP: &HTTPPorts{
-			Access:    identity.NewChecker(roles, assign),
+			Access:    access,
 			Cursors:   cursors,
 			Problems:  &server.Problems{},
 			Principal: principal,
 			Idem:      idem.NewPG(conn),
-			Audit:     audit.New(conn, AuditMasker(), audit.Options{}),
+			Audit:     auditLog,
 		},
 		Clearance: &ClearancePorts{Search: conflict.NewPGSearcher(k.DB), Roles: roles, Assignments: assign},
 		Rest:      &RestPorts{},
+	}
+	if p.SealKey != nil {
+		g, err := gatePortsPG(k, conn, *p.SealKey, p.BillPrefix, auditLog, access)
+		if err != nil {
+			return Options{}, err
+		}
+		o.Gates = g
 	}
 	if p.WebhookSecrets != nil {
 		o.Webhooks = &WebhookPorts{Secrets: p.WebhookSecrets}
@@ -192,20 +208,48 @@ func merge(base, add Options) Options {
 }
 
 // moduleMounts are the module route groups served over the kernel DB from the shared HTTP
-// ports: matter reads, contacts and the firm tax registrations (MATTER-TAX-API).
-func moduleMounts(k *kboot.Kernel, p HTTPPorts) []mount {
+// ports: matter reads and writes, contacts and the firm tax registrations (MATTER-TAX-API).
+func moduleMounts(k *kboot.Kernel, p HTTPPorts, approvers map[string]int) []mount {
 	if k == nil || k.DB == nil {
 		return nil
 	}
 	contacts := party.NewStore(k.DB)
 	matters := matter.NewStore(k.DB, contacts)
-	return []mount{
-		(&matter.HTTP{Query: matters, Access: p.Access, Cursors: p.Cursors, Problems: p.Problems,
-			Principal: p.Principal}).Routes,
+	reads := matter.HTTP{Query: matters, Access: p.Access, Cursors: p.Cursors, Problems: p.Problems,
+		Principal: p.Principal}
+	out := []mount{
+		(&reads).Routes,
 		(&party.HTTP{Contacts: contacts, Access: p.Access, Cursors: p.Cursors, Problems: p.Problems,
 			Principal: p.Principal}).Routes,
 		(&tax.RegistrationsHTTP{Store: tax.PGRegistrations{DB: k.DB}, Access: p.Access, Problems: p.Problems,
 			Principal: p.Principal}).Routes,
+	}
+	if w := matterWrites(k, p, reads, approvers); w != nil {
+		out = append(out, w.WriteRoutes)
+	}
+	return out
+}
+
+// matterWrites is POST /matters and PATCH /matters/{matter_id} over Postgres: plain fields
+// through matter.PGUpdater (If-Match, walls under RLS), gate-owned changes through the gate
+// engine, the status dry run through a Lifecycle reading walls and conflict runs from
+// Postgres, and Idempotency-Key on the shared store. Nil when a port is missing.
+func matterWrites(k *kboot.Kernel, p HTTPPorts, reads matter.HTTP, approvers map[string]int) *matter.Writes {
+	if p.DB == nil || p.Gates == nil || p.Idem == nil || k.Clock == nil {
+		return nil
+	}
+	return &matter.Writes{
+		HTTP:    reads,
+		DB:      p.DB,
+		Gates:   p.Gates,
+		Updates: matter.NewPGUpdater(k.DB),
+		Lifecycle: &matter.Lifecycle{
+			Clock:     k.Clock,
+			Conflicts: conflict.NewChecksWith(conflict.NewPGSearcher(k.DB), conflict.NewPGRuns(k.DB), k.Clock.Now),
+			Walls:     matter.NewPGWalls(k.DB),
+		},
+		Idem:         p.Idem,
+		MinApprovers: approvers,
 	}
 }
 
