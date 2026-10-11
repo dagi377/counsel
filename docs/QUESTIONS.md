@@ -106,3 +106,11 @@ Template:
   the delay, with notification. Applied: the nine dual-mode trust gates get
   `dual_when: "signatories>=2"`; GA9 and GA11 get `min_approvers: 2` with
   `sole_owner_delay: "24h"`. Done in T-002L.2.
+
+## AI-008: /healthz model field
+
+- No `/healthz` handler exists on main yet, and AI-008 lists no server file. AI-008 ships
+  `ai.Config.Check(env)` and `httpclient.FromConfig(...)`, whose `ModelClient.Mode()` is the
+  value `/healthz` must report as `model: mock|live`. Proposed: the task that adds `/healthz`
+  (kernel/server) reads `Mode()` from the client built at boot, and boot passes `COUNSEL_ENV`
+  as `env` so a live config in test or ci fails with `ErrLiveModelForbidden`.
