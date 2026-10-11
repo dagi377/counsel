@@ -9,6 +9,7 @@ package docs
 import (
 	"context"
 	"errors"
+	"github.com/dagi377/counsel/kernel/registry"
 	"io"
 
 	"github.com/jackc/pgx/v5"
@@ -16,10 +17,7 @@ import (
 
 // Subject is an opaque reference to the business object a document belongs to. The
 // kernel never interprets it; it mirrors registry.Subject.
-type Subject struct {
-	Kind string
-	ID   string
-}
+type Subject = registry.Subject
 
 // VersionID is one stored version of a document.
 type VersionID string

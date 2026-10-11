@@ -4,8 +4,8 @@ package ratesfake
 import (
 	"context"
 	"fmt"
+	"github.com/dagi377/counsel/kernel/clock"
 	"sync"
-	"time"
 
 	"github.com/dagi377/counsel/app/legal/timekeeping/rates"
 )
@@ -161,4 +161,4 @@ func matches(r rates.RateRow, in rates.Input) bool {
 	return false
 }
 
-func after(a, b time.Time) bool { return a.After(b) }
+func after(a, b clock.Date) bool { return b.Before(a) }

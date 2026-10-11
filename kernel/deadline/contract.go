@@ -8,33 +8,20 @@ package deadline
 import (
 	"context"
 	"errors"
-	"time"
+	"github.com/dagi377/counsel/kernel/clock"
+	"github.com/dagi377/counsel/kernel/registry"
 
 	"github.com/jackc/pgx/v5"
 )
 
-// Date is a civil date in the business time zone. It becomes an alias of the kernel/clock
-// date type once kernel/clock (T-004) is on main.
-type Date struct {
-	Year  int
-	Month time.Month
-	Day   int
-}
+// Date is a civil date in the business time zone.
+type Date = clock.Date
 
 // Subject is an opaque reference to a business object (registry.Subject shape).
-type Subject struct {
-	Kind string
-	ID   string
-}
+type Subject = registry.Subject
 
 // Principal is who acts (registry.Principal shape). Kind "agent" never confirms.
-type Principal struct {
-	Kind      string // "user", "agent" or "guest"
-	UserID    string
-	RunID     string
-	ActingFor string
-	Grant     []string
-}
+type Principal = registry.Principal
 
 // DeadlineID identifies a stored deadline.
 type DeadlineID string

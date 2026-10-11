@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dagi377/counsel/kernel/registry"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -42,10 +43,7 @@ const (
 )
 
 // Subject links an item to a record owned by another module (registered subject kind).
-type Subject struct {
-	Kind string
-	ID   string
-}
+type Subject = registry.Subject
 
 // Item is one work item. Type is a registered item type (for example "task" or "review").
 type Item struct {

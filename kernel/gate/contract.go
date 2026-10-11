@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dagi377/counsel/kernel/registry"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -19,39 +20,31 @@ type GateID string
 
 // Subject is an opaque reference to the business object a gate is about. The gate engine
 // never interprets Kind or ID.
-type Subject struct {
-	Kind string
-	ID   string
-}
+type Subject = registry.Subject
 
 // PrincipalKind says whether a principal is a person, an agent run or a portal guest.
-type PrincipalKind string
+type PrincipalKind = registry.PrincipalKind
 
 // Principal kinds. Only PrincipalUser may approve.
 const (
-	PrincipalUser  PrincipalKind = "user"
-	PrincipalAgent PrincipalKind = "agent"
-	PrincipalGuest PrincipalKind = "guest"
+	PrincipalUser  = registry.PrincipalUser
+	PrincipalAgent = registry.PrincipalAgent
+	PrincipalGuest = registry.PrincipalGuest
 )
 
 // Principal is who acts on a gate. An agent principal only proposes; its ActingFor user
 // counts as the preparer.
-type Principal struct {
-	Kind      PrincipalKind
-	UserID    string // user and guest
-	RunID     string // agent only: the agent run
-	ActingFor string // agent only: the user the run acts for
-}
+type Principal = registry.Principal
 
 // Risk is the cost of a gate's effect if it is wrong.
-type Risk string
+type Risk = registry.Risk
 
 // Risk levels. RiskIrreversible needs MinApprovers >= 2.
 const (
-	RiskLow          Risk = "low"
-	RiskMedium       Risk = "medium"
-	RiskHigh         Risk = "high"
-	RiskIrreversible Risk = "irreversible"
+	RiskLow          = registry.RiskLow
+	RiskMedium       = registry.RiskMedium
+	RiskHigh         = registry.RiskHigh
+	RiskIrreversible = registry.RiskIrreversible
 )
 
 // Status is the state of a gate.
@@ -94,31 +87,14 @@ type Decision struct {
 }
 
 // Approved is a gate that has all the approvals it needs, as passed to its effect handler.
-type Approved struct {
-	GateID    GateID
-	Kind      string
-	Version   int
-	Subject   Subject
-	Payload   json.RawMessage
-	Preparer  Principal
-	Approvers []Principal
-}
+type Approved = registry.Approved
 
 // EffectFunc applies an approved gate. It runs at most once per gate, inside tx, while the
 // kernel holds the gate lock.
-type EffectFunc func(ctx context.Context, tx pgx.Tx, g Approved) error
+type EffectFunc = registry.EffectFunc
 
 // GateKind declares one kind of approval gate. Slug is module-prefixed ("<module>.<slug>").
-type GateKind struct {
-	Slug          string
-	Approver      string // capability id an approver must hold
-	Risk          Risk
-	MinApprovers  int // 1..3; RiskIrreversible needs >= 2
-	TTL           time.Duration
-	PayloadSchema []byte // JSON Schema for the payload
-	Effect        EffectFunc
-	CoolingOff    time.Duration // delay between approval and effect for self-approved gates
-}
+type GateKind = registry.GateKind
 
 // Gate is the stored state of one gate version.
 type Gate struct {

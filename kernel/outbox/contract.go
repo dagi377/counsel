@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dagi377/counsel/kernel/registry"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -21,10 +22,7 @@ var (
 )
 
 // Subject is the aggregate an event is about (platform.outbox.aggregate, aggregate_id).
-type Subject struct {
-	Kind string
-	ID   string
-}
+type Subject = registry.Subject
 
 // Message is one row of platform.outbox. Payload holds ids and amounts only, never
 // document text, notes or client names.

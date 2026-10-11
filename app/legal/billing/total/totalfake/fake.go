@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/billing/total"
+	"github.com/dagi377/counsel/kernel/money"
+	"github.com/dagi377/counsel/kernel/money/moneyfake"
 )
 
 var _ total.Calculator = (*Fake)(nil)
@@ -22,22 +24,8 @@ type Fake struct {
 // New returns a fake with no forced error.
 func New() *Fake { return &Fake{} }
 
-// rhu rounds n/d half away from zero (BIL-C-002). It stands in for money.Rhu until the
-// kernel money package lands; d must be positive.
-func rhu(n, d int64) int64 {
-	q, r := n/d, n%d
-	if r < 0 {
-		r = -r
-	}
-	if 2*r >= d {
-		if n < 0 {
-			q--
-		} else {
-			q++
-		}
-	}
-	return q
-}
+// rounder is the kernel rounding function (BIL-C-002).
+var rounder = moneyfake.New()
 
 // Compute implements total.Calculator.
 func (f *Fake) Compute(d total.Draft) (total.Totals, error) {
@@ -67,7 +55,11 @@ func (f *Fake) Compute(d total.Draft) (total.Totals, error) {
 		}
 	}
 	for c, b := range base {
-		tl := total.TaxLine{Code: c, RatePPM: rates[c], BaseCents: b, TaxCents: rhu(b*rates[c], 1_000_000)}
+		tax, err := rounder.Rhu(b*rates[c], money.PPMScale)
+		if err != nil {
+			return total.Totals{}, fmt.Errorf("compute tax %s: %w", c, err)
+		}
+		tl := total.TaxLine{Code: c, RatePPM: rates[c], BaseCents: b, TaxCents: tax}
 		out.Tax = append(out.Tax, tl)
 		out.TaxCents += tl.TaxCents
 	}

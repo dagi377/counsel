@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dagi377/counsel/kernel/registry"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -24,10 +25,7 @@ const (
 )
 
 // Subject is an opaque reference to a business object (registry.Subject shape).
-type Subject struct {
-	Kind string
-	ID   string
-}
+type Subject = registry.Subject
 
 // EventType is a module-registered event type with the JSON Schema of its payload.
 type EventType struct {

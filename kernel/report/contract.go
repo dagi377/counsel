@@ -9,27 +9,20 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dagi377/counsel/kernel/registry"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 )
 
 // Rows is a report result: a header and string-formatted cells.
-type Rows struct {
-	Columns []string
-	Rows    [][]string
-}
+type Rows = registry.Rows
 
 // RunFunc produces a report's rows inside tx.
 type RunFunc func(ctx context.Context, tx pgx.Tx, params json.RawMessage) (Rows, error)
 
 // ReportDef declares one report. ID is module-prefixed ("<module>.<name>").
-type ReportDef struct {
-	ID         string
-	Capability string // capability id needed to run it
-	Params     []byte // JSON Schema for params
-	Run        RunFunc
-}
+type ReportDef = registry.ReportDef
 
 // RunID identifies one report run.
 type RunID string

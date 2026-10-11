@@ -9,39 +9,21 @@ package ledger
 import (
 	"context"
 	"errors"
-	"time"
+	"github.com/dagi377/counsel/kernel/clock"
+	"github.com/dagi377/counsel/kernel/money"
+	"github.com/dagi377/counsel/kernel/registry"
 
 	"github.com/jackc/pgx/v5"
 )
 
-// Cents is an amount in integer cents. It has the shape of money.Cents and becomes an alias
-// of it once kernel/money (T-003) is on main.
-type Cents int64
+// Cents is an amount in integer cents.
+type Cents = money.Cents
 
-// Date is a civil date in the business time zone. It becomes an alias of the kernel/clock
-// date type once kernel/clock (T-004) is on main.
-type Date struct {
-	Year  int
-	Month time.Month
-	Day   int
-}
-
-// Before reports whether d is strictly before o.
-func (d Date) Before(o Date) bool {
-	if d.Year != o.Year {
-		return d.Year < o.Year
-	}
-	if d.Month != o.Month {
-		return d.Month < o.Month
-	}
-	return d.Day < o.Day
-}
+// Date is a civil date in the business time zone.
+type Date = clock.Date
 
 // Subject is an opaque reference to a business object (registry.Subject shape).
-type Subject struct {
-	Kind string
-	ID   string
-}
+type Subject = registry.Subject
 
 // EntryID identifies one posted journal entry.
 type EntryID string

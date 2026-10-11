@@ -10,6 +10,8 @@ import (
 	"sync"
 
 	"github.com/dagi377/counsel/app/legal/billing/draft"
+	"github.com/dagi377/counsel/kernel/money"
+	"github.com/dagi377/counsel/kernel/money/moneyfake"
 )
 
 var (
@@ -27,8 +29,8 @@ type Fake struct {
 // New returns an empty Fake.
 func New() *Fake { return &Fake{bills: map[string][]draft.Line{}, frozen: map[string]bool{}} }
 
-// rhu is round-half-up a/b for a, b >= 0; the real code uses money.Rhu.
-func rhu(a, b int64) int64 { return (2*a + b) / (2 * b) }
+// rounder is the kernel rounding function (BIL-C-002).
+var rounder = moneyfake.New()
 
 // Net implements draft.Calc.
 func (f *Fake) Net(l draft.Line) int64 {
@@ -83,7 +85,11 @@ func (f *Fake) ApplyDiscount(lines []draft.Line, d draft.Discount) ([]draft.Line
 		if d.PPM < 0 || d.PPM > 1_000_000 {
 			return lines, fmt.Errorf("discount ppm %d: %w", d.PPM, draft.ErrInvalidDiscount)
 		}
-		total = rhu(base*d.PPM, 1_000_000)
+		t, err := rounder.Rhu(base*d.PPM, money.PPMScale)
+		if err != nil {
+			return lines, fmt.Errorf("discount: %w", err)
+		}
+		total = t
 	case draft.DiscountFixed:
 		if d.AmountCents < 0 {
 			return lines, fmt.Errorf("discount amount: %w", draft.ErrInvalidDiscount)
@@ -131,7 +137,7 @@ func (f *Fake) Markup(kind draft.LineKind, costCents, ppm int64) (int64, error) 
 	if kind != draft.LineOwnCost {
 		return 0, nil
 	}
-	return rhu(costCents*ppm, 1_000_000), nil
+	return rounder.Rhu(costCents*ppm, money.PPMScale)
 }
 
 // CheckDelivery implements draft.Calc.

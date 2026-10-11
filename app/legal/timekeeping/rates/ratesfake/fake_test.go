@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/timekeeping/rates"
+	"github.com/dagi377/counsel/kernel/clock"
 )
 
 var (
@@ -14,7 +15,7 @@ var (
 	aug1 = day(2026, 8, 1)
 )
 
-func day(y, m, d int) time.Time { return time.Date(y, time.Month(m), d, 0, 0, 0, 0, time.UTC) }
+func day(y, m, d int) clock.Date { return clock.Date{Year: y, Month: time.Month(m), Day: d} }
 
 func cents(v int64) *int64 { return &v }
 

@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/dagi377/counsel/app/legal/billing/payment"
+	"github.com/dagi377/counsel/kernel/money/moneyfake"
 )
 
 var _ payment.Service = (*Fake)(nil)
@@ -52,8 +53,8 @@ func (f *Fake) Open(id string) (fee, tax int64) {
 	return b.fee, b.tax
 }
 
-// rhu divides num by den rounding half up; num and den are non-negative, den > 0.
-func rhu(num, den int64) int64 { return (2*num + den) / (2 * den) }
+// rounder is the kernel rounding function (BIL-C-002).
+var rounder = moneyfake.New()
 
 // Capture records and allocates c.
 func (f *Fake) Capture(_ context.Context, c payment.Capture) (payment.Payment, []payment.Allocation, error) {
@@ -84,7 +85,10 @@ func (f *Fake) Capture(_ context.Context, c payment.Capture) (payment.Payment, [
 	applied := min(c.AmountCents, b.fee+b.tax)
 	var as []payment.Allocation
 	if applied > 0 {
-		tax := rhu(applied*b.tax, b.fee+b.tax)
+		tax, err := rounder.Rhu(applied*b.tax, b.fee+b.tax)
+		if err != nil {
+			return payment.Payment{}, nil, fmt.Errorf("allocate tax: %w", err)
+		}
 		a := payment.Allocation{PaymentID: p.ID, BillID: c.BillID, FeeCents: applied - tax, TaxCents: tax}
 		b.fee -= a.FeeCents
 		b.tax -= a.TaxCents

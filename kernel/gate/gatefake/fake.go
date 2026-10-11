@@ -261,7 +261,7 @@ func (f *Fake) Decide(ctx context.Context, tx pgx.Tx, id gate.GateID, version in
 // runEffect runs k's effect for g and stores g as approved. On failure nothing is stored.
 func (f *Fake) runEffect(ctx context.Context, tx pgx.Tx, k gate.GateKind, g gate.Gate) error {
 	if err := k.Effect(ctx, tx, gate.Approved{
-		GateID: g.ID, Kind: g.Kind, Version: g.Version, Subject: g.Subject,
+		GateID: string(g.ID), Kind: g.Kind, Version: g.Version, Subject: g.Subject,
 		Payload: g.Payload, Preparer: g.Preparer, Approvers: slices.Clone(g.Approvers),
 	}); err != nil {
 		return fmt.Errorf("effect %s: %w: %w", g.ID, gate.ErrEffectFailed, err)

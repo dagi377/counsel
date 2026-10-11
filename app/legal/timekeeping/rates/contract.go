@@ -9,7 +9,8 @@ package rates
 import (
 	"context"
 	"errors"
-	"time"
+
+	"github.com/dagi377/counsel/kernel/clock"
 )
 
 // Source is the tier of the resolution chain a rate came from (BIL-C-003). Stored on the
@@ -44,7 +45,7 @@ type RateRow struct {
 	RoleGroup     string
 	ActivityID    string
 	RateCents     int64
-	EffectiveFrom time.Time // business date: 00:00 in America/Toronto
+	EffectiveFrom clock.Date // business date
 }
 
 // Input is what resolution needs about one time entry.
@@ -54,9 +55,9 @@ type Input struct {
 	UserID          string
 	RoleGroup       string
 	ActivityID      string
-	WorkDate        time.Time // business date: 00:00 in America/Toronto
-	ManualRateCents *int64    // tier 1 when set
-	CanSetRates     bool      // caller holds time.rates or the user override right
+	WorkDate        clock.Date // business date
+	ManualRateCents *int64     // tier 1 when set
+	CanSetRates     bool       // caller holds time.rates or the user override right
 }
 
 // Resolved is the result of resolution, stored on the entry as rate_cents and rate_source.

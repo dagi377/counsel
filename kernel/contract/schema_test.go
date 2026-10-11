@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
@@ -120,10 +121,29 @@ func TestHelpdeskFixtureValidates(t *testing.T) {
 	}
 }
 
+// termPattern compiles the kernel term list (tools/kernel_terms.txt) into one whole-word,
+// case-insensitive pattern, so the list of forbidden words lives in one place.
+func termPattern(t *testing.T) *regexp.Regexp {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "tools", "kernel_terms.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var alts []string
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		alts = append(alts, regexp.QuoteMeta(line))
+	}
+	return regexp.MustCompile(`(?i)\b(` + strings.Join(alts, "|") + `)\b`)
+}
+
 // TestHelpdeskFixtureHasNoLegalTerms keeps the fixture a proof that the schemas are
 // domain-free: a second app with no legal vocabulary fits them.
 func TestHelpdeskFixtureHasNoLegalTerms(t *testing.T) {
-	legal := regexp.MustCompile(`(?i)\b(matter|trust|lawyer|court|hst|lso|by-law|clio|ontario|solicitor|paralegal)`)
+	legal := termPattern(t)
 	entries, err := os.ReadDir(helpdeskDir)
 	if err != nil {
 		t.Fatal(err)

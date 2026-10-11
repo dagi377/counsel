@@ -7,6 +7,7 @@ package audit
 import (
 	"context"
 	"errors"
+	"github.com/dagi377/counsel/kernel/registry"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -18,10 +19,7 @@ type Seq int64
 // Subject is an opaque reference to a business object; the kernel never interprets Kind or
 // ID. It has the shape of registry.Subject and becomes an alias of it once kernel/registry
 // (T-002) is on main.
-type Subject struct {
-	Kind string
-	ID   string
-}
+type Subject = registry.Subject
 
 // Event is one audit record. Append fills Seq, At, PrevHash and Hash; callers set the rest.
 // Detail is masked before it is stored (Masker): it never holds document text, customer

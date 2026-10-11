@@ -6,6 +6,7 @@ The owner answers in place; move answered entries to the bottom.
 Template:
 
 ```
+
 ## Q-NNN <short subject>
 
 - Task: T-0NN
@@ -32,6 +33,7 @@ Template:
   whose dir exists or whose fixture task is ticked in docs/TASKS.md, so main stays green while
   wave 1 lands; switch to `--strict` (all 194 features) once wave 1 is merged. Not done in
   AI-003 because Makefile is not in its files.
+
 ## Q-001 Vite and Vitest for web/
 
 - Task: T-001.4

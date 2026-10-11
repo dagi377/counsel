@@ -68,7 +68,7 @@ const (
 	StepFailed  StepStatus = "failed"
 )
 
-// Step is one step of an agent plan. Title holds no client content beyond a matter number.
+// Step is one step of an agent plan. Title holds no client content beyond a subject reference.
 type Step struct {
 	Index   int
 	Title   string
