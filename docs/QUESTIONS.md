@@ -2468,4 +2468,5 @@ Done in PORT-18:
   chains will not compile until one set is renamed.
 - F-CON-07's model call is extraction (spec): its Def sets `Kind: ai.KindExtraction`, so it
   exports no plugin skill.
-- Event types with no publisher yet: `identity.portal_submission` (F-CON-07).
+- Event types with no publisher yet: `identity.portal_submission` (F-CON-07),
+  `party.organization_client_created` (F-CON-08).
