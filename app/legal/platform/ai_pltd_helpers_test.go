@@ -364,7 +364,8 @@ type pltdFeatureSpec struct {
 }
 
 // pltdCheckDefMatchesSpec fails t unless d matches its spec/ai/features.json entry and a
-// feature Set takes it once.
+// feature Set takes it once. The spec words a screen action's button in its trigger and leaves
+// on_request empty (Q-FEAT-CON-10), so a screen action's Actions are checked against its trigger.
 func pltdCheckDefMatchesSpec(t *testing.T, d feature.Def) {
 	t.Helper()
 	var spec struct {
@@ -382,6 +383,10 @@ func pltdCheckDefMatchesSpec(t *testing.T, d feature.Def) {
 		t.Fatalf("%s not in spec/ai/features.json", d.ID)
 	}
 	sf := spec.Features[i]
+	onRequest := sf.OnRequest
+	if sf.Source == string(feature.SourceScreenAction) && len(onRequest) == 0 {
+		onRequest = []string{strings.TrimPrefix(sf.Trigger, "on request: ")}
+	}
 	sorted := func(s []string) string { s = slices.Clone(s); slices.Sort(s); return strings.Join(s, ",") }
 	kind := d.Kind
 	if kind == "" {
@@ -395,7 +400,7 @@ func pltdCheckDefMatchesSpec(t *testing.T, d feature.Def) {
 		{"name", d.Name, sf.Name},
 		{"source", string(d.Source), sf.Source},
 		{"trigger", d.Trigger, sf.Trigger},
-		{"on request", sorted(d.Actions), sorted(sf.OnRequest)},
+		{"on request", sorted(d.Actions), sorted(onRequest)},
 		{"tools", sorted(d.Tools), sorted(sf.Tools)},
 		{"gate kinds", sorted(d.GateKinds), sorted(sf.Gate.Kind)},
 		{"model call", string(kind), sf.ModelCall},

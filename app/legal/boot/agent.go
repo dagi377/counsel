@@ -534,6 +534,8 @@ var actionScreens = map[string]trigger.Screen{
 	"users-roles": {SubjectKind: FirmSubject, Capability: "admin.access_review"},
 	// A text thread is on the client's matter; the reply is drafted there (F-PLT-10).
 	"text-messaging": {SubjectKind: "matter", Capability: "documents.edit"},
+	// email-settings is firm-level: a proposed email template is the firm's (F-PLT-28).
+	"email-settings": {SubjectKind: FirmSubject, Capability: "documents.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

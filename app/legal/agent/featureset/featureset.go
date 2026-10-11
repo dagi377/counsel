@@ -173,5 +173,6 @@ func appDefs() []feature.Def {
 		platform.DestructionBatchDef(),
 		platform.AccessReviewDef(),
 		platform.TextTriageDef(),
+		platform.ProposeTemplateDef(),
 	}
 }

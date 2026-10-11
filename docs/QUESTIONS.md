@@ -4288,3 +4288,15 @@ of FEAT-TIM-01 above.
   `platform.outgoing_email` (G-OUT); F-PLT-10 has no tool-gap kind.
 - `text-messaging` maps to subject `matter` with capability `documents.edit` (draft_email's).
 - Branch is based on task/FEAT-PLT-10 (one platform helper file).
+
+## Q-FEAT-PLT-21 F-PLT-28 propose template: gate const and screen
+
+- No production constant named `platform.skill_autonomy` (intake writes the literal), so
+  `platform.GateSkillAutonomy` (G-SK) is added in app/legal/platform.
+- email-settings is firm-level: the template is drafted with `subject_ref` "firm" and no
+  matter, and `email-settings` maps to `boot.FirmSubject` with capability `documents.edit`
+  (draft_document's). The run's grant carries `intake.forms` for the firm draft
+  (Q-FORM-SUBJECT), as F-PLT-07 and F-PLT-08 do.
+- The platform helper `pltdCheckDefMatchesSpec` now reads a screen action's button from its
+  trigger when `on_request` is empty (Q-FEAT-CON-10), as the intake helpers do.
+- Branch is based on task/FEAT-PLT-11 (one platform helper file).
