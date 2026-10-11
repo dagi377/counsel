@@ -1242,6 +1242,7 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   snake_case citation keys (`version_id`, `page`, `from_line`, `to_line`); `AnswerSchema` is the
   matching `Spec.OutputSchema`. A cited range may be a sub-range of a citation a tool result of
   the same run returned (same version and page).
+
 ## FEAT-CORE-06 run scope (gate-kind allowlist and drafts made in this run)
 
 - Additive to the frozen kernel/agenttools contract (new file scope.go): `Scope{RunID,
