@@ -42,10 +42,7 @@ GET /roles
 GET /time-entries
 POST /time-entries
 PATCH /time-entries/{time_entry_id}
-GET /trust/accounts
 POST /trust/bank-lines/imports
-GET /trust/ledgers
-GET /trust/ledgers/{ledger_id}/lines
 POST /trust/receipts
 GET /trust/reconciliations
 POST /trust/reconciliations

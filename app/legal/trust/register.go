@@ -24,3 +24,13 @@ func Register(r registry.Registry) error {
 	}
 	return nil
 }
+
+func init() { add(registerReadRoutes) }
+
+// registerReadRoutes mounts GET /trust/accounts, GET /trust/ledgers and
+// GET /trust/ledgers/{ledger_id}/lines through Registry.Routes. Boot wiring supplies the
+// dependencies; until it does, the routes answer 503.
+func registerReadRoutes(r registry.Registry) error {
+	r.Routes((&HTTP{}).Routes)
+	return nil
+}
