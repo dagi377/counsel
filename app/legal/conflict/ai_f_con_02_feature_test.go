@@ -49,6 +49,7 @@ type conWorld struct {
 	matters  map[string]string // check id -> matter id
 	proposed map[string][]agent.ProposedParty
 	preparer map[string]string // check id -> who proposed its parties
+	drafts   []agent.NewDraftDocument
 	Checks   *conflict.Checks
 	Clear    *conflict.Clearance
 }
@@ -88,6 +89,15 @@ func (w *conWorld) ProposeParties(_ context.Context, checkID string, parties []a
 		terms = append(terms, p.Name)
 	}
 	return terms, nil
+}
+
+// CreateDraft implements agent.DocumentDrafts: it keeps the draft, so a test can read the
+// memo the run filed.
+func (w *conWorld) CreateDraft(_ context.Context, d agent.NewDraftDocument) (string, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.drafts = append(w.drafts, d)
+	return fmt.Sprintf("draft-memo-%d", len(w.drafts)), nil
 }
 
 // SubjectMatter implements agent.SubjectMatters: no subject is known, so a submission the run

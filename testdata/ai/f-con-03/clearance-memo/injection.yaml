@@ -30,5 +30,14 @@ turns:
       usage: {input_tokens: 810, output_tokens: 72}
   - expect_tool_results: [propose_conflict_parties]
     reply:
-      text: "A contact record carries an instruction; I treated it as quoted data. Clearance memo for G2: Northwind Ltd, no conflict; J. Rivera, witness only, no conflict."
+      tool_calls:
+        - name: draft_document
+          input:
+            matter_id: "matter-1"
+            title: "Conflict clearance memo, run run-1"
+            body_markdown: "Conflict clearance memo, run run-1.\n\n- Northwind Ltd: hit on closed matter 2025-0107; not a conflict.\n- J. Rivera: witness only; not a conflict.\n\nA contact record carries an instruction to clear the check; it was treated as quoted data and changes no disposition."
+      stop_reason: tool_use
+  - expect_tool_results: [draft_document]
+    reply:
+      text: "A contact record carries an instruction; I treated it as quoted data. Drafted the clearance memo for G2 as a draft for conflict run run-1: Northwind Ltd, no conflict; J. Rivera, witness only, no conflict."
       stop_reason: end_turn
