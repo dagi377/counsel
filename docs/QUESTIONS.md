@@ -4780,3 +4780,26 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 - Their dedicated effects need RestPorts.Receipts (Poster) and RestPorts.Refunds (Ledger), which
   Production leaves nil, so both kinds are unregistered in production. They were never in
   unwired_gates.txt (the list is computed with test ports). Wire them in Production.
+## Q-EVENTS-8 Publishers for eleven events, most with no write point yet
+- Added to spec/eng/a2-interfaces.json (additive, note "EVENTS-8"): user.invited,
+  user.invite_list_uploaded, user.offboard_started, break_glass.ended, email.needs_reply,
+  text.received, comms.portal_message_received, trust.statement_received,
+  trust.ledger_below_floor. user.role_changed and user.deactivated were already there.
+- Natural write point: break_glass.ended is published by `identity.BreakGlass.Expire` in the
+  expiry tx, once per grant expired (set with `BreakGlass.SetEvents`; unset publishes nothing).
+- Minimal publishers, emitting in the caller's tx with id-only bodies, for write points that
+  do not exist yet: `identity.UserEvents` (user.invited, user.invite_list_uploaded,
+  user.offboard_started, user.role_changed, user.deactivated: there is no invite, invite-list,
+  offboarding-start, user role assignment or deactivation write point in the kernel; the
+  core.role_change effect changes a role, not a user's roles), `comms.MessageEvents`
+  (email.needs_reply, text.received, comms.portal_message_received: no reply triage, SMS sync
+  or portal message store yet) and `trust.Events` (trust.statement_received,
+  trust.ledger_below_floor: no statement import or floor check yet). Each write point calls
+  them when it lands; boot should set BreakGlass.SetEvents(k.Emitter) where it builds the grant
+  store.
+- EVENTS-8 added BreakGlass.SetEvents but no boot call. restServices now builds the
+  break-glass service with withEndedEvents(..., k.Emitter), so expiry publishes
+  break_glass.ended in production (TestBreakGlassPublishesEnded).
+- EVENTS-8's trust/events.go redeclared EventStatementReceived and EventLedgerBelowFloor,
+  which TRU-04 and TRU-05 already declare on main with the same values; the EVENTS-8 copies
+  were dropped.

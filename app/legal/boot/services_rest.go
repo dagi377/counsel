@@ -139,7 +139,7 @@ func restServices(k *kboot.Kernel) (RestServices, error) {
 	grants := identity.PGGrants{DB: k.DB, SubjectKind: matterkind.Subject, SubjectColumn: BreakGlassSubjectColumn}
 	ev := newEventStores(k.DB, k.Emitter)
 	return RestServices{
-		BreakGlass: identity.NewBreakGlassWith(k.Clock, log, grants),
+		BreakGlass: withEndedEvents(identity.NewBreakGlassWith(k.Clock, log, grants), k.Emitter),
 		SignOff:    recon.NewPGSignOff(q).WithAudit(log),
 		Sessions:   portal.PGSessions{DB: k.DB},
 		Book:       ev.Book,
@@ -150,6 +150,13 @@ func restServices(k *kboot.Kernel) (RestServices, error) {
 		LeadEvents: ev.OwnTx,
 		Events:     ev,
 	}, nil
+}
+
+// withEndedEvents makes bg publish break_glass.ended on em for each grant it expires
+// (EVENTS-8), in the expiry's tx.
+func withEndedEvents(bg *identity.BreakGlass, em outbox.Emitter) *identity.BreakGlass {
+	bg.SetEvents(em)
+	return bg
 }
 
 // restEffects are the gate effects of p: receipt classification and refund. k supplies the
