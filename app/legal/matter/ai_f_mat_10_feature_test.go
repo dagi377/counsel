@@ -26,7 +26,7 @@ func TestFMAT10_Prompt(t *testing.T) {
 	matfCheckPrompt(t, matter.RelatedMattersDef())
 }
 
-// F-MAT-10 starts when a matter is opened or gains a party (matter.updated), acting for the
+// F-MAT-10 starts when a matter is opened or gains a party (matter.party_added), acting for the
 // event's user; it has no schedule and no screen action.
 func TestFMAT10_TriggerBinding(t *testing.T) {
 	b, err := matter.RelatedMattersBinding()
@@ -38,7 +38,7 @@ func TestFMAT10_TriggerBinding(t *testing.T) {
 		got, want any
 	}{
 		{"feature", b.FeatureID, matter.FeatureRelatedMatters},
-		{"events", strings.Join(b.Events, ","), "matter.updated,matter.opened"},
+		{"events", strings.Join(b.Events, ","), "matter.party_added,matter.opened"},
 		{"cadence", b.Cadence, trigger.CadenceNone},
 		{"designated lawyer", b.Designated, false},
 		{"acting for", b.ActingFor, ""},

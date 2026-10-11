@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/dagi377/counsel/app/legal/agent"
+	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
@@ -228,9 +229,18 @@ var subjectMatterSQL = map[string]string{
 	agent.SubjectBill:       `SELECT matter_id::text FROM billing.bill WHERE id = $1`,
 	agent.SubjectTimeEntry:  `SELECT matter_id::text FROM timekeeping.time_entry WHERE id = $1`,
 	subjectConflictCheck:    `SELECT COALESCE(matter_id::text, '') FROM conflict.conflict_check WHERE id = $1`,
+	// A proposal the run submits (PROPOSAL-DRAFT): a re-run conflict check is on its check's
+	// matter; a proposed task on the matter it was created for.
+	conflict.SubjectRun: `SELECT COALESCE(c.matter_id::text, '') FROM conflict.check_run r
+JOIN conflict.conflict_check c ON c.id = r.check_id WHERE r.id = $1`,
+	subjectWorkItem: `SELECT COALESCE(matter_id::text, '') FROM work.work_item WHERE id = $1`,
 }
 
-const subjectConflictCheck = "conflict_check"
+const (
+	subjectConflictCheck = "conflict_check"
+	// subjectWorkItem is the subject kind create_task's proposal is submitted on.
+	subjectWorkItem = "work_item"
+)
 
 // SubjectMatter implements agent.SubjectMatters.
 func (s PGSubjectMatters) SubjectMatter(ctx context.Context, subjectType, subjectID string) (string, error) {

@@ -535,6 +535,11 @@ func registerAgent(w *AgentWiring) hook {
 		if w.Ports.Provenance == nil {
 			w.Ports.Provenance = agenttools.NewProvenance()
 		}
+		// The ports WireMatterPorts built publish through the kernel emitter (matter.party_added
+		// from PGConflictParties); without one they refuse rather than drop the event.
+		if k.Emitter != nil {
+			SetMatterPortEvents(&w.Ports, k.Emitter)
+		}
 		if w.Ports.WriteTools == nil {
 			wt, err := AgentWriteTools(w.Ports, w.Write)
 			if err != nil {

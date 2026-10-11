@@ -3706,3 +3706,17 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   RFC 3339 `due_at`, which provenance cannot match. A date only inside quoted document text
   is not sourced: F-MAT-17's placeholder task no longer carries a due_on.
 - `spec/eng/a2-interfaces.html` still lists 25 tools; regenerate it if it is generated.
+
+## Q-INTEG-17A-BOOT pass 17a boot follow-ups
+
+- `PGSubjectMatters` resolves `conflict.run` (the check run's check's matter) and `work_item`
+  (the item's matter_id), the subjects PROPOSAL-DRAFT submits.
+- `registerAgent` calls `SetMatterPortEvents` with the kernel emitter after the ports are
+  built (WireMatterPorts), so PGConflictParties publishes matter.party_added. Open:
+  `Production` still builds no `AgentWiring`, so nothing calls WireMatterPorts in counseld yet
+  (AGENT-PROD).
+- F-MAT-10 binds `matter.party_added` and `matter.opened` (no longer `matter.updated`).
+- JobBindings takes no rule admin: F-CON-09/11/12 and F-DOC-09 now bind to the designated
+  lawyer like every other scheduled feature.
+- Open: PROPOSAL-DRAFT mapped `matter-open-wizard` to `matters.open`; main's pass-16 mapping
+  (`matters.view`, Q-INTEG-16-SCREENS) was kept. Decide which capability the wizard needs.

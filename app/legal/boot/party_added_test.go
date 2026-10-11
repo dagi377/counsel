@@ -133,3 +133,20 @@ func (d partyDB) InTx(ctx context.Context, fn func(context.Context, pgx.Tx) erro
 func (partyDB) Bind(context.Context, pgx.Tx, db.Session) error { return nil }
 func (partyDB) Ping(context.Context) error                     { return nil }
 func (partyDB) Close()                                         {}
+
+// SetMatterPortEvents, which registerAgent calls after WireMatterPorts, gives the Postgres
+// conflict parties the kernel emitter, so matter.party_added is published (PARTY-ADDED).
+func TestSetMatterPortEvents(t *testing.T) {
+	p := &AgentPorts{}
+	if err := WireMatterPorts(p, noDB{}, oneMatter{}, &noteBodies{}); err != nil {
+		t.Fatal(err)
+	}
+	if cp := p.ConflictParties.(PGConflictParties); cp.Events != nil {
+		t.Fatal("WireMatterPorts set an emitter")
+	}
+	SetMatterPortEvents(p, noEmit{})
+	if cp := p.ConflictParties.(PGConflictParties); cp.Events == nil {
+		t.Fatal("conflict parties have no emitter after SetMatterPortEvents")
+	}
+	SetMatterPortEvents(nil, noEmit{})
+}
