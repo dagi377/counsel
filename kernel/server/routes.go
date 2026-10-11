@@ -23,6 +23,7 @@ type Mux struct {
 	root     chi.Router
 	api      chi.Router
 	seen     map[Route]bool
+	rootSeen map[Route]bool
 	problems ProblemWriter
 }
 
@@ -34,7 +35,7 @@ func New(pw ProblemWriter) *Mux {
 	if pw == nil {
 		pw = &Problems{}
 	}
-	m := &Mux{root: chi.NewRouter(), seen: map[Route]bool{}, problems: pw}
+	m := &Mux{root: chi.NewRouter(), seen: map[Route]bool{}, rootSeen: map[Route]bool{}, problems: pw}
 	m.root.Use(m.recoverer)
 	m.root.NotFound(m.notFound)
 	m.root.MethodNotAllowed(m.methodNotAllowed)
@@ -67,6 +68,34 @@ func (m *Mux) Mount(mt Mounter) error {
 	mt(m.api)
 	for _, rt := range added {
 		m.seen[rt] = true
+	}
+	return nil
+}
+
+// MountRoot adds routes outside BasePath: browser flows such as sign-in redirects, which
+// are not operations of the versioned API and so are not in openapi.yaml or Routes. A route
+// registered twice makes boot fail.
+func (m *Mux) MountRoot(mt Mounter) error {
+	if mt == nil {
+		return nil
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	scratch := chi.NewRouter()
+	mt(scratch)
+	added, err := walk(scratch)
+	if err != nil {
+		return err
+	}
+	for i := range added {
+		added[i].Pattern = strings.TrimPrefix(added[i].Pattern, BasePath)
+		if m.rootSeen[added[i]] || strings.HasPrefix(added[i].Pattern, BasePath+"/") {
+			return fmt.Errorf("mount root %s %s: %w", added[i].Method, added[i].Pattern, ErrDuplicateRoute)
+		}
+	}
+	mt(m.root)
+	for _, rt := range added {
+		m.rootSeen[rt] = true
 	}
 	return nil
 }

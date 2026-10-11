@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/dagi377/counsel/app/legal/agent"
@@ -17,6 +18,7 @@ import (
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/idem"
 	"github.com/dagi377/counsel/kernel/identity"
+	"github.com/dagi377/counsel/kernel/identity/login"
 	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/kernel/server"
@@ -39,7 +41,15 @@ type Production struct {
 	CursorKey []byte
 	// WebhookSecrets, when set, turns on outbound webhook delivery (PORT-07).
 	WebhookSecrets webhook.SecretSource
+	// Login, when it configures a sign-in path, mounts the member sign-in routes and makes
+	// the session cookie authenticate requests (Principal, when set, still wins). A config
+	// that fails login.Config.Validate, such as a dev login outside a dev environment,
+	// fails boot.
+	Login *Login
 }
+
+// Login is the member sign-in configuration (kernel/identity/login).
+type Login = login.Config
 
 // pgConn is the kernel DB with plain statements and queries, as db.Pool provides.
 type pgConn interface {
@@ -59,8 +69,46 @@ func (w *wiring) bindProduction(_ context.Context, k *kboot.Kernel) error {
 	if err != nil {
 		return fmt.Errorf("production: %w", err)
 	}
+	if opts.HTTP != nil && p.Principal == nil {
+		svc, err := p.login(k, opts.HTTP.Problems)
+		if err != nil {
+			return fmt.Errorf("production: %w", err)
+		}
+		if svc != nil {
+			opts.HTTP.Principal = svc.Authenticate
+			// rule: ARC-I-017
+			opts.HTTP.StepUp = svc.StepUp
+		}
+	}
 	w.opts = merge(w.opts, opts)
 	return nil
+}
+
+// rootMounter is the kernel server's mount for routes outside the versioned API.
+type rootMounter interface {
+	MountRoot(m server.Mounter) error
+}
+
+// login builds the sign-in service on the kernel DB and mounts its routes. It is nil when
+// no sign-in path is configured: then nobody authenticates and every route answers 401.
+func (p Production) login(k *kboot.Kernel, problems server.ProblemWriter) (*login.Service, error) {
+	if p.Login == nil || !p.Login.Enabled() {
+		slog.Warn("no member sign-in configured: every API route answers 401")
+		return nil, nil
+	}
+	store := login.PGStore{DB: k.DB}
+	svc, err := login.New(*p.Login, login.Deps{Store: store, Users: store, Problems: problems})
+	if err != nil {
+		return nil, fmt.Errorf("login: %w", err)
+	}
+	rm, ok := k.Server.(rootMounter)
+	if !ok {
+		return nil, fmt.Errorf("login: kernel server %T cannot mount sign-in routes: %w", k.Server, ErrMissingDependency)
+	}
+	if err := rm.MountRoot(svc.Routes); err != nil {
+		return nil, fmt.Errorf("login: %w", err)
+	}
+	return svc, nil
 }
 
 // options builds the Postgres Options graph on k. It never connects: every port reads k.DB

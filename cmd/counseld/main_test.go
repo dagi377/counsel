@@ -66,7 +66,7 @@ func TestParseFlags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("COUNSEL_ZONE", tt.env)
-			cfg, err := parseFlags(tt.args)
+			cfg, _, err := parseFlags(tt.args)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
 			}

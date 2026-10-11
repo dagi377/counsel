@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -41,11 +42,15 @@ type HTTPPorts struct {
 	Cursors   api.CursorCodec
 	Problems  server.ProblemWriter
 	Principal func(r *http.Request) (registry.Principal, bool)
-	Idem      idem.Store
-	DB        TxRunner
-	Gates     GateOpener
-	Audit     audit.Log
-	Outbox    bill.Emitter
+	// StepUp returns when the request's session last passed multi-factor authentication
+	// (zero: never); it is gates.DecideHTTP.StepUp. Production sets it from the sign-in
+	// service (AUTH-WIRE).
+	StepUp func(r *http.Request) time.Time
+	Idem   idem.Store
+	DB     TxRunner
+	Gates  GateOpener
+	Audit  audit.Log
+	Outbox bill.Emitter
 
 	// Bills serves GET /bills*; with Drafts it also serves POST/PATCH /bills, and with
 	// Outbox and Gates the submit, void and deliver actions.

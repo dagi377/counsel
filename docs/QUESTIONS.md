@@ -3016,3 +3016,29 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   access directory or trust-request wiring; GatePorts (GL, Sealer, withdraw.Auditor, credit
   second approval) and AgentPorts have no Postgres composition. `HTTPPorts.AgentModel` and the
   HandlerSet are on `task/PG-RUNS-WEBHOOK`, which this branch could not merge.
+
+## AUTH-WIRE: member sign-in at boot
+
+- **Choice logged (spec default):** a2 ARC-I-017/-036 and the openapi `session` scheme name an
+  OIDC session cookie (`counsel_session`); `core.sign_in_policy.idp_protocol` also allows
+  `saml`. Implemented OIDC only (authorization code + PKCE, RS256 ID tokens) in
+  `kernel/identity/login`, on the standard library because no OIDC module is on the AGENTS.md
+  allow list. SAML, ES256 ID tokens and reading lifetime/idle/lockout from
+  `core.sign_in_policy` at request time are not done; the DDL defaults (720/30 min) are used.
+- **Session handle:** `core.user_session` has no token-hash column, so the cookie is an
+  HMAC-signed `(session id, mfa time)` keyed by `$COUNSEL_SESSION_KEY` (>= 32 bytes, required
+  outside dev). Every request re-reads the row, so logout, idle, expiry, revocation and
+  offboarding end the session. No migration was added.
+- **Step-up:** `GET /auth/login?step_up=1` asks the IdP for fresh auth (`max_age=0`,
+  `prompt=login`, optional `acr_values`) and needs a second-factor `amr`. Production sets the
+  new `HTTPPorts.StepUp func(*http.Request) time.Time` from `login.Service.StepUp` (zero = no
+  MFA or no live session), which is exactly `gates.DecideHTTP.StepUp`. Mounting `DecideHTTP`
+  still needs `Gates gates.Engine` (Decide/Withdraw/Get over the kernel engine), `Kinds
+  *gates.Catalog` and `Now`; that mount is left to the gate-routes task.
+- **Files outside a task list:** `kernel/server/routes.go` gains `(*Mux).MountRoot` so the
+  browser redirects `/auth/*` live outside `/v1` and outside openapi conformance (not on the
+  frozen `Server` interface); `app/legal/boot/production.go` gains `Production.Login`;
+  `cmd/counseld/main.go` gains sign-in flags (secrets from env only) and `-env`/`-dev-login`.
+- **Open:** sessions authenticate, but production `Roles`/`Assignments` are still empty
+  (no Postgres `RoleAssignments`), so a signed-in member gets 403 on capability-checked
+  routes until that port lands.
