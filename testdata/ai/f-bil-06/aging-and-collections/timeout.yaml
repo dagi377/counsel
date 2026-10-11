@@ -1,0 +1,4 @@
+synthetic: true
+feature: F-BIL-06
+match: {last_user_regex: "daily aging and collections review"}
+fault: timeout
