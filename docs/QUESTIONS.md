@@ -3217,3 +3217,18 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
   screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
   as served by its screen actions instead of binding it.
+
+## FEAT-BIL-01 F-BIL-01 billing cycle drafts
+
+- Gap (FEAT-TOOL-08): list_unbilled does not record its figures in the run's provenance
+  (get_bill and get_trust_balance wrap with pv.ReadTool; buildListUnbilled reads no
+  *agenttools.Provenance). So in production a draft_bill write-down taken from list_unbilled
+  is refused with ErrUnsourcedValue. The billing feature tests wrap list_unbilled with
+  pv.ReadTool in their handler set (bilHandlers). Proposed: buildListUnbilled reads the
+  Provenance and wraps its tool the same way.
+- Manual trigger: no kernel event exists for "run the billing cycle now", so F-BIL-01 binds
+  the new event type billing.cycle_requested (EventBillingCycleRequested) next to the daily
+  designated-lawyer schedule. Open: which screen or route emits it.
+- The Seed has no billing ports (MatterTime, UnbilledWIP, batch.Drafts, BillReader,
+  BillBalances, TrustAvailable, MatterTrustAccounts), so the billing tests supply them from
+  in-memory fakes ahead of the Seed's (ai_bil_helpers_test.go).
