@@ -39,6 +39,7 @@ const (
 	CodePeriodLocked          = "period_locked"
 	CodeUnexplainedDifference = "unexplained_difference"
 	CodeUnparseableStatement  = "unparseable_statement"
+	CodeNoStatementParser     = "no_statement_parser"
 	CodeBankBalanceMismatch   = "bank_balance_mismatch"
 	CodeUnverified            = "trust_rules_unverified"
 )
@@ -388,6 +389,8 @@ func (h *WriteHTTP) writeErr(w http.ResponseWriter, r *http.Request, err error) 
 		h.fail(w, r, http.StatusConflict, CodePeriodLocked, "The month is reconciled and locked")
 	case errors.Is(err, ErrUnbalanced):
 		h.fail(w, r, http.StatusUnprocessableEntity, CodeUnexplainedDifference, "Reconciliation has an unexplained difference")
+	case errors.Is(err, ErrNoParser):
+		h.fail(w, r, http.StatusUnprocessableEntity, CodeNoStatementParser, "No bank statement parser is configured")
 	case errors.Is(err, ErrUnparseable), errors.Is(err, ErrStatementMismatch):
 		h.fail(w, r, http.StatusUnprocessableEntity, CodeUnparseableStatement, "Statement cannot be read or does not sum to its closing balance")
 	default:

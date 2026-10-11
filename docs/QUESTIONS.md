@@ -1884,6 +1884,54 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+## HTTP-17: trust withdrawal request and cancel routes
+
+- POST /trust/withdrawals returns 202 with the openapi WithdrawalRequest body (status
+  awaiting_authorization, gate_id), not the Gate body the accept line names: openapi wins.
+- The route records the request through withdraw.Service.Request and opens the gate itself
+  (trust.withdrawal, or billing.trust_fee_withdrawal when bill_id is set). A real Service
+  must not also open a gate; please confirm.
+- New ports in http_request.go (Service stays frozen): LedgerReader (ledger_id -> account and
+  matter), Cancels (row version, ledger, bill; records the cancellation), Gates (Open, Withdraw).
+- Method wire answers 422 (no wire method in the module); direction_document_id carries the
+  Form 9A EFT authorization id. Only the preparer can withdraw the gate (403 otherwise).
+## HTTP-18: trust reconciliation import, prepare and submit routes
+
+- New ports in http_write.go (Service stays frozen): Parser (CSV/OFX file -> Statement,
+  ErrUnparseable), Versions (row version for If-Match), Gates (Open, Get). No parser exists on
+  main yet; boot wiring must supply one.
+- Import answers 202 `{statement_id, lines}` (openapi has no body schema) and posts no journal
+  entry. A statement whose lines do not sum to its closing balance answers 422
+  unparseable_statement.
+- Prepare: the imported statement's closing balance is the bank balance (answered, HTTP-18b).
+  A bank_balance_cents that differs from it answers 422 `bank_balance_mismatch` before
+  anything is prepared; it is never ignored. The check reads the closing balance through a new
+  `Statements` port (Closing), since Service is frozen; reconfake implements it and boot
+  wiring must supply the Postgres one (until then the routes answer 503).
+- Submit is refused 422 unexplained_difference unless the three-way totals agree after
+  reconciling items; a signed-off reconciliation answers 409 period_locked.
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+
+## PG-READERS: Postgres read ports at boot
+
+- Branch merges task/HTTP-17 and task/HTTP-18b onto task/BOOT-WIRE-B (their ports did not
+  exist on the base). Their duplicate declarations with HTTP-11 (problem codes, Access,
+  views, writeJSON, test helpers) are folded into one; the withdrawal view gains bill_id and
+  acting_for, and both read views report version as int64.
+- trust.withdrawal_request and trust.reconciliation have no row_version column. The
+  Postgres Cancels.Row and recon Versions report a version ranked by status, which only moves
+  forward, so If-Match still detects every status change. Proposed: an expand migration adding
+  row_version with the core.touch trigger; open for the owner.
+- Ledger balances: Ledgers.Balance (and NewLedgerReads) return the true signed posted and
+  available figures; nothing is clamped in the reader. GET /trust/ledgers still reports per
+  HTTP-10b (overdrawn + shortfall_cents beside a 0 Cents field) until openapi TrustLedger
+  allows a signed balance.
+- recon.NoParser is the boot default Parser: uploads answer 422 `no_statement_parser`
+  ("No bank statement parser is configured") until a CSV/OFX parser lands.
+- Still caller-supplied: credit.Bills (credit-note POST), withdraw.Service, recon.Service and
+  recon.Statements have no Postgres implementation, so POST /credit-notes, POST
+  /trust/withdrawals and the reconciliation write routes keep answering 503 until they do.
+
 
 ## Q-HTTP-16 Direct trust receipt posting versus the gate-owned receipt key
 
@@ -2042,3 +2090,32 @@ Done in PORT-18:
   follow-up; none on main) must write both.
 - Built on main without HTTP-18b, so the interface check is in the test; after HTTP-18b merges,
   add `var _ Statements = (*PGStatements)(nil)` and wire it as `WriteHTTP.Statements` at boot.
+
+## PG-WRITES: Postgres write ports at boot
+
+- Branch merges task/PORT-STMT onto task/PG-READERS. Boot (`withWrites`, services_writes.go)
+  now fills credit.Bills (PGBills), withdraw.Service (PGService), recon.Service (PGService) and
+  recon.Statements (TxStatements over PGStatements); WithdrawGates defaults to the route gates
+  when they can withdraw. POST /credit-notes, POST /trust/withdrawals (+cancel) and the
+  reconciliation prepare and submit routes no longer answer 503 on Postgres.
+- withdraw.PGService and recon.PGService never approve: Authorize and RecordExecution refuse
+  (ErrEffectOnly, ErrNotAuthorized), and recon Approve refuses (ErrEffectOnly; an agent gets
+  ErrAgentApproval). Authorization stays in Effect.Apply; sign-off in PGSignOff.Sign. No
+  trust.reconciliation_signoff effect is registered at boot yet; open.
+- purpose_category: openapi (fees, disbursement, client_payment, third_party, refund) and the
+  DDL (fees_to_operating, disbursement, client_refund, third_party, transfer_out) differ.
+  PGService stores client_payment and refund as client_refund. `fees` is refused 422:
+  fees_to_operating needs bill_id and withdraw.Request has no bill field. Proposed: an additive
+  Request.BillID. The read side still reports the stored name; please confirm the mapping.
+- POST /trust/withdrawals passes `PreparedBy: p.UserID`, which is empty for an agent, so an
+  agent's request fails closed (422) instead of being prepared for its acting-for user.
+  Proposed fix in http_request.go: use the acting-for user, as recon's preparerOf does.
+- The route opens the gate after Request in its own transaction and does not store the gate
+  id, so approval_id stays NULL until the effect authorizes and cancel does not withdraw an
+  open gate. Proposed: a Cancels/Service hook to record approval_id at open.
+- Request.IdempotencyKey is not stored (no column); the route's idem layer replays keys.
+- Reconciliation book and client ledgers both come from trust.trust_transaction at month end
+  (the trust journal); bank is the imported statement's closing balance. Proposed follow-up:
+  read the book from the general-ledger trust bank control account so book vs ledgers is an
+  independent check. Prepare re-prepares an open draft/ready month in place; a signed or
+  imported month is ErrPeriodLocked. ImportStatement refuses with ErrNoParser.

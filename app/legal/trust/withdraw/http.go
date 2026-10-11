@@ -88,6 +88,7 @@ var apiStatus = map[Status]string{
 	StatusAuthorized: "authorized",
 	StatusExecuted:   "executed",
 	StatusRejected:   "rejected",
+	StatusCancelled:  "cancelled",
 }
 
 // statusOf is apiStatus reversed, for the status query parameter.
@@ -100,19 +101,21 @@ var statusOf = func() map[string]Status {
 }()
 
 type actorView struct {
-	Type string `json:"type"`
-	ID   string `json:"id"`
+	Type      string `json:"type"`
+	ID        string `json:"id"`
+	ActingFor string `json:"acting_for,omitempty"`
 }
 
 // withdrawalView is the openapi WithdrawalRequest.
 type withdrawalView struct {
 	ID              string    `json:"id"`
-	Version         int       `json:"version"`
+	Version         int64     `json:"version"`
 	LedgerID        string    `json:"ledger_id"`
 	AmountCents     int64     `json:"amount_cents"`
 	PurposeCategory string    `json:"purpose_category"`
 	Payee           string    `json:"payee"`
 	Method          string    `json:"method"`
+	BillID          string    `json:"bill_id,omitempty"`
 	Status          string    `json:"status"`
 	GateID          string    `json:"gate_id,omitempty"`
 	InitiatedBy     actorView `json:"initiated_by"`
@@ -125,7 +128,7 @@ func withdrawalOf(l Listed) withdrawalView {
 	if !ok {
 		st = string(l.Status)
 	}
-	v := withdrawalView{ID: l.ID, Version: l.Version, LedgerID: l.LedgerID, AmountCents: l.Request.AmountCents,
+	v := withdrawalView{ID: l.ID, Version: int64(l.Version), LedgerID: l.LedgerID, AmountCents: l.Request.AmountCents,
 		PurposeCategory: l.Request.Reason, Payee: l.Request.Payee, Method: string(l.Request.Method), Status: st,
 		GateID: l.GateID, InitiatedBy: actorView{Type: "user", ID: l.Request.PreparedBy}, ExecutedBy: l.ExecutedBy}
 	if l.AuthorizedBy != "" {
