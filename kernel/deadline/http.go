@@ -57,10 +57,11 @@ type ListFilter struct {
 	State   State
 }
 
-// Lister lists stored deadlines (HTTP-22; Engine has no List). The Postgres store
+// PageLister lists stored deadlines one page at a time (HTTP-22; Engine has no List).
+// Its method is ListPage so a store can implement it beside Lister. The Postgres store
 // implements it in a follow-up; tests use a fake.
-type Lister interface {
-	List(ctx context.Context, f ListFilter) ([]Deadline, error)
+type PageLister interface {
+	ListPage(ctx context.Context, f ListFilter) ([]Deadline, error)
 }
 
 // Gates is the part of the gate engine the propose route uses.
@@ -80,7 +81,7 @@ type Access interface {
 type HTTP struct {
 	Config   HTTPConfig
 	Engine   Engine
-	Lister   Lister
+	Lister   PageLister
 	Gates    Gates
 	DB       TxRunner
 	Access   Access
@@ -202,7 +203,7 @@ func (h *HTTP) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// One extra row tells whether another page follows.
-	got, err := h.Lister.List(r.Context(), ListFilter{After: DeadlineID(cur.After), Limit: cur.Limit + 1,
+	got, err := h.Lister.ListPage(r.Context(), ListFilter{After: DeadlineID(cur.After), Limit: cur.Limit + 1,
 		Subject: subject, State: state})
 	if err != nil {
 		h.writeErr(w, r, err)

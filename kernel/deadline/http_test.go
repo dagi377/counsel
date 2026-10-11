@@ -105,7 +105,7 @@ func (b *book) Get(_ context.Context, id deadline.DeadlineID) (deadline.Deadline
 	return deadline.Deadline{}, deadline.ErrNotFound
 }
 
-func (b *book) List(_ context.Context, f deadline.ListFilter) ([]deadline.Deadline, error) {
+func (b *book) ListPage(_ context.Context, f deadline.ListFilter) ([]deadline.Deadline, error) {
 	b.calls++
 	var out []deadline.Deadline
 	for _, d := range b.stored {
