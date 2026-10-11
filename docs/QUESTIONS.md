@@ -3344,3 +3344,20 @@ Decided as counsel: an intake form is firm-level, so F-INT-12 must not borrow a 
   `task/FEAT-INT-09`. The register module count is 39 after the merge.
 - Loosening the draft_document schema changes the prompt hash of every tool-use Def that
   offers it; the pinned `ok.yaml` prompt hashes of F-CON-03 and F-CON-04 are rehashed.
+
+## Q-FEAT-INT-10 F-INT-14 engagement letter draft: gate kind and screen
+
+- F-INT-14 reuses `docs.GateEngagementLetter` (G5, F-DOC-02): intake hands the letter to the
+  engagement area, which owns the kind.
+  gains `consult-outcome` (subject `intake.lead`, capability `intake.convert`).
+
+## Q-INTEG-17B-INTAKE pass 17b intake integration choices
+
+- One gate const per kind: `intake.GateLeadDecision` lives in ai_f_int_01.go; the copies
+  FEAT-INT-05 (F-INT-04) and later branches brought are removed.
+- Intake screens select the lead, `intake.SubjectLead` ("intake.lead"). FEAT-INT-05/06/07
+  mapped `lead-conversion` to "lead" and `consult-outcome` to "consultation", neither a
+  registered subject; both now use "intake.lead" like the other intake screens. Open: if
+  the consult module gains its own subject, `consult-outcome` should move to it.
+- Screen keys added by two branches (`consult-outcome`, `ai-receptionist`,
+  `intake-automations`) keep one entry.

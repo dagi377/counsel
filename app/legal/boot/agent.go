@@ -430,11 +430,11 @@ var actionScreens = map[string]trigger.Screen{
 	"phone-and-email-capture": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 	"lead-detail":             {SubjectKind: "intake.lead", Capability: "intake.leads"},
 	// Intake screens select the lead.
-	"lead-conversion": {SubjectKind: "lead", Capability: "intake.convert"},
-	"consult-outcome": {SubjectKind: "consultation", Capability: "intake.convert"},
+	"lead-conversion": {SubjectKind: "intake.lead", Capability: "intake.convert"},
 	"ai-receptionist": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 	// Intake screens. The form builder selects the intake form it edits.
 	"intake-form-builder": {SubjectKind: "intake.intake_form", Capability: "intake.forms"},
+	"consult-outcome":     {SubjectKind: "intake.lead", Capability: "intake.convert"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
