@@ -3217,3 +3217,10 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
   screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
   as served by its screen actions instead of binding it.
+
+## FEAT-WRK-13 Action screens of the read-only work answers
+
+- F-WRK-15, F-WRK-16 and F-WRK-17 run from work-automations, work-categories and
+  work-reports. Main has no boot.FirmSubject, so the action route's screen map selects a
+  matter on each (work.view). Open: these are firm-level screens (an automation run, the
+  category list, a report figure); switch them to the firm subject once it lands.

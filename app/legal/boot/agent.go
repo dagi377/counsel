@@ -418,6 +418,11 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Work screens of F-WRK-15 to F-WRK-17: no firm subject kind exists yet, so each selects a
+	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
+	"work-automations": {SubjectKind: "matter", Capability: "work.view"},
+	"work-categories":  {SubjectKind: "matter", Capability: "work.view"},
+	"work-reports":     {SubjectKind: "matter", Capability: "work.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
