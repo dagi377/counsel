@@ -360,7 +360,8 @@ var actionScreens = map[string]trigger.Screen{
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
 	// Intake screens select the lead ("intake.lead", the outbox subject of a lead).
-	"intake-dashboard": {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	"intake-dashboard":          {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	"intake-questionnaire-send": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

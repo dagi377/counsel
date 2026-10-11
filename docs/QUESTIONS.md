@@ -3024,3 +3024,14 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   capability `intake.leads`, the same as the other intake screens. The digest is firm-wide;
   if firm-level screens move to a firm subject (as decided for conflict-search-settings), this
   entry moves with them.
+
+## Q-FEAT-INT-18 F-INT-20 map answers to lead: output shape
+
+- F-INT-20 is an extraction Def with no OutputSchema: the screen-action route runs a
+  non-tool-use feature inline and checks its answer against `run.AnswerSchema` with
+  `run.CheckAnswer`, so the ranked rows and flag rows travel as the answer text, each row
+  cited to a contact record the run's search_contacts returned. A per-row extraction schema
+  would need the route to accept it (`run.Extract`); not done here.
+- The `intake-questionnaire-send` screen is added to `actionScreens` with subject
+  `intake.lead` and capability `intake.leads`. F-INT-20 is an extraction Def, so it gets no
+  plugin skill.

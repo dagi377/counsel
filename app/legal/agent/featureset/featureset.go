@@ -76,5 +76,6 @@ func appDefs() []feature.Def {
 		// intake
 		intake.PipelineFollowUpsDef(),
 		intake.WeeklyIntakeDigestDef(),
+		intake.MapAnswersToLeadDef(),
 	}
 }
