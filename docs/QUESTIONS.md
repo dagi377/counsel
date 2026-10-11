@@ -1851,3 +1851,19 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## Q-HTTP-16 Direct trust receipt posting versus the gate-owned receipt key
+
+- HTTP-16 accept said an unambiguous, under-limit POST /trust/receipts answers 201 and posts
+  the receipt in the route, but app/legal/gateowned.go gives `trust_txn.posted=receipt` to
+  trust.receipt_classification (ARC-I-012). Options were (A) split the key, or (B) send every
+  receipt through trust.receipt_classification.
+- **Closed (decided as counsel):** the gate-owned key is not split. Classifying money as trust
+  is the control, so every receipt goes through trust.receipt_classification. For By-law 9
+  same-day record-keeping, POST /trust/receipts records the receipt at once in the trust
+  receipts journal (`trust.receipt_journal`, migration 5520) in state
+  `received_pending_classification`, opens the gate with the proposed classification in the
+  same transaction and answers 202 with the Gate. Only the gate effect
+  (`trust.ReceiptClassificationEffect`) posts to the client ledger. Built in HTTP-16b; the
+  route declares `trust_receipt.status=received_pending_classification`, never the gate-owned
+  key. Follow-up: boot wires ReceiptHTTP and the effect (gates.RegisterWired).
