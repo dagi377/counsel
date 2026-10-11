@@ -399,7 +399,9 @@ ON CONFLICT (approval_id) DO NOTHING`, string(g.ID), k.Slug)
 	if err != nil {
 		return fmt.Errorf("decide %s: savepoint: %w", g.ID, err)
 	}
-	effErr := k.Effect(ctx, sp, Approved{
+	// rule: ARC-I-012
+	// Only effect handlers run with WithEffect; effect-owned service writes require it.
+	effErr := k.Effect(WithEffect(ctx, g.ID), sp, Approved{
 		GateID: string(g.ID), Kind: g.Kind, Version: g.Version, Subject: g.Subject,
 		Payload: g.Payload, Preparer: g.Preparer, Approvers: approvers,
 	})

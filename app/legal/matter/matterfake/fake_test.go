@@ -9,6 +9,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/party/partyfake"
+	"github.com/dagi377/counsel/kernel/gate"
 )
 
 var t0 = time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
@@ -117,5 +118,43 @@ func TestAddMemberAndList(t *testing.T) {
 	mb, err := f.Members(ctx, m1.ID)
 	if err != nil || len(mb) != 1 || mb[0].Role != matter.RoleMember {
 		t.Fatalf("Members = %+v, %v", mb, err)
+	}
+}
+
+// recordTB records Errorf instead of failing the real test.
+type recordTB struct {
+	testing.TB
+	failed bool
+}
+
+func (r *recordTB) Helper()               {}
+func (r *recordTB) Errorf(string, ...any) { r.failed = true }
+
+func TestARC_I_012_EffectOnlyMethodsNeedEffectContext(t *testing.T) {
+	tests := []struct {
+		name     string
+		ctx      context.Context
+		wantFail bool
+	}{
+		{"route context", context.Background(), true},
+		{"effect context", gate.WithEffect(context.Background(), "g-1"), false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f, client := setup(t)
+			rec := &recordTB{TB: t}
+			f.GuardEffects(rec)
+			_, err := f.Create(tc.ctx, matter.NewMatter{Number: "M-1", ShortName: "x", ClientID: client,
+				PracticeAreaID: "pa", ResponsibleLawyerID: "u1"})
+			if rec.failed != tc.wantFail || (err != nil) != tc.wantFail {
+				t.Errorf("Create: failed=%v err=%v, want fail=%v", rec.failed, err, tc.wantFail)
+			}
+			if tc.wantFail && !errors.Is(err, gate.ErrOutsideEffect) {
+				t.Errorf("Create err = %v, want ErrOutsideEffect", err)
+			}
+			if f.EffectCalls() != 1 {
+				t.Errorf("EffectCalls = %d, want 1", f.EffectCalls())
+			}
+		})
 	}
 }

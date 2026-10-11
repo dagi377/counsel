@@ -647,3 +647,31 @@ openapi-relative paths, as `kernel/inbound` and `withdraw.Execution` already do.
 Left open: the second accept line (refuse a route that sets state owned by a gate effect
 unless it is the gate decision endpoint) needs a per-route "gate-owned state" marker that no
 contract declares yet. Not built.
+
+## HTTP-00: gate-owned-state guard (files outside the task, decisions taken)
+
+- Write declarations live next to the route: `r.Method(m, path, server.Declare(h, keys...))`.
+  `server.DeclaredWrites` walks the mounted router (unwrapping `chi.ChainHandler`) and
+  `server.CheckWrites` refuses an undeclared POST/PUT/PATCH/DELETE route and any declaration
+  naming a `legal.GateOwned` key, except on `server.DecisionRoute`. Kernel mounters that do not
+  use Declare (inbound hooks) are declared in `app/legal/conformance_test.go` (`kernelWrites`).
+- `kernel/gate/decide.go` (not in the task's files): `runDecidedEffect` now hands the effect
+  `WithEffect(ctx, g.ID)`, so "set only by the effect runner" holds. One line.
+- `app/legal/register_test.go`: `MethodRoutes` joins the "always" set. Routes always mount;
+  each handler fails closed per request (the withdrawal execution route answers 503 until boot
+  wiring supplies its dependencies, and trust_rules_unverified while its flag is off). The
+  OpenAPI conformance test needs every route mounted with no features on, so routes cannot be
+  feature-gated at registration.
+- Fakes: `matterfake` (Create, AddMember) and `withdrawfake` (Authorize) gain
+  `GuardEffects(tb)`: effect-owned methods fail tb and return `gate.ErrOutsideEffect` outside
+  an effect. Other module fakes gain it when their handler task lands.
+- Q-HTTP-00 (open): `bill.delivered_at` is effect-owned (openapi deliverBill: "set only by the
+  delivery effect on evidence"; 0001 trigger RV1-008 mentions an approved delivery_correction),
+  but spec/gates.json has no delivery or delivery-correction kind. It is mapped to
+  `billing.bill_delivery`, listed pending and in the test's `unspecifiedKinds`. Needed: add the
+  kind to spec/gates.json (additive) or name the existing kind that owns it.
+- Mapping choices to confirm: write_off.status=approved -> billing.credit_note (the openapi op
+  "Request a credit note or write-off; opens gate billing.credit_note"); matter.team and
+  matter.restricted -> matter.widen_access; matter.status=closed -> platform.closing;
+  trust_account.signatories -> core.trust_signatory; trust_txn.posted is split into
+  `=receipt` (trust.receipt_classification) and `=transfer` (trust.transfer).
