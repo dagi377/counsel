@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/dagi377/counsel/app/legal/roles"
@@ -26,6 +27,10 @@ const CapTrustRequest = "trust.request"
 // GateTrustWithdrawal is the Counsel gate kind a trust withdrawal proposal opens.
 const GateTrustWithdrawal = "trust.withdrawal"
 
+// ErrPayeeNotContact: a trust withdrawal's payee is not the id of one of the matter's
+// contacts (422).
+var ErrPayeeNotContact = fmt.Errorf("agent: payee is not a matter contact: %w", ErrInvalidInput)
+
 // errNotProposed means the trust module left a request in a state other than requested.
 var errNotProposed = errors.New("agent: withdrawal not left proposed")
 
@@ -39,9 +44,13 @@ type WriteDeps struct {
 	TrustAccount func(ctx context.Context, matterID string) (string, error)
 	// Withdrawals records a withdrawal request and opens its Counsel gate.
 	Withdrawals Withdrawals
-	// Provenance holds the figures the run's read tools returned. When set, amount_cents
-	// must be one of them (a get_trust_balance or get_bill figure from the same run).
+	// Provenance holds the figures the run's read tools returned: amount_cents must be one of
+	// them (a get_trust_balance or get_bill figure from the same run). Required: without it
+	// prepare_trust_withdrawal refuses every call.
 	Provenance *agenttools.Provenance
+	// Contacts lists a matter's contacts: payee must be one of their ids. Required: without
+	// it prepare_trust_withdrawal refuses every call.
+	Contacts MatterContacts
 }
 
 // Withdrawals is the part of the trust withdrawal module the agent may reach: it requests and
@@ -122,6 +131,15 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 	if err := json.Unmarshal(c.Input, &in); err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, ErrInvalidInput)
 	}
+	// rule: ARC-U-027
+	// Fail closed: without the run's figures or the matter's contacts the amount and payee
+	// cannot be checked, so nothing is recorded.
+	if t.deps.Provenance == nil {
+		return Result{}, fmt.Errorf("call %s: provenance: %w", c.Tool, ErrMissingDep)
+	}
+	if t.deps.Contacts == nil {
+		return Result{}, fmt.Errorf("call %s: matter contacts: %w", c.Tool, ErrMissingDep)
+	}
 	visible, err := t.deps.Walls.Visible(ctx, c.ActingFor, in.MatterID)
 	if err != nil {
 		return Result{}, fmt.Errorf("call %s: walls: %w", c.Tool, err)
@@ -132,10 +150,18 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 	// rule: ARC-U-027
 	// The amount is a figure the run read (trust balance or bill), never one the model made
 	// up; an unsourced amount is refused before any withdrawal row exists.
-	if t.deps.Provenance != nil {
-		if err := t.deps.Provenance.Check(c.RunID, []string{"/amount_cents"}, c.Input); err != nil {
-			return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
-		}
+	if err := t.deps.Provenance.Check(c.RunID, []string{"/amount_cents"}, c.Input); err != nil {
+		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
+	}
+	// rule: BIL-L-037
+	// The payee is one of the matter's contacts by id, never free text the model wrote (so
+	// never "cash" or "bearer"); anything else is refused before any withdrawal row exists.
+	contacts, err := t.deps.Contacts.MatterContactIDs(ctx, in.MatterID)
+	if err != nil {
+		return Result{}, fmt.Errorf("call %s: matter contacts: %w", c.Tool, err)
+	}
+	if in.Payee == "" || !slices.Contains(contacts, in.Payee) {
+		return Result{}, fmt.Errorf("call %s: payee: %w", c.Tool, ErrPayeeNotContact)
 	}
 	method := withdraw.MethodCheque
 	switch in.Method {

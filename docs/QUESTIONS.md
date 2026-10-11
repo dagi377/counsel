@@ -1280,6 +1280,20 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   subject is ErrNotFound (404). The gate payload carries subject ids only; the model's note is
   not stored (AI-R-005).
 
+
+## FEAT-TOOL-21 prepare_trust_withdrawal amount provenance
+
+- Closed by FEAT-FIX-A: `WriteDeps.Provenance` is checked only when set. Now nil fails closed
+  (ErrMissingDep, nothing recorded). `agenttest.New` builds one Provenance per driver, and a
+  read stand-in whose text is JSON records its figures for the run, as the real read would.
+  Boot wiring (BOOT-FEAT-WIRE) must pass the run's Provenance.
+- `WriteDeps.Withdrawals` is now the narrow `agent.Withdrawals` interface (Request, Available).
+  `withdraw.Service` and `withdrawfake.Fake` satisfy it, so callers are unchanged.
+- Closed by FEAT-FIX-A: payee was free text. Now `WriteDeps.Contacts` (the FEAT-TOOL-12
+  `MatterContacts` port, required, nil fails closed) and payee must be one of the matter's
+  contact ids (`ErrPayeeNotContact`, 422, rule BIL-L-037). The F-TRU-02, F-TRU-10 and
+  F-BIL-03 fixtures now pay `agenttest.PayeeContact`.
+
 ## FEAT-CORE-10
 
 - Q-FEAT-CORE-10.1: `prompts/rules.md` is embedded and exposed as `feature.Rules()`, but
@@ -1647,7 +1661,8 @@ Done in PORT-18:
 - The result is outcome `proposal` with the run id as ref, not `gate`: G2 is decided on the run
   through `conflict.Clearer`, not a kernel gate the runner could park on. The run stays open.
 
-## FEAT-TOOL-21 prepare_trust_withdrawal amount provenance
+
+## FEAT-FIX-A trust withdrawal fails closed; draft_bill checks sources first
 
 - `WriteDeps.Provenance` is checked only when set. `agenttest.New` (not this task's file) builds
   WriteTools without one, and its read stand-ins return quoted text with no numbers to observe,
@@ -2011,3 +2026,11 @@ Done in PORT-18:
 - A matter-scoped item uses subject kind "matter" (as the 6100 backfill and agent tools do);
   wall checks use the matter registry subject (matter.matter) and answer 404.
 - openapi has no body or response schema for these operations; the views are documented here.
+
+- Open: a fee transfer to the firm's own general account (spec trust.json "Payee is firm
+  general account (known)") is not a matter contact, so prepare_trust_withdrawal now refuses
+  it. Boot must decide whether `MatterContacts` includes the firm's general account for fee
+  withdrawals, or whether a separate firm-payee id is allowed.
+- draft_bill reads a new `agent.UnbilledWIP` port (matter's unbilled entry ids up to
+  period_to) from Deps; boot (BOOT-FEAT-WIRE) must wire it. Every line action source is
+  checked against it before `batch.Drafts.Create`, so a bad source creates no draft.
