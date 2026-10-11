@@ -56,8 +56,8 @@ type Calendar interface {
 	// MonthsAfter adds n calendar months to a business date, clamping to the month's
 	// last day (2026-01-31 + 1 = 2026-02-28).
 	MonthsAfter(d time.Time, n int) time.Time
-	// AccrualStart is the first business date interest accrues on: the day after
-	// MonthsAfter(delivery date in America/Toronto, 1).
+	// AccrualStart is the first business date interest accrues on: MonthsAfter(delivery
+	// date in America/Toronto, 1), per Solicitors Act s.33 (BIL-C-073, BIL-L-008; verify).
 	AccrualStart(deliveredAt time.Time) time.Time
 }
 

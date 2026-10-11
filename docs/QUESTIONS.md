@@ -391,3 +391,5 @@ Template:
   a write-up is its own explicit action (T-017.5 decision). Additive.
 - kernel/docs contract: the `Citation.QuoteHash` comment now states the ARC-I-037 form
   ("sha256:" + hex SHA-256 of the normalised quote). docsfake hashes the same way. Comment only.
+- Resolved at wave 2a integration: interest runs from `months_after(delivery, 1)` itself
+  (Solicitors Act s.33). The contract comment, `Months.AccrualStart` and tests now say so.
