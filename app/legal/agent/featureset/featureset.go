@@ -53,5 +53,6 @@ func appDefs() []feature.Def {
 		conflict.ClearanceMemoDef(),
 		conflict.ConsentDraftingDef(),
 		conflict.ReverseSweepDef(),
+		conflict.IDObligationWatcherDef(),
 	}
 }
