@@ -73,6 +73,11 @@ type Capture struct {
 	// exception code and the approved trust.cash_over_limit (G6c) gate that evidences it.
 	CashExceptionCode string
 	CashGateID        string
+	// ProcessorFeeCents is what the card or payment processor kept
+	// (billing.payment.processor_fee_cents, HTTP-14b, additive). Operating money only, never
+	// more than AmountCents; fee accounting books it as an expense, the client is credited
+	// the full AmountCents.
+	ProcessorFeeCents int64
 }
 
 // Payment is a captured payment.

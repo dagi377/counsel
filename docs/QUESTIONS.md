@@ -1836,7 +1836,7 @@ Done in PORT-18:
 - Payment has no row version or allocation ids yet: `version` is 1, ETag "1", and each
   allocation id is a stable uuid derived from (payment id, index). received_at echoes the
   business date (midnight America/Toronto), since Capture keeps only ReceivedOn.
-  processor_fee_cents is accepted and not stored (Capture has no field for it).
+  processor_fee_cents is stored and returned since HTTP-14b (below).
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
 
 ## Q-HTTP-08b Submit moves the bill and adds delivery_method to the submit body
@@ -1869,3 +1869,13 @@ Done in PORT-18:
   `/components/schemas/TrustLedger/properties/shortfall_cents`.
 - The trust ledger list tests validate the whole page against the GET /trust/ledgers 200
   schema and fail on any ledger field TrustLedger does not declare.
+
+## HTTP-14b: store processor_fee_cents on the payment
+
+- `payment.Capture` gains `ProcessorFeeCents` (additive). POST /payments passes it through
+  and the Payment body returns it on create and get. A fee below 0 or above amount_cents
+  answers 400 validation_failed; paymentfake refuses the same with ErrInvalid.
+- No migration: `billing.payment.processor_fee_cents` already exists in the frozen
+  0001_init.sql (`bigint NOT NULL DEFAULT 0`, `CHECK (deposit_to = 'operating' OR
+  processor_fee_cents = 0)`), so an additive nullable column would duplicate it. The
+  Postgres payment service, when built, writes Capture.ProcessorFeeCents to that column.

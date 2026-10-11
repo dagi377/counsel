@@ -392,3 +392,58 @@ func TestPaymentListAndGet(t *testing.T) {
 		})
 	}
 }
+
+// HTTP-14b: the processor fee is stored on the payment and returned by create and get.
+func TestPaymentProcessorFeeStored(t *testing.T) {
+	tests := []struct {
+		name    string
+		extra   string
+		status  int
+		wantFee int64
+	}{
+		{"fee stored", `,"provider":"stripe","provider_ref":"ch_1","processor_fee_cents":175`, 201, 175},
+		{"no fee is zero", "", 201, 0},
+		{"fee equal to amount", `,"processor_fee_cents":5000`, 201, 5000},
+		{"fee above amount", `,"processor_fee_cents":5001`, 400, 0},
+		{"negative fee", `,"processor_fee_cents":-1`, 400, 0},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRig(t)
+			onBill := `,"allocations":[{"target_type":"bill","target_id":"` + billA + `","amount_cents":5000}]`
+			rec := do(r.h, "POST", "/v1/payments", "clerk", payBody(tc.extra+onBill), withKey)
+			if tc.status != 201 {
+				checkProblem(t, rec, tc.status, server.CodeValidationFailed)
+				if r.svc.calls != 0 {
+					t.Errorf("service calls = %d, want 0", r.svc.calls)
+				}
+				return
+			}
+			if rec.Code != 201 {
+				t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
+			}
+			validate(t, paymentSchema, rec.Body.Bytes())
+			var created struct {
+				ID                string `json:"id"`
+				ProcessorFeeCents int64  `json:"processor_fee_cents"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+				t.Fatal(err)
+			}
+			stored, err := r.svc.Fake.Get(context.Background(), created.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if created.ProcessorFeeCents != tc.wantFee || stored.Capture.ProcessorFeeCents != tc.wantFee {
+				t.Errorf("fee = %d stored %d, want %d", created.ProcessorFeeCents, stored.Capture.ProcessorFeeCents, tc.wantFee)
+			}
+			got := do(r.h, "GET", "/v1/payments/"+created.ID, "viewer", "", nil)
+			var read struct {
+				ProcessorFeeCents int64 `json:"processor_fee_cents"`
+			}
+			if err := json.Unmarshal(got.Body.Bytes(), &read); err != nil || read.ProcessorFeeCents != tc.wantFee {
+				t.Errorf("get fee = %d (%v), want %d", read.ProcessorFeeCents, err, tc.wantFee)
+			}
+		})
+	}
+}
