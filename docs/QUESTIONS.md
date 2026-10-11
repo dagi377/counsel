@@ -3001,3 +3001,15 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-FEAT-TIM-08-SCREENS Timekeeping screen actions select matters
+
+- main has no `boot.FirmSubject`, so the timekeeping screens that are not about one matter
+  (activity-list, and for FEAT-TIM-09/10 utilization, activity-categories and
+  timekeeper-targets) select the matters of the rows on screen: `SubjectKind: "matter"` in
+  `app/legal/boot/agent.go` actionScreens. matter-fee-arrangement is a matter screen.
+- Capabilities: activity-list `time.record`, matter-fee-arrangement `billing.view`,
+  utilization and timekeeper-targets `reports.firm`, activity-categories `time.view_all`.
+  Switch the firm-level ones to the firm subject once boot has one.
+- The features' end-to-end tests give list_unbilled a test MatterTime port over the Seed's
+  time entries (the Seed has no MatterTime); the handler itself is the app's.
