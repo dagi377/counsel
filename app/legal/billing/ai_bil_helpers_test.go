@@ -32,6 +32,8 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/bill/billfake"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/billing/draft/draftfake"
+	"github.com/dagi377/counsel/app/legal/billing/payment"
+	"github.com/dagi377/counsel/app/legal/billing/payment/paymentfake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
@@ -52,6 +54,7 @@ const (
 	bilEntryB      = "00000000-0000-4000-8000-0000000b1e02"
 	bilBillA       = "00000000-0000-4000-8000-0000000b1b01"
 	bilBillB       = "00000000-0000-4000-8000-0000000b1b02"
+	bilPayment     = "00000000-0000-4000-8000-0000000b1a01"
 	bilOtherLawyer = "user-synthetic-partner"
 	// bilEntryACents and bilEntryBCents are the priced amounts of the two unbilled entries.
 	bilEntryACents = 50_000
@@ -184,6 +187,23 @@ func (b *bilTrust) Available(_ context.Context, account, matterID string) (int64
 
 func (b *bilTrust) TrustAccountsOf(context.Context, string) ([]string, error) {
 	return []string{agenttest.TrustAccount}, nil
+}
+
+// bilPayments is a payment service holding one captured, non-cash payment of
+// bilEntryACents+bilEntryBCents cents on the matter (bilPayment), as a provider webhook or a
+// bank feed line records it before F-BIL-04 runs.
+func bilPayments(t *testing.T) *paymentfake.Fake {
+	t.Helper()
+	p := paymentfake.New()
+	p.NewID = func() string { return bilPayment }
+	p.AddBill(bilBillA, "client-synthetic", bilEntryACents+bilEntryBCents, 0)
+	if _, _, err := p.Capture(context.Background(), payment.Capture{
+		ClientID: "client-synthetic", BillID: bilBillA, Kind: payment.KindBillPayment, AmountCents: bilEntryACents + bilEntryBCents,
+		ReceivedOn: bilDecideAt, Provider: "synthetic-feed", ProviderEventID: "evt-synthetic-1", MatterID: bilMatter, Method: "eft",
+	}); err != nil {
+		t.Fatalf("capture: %v", err)
+	}
+	return p
 }
 
 // bilWorld is one feature run's driver and the billing fakes its real handlers read.

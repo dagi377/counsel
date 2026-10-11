@@ -316,6 +316,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
+		billing.FeaturePaymentMatching:              billing.PaymentMatchingBinding,
 		billing.FeatureBillRender:                   billing.BillRenderBinding,
 		billing.FeatureBillingCycleDrafts:           billing.BillingCycleDraftsBinding,
 	}

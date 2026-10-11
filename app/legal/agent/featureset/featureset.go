@@ -119,5 +119,6 @@ func appDefs() []feature.Def {
 		// billing
 		billing.BillingCycleDraftsDef(),
 		billing.BillRenderDef(),
+		billing.PaymentMatchingDef(),
 	}
 }

@@ -3244,3 +3244,9 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   name per-feature handler overrides.
 - F-BIL-02 binds gate.decided (billing.EventGateDecided) for the event's user; the run renders
   only when the decided gate is a G-B1 pre-bill review.
+
+## FEAT-BIL-04 F-BIL-04 payment matching
+
+- No kernel event exists for an imported bank feed line, so F-BIL-04 binds
+  payment.received (already used by F-MAT-03) and the new bank_feed.line_imported
+  (billing.EventBankFeedLineAdded). Open: which module emits the bank feed event.
