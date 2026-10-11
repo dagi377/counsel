@@ -24,10 +24,10 @@ func (r scriptRow) Scan(dest ...any) error {
 	if r.err != nil {
 		return r.err
 	}
-	return scanInto(r.vals, dest)
+	return scanReflect(r.vals, dest)
 }
 
-func scanInto(vals, dest []any) error {
+func scanReflect(vals, dest []any) error {
 	if len(vals) != len(dest) {
 		return fmt.Errorf("scan: %d values into %d targets", len(vals), len(dest))
 	}
@@ -51,7 +51,7 @@ func (r *scriptRows) Scan(dest ...any) error {
 	if r.scanErr != nil {
 		return r.scanErr
 	}
-	return scanInto(r.rows[r.i-1], dest)
+	return scanReflect(r.rows[r.i-1], dest)
 }
 func (r *scriptRows) Err() error { return r.err }
 func (r *scriptRows) Close()     {}
