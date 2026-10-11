@@ -4,6 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"maps"
+	"runtime"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -320,5 +325,200 @@ func assertCode(t *testing.T, err error, code string) {
 	var ee *EffectError
 	if !errors.As(err, &ee) || ee.Code != code {
 		t.Fatalf("err = %v, want code %s", err, code)
+	}
+}
+
+// rowLockDB is a store fake that models Postgres row locks: a lock taken in a transaction is
+// held until that transaction commits or rolls back, and writes are visible to other
+// transactions only after commit. It serves both EffectStore and TrustLedgers, so Apply's
+// withdrawal lock, ledger lock and hold all go through it.
+type rowLockDB struct {
+	tf    *trustfake.Fake
+	mu    sync.Mutex             // guards locks and w
+	locks map[string]*sync.Mutex // row locks by "table:id"
+	w     map[string]Held        // committed withdrawals
+}
+
+// lockTx is one fake transaction. Apply only passes it through as a pgx.Tx; its pgx methods
+// are never called.
+type lockTx struct {
+	pgx.Tx
+	held   []string
+	staged map[string]Held
+}
+
+func (d *rowLockDB) begin() *lockTx { return &lockTx{staged: map[string]Held{}} }
+
+// lock takes the row lock for key in tx, waiting while another transaction holds it.
+func (d *rowLockDB) lock(tx pgx.Tx, key string) *lockTx {
+	t := tx.(*lockTx)
+	if slices.Contains(t.held, key) {
+		return t
+	}
+	d.mu.Lock()
+	m, ok := d.locks[key]
+	if !ok {
+		m = &sync.Mutex{}
+		d.locks[key] = m
+	}
+	d.mu.Unlock()
+	m.Lock()
+	t.held = append(t.held, key)
+	return t
+}
+
+// end commits (or rolls back) tx and releases its locks.
+func (d *rowLockDB) end(t *lockTx, commit bool) {
+	d.mu.Lock()
+	if commit {
+		maps.Copy(d.w, t.staged)
+	}
+	locks := make([]*sync.Mutex, 0, len(t.held))
+	for _, k := range t.held {
+		locks = append(locks, d.locks[k])
+	}
+	d.mu.Unlock()
+	for _, m := range slices.Backward(locks) {
+		m.Unlock()
+	}
+}
+
+// read returns the withdrawal as tx sees it: its own staged write, else the committed row.
+func (d *rowLockDB) read(t *lockTx, id string) (Held, bool) {
+	if h, ok := t.staged[id]; ok {
+		return h, true
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	h, ok := d.w[id]
+	return h, ok
+}
+
+type rowLockStore struct{ *rowLockDB }
+
+func (s rowLockStore) Lock(_ context.Context, tx pgx.Tx, id string) (Held, error) {
+	h, ok := s.read(s.lock(tx, "withdrawal:"+id), id)
+	if !ok {
+		return Held{}, ErrNotFound
+	}
+	return h, nil
+}
+
+func (s rowLockStore) MarkAuthorized(_ context.Context, tx pgx.Tx, id, by, gateID string, at time.Time) error {
+	t := s.lock(tx, "withdrawal:"+id)
+	h, _ := s.read(t, id)
+	h.Status, h.AuthorizedBy, h.GateID, h.AuthorizedAt = StatusAuthorized, by, gateID, at
+	t.staged[id] = h
+	return nil
+}
+
+func (s rowLockStore) MarkExecuted(_ context.Context, tx pgx.Tx, id, by string, on time.Time) error {
+	t := s.lock(tx, "withdrawal:"+id)
+	h, _ := s.read(t, id)
+	h.Status, h.ExecutedBy, h.ExecutedOn = StatusExecuted, by, on
+	t.staged[id] = h
+	return nil
+}
+
+type rowLockLedgers struct{ *rowLockDB }
+
+// LockLedger takes the ledger row lock, then reads the balance and the authorised holds the
+// way sumsSQL does: committed rows plus this transaction's own writes.
+func (l rowLockLedgers) LockLedger(ctx context.Context, tx pgx.Tx, id trust.LedgerID) (trust.Balance, int64, error) {
+	t := l.lock(tx, "ledger:"+string(id))
+	runtime.Gosched() // widen the window a missing lock would leave open
+	b, _, err := l.tf.LockLedger(ctx, tx, id)
+	if err != nil {
+		return trust.Balance{}, 0, err
+	}
+	l.mu.Lock()
+	ids := slices.Collect(maps.Keys(l.w))
+	l.mu.Unlock()
+	ids = append(ids, slices.Collect(maps.Keys(t.staged))...)
+	slices.Sort(ids)
+	var held int64
+	for _, w := range slices.Compact(ids) {
+		if h, _ := l.read(t, w); h.LedgerID == id && h.Status == StatusAuthorized {
+			held += h.Request.AmountCents
+		}
+	}
+	b.AvailableCents = trust.AvailableCents(b.ClearedCents, b.ProtectedCents, b.MinimumCents, held)
+	return b, held, nil
+}
+
+func (l rowLockLedgers) Disburse(ctx context.Context, tx pgx.Tx, d trust.Disbursement) (trust.TxnID, error) {
+	l.lock(tx, "ledger:"+string(d.LedgerID))
+	return l.tf.Disburse(ctx, tx, d)
+}
+
+// rule: ARC-I-024
+// rule: ARC-I-025
+// Two authorisations race on one ledger. Apply runs in each caller's tx and takes the ledger
+// row lock, so the second waits for the first to commit its hold and then sees less available.
+func TestARC_I_025_ConcurrentApplyLocksLedger(t *testing.T) {
+	cases := []struct {
+		name               string
+		balance, each      int64
+		n                  int
+		wantOK, wantRefuse int
+	}{
+		{name: "two of 300000 on 500000", balance: 500000, each: 300000, n: 2, wantOK: 1, wantRefuse: 1},
+		{name: "two of 300000 on 600000", balance: 600000, each: 300000, n: 2, wantOK: 2, wantRefuse: 0},
+		{name: "five of 100000 on 250000", balance: 250000, each: 100000, n: 5, wantOK: 2, wantRefuse: 3},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for range 50 { // repeat: one lucky interleaving proves nothing
+				rig := newEffectRig(t, tc.balance, tc.each, false)
+				db := &rowLockDB{tf: rig.tf, locks: map[string]*sync.Mutex{}, w: map[string]Held{}}
+				ids := make([]string, tc.n)
+				for i := range ids {
+					h := rig.store.w["w1"]
+					h.ID = fmt.Sprintf("w%d", i+1)
+					ids[i], db.w[h.ID] = h.ID, h
+				}
+				rig.e.Store, rig.e.Ledgers = rowLockStore{db}, rowLockLedgers{db}
+				start := make(chan struct{})
+				errs := make([]error, tc.n)
+				var wg sync.WaitGroup
+				for i, id := range ids {
+					wg.Go(func() {
+						p, _ := json.Marshal(EffectPayload{WithdrawalID: id})
+						g := approved(user("lawyer1"))
+						g.Payload = p
+						tx := db.begin()
+						<-start
+						errs[i] = rig.e.Apply(context.Background(), tx, g)
+						db.end(tx, errs[i] == nil)
+					})
+				}
+				close(start)
+				wg.Wait()
+				var ok, refused int
+				for _, err := range errs {
+					switch {
+					case err == nil:
+						ok++
+					case errors.Is(err, ErrTrustOverdraw):
+						refused++
+						assertCode(t, err, CodeInsufficientTrustFunds)
+					default:
+						t.Fatalf("apply: %v", err)
+					}
+				}
+				if ok != tc.wantOK || refused != tc.wantRefuse {
+					t.Fatalf("ok = %d, refused = %d; want %d, %d", ok, refused, tc.wantOK, tc.wantRefuse)
+				}
+				var held int64
+				for _, h := range db.w {
+					if h.Status == StatusAuthorized {
+						held += h.Request.AmountCents
+					}
+				}
+				if held > tc.balance {
+					t.Fatalf("authorised holds %d exceed the ledger's %d", held, tc.balance)
+				}
+			}
+		})
 	}
 }

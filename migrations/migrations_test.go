@@ -24,6 +24,7 @@ func TestNamesAreNumberedAndOrdered(t *testing.T) {
 		{"0500_outbox_subject_seq.sql", true},
 		{"1000_work_item_subject.sql", true},
 		{"1400_webhook_delivery_subject.sql", true},
+		{"5500_trust_exception.sql", true},
 		{"6000_court_filing.sql", true},
 		{"6100_work_item_subject_backfill.sql", true},
 		{"smoke.sql", false},

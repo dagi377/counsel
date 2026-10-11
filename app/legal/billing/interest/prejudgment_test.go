@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 	"github.com/dagi377/counsel/kernel/money"
 )
 
@@ -44,5 +45,39 @@ func TestPrejudgmentRatesContiguous(t *testing.T) {
 				t.Errorf("%d Q%d missing or zero", y, q)
 			}
 		}
+	}
+}
+
+// With no agreed rate, interest runs at the CJA prejudgment rate for the quarter of delivery
+// only while interest.cja_default_rate is on; an agreed rate always wins.
+func TestBIL_L_010_EffectiveRateCJADefault(t *testing.T) {
+	// 2026-01-01 03:00 UTC is still 2025-12-31 in Toronto: the delivery quarter is 2025 Q4.
+	newYearsEve := time.Date(2026, 1, 1, 3, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name    string
+		flagOn  bool
+		bill    Bill
+		want    money.PPM
+		wantErr error
+	}{
+		{"agreed rate, flag off", false, Bill{ID: "b1", RatePPM: 60000, DeliveredAt: newYearsEve}, 60000, nil},
+		{"agreed rate, flag on", true, Bill{ID: "b1", RatePPM: 60000, DeliveredAt: newYearsEve}, 60000, nil},
+		{"no rate, flag off", false, Bill{ID: "b2", DeliveredAt: newYearsEve}, 0, ErrNoAgreedRate},
+		{"no rate, flag on, Toronto quarter", true, Bill{ID: "b2", DeliveredAt: newYearsEve}, 30000, nil},
+		{"no rate, flag on, 2026 Q1", true, Bill{ID: "b3", DeliveredAt: time.Date(2026, 2, 10, 15, 0, 0, 0, time.UTC)}, 25000, nil},
+		{"no rate, flag on, not delivered", true, Bill{ID: "b4"}, 0, ErrNotDelivered},
+		{"no rate, flag on, unseeded quarter", true, Bill{ID: "b5", DeliveredAt: time.Date(2030, 5, 1, 15, 0, 0, 0, time.UTC)}, 0, ErrNoPrejudgmentRate},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := legalflagstest.Context(t, FlagCJADefaultRate, tt.flagOn)
+			got, err := EffectiveRate(ctx, tt.bill)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Fatalf("rate = %d, want %d", got, tt.want)
+			}
+		})
 	}
 }

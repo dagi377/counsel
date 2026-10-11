@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -164,10 +165,10 @@ type holdingLedgers struct {
 	store *lockedStore
 }
 
-func (h holdingLedgers) Balance(ctx context.Context, id trust.LedgerID) (trust.Balance, error) {
-	b, err := h.TrustLedgers.Balance(ctx, id)
+func (h holdingLedgers) LockLedger(ctx context.Context, tx pgx.Tx, id trust.LedgerID) (trust.Balance, int64, error) {
+	b, _, err := h.TrustLedgers.LockLedger(ctx, tx, id)
 	if err != nil {
-		return trust.Balance{}, err
+		return trust.Balance{}, 0, err
 	}
 	var held int64
 	for _, w := range h.store.w {
@@ -176,7 +177,7 @@ func (h holdingLedgers) Balance(ctx context.Context, id trust.LedgerID) (trust.B
 		}
 	}
 	b.AvailableCents = trust.AvailableCents(b.ClearedCents, b.ProtectedCents, b.MinimumCents, held)
-	return b, nil
+	return b, held, nil
 }
 
 type lockedStore struct {
@@ -244,5 +245,23 @@ func TestExecutionRecordFailsClosedWhenUnverified(t *testing.T) {
 	_, err := x.Record(context.Background(), "w1", user("lawyer2"), Confirmation{ExecutedOn: execDay, BankRef: "B"})
 	if !errors.Is(err, ErrUnverified) {
 		t.Fatalf("err = %v, want ErrUnverified", err)
+	}
+}
+
+// An EFT executed without its Form 9A record is a 409, not a 500.
+func TestProblemForNoEFTAuthorization(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+	}{
+		{"bare", ErrNoEFTAuthorization},
+		{"effect failure", failed(CodeNoEFTAuthorization, fmt.Errorf("eft w1: no record: %w", ErrNoEFTAuthorization))},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if p := problemFor(tt.err); p.Status != http.StatusConflict || p.Code != CodeNoEFTAuthorization {
+				t.Fatalf("problem = %d %s, want 409 %s", p.Status, p.Code, CodeNoEFTAuthorization)
+			}
+		})
 	}
 }

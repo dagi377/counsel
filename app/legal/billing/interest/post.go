@@ -41,10 +41,13 @@ type Posting struct {
 // interest (ErrNoAgreedRate); a period wholly before the start returns ErrNotDue.
 func (s *Posting) Post(ctx context.Context, b Bill, p Period) (Charge, error) {
 	// rule: BIL-L-010 (verify)
-	// Interest runs only at a rate the client agreed to; no rate means no interest, ever.
-	if b.RatePPM <= 0 {
-		return Charge{}, fmt.Errorf("post interest %s: %w", b.ID, ErrNoAgreedRate)
+	// Interest runs at the rate the client agreed to; with no agreed rate it runs only at the
+	// CJA prejudgment rate, and only while FlagCJADefaultRate is on.
+	rate, err := EffectiveRate(ctx, b)
+	if err != nil {
+		return Charge{}, fmt.Errorf("post interest: %w", err)
 	}
+	b.RatePPM = rate
 	clipped, err := s.Start.Clip(ctx, b, time.Time{}, p)
 	if err != nil {
 		return Charge{}, fmt.Errorf("post interest: %w", err)

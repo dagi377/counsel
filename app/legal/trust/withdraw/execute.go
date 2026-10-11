@@ -155,6 +155,8 @@ func problemFor(err error) api.Problem {
 		return p
 	case errors.As(err, &ee) && ee.Code == CodeUnclearedFunds:
 		return server.NewProblem(http.StatusConflict, CodeUnclearedFunds, "Withdrawal draws on uncleared funds")
+	case errors.Is(err, ErrNoEFTAuthorization):
+		return server.NewProblem(http.StatusConflict, CodeNoEFTAuthorization, "EFT has no signed authorization record")
 	case errors.Is(err, ErrNotAuthorized):
 		// rule: ARC-I-012
 		// rule: ARC-I-027
