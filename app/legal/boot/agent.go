@@ -14,6 +14,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/batch"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
+	"github.com/dagi377/counsel/app/legal/comms"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	"github.com/dagi377/counsel/app/legal/gates"
@@ -30,9 +31,10 @@ import (
 // Event types the deadline job features start from that the deadline package does not name
 // itself. They are the a2 event names of the owning modules (Q-BOOT-WIRE-A).
 const (
-	eventDocumentUploaded = "document.uploaded" // F-DL-01: document filed to a matter
-	eventLeadCreated      = "lead.created"      // F-DL-02: intake created
-	eventMatterUpdated    = "matter.updated"    // F-DL-02: claim facts updated
+	eventDocumentUploaded = "document.uploaded"   // F-DL-01: document filed to a matter
+	eventEmailFiled       = comms.EventEmailFiled // F-DL-01: email filed to a matter (Q-DRAFT-FIX)
+	eventLeadCreated      = "lead.created"        // F-DL-02: intake created
+	eventMatterUpdated    = "matter.updated"      // F-DL-02: claim facts updated
 )
 
 // AgentPorts are the module query APIs the agent tool handlers read through, one field per
@@ -257,7 +259,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 	byID := map[string]func() (trigger.Binding, error){
 		deadlines.FeatureExtractDeadlines: func() (trigger.Binding, error) {
 			d, _ := s.ByID(deadlines.FeatureExtractDeadlines)
-			return trigger.Bind(d, "", eventDocumentUploaded)
+			return trigger.Bind(d, "", eventDocumentUploaded, eventEmailFiled)
 		},
 		deadlines.FeatureLimitationAssessment: func() (trigger.Binding, error) {
 			d, _ := s.ByID(deadlines.FeatureLimitationAssessment)

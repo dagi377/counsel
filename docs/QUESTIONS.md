@@ -1862,8 +1862,8 @@ Done in PORT-18:
   `lead.created` and `matter.updated` (claim facts updated). Checked (BOOT-PORTS-B) against
   spec/ai/features.json triggers ("document filed to matter"; "intake created or claim facts
   updated") and the a2 event catalogue: all three are the a2 events for those triggers and
-  stay. a2 has no comms filing event, so an email filed to a matter does not start F-DL-01
-  until one exists.
+  stay. a2 had no comms filing event; Q-DRAFT-FIX adds `email.filed`, and F-DL-01 now
+  starts on it too.
 - Action screens: `matter-deadlines` and `limitation-assessment` both map to subject kind
   `matter`, capability `deadlines.view`. Open: limitation assessment from intake may need a
   `lead` subject kind.
@@ -1889,8 +1889,8 @@ Done in PORT-18:
   `participants`, since `drafted_by_agent_run_id` needs an approval id); note draft =
   unconfirmed `matter.note`; proposed task = status `proposed` of the newest `task`
   workflow; proposed party = `conflict.check_party` row, preparer in the check's
-  `updated_by`. Open: no column holds a draft's idempotency key or a party's source citation;
-  a retried draft call stores a second draft.
+  `updated_by`. Resolved by Q-DRAFT-FIX: drafts keep their idempotency key, parties their
+  source citation, and the email draft's run id has its own column.
 - SubjectMatters resolves matter, document_draft, agent_note, email_draft, deadline,
   billing.bill, timekeeping.time_entry and conflict_check; any other kind fails closed (404).
 - Additive kernel contract change: `agenttools.Step` gains `ID` (the report_plan step id),
@@ -1903,3 +1903,27 @@ Done in PORT-18:
   kernel/contract/additive.txt; `trigger.ActionPath` drops its `/api` prefix to match the /v1
   server base. It is in api/unserved.txt because the app conformance test mounts only
   Register routes; boot mounts it when `AgentWiring.Actions` is set.
+
+## Q-DRAFT-FIX idempotent drafts, party citations, email draft run id, email.filed
+
+- Idempotent drafts (additive migrations, each in its owning block): `idempotency_key text`
+  on `docs.draft` (5800, app/legal/docs), `matter.note` (5100, app/legal/matter) and
+  `comms.comm_item` (6001, app/legal/comms), each with a partial unique index on
+  `(agent_run_id, idempotency_key)` built CONCURRENTLY in its own file (5801, 5101, 6002).
+  The adapters look the key up first, so a retried call returns the stored draft without
+  writing a second body; an insert that loses a race (`ON CONFLICT DO NOTHING`) returns the
+  winner's id, and its body object is left unreferenced. Only an agent run's keyed call is
+  deduplicated: the manual path (no run id) stores each call.
+- Email draft run id: `comms.comm_item.agent_run_id uuid` (6001, nullable) holds the drafting
+  run; `participants` no longer carries `run_id`. `drafted_by_agent_run_id` stays the run of an
+  approved outbound message (its CHECK needs an approval id); the gate's effect stamps it.
+- Conflict party citations: `conflict.check_party.source jsonb` (5203, nullable) holds the
+  proposed party's source as `{version_id, page, from_line, to_line}`, a pointer and never
+  text. `PGConflictParties` writes it, validated with `agenttools.ValidCitation` (ARC-I-038).
+- Additive a2 event `email.filed` (module comms, subject comm_item, payload comm_item_id,
+  matter_id, filed_by), in spec/eng/a2-interfaces.json and .html. `comms.EmailFilingStore`
+  `FileEmail` files an email to a matter on `comms.comm_filing` and emits it in the same
+  transaction (ARC-I-030); filing an already filed email emits nothing. F-DL-01's binding
+  (`boot.JobBindings`) lists `document.uploaded` and `email.filed`. Open: no HTTP route or
+  inbound-mail rule calls `FileEmail` yet; the route that files an email must wire it with the
+  outbox Emitter.

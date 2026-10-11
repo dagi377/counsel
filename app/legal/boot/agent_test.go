@@ -13,6 +13,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/batch"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
+	"github.com/dagi377/counsel/app/legal/comms"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
@@ -201,6 +202,12 @@ func TestJobBindings(t *testing.T) {
 			}
 			if len(b.EventTypes()) == 0 {
 				t.Fatal("no event types bound")
+			}
+			// F-DL-01 starts on a document or an email filed to a matter (Q-DRAFT-FIX).
+			for _, ev := range []string{eventDocumentUploaded, comms.EventEmailFiled} {
+				if !slices.Contains(b.EventTypes(), ev) {
+					t.Fatalf("event types %v lack %s", b.EventTypes(), ev)
+				}
 			}
 			j := kboot.NewJobs()
 			if err := AddTickJob(j, b); err != nil {
