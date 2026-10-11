@@ -53,6 +53,9 @@ func (o k8sObj) label(key string) string {
 
 // dig walks nested maps by key; it returns nil when any step is missing.
 func dig(v any, path ...string) any {
+	if o, ok := v.(k8sObj); ok {
+		v = map[string]any(o)
+	}
 	for _, p := range path {
 		m, ok := v.(map[string]any)
 		if !ok {
@@ -433,6 +436,135 @@ func TestHelmShimMatchesHelm(t *testing.T) {
 	for id, wo := range w {
 		if !reflect.DeepEqual(g[id], wo) {
 			t.Errorf("%s differs between shim and helm", id)
+		}
+	}
+}
+
+// statelessTiers are the tiers ARC-U-003 and ARC-U-016 cover.
+var statelessTiers = []string{"web", "api", "worker", "outbox"}
+
+// byKind indexes rendered objects of one kind by their component label.
+func byKind(objs []k8sObj, kind string) map[string]k8sObj {
+	out := map[string]k8sObj{}
+	for _, o := range objs {
+		if o.kind() == kind {
+			comp, _ := dig(o, "spec", "selector", "matchLabels", "app.kubernetes.io/component").(string)
+			out[comp] = o
+		}
+	}
+	return out
+}
+
+func asInt(v any) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case float64:
+		return int(n)
+	}
+	return -1
+}
+
+// podContainers returns the containers of a Deployment's pod template.
+func podContainers(o k8sObj) []map[string]any {
+	var out []map[string]any
+	list, _ := dig(o, "spec", "template", "spec", "containers").([]any)
+	for _, c := range list {
+		if m, ok := c.(map[string]any); ok {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// rule: ARC-U-003
+func TestARC_U_003_ZoneSpread(t *testing.T) {
+	objs := mustRender(t, map[string]any{"cell": "alpha"})
+	deps, pdbs := byKind(objs, "Deployment"), byKind(objs, "PodDisruptionBudget")
+	for _, tier := range statelessTiers {
+		t.Run(tier, func(t *testing.T) {
+			d, ok := deps[tier]
+			if !ok {
+				t.Fatalf("no Deployment for tier %s", tier)
+			}
+			if r := asInt(dig(d, "spec", "replicas")); r < 2 {
+				t.Errorf("replicas = %d, want >= 2", r)
+			}
+			spread, _ := dig(d, "spec", "template", "spec", "topologySpreadConstraints").([]any)
+			want := map[string]any{"maxSkew": 1, "topologyKey": "topology.kubernetes.io/zone", "whenUnsatisfiable": "DoNotSchedule"}
+			found := false
+			for _, c := range spread {
+				m, _ := c.(map[string]any)
+				if m["maxSkew"] == want["maxSkew"] && m["topologyKey"] == want["topologyKey"] && m["whenUnsatisfiable"] == want["whenUnsatisfiable"] &&
+					reflect.DeepEqual(dig(m, "labelSelector", "matchLabels"), dig(d, "spec", "selector", "matchLabels")) {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("no zone spread constraint %v selecting the tier's pods in %v", want, spread)
+			}
+			p, ok := pdbs[tier]
+			if !ok {
+				t.Fatalf("no PodDisruptionBudget for tier %s", tier)
+			}
+			if m := asInt(dig(p, "spec", "minAvailable")); m != 1 {
+				t.Errorf("PDB minAvailable = %d, want 1", m)
+			}
+			if !reflect.DeepEqual(dig(p, "spec", "selector"), dig(d, "spec", "selector")) {
+				t.Errorf("PDB selector %v does not match Deployment selector %v", dig(p, "spec", "selector"), dig(d, "spec", "selector"))
+			}
+		})
+	}
+}
+
+// rule: ARC-U-016
+func TestARC_U_016_RollingUpdate(t *testing.T) {
+	deps := byKind(mustRender(t, map[string]any{"cell": "alpha"}), "Deployment")
+	for _, tier := range statelessTiers {
+		t.Run(tier, func(t *testing.T) {
+			d := deps[tier]
+			if d == nil {
+				t.Fatalf("no Deployment for tier %s", tier)
+			}
+			tests := []struct {
+				name      string
+				got, want any
+			}{
+				{"strategy", dig(d, "spec", "strategy", "type"), "RollingUpdate"},
+				{"maxUnavailable 0", asInt(dig(d, "spec", "strategy", "rollingUpdate", "maxUnavailable")), 0},
+				{"maxSurge 1", asInt(dig(d, "spec", "strategy", "rollingUpdate", "maxSurge")), 1},
+				{"grace <= 30s", func() bool {
+					g := asInt(dig(d, "spec", "template", "spec", "terminationGracePeriodSeconds"))
+					return g > 10 && g <= 30
+				}(), true},
+			}
+			for _, c := range podContainers(d) {
+				tests = append(tests, struct {
+					name      string
+					got, want any
+				}{"preStop sleep 10", fmt.Sprint(dig(c, "lifecycle", "preStop", "exec", "command")), "[sleep 10]"})
+				// Tiers that serve HTTP must gate readiness on /readyz (DB + pooler).
+				if dig(c, "ports") != nil {
+					tests = append(tests, struct {
+						name      string
+						got, want any
+					}{"readiness /readyz", dig(c, "readinessProbe", "httpGet", "path"), "/readyz"})
+				}
+			}
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					if tt.got != tt.want {
+						t.Fatalf("got %v, want %v", tt.got, tt.want)
+					}
+				})
+			}
+		})
+	}
+	// The serving tiers must have a readiness probe, not just pass vacuously.
+	for _, tier := range []string{"web", "api"} {
+		cs := podContainers(deps[tier])
+		if len(cs) == 0 || dig(cs[0], "readinessProbe", "httpGet", "path") != "/readyz" {
+			t.Errorf("tier %s has no /readyz readiness probe", tier)
 		}
 	}
 }
