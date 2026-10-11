@@ -175,5 +175,6 @@ func appDefs() []feature.Def {
 		platform.TextTriageDef(),
 		platform.ProposeTemplateDef(),
 		platform.RiskDigestDef(),
+		platform.InsightsNoteDef(),
 	}
 }

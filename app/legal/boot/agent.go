@@ -362,6 +362,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		platform.AccessReviewDef().ID:      platform.AccessReviewBinding,
 		platform.TextTriageDef().ID:        platform.TextTriageBinding,
 		platform.RiskDigestDef().ID:        platform.RiskDigestBinding,
+		platform.InsightsNoteDef().ID:      platform.InsightsNoteBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).

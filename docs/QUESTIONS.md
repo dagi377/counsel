@@ -4310,3 +4310,14 @@ of FEAT-TIM-01 above.
   digest (no gate)"; the answer goes back through the run outcome only and is never stored
   (AI-R-005), so the reports screen needs a place to show the latest digest.
 - Branch is based on task/FEAT-PLT-21 (one platform helper file).
+
+## Q-FEAT-PLT-23 F-PLT-09 insights note: month-end cadence
+
+- The spec trigger "schedule (month end)" has no cadence word, so `trigger.ParseCadence`
+  reads it as daily. `platform.InsightsNoteBinding` sets `trigger.CadenceMonthly` (the first
+  business day of the month, covering the month just closed) on the designated binding.
+  Open: a month-end cadence in trigger, if the note must run on the last business day.
+- F-PLT-09 is a read-only chat with no screen action, so `firm-insights` needs no action
+  screen. Open, as for F-PLT-05: where the note is shown on firm-insights, since the answer
+  is never stored (AI-R-005).
+- Branch is based on task/FEAT-PLT-22 (one platform helper file).
