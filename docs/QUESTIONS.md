@@ -3235,4 +3235,11 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - Provenance: the access drafts carry no amount fields, and `draft_document` declares no
   provenance pointer. The tests check every date in a draft against the run's reads with
   `agenttools.Provenance` (`accSourcedDates`) and pin `ErrUnsourcedValue` for a date never read.
+- F-ACC-03 declares `access.GateReviewClose` (`core.review_close`, GA8); no constant existed.
+  Its quarterly run binds with `trigger.BindDesignated`. The `access-review` screen joins
+  `boot.actionScreens` with subject kind `matter` (no firm subject on main) and capability
+  `admin.access_review`.
+- AI-014 (`ai_f_acc_03_test.go`) moved to `package access_test` and `agenttest.FromFeature`;
+  its fixtures now draft with `draft_document` and submit the draft with the a2
+  `submit_for_approval` input, and the ok fixture pins `match.prompt_hash`.
 - Event types with no publisher yet: `user.invited` (F-ACC-02).

@@ -10,14 +10,14 @@ turns:
   - reply:
       tool_calls:
         - name: report_plan
-          input: {steps: [{id: draft-decisions, title: "Draft access review decisions for 2026-Q3"}]}
+          input: {steps: [{step_id: draft-decisions, title: "Draft access review decisions for 2026-Q3"}]}
+  - reply:
+      tool_calls:
+        - name: draft_document
+          input: {matter_id: "00000000-0000-4000-8000-0000000000ac", title: "Access review 2026-Q3: draft decisions", body_markdown: "Matter 2026-0042 (last activity 2026-07-14): u-clerk-ada keep, active on the matter; u-clerk-bo revoke, no activity this quarter."}
   - reply:
       tool_calls:
         - name: submit_for_approval
-          input:
-            kind: core.review_close
-            review: "2026-Q3"
-            decisions:
-              - {user: "u-clerk-ada", matter: "M-2026-0007", decision: keep, reason: "active on matter"}
+          input: {subject_type: document, subject_id: "00000000-0000-4000-8000-00000000a001", gate_kind: core.review_close}
   - reply:
-      text: "Drafted 1 access decision for your review."
+      text: "Drafted 2 access decisions for your review."

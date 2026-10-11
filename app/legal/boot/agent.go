@@ -260,7 +260,7 @@ func gateKindCodes() ([]string, error) {
 // ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-09,
 // F-CON-09, F-CON-11, F-CON-12, F-DOC-09; Q-INTEG-15A-SCHEDULED); empty fails with
 // trigger.ErrBadBinding. F-DL-05, F-DL-06, F-CON-05, F-CON-10, F-DOC-06, F-DOC-07, F-MAT-05,
-// F-MAT-09, F-MAT-14 and F-ACC-02 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
+// F-MAT-09, F-MAT-14, F-ACC-02 and F-ACC-03 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
 // job feature cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
@@ -317,6 +317,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		access.LicenceCheckDef().ID:                 access.LicenceCheckBinding,
+		access.AccessReviewPreFillDef().ID:          access.AccessReviewPreFillBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -420,6 +421,9 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Access administration. The firm has no firm-level subject yet, so the screen selects a
+	// matter (Q-FEAT-ACC-01).
+	"access-review": {SubjectKind: "matter", Capability: "admin.access_review"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

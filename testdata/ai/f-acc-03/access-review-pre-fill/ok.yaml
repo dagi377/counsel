@@ -1,7 +1,7 @@
 synthetic: true
 feature: F-ACC-03
 match:
-  prompt_hash: ""
+  prompt_hash: "817c684eb0da02827a594c2ac5678c5fa6b1fca9b0697a58cf812058645eb0b2"
   last_user_regex: "quarterly access review pre-fill"
 latency_ms: 0
 turns:
@@ -15,23 +15,25 @@ turns:
     reply:
       tool_calls:
         - name: report_plan
-          input: {steps: [{id: draft-decisions, title: "Draft access review decisions for 2026-Q3"}]}
+          input: {steps: [{step_id: draft-decisions, title: "Draft access review decisions for 2026-Q3"}]}
       stop_reason: tool_use
       usage: {input_tokens: 720, output_tokens: 28}
   - expect_tool_results: [report_plan]
     reply:
       tool_calls:
-        - name: submit_for_approval
-          input:
-            kind: core.review_close
-            review: "2026-Q3"
-            decisions:
-              - {user: "u-clerk-ada", matter: "M-2026-0007", decision: keep, reason: "active on matter"}
-              - {user: "u-clerk-bo", matter: "M-2026-0011", decision: revoke, reason: "no access in 90 days"}
+        - name: draft_document
+          input: {matter_id: "00000000-0000-4000-8000-0000000000ac", title: "Access review 2026-Q3: draft decisions", body_markdown: "Matter 2026-0042 (last activity 2026-07-14): u-clerk-ada keep, active on the matter; u-clerk-bo revoke, no activity this quarter."}
       stop_reason: tool_use
       usage: {input_tokens: 810, output_tokens: 96}
+  - expect_tool_results: [draft_document]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input: {subject_type: document, subject_id: "00000000-0000-4000-8000-00000000a001", gate_kind: core.review_close}
+      stop_reason: tool_use
+      usage: {input_tokens: 880, output_tokens: 32}
   - expect_tool_results: [submit_for_approval]
     reply:
       text: "Drafted 2 access decisions for your review."
       stop_reason: end_turn
-      usage: {input_tokens: 860, output_tokens: 12}
+      usage: {input_tokens: 960, output_tokens: 12}

@@ -118,5 +118,6 @@ func appDefs() []feature.Def {
 		matter.SummarizeThisWeekDef(),
 		// access
 		access.LicenceCheckDef(),
+		access.AccessReviewPreFillDef(),
 	}
 }
