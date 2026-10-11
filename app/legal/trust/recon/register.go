@@ -24,3 +24,12 @@ func Register(r registry.Registry) error {
 	}
 	return nil
 }
+
+func init() { add(registerReadRoutes) }
+
+// registerReadRoutes mounts GET /trust/reconciliations through Registry.Routes. Boot wiring
+// supplies the dependencies; until it does, the route answers 503.
+func registerReadRoutes(r registry.Registry) error {
+	r.Routes((&Reads{}).Routes)
+	return nil
+}
