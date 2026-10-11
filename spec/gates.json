@@ -453,7 +453,9 @@
         "matter_id",
         "amount_cents",
         "purpose_category",
-        "payee"
+        "payee",
+        "withdrawal_id",
+        "method"
       ],
       "properties": {
         "matter_id": {
@@ -487,6 +489,10 @@
             "cheque",
             "wire"
           ]
+        },
+        "withdrawal_id": {
+          "type": "string",
+          "format": "uuid"
         }
       }
     }
@@ -506,7 +512,8 @@
         "from_matter_id",
         "to_matter_id",
         "amount_cents",
-        "reason"
+        "reason",
+        "transfer_id"
       ],
       "properties": {
         "from_matter_id": {
@@ -524,6 +531,10 @@
         "reason": {
           "type": "string",
           "minLength": 1
+        },
+        "transfer_id": {
+          "type": "string",
+          "format": "uuid"
         }
       }
     }

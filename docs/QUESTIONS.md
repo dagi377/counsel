@@ -984,3 +984,34 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   CheckCitations validates it; quotes[i] is the name of contacts[i].
 - `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
   Q-FEAT-TOOL agent handler set), so the branches merge cleanly.
+
+## Q-W3-TRUST Trust review fixes: additive contract changes
+
+- Source: wave 2-3 review, trust items 2, 3, 10 and 11 (By-Law 9).
+- `migrations/5501_withdrawal_authority.sql` (app/legal/trust block, additive):
+  - `trust.withdrawal_request.authorized_at` / `expires_at` (nullable). `MarkAuthorized` sets
+    `expires_at = authorized_at + 72h` (`withdraw.AuthorizationTTL`, the G11 gate TTL).
+    `PGStore.Lock` fails closed once it has passed, and on any authorised row with no expiry
+    (rows authorised before this migration must be re-authorised). Expired holds are released
+    to `cancelled`: on the same ledger at the next authorisation, and by
+    `PGStore.ReleaseExpired`, which the boot-wiring task set must schedule as a periodic job.
+  - Trigger `withdrawal_terms_frozen`: amount, payee, ledger, method, bill, purpose, preparer
+    and receiving account never change once a withdrawal is proposed; editing is a new
+    request. `form_9a_doc_id` may be attached once while awaiting authorisation.
+  - Trigger `transfer_terms_frozen` on `trust.trust_transfer` once it leaves draft.
+  - Table `trust.form_9a_signature` (append-only): the Form 9A signer and signing time.
+    `PGEFTRecords` reads the signer from it, never the document uploader; no row, no record.
+    `PGEFTRecords.RecordSignature` writes it. (verify the Form 9A signing requirements)
+- `spec/gates.json` (additive): `trust.withdrawal` payload gains `withdrawal_id` and requires
+  it and `method`; `trust.transfer` gains and requires `transfer_id`.
+- `withdraw.EffectPayload` / `TransferPayload` carry the terms (amount, payee, method, matter;
+  for transfers amount and both matters). Apply and Execute fail closed on any mismatch with
+  the row. Execute re-reads the approved payload through `Effect.Approvals`
+  (`PGApprovals`: stored `payload_jcs` of the approved gate); nil means no execution.
+- `trust.Receipt.CashGateID`, `payment.Capture.Method/MatterID/CashExceptionCode/CashGateID`
+  (additive): an exception code passes the $7,500 cash limit only with an approved
+  `trust.cash_over_limit` (G6c) gate for the same matter, amount and code.
+  `trust.LedgerStore.CheckOperatingCash` is the operating-path check (same per-matter lock);
+  `payment.CheckCash` must be called by the Postgres Capture when it lands.
+- Not fixed here: `billing.cash_received_cents` still counts operating cash only through
+  allocations (billing.payment has no matter_id); needs its own additive change.

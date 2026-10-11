@@ -2,9 +2,12 @@ package trust
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/dagi377/counsel/app/legal/legalflags"
 )
@@ -28,6 +31,21 @@ const (
 	CashFineOrPenalty            = "fine_or_penalty"
 	CashFeesRefundedInCash       = "fees_refunded_in_cash"
 )
+
+// CashGateKind is the gate whose approval is the evidence for a cash exception (G6c).
+const CashGateKind = "trust.cash_over_limit"
+
+// ErrCashGateRequired is returned, together with ErrCashLimit, when cash at or over the limit
+// carries an exception code but no approved trust.cash_over_limit gate for this matter,
+// amount and code.
+var ErrCashGateRequired = errors.New("trust: cash exception needs an approved trust.cash_over_limit gate")
+
+// CashGate is the approved payload of a trust.cash_over_limit gate.
+type CashGate struct {
+	MatterID    string `json:"matter_id"`
+	AmountCents int64  `json:"amount_cents"`
+	Exception   string `json:"exception"`
+}
 
 // validCashException reports whether code is a known By-Law 9 s.6 exception.
 func validCashException(code string) bool {
@@ -56,6 +74,9 @@ type cashRepo interface {
 	// cashReceivedCents is cash received on the matter: trust cash receipts plus operating
 	// cash payments.
 	cashReceivedCents(ctx context.Context, tx pgx.Tx, matterID string) (int64, error)
+	// approvedCashGate returns the payload of gate id when it is an approved
+	// trust.cash_over_limit gate, or ErrNotFound.
+	approvedCashGate(ctx context.Context, tx pgx.Tx, id string) (CashGate, error)
 }
 
 func (s *LedgerStore) cashRepo() (cashRepo, error) {
@@ -107,26 +128,81 @@ func (s *LedgerStore) CheckCash(ctx context.Context, matterID string, amountCent
 }
 
 // checkCashReceipt is the Receive check for cash: it refuses a cash receipt that brings the
-// file to the limit unless it carries a By-Law 9 s.6 exception code. Other methods pass.
+// file to the limit unless it carries a By-Law 9 s.6 exception code backed by an approved
+// G6c gate. Other methods pass.
 func checkCashReceipt(ctx context.Context, s *LedgerStore, tx pgx.Tx, l Ledger, r Receipt) error {
 	if r.Method != MethodCash {
 		return nil
 	}
+	return s.enforceCash(ctx, tx, l.MatterID, r.AmountCents, r.CashExceptionCode, r.CashGateID)
+}
+
+// CheckOperatingCash is the cash limit on the operating payment path: a cash payment of
+// amountCents into operating on matterID, in the payment's tx. It takes the same per-matter
+// cash lock as a trust cash receipt and counts trust and operating cash together. At or over
+// the limit it needs exceptionCode and an approved G6c gate (gateID) for this matter, amount
+// and code. It fails closed while FlagBylaw9Verified is off.
+func (s *LedgerStore) CheckOperatingCash(ctx context.Context, tx pgx.Tx, matterID string, amountCents int64, exceptionCode, gateID string) error {
+	if matterID == "" || amountCents <= 0 {
+		return fmt.Errorf("operating cash: %w", ErrInvalid)
+	}
+	if err := s.enforceCash(ctx, tx, matterID, amountCents, exceptionCode, gateID); err != nil {
+		return fmt.Errorf("operating cash: %w", err)
+	}
+	return nil
+}
+
+// enforceCash is the one cash-limit enforcement, shared by the trust receipt and operating
+// payment paths.
+func (s *LedgerStore) enforceCash(ctx context.Context, tx pgx.Tx, matterID string, amountCents int64, code, gateID string) error {
 	// rule: BIL-L-039 (verify)
-	// Fails closed: an unconfirmed cash rule never lets cash into trust unchecked.
+	// Fails closed: an unconfirmed cash rule never lets cash in unchecked.
 	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return fmt.Errorf("cash limit: %w", ErrUnverified)
 	}
-	if r.CashExceptionCode != "" && !validCashException(r.CashExceptionCode) {
+	if code != "" && !validCashException(code) {
 		return fmt.Errorf("cash exception code: %w", ErrInvalid)
 	}
-	c, err := s.checkCashTx(ctx, tx, l.MatterID, r.AmountCents)
+	c, err := s.checkCashTx(ctx, tx, matterID, amountCents)
 	if err != nil {
 		return fmt.Errorf("cash limit: %w", err)
 	}
+	if !c.Blocked {
+		return nil
+	}
 	// rule: BIL-L-039 (verify)
-	if c.Blocked && r.CashExceptionCode == "" {
+	if code == "" {
 		return fmt.Errorf("cash on file %d: %w", c.TotalCents, ErrCashLimit)
+	}
+	// An exception code is a claim; the approved G6c gate is the evidence for it.
+	if err := s.checkCashGate(ctx, tx, matterID, amountCents, code, gateID); err != nil {
+		return err
+	}
+	return nil
+}
+
+// checkCashGate requires gateID to be an approved trust.cash_over_limit gate for exactly this
+// matter, amount and exception code.
+func (s *LedgerStore) checkCashGate(ctx context.Context, tx pgx.Tx, matterID string, amountCents int64, code, gateID string) error {
+	refused := func(why string) error {
+		return fmt.Errorf("cash exception %s: %w: %w", why, ErrCashLimit, ErrCashGateRequired)
+	}
+	if gateID == "" {
+		return refused("no gate")
+	}
+	c, err := s.cashRepo()
+	if err != nil {
+		return err
+	}
+	g, err := c.approvedCashGate(ctx, tx, gateID)
+	if errors.Is(err, ErrNotFound) {
+		return refused("gate not approved")
+	}
+	if err != nil {
+		return fmt.Errorf("cash gate: %w", err)
+	}
+	if g.MatterID != matterID || g.AmountCents != amountCents || g.Exception != code {
+		return refused("gate is for other terms")
 	}
 	return nil
 }
@@ -151,4 +227,25 @@ func (pgLedgerRepo) cashReceivedCents(ctx context.Context, tx pgx.Tx, matterID s
 		return 0, fmt.Errorf("cash received: %w", err)
 	}
 	return cents, nil
+}
+
+// approvedCashGateSQL reads the stored payload of an approved G6c gate. A gate opened before
+// payloads were stored has none and is not evidence.
+const approvedCashGateSQL = `SELECT payload_jcs FROM gate.approval_request
+WHERE id = $1::uuid AND gate_code = $2 AND status = 'approved' AND payload_jcs IS NOT NULL`
+
+func (pgLedgerRepo) approvedCashGate(ctx context.Context, tx pgx.Tx, id string) (CashGate, error) {
+	var raw []byte
+	if err := tx.QueryRow(ctx, approvedCashGateSQL, id, CashGateKind).Scan(&raw); err != nil {
+		var pg *pgconn.PgError
+		if errors.Is(err, pgx.ErrNoRows) || (errors.As(err, &pg) && pg.Code == pgInvalidText) {
+			return CashGate{}, ErrNotFound
+		}
+		return CashGate{}, fmt.Errorf("cash gate: %w", err)
+	}
+	var g CashGate
+	if err := json.Unmarshal(raw, &g); err != nil {
+		return CashGate{}, fmt.Errorf("cash gate payload: %w", err)
+	}
+	return g, nil
 }
