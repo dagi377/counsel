@@ -1,0 +1,3536 @@
+{
+ "area": "access",
+ "title": "Access & roles",
+ "summary": "Firm roles, a per-capability permission matrix, matter-level teams, restricted matters and ethical walls, and separation of duties. Running the system and seeing client confidences are different powers: the system administrator cannot open matter content or move trust money. Approvals are always by someone other than the maker, and the agent never approves.",
+ "screens": [
+  {
+   "id": "roles-list",
+   "name": "Roles",
+   "route": "/settings/access/roles",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Lists the firm's roles, how many people hold each, and which roles carry licensee-only powers.",
+   "layout": "Table of roles with a lock badge on built-in roles. Right panel: what the selected role can and cannot do, in plain language.",
+   "fields": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "note": "Unique within firm"
+    },
+    {
+     "name": "based_on",
+     "type": "ref",
+     "required": false,
+     "note": "Built-in role it was copied from"
+    },
+    {
+     "name": "licensee_only",
+     "type": "bool",
+     "required": true,
+     "note": "Set by system if any licensee-only capability is granted"
+    },
+    {
+     "name": "members",
+     "type": "number",
+     "required": true,
+     "note": "Active users with this role"
+    },
+    {
+     "name": "changed_at",
+     "type": "date",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Copy role",
+     "by": "human",
+     "gate": "none",
+     "note": "Custom roles start as a copy of a built-in role"
+    },
+    {
+     "name": "Retire role",
+     "by": "human",
+     "gate": "approve",
+     "note": "Only when it has no members"
+    },
+    {
+     "name": "Explain role",
+     "by": "agent",
+     "gate": "none",
+     "note": "Writes a plain summary of the role"
+    }
+   ],
+   "agent": "Flags roles that break a duty rule (for example a custom role with both trust.request and trust.authorize) and roles nobody holds.",
+   "gate": "Retiring or creating a role that grants any approve-level capability needs a firm owner other than the editor.",
+   "states": [
+    "built-ins only",
+    "custom roles present",
+    "role with conflict flag"
+   ],
+   "edge": [
+    "Built-in roles cannot be edited, only copied",
+    "A custom role cannot grant more than the strongest built-in role for that capability"
+   ],
+   "reg": "RPC 6.1 (supervision): roles for non-licensees cannot carry approve-level legal capabilities (verify rule number).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Role",
+     "Type",
+     "Members",
+     "Licensee only",
+     "Flags"
+    ],
+    "rows": [
+     [
+      "Firm owner",
+      "built-in",
+      "1",
+      "yes",
+      ""
+     ],
+     [
+      "Lawyer (responsible)",
+      "built-in",
+      "1",
+      "yes",
+      ""
+     ],
+     [
+      "Bookkeeper",
+      "built-in",
+      "1",
+      "no",
+      ""
+     ],
+     [
+      "Senior clerk (custom)",
+      "custom",
+      "1",
+      "no",
+      "1 duty conflict"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "role-editor",
+   "name": "Role editor",
+   "route": "/settings/access/roles/:id",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Sets what a role can do, grouped by area, with one level per capability.",
+   "layout": "Left: area groups (intake, conflicts, documents, matters, deadlines, work, time, billing, trust, platform, admin). Centre: capability rows with a level picker (none, view, own, all, approve). Right: live duty check and a diff against the base role.",
+   "fields": [
+    {
+     "name": "capability",
+     "type": "ref",
+     "required": true,
+     "note": "From the capability list"
+    },
+    {
+     "name": "level",
+     "type": "enum",
+     "required": true,
+     "note": "none|view|own|all|approve"
+    },
+    {
+     "name": "licensee_required",
+     "type": "bool",
+     "required": true,
+     "note": "Read only; approve on legal or trust capabilities needs a licensee role"
+    },
+    {
+     "name": "change_reason",
+     "type": "text",
+     "required": true,
+     "note": "Shown in the audit log"
+    },
+    {
+     "name": "rates_view",
+     "type": "enum",
+     "required": true,
+     "note": "rates.view level: none|own|all. Governs whose hourly rates show in time entry, bills and reports; reports never widen it"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Change level",
+     "by": "human",
+     "gate": "none",
+     "note": "Saved as a draft"
+    },
+    {
+     "name": "Submit changes",
+     "by": "human",
+     "gate": "approve",
+     "note": "Goes to a firm owner who did not make the change"
+    },
+    {
+     "name": "Check duties",
+     "by": "agent",
+     "gate": "none",
+     "note": "Runs the duty rules against the draft"
+    }
+   ],
+   "agent": "Runs every duty rule against the draft and blocks submit on a hard conflict, explains soft ones.",
+   "gate": "A firm owner other than the editor approves the role diff before it takes effect.",
+   "states": [
+    "draft",
+    "pending approval",
+    "active",
+    "rejected"
+   ],
+   "edge": [
+    "Admin edits a role they hold: allowed as draft, but the approver must be someone else and the admin cannot raise their own role",
+    "Lowering a role while members are mid-task: open approvals they hold are reassigned",
+    "Role holds reports.firm but rates.view own: productivity reports show hours and others' amounts without rates; rate columns masked"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Capability",
+     "Base",
+     "Draft"
+    ],
+    "rows": [
+     [
+      "trust.request",
+      "none",
+      "own"
+     ],
+     [
+      "billing.draft",
+      "own",
+      "own"
+     ],
+     [
+      "trust.authorize",
+      "none",
+      "none (locked: licensee only)"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "user-list",
+   "name": "Users",
+   "route": "/settings/access/users",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Lists every person with access, their role, licence status, sign-in health, and pending invites.",
+   "layout": "Table with filters (role, status, licensee, external, MFA method). Top bar: Invite user, Invite several users, read-only seats-in-use counter. Side panel: invite form or list upload with a per-row check result.",
+   "fields": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "email",
+     "type": "email",
+     "required": true,
+     "note": "Work email; SSO domain if set"
+    },
+    {
+     "name": "role",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "lso_number",
+     "type": "text",
+     "required": false,
+     "note": "Required for licensee roles; checked against the LSO directory (verify available lookup)"
+    },
+    {
+     "name": "supervisor",
+     "type": "ref",
+     "required": false,
+     "note": "Required for clerk and other non-licensee legal staff"
+    },
+    {
+     "name": "expires_on",
+     "type": "date",
+     "required": false,
+     "note": "Required for auditor and temporary staff"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "invited|pending approval|active|suspended|removed"
+    },
+    {
+     "name": "mfa_method",
+     "type": "enum",
+     "required": true,
+     "note": "passkey|totp|push; MFA is mandatory, there is no off value"
+    },
+    {
+     "name": "last_sign_in",
+     "type": "datetime",
+     "required": false,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Invite user",
+     "by": "human",
+     "gate": "approve",
+     "note": "Admin invites; owner approves licensee or approve-level roles"
+    },
+    {
+     "name": "Suspend",
+     "by": "human",
+     "gate": "none",
+     "note": "Immediate; ends sessions"
+    },
+    {
+     "name": "Remove",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner confirms; only for users with nothing to hand over, otherwise Offboard runs first"
+    },
+    {
+     "name": "Check licence",
+     "by": "agent",
+     "gate": "none",
+     "note": "Looks up licence status"
+    },
+    {
+     "name": "Invite several users",
+     "by": "human",
+     "gate": "approve",
+     "note": "Paste a list or upload CSV (email, name, role, LSO number, supervisor, expiry); agent checks each row, then each row follows the single-invite gate (GA2)"
+    },
+    {
+     "name": "Pre-check invite list",
+     "by": "agent",
+     "gate": "none",
+     "note": "Looks up licence status, flags non-licensees without a supervisor, duplicate emails and emails that match a client contact"
+    },
+    {
+     "name": "Offboard",
+     "by": "human",
+     "gate": "approve",
+     "note": "Opens the offboard-user wizard; replaces a bare Remove for anyone holding matters, tasks or signing authority"
+    }
+   ],
+   "agent": "Checks licence numbers on invite and monthly, warns when a licensee's status changes, and lists users with no sign-in for 60 days.",
+   "gate": "Owner approves activation of any user whose role holds approve-level or trust capabilities.",
+   "states": [
+    "no users besides owner",
+    "invites pending",
+    "suspended users present"
+   ],
+   "edge": [
+    "Same email already a client contact",
+    "Licensee status lapses: user drops to clerk-level access automatically pending owner review",
+    "Last owner tries to remove themselves: blocked",
+    "CSV row with a licensee role but no LSO number: row held, rest of the list proceeds",
+    "Invited user's email domain is not a verified domain while SSO is enforced: invite blocked until the domain is added or a local-login exception is approved"
+   ],
+   "reg": "By-Law 7.1: work by non-licensees needs a supervising licensee (verify section).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Name",
+     "Role",
+     "Licence",
+     "Supervisor",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Linda Kassim",
+      "Firm owner",
+      "LSO L-xxxx",
+      "",
+      "active"
+     ],
+     [
+      "Ayo Ewebiyi",
+      "Lawyer",
+      "LSO L-xxxx",
+      "",
+      "active"
+     ],
+     [
+      "Meraf Abay",
+      "Law clerk",
+      "",
+      "Ayo Ewebiyi",
+      "active"
+     ],
+     [
+      "Kaleab Bereket",
+      "Bookkeeper",
+      "",
+      "Linda Kassim",
+      "active"
+     ],
+     [
+      "Yohannes Sinke",
+      "Read-only auditor",
+      "",
+      "",
+      "invited, expires 2026-12-31"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "user-detail",
+   "name": "User access",
+   "route": "/settings/access/users/:id",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Shows everything one person can reach and why: role, extra grants, matters, walls, signatory status, sessions.",
+   "layout": "Header with role, licence, MFA method. Tabs: effective permissions, authority limits, matters, teams, walls, trust signatory, sessions and devices, history.",
+   "fields": [
+    {
+     "name": "role",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "extra_grants",
+     "type": "list",
+     "required": false,
+     "note": "Time-boxed additions, each with reason and expiry"
+    },
+    {
+     "name": "matters",
+     "type": "list",
+     "required": true,
+     "note": "Team memberships"
+    },
+    {
+     "name": "walls",
+     "type": "list",
+     "required": false,
+     "note": "Walls blocking this user"
+    },
+    {
+     "name": "signatory",
+     "type": "ref",
+     "required": false,
+     "note": "Trust accounts and bond status"
+    },
+    {
+     "name": "mfa",
+     "type": "enum",
+     "required": true,
+     "note": "Method (passkey|totp|push) and last verified; mandatory for every user, no off switch"
+    },
+    {
+     "name": "sessions",
+     "type": "list",
+     "required": true,
+     "note": "Active sessions: device, IP, place (approx.), signed in, last seen; each can be ended"
+    },
+    {
+     "name": "authority_limits",
+     "type": "list",
+     "required": false,
+     "note": "Per-person caps checked by gates on top of role: max write-down %, max trust withdrawal amount, practice areas cleared to approve"
+    },
+    {
+     "name": "teams",
+     "type": "list",
+     "required": false,
+     "note": "Named teams the user belongs to"
+    },
+    {
+     "name": "failed_sign_ins",
+     "type": "number",
+     "required": false,
+     "note": "Count since last success; lockout after the firm's threshold"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Add temporary grant",
+     "by": "human",
+     "gate": "approve",
+     "note": "Expiry required; owner approves"
+    },
+    {
+     "name": "Revoke sessions",
+     "by": "human",
+     "gate": "none",
+     "note": "Ends one or all sessions and revokes app tokens at once"
+    },
+    {
+     "name": "Explain access",
+     "by": "agent",
+     "gate": "none",
+     "note": "Answers why can this person see matter X"
+    },
+    {
+     "name": "Reset MFA",
+     "by": "human",
+     "gate": "approve",
+     "note": "Admin requests; owner approves (GA11). An owner's MFA is never reset by an admin alone"
+    },
+    {
+     "name": "Set authority limits",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner approves (GA14)"
+    },
+    {
+     "name": "Unlock sign-in",
+     "by": "human",
+     "gate": "none",
+     "note": "After a lockout; logged"
+    },
+    {
+     "name": "Offboard",
+     "by": "human",
+     "gate": "approve",
+     "note": "Opens offboard-user"
+    }
+   ],
+   "agent": "Answers access questions with the exact chain (role, team, grant, wall) and flags grants past expiry.",
+   "gate": "Owner approves any temporary grant; trust signatory changes route to the trust signatories gate.",
+   "states": [
+    "active",
+    "suspended",
+    "pending approval"
+   ],
+   "edge": [
+    "User is a client contact on a matter they also work on",
+    "User on a wall and on the matter team at once: wall wins, team entry flagged",
+    "Authority limit lower than the role allows: the limit wins; the gate shows which limit stopped it",
+    "Lost MFA device on the only owner: recovery through firm-verified identity check with support, logged and time-delayed (verify process)"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "detail",
+    "columns": [
+     "Section",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Role",
+      "Law clerk"
+     ],
+     [
+      "Supervisor",
+      "Ayo Ewebiyi"
+     ],
+     [
+      "Matters",
+      "14 (team)"
+     ],
+     [
+      "Walls",
+      "Blocked from 1 matter"
+     ],
+     [
+      "MFA",
+      "on"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "matter-access",
+   "name": "Matter team and access",
+   "route": "/matters/:id/access",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "Sets who works on one matter and how open it is.",
+   "layout": "Top: visibility (firm-open, team-only, restricted). Middle: team table (person, matter role, level, since). Bottom: walls touching this matter and break-glass history.",
+   "fields": [
+    {
+     "name": "visibility",
+     "type": "enum",
+     "required": true,
+     "note": "firm-open|team-only|restricted"
+    },
+    {
+     "name": "responsible_lawyer",
+     "type": "ref",
+     "required": true,
+     "note": "Licensee"
+    },
+    {
+     "name": "team_member",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "matter_role",
+     "type": "enum",
+     "required": false,
+     "note": "responsible|working|support|billing|observer"
+    },
+    {
+     "name": "level",
+     "type": "enum",
+     "required": false,
+     "note": "view|edit"
+    },
+    {
+     "name": "team_ref",
+     "type": "ref",
+     "required": false,
+     "note": "A named team added as a block; members listed and expanded"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Add team member",
+     "by": "human",
+     "gate": "approve",
+     "note": "Responsible lawyer approves when visibility is restricted"
+    },
+    {
+     "name": "Change visibility",
+     "by": "human",
+     "gate": "approve",
+     "note": "Responsible lawyer"
+    },
+    {
+     "name": "Suggest team",
+     "by": "agent",
+     "gate": "none",
+     "note": "From practice area and workload"
+    }
+   ],
+   "agent": "Suggests a team, checks every proposed member against walls and conflicts, and flags members idle on the matter for 90 days.",
+   "gate": "Responsible lawyer approves team changes on restricted matters and any change of visibility.",
+   "states": [
+    "firm-open",
+    "team-only",
+    "restricted",
+    "walled"
+   ],
+   "edge": [
+    "Admin sees this screen with names only and cannot add themselves",
+    "Responsible lawyer leaves the firm: matter cannot sit without one",
+    "Team added to a matter later gains a member who is walled off: wall wins, member excluded and flagged"
+   ],
+   "reg": "RPC 3.3 confidentiality (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Person",
+     "Matter role",
+     "Level",
+     "Since"
+    ],
+    "rows": [
+     [
+      "Ayo Ewebiyi",
+      "responsible",
+      "edit",
+      "2026-03-02"
+     ],
+     [
+      "Meraf Abay",
+      "working",
+      "edit",
+      "2026-03-02"
+     ],
+     [
+      "Kaleab Bereket",
+      "billing",
+      "view (financial only)",
+      "2026-03-10"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "restricted-walls",
+   "name": "Restricted matters and walls",
+   "route": "/settings/access/restricted",
+   "who": [
+    "lawyer",
+    "admin",
+    "auditor"
+   ],
+   "purpose": "One register of every restricted matter and ethical wall, with proof each block is enforced.",
+   "layout": "Two tables: restricted matters, active walls. Each wall row expands to screened people, blocked matters, undertakings, enforcement tests.",
+   "fields": [
+    {
+     "name": "wall",
+     "type": "ref",
+     "required": true,
+     "note": "Created from conflicts clearance"
+    },
+    {
+     "name": "screened_users",
+     "type": "list",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "blocked_matters",
+     "type": "list",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "undertakings",
+     "type": "file",
+     "required": true,
+     "note": "Signed by each screened person"
+    },
+    {
+     "name": "effective_from",
+     "type": "date",
+     "required": true,
+     "note": "Must predate the screened person's arrival or the matter"
+    },
+    {
+     "name": "last_enforcement_test",
+     "type": "date",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Lift wall",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner or responsible lawyer, not a screened person"
+    },
+    {
+     "name": "Run enforcement test",
+     "by": "agent",
+     "gate": "none",
+     "note": "Tries access as each screened user"
+    }
+   ],
+   "agent": "Each night, tries reads as each screened user across search, documents, reports, the agent and exports, and opens an incident if any read gets through.",
+   "gate": "Lifting a wall or un-restricting a matter needs a lawyer who is neither screened nor the requester.",
+   "states": [
+    "no walls",
+    "walls active",
+    "enforcement failure"
+   ],
+   "edge": [
+    "Screened user is a firm owner: wall still applies; the other owner approves",
+    "Agent asked by a screened user about a walled matter: answers as if the matter does not exist",
+    "Admin sees wall metadata only"
+   ],
+   "reg": "RPC 3.4 screening on lateral moves (verify rule and commentary).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Wall",
+     "Screened",
+     "Matters",
+     "Since",
+     "Last test"
+    ],
+    "rows": [
+     [
+      "W-3 Habesha Imports v. Northline",
+      "Yonathan Degu",
+      "2",
+      "2026-05-01",
+      "pass, 2026-10-09"
+     ],
+     [
+      "Restricted: R. Tesfaye estate",
+      "team only",
+      "1",
+      "2026-07-15",
+      "pass, 2026-10-09"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "duty-rules",
+   "name": "Separation of duties",
+   "route": "/settings/access/duties",
+   "who": [
+    "lawyer",
+    "admin",
+    "auditor"
+   ],
+   "purpose": "Shows the duty rules, which are on, and every current conflict between rules and people.",
+   "layout": "List of rules (locked rules marked). Each rule shows people or roles in breach, and any owner-approved exception with expiry.",
+   "fields": [
+    {
+     "name": "rule",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "locked",
+     "type": "bool",
+     "required": true,
+     "note": "Locked rules cannot be turned off"
+    },
+    {
+     "name": "exception",
+     "type": "text",
+     "required": false,
+     "note": "Small firm exceptions, reason and expiry"
+    },
+    {
+     "name": "breaches",
+     "type": "list",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Grant exception",
+     "by": "human",
+     "gate": "approve",
+     "note": "Only for unlocked rules; two owners if available, else owner plus outside reviewer note"
+    },
+    {
+     "name": "Scan now",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Scans roles, grants, signatories and recent approvals for breaches daily.",
+   "gate": "An exception to an unlocked rule needs an owner, expiry and reason.",
+   "states": [
+    "clean",
+    "breaches open",
+    "exception active"
+   ],
+   "edge": [
+    "Sole practitioner: no second approver exists; system records self-approval as a declared exception and adds a 24-hour cooling-off delay on trust actions"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Rule",
+     "Locked",
+     "Breaches"
+    ],
+    "rows": [
+     [
+      "Maker cannot approve own item",
+      "yes",
+      "0"
+     ],
+     [
+      "Trust requester is not authorizer",
+      "yes",
+      "0"
+     ],
+     [
+      "Bookkeeper cannot sign off reconciliation",
+      "yes",
+      "0"
+     ],
+     [
+      "Two signatories for withdrawals over $25,000",
+      "no",
+      "exception to 2026-12-31"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "break-glass",
+   "name": "Break-glass access",
+   "route": "/access/break-glass",
+   "who": [
+    "lawyer",
+    "owner",
+    "auditor"
+   ],
+   "purpose": "Emergency access to a matter a licensee cannot normally see, logged and reviewed after.",
+   "layout": "Request form, then a banner on every page while active. List of past uses with review status.",
+   "fields": [
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "reason",
+     "type": "enum",
+     "required": true,
+     "note": "client-emergency|limitation-today|court-order|staff-absent|other"
+    },
+    {
+     "name": "explanation",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "duration",
+     "type": "enum",
+     "required": true,
+     "note": "1h|4h|end of day"
+    },
+    {
+     "name": "reviewer",
+     "type": "ref",
+     "required": true,
+     "note": "Auto: an owner who is not the requester"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Open break-glass",
+     "by": "human",
+     "gate": "none",
+     "note": "Immediate; reviewer notified at once"
+    },
+    {
+     "name": "End early",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Review use",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Reviewer confirms or raises an incident"
+    }
+   ],
+   "agent": "Records every page and file touched during the session, and drafts the review summary for the reviewer.",
+   "gate": "After the fact: a different owner signs off every use within 2 business days.",
+   "states": [
+    "active",
+    "awaiting review",
+    "reviewed ok",
+    "incident"
+   ],
+   "edge": [
+    "Walled matter: break-glass is blocked for screened users entirely",
+    "No trust or billing actions allowed under break-glass",
+    "Admin cannot use break-glass",
+    "Vendor support never uses break-glass; it needs a support-access grant from an owner"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "When",
+     "Who",
+     "Matter",
+     "Reason",
+     "Review"
+    ],
+    "rows": [
+     [
+      "2026-09-28 18:10",
+      "Ayo Ewebiyi",
+      "M-0412 Abebe custody",
+      "limitation-today",
+      "ok (Linda Kassim)"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "access-review",
+   "name": "Access review",
+   "route": "/settings/access/reviews",
+   "who": [
+    "owner",
+    "lawyer",
+    "admin",
+    "auditor"
+   ],
+   "purpose": "Quarterly check that every user, grant, team membership and signatory is still right.",
+   "layout": "Campaign header with due date. Per-reviewer list: each item with keep, change, remove. Progress bar.",
+   "fields": [
+    {
+     "name": "campaign",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "item",
+     "type": "ref",
+     "required": true,
+     "note": "user role|temporary grant|matter team|signatory|external user"
+    },
+    {
+     "name": "reviewer",
+     "type": "ref",
+     "required": true,
+     "note": "Responsible lawyer for teams; owner for roles and signatories"
+    },
+    {
+     "name": "decision",
+     "type": "enum",
+     "required": true,
+     "note": "keep|change|remove"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Start campaign",
+     "by": "human",
+     "gate": "none",
+     "note": "Admin starts"
+    },
+    {
+     "name": "Decide item",
+     "by": "human",
+     "gate": "sign-off",
+     "note": ""
+    },
+    {
+     "name": "Pre-fill",
+     "by": "agent",
+     "gate": "none",
+     "note": "Suggests decisions from activity"
+    }
+   ],
+   "agent": "Pre-fills suggested decisions (unused 90 days, left firm, matter closed) and chases reviewers.",
+   "gate": "Each reviewer signs off their items; an owner signs the campaign closed. No one reviews their own access.",
+   "states": [
+    "not started",
+    "in progress",
+    "overdue",
+    "closed"
+   ],
+   "edge": [
+    "Reviewer is on the list being reviewed: item goes to another owner"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Item",
+     "Reviewer",
+     "Suggested",
+     "Decision"
+    ],
+    "rows": [
+     [
+      "Yohannes Sinke auditor access",
+      "Linda Kassim",
+      "remove (expired)",
+      ""
+     ],
+     [
+      "Meraf Abay on M-0388 (closed)",
+      "Ayo Ewebiyi",
+      "remove",
+      "remove"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "access-audit",
+   "name": "Access audit log",
+   "route": "/settings/access/audit",
+   "who": [
+    "owner",
+    "admin",
+    "auditor"
+   ],
+   "purpose": "Append-only record of every access change, sensitive read, export, break-glass and denied attempt.",
+   "layout": "Tabs: Events (filterable timeline; each event shows actor and on whose behalf, target, before and after, outcome) and Sign-ins (all users: time, IP, device, result; filter by user and date). Filter chips: agent actions, support actions.",
+   "fields": [
+    {
+     "name": "at",
+     "type": "datetime",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "actor",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "on_behalf_of",
+     "type": "ref",
+     "required": false,
+     "note": "For agent actions"
+    },
+    {
+     "name": "event",
+     "type": "enum",
+     "required": true,
+     "note": "grant|revoke|role-change|wall|restrict|break-glass|export|denied|sign-in|sign-in-failed|mfa-reset|support-access|offboard|setting-change"
+    },
+    {
+     "name": "target",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "detail",
+     "type": "json",
+     "required": true,
+     "note": "No content, metadata only"
+    },
+    {
+     "name": "ip",
+     "type": "text",
+     "required": false,
+     "note": "Sign-ins tab"
+    },
+    {
+     "name": "device",
+     "type": "text",
+     "required": false,
+     "note": "Sign-ins tab"
+    },
+    {
+     "name": "result",
+     "type": "enum",
+     "required": false,
+     "note": "Sign-ins tab: ok|failed|locked|sso|new-device"
+    },
+    {
+     "name": "actor_kind",
+     "type": "enum",
+     "required": true,
+     "note": "human|agent|support|integration; filter shows agent actions or vendor support actions alone"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Export log",
+     "by": "human",
+     "gate": "none",
+     "note": "Itself logged"
+    },
+    {
+     "name": "Explain pattern",
+     "by": "agent",
+     "gate": "none",
+     "note": "Summarizes unusual events"
+    },
+    {
+     "name": "Export sign-ins",
+     "by": "human",
+     "gate": "none",
+     "note": "CSV of the Sign-ins tab; itself logged"
+    }
+   ],
+   "agent": "Flags unusual patterns: repeated denied reads, bulk downloads, off-hours access to restricted matters.",
+   "gate": "none",
+   "states": [
+    "empty",
+    "events"
+   ],
+   "edge": [
+    "Admin view hides matter names on restricted matters",
+    "Log cannot be edited or deleted by any role",
+    "Sign-in from a new device: the user gets an email at once; repeated new-device sign-ins feed Anomaly watch",
+    "Vendor support actions appear with actor_kind support and the grant they ran under"
+   ],
+   "reg": "Firm should keep access records as long as the related matter records (verify retention period).",
+   "mock": {
+    "kind": "timeline",
+    "columns": [
+     "When",
+     "Actor",
+     "Event",
+     "Target"
+    ],
+    "rows": [
+     [
+      "2026-10-09 09:12",
+      "Linda Kassim",
+      "role-change approved",
+      "Meraf Abay"
+     ],
+     [
+      "2026-10-09 22:40",
+      "agent for Meraf Abay",
+      "denied",
+      "walled matter M-0377"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "offboard-user",
+   "name": "Offboard a person",
+   "route": "/settings/access/users/:id/offboard",
+   "who": [
+    "owner",
+    "admin",
+    "lawyer",
+    "agent"
+   ],
+   "purpose": "Hand over everything a departing person holds, then end their access in one step without losing history.",
+   "layout": "Stepper: 1 inventory, 2 successors, 3 approvals, 4 cut-off. Inventory table grouped by kind; right panel shows approvals outstanding.",
+   "fields": [
+    {
+     "name": "departing_user",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "last_day",
+     "type": "datetime",
+     "required": true,
+     "note": "Access ends at this time; can be 'now'"
+    },
+    {
+     "name": "items",
+     "type": "list",
+     "required": true,
+     "note": "Open and closed matters (responsible or team), work items, running timers, unsubmitted time, upcoming events and deadlines, trust signatory status, pending approvals they hold, teams, integrations they connected"
+    },
+    {
+     "name": "successor",
+     "type": "ref",
+     "required": true,
+     "note": "Per item; defaults from the agent's proposal"
+    },
+    {
+     "name": "unsubmitted_time",
+     "type": "enum",
+     "required": true,
+     "note": "submit for them as draft|hand to supervisor|discard with reason"
+    },
+    {
+     "name": "client_notice",
+     "type": "bool",
+     "required": false,
+     "note": "Draft a change-of-lawyer letter for each affected client (verify LSO notice duties)"
+    },
+    {
+     "name": "keep_rates",
+     "type": "bool",
+     "required": true,
+     "note": "Always true: rates and history stay attached to past entries"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Propose successors",
+     "by": "agent",
+     "gate": "none",
+     "note": "Picks per item from the matter team, practice area and current workload, with a one-line reason"
+    },
+    {
+     "name": "Request handover approval",
+     "by": "human",
+     "gate": "approve",
+     "note": "Each matter's responsible lawyer approves the new responsible or team member (GA12)"
+    },
+    {
+     "name": "Remove signing authority",
+     "by": "human",
+     "gate": "approve",
+     "note": "Routes to the trust signatory gate (GA6)"
+    },
+    {
+     "name": "Cut off access",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner confirms; ends all sessions, revokes app and integration tokens, disables sign-in, keeps the user record"
+    },
+    {
+     "name": "Reactivate",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner; restores role only, not old grants"
+    }
+   ],
+   "agent": "Builds the inventory, proposes successors with reasons, drafts client notices and a handover note per matter, and checks nothing is left orphaned before cut-off.",
+   "gate": "Responsible lawyer approves each matter handover; owner approves signatory removal and the final cut-off.",
+   "states": [
+    "inventory",
+    "successors proposed",
+    "pending approvals",
+    "scheduled cut-off",
+    "offboarded",
+    "reactivated"
+   ],
+   "edge": [
+    "Closed matters are reassigned too, so later records requests have an owner",
+    "Departing person is the only signatory on a trust account: cut-off blocked until a second signatory is in place",
+    "Departing person is the responsible lawyer and also the only approver on a matter: owner must name a successor",
+    "Urgent departure: cut-off now, handover approvals continue afterwards; items stay with the supervising owner meanwhile",
+    "Person holds an open break-glass or temporary grant: ended at cut-off and logged"
+   ],
+   "reg": "LSO rules on a lawyer leaving a firm and client choice of counsel apply; client notice wording to be checked (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Item",
+     "Kind",
+     "Proposed successor",
+     "Approval"
+    ],
+    "rows": [
+     [
+      "M-0412 Abebe custody",
+      "matter (responsible)",
+      "Ayo Ewebiyi",
+      "pending (Linda Kassim)"
+     ],
+     [
+      "Draft affidavit",
+      "work item",
+      "Meraf Abay",
+      "n/a"
+     ],
+     [
+      "3.2 h unsubmitted",
+      "time",
+      "hand to supervisor",
+      "n/a"
+     ],
+     [
+      "Mixed trust account",
+      "signatory",
+      "remove",
+      "pending (GA6)"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "sign-in-settings",
+   "name": "Sign-in and security settings",
+   "route": "/settings/access/sign-in",
+   "who": [
+    "owner",
+    "admin",
+    "auditor"
+   ],
+   "purpose": "Set how people sign in: single sign-on, verified domains, MFA methods, lockout and session limits.",
+   "layout": "Sections: single sign-on, verified domains, MFA, lockout, sessions, network. Each section shows current value, draft value and approval status.",
+   "fields": [
+    {
+     "name": "idp_protocol",
+     "type": "enum",
+     "required": false,
+     "note": "oidc|saml (OIDC first, SAML later)"
+    },
+    {
+     "name": "idp_config",
+     "type": "json",
+     "required": false,
+     "note": "Issuer, client id, metadata URL; secret held by the platform, never shown"
+    },
+    {
+     "name": "verified_domains",
+     "type": "list",
+     "required": false,
+     "note": "Domain plus verification record and status"
+    },
+    {
+     "name": "enforce_sso",
+     "type": "bool",
+     "required": true,
+     "note": "When on, local passwords stop except owner break-glass local login"
+    },
+    {
+     "name": "mfa_methods",
+     "type": "enum",
+     "required": true,
+     "note": "passkey|totp|push; at least one; MFA itself cannot be turned off"
+    },
+    {
+     "name": "lockout_threshold",
+     "type": "number",
+     "required": true,
+     "note": "Failed attempts before lockout; default 5"
+    },
+    {
+     "name": "session_lifetime",
+     "type": "duration",
+     "required": true,
+     "note": "Default 12h"
+    },
+    {
+     "name": "idle_timeout",
+     "type": "duration",
+     "required": true,
+     "note": "Default 30m"
+    },
+    {
+     "name": "ip_allowlist",
+     "type": "list",
+     "required": false,
+     "note": "Optional CIDR list; owners keep a recovery path"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Verify domain",
+     "by": "human",
+     "gate": "none",
+     "note": "Admin adds a DNS record; status updates when found"
+    },
+    {
+     "name": "Test sign-in",
+     "by": "human",
+     "gate": "none",
+     "note": "Admin tries the IdP in a side window before saving"
+    },
+    {
+     "name": "Submit changes",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner approves (GA10)"
+    },
+    {
+     "name": "Explain change",
+     "by": "agent",
+     "gate": "none",
+     "note": "States who would be locked out or forced to re-enrol by the draft"
+    }
+   ],
+   "agent": "Before approval, lists users who would lose access (no verified domain, no MFA method allowed, IP outside list) and suggests fixes.",
+   "gate": "Owner approves every change to sign-in, MFA, lockout, session or network rules.",
+   "states": [
+    "defaults",
+    "draft",
+    "pending approval",
+    "active",
+    "IdP error"
+   ],
+   "edge": [
+    "IdP outage while SSO is enforced: owner break-glass local login with MFA, logged and reviewed",
+    "Draft would lock out every owner: submit blocked",
+    "Domain verification pending longer than 72h: shown as stalled with the expected record"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Setting",
+     "Current",
+     "Draft"
+    ],
+    "rows": [
+     [
+      "Single sign-on",
+      "off",
+      "OIDC, lkl.example"
+     ],
+     [
+      "MFA methods",
+      "passkey, totp",
+      "passkey, totp"
+     ],
+     [
+      "Idle timeout",
+      "30 min",
+      "20 min"
+     ],
+     [
+      "Lockout",
+      "5 attempts",
+      "5 attempts"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "support-access",
+   "name": "Vendor support access",
+   "route": "/settings/access/support",
+   "who": [
+    "owner",
+    "admin",
+    "auditor"
+   ],
+   "purpose": "Let our support staff into the firm's cell only when an owner grants it, for a set scope and time.",
+   "layout": "Top: current grant (none by default). Request card from support with reason. Below: past grants with every action taken under each.",
+   "fields": [
+    {
+     "name": "request_reason",
+     "type": "text",
+     "required": true,
+     "note": "From support or the firm's admin"
+    },
+    {
+     "name": "scope",
+     "type": "enum",
+     "required": true,
+     "note": "settings-only|named-matter-metadata|named-matter-content"
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": "Required for matter scopes; walled matters cannot be chosen"
+    },
+    {
+     "name": "expires_at",
+     "type": "datetime",
+     "required": true,
+     "note": "Max 72h; default 4h"
+    },
+    {
+     "name": "granted_by",
+     "type": "ref",
+     "required": true,
+     "note": "An owner"
+    },
+    {
+     "name": "actions_log",
+     "type": "list",
+     "required": true,
+     "note": "Every support action, from access-audit"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Request support access",
+     "by": "human",
+     "gate": "none",
+     "note": "Admin or support files a request"
+    },
+    {
+     "name": "Grant",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner only (GA13)"
+    },
+    {
+     "name": "Revoke now",
+     "by": "human",
+     "gate": "none",
+     "note": "Any owner or admin; immediate"
+    },
+    {
+     "name": "Summarize session",
+     "by": "agent",
+     "gate": "none",
+     "note": "Plain-language list of what support viewed or changed"
+    }
+   ],
+   "agent": "Summarizes what support did under each grant and flags anything outside the scope.",
+   "gate": "Owner grants each support access with scope and expiry; no standing access.",
+   "states": [
+    "none",
+    "requested",
+    "active",
+    "expired",
+    "revoked"
+   ],
+   "edge": [
+    "Support cannot move money, change access, approve gates or export data under any scope",
+    "Grant expires mid-session: session ends at once",
+    "Support account is not a firm user and never appears in user-list or seat counts"
+   ],
+   "reg": "Client confidentiality: content scope should be rare and justified; record the reason for the LSO file (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Granted",
+     "By",
+     "Scope",
+     "Expires",
+     "Actions"
+    ],
+    "rows": [
+     [
+      "2026-10-02 10:05",
+      "Linda Kassim",
+      "settings-only",
+      "2026-10-02 14:05",
+      "3 (summary ok)"
+     ],
+     [
+      "-",
+      "-",
+      "none active",
+      "-",
+      "-"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "teams",
+   "name": "Teams",
+   "route": "/settings/access/teams",
+   "who": [
+    "owner",
+    "admin",
+    "lawyer",
+    "auditor"
+   ],
+   "purpose": "Named groups of people reused in matter teams, calendar sharing and rate tables.",
+   "layout": "Table of teams with members and where used (matters, calendars, rate tables). Side panel: edit members; archive flow.",
+   "fields": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "note": "e.g. Real estate team"
+    },
+    {
+     "name": "members",
+     "type": "list",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "lead",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "used_in",
+     "type": "list",
+     "required": true,
+     "note": "Read only: matters, calendar shares, rate tables"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "active|archived"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Create team",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Change members",
+     "by": "human",
+     "gate": "none",
+     "note": "Restricted matters using the team still need GA4 for the new member"
+    },
+    {
+     "name": "Archive team",
+     "by": "human",
+     "gate": "none",
+     "note": "Requires choosing a replacement or removal for every place it is used"
+    }
+   ],
+   "agent": "On archive, lists every place the team is used and proposes a replacement.",
+   "gate": "none (matter effects go through GA4)",
+   "states": [
+    "no teams",
+    "active",
+    "archived"
+   ],
+   "edge": [
+    "Archiving never leaves the team behind on matters, calendars or rate tables",
+    "Admin sees team names and members, not the matters' content"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Team",
+     "Members",
+     "Used in"
+    ],
+    "rows": [
+     [
+      "Real estate",
+      "Ayo Ewebiyi, Meraf Abay",
+      "22 matters, 1 rate table"
+     ],
+     [
+      "Family",
+      "Linda Kassim, Yonathan Degu",
+      "14 matters, calendar"
+     ]
+    ]
+   }
+  }
+ ],
+ "entities": [
+  {
+   "name": "Role",
+   "fields": [
+    "id",
+    "name",
+    "built_in",
+    "based_on",
+    "licensee_only",
+    "status"
+   ],
+   "relations": [
+    "Grant many",
+    "User many"
+   ]
+  },
+  {
+   "name": "Grant",
+   "fields": [
+    "role_id",
+    "capability_id",
+    "level"
+   ],
+   "relations": [
+    "Role",
+    "Capability"
+   ]
+  },
+  {
+   "name": "Capability",
+   "fields": [
+    "id",
+    "name",
+    "area",
+    "licensee_required_for_approve"
+   ],
+   "relations": [
+    "Grant many"
+   ]
+  },
+  {
+   "name": "User",
+   "fields": [
+    "id",
+    "name",
+    "email",
+    "role_id",
+    "lso_number?",
+    "licence_status",
+    "supervisor_id?",
+    "expires_on?",
+    "mfa_method",
+    "mfa_verified_at",
+    "failed_sign_ins",
+    "status",
+    "offboarded_at?"
+   ],
+   "relations": [
+    "Role",
+    "TeamMember many",
+    "TempGrant many",
+    "Signatory many",
+    "Team many",
+    "AuthorityLimit many",
+    "Session many"
+   ]
+  },
+  {
+   "name": "TempGrant",
+   "fields": [
+    "id",
+    "user_id",
+    "capability_id",
+    "level",
+    "matter_id?",
+    "reason",
+    "approved_by",
+    "expires_at"
+   ],
+   "relations": [
+    "User"
+   ]
+  },
+  {
+   "name": "TeamMember",
+   "fields": [
+    "matter_id",
+    "user_id",
+    "matter_role",
+    "level",
+    "from",
+    "to"
+   ],
+   "relations": [
+    "Matter",
+    "User"
+   ]
+  },
+  {
+   "name": "MatterVisibility",
+   "fields": [
+    "matter_id",
+    "mode(firm-open|team-only|restricted)",
+    "set_by",
+    "approved_by"
+   ],
+   "relations": [
+    "Matter"
+   ]
+  },
+  {
+   "name": "Wall",
+   "fields": [
+    "id",
+    "reason",
+    "effective_from",
+    "lifted_at?",
+    "approved_by"
+   ],
+   "relations": [
+    "screened User many",
+    "blocked Matter many",
+    "Undertaking many",
+    "EnforcementTest many"
+   ]
+  },
+  {
+   "name": "DutyRule",
+   "fields": [
+    "id",
+    "text",
+    "locked",
+    "exception?",
+    "exception_expires?"
+   ],
+   "relations": [
+    "Breach many"
+   ]
+  },
+  {
+   "name": "BreakGlass",
+   "fields": [
+    "id",
+    "user_id",
+    "matter_id",
+    "reason",
+    "explanation",
+    "start",
+    "end",
+    "reviewer_id",
+    "review_outcome"
+   ],
+   "relations": [
+    "AccessEvent many"
+   ]
+  },
+  {
+   "name": "AccessReview",
+   "fields": [
+    "id",
+    "period",
+    "due",
+    "status",
+    "closed_by"
+   ],
+   "relations": [
+    "ReviewItem many"
+   ]
+  },
+  {
+   "name": "AccessEvent",
+   "fields": [
+    "id",
+    "at",
+    "actor_id",
+    "on_behalf_of?",
+    "event",
+    "target",
+    "before",
+    "after",
+    "outcome"
+   ],
+   "relations": [
+    "append-only"
+   ]
+  },
+  {
+   "name": "Team",
+   "fields": [
+    "id",
+    "name",
+    "lead_id?",
+    "status"
+   ],
+   "relations": [
+    "User many-to-many",
+    "TeamMember (matter) many",
+    "RateTable many",
+    "CalendarShare many"
+   ]
+  },
+  {
+   "name": "AuthorityLimit",
+   "fields": [
+    "id",
+    "user_id",
+    "kind(writedown_pct|trust_withdrawal_max|practice_area)",
+    "value",
+    "approved_by",
+    "from",
+    "to?"
+   ],
+   "relations": [
+    "User"
+   ]
+  },
+  {
+   "name": "SignInPolicy",
+   "fields": [
+    "firm_id",
+    "idp_protocol?",
+    "idp_config_ref?",
+    "verified_domains",
+    "enforce_sso",
+    "mfa_methods",
+    "lockout_threshold",
+    "session_lifetime",
+    "idle_timeout",
+    "ip_allowlist?",
+    "approved_by"
+   ],
+   "relations": [
+    "Firm"
+   ]
+  },
+  {
+   "name": "Session",
+   "fields": [
+    "id",
+    "user_id",
+    "device",
+    "ip",
+    "started_at",
+    "last_seen",
+    "ended_at?",
+    "end_reason?"
+   ],
+   "relations": [
+    "User"
+   ]
+  },
+  {
+   "name": "SupportGrant",
+   "fields": [
+    "id",
+    "reason",
+    "scope",
+    "matter_id?",
+    "granted_by",
+    "starts_at",
+    "expires_at",
+    "revoked_at?"
+   ],
+   "relations": [
+    "AccessEvent many"
+   ]
+  },
+  {
+   "name": "OffboardingPlan",
+   "fields": [
+    "id",
+    "user_id",
+    "last_day",
+    "items",
+    "status",
+    "cutoff_by",
+    "cutoff_at?"
+   ],
+   "relations": [
+    "User",
+    "Matter many"
+   ]
+  },
+  {
+   "name": "Breach",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by access relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "EnforcementTest",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by access relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "ReviewItem",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by access relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "Undertaking",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by access, conflicts relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  }
+ ],
+ "gates": [
+  {
+   "id": "GA1",
+   "name": "Role change",
+   "approver": "owner (not the editor)",
+   "blocks": "A new or edited role taking effect"
+  },
+  {
+   "id": "GA2",
+   "name": "User activation",
+   "approver": "owner",
+   "blocks": "Activation of any user whose role holds approve-level, trust or firm-wide matter access"
+  },
+  {
+   "id": "GA3",
+   "name": "Temporary grant",
+   "approver": "owner (not the recipient)",
+   "blocks": "Extra access beyond the user's role"
+  },
+  {
+   "id": "GA4",
+   "name": "Matter visibility and team",
+   "approver": "responsible lawyer",
+   "blocks": "Restricting or opening a matter; team changes on restricted matters"
+  },
+  {
+   "id": "GA5",
+   "name": "Wall lift",
+   "approver": "lawyer not screened and not the requester",
+   "blocks": "Removing a wall or a screened person from it"
+  },
+  {
+   "id": "GA6",
+   "name": "Trust signatory",
+   "approver": "owner who already holds signing authority, plus a second signatory where one exists",
+   "blocks": "Adding or removing a trust signatory"
+  },
+  {
+   "id": "GA7",
+   "name": "Break-glass review",
+   "approver": "owner other than the user",
+   "blocks": "Closing a break-glass record; repeat use by the same user after an unreviewed one"
+  },
+  {
+   "id": "GA8",
+   "name": "Access review close",
+   "approver": "owner",
+   "blocks": "Closing the quarterly campaign"
+  },
+  {
+   "id": "GA9",
+   "name": "Bulk export",
+   "approver": "two owners, or owner plus 24h delay for a sole owner",
+   "blocks": "Any firm-wide data export"
+  },
+  {
+   "id": "GA10",
+   "name": "Sign-in settings",
+   "approver": "owner (not the editor)",
+   "blocks": "Any change to SSO, verified domains, MFA methods, lockout, session limits or IP list"
+  },
+  {
+   "id": "GA11",
+   "name": "MFA reset",
+   "approver": "owner other than the user; for an owner, a second owner (sole owner: identity check plus 24h delay)",
+   "blocks": "Clearing a user's MFA enrolment"
+  },
+  {
+   "id": "GA12",
+   "name": "Offboarding handover",
+   "approver": "responsible lawyer of each matter; owner for final cut-off",
+   "blocks": "Moving a departing person's matters and closing their account"
+  },
+  {
+   "id": "GA13",
+   "name": "Vendor support access",
+   "approver": "owner",
+   "blocks": "Any support staff access to the firm's cell"
+  },
+  {
+   "id": "GA14",
+   "name": "Authority limit",
+   "approver": "owner (not the person limited)",
+   "blocks": "Setting, raising or removing a per-person authority limit"
+  }
+ ],
+ "agent_jobs": [
+  {
+   "name": "Duty scan",
+   "trigger": "schedule (daily) and on role or grant change",
+   "does": "Checks roles, grants, signatories and approvals against duty rules",
+   "output": "breach list for duty-rules; blocks GA1 submit on hard conflicts"
+  },
+  {
+   "name": "Wall enforcement test",
+   "trigger": "schedule (nightly)",
+   "does": "Attempts reads as each screened user across all surfaces including the agent itself",
+   "output": "test record; incident if any read succeeds"
+  },
+  {
+   "name": "Licence check",
+   "trigger": "on invite and monthly",
+   "does": "Checks licensee status for licensee roles",
+   "output": "warning and automatic downgrade proposal for GA2"
+  },
+  {
+   "name": "Access review pre-fill",
+   "trigger": "schedule (quarterly)",
+   "does": "Suggests keep/remove per item from activity",
+   "output": "draft decisions for GA8"
+  },
+  {
+   "name": "Break-glass summary",
+   "trigger": "event (session ends)",
+   "does": "Lists everything touched",
+   "output": "summary for GA7"
+  },
+  {
+   "name": "Anomaly watch",
+   "trigger": "event (access events)",
+   "does": "Spots bulk downloads, repeated denials, off-hours reads of restricted matters",
+   "output": "alert to owners"
+  },
+  {
+   "name": "Offboarding plan",
+   "trigger": "event (Offboard started)",
+   "does": "Inventories everything the person holds and proposes a successor per item from team, practice area and workload",
+   "output": "draft handover for GA12"
+  },
+  {
+   "name": "Invite list check",
+   "trigger": "event (list or CSV uploaded)",
+   "does": "Checks licence status, supervisor, duplicates and client-contact matches per row",
+   "output": "row results on user-list; rows ready for GA2"
+  },
+  {
+   "name": "Sign-in watch",
+   "trigger": "event (sign-in)",
+   "does": "Detects new devices, repeated failures and sign-ins outside the IP list",
+   "output": "email to the user; alert to owner on lockout or repeated new devices"
+  },
+  {
+   "name": "Support grant expiry",
+   "trigger": "schedule (every minute while a grant is active)",
+   "does": "Ends expired support grants and summarizes actions taken",
+   "output": "summary on support-access"
+  }
+ ],
+ "sod": [
+  "No one approves, authorizes or signs off an item they created, edited or requested; the agent counts as the human it acted for.",
+  "The agent never approves, authorizes, executes trust payments, changes access or lifts walls.",
+  "The system administrator cannot open matter content, see billing or trust amounts, use break-glass, or approve any gate.",
+  "No one can change their own role, grants, team membership or wall status.",
+  "Trust withdrawals and transfers are authorized only by a designated licensee signatory who is not the requester.",
+  "The person who executes a trust payment at the bank is not the person who authorized it (where the firm has two people).",
+  "Bookkeeper prepares reconciliations; a licensee signatory signs them off.",
+  "Trust signatories are added only by an owner who already holds signing authority.",
+  "Bills are approved by a lawyer, not by the bookkeeper who prepared them; write-offs approved by a lawyer other than the requester.",
+  "Wall lifts need a lawyer who is neither screened nor the requester.",
+  "Break-glass use is reviewed by a different owner; break-glass never allows money or access changes.",
+  "Access reviews are certified by someone other than the person reviewed.",
+  "Read-only auditor access always has an expiry.",
+  "Sole practitioner: self-approval is allowed only as a declared, logged exception with a cooling-off delay on trust and export actions.",
+  "MFA resets and authority-limit changes are approved by someone other than the person affected.",
+  "Vendor support never holds standing access; each grant is owner-approved, scoped, time-limited and logged."
+ ],
+ "clio_compare": [
+  {
+   "topic": "Administrator power",
+   "clio": "One administrator role holds every right: settings, users, firm data, and bank and trust account powers the firm cannot switch off. An admin can be left off a matter's permission list but can still list such matters and bulk-change their permissions, so can re-grant themselves any matter.",
+   "ours": "Split system admin (runs the system, names only) from firm owner (licensee). Admin cannot read privileged content or move money; firm owners are bound by walls too."
+  },
+  {
+   "topic": "Permission model",
+   "clio": "Every user holds one or more roles (most permissive wins). Five built-in roles act as templates; custom roles toggle per-area permissions and are a top-tier feature (CA: Signature/Elite unlimited, a small cap on Core; none on Starter). Timekeeping scope is all / accessible matters / own.",
+   "ours": "One capability matrix with five levels (none, view, own, all, approve) per capability, so scope and approval power are explicit."
+  },
+  {
+   "topic": "Reports",
+   "clio": "Users with the reports permission see the firm dashboard and productivity reports for colleagues; whether rates leak this way is unproven (verify), since the detailed annual report also needs billing permission and unrestricted rate visibility.",
+   "ours": "Reports inherit the underlying capability; a user only sees figures they could see on the source screens."
+  },
+  {
+   "topic": "Firm feed / activity",
+   "clio": "Firm-wide activity feed visible to administrators by default; others need a custom role permission (help.clio.com/hc/articles/9200279456667).",
+   "ours": "Access audit log shows metadata only; restricted matter names hidden from the admin; reading the log is itself logged."
+  },
+  {
+   "topic": "Matter visibility",
+   "clio": "Matters open to everyone by default; can be limited to specific users or groups, at most 20 entries combined; any user can set it while creating or editing a matter.",
+   "ours": "Three modes (firm-open, team-only, restricted) set at opening, with responsible-lawyer approval; no cap on team size."
+  },
+  {
+   "topic": "Ethical walls",
+   "clio": "Done by blocking users from matters, one at a time or in bulk.",
+   "ours": "Walls are first-class records created from conflict clearance, with undertakings, effective date proof and nightly enforcement tests, including against the agent."
+  },
+  {
+   "topic": "Trust",
+   "clio": "Accounts permission covers bank and trust accounts; trust request flows exist but signing authority is not tied to licence status.",
+   "ours": "Request, authorize, execute and sign-off are separate capabilities; authorize needs a designated licensee signatory, and requester cannot authorize."
+  },
+  {
+   "topic": "Client portal",
+   "clio": "Portal access shared per matter with contacts; firm chooses what to share.",
+   "ours": "Same idea, plus client role cannot see anything not explicitly released through a documents.release gate."
+  },
+  {
+   "topic": "Intake CRM users",
+   "clio": "Grow users are Normal or Admin, separate from Manage roles; the newer Admin Console manages users, roles and licences across products, and Manage licence changes mirror to Grow.",
+   "ours": "One role model across intake and matters, so a person has one set of rights."
+  },
+  {
+   "topic": "Apps and API",
+   "clio": "Third-party apps use OAuth 2.0 authorization code; access is the app's scopes combined with the authorizing user's own role permissions.",
+   "ours": "Integrations act under a service identity with a named capability set and never above the connecting admin; the agent runs as the requesting human, reduced by its own column."
+  },
+  {
+   "topic": "Break-glass and reviews",
+   "clio": "No logged emergency access or periodic access certification found; an admin can simply re-grant themselves any matter.",
+   "ours": "Break-glass with mandatory after-review, and quarterly access reviews."
+  },
+  {
+   "topic": "Rate visibility",
+   "clio": "Per-user setting (all, own, none) for whose hourly rates show when entering time; set by admins.",
+   "ours": "rates.view is a capability in the matrix (none, own, all) and every report and screen honours it, so rates never leak through reports."
+  },
+  {
+   "topic": "Offboarding",
+   "clio": "Deactivate keeps history; Reassign Work moves tasks (sources differ on matters and events) from open matters only; closed-matter work cannot move; licence stays billed until removed.",
+   "ours": "Offboard wizard inventories matters (open and closed), work, time, events and signatory status; agent proposes successors; responsible lawyers approve handovers; cut-off ends sessions and tokens at once."
+  },
+  {
+   "topic": "Sign-in security",
+   "clio": "MFA administered per user and mandatory from January 2026 per help text; SAML SSO with domain verification on top tiers; login activity and device sessions with forced logout; email on unrecognised device.",
+   "ours": "MFA mandatory with passkey or TOTP from day one; OIDC SSO first, SAML later; idle timeout, lockout and optional IP list; all changes owner-approved; firm-wide Sign-ins tab in the access audit."
+  },
+  {
+   "topic": "Support access",
+   "clio": "Support needs explicit in-app permission from the firm for temporary, logged, revocable data access.",
+   "ours": "Same principle, plus scope levels (settings, matter metadata, matter content), walled matters excluded, owner-only grant, and an agent summary of every support session."
+  },
+  {
+   "topic": "Groups and teams",
+   "clio": "Admin-defined groups used for matter permissions, calendar sharing and client rates; archiving a group leaves it on matters, calendars and rates.",
+   "ours": "Teams work the same way, but archiving forces a replacement wherever the team is used."
+  },
+  {
+   "topic": "Authority limits",
+   "clio": "Not found in Manage; Clio Operate (enterprise) ties approvals to competencies and authority limits.",
+   "ours": "Per-person authority limits (write-down %, trust withdrawal amount, practice areas) checked by gates in addition to role."
+  }
+ ],
+ "roles": [
+  {
+   "id": "owner",
+   "name": "Firm owner",
+   "licensee": true,
+   "desc": "Licensee who owns or manages the firm. Holds final approval for roles, signatories, rule packs and retention. Sees all matters except those walled off from them. Two owners are recommended so no owner approves their own access."
+  },
+  {
+   "id": "admin",
+   "name": "System administrator",
+   "licensee": false,
+   "desc": "Runs the system: users, sign-in and security, integrations, templates, automation settings. Sees matter names and numbers only. Cannot open matter content, see billing or trust figures, or approve anything that grants access."
+  },
+  {
+   "id": "lawyer",
+   "name": "Lawyer (responsible)",
+   "licensee": true,
+   "desc": "Licensed lawyer who can be responsible lawyer on matters. Sees all non-restricted matters, approves engagement, clearance, bills, deadlines and, if designated, trust withdrawals."
+  },
+  {
+   "id": "associate",
+   "name": "Associate",
+   "licensee": true,
+   "desc": "Licensed lawyer working on matters they are on the team for. Approves deadlines and documents on those matters; cannot approve bills, trust or firm settings by default."
+  },
+  {
+   "id": "paralegal",
+   "name": "Paralegal (licensee)",
+   "licensee": true,
+   "desc": "LSO-licensed paralegal. Works team matters within their licensed scope; can do second checks on deadlines; cannot give final approval on matters outside paralegal scope (verify scope per practice area)."
+  },
+  {
+   "id": "clerk",
+   "name": "Law clerk / assistant",
+   "licensee": false,
+   "desc": "Non-licensee staff working team matters under a named supervising licensee. Prepares and drafts; never approves; work going to a client goes through a licensee gate."
+  },
+  {
+   "id": "bookkeeper",
+   "name": "Bookkeeper",
+   "licensee": false,
+   "desc": "Keeps books: time review, bills, payments, trust postings and reconciliations. Can execute an authorized trust payment at the bank if bonded and given signing authority (verify). Never authorizes trust withdrawals or signs off a reconciliation."
+  },
+  {
+   "id": "auditor",
+   "name": "Read-only auditor",
+   "licensee": false,
+   "desc": "Time-boxed, read-only access for an external accountant, LSO spot auditor or internal compliance reviewer. Sees financial records, registers and audit logs. No matter documents unless an owner grants a named matter."
+  },
+  {
+   "id": "client",
+   "name": "Client (portal)",
+   "licensee": false,
+   "desc": "External person with portal access to their own matters only: shared documents, invoices, trust balance, messages, signing and ID checks."
+  },
+  {
+   "id": "agent",
+   "name": "Agent",
+   "licensee": false,
+   "desc": "The AI agent. Acts only inside the scope of the job or the human who asked it, and only on matters that human can see. Drafts, matches, checks. Never approves, never authorizes money, never changes access."
+  }
+ ],
+ "matrix": {
+  "levels": {
+   "none": "no access",
+   "view": "read only",
+   "own": "only matters the user is on the team for, or items assigned to them",
+   "all": "every matter the user is not walled off from",
+   "approve": "all, plus eligible to approve the gate (never their own item; trust also needs signatory designation)"
+  },
+  "capabilities": [
+   {
+    "id": "intake.leads",
+    "name": "View and work leads",
+    "area": "intake"
+   },
+   {
+    "id": "intake.forms",
+    "name": "Build intake forms",
+    "area": "intake"
+   },
+   {
+    "id": "intake.convert",
+    "name": "Convert lead to matter / approve engagement",
+    "area": "intake"
+   },
+   {
+    "id": "conflicts.run",
+    "name": "Run conflict search",
+    "area": "conflicts"
+   },
+   {
+    "id": "conflicts.clear",
+    "name": "Clear a conflict check",
+    "area": "conflicts"
+   },
+   {
+    "id": "conflicts.walls",
+    "name": "Create or lift an ethical wall",
+    "area": "conflicts"
+   },
+   {
+    "id": "conflicts.identify",
+    "name": "Verify client identity",
+    "area": "conflicts"
+   },
+   {
+    "id": "matters.directory",
+    "name": "See matter names and numbers (no content)",
+    "area": "matters"
+   },
+   {
+    "id": "matters.view",
+    "name": "Open matter content",
+    "area": "matters"
+   },
+   {
+    "id": "matters.edit",
+    "name": "Edit matter details and parties",
+    "area": "matters"
+   },
+   {
+    "id": "matters.open",
+    "name": "Open a new matter",
+    "area": "matters"
+   },
+   {
+    "id": "matters.team",
+    "name": "Change a matter's team and access",
+    "area": "matters"
+   },
+   {
+    "id": "matters.restrict",
+    "name": "Mark a matter restricted",
+    "area": "matters"
+   },
+   {
+    "id": "matters.close",
+    "name": "Close a matter",
+    "area": "matters"
+   },
+   {
+    "id": "contacts.view",
+    "name": "View contacts",
+    "area": "matters"
+   },
+   {
+    "id": "contacts.edit",
+    "name": "Edit contacts",
+    "area": "matters"
+   },
+   {
+    "id": "documents.view",
+    "name": "View matter documents",
+    "area": "documents"
+   },
+   {
+    "id": "documents.edit",
+    "name": "Create and edit documents",
+    "area": "documents"
+   },
+   {
+    "id": "documents.release",
+    "name": "Release a document or agent draft to a client or other side",
+    "area": "documents"
+   },
+   {
+    "id": "documents.templates",
+    "name": "Manage templates and precedents",
+    "area": "documents"
+   },
+   {
+    "id": "deadlines.view",
+    "name": "View deadlines",
+    "area": "deadlines"
+   },
+   {
+    "id": "deadlines.edit",
+    "name": "Add or change deadlines",
+    "area": "deadlines"
+   },
+   {
+    "id": "deadlines.verify",
+    "name": "Second-check a deadline",
+    "area": "deadlines"
+   },
+   {
+    "id": "deadlines.rules",
+    "name": "Install or change rule packs",
+    "area": "deadlines"
+   },
+   {
+    "id": "work.view",
+    "name": "View work items",
+    "area": "work"
+   },
+   {
+    "id": "work.edit",
+    "name": "Create and update work items",
+    "area": "work"
+   },
+   {
+    "id": "work.approve",
+    "name": "Approve a work item gate",
+    "area": "work"
+   },
+   {
+    "id": "work.workflows",
+    "name": "Edit workflows and templates",
+    "area": "work"
+   },
+   {
+    "id": "time.record",
+    "name": "Record own time and expenses",
+    "area": "time"
+   },
+   {
+    "id": "time.view_all",
+    "name": "View everyone's time",
+    "area": "time"
+   },
+   {
+    "id": "time.approve",
+    "name": "Approve timesheets",
+    "area": "time"
+   },
+   {
+    "id": "time.rates",
+    "name": "Set billing rates",
+    "area": "time"
+   },
+   {
+    "id": "time.writedown",
+    "name": "Write down or write off time",
+    "area": "time"
+   },
+   {
+    "id": "billing.view",
+    "name": "View bills and receivables",
+    "area": "billing"
+   },
+   {
+    "id": "billing.draft",
+    "name": "Prepare bills",
+    "area": "billing"
+   },
+   {
+    "id": "billing.approve",
+    "name": "Approve a bill for sending",
+    "area": "billing"
+   },
+   {
+    "id": "billing.payments",
+    "name": "Record payments",
+    "area": "billing"
+   },
+   {
+    "id": "billing.credit",
+    "name": "Issue credit notes and write-offs",
+    "area": "billing"
+   },
+   {
+    "id": "billing.writeoff_second_approve",
+    "name": "Second-approve a write-off above the firm threshold (managing lawyer)",
+    "area": "billing"
+   },
+   {
+    "id": "trust.view",
+    "name": "View trust ledgers and journals",
+    "area": "trust"
+   },
+   {
+    "id": "trust.record",
+    "name": "Post receipts and corrections",
+    "area": "trust"
+   },
+   {
+    "id": "trust.request",
+    "name": "Request a trust withdrawal or transfer",
+    "area": "trust"
+   },
+   {
+    "id": "trust.authorize",
+    "name": "Authorize trust withdrawal or transfer (designated signatory only)",
+    "area": "trust"
+   },
+   {
+    "id": "trust.execute",
+    "name": "Execute an authorized payment at the bank",
+    "area": "trust"
+   },
+   {
+    "id": "trust.reconcile",
+    "name": "Prepare monthly reconciliation",
+    "area": "trust"
+   },
+   {
+    "id": "trust.signoff",
+    "name": "Sign off monthly reconciliation",
+    "area": "trust"
+   },
+   {
+    "id": "trust.signatories",
+    "name": "Manage trust accounts and signatories",
+    "area": "trust"
+   },
+   {
+    "id": "reports.firm",
+    "name": "Firm financial and productivity reports",
+    "area": "platform"
+   },
+   {
+    "id": "platform.portal",
+    "name": "Share to and message in the client portal",
+    "area": "platform"
+   },
+   {
+    "id": "platform.agent_settings",
+    "name": "Change automation and agent settings",
+    "area": "platform"
+   },
+   {
+    "id": "platform.integrations",
+    "name": "Connect integrations",
+    "area": "platform"
+   },
+   {
+    "id": "platform.retention",
+    "name": "Retention and destruction",
+    "area": "platform"
+   },
+   {
+    "id": "platform.firm_profile",
+    "name": "Firm profile and branding",
+    "area": "platform"
+   },
+   {
+    "id": "agent.ask",
+    "name": "Ask the agent to do work",
+    "area": "platform"
+   },
+   {
+    "id": "admin.users",
+    "name": "Invite, suspend and remove users",
+    "area": "admin"
+   },
+   {
+    "id": "admin.roles",
+    "name": "Edit roles and permission groups",
+    "area": "admin"
+   },
+   {
+    "id": "admin.security",
+    "name": "Sign-in, SSO, MFA, sessions, IP limits",
+    "area": "admin"
+   },
+   {
+    "id": "admin.break_glass",
+    "name": "Use break-glass access",
+    "area": "admin"
+   },
+   {
+    "id": "admin.break_glass_approve",
+    "name": "Approve or review break-glass use",
+    "area": "admin"
+   },
+   {
+    "id": "admin.access_review",
+    "name": "Run and certify access reviews",
+    "area": "admin"
+   },
+   {
+    "id": "admin.audit_log",
+    "name": "Read the access audit log",
+    "area": "admin"
+   },
+   {
+    "id": "admin.export",
+    "name": "Bulk export firm data",
+    "area": "admin"
+   },
+   {
+    "id": "rates.view",
+    "name": "See billing rates (none, own, all)",
+    "area": "time"
+   },
+   {
+    "id": "admin.teams",
+    "name": "Create and edit teams",
+    "area": "admin"
+   },
+   {
+    "id": "admin.authority_limits",
+    "name": "Set per-person authority limits",
+    "area": "admin"
+   },
+   {
+    "id": "admin.offboard",
+    "name": "Offboard a person and hand over their work",
+    "area": "admin"
+   },
+   {
+    "id": "admin.support_access",
+    "name": "Grant vendor support access",
+    "area": "admin"
+   }
+  ],
+  "grants": {
+   "owner": {
+    "intake.leads": "all",
+    "intake.forms": "all",
+    "intake.convert": "approve",
+    "conflicts.run": "all",
+    "conflicts.clear": "approve",
+    "conflicts.walls": "approve",
+    "conflicts.identify": "all",
+    "matters.directory": "all",
+    "matters.view": "all",
+    "matters.edit": "all",
+    "matters.open": "approve",
+    "matters.team": "all",
+    "matters.restrict": "approve",
+    "matters.close": "approve",
+    "contacts.view": "all",
+    "contacts.edit": "all",
+    "documents.view": "all",
+    "documents.edit": "all",
+    "documents.release": "approve",
+    "documents.templates": "all",
+    "deadlines.view": "all",
+    "deadlines.edit": "all",
+    "deadlines.verify": "approve",
+    "deadlines.rules": "approve",
+    "work.view": "all",
+    "work.edit": "all",
+    "work.approve": "approve",
+    "work.workflows": "all",
+    "time.record": "all",
+    "time.view_all": "all",
+    "time.approve": "approve",
+    "time.rates": "approve",
+    "time.writedown": "approve",
+    "billing.view": "all",
+    "billing.draft": "all",
+    "billing.approve": "approve",
+    "billing.payments": "all",
+    "billing.credit": "approve",
+    "billing.writeoff_second_approve": "approve",
+    "trust.view": "all",
+    "trust.record": "all",
+    "trust.request": "all",
+    "trust.authorize": "approve",
+    "trust.execute": "all",
+    "trust.reconcile": "all",
+    "trust.signoff": "approve",
+    "trust.signatories": "approve",
+    "reports.firm": "all",
+    "platform.portal": "all",
+    "platform.agent_settings": "approve",
+    "platform.integrations": "approve",
+    "platform.retention": "approve",
+    "platform.firm_profile": "all",
+    "agent.ask": "all",
+    "admin.users": "approve",
+    "admin.roles": "approve",
+    "admin.security": "approve",
+    "admin.break_glass": "all",
+    "admin.break_glass_approve": "approve",
+    "admin.access_review": "approve",
+    "admin.audit_log": "all",
+    "admin.export": "approve",
+    "rates.view": "all",
+    "admin.teams": "all",
+    "admin.authority_limits": "approve",
+    "admin.offboard": "approve",
+    "admin.support_access": "approve"
+   },
+   "admin": {
+    "intake.leads": "view",
+    "intake.forms": "all",
+    "intake.convert": "none",
+    "conflicts.run": "none",
+    "conflicts.clear": "none",
+    "conflicts.walls": "view",
+    "conflicts.identify": "none",
+    "matters.directory": "all",
+    "matters.view": "none",
+    "matters.edit": "none",
+    "matters.open": "none",
+    "matters.team": "none",
+    "matters.restrict": "none",
+    "matters.close": "none",
+    "contacts.view": "view",
+    "contacts.edit": "none",
+    "documents.view": "none",
+    "documents.edit": "none",
+    "documents.release": "none",
+    "documents.templates": "all",
+    "deadlines.view": "none",
+    "deadlines.edit": "none",
+    "deadlines.verify": "none",
+    "deadlines.rules": "all",
+    "work.view": "own",
+    "work.edit": "own",
+    "work.approve": "none",
+    "work.workflows": "all",
+    "time.record": "own",
+    "time.view_all": "none",
+    "time.approve": "none",
+    "time.rates": "none",
+    "time.writedown": "none",
+    "billing.view": "none",
+    "billing.draft": "none",
+    "billing.approve": "none",
+    "billing.payments": "none",
+    "billing.credit": "none",
+    "billing.writeoff_second_approve": "none",
+    "trust.view": "none",
+    "trust.record": "none",
+    "trust.request": "none",
+    "trust.authorize": "none",
+    "trust.execute": "none",
+    "trust.reconcile": "none",
+    "trust.signoff": "none",
+    "trust.signatories": "none",
+    "reports.firm": "none",
+    "platform.portal": "none",
+    "platform.agent_settings": "all",
+    "platform.integrations": "all",
+    "platform.retention": "view",
+    "platform.firm_profile": "all",
+    "agent.ask": "all",
+    "admin.users": "all",
+    "admin.roles": "all",
+    "admin.security": "all",
+    "admin.break_glass": "none",
+    "admin.break_glass_approve": "none",
+    "admin.access_review": "own",
+    "admin.audit_log": "view",
+    "admin.export": "none",
+    "rates.view": "none",
+    "admin.teams": "all",
+    "admin.authority_limits": "none",
+    "admin.offboard": "all",
+    "admin.support_access": "view"
+   },
+   "lawyer": {
+    "intake.leads": "all",
+    "intake.forms": "all",
+    "intake.convert": "approve",
+    "conflicts.run": "all",
+    "conflicts.clear": "approve",
+    "conflicts.walls": "approve",
+    "conflicts.identify": "all",
+    "matters.directory": "all",
+    "matters.view": "all",
+    "matters.edit": "all",
+    "matters.open": "approve",
+    "matters.team": "approve",
+    "matters.restrict": "approve",
+    "matters.close": "approve",
+    "contacts.view": "all",
+    "contacts.edit": "all",
+    "documents.view": "all",
+    "documents.edit": "all",
+    "documents.release": "approve",
+    "documents.templates": "all",
+    "deadlines.view": "all",
+    "deadlines.edit": "all",
+    "deadlines.verify": "approve",
+    "deadlines.rules": "view",
+    "work.view": "all",
+    "work.edit": "all",
+    "work.approve": "approve",
+    "work.workflows": "all",
+    "time.record": "all",
+    "time.view_all": "all",
+    "time.approve": "approve",
+    "time.rates": "view",
+    "time.writedown": "approve",
+    "billing.view": "all",
+    "billing.draft": "all",
+    "billing.approve": "approve",
+    "billing.payments": "view",
+    "billing.credit": "approve",
+    "billing.writeoff_second_approve": "none",
+    "trust.view": "all",
+    "trust.record": "all",
+    "trust.request": "all",
+    "trust.authorize": "approve",
+    "trust.execute": "all",
+    "trust.reconcile": "all",
+    "trust.signoff": "approve",
+    "trust.signatories": "none",
+    "reports.firm": "all",
+    "platform.portal": "all",
+    "platform.agent_settings": "view",
+    "platform.integrations": "none",
+    "platform.retention": "approve",
+    "platform.firm_profile": "view",
+    "agent.ask": "all",
+    "admin.users": "none",
+    "admin.roles": "none",
+    "admin.security": "none",
+    "admin.break_glass": "all",
+    "admin.break_glass_approve": "approve",
+    "admin.access_review": "own",
+    "admin.audit_log": "own",
+    "admin.export": "none",
+    "rates.view": "all",
+    "admin.teams": "all",
+    "admin.authority_limits": "none",
+    "admin.offboard": "own",
+    "admin.support_access": "none"
+   },
+   "associate": {
+    "intake.leads": "all",
+    "intake.forms": "view",
+    "intake.convert": "own",
+    "conflicts.run": "all",
+    "conflicts.clear": "none",
+    "conflicts.walls": "none",
+    "conflicts.identify": "all",
+    "matters.directory": "all",
+    "matters.view": "own",
+    "matters.edit": "own",
+    "matters.open": "own",
+    "matters.team": "own",
+    "matters.restrict": "none",
+    "matters.close": "own",
+    "contacts.view": "all",
+    "contacts.edit": "all",
+    "documents.view": "own",
+    "documents.edit": "own",
+    "documents.release": "approve",
+    "documents.templates": "view",
+    "deadlines.view": "own",
+    "deadlines.edit": "own",
+    "deadlines.verify": "approve",
+    "deadlines.rules": "view",
+    "work.view": "own",
+    "work.edit": "own",
+    "work.approve": "approve",
+    "work.workflows": "view",
+    "time.record": "own",
+    "time.view_all": "own",
+    "time.approve": "none",
+    "time.rates": "none",
+    "time.writedown": "own",
+    "billing.view": "own",
+    "billing.draft": "own",
+    "billing.approve": "none",
+    "billing.payments": "none",
+    "billing.credit": "none",
+    "billing.writeoff_second_approve": "none",
+    "trust.view": "own",
+    "trust.record": "none",
+    "trust.request": "own",
+    "trust.authorize": "none",
+    "trust.execute": "none",
+    "trust.reconcile": "none",
+    "trust.signoff": "none",
+    "trust.signatories": "none",
+    "reports.firm": "none",
+    "platform.portal": "own",
+    "platform.agent_settings": "none",
+    "platform.integrations": "none",
+    "platform.retention": "none",
+    "platform.firm_profile": "view",
+    "agent.ask": "all",
+    "admin.users": "none",
+    "admin.roles": "none",
+    "admin.security": "none",
+    "admin.break_glass": "none",
+    "admin.break_glass_approve": "none",
+    "admin.access_review": "none",
+    "admin.audit_log": "none",
+    "admin.export": "none",
+    "rates.view": "own",
+    "admin.teams": "none",
+    "admin.authority_limits": "none",
+    "admin.offboard": "none",
+    "admin.support_access": "none"
+   },
+   "paralegal": {
+    "intake.leads": "all",
+    "intake.forms": "view",
+    "intake.convert": "own",
+    "conflicts.run": "all",
+    "conflicts.clear": "none",
+    "conflicts.walls": "none",
+    "conflicts.identify": "all",
+    "matters.directory": "all",
+    "matters.view": "own",
+    "matters.edit": "own",
+    "matters.open": "own",
+    "matters.team": "none",
+    "matters.restrict": "none",
+    "matters.close": "own",
+    "contacts.view": "all",
+    "contacts.edit": "all",
+    "documents.view": "own",
+    "documents.edit": "own",
+    "documents.release": "own",
+    "documents.templates": "view",
+    "deadlines.view": "own",
+    "deadlines.edit": "own",
+    "deadlines.verify": "approve",
+    "deadlines.rules": "view",
+    "work.view": "own",
+    "work.edit": "own",
+    "work.approve": "own",
+    "work.workflows": "view",
+    "time.record": "own",
+    "time.view_all": "own",
+    "time.approve": "none",
+    "time.rates": "none",
+    "time.writedown": "none",
+    "billing.view": "own",
+    "billing.draft": "own",
+    "billing.approve": "none",
+    "billing.payments": "none",
+    "billing.credit": "none",
+    "billing.writeoff_second_approve": "none",
+    "trust.view": "own",
+    "trust.record": "none",
+    "trust.request": "own",
+    "trust.authorize": "none",
+    "trust.execute": "none",
+    "trust.reconcile": "none",
+    "trust.signoff": "none",
+    "trust.signatories": "none",
+    "reports.firm": "none",
+    "platform.portal": "own",
+    "platform.agent_settings": "none",
+    "platform.integrations": "none",
+    "platform.retention": "none",
+    "platform.firm_profile": "view",
+    "agent.ask": "all",
+    "admin.users": "none",
+    "admin.roles": "none",
+    "admin.security": "none",
+    "admin.break_glass": "none",
+    "admin.break_glass_approve": "none",
+    "admin.access_review": "none",
+    "admin.audit_log": "none",
+    "admin.export": "none",
+    "rates.view": "own",
+    "admin.teams": "none",
+    "admin.authority_limits": "none",
+    "admin.offboard": "none",
+    "admin.support_access": "none"
+   },
+   "clerk": {
+    "intake.leads": "all",
+    "intake.forms": "none",
+    "intake.convert": "none",
+    "conflicts.run": "all",
+    "conflicts.clear": "none",
+    "conflicts.walls": "none",
+    "conflicts.identify": "all",
+    "matters.directory": "all",
+    "matters.view": "own",
+    "matters.edit": "own",
+    "matters.open": "none",
+    "matters.team": "none",
+    "matters.restrict": "none",
+    "matters.close": "none",
+    "contacts.view": "all",
+    "contacts.edit": "all",
+    "documents.view": "own",
+    "documents.edit": "own",
+    "documents.release": "none",
+    "documents.templates": "view",
+    "deadlines.view": "own",
+    "deadlines.edit": "own",
+    "deadlines.verify": "none",
+    "deadlines.rules": "none",
+    "work.view": "own",
+    "work.edit": "own",
+    "work.approve": "none",
+    "work.workflows": "none",
+    "time.record": "own",
+    "time.view_all": "none",
+    "time.approve": "none",
+    "time.rates": "none",
+    "time.writedown": "none",
+    "billing.view": "none",
+    "billing.draft": "none",
+    "billing.approve": "none",
+    "billing.payments": "none",
+    "billing.credit": "none",
+    "billing.writeoff_second_approve": "none",
+    "trust.view": "none",
+    "trust.record": "none",
+    "trust.request": "none",
+    "trust.authorize": "none",
+    "trust.execute": "none",
+    "trust.reconcile": "none",
+    "trust.signoff": "none",
+    "trust.signatories": "none",
+    "reports.firm": "none",
+    "platform.portal": "own",
+    "platform.agent_settings": "none",
+    "platform.integrations": "none",
+    "platform.retention": "none",
+    "platform.firm_profile": "view",
+    "agent.ask": "all",
+    "admin.users": "none",
+    "admin.roles": "none",
+    "admin.security": "none",
+    "admin.break_glass": "none",
+    "admin.break_glass_approve": "none",
+    "admin.access_review": "none",
+    "admin.audit_log": "none",
+    "admin.export": "none",
+    "rates.view": "none",
+    "admin.teams": "none",
+    "admin.authority_limits": "none",
+    "admin.offboard": "none",
+    "admin.support_access": "none"
+   },
+   "bookkeeper": {
+    "intake.leads": "none",
+    "intake.forms": "none",
+    "intake.convert": "none",
+    "conflicts.run": "none",
+    "conflicts.clear": "none",
+    "conflicts.walls": "none",
+    "conflicts.identify": "none",
+    "matters.directory": "all",
+    "matters.view": "none",
+    "matters.edit": "none",
+    "matters.open": "none",
+    "matters.team": "none",
+    "matters.restrict": "none",
+    "matters.close": "none",
+    "contacts.view": "view",
+    "contacts.edit": "none",
+    "documents.view": "none",
+    "documents.edit": "none",
+    "documents.release": "none",
+    "documents.templates": "none",
+    "deadlines.view": "none",
+    "deadlines.edit": "none",
+    "deadlines.verify": "none",
+    "deadlines.rules": "none",
+    "work.view": "own",
+    "work.edit": "own",
+    "work.approve": "none",
+    "work.workflows": "none",
+    "time.record": "none",
+    "time.view_all": "view",
+    "time.approve": "none",
+    "time.rates": "view",
+    "time.writedown": "none",
+    "billing.view": "all",
+    "billing.draft": "all",
+    "billing.approve": "none",
+    "billing.payments": "all",
+    "billing.credit": "own",
+    "billing.writeoff_second_approve": "none",
+    "trust.view": "all",
+    "trust.record": "all",
+    "trust.request": "all",
+    "trust.authorize": "none",
+    "trust.execute": "all",
+    "trust.reconcile": "all",
+    "trust.signoff": "none",
+    "trust.signatories": "none",
+    "reports.firm": "all",
+    "platform.portal": "none",
+    "platform.agent_settings": "none",
+    "platform.integrations": "none",
+    "platform.retention": "none",
+    "platform.firm_profile": "view",
+    "agent.ask": "all",
+    "admin.users": "none",
+    "admin.roles": "none",
+    "admin.security": "none",
+    "admin.break_glass": "none",
+    "admin.break_glass_approve": "none",
+    "admin.access_review": "none",
+    "admin.audit_log": "none",
+    "admin.export": "none",
+    "rates.view": "all",
+    "admin.teams": "none",
+    "admin.authority_limits": "none",
+    "admin.offboard": "none",
+    "admin.support_access": "none"
+   },
+   "auditor": {
+    "intake.leads": "none",
+    "intake.forms": "none",
+    "intake.convert": "none",
+    "conflicts.run": "none",
+    "conflicts.clear": "view",
+    "conflicts.walls": "view",
+    "conflicts.identify": "view",
+    "matters.directory": "view",
+    "matters.view": "none",
+    "matters.edit": "none",
+    "matters.open": "none",
+    "matters.team": "none",
+    "matters.restrict": "view",
+    "matters.close": "none",
+    "contacts.view": "none",
+    "contacts.edit": "none",
+    "documents.view": "none",
+    "documents.edit": "none",
+    "documents.release": "none",
+    "documents.templates": "none",
+    "deadlines.view": "none",
+    "deadlines.edit": "none",
+    "deadlines.verify": "none",
+    "deadlines.rules": "view",
+    "work.view": "none",
+    "work.edit": "none",
+    "work.approve": "none",
+    "work.workflows": "none",
+    "time.record": "none",
+    "time.view_all": "view",
+    "time.approve": "none",
+    "time.rates": "view",
+    "time.writedown": "view",
+    "billing.view": "view",
+    "billing.draft": "none",
+    "billing.approve": "none",
+    "billing.payments": "view",
+    "billing.credit": "view",
+    "billing.writeoff_second_approve": "none",
+    "trust.view": "view",
+    "trust.record": "none",
+    "trust.request": "none",
+    "trust.authorize": "none",
+    "trust.execute": "none",
+    "trust.reconcile": "view",
+    "trust.signoff": "view",
+    "trust.signatories": "view",
+    "reports.firm": "view",
+    "platform.portal": "none",
+    "platform.agent_settings": "view",
+    "platform.integrations": "view",
+    "platform.retention": "view",
+    "platform.firm_profile": "view",
+    "agent.ask": "none",
+    "admin.users": "view",
+    "admin.roles": "view",
+    "admin.security": "view",
+    "admin.break_glass": "none",
+    "admin.break_glass_approve": "view",
+    "admin.access_review": "view",
+    "admin.audit_log": "all",
+    "admin.export": "none",
+    "rates.view": "view",
+    "admin.teams": "view",
+    "admin.authority_limits": "view",
+    "admin.offboard": "view",
+    "admin.support_access": "view"
+   },
+   "client": {
+    "intake.leads": "none",
+    "intake.forms": "none",
+    "intake.convert": "none",
+    "conflicts.run": "none",
+    "conflicts.clear": "none",
+    "conflicts.walls": "none",
+    "conflicts.identify": "own",
+    "matters.directory": "none",
+    "matters.view": "own",
+    "matters.edit": "none",
+    "matters.open": "none",
+    "matters.team": "none",
+    "matters.restrict": "none",
+    "matters.close": "none",
+    "contacts.view": "none",
+    "contacts.edit": "none",
+    "documents.view": "own",
+    "documents.edit": "none",
+    "documents.release": "none",
+    "documents.templates": "none",
+    "deadlines.view": "own",
+    "deadlines.edit": "none",
+    "deadlines.verify": "none",
+    "deadlines.rules": "none",
+    "work.view": "none",
+    "work.edit": "none",
+    "work.approve": "none",
+    "work.workflows": "none",
+    "time.record": "none",
+    "time.view_all": "none",
+    "time.approve": "none",
+    "time.rates": "none",
+    "time.writedown": "none",
+    "billing.view": "own",
+    "billing.draft": "none",
+    "billing.approve": "none",
+    "billing.payments": "own",
+    "billing.credit": "none",
+    "billing.writeoff_second_approve": "none",
+    "trust.view": "own",
+    "trust.record": "none",
+    "trust.request": "none",
+    "trust.authorize": "none",
+    "trust.execute": "none",
+    "trust.reconcile": "none",
+    "trust.signoff": "none",
+    "trust.signatories": "none",
+    "reports.firm": "none",
+    "platform.portal": "own",
+    "platform.agent_settings": "none",
+    "platform.integrations": "none",
+    "platform.retention": "none",
+    "platform.firm_profile": "none",
+    "agent.ask": "none",
+    "admin.users": "none",
+    "admin.roles": "none",
+    "admin.security": "none",
+    "admin.break_glass": "none",
+    "admin.break_glass_approve": "none",
+    "admin.access_review": "none",
+    "admin.audit_log": "none",
+    "admin.export": "none",
+    "rates.view": "none",
+    "admin.teams": "none",
+    "admin.authority_limits": "none",
+    "admin.offboard": "none",
+    "admin.support_access": "none"
+   },
+   "agent": {
+    "intake.leads": "own",
+    "intake.forms": "none",
+    "intake.convert": "none",
+    "conflicts.run": "own",
+    "conflicts.clear": "none",
+    "conflicts.walls": "none",
+    "conflicts.identify": "own",
+    "matters.directory": "own",
+    "matters.view": "own",
+    "matters.edit": "own",
+    "matters.open": "none",
+    "matters.team": "none",
+    "matters.restrict": "none",
+    "matters.close": "none",
+    "contacts.view": "own",
+    "contacts.edit": "own",
+    "documents.view": "own",
+    "documents.edit": "own",
+    "documents.release": "none",
+    "documents.templates": "none",
+    "deadlines.view": "own",
+    "deadlines.edit": "own",
+    "deadlines.verify": "none",
+    "deadlines.rules": "none",
+    "work.view": "own",
+    "work.edit": "own",
+    "work.approve": "none",
+    "work.workflows": "none",
+    "time.record": "own",
+    "time.view_all": "none",
+    "time.approve": "none",
+    "time.rates": "none",
+    "time.writedown": "none",
+    "billing.view": "own",
+    "billing.draft": "own",
+    "billing.approve": "none",
+    "billing.payments": "own",
+    "billing.credit": "none",
+    "billing.writeoff_second_approve": "none",
+    "trust.view": "own",
+    "trust.record": "own",
+    "trust.request": "own",
+    "trust.authorize": "none",
+    "trust.execute": "none",
+    "trust.reconcile": "own",
+    "trust.signoff": "none",
+    "trust.signatories": "none",
+    "reports.firm": "none",
+    "platform.portal": "own",
+    "platform.agent_settings": "none",
+    "platform.integrations": "none",
+    "platform.retention": "own",
+    "platform.firm_profile": "none",
+    "agent.ask": "none",
+    "admin.users": "none",
+    "admin.roles": "none",
+    "admin.security": "none",
+    "admin.break_glass": "none",
+    "admin.break_glass_approve": "none",
+    "admin.access_review": "none",
+    "admin.audit_log": "none",
+    "admin.export": "none",
+    "rates.view": "own",
+    "admin.teams": "none",
+    "admin.authority_limits": "none",
+    "admin.offboard": "none",
+    "admin.support_access": "none"
+   }
+  }
+ },
+ "open_questions": [
+  "Does this area replace platform/users-roles, or does users-roles stay as a summary linking here?",
+  "May a licensed paralegal hold trust signing authority in our product, or lawyers only? (BL9 allows licensees, verify)",
+  "Should bonded non-licensee bookkeepers be allowed to execute EFTs, or execution limited to licensees?",
+  "Dual-authorization threshold for trust withdrawals: off by default, or on above an amount?",
+  "Sole practitioners: accept declared self-approval with cooling-off delay, or require an outside reviewer?",
+  "Should firm owners be able to see restricted matters they are not on, or must they use break-glass?",
+  "Auditor access to matter documents: never, or named matters with owner grant?",
+  "Is a custom role builder needed at launch, or built-in roles plus temporary grants?",
+  "Multiple roles per user (Clio: most permissive wins): keep one role plus temporary grants, or allow several roles later?",
+  "Seat counter on user-list: show seats in use only, or nothing, given per-firm pricing?",
+  "Sole owner MFA recovery: what identity check and delay do we accept?",
+  "Should the support-access content scope exist at all, or settings and metadata only?"
+ ],
+ "sources": [
+  "https://help.clio.com/hc/articles/9200279456667",
+  "https://help.clio.com/hc/en-au/articles/40062980685467",
+  "https://help.clio.com/hc/articles/9290095965211",
+  "https://help.clio.com/hc/articles/9285360193819",
+  "https://help.clio.com/hc/articles/9286062516123",
+  "https://help.clio.com/hc/en-us/articles/9290560623771",
+  "https://support.practicepanther.com/articles/480113-access-levels-tutorial",
+  "https://practicepanther.com/blog/establish-transparency-and-high-level-security-with-custom-roles-in-practicepanther",
+  "https://supportcenter.mycase.com/en/articles/9369840-editing-user-access-permissions",
+  "https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9",
+  "https://lso.ca/about-lso/legislation-rules/by-laws/by-law-7-1",
+  "https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct",
+  "https://help.clio.com/hc/en-us/articles/9284724578715",
+  "https://help.clio.com/hc/articles/41135505613339-Single-Sign-On",
+  "https://help.clio.com/hc/en-us/articles/20588040616219-Device-Sessions",
+  "https://help.clio.com/hc/en-us/articles/55127426462619-Manage-Clio-Licenses-and-Users",
+  "https://help.clio.com/hc/articles/40025305701659",
+  "https://developers.support.clio.com/hc/en-us/articles/360004640953-What-methods-of-authorization-does-Clio-s-API-v4-support",
+  "https://www.clio.com/ca/?p=339",
+  "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+  "https://help.sharedo.co.uk/global_permissions_and_role_based_permissions/create-a-permission-set"
+ ],
+ "clio_gaps": [
+  {
+   "clio_feature": "Five built-in roles plus custom roles",
+   "where_in_clio": "Settings > Roles and Permissions",
+   "status": "already covered",
+   "note": "roles-list, role-editor; r09-people"
+  },
+  {
+   "clio_feature": "Multiple roles per user, most permissive wins",
+   "where_in_clio": "Admin Console > Users > Edit > Roles",
+   "status": "deliberately different",
+   "note": "one role plus time-boxed grants; effective rights with source on user-detail; r09-people"
+  },
+  {
+   "clio_feature": "Timekeeping scope all / accessible / own",
+   "where_in_clio": "Custom role > Timekeeping",
+   "status": "already covered",
+   "note": "time.record and time.view_all levels; r09-people"
+  },
+  {
+   "clio_feature": "Billing rate visibility all / own / none",
+   "where_in_clio": "Settings > Manage Users > user",
+   "status": "added",
+   "note": "capability rates.view on role-editor and matrix; r09-people"
+  },
+  {
+   "clio_feature": "Billing, accounts and reports permissions",
+   "where_in_clio": "Role permissions",
+   "status": "deliberately different",
+   "note": "separate billing, trust and reports capabilities; reports inherit source rights; r09-people"
+  },
+  {
+   "clio_feature": "Firm feed admin-only by default",
+   "where_in_clio": "Firm Feed tab",
+   "status": "already covered",
+   "note": "access-audit (metadata only); r09-people"
+  },
+  {
+   "clio_feature": "Groups for matters, calendars and rates",
+   "where_in_clio": "Settings > Groups",
+   "status": "added",
+   "note": "new screen teams and Team entity; archive forces replacement; r09-people"
+  },
+  {
+   "clio_feature": "Matter permissions, max 20 users/groups",
+   "where_in_clio": "Matter > Edit > Matter permissions",
+   "status": "deliberately different",
+   "note": "matter-access three modes, no cap, responsible-lawyer approval; r09-people"
+  },
+  {
+   "clio_feature": "Admin lists restricted matters and bulk-changes permissions",
+   "where_in_clio": "Matters filters; bulk actions",
+   "status": "deliberately different",
+   "note": "admin sees names only; owners use break-glass with review; r09-people"
+  },
+  {
+   "clio_feature": "Admin Console across products, bulk invite",
+   "where_in_clio": "Settings > Admin Console",
+   "status": "added",
+   "note": "Invite several users action on user-list, one role model across intake and matters; r09-people"
+  },
+  {
+   "clio_feature": "Invite and CSV bulk import with attorney type",
+   "where_in_clio": "Settings > Manage Users > Invite / Bulk Import",
+   "status": "added",
+   "note": "list/CSV invite with licence pre-check and supervisor check on user-list; r09-people"
+  },
+  {
+   "clio_feature": "Deactivate user",
+   "where_in_clio": "Settings > Manage Users > Deactivate",
+   "status": "added",
+   "note": "offboard-user cut-off keeps history and rates, ends sessions and tokens; r09-people"
+  },
+  {
+   "clio_feature": "Reassign work from a user",
+   "where_in_clio": "Settings > Manage Users > Reassign Work",
+   "status": "added",
+   "note": "offboard-user with agent successor proposals, includes closed matters; r09-people"
+  },
+  {
+   "clio_feature": "Grow separate Normal/Admin users",
+   "where_in_clio": "Grow > Settings > Account > User settings",
+   "status": "deliberately different",
+   "note": "single role model; r09-people"
+  },
+  {
+   "clio_feature": "MFA administration (status, require, reset)",
+   "where_in_clio": "Settings > Security & Compliance > Firm Security",
+   "status": "added",
+   "note": "MFA mandatory, method shown on user-list, Reset MFA gated by GA11; r09-people, r12-canada-security"
+  },
+  {
+   "clio_feature": "SAML single sign-on with domain verification",
+   "where_in_clio": "Settings > Security & Compliance > Firm Security > Single Sign-on",
+   "status": "added",
+   "note": "new screen sign-in-settings (OIDC first, SAML later), GA10; r09-people, r12-canada-security"
+  },
+  {
+   "clio_feature": "Login activity and device sessions",
+   "where_in_clio": "Settings > Security & Compliance > Log In Activity / Sessions",
+   "status": "added",
+   "note": "Sign-ins tab on access-audit, sessions on user-detail, new-device email; r09-people, r12-canada-security"
+  },
+  {
+   "clio_feature": "Password policy and lockout after failed sign-ins",
+   "where_in_clio": "Settings > Security",
+   "status": "added",
+   "note": "lockout threshold on sign-in-settings, Unlock sign-in on user-detail; r12-canada-security"
+  },
+  {
+   "clio_feature": "Log of AI actions",
+   "where_in_clio": "Settings > Security",
+   "status": "added",
+   "note": "actor_kind filter (agent) on access-audit; r12-canada-security"
+  },
+  {
+   "clio_feature": "Support access only with firm consent",
+   "where_in_clio": "In-app permission prompt",
+   "status": "added",
+   "note": "new screen support-access, GA13; r12-canada-security"
+  },
+  {
+   "clio_feature": "Third-party app authorization as the user",
+   "where_in_clio": "Developer portal (OAuth)",
+   "status": "deliberately different",
+   "note": "integrations under a service identity; r09-people"
+  },
+  {
+   "clio_feature": "Clio Operate permission sets, teams, authority limits",
+   "where_in_clio": "Clio Operate admin (enterprise)",
+   "status": "added",
+   "note": "authority limits on user-detail, GA14; teams screen; r09-people"
+  },
+  {
+   "clio_feature": "Licence / seat billing per user type",
+   "where_in_clio": "Admin Console licences",
+   "status": "deliberately different",
+   "note": "priced per firm; seats-in-use counter only; r09-people"
+  }
+ ]
+}

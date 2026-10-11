@@ -45,6 +45,9 @@ type Options struct {
 	// Rest, when set, carries the ports of the services wired last (services_rest.go); the
 	// break-glass grants, sign-off, portal sessions and event emitters need only the kernel.
 	Rest *RestPorts
+	// Production, when set, fills every group above left nil from Postgres on the kernel
+	// DB at Register (BOOT-24). The binaries set it.
+	Production *Production
 }
 
 // PaymentHook is the configured payment provider. Webhook.ID is the hook provider name from
@@ -65,12 +68,12 @@ func App(opts Options) kboot.App {
 
 // registerHooks lists the Register steps, in order. Later boot tasks append theirs here.
 func registerHooks(w *wiring) []hook {
-	return []hook{w.registerModules, w.opts.registerPayment, w.registerGates, w.buildClearance, w.opts.registerNotify, w.addWithdrawJobs, w.registerWebhooks, addBillDelivery, w.registerRest, registerAgent(w.opts.Agent)}
+	return []hook{w.bindProduction, w.registerModules, w.opts.registerPayment, w.registerGates, w.buildClearance, w.opts.registerNotify, w.addWithdrawJobs, w.registerWebhooks, addBillDelivery, w.registerRest, registerAgent(w.opts.Agent), w.loadRoles}
 }
 
 // startHooks lists the Start steps (seed and start jobs), in order.
 func startHooks(o Options) []hook {
-	if o.Rest != nil {
+	if o.Rest != nil || o.Production != nil {
 		return []hook{seedTemplates, syncSoleAtStart}
 	}
 	return []hook{seedTemplates}

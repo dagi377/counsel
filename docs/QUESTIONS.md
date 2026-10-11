@@ -3217,3 +3217,94 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
   screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
   as served by its screen actions instead of binding it.
+
+## BOOT-24 / BOOT-25 (composition root)
+
+- Files beyond the task list: `app/legal/boot/production.go` (new `Options.Production`: the
+  Postgres graph is built at Register on `k.DB`, because kernel boot opens the pool inside
+  `boot.Run`), `boot.go`, `routes.go` (matter reads, contacts and `/firm/tax-registrations`
+  mounted), `agent.go` (every scheduled feature binds with `trigger.BindDesignated`; the
+  `RuleAdmin` field is replaced by `Designated`, default `agent.PGDesignatedLawyers`;
+  `conflict-search-settings` and `compliance-audit-log` use subject kind `firm`).
+- Not wired yet, so `testdata/unwired_routes.golden` lists the routes that still answer 503:
+  no request authentication exists (Production.Principal defaults to "nobody", so served
+  routes answer 401); no Postgres `matter.Updater`, docs, work, time-entry, deadline lister,
+  access directory or trust-request wiring; GatePorts (GL, Sealer, withdraw.Auditor, credit
+  second approval) and AgentPorts have no Postgres composition. `HTTPPorts.AgentModel` and the
+  HandlerSet are on `task/PG-RUNS-WEBHOOK`, which this branch could not merge.
+
+## AUTH-WIRE: member sign-in at boot
+
+- **Choice logged (spec default):** a2 ARC-I-017/-036 and the openapi `session` scheme name an
+  OIDC session cookie (`counsel_session`); `core.sign_in_policy.idp_protocol` also allows
+  `saml`. Implemented OIDC only (authorization code + PKCE, RS256 ID tokens) in
+  `kernel/identity/login`, on the standard library because no OIDC module is on the AGENTS.md
+  allow list. SAML, ES256 ID tokens and reading lifetime/idle/lockout from
+  `core.sign_in_policy` at request time are not done; the DDL defaults (720/30 min) are used.
+- **Session handle:** `core.user_session` has no token-hash column, so the cookie is an
+  HMAC-signed `(session id, mfa time)` keyed by `$COUNSEL_SESSION_KEY` (>= 32 bytes, required
+  outside dev). Every request re-reads the row, so logout, idle, expiry, revocation and
+  offboarding end the session. No migration was added.
+- **Step-up:** `GET /auth/login?step_up=1` asks the IdP for fresh auth (`max_age=0`,
+  `prompt=login`, optional `acr_values`) and needs a second-factor `amr`. Production sets the
+  new `HTTPPorts.StepUp func(*http.Request) time.Time` from `login.Service.StepUp` (zero = no
+  MFA or no live session), which is exactly `gates.DecideHTTP.StepUp`. Mounting `DecideHTTP`
+  still needs `Gates gates.Engine` (Decide/Withdraw/Get over the kernel engine), `Kinds
+  *gates.Catalog` and `Now`; that mount is left to the gate-routes task.
+- **Files outside a task list:** `kernel/server/routes.go` gains `(*Mux).MountRoot` so the
+  browser redirects `/auth/*` live outside `/v1` and outside openapi conformance (not on the
+  frozen `Server` interface); `app/legal/boot/production.go` gains `Production.Login`;
+  `cmd/counseld/main.go` gains sign-in flags (secrets from env only) and `-env`/`-dev-login`.
+- **Open:** sessions authenticate, but production `Roles`/`Assignments` are still empty
+  (no Postgres `RoleAssignments`), so a signed-in member gets 403 on capability-checked
+  routes until that port lands.
+
+## PG-MATTER-UPDATER / PG-GATE-PORTS
+
+- `matter.PGUpdater` writes the plain fields (short name, practice area, court and property
+  province) at the If-Match version inside a tx bound to the principal (RLS walls apply);
+  it also refuses a user screened by an active wall (404) and a stale version (412).
+  `matter.PGWalls` reads active walls for the Lifecycle dry run; `AddWall` is refused
+  (walls are gate-owned). Boot mounts `matter.Writes` (POST and PATCH /matters).
+- `boot.gatePortsPG` composes the GatePorts from Postgres: `PGGL` (ledger.PG with posted_by
+  read in the gate tx: the latest approver, else the session user), `trust.AESSealer`,
+  `withdraw.AuditLog` on the kernel audit log, the signatory/signer/firm ports, the bill
+  effects and the write-off ports; the managing lawyer's second approval holds
+  `billing.writeoff_second_approve`. Gates with min_approvers >= 2 keep their quorum in the
+  kernel engine.
+- Open: `Production.SealKey` (and `BillPrefix`, default `INV`) has no config source yet:
+  `cmd/counseld` passes `Production{}`, so production registers no money gate effects until
+  the binary reads the seal key (env or mounted file). Files beyond the task list:
+  `app/legal/boot/production.go`, `routes.go`, `compose_test.go`.
+- Still unwired: `POST /gates/{gate_id}/decisions` and `/withdraw` need a step-up source
+  (`gates.DecideHTTP.StepUp`), which waits on request authentication.
+
+## BOOT-CONFIG: a signed-in member can use Counsel
+
+- **Roles were never registered.** `roles.Register` had no registrar, so the production
+  catalog was empty and every capability check failed (403, or 500 on unknown capability).
+  `app/legal/roles` now embeds a byte-for-byte copy of `spec/legal/access.json`
+  (`TestAccessDataMatchesSpec`) and registers it. Production fills its checker's catalog from
+  the sealed registrations (`identity.Roles.Load`) and reads each member's role per check
+  from `core.app_user.role_id` -> `core.role.key` (`identity.PGAssignments`; active user and
+  active role only).
+- **Choice logged (needs a spec answer):** the kernel checker is boolean, but access.json has
+  levels, and many gate approver capabilities are also plain work capabilities
+  (`matters.edit`, `admin.users`, `billing.payments`, ...). To keep ARC-I-018 (admin and agent
+  never approve; viewing is not approving), a role holds a gate approver capability only at
+  level `all` or `approve`, and admin and agent never hold one. Fail-closed side effects:
+  associate/paralegal `own` on `matters.edit`, admin `all` on `admin.users`/`admin.roles`,
+  auditor `view` on approver capabilities are not granted. Custom roles (`core.role_grant`,
+  `based_on_id`) are not loaded: a member on a custom role gets 403.
+- **Gate decisions:** `POST /gates/{gate_id}/decisions` and `/withdraw` are mounted on the
+  kernel gate engine (it is the `gates.Engine` port as is; `HTTPPorts.Decisions` overrides
+  it), the spec catalog and the kernel clock. Without a sign-in service, StepUp is "never",
+  so every decision answers 401 step_up_required.
+- **Seal key:** `counseld` and `counsel-worker` read `$COUNSEL_SEAL_KEY` (base64, 32 bytes)
+  or `-seal-key-file`/`$COUNSEL_SEAL_KEY_FILE`; `-env`/`$COUNSEL_ENV` (worker gained `-env`).
+  Outside dev, boot refuses to start without one (`ErrSealKeyMissing`); dev uses a random
+  per-process key and warns without showing it. `boot.Secret` redacts in fmt and slog. The
+  Helm chart does not mount the secret yet.
+- **Session limits:** the session read joins `core.sign_in_policy` (singleton); its
+  lifetime and idle limits win, and the config/DDL defaults apply only with no policy row.
+  The cookie Max-Age still uses the config lifetime.
