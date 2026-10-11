@@ -532,3 +532,14 @@ Template:
 - Files outside withdraw/: `withdraw.TrustLedgers` swaps `Balance` for
   `LockLedger(ctx, tx, id) (Balance, held, error)`, so `trust.LedgerStore` (receipt.go) and
   `trustfake` gain that method (additive; the frozen `trust.Ledgers` contract is unchanged).
+
+## T-012.5: EFT check wired into the withdrawal effect
+
+- The Form 9A check (eft.go `CheckEFT`) must run before an EFT posts, which happens in
+  `Effect.Execute` (effect.go, not in T-012.5's files). effect.go gains an `EFT EFTRecords`
+  field and one call to `CheckEFT` before `Disburse`. While `EFT` is nil every EFT execution
+  fails closed with `eft_authorization_missing`.
+- Follow-ups: a Postgres `EFTRecords` over `form_9a_doc_id`/docs.document; `problemFor`
+  (execute.go) should map `ErrNoEFTAuthorization` to 409 `eft_authorization_missing`; the
+  trust.transfer gate effect should call `Transfers.Post`; and `sumsSQL` (trust/receipt.go)
+  leaves out authorised `trust_transfer` holds that `trust.available_cents` subtracts.

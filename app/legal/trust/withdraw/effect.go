@@ -100,6 +100,8 @@ type Effect struct {
 	Firm    FirmPolicy
 	Audit   Auditor
 	Now     func() time.Time
+	// EFT reads Form 9A records; while nil, every EFT execution fails closed.
+	EFT EFTRecords
 }
 
 // Apply is the trust.withdrawal EffectFunc. It runs in the gate's tx: it locks the withdrawal,
@@ -188,6 +190,13 @@ func (e *Effect) Execute(ctx context.Context, tx pgx.Tx, id string, by registry.
 		if err := e.Audit.Record(ctx, tx, AuditSoloException, h.ID, by.UserID); err != nil {
 			return "", fmt.Errorf("execute withdrawal: audit: %w", err)
 		}
+	}
+	// An EFT leaves trust only against its signed Form 9A record.
+	if err := CheckEFT(ctx, tx, e.EFT, h, e.Now()); err != nil {
+		if errors.Is(err, ErrNoEFTAuthorization) {
+			return "", failed(CodeNoEFTAuthorization, err)
+		}
+		return "", fmt.Errorf("execute withdrawal: %w", err)
 	}
 	// rule: ARC-I-024
 	// Disburse locks the client ledger and re-checks the balance under the lock.
