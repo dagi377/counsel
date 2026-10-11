@@ -172,5 +172,6 @@ func appDefs() []feature.Def {
 		// platform
 		platform.GoalRunnerDef(),
 		platform.RetainerCoverageDef(),
+		platform.RequestPortalDocumentsDef(),
 	}
 }

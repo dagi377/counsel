@@ -437,6 +437,7 @@ var actionScreens = map[string]trigger.Screen{
 	// documents selects the matter; a library screen selects the documents themselves.
 	"document-assembly":       {SubjectKind: "matter", Capability: "documents.edit"},
 	"client-sharing":          {SubjectKind: "matter", Capability: "documents.edit"},
+	"client-portal":           {SubjectKind: "matter", Capability: "documents.edit"},
 	"email-filing":            {SubjectKind: "matter", Capability: "documents.view"},
 	"bundle-builder":          {SubjectKind: "matter", Capability: "documents.view"},
 	"multi-document-analysis": {SubjectKind: "matter", Capability: "documents.view"},

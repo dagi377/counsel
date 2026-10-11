@@ -4284,3 +4284,13 @@ of FEAT-TIM-01 above.
   document; every amount and date in the request passes the provenance check.
 - Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (binding), the
   generated plugin skill, `app/legal/platform/ai_pltf_helpers_test.go`.
+
+## Q-FEAT-PLT-16 F-PLT-16 request documents on the client portal
+
+- The request is drafted with draft_email (no submit) on the selected matter, to its client,
+  and submit_for_approval opens `platform.portal_message` (`legaldocs.GatePortalMessage`) on
+  the email draft, as F-DOC-19 does on client-sharing.
+- `client-portal` maps to the matter with capability `documents.edit` in boot's action
+  screens, like `client-sharing`.
+- Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (screen), the
+  generated plugin skill, `app/legal/platform/ai_pltf_helpers_test.go`.
