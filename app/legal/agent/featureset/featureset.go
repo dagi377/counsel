@@ -38,5 +38,6 @@ func appDefs() []feature.Def {
 		deadlines.RecomputeDependantsDef(),
 		deadlines.ComplianceEvidenceMatcherDef(),
 		deadlines.RuleWatchDef(),
+		deadlines.PostEventFollowUpDef(),
 	}
 }

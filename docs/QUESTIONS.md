@@ -1851,3 +1851,21 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## Q-FEAT-DL-08 Deadline feature tests: stand-ins and files beyond the task list
+
+- Task: FEAT-DL-08 (F-DL-07 Post-event follow-up)
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (F-DL-07 in
+  appDefs, as FEAT-CORE-17 asks) and the generated skill
+  `paploo/counsel-plugin/skills/f-dl-07-post-event-follow-up/SKILL.md`.
+- The agenttest Seed's Deps carry no deadline engine, published packs, subject lookup or
+  proposed-task status, so every `agent.Handlers()` tool those need ran as a stand-in. The
+  deadline feature tests build them in a test helper (`toolEnv` in
+  `ai_f_dl_07_feature_test.go`, reused by F-DL-08 and F-DL-09) and wrap each read tool in
+  the run's Provenance. Proposed: move these ports into `agenttest.Seed.Deps`.
+- `get_matter` and `read_document` have no `Handler` (only the older `ReadTools`), so they
+  still run as stand-ins and the tests assert exactly those two. Proposed: a `Handler` for
+  each. `agenttest.QuotedOnly` then also needs to read the real `read_document` output,
+  whose quoted text sits under `pages[].lines[]`, not in a top-level `agenttools.Quoted`.
+- Defs set `Grant` to the capabilities of their tools: an empty grant refuses every call.
+- The event type `calendar.event_ended` is named here; no calendar module publishes it yet.
