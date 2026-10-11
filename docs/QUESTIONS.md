@@ -521,3 +521,15 @@ Template:
   unchanged, into `allocate.go` (where the contract header says it lives), so it also touches
   `money.go` (deletion only) and this file. New tests are in `allocate_test.go`; the existing
   `TestAllocate` in `money_test.go` is kept as is.
+
+## Q-T-011.4 Trust exception table for NSF reversals
+
+- Task: T-011.4. Sources: b3 BIL-C-065 ("a reversal of a trust deposit always opens a trust
+  exception"), task accept line ("trust exception opened"). 0001 has no table to hold one.
+- Answer: owner (2026-10-11): additive migration `5500_trust_exception.sql` (app/legal/trust,
+  first file in its block): `trust.exception` (kind `nsf`, receipt id, ledger and matter link,
+  amount cents, shortfall cents, opened_at/by, resolved_at/by, resolution), one row per
+  (kind, receipt), no delete. `migrations/migrations_test.go` lists the new file. ReverseNSF
+  opens the row in the reversal's tx; the replenishment's operating leg is
+  Dr OP-1100 / Cr OP-1000 with source kind `nsf_replenishment`. Resolving an exception is a
+  later task.
