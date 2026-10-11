@@ -33,3 +33,12 @@ func registerReadRoutes(r registry.Registry) error {
 	r.Routes((&HTTP{}).Routes)
 	return nil
 }
+
+func init() { add(registerDecideRoutes) }
+
+// registerDecideRoutes mounts POST /gates/{gate_id}/decisions and /withdraw through
+// Registry.Routes. Boot wiring supplies the dependencies; until it does, they answer 503.
+func registerDecideRoutes(r registry.Registry) error {
+	r.Routes((&DecideHTTP{}).Routes)
+	return nil
+}
