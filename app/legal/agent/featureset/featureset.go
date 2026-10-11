@@ -98,5 +98,7 @@ func appDefs() []feature.Def {
 		matter.StageAdvanceDef(),
 		matter.PartyExtractionDef(),
 		matter.ContactDedupeDef(),
+		matter.OpeningPrefillDef(),
+		matter.RetainerWatchDef(),
 	}
 }
