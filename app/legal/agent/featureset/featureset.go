@@ -14,6 +14,7 @@ package featureset
 
 import (
 	"github.com/dagi377/counsel/app/legal/agent/feature"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
@@ -123,5 +124,9 @@ func appDefs() []feature.Def {
 		trust.BankFeedSyncDef(),
 		trust.MonthEndReconciliationDef(),
 		trust.RetainerReplenishmentDef(),
+		// billing
+		billing.TrustApplicationDef(),
+		billing.DraftCreditNoteDef(),
+		billing.MonthlyDigestDef(),
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/featureset"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/billing/batch"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
@@ -295,7 +296,7 @@ func gateKindCodes() ([]string, error) {
 
 // JobBindings binds every job feature of s to the events and schedule that start it.
 // ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-09,
-// F-CON-09, F-CON-11, F-CON-12, F-DOC-09; Q-INTEG-15A-SCHEDULED); empty fails with
+// F-CON-09, F-CON-11, F-CON-12, F-DOC-09, F-BIL-07; Q-INTEG-15A-SCHEDULED); empty fails with
 // trigger.ErrBadBinding. F-DL-05, F-DL-06, F-CON-05, F-CON-10, F-DOC-06, F-DOC-07, F-MAT-05,
 // F-MAT-09, F-MAT-14 and F-TRU-04 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
 // job feature cannot ship unbound.
@@ -357,6 +358,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		trust.RetainerCoverageScanDef().ID:          trust.RetainerCoverageScanBinding,
 		trust.FeatureMonthEndReconciliation:         trust.MonthEndReconciliationBinding,
 		trust.FeatureRetainerReplenishment:          trust.RetainerReplenishmentBinding,
+		billing.FeatureTrustApplication:             billing.TrustApplicationBinding,
+		billing.FeatureMonthlyDigest:                scheduled(billing.MonthlyDigestBinding),
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -475,6 +478,10 @@ var actionScreens = map[string]trigger.Screen{
 	"trust-receipts-journal": {SubjectKind: "matter", Capability: "trust.view"},
 	"bank-feed-import":       {SubjectKind: "matter", Capability: "trust.view"},
 	"monthly-reconciliation": {SubjectKind: "matter", Capability: "trust.view"},
+	// Billing: a trust-to-fees transfer is requested on the matter whose trust pays the bill.
+	"trust-to-fees": {SubjectKind: "matter", Capability: "trust.request"},
+	// A credit note is drafted on the matter of the selected bill.
+	"credit-notes": {SubjectKind: "matter", Capability: "documents.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

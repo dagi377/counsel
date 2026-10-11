@@ -3311,3 +3311,53 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - Files outside a task list: app/legal/agent/handlerset.go, agenttest/feature.go (Fire
   scopes the feature), boot/agent.go. Non-trust drafts keep the default handler (BIL-02/05
   policy unchanged).
+
+## Q-FEAT-BIL-03 F-BIL-03 trust application: trigger event, payee and gate kind
+
+- No bill-delivered event exists on main. F-BIL-03 names `bill.delivered`
+  (`billing.EventBillDelivered`); billing must publish it when delivery evidence sets a bill's
+  delivered date, or the event half never fires. "Retainer permits" is checked by the run
+  (the prompt), not by the binding. The `trust-to-fees` screen maps to subject `matter` with
+  capability `trust.request`.
+- The trust withdrawal module opens `billing.trust_fee_withdrawal` (G-B4) for a request with a
+  `bill_id` (`withdraw.RequestGateKind`), so the Def declares that kind (Q-AGENT-002 reading A
+  for the tool, B for the gate). `agent.WriteTools` still names `trust.withdrawal` as its spec
+  kind; the tests assert the module's kind.
+- By-Law 9: a fee transfer pays the firm's general account. agenttest's write tools have no
+  fee-bills port (`noFeeBills`), so a firm payee is refused there and the fixtures pay the
+  matter contact with `purpose_category: fees` and the bill id. Proposed: give agenttest a
+  `FeeBills` over the Seed's bills so the fixtures can use `agenttest.FirmPayee`.
+- The end-to-end tests use `app/legal/billing/ai_bilc_helpers_test.go` (prefix `bilc`), shared
+  with FEAT-BIL-07 and FEAT-BIL-08. It supplies the bill, trust-balance and priced-time ports
+  the Seed lacks, and feeds read figures to the driver's Provenance (the one
+  `prepare_trust_withdrawal` checks), which differs from the Seed's.
+
+## Q-FEAT-BIL-08 F-BIL-08 draft credit note: amount provenance on draft_document
+
+- `draft_document` takes free-text markdown, so a credit note's amounts carry no provenance
+  pointer and the app's handler checks none. F-BIL-08 adds `billing.CreditNoteDraftHandler`:
+  `draft_document` with `billing.CheckCreditNote` ahead of it, which refuses
+  (`agenttools.ErrUnsourcedValue`) any money figure in the body that no read tool returned in
+  the run, before a draft row or a gate exists. The end-to-end tests build the run with it.
+- Gap: boot builds one registry from `agent.Handlers()`, so production F-BIL-08 runs still get
+  the plain `draft_document`. Reading A: boot lets a Def name per-feature handler overrides
+  and uses `CreditNoteDraftHandler` for F-BIL-08. Reading B: `draft_document` checks money
+  figures in every agent body against the run's Provenance. Answer: (owner)
+- The agent never computes tax: a partial credit states its pre-tax amount and the billing
+  tax engine applies the place of supply when the note is issued, so an agent-computed tax
+  figure is refused as unsourced.
+- The `credit-notes` screen maps to subject `matter` with capability `documents.edit` (what
+  `draft_document` needs).
+
+## Q-FEAT-BIL-07 F-BIL-07 monthly billing digest: acting user and list_unbilled provenance
+
+- The monthly run has no designated lawyer, so boot binds it for `ruleAdmin` like the other
+  scheduled features (Q-INTEG-15A-SCHEDULED).
+- The digest answers as `{answer, citations}` and passes `run.CheckAnswer`: it cites bill
+  lines (`agent.BillLineCitation`) the run's get_bill returned. Its money figures are checked
+  against the run's figures in the tests.
+- Gap: `list_unbilled` is not wrapped with `Provenance.ReadTool` (get_bill and
+  get_trust_balance are), so its amounts never enter a run's Provenance in production and a
+  write citing an unbilled amount is refused as unsourced. The bilc test helpers record every
+  read tool's figures in the driver's Provenance. Proposed: wrap `list_unbilled` like
+  get_bill.

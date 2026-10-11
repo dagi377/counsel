@@ -1,6 +1,7 @@
 synthetic: true
 feature: F-BIL-08
 match:
+  prompt_hash: "604ebc161f08f52d68a1e0488165425a255603640191bbff17ed0325e0b78ebb"
   last_user_regex: '\[ok\]'
 latency_ms: 40
 chunk_delay_ms: 5
@@ -9,25 +10,32 @@ turns:
     reply:
       tool_calls:
         - name: report_plan
-          input: {steps: [{id: bill, title: "Read the selected bill"}, {id: credit, title: "Draft a credit note for approval"}]}
+          input: {steps: [{step_id: bill, title: "Read the selected bill"}, {step_id: credit, title: "Draft the credit note"}, {step_id: submit, title: "Submit it for approval"}]}
       stop_reason: tool_use
       usage: {input_tokens: 640, output_tokens: 48}
   - expect_tool_results: [report_plan]
     reply:
       tool_calls:
         - name: get_bill
-          input: {bill: "bill-synth-001"}
+          input: {bill_id: "00000000-0000-4000-8000-0000000000c3"}
       stop_reason: tool_use
       usage: {input_tokens: 720, output_tokens: 30}
   - expect_tool_results: [get_bill]
     reply:
       tool_calls:
-        - name: submit_for_approval
-          input: {bill: "bill-synth-001", reason: "Write-down agreed with client", lines: [{description: "Credit on professional fees", amount_cents: 12000}, {description: "HST on credit", amount_cents: 1560}]}
+        - name: draft_document
+          input: {matter_id: "00000000-0000-4000-8000-0000000000a1", title: "Credit note for bill SYN-2026-0003", body_markdown: "Credit note for bill SYN-2026-0003. Reason: write-off agreed with the client. Credit $1,130.00: fees $1,000.00 and tax $130.00 as billed."}
       stop_reason: tool_use
       usage: {input_tokens: 910, output_tokens: 120}
+  - expect_tool_results: [draft_document]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input: {subject_type: draft, subject_id: "draft-document-1", gate_kind: billing.credit_note}
+      stop_reason: tool_use
+      usage: {input_tokens: 960, output_tokens: 40}
   - expect_tool_results: [submit_for_approval]
     reply:
-      text: "Drafted a credit note on bill-synth-001 for your approval."
+      text: "Drafted a credit note on bill SYN-2026-0003 for your approval."
       stop_reason: end_turn
       usage: {input_tokens: 980, output_tokens: 24}
