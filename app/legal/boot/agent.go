@@ -359,6 +359,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		work.DailyDigestDef().ID:              work.DailyDigestBinding,
 		work.ExplainAutomationRunsDef().ID:    work.ExplainAutomationRunsBinding,
 		readiness.QuestionnaireFillerDef().ID: readiness.QuestionnaireFillerBinding,
+		readiness.CitationCheckerDef().ID:     readiness.CitationCheckerBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -467,6 +468,8 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Readiness: the research screen checks the memo filed on its matter.
+	"research": {SubjectKind: "matter", Capability: "documents.view"},
 	// Intake screens select the lead ("intake.lead", the outbox subject of a lead).
 	"phone-and-email-capture": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 	"lead-detail":             {SubjectKind: "intake.lead", Capability: "intake.leads"},

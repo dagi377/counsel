@@ -4275,3 +4275,17 @@ of FEAT-TIM-01 above.
 - Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
   (binding), the generated plugin skill, and the shared test helpers
   `app/legal/readiness/ai_rdy_helpers_test.go`.
+
+## Q-FEAT-RDY-02 F-RDY-02 citation checker event and screen
+
+- F-RDY-02 binds a new `readiness.EventResearchMemoDrafted` (`research.memo_drafted`),
+  acting for the lawyer who filed the memo. No module emits it yet: the research screen has
+  no memo intake on main. Open: research should publish it with the memo's matter.
+- The on-request action `research > Check citations` needs the `research` screen in
+  boot's actionScreens; it selects the matter (`documents.view`), like the other document
+  screens.
+- Like F-RDY-01, the run searches and drafts on the matter the trigger names; the checked
+  memo opens `platform.research_memo` with submit_for_approval. Its model call is
+  extraction (spec), so it exports no plugin skill.
+- Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (binding and
+  screen), and the shared helpers `app/legal/readiness/ai_rdy_helpers_test.go` (unchanged).
