@@ -98,9 +98,8 @@ var _ GrantStore = PGGrants{}
 // boot; PGGrants stores only SubjectKind grants and refuses the rest. The table CHECK caps a
 // grant at 8 hours, like BreakGlassMax.
 //
-// The table has no expiry column: a grant counts as expired once its expiry audit event
-// (ActionBreakGlassExpire with detail grant_id) exists. The audit masker must keep grant_id
-// (audit.KindID), or ExpireDue would audit the same grant again on every run.
+// A grant counts as expired once its expired_at is set (migration 0200). ExpireDue sets it in
+// the caller's transaction, after the expiry audit event, so a grant is audited once.
 type PGGrants struct {
 	DB            db.DB
 	SubjectKind   string
@@ -110,18 +109,15 @@ type PGGrants struct {
 // ErrNoSubjectColumn means PGGrants was built without SubjectColumn.
 var ErrNoSubjectColumn = errors.New("identity: break-glass store has no subject column")
 
-const expiredSQL = `EXISTS (SELECT 1 FROM audit.audit_event e
-  WHERE e.action = '` + ActionBreakGlassExpire + `' AND e.detail_masked->>'grant_id' = bg.id::text)`
-
 // stmt builds one statement on the subject column. %[1]s is the quoted column, %[2]s the
-// selected grant columns, %[3]s the expired test.
+// selected grant columns.
 func (s PGGrants) stmt(f string) (string, error) {
 	if s.SubjectColumn == "" {
 		return "", ErrNoSubjectColumn
 	}
 	col := pgx.Identifier{s.SubjectColumn}.Sanitize()
-	cols := `bg.id::text, bg.user_id::text, bg.` + col + `::text, bg.reason, bg.explanation, bg.starts_at, bg.ends_at, ` + expiredSQL
-	return fmt.Sprintf(f, col, cols, expiredSQL), nil
+	cols := `bg.id::text, bg.user_id::text, bg.` + col + `::text, bg.reason, bg.explanation, bg.starts_at, bg.ends_at, bg.expired_at IS NOT NULL`
+	return fmt.Sprintf(f, col, cols), nil
 }
 
 const (
@@ -131,9 +127,11 @@ VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6) RETURNING id::text`
 WHERE bg.user_id = $1::uuid AND bg.%[1]s = $2::uuid AND bg.starts_at <= $3 AND bg.ends_at > $3
 ORDER BY bg.starts_at DESC, bg.id DESC LIMIT 1`
 	sqlGrantDue = `SELECT %[2]s FROM audit.break_glass bg
-WHERE bg.ends_at <= $1 AND NOT %[3]s
+WHERE bg.ends_at <= $1 AND bg.expired_at IS NULL
 ORDER BY bg.ends_at, bg.id FOR UPDATE OF bg`
 	sqlGrantList = `SELECT %[2]s FROM audit.break_glass bg ORDER BY bg.starts_at, bg.id`
+	// sqlGrantExpire marks one grant expired; a grant already marked is left as it is.
+	sqlGrantExpire = `UPDATE audit.break_glass SET expired_at = $2 WHERE id = $1::uuid AND expired_at IS NULL`
 )
 
 // ErrNoTx means a PGGrants write was called without the caller's transaction.
@@ -184,7 +182,7 @@ func (s PGGrants) Active(ctx context.Context, user UserID, sub Subject, now time
 }
 
 // ExpireDue implements GrantStore. It locks the due rows, so two runners do not expire the
-// same grant; the expiry audit event written by expire is the mark.
+// same grant, and sets expired_at on each one after expire (its audit event) succeeds.
 func (s PGGrants) ExpireDue(ctx context.Context, tx pgx.Tx, now time.Time, expire func(BreakGlassGrant) error) (int, error) {
 	if tx == nil {
 		return 0, fmt.Errorf("expire grants: %w", ErrNoTx)
@@ -198,10 +196,22 @@ func (s PGGrants) ExpireDue(ctx context.Context, tx pgx.Tx, now time.Time, expir
 		if err := expire(g); err != nil {
 			return n, err
 		}
+		tag, err := tx.Exec(ctx, sqlGrantExpire, g.ID, now)
+		if err != nil {
+			return n, fmt.Errorf("expire grant %s: %w", g.ID, err)
+		}
+		// The row is locked FOR UPDATE, so it is still unmarked; anything else fails closed
+		// and rolls back the audit event with it.
+		if tag.RowsAffected() != 1 {
+			return n, fmt.Errorf("expire grant %s: %w", g.ID, ErrGrantNotMarked)
+		}
 		n++
 	}
 	return n, nil
 }
+
+// ErrGrantNotMarked means ExpireDue could not set expired_at on a grant it had locked.
+var ErrGrantNotMarked = errors.New("identity: break-glass grant not marked expired")
 
 // List implements GrantStore.
 func (s PGGrants) List(ctx context.Context) ([]BreakGlassGrant, error) {
