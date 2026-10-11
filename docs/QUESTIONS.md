@@ -2145,3 +2145,21 @@ Done in PORT-18:
   `{"untrusted": true, pages}`; the tests check that envelope instead (docQuotedOnly).
 - Event names: F-DL-01 binds `document.uploaded`; F-DL-02 binds `lead.created` (intake) and
   `matter.updated` (claim facts), all a2 events.
+
+## Q-FEAT-DL-09 propose_deadline opens only cal.confirm, so F-DL-08 cannot open cal.change
+
+- Task: FEAT-DL-09 (F-DL-08 Adjournment watcher)
+- F-DL-08 declares gate kind `cal.change` (spec/ai/features.json). `propose_deadline` saves the
+  deadline and opens `cal.confirm` itself, after `CheckGateKind`; `cal.confirm` is outside the
+  F-DL-08 run scope, so a correct run is refused with `ErrGateKindNotAllowed` before anything
+  is saved, and `submit_for_approval` has no draft to submit (a propose result is a gate, not
+  a draft). The run fails closed; no `cal.change` gate can open, so the pending-gate, 403 and
+  ErrSelfApproval checks cannot run for F-DL-08 yet. `TestFDL08_FromFeature` pins this.
+- Proposed: `propose_deadline` opens the deadline gate kind the run scope allows
+  (`cal.change` when the feature declares it, else `cal.confirm`), or returns a draft
+  proposal that `submit_for_approval` opens under the run's kind. Either changes
+  `app/legal/agent/tools_propose_deadline.go` (FEAT-TOOL-15), not this task's files.
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (F-DL-08 in
+  appDefs). F-DL-08 is an extraction feature, so it gets no plugin skill.
+- Event types `calendar.event_moved` and `calendar.event_cancelled` are named here; no calendar
+  module publishes them yet.

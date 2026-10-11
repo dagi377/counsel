@@ -44,5 +44,6 @@ func appDefs() []feature.Def {
 		deadlines.FindTeamTimeDef(),
 		deadlines.ExplainStepDef(),
 		deadlines.DraftAgendaDef(),
+		deadlines.AdjournmentWatcherDef(),
 	}
 }
