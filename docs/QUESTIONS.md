@@ -2804,6 +2804,19 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   exist); WO-FIX Close on G-B5 rejection needs a kernel gate-rejection hook (registry.GateKind
   has none) and a credit preparer-withdraw route; the portal Shell is not built at boot yet, so
   PGSessions is exposed through `wiring.Wired()` only.
+## HTTP-25: agent runs, start and get (approved scope)
+
+- agent.Service has no start or run query, so http.go adds the narrow `RunService` port
+  (SkillGrant, Start, Run) with `ErrUnknownSkill` (422 unknown_skill) and `ErrRunNotFound`.
+  Boot must wire the Paploo starter and a run store over agent.agent_run; until then the
+  routes answer 503.
+- POST /agent/runs takes `{skill_id, inputs?: object, matter_id?}`. The route mints the run id,
+  asks `Access.AgentPrincipal(run, caller, skill grant)` (ARC-I-036 intersection) and hands
+  that principal to Start; it answers 202 with the run view. A walled matter answers 404.
+- GET /agent/runs/{run_id} answers 404 for a run another member started or one on a walled
+  matter. Neither op lists, so the cursor and limit accept lines do not apply.
+- A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008).
+- openapi has no body schemas for these operations; the views are documented here.
 ## HTTP-26: webhook endpoints, list, create, renew
 
 - kernel/webhook/http.go adds the `EndpointReads` port (Endpoints, Endpoint; never the secret
@@ -2912,3 +2925,67 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   executor is still a second person (sole-practice exception audited). `PGService.Gates`, set
   at boot, opens the gate in the request tx and stores gate_id; the route skips opening when
   the service already did, so agent withdrawals are gated on Postgres.
+## HTTP-18: trust reconciliation import, prepare and submit routes
+
+- New ports in http_write.go (Service stays frozen): Parser (CSV/OFX file -> Statement,
+  ErrUnparseable), Versions (row version for If-Match), Gates (Open, Get). No parser exists on
+  main yet; boot wiring must supply one.
+- Import answers 202 `{statement_id, lines}` (openapi has no body schema) and posts no journal
+  entry. A statement whose lines do not sum to its closing balance answers 422
+  unparseable_statement.
+- Prepare: the imported statement's closing balance is the bank balance (answered, HTTP-18b).
+  A bank_balance_cents that differs from it answers 422 `bank_balance_mismatch` before
+  anything is prepared; it is never ignored. The check reads the closing balance through a new
+  `Statements` port (Closing), since Service is frozen; reconfake implements it and boot
+  wiring must supply the Postgres one (until then the routes answer 503).
+- Submit is refused 422 unexplained_difference unless the three-way totals agree after
+  reconciling items; a signed-off reconciliation answers 409 period_locked.
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+## PORT-STMT: Postgres recon Statements.Closing
+
+- `recon.PGStatements` (statements_pg.go) implements the HTTP-18b `Statements` port: the
+  closing balance, in cents, of the latest trust.bank_import whose period covers the month's
+  last day. No statement (or only imports without a stored balance) is `ErrNotFound`.
+- trust.bank_import had no balance columns, so `5530_bank_import_balances.sql` (app/legal/trust
+  block) adds nullable `opening_cents` and `closing_cents`. The Postgres ImportStatement (boot
+  follow-up; none on main) must write both.
+- Built on main without HTTP-18b, so the interface check is in the test; after HTTP-18b merges,
+  add `var _ Statements = (*PGStatements)(nil)` and wire it as `WriteHTTP.Statements` at boot.
+
+## PG-WRITES: Postgres write ports at boot
+
+- Branch merges task/PORT-STMT onto task/PG-READERS. Boot (`withWrites`, services_writes.go)
+  now fills credit.Bills (PGBills), withdraw.Service (PGService), recon.Service (PGService) and
+  recon.Statements (TxStatements over PGStatements); WithdrawGates defaults to the route gates
+  when they can withdraw. POST /credit-notes, POST /trust/withdrawals (+cancel) and the
+  reconciliation prepare and submit routes no longer answer 503 on Postgres.
+- withdraw.PGService and recon.PGService never approve: Authorize and RecordExecution refuse
+  (ErrEffectOnly, ErrNotAuthorized), and recon Approve refuses (ErrEffectOnly; an agent gets
+  ErrAgentApproval). Authorization stays in Effect.Apply; sign-off in PGSignOff.Sign. No
+  trust.reconciliation_signoff effect is registered at boot yet; open.
+- purpose_category: openapi (fees, disbursement, client_payment, third_party, refund) and the
+  DDL (fees_to_operating, disbursement, client_refund, third_party, transfer_out) differ.
+  PGService stores client_payment and refund as client_refund. `fees` is refused 422:
+  fees_to_operating needs bill_id and withdraw.Request has no bill field. Proposed: an additive
+  Request.BillID. The read side still reports the stored name; please confirm the mapping.
+- POST /trust/withdrawals passes `PreparedBy: p.UserID`, which is empty for an agent, so an
+  agent's request fails closed (422) instead of being prepared for its acting-for user.
+  Proposed fix in http_request.go: use the acting-for user, as recon's preparerOf does.
+- The route opens the gate after Request in its own transaction and does not store the gate
+  id, so approval_id stays NULL until the effect authorizes and cancel does not withdraw an
+  open gate. Proposed: a Cancels/Service hook to record approval_id at open.
+- Request.IdempotencyKey is not stored (no column); the route's idem layer replays keys.
+- Reconciliation book and client ledgers both come from trust.trust_transaction at month end
+  (the trust journal); bank is the imported statement's closing balance. Proposed follow-up:
+  read the book from the general-ledger trust bank control account so book vs ledgers is an
+  independent check. Prepare re-prepares an open draft/ready month in place; a signed or
+  imported month is ErrPeriodLocked. ImportStatement refuses with ErrNoParser.
+
+## BOOT-REST-2b
+
+- T-031.4 reminder worker (kernel/deadline/remind.go) added here; BOOT-21 jobs live in app/legal/boot/services_rest2.go (one boot file) instead of jobs_deadlines.go. The sent log defaults to in memory, so a restart can repeat that day's reminder once; a Postgres SentLog is open. No Postgres deadline Lister exists yet, so RestPorts.Deadlines takes it from the composition root.
+- The Ontario holiday calendar counts business days left only while deadline.ontario_pack is on.
+- HTTP-25: no RunService implementation (run starter + store) exists on any branch. HTTPPorts.Runs/RunAccess mount the routes when the composition root supplies them; until then they answer 503.
+- HTTP-26 webhook row_version: not done (time limit). Needs an additive migration on platform.webhook and the Postgres reads in kernel/webhook to compare it for If-Match.
+- STMT-IMPORT: recon.CSVParser (generic kind,date,description,amount_cents CSV, integer cents only) and recon.PGImports replace NoParser and PGService's import refusal at boot. Touched recon/http_write.go to put a ParseError's line and reason (never file text) in the 422 problem detail. Line descriptions go in StatementLine.Reference (the frozen contract has no description field).
+- Merge fixes: recon read/write HTTP files declared the shared problem codes, Access and reconView twice (kept the read file's, Version int64); trust.TxRunner declared twice (kept receipt_http.go's).

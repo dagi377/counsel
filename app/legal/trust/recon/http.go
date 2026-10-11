@@ -23,7 +23,7 @@ const CapView = "trust.view"
 // AccountSubject is the access subject kind of a trust account.
 const AccountSubject = "trust.account"
 
-// Problem codes the reconciliation read route writes.
+// Problem codes the reconciliation read and write routes share.
 const (
 	CodeUnauthenticated   = "unauthenticated"
 	CodeMissingCapability = "missing_capability"

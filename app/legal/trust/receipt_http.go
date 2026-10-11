@@ -37,6 +37,11 @@ type GateOpener interface {
 	Get(ctx context.Context, id gate.GateID) (gate.Gate, error)
 }
 
+// TxRunner runs fn in one transaction; kernel/db's pool implements it.
+type TxRunner interface {
+	InTx(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error
+}
+
 // ReceiptHTTP serves POST /trust/receipts (Q-HTTP-16). The route records the receipt in the
 // trust receipts journal the day it arrives and, in the same transaction, opens
 // trust.receipt_classification with the proposed classification. It never posts to a client
