@@ -240,6 +240,7 @@ func Handlers() HandlerSet {
 		GetMatterHandler(),
 		ReadDocumentHandler(),
 		PrepareTrustWithdrawalHandler(),
+		PrepareTrustTransferHandler(),
 	}
 	hs = append(hs, ReportHandlers()...)
 	s, err := NewHandlerSet(hs...)

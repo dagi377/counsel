@@ -177,6 +177,8 @@ func TestProductionAgentToolPortsReady(t *testing.T) {
 		{"DraftCalc", agent.ToolDraftBill},
 		{"DraftStore", agent.ToolDraftBill},
 		{"BatchDrafts", agent.ToolDraftBill},
+		{"Payments", agent.ToolProposePaymentAllocation},
+		{"TrustTransfers", agent.ToolPrepareTrustTransfer},
 	}
 	for _, tc := range tests {
 		t.Run(tc.port, func(t *testing.T) {

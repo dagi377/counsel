@@ -181,6 +181,9 @@ func appDefs() []feature.Def {
 		billing.PaymentMatchingDef(),
 		billing.EvergreenWatchDef(),
 		billing.AgingCollectionsDef(),
+		billing.TrustApplicationDef(),
+		billing.DraftCreditNoteDef(),
+		billing.MonthlyDigestDef(),
 		// trust
 		trust.AnnualReportPrepDef(),
 		trust.RetainerCoverageScanDef(),
@@ -188,6 +191,10 @@ func appDefs() []feature.Def {
 		trust.BankFeedSyncDef(),
 		trust.MonthEndReconciliationDef(),
 		trust.RetainerReplenishmentDef(),
+		trust.DraftTransferDef(),
+		trust.ProposeDispositionDef(),
+		trust.PayeeFraudCheckDef(),
+		trust.WithdrawalDrafterDef(),
 		// access
 		access.LicenceCheckDef(),
 		access.AccessReviewPreFillDef(),

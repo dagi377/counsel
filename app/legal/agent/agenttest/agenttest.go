@@ -56,8 +56,21 @@ const (
 	FirmPayee = "00000000-0000-4000-8000-0000000000f1"
 )
 
-// errNoBill: the synthetic matters have no bills, so a fee transfer to the firm is refused.
+// errNoBill: a driver with no fee bills refuses every fee transfer to the firm.
 var errNoBill = errors.New("agenttest: no such bill")
+
+// feeBillsPort is the write tools' fee-bills port. It reads no bills until FromFeatureWith
+// points it at the Seed's (Seed.FeeBills), which is built after the write tools.
+type feeBillsPort struct{ src agent.FeeBills }
+
+// FeeBill implements agent.FeeBills.
+func (p *feeBillsPort) FeeBill(ctx context.Context, matterID, billID string) (withdraw.FeeBill, error) {
+	return p.src.FeeBill(ctx, matterID, billID)
+}
+
+// FeeBills sets the bills a fee transfer to the firm (FirmPayee) reads. Until it is called
+// the driver has no bills, so every such transfer is refused.
+func (d *Driver) FeeBills(b agent.FeeBills) { d.fees.src = b }
 
 // noFeeBills is the bills port with no bills.
 type noFeeBills struct{}
@@ -133,6 +146,7 @@ type Driver struct {
 	// amounts against it.
 	Provenance *agenttools.Provenance
 
+	fees      *feeBillsPort
 	mu        sync.Mutex
 	reads     map[string]string
 	proposals map[string]Proposal
@@ -150,6 +164,7 @@ func New(t testing.TB, f Feature) *Driver {
 	walls := rolesfake.New()
 	walls.Wall(f.ActingFor, WalledMatter)
 	pv := agenttools.NewProvenance()
+	fees := &feeBillsPort{src: noFeeBills{}}
 	write, err := agent.NewWriteTools(agent.WriteDeps{
 		Can: func(_ context.Context, user, capability string) (bool, error) {
 			return user == f.ActingFor && slices.Contains(f.Grant, capability), nil
@@ -160,13 +175,13 @@ func New(t testing.TB, f Feature) *Driver {
 		Provenance:   pv,
 		Contacts:     matterContacts{TrustMatter: {PayeeContact}, WalledMatter: {WalledPayee}},
 		FirmAccount:  func(context.Context) (string, error) { return FirmPayee, nil },
-		Bills:        noFeeBills{},
+		Bills:        fees,
 	})
 	if err != nil {
 		t.Fatalf("write tools: %v", err)
 	}
 	d := &Driver{
-		Feature: f, Registry: agenttools.NewRegistry(plans), Plans: plans, Write: write, Withdrawals: wd, Provenance: pv,
+		Feature: f, Registry: agenttools.NewRegistry(plans), Plans: plans, Write: write, Withdrawals: wd, Provenance: pv, fees: fees,
 		reads: map[string]string{}, proposals: map[string]Proposal{}, realGates: map[string]bool{},
 	}
 	real := map[string]bool{}

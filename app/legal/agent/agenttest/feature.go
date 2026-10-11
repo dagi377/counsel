@@ -67,6 +67,12 @@ func FromFeatureWith(t testing.TB, def feature.Def, hs agent.HandlerSet) *Featur
 		ID: def.ID, ActingFor: FeatureActingFor, System: spec.System, Kind: spec.Kind, Grant: slices.Clone(def.Grant),
 	})
 	fd := &FeatureDriver{Driver: d, Def: def, Seed: NewSeed(t, FeatureActingFor, d.Withdrawals)}
+	// rule: ARC-U-027
+	// One run, one Provenance, as in production (boot builds the read and write tools over
+	// one): what the real read tools record is what the real write tools check.
+	fd.Seed.Provenance = d.Provenance
+	// A fee transfer to the firm reads the Seed's bills (By-Law 9 s.9(1)).
+	d.FeeBills(fd.Seed.FeeBills())
 	for _, k := range def.GateKinds {
 		fd.Seed.GateKind(k)
 	}

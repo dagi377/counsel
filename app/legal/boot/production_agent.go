@@ -378,6 +378,11 @@ func (p Production) agentPorts(k *kboot.Kernel, opts *Options, w *AgentWiring) e
 	if w.Write.Withdrawals == nil {
 		w.Write.Withdrawals = wd
 	}
+	if ports.TrustTransfers == nil && wd.Gates != nil {
+		// prepare_trust_transfer records the transfer pending authorization and opens its
+		// trust.transfer gate in one tx; with no gate opener the tool is not served.
+		ports.TrustTransfers = withdraw.TransferRequests{DB: k.DB, Store: withdraw.PGTransferStore{}, Gates: wd.Gates}
+	}
 	if ports.Payments == nil {
 		ports.Payments = opts.HTTP.Payments
 	}

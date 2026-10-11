@@ -652,7 +652,6 @@ s.33 as amended and either the rules or the decision change.
   `interest.PrejudgmentRate` for the Toronto quarter of delivery (`interest.EffectiveRate`).
   Answered.
 
-
 ## T-020.1c: bill void effect
 
 - Approval entry: the billing.bill_approval effect posts no BIL-J-003 journal entry yet, and
@@ -686,7 +685,6 @@ s.33 as amended and either the rules or the decision change.
   (*ledger.PG); `VoidEffect.Entries` is PGStore{}. The chart (books) must be synced into
   gl.account before the first approval.
 
-
 ## fix/trust-auth-race: withdrawal authorisation locks the client ledger
 
 - Effect.Apply read `Balance` in its own transaction without a lock, so two concurrent
@@ -709,7 +707,6 @@ s.33 as amended and either the rules or the decision change.
   trust.transfer gate effect should call `Transfers.Post`; and `sumsSQL` (trust/receipt.go)
   leaves out authorised `trust_transfer` holds that `trust.available_cents` subtracts.
 
-
 ## Q-T-011.4 Trust exception table for NSF reversals
 
 - Task: T-011.4. Sources: b3 BIL-C-065 ("a reversal of a trust deposit always opens a trust
@@ -721,7 +718,6 @@ s.33 as amended and either the rules or the decision change.
   opens the row in the reversal's tx; the replenishment's operating leg is
   Dr OP-1100 / Cr OP-1000 with source kind `nsf_replenishment`. Resolving an exception is a
   later task.
-
 
 ## Q-T-011.5 Ledger balance guard mapping
 
@@ -737,7 +733,6 @@ s.33 as amended and either the rules or the decision change.
 - The 32-goroutine integration test seeds 32 withdrawals, each authorised under its own
   approved trust.withdrawal gate. It is vetted with `-tags integration` and not yet run
   (integration runs are on hold).
-
 
 ## Q-T-031L.4 Limitations Act calculator: additive contract
 
@@ -860,7 +855,6 @@ BOOT tasks are not in docs/TASKS.md, so their progress is tracked here.
 - Still open: register the kernel admin kinds (core.role_change, core.user_activation) with
   the admin gates' effects once a Postgres AdminStore exists; build the Assessor from the
   app's Register once limitation ports have production implementations.
-
 
 ## Q-MIG-LINT-SHIPPED Migration lint on migrations/: edits in place on unreleased files
 
@@ -1280,7 +1274,6 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   subject is ErrNotFound (404). The gate payload carries subject ids only; the model's note is
   not stored (AI-R-005).
 
-
 ## FEAT-TOOL-21 prepare_trust_withdrawal amount provenance
 
 - Closed by FEAT-FIX-A: `WriteDeps.Provenance` is checked only when set. Now nil fails closed
@@ -1661,9 +1654,7 @@ Done in PORT-18:
 - The result is outcome `proposal` with the run id as ref, not `gate`: G2 is decided on the run
   through `conflict.Clearer`, not a kernel gate the runner could park on. The run stays open.
 
-
 ## FEAT-FIX-A trust withdrawal fails closed; draft_bill checks sources first
-
 
 ## FEAT-FIX-A trust withdrawal fails closed; draft_bill checks sources first
 
@@ -1725,7 +1716,6 @@ Done in PORT-18:
   (`parseCivilDate`, `draftBill*`).
 - 6200_agent_flag.sql (FEAT-CORE-13) gained the MIG-061 `SET lock_timeout` / `statement_timeout`.
 - Not done here: the FEAT-TOOL-16 `Item.Description` additive field (follow-up).
-
 
 ## Q-PORT-11: signatory change log, migration number and files outside the list
 
@@ -1979,6 +1969,7 @@ Done in PORT-18:
     `filing.receipt_received`, so F-DL-04 runs once per record.
 - Open: no handler or route calls these yet (boot/handler task). Whether an affidavit of
   service received but not filed with the court should also publish (verify).
+
 ## Q-BOOT-WIRE-A agent layer at boot
 
 - `Options.Agent` (`AgentWiring`) registers every `agent.Handlers()` tool, the job bindings
@@ -2255,6 +2246,7 @@ Done in PORT-18:
   transfer itself is never re-split. An apportioned bucket above its outstanding fails closed.
 
 ## Q-FEAT-CORE-15 Read and trust withdrawal handlers join the explicit handler set
+
 ## Q-FEAT-DL-08 Deadline feature tests: stand-ins and files beyond the task list
 
 - Task: FEAT-DL-08 (F-DL-07 Post-event follow-up)
@@ -2374,6 +2366,7 @@ Done in PORT-18:
   test sets it as the landed test did.
 
 ## Q-FEAT-CON-02 F-CON-02 opens G2 through propose_conflict_parties
+
 ## WD-BILL: trust withdrawal names its bill
 
 - As in Q-FEAT-CON-02, the G2 gate is the conflict run propose_conflict_parties starts; no
@@ -2402,6 +2395,7 @@ Done in PORT-18:
 - Merges task/TOOL16-DESC: work.PG writes and reads `Item.Description` (work_item.description,
   NULL for none; the 1003 check bounds it).
 - Automations (work.Automations) have no Postgres implementation yet.
+
 ## TOOL16-DESC: work item description
 
 - Additive in `kernel/work/contract.go`: `Item.Description *string` (Markdown, nil for none),
@@ -2475,6 +2469,7 @@ Done in PORT-18:
 - A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008), not
   the 409 the accept line names; same as the other HTTP routes.
 - openapi has no body schemas for these operations; the views are documented here.
+
 ## EVENTS-2: publishers for the remaining F-DL-03 / F-DL-04 events
 
 - Branch carries origin/task/DL-EVENTS (merged in) because it reuses `PGBook.Events` and
@@ -2492,6 +2487,7 @@ Done in PORT-18:
     `filing.receipt_received`, so F-DL-04 runs once per record.
 - Open: no handler or route calls these yet (boot/handler task). Whether an affidavit of
   service received but not filed with the court should also publish (verify).
+
 ## Q-BOOT-WIRE-A agent layer at boot
 
 - `Options.Agent` (`AgentWiring`) registers every `agent.Handlers()` tool, the job bindings
@@ -2549,6 +2545,7 @@ Done in PORT-18:
   designated lawyer (F-CON-05, F-CON-09..12, F-DOC-06) act for RuleAdmin. F-DOC-06 binds
   to rulepack.published for "a known rule change"; no form-change event exists yet.
   AgentPorts gains DeadlineGetter (propose_deadline).
+
 ## BOOT-PORTS-A billing and trust agent ports
 
 - The base (BOOT-WIRE-A) has no `agent.UnbilledWIP`, `WriteDeps.FirmAccount` or `WriteDeps.Bills`;
@@ -2565,6 +2562,7 @@ Done in PORT-18:
   (`BillingAgentSources.FirmAccount`); empty fails boot. No table holds it yet (verify).
 - Boot calls `WireBillingAgentPorts(NewBillingAgentSources(pool, firmPayee), &ports, &writeDeps)`.
   WriteDeps.TrustAccount and Contacts are left to BOOT-PORTS-B.
+
 ## PG-BILL
 
 - `billing.bill_guard` (0001_init.sql) freezes `signed_by`, `signed_at` and `signature_hash` once a bill
@@ -2620,6 +2618,7 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
 - DRAFT-FIX and TAX-FIELDS both took 5100 in the app/legal/matter block. The note
   idempotency key (DRAFT-FIX, merged first) keeps 5100/5101; matter_tax_provinces moves to
   5102_matter_tax_provinces.sql. Content unchanged; both are additive.
+
 ## PG-READERS: Postgres read ports at boot
 
 - Branch merges task/HTTP-17 and task/HTTP-18b onto task/BOOT-WIRE-B (their ports did not
@@ -2639,7 +2638,6 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
 - Still caller-supplied: credit.Bills (credit-note POST), withdraw.Service, recon.Service and
   recon.Statements have no Postgres implementation, so POST /credit-notes, POST
   /trust/withdrawals and the reconciliation write routes keep answering 503 until they do.
-
 
 ## PG-WRITES: Postgres write ports at boot
 
@@ -2670,8 +2668,8 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   independent check. Prepare re-prepares an open draft/ready month in place; a signed or
   imported month is ErrPeriodLocked. ImportStatement refuses with ErrNoParser.
 
-
 ## PG-WRITES-FIX
+
 ## Q-HTTP-16 Direct trust receipt posting versus the gate-owned receipt key
 
 - Additive: migration `5505_withdrawal_gate.sql` adds nullable `trust.withdrawal_request.gate_id`
@@ -2705,7 +2703,9 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   struct's `Lister` field now has type PageLister. This is a kernel Go interface change
   made at integration without a prior entry; it is recorded here. The field name `Lister`
   was kept; open: rename the field to `Pages` when the Postgres store implements ListPage.
+
 ## REFUND-EFFECT billing.refund gate effect
+
 ## Q-FEAT-CORE-15 Read and trust withdrawal handlers join the explicit handler set
 
 - `handlerset.go` `Handlers()` lists four more handlers (search_matters, get_matter,
@@ -2761,6 +2761,7 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   The body is ids and a count, with acting_for set to the run's preparer. Dispositions are
   kept in memory (Q-PORT-18 C), so the event is emitted with no tx; boot must set Events, and
   while it is nil no event is published.
+
 ## BOOT-REST: services wired last
 
 - Wired in app/legal/boot/services_rest.go behind `Options.Rest` (nil builds nothing): PGGrants
@@ -2779,6 +2780,7 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   exist); WO-FIX Close on G-B5 rejection needs a kernel gate-rejection hook (registry.GateKind
   has none) and a credit preparer-withdraw route; the portal Shell is not built at boot yet, so
   PGSessions is exposed through `wiring.Wired()` only.
+
 ## HTTP-25: agent runs, start and get (approved scope)
 
 - agent.Service has no start or run query, so http.go adds the narrow `RunService` port
@@ -2792,6 +2794,7 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   matter. Neither op lists, so the cursor and limit accept lines do not apply.
 - A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008).
 - openapi has no body schemas for these operations; the views are documented here.
+
 ## HTTP-26: webhook endpoints, list, create, renew
 
 - kernel/webhook/http.go adds the `EndpointReads` port (Endpoints, Endpoint; never the secret
@@ -2808,6 +2811,7 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   per ARC-I-049; narrowing too, since events are gate-owned) opens the gate with the whole
   patch (202). An expired endpoint answers 409 webhook_expired: create a new one.
 - A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008).
+
 ## PORT-16c: bad-debt relief excludes interest
 
 - Resolves the PORT-16b open point (decided as counsel): `ApproveWriteOff` computes the ETA
@@ -2832,6 +2836,7 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   keep compiling with a fixed acting user. Boot wiring and a readiness HTTP surface are not
   built yet: boot calls `WithDesignated(agent.NewPGDesignatedLawyers(pool))` when it builds
   the Bindings, and surfaces `Readiness` on the setup checks.
+
 ## PG-WRITES: Postgres write ports at boot
 
 - Branch merges task/PORT-STMT onto task/PG-READERS. Boot (`withWrites`, services_writes.go)
@@ -2921,6 +2926,7 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   executor is still a second person (sole-practice exception audited). `PGService.Gates`, set
   at boot, opens the gate in the request tx and stores gate_id; the route skips opening when
   the service already did, so agent withdrawals are gated on Postgres.
+
 ## BOOT-REST-2b
 
 - T-031.4 reminder worker (kernel/deadline/remind.go) added here; BOOT-21 jobs live in app/legal/boot/services_rest2.go (one boot file) instead of jobs_deadlines.go. The sent log defaults to in memory, so a restart can repeat that day's reminder once; a Postgres SentLog is open. No Postgres deadline Lister exists yet, so RestPorts.Deadlines takes it from the composition root.
@@ -3044,6 +3050,7 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   deadline engine and its fakes already implement.
 - `work.output` is counted as a work-item gate kind beside `work.absence` because its payload
   names an `item_id`; confirm when the F-WRK features that use it are built.
+
 ## Q-FEAT-CON-04 Conflict feature tests: stand-ins, test helpers and files beyond the task list
 
 - Tasks: FEAT-CON-04, FEAT-CON-05, FEAT-CON-06 (F-CON-04 to F-CON-06).
@@ -3126,6 +3133,7 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - The agent-never-approves check goes through `conflict.Clearance` on a check the agent
   prepared for the acting user: agent principal -> `ErrAgentApproves`, acting user ->
   `ErrPreparerApproves`, both 403.
+
 ## Q-FEAT-DOC-03 QuotedOnly accepts a real read handler's untrusted output
 
 - The document drafting features run read_document's real handler over Seed documents (no
@@ -3205,6 +3213,7 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
 ## Q-JOB-ACTOR Scheduled AI features act for a designated lawyer (decided as counsel)
 
 - A scheduled job feature acts for the lawyer the firm names for it in firm settings. The
@@ -3231,6 +3240,7 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - The spec gives F-DOC-04 only draft_document and submit_for_approval as writes, so the
   pre-check report is a draft the run submits under docs.outgoing (G8); the reviewing lawyer
   reads it beside the document under review.
+
 ## Q-FEAT-DOC-07 F-DOC-06 trigger events and test helpers
 
 - "A known rule or form change" binds two events: `rulepack.published` (the kernel deadline
@@ -3243,6 +3253,7 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   outside the task's list, shared byte-for-byte with FEAT-DOC-08 and FEAT-DOC-09 so the three
   branches merge cleanly. FEAT-DOC-06 already covered one G-D2 gate end to end; this task's
   test drives both gate kinds in one run.
+
 ## Q-FEAT-DOC-08 F-DOC-07 precedent-candidates: base and helpers
 
 - Builds on task/FEAT-DOC-06 (the `prompts` embed and `GatePrecedent`) and task/JOB-ACTOR
@@ -3280,6 +3291,7 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   yet (add them to EVENTS-WIRE).
 - F-DOC-11 binds `document.revision_requested`; no module publishes it yet (add it to EVENTS-WIRE with the
   revise request route).
+
 ## Q-FEAT-DOC-16 F-DOC-19 request documents from client
 
 - Files beyond the task list: `app/legal/agent/featureset/featureset.go` and its test register
@@ -3309,6 +3321,7 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - F-DOC-12 is a read-only screen action: the proposed fields are the run's extraction output
   (`OutputSchema`: items in signing order with signer role, field, template anchor or detected
   block, and a citation). No write tool places them; the user does, so no gate opens.
+
 ## Q-FEAT-DOC-20 F-DOC-13 screen action binding and run write path (files outside the task)
 
 - `app/legal/docs/ai_f_doc_13.go` (FEAT-DOC-19): `AutoFileDef` gains
@@ -3325,6 +3338,7 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - The shared `docg*` test helpers for the read-only document screen actions (F-DOC-13,
   F-DOC-18, F-DOC-23) live in `ai_f_doc_13_feature_test.go`; FEAT-DOC-21 and FEAT-DOC-22
   build on this branch.
+
 ## Q-FEAT-MAT-01 Brief refresh events; shared matter AI helpers
 
 - a2 names only `document.uploaded` of F-MAT-01's trigger ("document, email, note or event
@@ -3337,6 +3351,7 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - FEAT-MAT-06, -10 and -01 share one test helper file, app/legal/matter/ai_mat_helpers_test.go
   (mat prefix), so task/FEAT-MAT-10 is based on task/FEAT-MAT-06 and task/FEAT-MAT-01 on
   task/FEAT-MAT-10.
+
 ## Q-FEAT-MAT-02 F-MAT-03 stage advance watcher
 
 - Besides the listed files, `app/legal/agent/featureset/featureset.go` gains
@@ -3374,6 +3389,7 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   is based on task/FEAT-MAT-03, which carries task/JOB-ACTOR and the shared matb helpers.
 - `matter.contact_merge` is a tool-gap kind: the run drafts the proposal with draft_document
   and opens G-CM with submit_for_approval on that draft.
+
 ## Q-FEAT-MAT-12 F-MAT-14's "weekly sweep" has no "schedule" word
 
 - spec/ai/features.json words F-MAT-14's trigger "event: matter opened without a template;
@@ -3420,6 +3436,164 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
   screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
   as served by its screen actions instead of binding it.
+
+## Q-FEAT-TRU-06 F-TRU-06 schedule, screen subject and sourced worksheet amounts
+
+- "schedule (after fiscal year end)" names no cadence, so trigger.ParseCadence checks daily.
+  F-TRU-06 binds with trigger.BindDesignated (the firm's designated lawyer acts) and its
+  prompt writes nothing until the fiscal year has ended. Open: a yearly cadence keyed to the
+  firm's fiscal year end.
+- Main has no boot.FirmSubject, so the firm-level lso-annual-report screen selects matters
+  (SubjectKind matter, capability trust.view) in boot actionScreens.
+- draft_document carries its amounts in body_markdown, which the Provenance field pointers
+  cannot reach. app/legal/trust/ai_sourced.go adds CheckSourcedCents and SourcedDraft: every
+  "N cents" figure in an agent's draft must be one a read returned in the run, and a dollar
+  figure, a fraction of a cent or a missing Provenance fails closed (ErrUnsourcedValue). The
+  feature tests wrap draft_document and draft_email with it. Open: boot registers one
+  draft_document and one draft_email for every feature, so SourcedDraft is not yet applied to
+  live trust runs; proposed: boot wraps the draft tools with trust.SourcedDraft for runs of a
+  trust-area Def (or the draft tools gain an amounts field the Provenance pointers cover).
+
+## Q-FEAT-TRU-07 F-TRU-07 screens and the top-up amount
+
+- client-trust-ledger is one matter's ledger and selects the matter; retainer-coverage is a
+  firm-level screen and, with no boot.FirmSubject on main, also selects matters (trust.view).
+- The request asks for the unpaid balance of the delivered bills, a figure get_bill
+  returned, never a worked-out shortfall: trust.SourcedDraft refuses any cents figure the run
+  did not read. Open: a sourced "agreed retainer floor" read (engagement terms) would let the
+  request name the floor too; get_matter does not return it today.
+
+## Q-FEAT-TRU-09 F-TRU-09 screen subject and gate path
+
+- trust-audit-trail is a firm-level screen; with no boot.FirmSubject on main it selects the
+  matters the pack covers (SubjectKind matter, capability trust.view).
+- draft_document opens no gate itself, so the pack's docs.outgoing (G-REL) gate opens through
+  submit_for_approval on the draft, and submit_for_approval refuses any other kind
+  (ErrGateKindNotAllowed). Amounts are checked by trust.SourcedDraft (Q-FEAT-TRU-06).
+
+## Q-FEAT-TRU-01 bank-feed-sync: screens, binding and files outside the task list
+
+- Registering F-TRU-01 in featureset.App() (FEAT-CORE-17) makes the boot tests require its
+  screens and a job binding, so the task also touches app/legal/agent/featureset and
+  app/legal/boot/agent.go.
+- trust-receipts-journal and bank-feed-import are firm-level screens. main has no
+  boot.FirmSubject yet, so both select a matter (trust.view). Open: switch them to the firm
+  subject once it lands.
+- The schedule ("daily, plus when a statement is uploaded") binds with the write path in
+  FEAT-TRU-02; until then JobBindings lists F-TRU-01 as served by its screen actions.
+- The pipeline takes every amount and date from the cited bank-feed line: an amount is
+  integer cents ("125000 cents") or dollars and cents ("$1,250.00") in the line, else
+  agenttools.ErrUnsourcedValue and nothing is written. Its ReceiptProposals sink (opening
+  trust.receipt_classification with the acting user as preparer) is wired in FEAT-TRU-02.
+
+## Q-FEAT-TRU-04 month-end-reconciliation: trigger event, gate kind and amount provenance
+
+- No kernel event names a received bank statement. F-TRU-04 binds to the new
+  `trust.statement_received` (trust.EventStatementReceived) plus a daily check (the spec's
+  "schedule"), acting for the firm's designated lawyer (BindDesignated, JOB-ACTOR). Open: the
+  module that files statements publishes the event.
+- recon imports trust, so trust restates G12 as trust.GateReconciliationSignOff; a test holds
+  it equal to recon.GateSignOff.
+- draft_document and draft_email check citations but not amounts. trust.SourcedCents wraps
+  them so a trust write may state only integer cents and dates a read of the run returned
+  (signed, so an overdraft cannot be written unsigned), else agenttools.ErrUnsourcedValue and
+  no draft or gate. The FromFeature tests wire it; open: boot wraps the draft tools of trust
+  feature runs with it (the shared handler set has no per-feature wrapping yet).
+- monthly-reconciliation is a firm-level screen and selects a matter until boot.FirmSubject
+  lands (Q-FEAT-TRU-01).
+
+## Q-FEAT-TRU-05 retainer-replenishment: trigger event and the shortfall's figures
+
+- No kernel event names a ledger below its retainer floor. F-TRU-05 binds to the new
+  `trust.ledger_below_floor` (trust.EventLedgerBelowFloor), acting for the event's user.
+  Open: the trust module publishes it when a posting takes a ledger below the floor agreed
+  in the engagement.
+- The shortfall is Counsel's figure, never the model's: trust.NewRetainerShortfall keeps the
+  balance signed, flags an overdraft and covers it (floor - balance), and Observe records
+  its figures into the run's provenance before the run starts (fails closed without one).
+  Open: the event handler calls it and passes Prompt() as the run's request.
+- agent imports trust, so trust restates G-OUT as trust.GateOutgoingEmail; a test holds it
+  equal to agent.GateOutgoingEmail.
+
+## TRUST-DRAFT-WRAP trust drafts are checked in production (decided)
+
+- Decided as counsel (trust exception): trust drafts carry figures that go to the regulator
+  or to clients, so every trust feature's draft_document and draft_email runs behind the one
+  trust sourced-figures check, trust.SourcedCents. It merges TRU-05's SourcedCents and
+  TRU-06's SourcedDraft and keeps the stricter rule of each: signed amounts (an overdraft
+  written without its minus sign is refused), dates, "*_cents" fields, thousands
+  separators, and refusal of dollars, decimals and fractions of a cent. A nil Provenance
+  or an empty run id fails closed.
+- agent.HandlerSet resolves per (feature, tool): WithFeatureWrap adds a wrap for one
+  feature, and the built tool picks per call by agent.FeatureOf(ctx). boot.AgentHandlers
+  lists the wraps explicitly (trust.SourcedFeatures; no init()), and boot.ForgetRunner puts
+  the run's feature in ctx. An agent call with no feature fails with agent.ErrNoFeature.
+- Files outside a task list: app/legal/agent/handlerset.go, agenttest/feature.go (Fire
+  scopes the feature), boot/agent.go. Non-trust drafts keep the default handler (BIL-02/05
+  policy unchanged).
+
+## Q-FEAT-BIL-03 F-BIL-03 trust application: trigger event, payee and gate kind
+
+- No bill-delivered event exists on main. F-BIL-03 names `bill.delivered`
+  (`billing.EventBillDelivered`); billing must publish it when delivery evidence sets a bill's
+  delivered date, or the event half never fires. "Retainer permits" is checked by the run
+  (the prompt), not by the binding. The `trust-to-fees` screen maps to subject `matter` with
+  capability `trust.request`.
+- The trust withdrawal module opens `billing.trust_fee_withdrawal` (G-B4) for a request with a
+  `bill_id` (`withdraw.RequestGateKind`), so the Def declares that kind (Q-AGENT-002 reading A
+  for the tool, B for the gate). `agent.WriteTools` still names `trust.withdrawal` as its spec
+  kind; the tests assert the module's kind.
+- By-Law 9: a fee transfer pays the firm's general account. Decided in BIL-FIX: the fixtures
+  pay `agenttest.FirmPayee` and the Seed has a fee-bills port (`Seed.FeeBills`).
+- The end-to-end tests use `app/legal/billing/ai_bilc_helpers_test.go` (prefix `bilc`), shared
+  with FEAT-BIL-07 and FEAT-BIL-08. It supplies the bill, trust-balance and priced-time ports
+  the Seed lacks; since BIL-FIX it builds over boot.AgentHandlers() and the driver and Seed
+  share one Provenance.
+
+## Q-FEAT-BIL-08 F-BIL-08 draft credit note: amount provenance on draft_document
+
+- `draft_document` takes free-text markdown, so a credit note's amounts carry no provenance
+  pointer and the app's handler checks none. F-BIL-08 adds `billing.CreditNoteDraftHandler`:
+  `draft_document` with `billing.CheckCreditNote` ahead of it, which refuses
+  (`agenttools.ErrUnsourcedValue`) any money figure in the body that no read tool returned in
+  the run, before a draft row or a gate exists.
+- Decided in BIL-FIX: boot.AgentHandlers wraps F-BIL-08's `draft_document` with
+  `billing.CreditNoteWrap` (TRUST-DRAFT-WRAP's per-feature mechanism), replacing
+  `CreditNoteDraftHandler`; the boot guard test covers it.
+- The agent never computes tax: a partial credit states its pre-tax amount and the billing
+  tax engine applies the place of supply when the note is issued, so an agent-computed tax
+  figure is refused as unsourced.
+- The `credit-notes` screen maps to subject `matter` with capability `documents.edit` (what
+  `draft_document` needs).
+
+## Q-FEAT-BIL-07 F-BIL-07 monthly billing digest: acting user and list_unbilled provenance
+
+- Decided in BIL-FIX: the monthly run acts for the firm's designated lawyer
+  (`trigger.BindDesignated`, JOB-ACTOR), never for a rule admin.
+- The digest answers as `{answer, citations}` and passes `run.CheckAnswer`: it cites bill
+  lines (`agent.BillLineCitation`) the run's get_bill returned. Its money figures are checked
+  against the run's figures in the tests.
+- Gap: `list_unbilled` is not wrapped with `Provenance.ReadTool` (get_bill and
+  get_trust_balance are), so its amounts never enter a run's Provenance in production and a
+  write citing an unbilled amount is refused as unsourced. Covered by PROV-UNBILLED and, since
+  BIL-FIX, by boot.AgentHandlers, which records every read tool.
+
+## BIL-FIX fee-transfer payee, credit-note wrap, digest actor, production handlers (decided)
+
+- Decided as counsel. `prepare_trust_withdrawal` refuses a fee transfer for a bill
+  (`purpose_category: fees` with a `bill_id`) to any payee but the firm's general account
+  (`agent.ErrFeesNeedFirmPayee`, By-Law 9 s.9(1)). The F-TRU-02 fixtures had paid the matter
+  contact for a bill and now pay `agenttest.FirmPayee`; their driver reads one delivered bill
+  (`Driver.FeeBills`). F-BIL-03 shows the firm payee passing and a contact payee refused.
+- boot.AgentHandlers now records every read tool into the run's Provenance itself
+  (`recordedReads`), so a test over the production set sees what production does; the
+  TRU-05 and bilc helpers no longer record reads themselves. AgentTools keeps that behaviour.
+- agenttest: a FeatureDriver's Seed shares the driver's Provenance (production builds read
+  and write tools over one), and the billing feature tests move to package billing_test so
+  they can import boot.
+- Files outside a task list: app/legal/agent/tools_write.go, agent/agenttest,
+  boot/agent.go, trust/ai_f_tru_02_test.go and testdata/ai/f-tru-02, testdata/ai/f-bil-08
+  (prompt hash after main's tool schema change).
 
 ## Q-FEAT-INT-02 F-INT-01 triage new lead: write path and trigger
 
@@ -3501,7 +3675,6 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   matter the screen context names. A form-draft tool would remove that indirection.
 - `intake.GatePublicWording` is new: no branch on main or pushed declares `intake.public_wording`.
 
-
 ## Q-EVENTS-WIRE-2 Routes for the evidence write points, draft subject_ref, wall and intake/party publishers
 
 - Additive openapi paths (kernel/contract/additive.txt): `POST /deadlines/{deadline_id}/trigger`
@@ -3564,6 +3737,7 @@ Decided as counsel: an intake form is firm-level, so F-INT-12 must not borrow a 
   the consult module gains its own subject, `consult-outcome` should move to it.
 - Screen keys added by two branches (`consult-outcome`, `ai-receptionist`,
   `intake-automations`) keep one entry.
+
 ## Q-FEAT-INT-11 F-INT-15 non-engagement letter: draft_note cannot open intake.consult_outcome (decided)
 
 The spec has F-INT-15 (and F-INT-06) open `intake.consult_outcome` (G3) through `draft_note`,
@@ -3745,8 +3919,8 @@ of FEAT-TIM-01 above.
 - No bill-draft-requested event exists on main. F-TIM-03 names `bill.draft_requested`
   (`timekeeping.EventBillDraftRequested`); billing must publish it when a user asks for a
   draft bill, or the event half never fires. The monthly half runs today.
-- The monthly run has no designated lawyer, so boot binds it for `ruleAdmin` like the other
-  scheduled features (Q-INTEG-15A-SCHEDULED).
+- Decided in BIL-FIX: the monthly run acts for the firm's designated lawyer
+  (`trigger.BindDesignated`, JOB-ACTOR), never for a rule admin.
 - `matter-wip` and `write-downs` map to subject `matter` with capability `billing.view`
   (what `list_unbilled` needs).
 
@@ -3865,6 +4039,7 @@ of FEAT-TIM-01 above.
 - `matter.key_date_changed` is not in spec/eng/a2-interfaces.json; nothing publishes it yet.
 - Files beyond the list: featureset.go and its test, boot/agent.go (the job binding) and the
   generated skill `paploo/counsel-plugin/skills/f-wrk-04-date-shift-on-key-date-change/SKILL.md`.
+
 ## Q-FEAT-WRK-04 F-WRK-06 workflow lint: event, screen subject and G-W3 subject
 
 - Task: FEAT-WRK-04 (F-WRK-06). New event `work.workflow_draft_saved` (work.EventWorkflowDraftSaved)
@@ -3903,6 +4078,7 @@ of FEAT-TIM-01 above.
   work.plan gate instead of failing closed (Q-FEAT-WRK-02). Their tests now assert the one
   in-run gate on a proposed item, pending, prepared for the acting user, decided only by
   another lawyer.
+
 ## Q-FEAT-WRK-08 F-WRK-14 base branch and the workflow-templates screen
 
 - Task: FEAT-WRK-08 (F-WRK-14 Draft template from past matters).
@@ -3917,6 +4093,7 @@ of FEAT-TIM-01 above.
 - work.workflow_publish is a tool-gap kind: the run drafts the template with draft_document on
   the first selected matter and opens G-W3 on that draft. Open: carry a workflow template id
   in the G-W3 payload once workflow templates are stored.
+
 ## Q-FEAT-WRK-10 F-WRK-05 registration outside the task's files
 
 - Task: FEAT-WRK-10 (F-WRK-05 Daily work digest).
@@ -3934,6 +4111,7 @@ of FEAT-TIM-01 above.
 - No event exists in spec/eng/a2-interfaces.json or kernel/work for "automation run failed or
   skipped". The Def binds `work.automation_run_failed` and `work.automation_run_skipped`
   publishes automation run events.
+
 ## FEAT-WRK-13 Action screens of the read-only work answers
 
 - F-WRK-15, F-WRK-16 and F-WRK-17 run from work-automations, work-categories and
@@ -3951,6 +4129,7 @@ of FEAT-TIM-01 above.
 - `ai-receptionist` keeps FEAT-INT-08's subject `intake.lead` / `intake.leads`; FEAT-INT-13
   (F-INT-19, firm settings) asked for `matter` / `intake.forms`. Open until a firm subject
   exists (BOOT-24).
+
 ## BOOT-24 / BOOT-25 (composition root)
 
 - Files beyond the task list: `app/legal/boot/production.go` (new `Options.Production`: the
@@ -4041,6 +4220,7 @@ of FEAT-TIM-01 above.
 - **Session limits:** the session read joins `core.sign_in_policy` (singleton); its
   lifetime and idle limits win, and the config/DDL defaults apply only with no policy row.
   The cookie Max-Age still uses the config lifetime.
+
 ## Q-TRUST-SCOPE prepare_trust_withdrawal checks the run's gate kinds; boot wires its write deps
 
 - `agent/handlers.go`: the handler calls `agenttools.CheckGateKind(trust.withdrawal)` before
@@ -4115,6 +4295,7 @@ of FEAT-TIM-01 above.
   (`ErrNoPayerNames` / ErrInvalid) and nothing is written.
 - Unapplied money (overpayment) is not a payment_allocation row; Allocations derives it as
   amount minus applied, as paymentfake does. Turning it into client credit stays G-B3's.
+
 ## PG-RUNS-WEBHOOK
 
 - Webhooks: `webhook.PGEndpointReads` reads platform.webhook with `row_version` as
@@ -4184,6 +4365,7 @@ of FEAT-TIM-01 above.
 - POST /trust/reconciliations/{id}/submit answers 422 with problem code `unbalanced`
   (`recon.CodeUnbalanced`) before the three-way check; the sign-off effect (`PGSignOff.Sign`)
   re-reads bank_balance_cents and outstanding_items under FOR UPDATE and returns ErrUnbalanced.
+
 ## PROPOSAL-DRAFT: proposals are drafts of the run (closes Q-FEAT-MAT-13)
 
 - Counsel decision: `create_task` and `propose_conflict_parties` record their proposal (the
@@ -4219,6 +4401,7 @@ of FEAT-TIM-01 above.
   it publishes the same event.
 - BOOT-24: call `boot.SetMatterPortEvents(&ports, k.Emitter)` after `WireMatterPorts`. F-MAT-10
   ("event: party added or matter opened") should bind `matter.party_added` and `matter.opened`.
+
 ## Q-TOOL-DATES shift_date added to the a2 tools catalogue; create_task due_on is sourced
 
 - Additive a2 change: new read tool `shift_date` (capability `deadlines.view`, manifest scope
@@ -4426,82 +4609,97 @@ and has a one-outbox-event test.
 
 ## Q-FEAT-TRU-06 F-TRU-06 schedule, screen subject and sourced worksheet amounts
 
-- "schedule (after fiscal year end)" names no cadence, so trigger.ParseCadence checks daily.
-  F-TRU-06 binds with trigger.BindDesignated (the firm's designated lawyer acts) and its
-  prompt writes nothing until the fiscal year has ended. Open: a yearly cadence keyed to the
-  firm's fiscal year end.
-- Main has no boot.FirmSubject, so the firm-level lso-annual-report screen selects matters
-  (SubjectKind matter, capability trust.view) in boot actionScreens.
-- draft_document carries its amounts in body_markdown, which the Provenance field pointers
-  cannot reach. app/legal/trust/ai_sourced.go adds CheckSourcedCents and SourcedDraft: every
-  "N cents" figure in an agent's draft must be one a read returned in the run, and a dollar
-  figure, a fraction of a cent or a missing Provenance fails closed (ErrUnsourcedValue). The
-  feature tests wrap draft_document and draft_email with it. Open: boot registers one
-  draft_document and one draft_email for every feature, so SourcedDraft is not yet applied to
-  live trust runs; proposed: boot wraps the draft tools with trust.SourcedDraft for runs of a
-  trust-area Def (or the draft tools gain an amounts field the Provenance pointers cover).
+## Q-FEAT-TRU-08 F-TRU-08 Draft transfer: no write tool opens trust.transfer
 
-## Q-FEAT-TRU-07 F-TRU-07 screens and the top-up amount
+- features.json gives F-TRU-08 the tool `prepare_trust_withdrawal` and the gate kind
+  `trust.transfer` (G11t), with an empty tool_gap. `prepare_trust_withdrawal` requests a
+  withdrawal (money leaving the trust account to a payee) and opens `trust.withdrawal` (or
+  `billing.trust_fee_withdrawal` with a bill id). No agent write tool requests a
+  ledger-to-ledger transfer: `withdraw.Transfers` only posts an already-authorized transfer,
+  and there is no transfer request API.
+- Decision taken (fail closed, By-law 9): the Def declares `trust.transfer` only, as the spec
+  says. In its run the production `prepare_trust_withdrawal` handler refuses every call with
+  `agenttools.ErrGateKindNotAllowed` before the trust module records anything, so a transfer
+  is never filed as a withdrawal. The tests prove that path, the provenance refusals
+  (`ErrUnsourcedValue` for an invented or unsigned amount, via `trust.SourcedCents`) and the
+  deciders of a `trust.transfer` gate on the production gate catalog.
+- Open: the accept line "gate trust.transfer pending with the acting user as preparer" cannot
+  be met until a transfer write tool exists. Proposed: a `prepare_trust_transfer` write tool
+  (from/to matter, amount_cents sourced, reason) over a new `withdraw` transfer request that
+  holds the funds and opens `trust.transfer`; add it to F-TRU-08's tools in features.json.
+  This is new scope and needs owner approval.
+- The `trust-transfers` screen selects matters (subject `matter`, capability
+  `trust.request`): a transfer names its source and target matters.
+- The end-to-end tests build every Def tool from `agent.HandlerFor`, including
+  `agent.PrepareTrustWithdrawalHandler` (agenttest's driver registers its own unchecked
+  wrapper of `WriteTools`, which skips the handler's gate-kind check). Helpers:
+  `app/legal/trust/ai_trud_helpers_test.go` (prefix trud), shared with F-TRU-10.
 
-- client-trust-ledger is one matter's ledger and selects the matter; retainer-coverage is a
-  firm-level screen and, with no boot.FirmSubject on main, also selects matters (trust.view).
-- The request asks for the unpaid balance of the delivered bills, a figure get_bill
-  returned, never a worked-out shortfall: trust.SourcedDraft refuses any cents figure the run
-  did not read. Open: a sourced "agreed retainer floor" read (engagement terms) would let the
-  request name the floor too; get_matter does not return it today.
+## Q-FEAT-TRU-10 F-TRU-10 Propose disposition
 
-## Q-FEAT-TRU-09 F-TRU-09 screen subject and gate path
+- The run proposes one withdrawal of a residual balance through the production
+  `prepare_trust_withdrawal` (refund to a matter contact, or fees for a delivered bill) and
+  opens `trust.withdrawal` (G11). The tests also refuse an invented or unsigned amount
+  (`ErrUnsourcedValue` via `trust.SourcedCents`), an overdraw (`withdraw.ErrTrustOverdraw`)
+  and a payee that is not a matter contact, each before any withdrawal row exists.
+- The `trust-balance-clearance` screen selects matters (subject `matter`, capability
+  `trust.request`).
+- Gap seen while testing: the production handler checks the run scope for
+  `trust.withdrawal` before calling the trust module, but with a `bill_id` the module opens
+  `billing.trust_fee_withdrawal` (`withdraw.RequestGateKind`). A fees disposition from
+  F-TRU-10 would therefore open a kind outside the Def's scope. Proposed: the handler checks
+  `withdraw.RequestGateKind` of the request it is about to make, not the fixed kind.
 
-- trust-audit-trail is a firm-level screen; with no boot.FirmSubject on main it selects the
-  matters the pack covers (SubjectKind matter, capability trust.view).
-- draft_document opens no gate itself, so the pack's docs.outgoing (G-REL) gate opens through
-  submit_for_approval on the draft, and submit_for_approval refuses any other kind
-  (ErrGateKindNotAllowed). Amounts are checked by trust.SourcedDraft (Q-FEAT-TRU-06).
-## Q-FEAT-TRU-01 bank-feed-sync: screens, binding and files outside the task list
+## Q-FEAT-TRU-11 payee-fraud-check (F-TRU-03): event, files outside the task list
 
-- Registering F-TRU-01 in featureset.App() (FEAT-CORE-17) makes the boot tests require its
-  screens and a job binding, so the task also touches app/legal/agent/featureset and
-  app/legal/boot/agent.go.
-- trust-receipts-journal and bank-feed-import are firm-level screens. main has no
-  boot.FirmSubject yet, so both select a matter (trust.view). Open: switch them to the firm
-  subject once it lands.
-- The schedule ("daily, plus when a statement is uploaded") binds with the write path in
-  FEAT-TRU-02; until then JobBindings lists F-TRU-01 as served by its screen actions.
-- The pipeline takes every amount and date from the cited bank-feed line: an amount is
-  integer cents ("125000 cents") or dollars and cents ("$1,250.00") in the line, else
-  agenttools.ErrUnsourcedValue and nothing is written. Its ReceiptProposals sink (opening
-  trust.receipt_classification with the acting user as preparer) is wired in FEAT-TRU-02.
+- Registering F-TRU-03 in featureset.App() makes the boot tests require a job binding, so the
+  task also touches app/legal/agent/featureset and app/legal/boot/agent.go.
+- The a2 event list has no event for a new or changed receiving account. F-TRU-03 binds to
+  `trust.receiving_account_changed` (trust.EventReceivingAccountChanged). Open: add it to
+  spec/eng/a2-interfaces.json events and publish it where a payee's EFT receiving account is
+  added or edited.
+- The result is checked by trust.CheckPayeeFraud, which fails closed: any malformed output, an
+  uncited flag, an amount no read of the run returned (ErrUnsourcedValue) or a missing
+  Provenance is a block. A pass stands only with no flag; trust_overdrawn flags always lead.
 
-## Q-FEAT-TRU-04 month-end-reconciliation: trigger event, gate kind and amount provenance
+## Q-FEAT-TRU-03 withdrawal-drafter (F-TRU-02): binding, screen, agenttest provenance
 
-- No kernel event names a received bank statement. F-TRU-04 binds to the new
-  `trust.statement_received` (trust.EventStatementReceived) plus a daily check (the spec's
-  "schedule"), acting for the firm's designated lawyer (BindDesignated, JOB-ACTOR). Open: the
-  module that files statements publishes the event.
-- recon imports trust, so trust restates G12 as trust.GateReconciliationSignOff; a test holds
-  it equal to recon.GateSignOff.
-- draft_document and draft_email check citations but not amounts. trust.SourcedCents wraps
-  them so a trust write may state only integer cents and dates a read of the run returned
-  (signed, so an overdraft cannot be written unsigned), else agenttools.ErrUnsourcedValue and
-  no draft or gate. The FromFeature tests wire it; open: boot wraps the draft tools of trust
-  feature runs with it (the shared handler set has no per-feature wrapping yet).
-- monthly-reconciliation is a firm-level screen and selects a matter until boot.FirmSubject
-  lands (Q-FEAT-TRU-01).
+- Registering F-TRU-02 in featureset.App() makes the boot tests require its binding and the
+  withdrawal-request screen (matter subject, trust.request), so the task also touches
+  app/legal/agent/featureset, app/legal/boot/agent.go and the generated plugin skill.
+- Binding: bill.delivered and matter.closed (a2 events). A client's direction has no event;
+  the withdrawal-request > Draft request action starts it. Open: is "closing" the matter's
+  closing (matter.closed) or a transaction closing that needs its own event?
+- app/legal/agent/agenttest/feature.go (outside the task list): FromFeatureWith gave the Seed a
+  Provenance of its own, so figures the production get_trust_balance and get_bill recorded
+  were not the ones agenttest's real prepare_trust_withdrawal checked, and every sourced
+  amount was refused. The Seed now shares the driver's Provenance, as boot wires one per run.
+- agenttest's write tools read fee bills from noFeeBills, so a fee transfer to the firm's
+  account always fails closed in a FromFeature run; the feature test covers it as a refusal
+  only. Open: a FromFeature seam for a delivered fee bill to test the allowed fee path.
+- Package trust cannot import app/legal/agent or app/legal/trust/withdraw (both reach trust),
+  so trust.GateWithdrawal repeats "trust.withdrawal"; the test pins it to both constants.
+- Gap seen, not changed (FEAT-TOOL-21 code): prepare_trust_withdrawal lets purpose "fees" go to
+  a matter contact with no bill_id. The Postgres trust service refuses fees_to_operating
+  without a bill and the authorization effect re-checks delivery, so it fails closed
+  downstream, but the agent tool could refuse it earlier.
 
-## Q-FEAT-TRU-05 retainer-replenishment: trigger event and the shortfall's figures
+## Q-FEAT-TRU-02 bank-feed-sync write path (F-TRU-01)
 
-- No kernel event names a ledger below its retainer floor. F-TRU-05 binds to the new
-  `trust.ledger_below_floor` (trust.EventLedgerBelowFloor), acting for the event's user.
-  Open: the trust module publishes it when a posting takes a ledger below the floor agreed
-  in the engagement.
-- The shortfall is Counsel's figure, never the model's: trust.NewRetainerShortfall keeps the
-  balance signed, flags an overdraft and covers it (floor - balance), and Observe records
-  its figures into the run's provenance before the run starts (fails closed without one).
-  Open: the event handler calls it and passes Prompt() as the run's request.
-- agent imports trust, so trust restates G-OUT as trust.GateOutgoingEmail; a test holds it
-  equal to agent.GateOutgoingEmail.
+- The write path is trust.ReceiptGates, the pipeline's ReceiptProposals sink: per proposed
+  receipt it calls report_plan, draft_document and submit_for_approval through the run's
+  registry as the agent principal, inside the run's scope (trust.receipt_classification
+  only). It re-checks every receipt's amount and date against its cited bank-feed line
+  before the first write (ErrUnsourcedValue), and keeps bank-feed text (the reference) out
+  of the draft. Match suggestions open nothing. Open: boot wiring of the pipeline job (the
+  run's matter, sources and principal) is not in this task.
+- Binding: daily for the designated lawyer, plus bank_line.imported (the event POST
+  /trust/bank-lines/imports declares) for "when a statement is uploaded". F-TRU-01 leaves the
+  boot onRequest list for a JobBindings binding.
+- Package trust cannot import app/legal/agent, so the tool names the sink calls are repeated
+  as unexported constants.
 
-## TRUST-DRAFT-WRAP trust drafts are checked in production (decided)
+## Q-TRU-FIX prepare_trust_transfer, fee-gate scope, events and the F-TRU-01 job
 
 - Decided as counsel (trust exception): trust drafts carry figures that go to the regulator
   or to clients, so every trust feature's draft_document and draft_email runs behind the one
@@ -4803,3 +5001,67 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 - EVENTS-8's trust/events.go redeclared EventStatementReceived and EventLedgerBelowFloor,
   which TRU-04 and TRU-05 already declare on main with the same values; the EVENTS-8 copies
   were dropped.
+- New agent write tool `prepare_trust_transfer` (approved as in-spec scope, Q-FEAT-TRU-08),
+  added to the a2 tools additively (spec/eng/a2-interfaces.json, schemas/tools.json; Count
+  26 -> 27) and to F-TRU-08's tools in spec/ai/features.json, registered through
+  agent.Handlers(). Input: from_matter_id, to_matter_id, amount_cents (sourced, integer
+  cents), reason. It opens trust.transfer (G11t) only, through the run's scoped opener, with
+  the acting user as preparer. Both matters must be visible to the acting user and share one
+  trust account (else ErrTransferAccounts); an amount above the source ledger's available
+  balance is refused (withdraw.ErrTrustOverdraw, By-Law 9). Nothing is posted or held.
+- Open: the gate payload is withdraw.TransferPayload without a transfer_id. No transfer
+  request store writes a trust.trust_transfer row yet, so approving the gate fails closed at
+  the TransferEffect (LockTransfer finds no row) and moves no money. Proposed: a withdraw
+  transfer request (row in pending_authorization, held funds) whose id the payload carries.
+- prepare_trust_withdrawal's handler checks the run scope for withdraw.RequestGateKind of the
+  request (billing.trust_fee_withdrawal with a bill_id), not trust.withdrawal (ARC-I-035,
+  Q-FEAT-TRU-10 gap). F-TRU-02 and F-TRU-10 declare trust.withdrawal only, so a fee transfer
+  with a bill is refused in their runs; F-BIL-03 declares the fee kind and passes (positive
+  test over Seed.FeeBills in ai_f_tru_02_feature_test.go).
+- prepare_trust_withdrawal refuses purpose=fees with no bill_id at the tool
+  (agent.ErrFeesNeedBill), whoever the payee.
+- Events: trust.EventBankLinesImported is now `bank_feed.line_imported`, the one name
+  EVENTS-7 adds to the a2 events (not duplicated here; the a2 entry lands with EVENTS-7).
+  `trust.receiving_account_changed` is added to the a2 events.
+- Boot: boot.BankFeedSyncJob runs the F-TRU-01 pipeline with trust.ReceiptGates as its sink
+  in the run's scope. Open: nothing works the `agent_feature_run` River job yet, so no worker
+  calls it; the job-run worker should dispatch F-TRU-01 to it.
+## Q-TRANSFER-STORE trust transfer row and the trust.transfer effect
+- Closes the Q-TRU-FIX open item. `withdraw.TransferRequests.Request` writes the
+  trust.trust_transfer row as `pending_authorization` and opens its trust.transfer gate in
+  one tx (a failed open leaves no row). Under both ledger locks it refuses an amount above
+  the source's `trust.available_cents` (By-Law 9). The gate payload now carries
+  `transfer_id`, which `TransferEffect` binds. Recording moves no money, so it is not
+  flag-gated; `Transfers.Post` at authorization still fails closed while
+  `trust.bylaw9_verified` is off.
+- prepare_trust_transfer reads a new agent port, `agent.TrustTransfers` (boot
+  `AgentPorts.TrustTransfers`), instead of a GateOpener. It calls
+  `agenttools.CheckGateKind` before the trust module is reached, as prepare_trust_withdrawal
+  does. The row's `requested_by` is the acting user, and the gate preparer is the agent run
+  acting for them. Open: production fill of `AgentPorts.TrustTransfers`
+  (`withdraw.TransferRequests{DB, Store: withdraw.PGTransferStore{}, Gates: engine}`) lands
+  with the rest of the agent port wiring. `OpenGate` is not filled in production either.
+- Boot registers `withdraw.TransferEffect` for trust.transfer (removed from
+  unwired_gates.txt). Approval by a signatory other than the preparer posts a transfer_out
+  line and a transfer_in line, equal and opposite in integer cents, plus one balanced trust
+  book entry. An overdraw at authorization is refused (insufficient_trust_funds). An agent
+  decision is refused with 403 agent_cannot_decide.
+- Migration 5540_trust_transfer_request.sql (additive) adds the nullable columns
+  `trust_transfer.requested_by` and `trust_transfer.reason`, and freezes both with the other
+  terms once the row leaves draft.
+- Fee kind in F-TRU-02 and F-TRU-10: left as is. spec/ai/features.json gives both
+  `gate.kind = [trust.withdrawal]` and output "draft withdrawal for G11" / "propose
+  disposition"; neither spec makes a fee transfer against a bill. That is F-BIL-03 (G-B4,
+  billing.trust_fee_withdrawal). F-TRU-02's trigger "bill delivered with trust applied" is
+  the event after a fee transfer, not a request for one. So a prepare_trust_withdrawal call
+  with a bill_id stays refused in those runs (ARC-I-035). If product wants F-TRU-02 to
+  draft the fee transfer itself, add billing.trust_fee_withdrawal to its spec gate kinds
+  first.
+- TRANSFER-STORE (with TRU-FIX, BIL-FIX and the TRU and BIL chains): main's feature lists,
+  job bindings and screens were kept and the new F-TRU-02/03/08/10 and F-BIL-03/07/08 entries
+  added once each. Its recordedReads duplicated main's recordReads and was dropped; the
+  F-BIL-08 credit-note wrap is kept. unwired_gates.txt stays empty (GATE-EFFECTS).
+  Production now supplies AgentPorts.TrustTransfers (withdraw.TransferRequests over
+  PGTransferStore, opening trust.transfer through the kernel gates), so F-TRU-08 is ready;
+  with no gate opener the tool is not served. The readiness test also pins Payments and
+  TrustTransfers.

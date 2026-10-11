@@ -122,9 +122,9 @@ func TestComposeOverFakes(t *testing.T) {
 				}
 				wired++
 			}
-			// The nine effects testGatePorts and the rest step build (BOOT-16): signatory,
-			// withdrawal, bill approval and void, the write-off pair, matter.opening
-			// (EVENTS-WIRE) and matter.stage_move (STAGE-EFFECT).
+			// The ten effects testGatePorts and the rest step build (BOOT-16): signatory,
+			// withdrawal, trust transfer, bill approval and void, the write-off pair,
+			// matter.opening (EVENTS-WIRE) and matter.stage_move (STAGE-EFFECT).
 			if wired != wantWiredGates {
 				t.Fatalf("wired %d gate kinds, want %d", wired, wantWiredGates)
 			}
