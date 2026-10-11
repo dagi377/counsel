@@ -39,8 +39,8 @@ func DigestDef() feature.Def {
 }
 
 // DigestBinding binds F-DL-05 to its schedule: every business day, which covers the Monday
-// report. A scheduled run has no event user, so boot names the user it acts for; empty is
-// trigger.ErrBadBinding.
-func DigestBinding(actingFor string) (trigger.Binding, error) {
-	return trigger.Bind(DigestDef(), actingFor)
+// report. A scheduled run has no event user, so it acts for the feature's designated lawyer
+// from firm settings; with none named the run does not start and readiness flags it.
+func DigestBinding() (trigger.Binding, error) {
+	return trigger.BindDesignated(DigestDef())
 }

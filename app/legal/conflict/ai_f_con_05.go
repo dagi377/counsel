@@ -38,8 +38,8 @@ func ReverseSweepDef() feature.Def {
 }
 
 // ReverseSweepBinding binds F-CON-05 to its nightly schedule (a daily business-day cadence).
-// A scheduled run has no event user, so boot names the user it acts for (the conflicts
-// officer); empty is ErrBadBinding.
-func ReverseSweepBinding(actingFor string) (trigger.Binding, error) {
-	return trigger.Bind(ReverseSweepDef(), actingFor)
+// A scheduled run has no event user, so it acts for the feature's designated lawyer from firm
+// settings; with none named the run does not start and readiness flags it.
+func ReverseSweepBinding() (trigger.Binding, error) {
+	return trigger.BindDesignated(ReverseSweepDef())
 }

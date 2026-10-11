@@ -133,14 +133,12 @@ func TestFCON05_Prompt(t *testing.T) {
 		"Reverse conflict sweep", "Alerts and re-check requests (back through G2)", conflict.GateClearance, "report_plan", "propose_conflict_parties")
 }
 
-// F-CON-05 runs nightly (a daily business-day cadence) for the user boot names; it has no
-// event and no screen action.
+// F-CON-05 runs nightly (a daily business-day cadence) for its designated lawyer; with none
+// named it does not run. It has no event and no screen action.
 func TestFCON05_TriggerBinding(t *testing.T) {
-	b, err := conflict.ReverseSweepBinding("user-synthetic-conflicts-officer")
-	conCheckBinding(t, b, err, "F-CON-05", nil, trigger.CadenceDaily, "user-synthetic-conflicts-officer")
-	if _, err := conflict.ReverseSweepBinding(""); !errors.Is(err, trigger.ErrBadBinding) {
-		t.Fatalf("binding with no acting user = %v, want ErrBadBinding", err)
-	}
+	b, err := conflict.ReverseSweepBinding()
+	conCheckBinding(t, b, err, "F-CON-05", nil, trigger.CadenceDaily, "")
+	conCheckDesignated(t, b)
 	if got := conflict.ReverseSweepDef().Actions; len(got) != 0 {
 		t.Fatalf("actions = %v, want none", got)
 	}

@@ -26,6 +26,7 @@ import (
 	"github.com/dagi377/counsel/kernel/agenttools/run"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
 	"github.com/dagi377/counsel/kernel/clock"
+	"github.com/dagi377/counsel/kernel/clock/clockfake"
 	"github.com/dagi377/counsel/kernel/deadline"
 	kdocs "github.com/dagi377/counsel/kernel/docs"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -453,29 +454,24 @@ func TestFDL05_Prompt(t *testing.T) {
 	checkPrompt(t, DigestDef(), "daily digest and weekly report", "Digest messages and a report PDF. No gate.")
 }
 
-// F-DL-05 runs every business day (the Monday report included) for the user boot names.
+// F-DL-05 runs every business day (the Monday report included) for its designated lawyer;
+// with none named it does not run and readiness flags it.
 func TestFDL05_TriggerBinding(t *testing.T) {
-	tests := []struct {
-		name      string
-		actingFor string
-		wantErr   error
-	}{
-		{"business mornings for the docketing clerk", "u-docket-clerk", nil},
-		{"no acting user", "", trigger.ErrBadBinding},
+	b, err := DigestBinding()
+	if err != nil {
+		t.Fatalf("Binding: %v", err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b, err := DigestBinding(tt.actingFor)
-			if !errors.Is(err, tt.wantErr) {
-				t.Fatalf("Binding err = %v, want %v", err, tt.wantErr)
-			}
-			if tt.wantErr != nil {
-				return
-			}
-			if b.FeatureID != "F-DL-05" || b.Cadence != trigger.CadenceDaily || len(b.Events) != 0 || b.ActingFor != tt.actingFor {
-				t.Fatalf("binding = %+v, want F-DL-05 daily for %s", b, tt.actingFor)
-			}
-		})
+	if b.FeatureID != "F-DL-05" || b.Cadence != trigger.CadenceDaily || len(b.Events) != 0 || !b.Designated || b.ActingFor != "" {
+		t.Fatalf("binding = %+v, want F-DL-05 daily for its designated lawyer", b)
+	}
+	s := trigger.New(nil, clockfake.New(time.Date(2026, 10, 19, 9, 0, 0, 0, time.UTC), time.UTC), nil)
+	if err := s.Add(b); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	unready, err := s.Readiness(context.Background())
+	want := trigger.Unready{FeatureID: "F-DL-05", Reason: trigger.ReasonNoDesignatedLawyer}
+	if err != nil || len(unready) != 1 || unready[0] != want {
+		t.Fatalf("readiness = %+v, %v; want %+v", unready, err, want)
 	}
 }
 

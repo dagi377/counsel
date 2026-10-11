@@ -26,6 +26,7 @@ import (
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
+	"github.com/dagi377/counsel/kernel/clock/clockfake"
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/gate/gatefake"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -377,6 +378,24 @@ func conCheckPrompt(t *testing.T, d feature.Def, want ...string) {
 }
 
 // conCheckBinding fails t unless b binds feature id to events, with cadence and actingFor.
+// conCheckDesignated checks that b acts for its feature's designated lawyer and fails closed:
+// with no designated lawyer in firm settings, readiness flags the feature as not startable.
+func conCheckDesignated(t *testing.T, b trigger.Binding) {
+	t.Helper()
+	if !b.Designated || b.ActingFor != "" {
+		t.Fatalf("binding = %+v, want designated with no fixed acting user", b)
+	}
+	s := trigger.New(nil, clockfake.New(conDecideAt, time.UTC), nil)
+	if err := s.Add(b); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	unready, err := s.Readiness(context.Background())
+	want := trigger.Unready{FeatureID: b.FeatureID, Reason: trigger.ReasonNoDesignatedLawyer}
+	if err != nil || len(unready) != 1 || unready[0] != want {
+		t.Fatalf("readiness = %+v, %v; want %+v", unready, err, want)
+	}
+}
+
 func conCheckBinding(t *testing.T, b trigger.Binding, err error, id string, events []string, cadence trigger.Cadence, actingFor string) {
 	t.Helper()
 	if err != nil {

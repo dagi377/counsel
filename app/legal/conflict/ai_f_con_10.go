@@ -40,7 +40,8 @@ func ExpiryRetentionDef() feature.Def {
 }
 
 // ExpiryRetentionBinding binds F-CON-10 to its weekly schedule. A scheduled run has no event
-// user, so boot names the user it acts for (the records officer); empty is ErrBadBinding.
-func ExpiryRetentionBinding(actingFor string) (trigger.Binding, error) {
-	return trigger.Bind(ExpiryRetentionDef(), actingFor)
+// user, so it acts for the feature's designated lawyer from firm settings; with none named the
+// run does not start and readiness flags it.
+func ExpiryRetentionBinding() (trigger.Binding, error) {
+	return trigger.BindDesignated(ExpiryRetentionDef())
 }
