@@ -625,3 +625,25 @@ integrator did not change the no-rate behaviour (ErrNoAgreedRate stays). It seed
 quarterly CJA prejudgment table (2020 Q1 to 2026 Q4, from ontario.ca, verify) as
 `interest.PrejudgmentRate`, usable as the agreed rate's CJA benchmark. Needed: a lawyer reads
 s.33 as amended and either the rules or the decision change.
+
+## T-009.4: concrete server, two-way OpenAPI check, unserved list (owner decision)
+
+The owner unblocked T-009.4 before every openapi path has a handler. Files outside the task:
+
+- `api/unserved.txt`: the openapi operations no handler serves yet. The owner asked for
+  `kernel/contract/unserved.txt`, but its lines are openapi paths with legal terms and the
+  kernel term lint (TestKernelHasNoLegalTerms) scans every file under kernel/; the allow list
+  only shrinks, so the file sits next to `api/openapi.yaml` instead. It only shrinks; the conformance tests fail when a listed operation is mounted, when it leaves
+  openapi.yaml, and when an operation is neither mounted nor listed.
+- `app/legal/conformance_test.go`: the full two-way check has to see app routes, and kernel
+  code cannot import app/. It mounts every handler on main (kernel inbound hooks, trust
+  withdrawal execution) plus every `Registry.Routes` call `legal.Register` makes.
+  `kernel/server/conformance_test.go` checks the kernel routes one way.
+
+Decision taken: `server.New` mounts module routes under `server.BasePath` ("/v1", the openapi
+server URL path), and `Routes()` reports the full served pattern. Modules keep mounting
+openapi-relative paths, as `kernel/inbound` and `withdraw.Execution` already do.
+
+Left open: the second accept line (refuse a route that sets state owned by a gate effect
+unless it is the gate decision endpoint) needs a per-route "gate-owned state" marker that no
+contract declares yet. Not built.

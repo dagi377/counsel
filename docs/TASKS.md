@@ -458,7 +458,7 @@ Max width 301.
 | [x] | T-008.2 | T-008 | kernel | Money POST requires Idempotency-Key (conformance) | T-002.0, T-004.0, T-008.0, T-008.1 | `kernel/server/middleware/require_idem.go`<br>`kernel/server/middleware/require_idem_test.go` |  |
 | [x] | T-008.4 | T-008 | kernel | kernel/outbox: gap-free subject_seq | T-002.0, T-004.0, T-008.0, T-008.3 | `kernel/outbox/seq.go`<br>`kernel/outbox/seq_integration_test.go` |  |
 | [x] | T-008b.2 | T-008b | kernel | kernel/inbound: signature and timestamp check | T-008.0, T-008b.0, T-008b.1 | `kernel/inbound/verify.go`<br>`kernel/inbound/verify_test.go` |  |
-| [ ] | T-009.4 | T-009 | kernel | kernel/server: route registration and OpenAPI conformance | T-006.0, T-008.0, T-009.0, T-009.1 | `kernel/server/routes.go`<br>`kernel/server/conformance_test.go` |  |
+| [x] | T-009.4 | T-009 | kernel | kernel/server: route registration and OpenAPI conformance | T-006.0, T-008.0, T-009.0, T-009.1 | `kernel/server/routes.go`<br>`kernel/server/conformance_test.go` |  |
 | [x] | T-010.2 | T-010 | kernel | kernel/ledger: Reverse | T-003.0, T-005.0, T-010.0, T-010.1 | `kernel/ledger/reverse.go`<br>`kernel/ledger/reverse_test.go` |  |
 | [x] | T-010.3 | T-010 | kernel | kernel/ledger: periods and ClosePeriod | T-003.0, T-005.0, T-010.0, T-010.1 | `kernel/ledger/period.go`<br>`kernel/ledger/period_integration_test.go` |  |
 | [x] | T-010.4 | T-010 | kernel | kernel/ledger: chart registration and Balance | T-003.0, T-005.0, T-010.0, T-010.1 | `kernel/ledger/chart.go`<br>`kernel/ledger/balance.go`<br>`kernel/ledger/chart_test.go` |  |
