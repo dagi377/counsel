@@ -17,18 +17,6 @@ import (
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
-// testApprovalEntries holds the approval entry the test posted per bill. The approval
-// effect does not post BIL-J-003 yet (docs/QUESTIONS.md, T-020.1c).
-type testApprovalEntries map[ID]ledger.EntryID
-
-func (m testApprovalEntries) ApprovalEntry(_ context.Context, _ pgx.Tx, id ID) (ledger.EntryID, error) {
-	e, ok := m[id]
-	if !ok {
-		return "", ledger.ErrNotFound
-	}
-	return e, nil
-}
-
 type glLine struct {
 	account string
 	debit   int64
@@ -63,37 +51,24 @@ func TestBIL_C_084_VoidViaGateReversesExactly(t *testing.T) {
 	ctx := context.Background()
 	at := time.Date(2026, 10, 6, 15, 0, 0, 0, time.UTC)
 	ctx = clock.WithClock(ctx, clockfake.New(at, business))
-	approve := &ApproveEffect{Store: PGStore{}, FeesBook: pgFeesBook{}, Prefix: "INV", Now: func() time.Time { return at }}
-	led := &ledger.PG{PostedBy: func(context.Context) (string, error) { return env.lawyer, nil }}
-	entries := testApprovalEntries{}
+	led := env.ledger()
+	approve := &ApproveEffect{Store: PGStore{}, FeesBook: PGFeesBook{}, Journal: PGStore{}, Ledger: led, Prefix: "INV",
+		Now: func() time.Time { return at }}
 
-	// Approve one bill and post its BIL-J-003 entry (the example of BIL-X-018).
+	// Approving the bill posts its BIL-J-003 entry; the void finds it by source.
 	g := env.pendingWithGate(t)
 	var p ApprovalPayload
 	if err := json.Unmarshal(g.Payload, &p); err != nil {
 		t.Fatal(err)
 	}
 	billID := ID(p.BillID)
+	var entry ledger.EntryID
 	err := pgx.BeginFunc(ctx, env.pool, func(tx pgx.Tx) error {
-		for _, a := range []struct{ code, typ string }{
-			{"OP-1100", "asset"}, {"OP-1200", "asset"}, {"OP-1290", "asset"}, {"OP-2100", "liability"}, {"OP-4000", "revenue"},
-		} {
-			if _, err := tx.Exec(ctx, `INSERT INTO gl.account(code, name, type) VALUES ($1, $1, $2) ON CONFLICT (code) DO NOTHING`, a.code, a.typ); err != nil {
-				return err
-			}
-		}
 		if err := approve.Apply(ctx, tx, g); err != nil {
 			return err
 		}
-		id, err := led.Post(ctx, tx, ledger.Entry{Book: "operating", Date: clock.DateOf(at, business), SourceKind: "bill", SourceID: p.BillID,
-			Memo: "bill approval", Lines: []ledger.Line{
-				{Account: "OP-1100", Side: ledger.Debit, Amount: 113000},
-				{Account: "OP-4000", Side: ledger.Credit, Amount: 100000},
-				{Account: "OP-2100", Side: ledger.Credit, Amount: 13000},
-				{Account: "OP-1290", Side: ledger.Debit, Amount: 100000},
-				{Account: "OP-1200", Side: ledger.Credit, Amount: 100000},
-			}})
-		entries[billID] = id
+		var err error
+		entry, err = PGStore{}.ApprovalEntry(ctx, tx, billID)
 		return err
 	})
 	if err != nil {
@@ -102,7 +77,7 @@ func TestBIL_C_084_VoidViaGateReversesExactly(t *testing.T) {
 
 	voidAt := time.Date(2026, 10, 8, 15, 0, 0, 0, time.UTC)
 	vctx := clock.WithClock(ctx, clockfake.New(voidAt, business))
-	void := &VoidEffect{Store: PGStore{}, Entries: entries, Ledger: led, Now: func() time.Time { return voidAt }}
+	void := &VoidEffect{Store: PGStore{}, Entries: PGStore{}, Ledger: led, Now: func() time.Time { return voidAt }}
 	vg := registry.Approved{GateID: g.GateID, Kind: GateBillVoid,
 		Preparer:  registry.Principal{Kind: registry.PrincipalUser, UserID: env.preparer},
 		Approvers: []registry.Principal{{Kind: registry.PrincipalUser, UserID: env.lawyer}}}
@@ -139,7 +114,7 @@ func TestBIL_C_084_VoidViaGateReversesExactly(t *testing.T) {
 			var rev string
 			var revDate time.Time
 			if err := env.pool.QueryRow(ctx, `SELECT count(*), coalesce(max(id::text), ''), coalesce(max(entry_date), '1970-01-01'::date)
-FROM gl.journal_entry WHERE reverses_id = $1::uuid`, string(entries[billID])).Scan(&revs, &rev, &revDate); err != nil {
+FROM gl.journal_entry WHERE reverses_id = $1::uuid`, string(entry)).Scan(&revs, &rev, &revDate); err != nil {
 				t.Fatal(err)
 			}
 			if revs != tc.wantRevs {
@@ -158,7 +133,7 @@ FROM gl.journal_entry WHERE reverses_id = $1::uuid`, string(entries[billID])).Sc
 			if got := revDate.Format(time.DateOnly); got != "2026-10-08" {
 				t.Fatalf("reversal dated %s, want the void date 2026-10-08", got)
 			}
-			orig := entryLines(t, env, entries[billID])
+			orig := entryLines(t, env, entry)
 			mirror := entryLines(t, env, ledger.EntryID(rev))
 			if len(orig) != len(mirror) {
 				t.Fatalf("reversal has %d lines, approval %d", len(mirror), len(orig))
