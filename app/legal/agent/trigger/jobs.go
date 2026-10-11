@@ -57,11 +57,11 @@ const (
 )
 
 // ParseCadence reads the schedule part of a feature's Trigger ("schedule: weekly", "schedule
-// (daily) and on role change", "schedule: weekdays 07:30"). A trigger with no schedule is
-// CadenceNone.
+// (daily) and on role change", "schedule: weekdays 07:30", "event: ...; weekly sweep"). A
+// sweep is a schedule word, like schedule. A trigger with no schedule is CadenceNone.
 func ParseCadence(trigger string) Cadence {
 	t := strings.ToLower(trigger)
-	if !strings.Contains(t, "schedule") && !strings.Contains(t, "monthly") {
+	if !slices.ContainsFunc(scheduleWords, func(w string) bool { return strings.Contains(t, w) }) {
 		return CadenceNone
 	}
 	for _, c := range []struct {
@@ -83,6 +83,9 @@ func ParseCadence(trigger string) Cadence {
 	// "schedule" alone, or a per-record schedule ("review dates"): check daily.
 	return CadenceDaily
 }
+
+// scheduleWords mark a trigger as scheduled; the cadence words below then pick how often.
+var scheduleWords = []string{"schedule", "sweep", "monthly"}
 
 // Binding ties one job feature to the kernel event types and the schedule that start it.
 type Binding struct {
