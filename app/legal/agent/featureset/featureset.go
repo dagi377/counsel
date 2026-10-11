@@ -42,5 +42,6 @@ func appDefs() []feature.Def {
 		// conflicts
 		conflict.ConsentDraftingDef(),
 		conflict.ReverseSweepDef(),
+		conflict.IDObligationWatcherDef(),
 	}
 }
