@@ -4,7 +4,9 @@ package partyfake
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -74,4 +76,34 @@ func (f *Fake) Get(ctx context.Context, id party.ContactID) (party.Contact, erro
 		return party.Contact{}, fmt.Errorf("get contact %s: %w", id, party.ErrNotFound)
 	}
 	return c, nil
+}
+
+// Search implements party.Contacts.
+func (f *Fake) Search(ctx context.Context, query string) ([]party.Contact, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("search contacts: %w", err)
+	}
+	q := strings.ToLower(strings.TrimSpace(query))
+	f.mu.Lock()
+	out := []party.Contact{}
+	for _, c := range f.contacts {
+		if c.State == party.Merged {
+			continue
+		}
+		if strings.Contains(strings.ToLower(c.LegalName), q) || strings.Contains(strings.ToLower(c.DisplayName), q) {
+			out = append(out, c)
+		}
+	}
+	f.mu.Unlock()
+	sort.Slice(out, func(i, j int) bool {
+		a, b := strings.ToLower(out[i].DisplayName), strings.ToLower(out[j].DisplayName)
+		if a != b {
+			return a < b
+		}
+		return out[i].ID < out[j].ID
+	})
+	if len(out) > party.SearchLimit {
+		out = out[:party.SearchLimit]
+	}
+	return out, nil
 }

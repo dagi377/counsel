@@ -955,3 +955,19 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   of main's real one in jobs_kernel.go.
 - `kernel/registry/schemas/embed_integration_test.go` is added beyond the task's file list to
   meet the "integration test compiles" line; it needs no database.
+## FEAT-TOOL-02 search_contacts
+
+- Additive contract change (approved in the FEAT plan answers): `party.Contacts` gains
+  `Search(ctx, query)` and `party.SearchLimit`; Store and partyfake implement it. The Store
+  query uses LIKE on lower(legal_name/display_name) with wildcards escaped; it has no
+  integration test yet.
+- Visibility: a contact is returned only when it is the client of at least one matter the
+  acting user can see (matter.Query List by ClientID, then walls). A contact of walled
+  matters only is omitted, not refused with ErrNotVisible: the input has no matter id, and a
+  404 on a name search would tell the user a walled client exists. Parties other than the
+  client (matter.party_role) are not reachable through matter.Query, so they are not found.
+- Citations: a contact name is client text with no document version. It is returned as an
+  untrusted Quoted envelope cited to the contact record (`contact:<id>`, page 1, line 1) so
+  CheckCitations validates it; quotes[i] is the name of contacts[i].
+- `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
+  Q-FEAT-TOOL agent handler set), so the branches merge cleanly.

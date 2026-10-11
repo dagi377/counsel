@@ -67,4 +67,11 @@ var (
 type Contacts interface {
 	Create(ctx context.Context, c NewContact) (Contact, error)
 	Get(ctx context.Context, id ContactID) (Contact, error)
+	// Search returns the contacts, merged ones excluded, whose legal or display name contains
+	// query (case-insensitive), by display name then id, at most SearchLimit. An empty query
+	// matches every contact. Added for the search_contacts agent tool (FEAT-TOOL-02).
+	Search(ctx context.Context, query string) ([]Contact, error)
 }
+
+// SearchLimit caps how many contacts one Search returns.
+const SearchLimit = 200

@@ -52,3 +52,39 @@ func TestGetMissing(t *testing.T) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
 	}
 }
+
+func TestSearch(t *testing.T) {
+	ctx := context.Background()
+	f := New(func() time.Time { return t0 })
+	for _, n := range []string{"Beta Synthetic", "alpha synthetic", "Gamma Other"} {
+		if _, err := f.Create(ctx, party.NewContact{Kind: party.Person, LegalName: n, DisplayName: n}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tests := []struct {
+		query string
+		want  []string
+	}{
+		{"SYNTHETIC", []string{"alpha synthetic", "Beta Synthetic"}},
+		{"", []string{"alpha synthetic", "Beta Synthetic", "Gamma Other"}},
+		{"none", nil},
+	}
+	for _, tt := range tests {
+		got, err := f.Search(ctx, tt.query)
+		if err != nil {
+			t.Fatalf("search %q: %v", tt.query, err)
+		}
+		var names []string
+		for _, c := range got {
+			names = append(names, c.DisplayName)
+		}
+		if len(names) != len(tt.want) {
+			t.Fatalf("search %q = %v, want %v", tt.query, names, tt.want)
+		}
+		for i := range names {
+			if names[i] != tt.want[i] {
+				t.Errorf("search %q = %v, want %v", tt.query, names, tt.want)
+			}
+		}
+	}
+}
