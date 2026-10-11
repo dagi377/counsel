@@ -33,6 +33,11 @@ type Bill struct {
 	DeliveredAt time.Time   // when the bill was delivered (instant, any zone)
 	Principal   money.Cents // unpaid fees and disbursements the interest runs on
 	RatePPM     money.PPM   // rate snapshot agreed with the client; 0 means none agreed
+
+	// Additive (Q-W3-LEGAL-INTEREST). DueDate is the agreed payment due date, a business
+	// date; zero means none agreed. Interest starts on the later of DueDate and one month
+	// after delivery (BIL-C-070).
+	DueDate time.Time
 }
 
 // Period is a half-open range of business dates [From, To).

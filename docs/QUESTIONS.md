@@ -734,3 +734,60 @@ s.33 as amended and either the rules or the decision change.
   ultimate periods and ignores suspensions.
 - No Assessor or production wiring exists yet, so nothing used the fake outside tests. The
   BOOT task set should construct `limitation.NewStatute(schedule)` as the Calculator.
+
+## Q-W3-LEGAL Wave-3 legal corrections (review items 6 to 9)
+
+Changed expectations, each with its citation. Every rule stays (verify) and behind its flag.
+
+- **RCP 7-day period** (`app/legal/rulepacks/ontario/civil-procedure.yaml`). Rules of Civil
+  Procedure, R.R.O. 1990, Reg. 194, r. 3.01(1)(b): holidays are not counted only where the
+  period is *less than* seven days. The 7-day rule (renamed `short_period_7_days` ->
+  `period_7_days`) now counts calendar days, rolling forward only off a holiday last day
+  (r. 3.01(1)(c)). Golden dates: 2026-03-02 -> 03-09 (was 03-11); 2026-04-01 -> 04-08 (was
+  04-14); 2026-05-14 -> 05-21 (was 05-26); new 2026-05-11 -> 05-19 (Victoria Day roll).
+- **Notice of intent to defend.** r. 18.02(1): the notice is delivered within the time for the
+  statement of defence, i.e. 20 days after service in Ontario (r. 18.01(a)), not 10 days.
+  Golden dates: 2026-03-02 -> 03-23 (was 03-12). New rule `statement_of_defence_after_notice`
+  (r. 18.02(2)): a notice delivered in time gives 10 more days, so 30 days from service of
+  the claim; trigger `claim_served_notice_of_intent_delivered` is raised only when the
+  notice was delivered in time. Golden: 2026-03-02 -> 04-01; 2026-03-04 -> 04-07 (Good
+  Friday and Easter Monday roll). Not modelled: 40/60-day service outside Ontario
+  (r. 18.01(b), (c)) and r. 3.01(1)(d) deemed-service times.
+- **r. 1.03 holidays.** Unchanged: "holiday" includes every Saturday and Sunday, so the pack
+  skips both in business counting and the forward roll.
+- **Limitations Act, 2002 s.22** (`app/legal/limitation/statute.go`). An agreement suspension
+  now reaches the s.15 ultimate period only when it starts on or after discovery. The
+  instruction for this fix said "except business agreements under s.22(5) and (6)". The
+  statute as I read it says otherwise: s.22(4) lets *any* agreement made after the effective
+  date suspend or extend the s.15 period, but only if the claim has been discovered; s.22(5)
+  para. 2 lets a business agreement *vary* the s.15 period but says it may be suspended or
+  extended "only in accordance with subsection (4)". So no business-agreement exception was
+  added (no `BusinessAgreement` field); the discovery condition applies to all agreements.
+  The suspension's start date stands in for the date the agreement was made. (verify s.22(3)
+  to (6) and the 2006-10-19 effective date.) New tests: agreement after discovery suspends
+  both (basic 2024-01-11, ultimate 2035-01-11); agreement before discovery leaves the
+  ultimate at 2035-01-01.
+- **Legislation Act, 2006 s.87/s.88 roll.** The limitation roll now uses the s.87 "holiday"
+  definition: Sunday plus the dated holidays. Saturday is not an s.87 holiday, so a Saturday
+  last day is no longer moved (fail closed). Changed: ultimate 2041-09-28 (Sat) stays (was
+  09-30); basic 2026-02-28 (Sat) stays (was 03-02). New: a Sunday last day rolls to Monday;
+  a Saturday Boxing Day rolls past Sunday to Monday. (verify) Whether a court office closed
+  on Saturday extends the time under the Legislation Act's closed-office provision, and
+  whether s.87 makes the r. 1.03 substitute Mondays (e.g. 2026-12-28) holidays; the
+  calendar passed in is the r. 1.03 list, which includes them.
+- **Interest due date** (`app/legal/billing/interest`). Additive contract field
+  `interest.Bill.DueDate` (zero = none agreed). `Posting.Post` passes it to `Start.Clip`, so
+  interest starts on the later of the agreed due date and one month after delivery
+  (BIL-C-070, Solicitors Act s.33). New tests: due 2026-03-20 -> 10 days in March; a period
+  ending on the due date -> ErrNotDue; an earlier due date never starts before 02-15.
+- **ETA Sch. VI Part V s.23: NOT changed; needs the tax lawyer.** The instruction asked to add
+  an "individual in Canada when the service is performed" exclusion and to apply the
+  litigation exclusion to all recipients. The provision does not say that: s.23(a) excludes
+  "a service rendered to an individual in connection with criminal, civil or administrative
+  litigation in Canada, other than a service rendered before the commencement of such
+  litigation" (individuals only), and s.23 has no presence test. The presence exclusions
+  are in s.7(a)/(a.1), and s.7(b) takes advisory, professional and consulting services out
+  of s.7. The frozen rule BIL-T-015 (spec/rules/b2.json) quotes this text and has test
+  cases for both points, and rule ids outrank the code. Changing the behaviour would mean
+  changing a frozen rule against the statute, so the code and tests are left as they are.
+  (verify against the current s.23 text and GST/HST Memorandum 4.5.3.)

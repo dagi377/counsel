@@ -58,17 +58,25 @@ func TestCivilProcedureGoldenDates(t *testing.T) {
 	}{
 		{"defence plain lands sunday rolls", "statement_of_defence", d(2026, time.March, 2), d(2026, time.March, 23)},
 		{"defence lands on monday after christmas", "statement_of_defence", d(2026, time.December, 8), d(2026, time.December, 29)},
-		{"intent to defend plain", "notice_of_intent_to_defend", d(2026, time.March, 2), d(2026, time.March, 12)},
-		{"intent to defend lands easter monday", "notice_of_intent_to_defend", d(2026, time.March, 27), d(2026, time.April, 7)},
+		// r. 18.02(1): the notice is due within the 20-day defence time.
+		{"intent to defend lands sunday rolls", "notice_of_intent_to_defend", d(2026, time.March, 2), d(2026, time.March, 23)},
+		{"intent to defend plain", "notice_of_intent_to_defend", d(2026, time.March, 4), d(2026, time.March, 24)},
+		{"intent to defend lands monday after christmas", "notice_of_intent_to_defend", d(2026, time.December, 8), d(2026, time.December, 29)},
+		// r. 18.02(2): a notice delivered in time adds 10 days, so 30 days from service.
+		{"defence after notice plain", "statement_of_defence_after_notice", d(2026, time.March, 2), d(2026, time.April, 1)},
+		{"defence after notice lands good friday", "statement_of_defence_after_notice", d(2026, time.March, 4), d(2026, time.April, 7)},
 		{"reply plain", "reply", d(2026, time.September, 28), d(2026, time.October, 8)},
 		{"reply lands thanksgiving", "reply", d(2026, time.October, 2), d(2026, time.October, 13)},
 		{"appeal lands canada day", "notice_of_appeal", d(2026, time.June, 1), d(2026, time.July, 2)},
 		{"appeal lands saturday", "notice_of_appeal", d(2026, time.October, 1), d(2026, time.November, 2)},
 		{"leave plain", "leave_to_appeal_motion", d(2026, time.July, 20), d(2026, time.August, 4)},
 		{"leave lands christmas run", "leave_to_appeal_motion", d(2026, time.December, 10), d(2026, time.December, 29)},
-		{"short period plain week", "short_period_7_days", d(2026, time.March, 2), d(2026, time.March, 11)},
-		{"short period over easter", "short_period_7_days", d(2026, time.April, 1), d(2026, time.April, 14)},
-		{"short period over victoria day", "short_period_7_days", d(2026, time.May, 14), d(2026, time.May, 26)},
+		// r. 3.01(1)(b): holidays are excluded only in periods of less than seven days, so a
+		// 7-day period counts weekends and holidays and rolls only off a holiday last day.
+		{"7 days plain week", "period_7_days", d(2026, time.March, 2), d(2026, time.March, 9)},
+		{"7 days counts easter", "period_7_days", d(2026, time.April, 1), d(2026, time.April, 8)},
+		{"7 days counts victoria day", "period_7_days", d(2026, time.May, 14), d(2026, time.May, 21)},
+		{"7 days lands victoria day rolls", "period_7_days", d(2026, time.May, 11), d(2026, time.May, 19)},
 	}
 	covered := map[string]bool{}
 	for _, tc := range tests {
