@@ -47,6 +47,23 @@ Template:
   is not committed by T-001.4 because it is not in the task's file list; versions are pinned exactly.
 - Answer: (owner)
 
+## Q-031.1 Rule pack schema cannot express clear days or months_after
+
+- Task: T-031.1
+- Sources: T-031.1 accept (day-count mode clear/business/calendar, months_after, validated by
+  spec/kernel/rulepack.schema.json); kernel/deadline/contract.go (`Clear`, `Rule.MonthsAfter`,
+  `Roll` none/forward only); spec/kernel/rulepack.schema.json (`day_count` enum calendar/business,
+  no `months_after`, `roll` also allows `backward`; rules have `additionalProperties: false`).
+- Reading A: the schema is the contract; packs cannot use clear days or months_after.
+- Reading B: the schema is missing them; T-031.2 golden dates and the Ontario packs (T-031L.2)
+  need both.
+- Proposed: additive schema change: add `"clear"` to `day_count.enum` and an optional
+  `"months_after": {"type": "integer", "minimum": 0}` to rule properties. kernel/deadline/pack.go
+  already maps both, so no code change follows. Until then the loader rejects `roll: backward`
+  (the contract has no `Roll` for it) as ErrInvalidPack; either add `RollBackward` to the
+  contract or drop `backward` from the schema.
+- Answer: (owner)
+
 ## Answered
 
 ## Q-003 GateKind has no field for the spec gate id
