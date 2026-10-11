@@ -4,6 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io/fs"
+	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +18,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/roles/rolesfake"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw/withdrawfake"
+	"github.com/dagi377/counsel/kernel/agenttools"
 )
 
 const (
@@ -44,6 +52,12 @@ func (c *countingWithdrawals) RecordExecution(ctx context.Context, id, by string
 
 func newWriteTools(t *testing.T) (*agent.WriteTools, *countingWithdrawals) {
 	t.Helper()
+	return newSourcedWriteTools(t, nil)
+}
+
+// newSourcedWriteTools is newWriteTools with the run figures in pv; nil checks no provenance.
+func newSourcedWriteTools(t *testing.T, pv *agenttools.Provenance) (*agent.WriteTools, *countingWithdrawals) {
+	t.Helper()
 	wf := withdrawfake.New(24 * time.Hour)
 	wf.SetBalance(account, matterA, 500_000, 0)
 	wd := &countingWithdrawals{Fake: wf}
@@ -54,6 +68,7 @@ func newWriteTools(t *testing.T) (*agent.WriteTools, *countingWithdrawals) {
 		Walls:        rf,
 		TrustAccount: func(context.Context, string) (string, error) { return account, nil },
 		Withdrawals:  wd,
+		Provenance:   pv,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -181,5 +196,95 @@ func TestPrepareTrustWithdrawalRetryProposesOnce(t *testing.T) {
 	}
 	if _, err := tools.Decided(ctx, agent.GateDecided{GateID: first.GateID, Decision: agent.Approved, By: lawyer}); !errors.Is(err, agent.ErrUnknownGate) {
 		t.Fatalf("second gate.decided err = %v, want ErrUnknownGate", err)
+	}
+}
+
+// rule: ARC-U-027
+// rule: ARC-I-035
+// The amount must be a figure a read tool returned in the same run, and it may not exceed the
+// available balance; either refusal comes before the trust module records anything.
+func TestARC_U_027_WithdrawalAmountProvenance(t *testing.T) {
+	cases := []struct {
+		name    string
+		reads   map[string]string // run -> a read tool's output in that run
+		call    agent.Call
+		wantErr error
+	}{
+		{"balance figure from this run", map[string]string{"run-1": `{"available_cents":500000}`}, withdrawalCall("run-1", matterA, 500_000, ""), nil},
+		{"bill figure from this run", map[string]string{"run-1": `{"bill_id":"b-1","total_cents":125000}`}, withdrawalCall("run-1", matterA, 125_000, ""), nil},
+		{"invented amount", map[string]string{"run-1": `{"available_cents":500000}`}, withdrawalCall("run-1", matterA, 125_000, ""), agenttools.ErrUnsourcedValue},
+		{"figure read in another run", map[string]string{"run-2": `{"total_cents":125000}`}, withdrawalCall("run-1", matterA, 125_000, ""), agenttools.ErrUnsourcedValue},
+		{"nothing read", nil, withdrawalCall("run-1", matterA, 5_000, ""), agenttools.ErrUnsourcedValue},
+		{"sourced amount over the available balance", map[string]string{"run-1": `{"total_cents":900000}`}, withdrawalCall("run-1", matterA, 900_000, ""), withdraw.ErrTrustOverdraw},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			pv := agenttools.NewProvenance()
+			for run, out := range tc.reads {
+				pv.Observe(run, json.RawMessage(out))
+			}
+			tools, wd := newSourcedWriteTools(t, pv)
+			res, err := tools.Call(context.Background(), tc.call)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tc.wantErr)
+			}
+			if tc.wantErr != nil {
+				// No withdrawal row: the trust module was never asked.
+				if wd.requests != 0 || res.GateID != "" {
+					t.Fatalf("refused call made %d requests, gate %q", wd.requests, res.GateID)
+				}
+				return
+			}
+			if wd.requests != 1 || res.GateID == "" {
+				t.Fatalf("requests = %d, gate %q; want one proposal", wd.requests, res.GateID)
+			}
+		})
+	}
+}
+
+// rule: ARC-U-027
+// Authorize and RecordExecution are unreachable from the agent package: WriteDeps holds only
+// the request side of the trust module, and no non-test source in the package calls either.
+func TestARC_U_027_AgentCannotAuthorizeOrExecute(t *testing.T) {
+	forbidden := map[string]bool{"Authorize": true, "RecordExecution": true}
+	field, ok := reflect.TypeOf(agent.WriteDeps{}).FieldByName("Withdrawals")
+	if !ok {
+		t.Fatal("WriteDeps has no Withdrawals")
+	}
+	for name := range forbidden {
+		if _, ok := field.Type.MethodByName(name); ok {
+			t.Fatalf("WriteDeps.Withdrawals exposes %s", name)
+		}
+	}
+	fset := token.NewFileSet()
+	var found []string
+	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return err
+		}
+		f, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return err
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			if sel, ok := n.(*ast.SelectorExpr); ok && forbidden[sel.Sel.Name] {
+				found = append(found, fset.Position(sel.Pos()).String()+" "+sel.Sel.Name)
+			}
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(found) > 0 {
+		t.Fatalf("agent package reaches the trust effect: %v", found)
+	}
+	tools, wd := newWriteTools(t)
+	if _, err := tools.Call(context.Background(), withdrawalCall("run-1", matterA, 5_000, "")); err != nil {
+		t.Fatal(err)
+	}
+	if wd.authorizes != 0 || wd.executions != 0 {
+		t.Fatalf("agent path authorized %d / executed %d withdrawals", wd.authorizes, wd.executions)
 	}
 }

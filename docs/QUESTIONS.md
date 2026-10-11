@@ -1172,3 +1172,15 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
 - Drafts are keyed by the write output ref (the subject id); submit_for_approval on any other
   subject is ErrNotFound (404). The gate payload carries subject ids only; the model's note is
   not stored (AI-R-005).
+
+## FEAT-TOOL-21 prepare_trust_withdrawal amount provenance
+
+- `WriteDeps.Provenance` is checked only when set. `agenttest.New` (not this task's file) builds
+  WriteTools without one, and its read stand-ins return quoted text with no numbers to observe,
+  so a fail-closed nil would break the F-TRU/F-BIL/F-ACC feature tests. Boot wiring
+  (BOOT-FEAT-WIRE) must pass the run's Provenance, and agenttest should wrap its read stand-ins
+  with `Provenance.ReadTool`; after that, nil can fail closed.
+- `WriteDeps.Withdrawals` is now the narrow `agent.Withdrawals` interface (Request, Available).
+  `withdraw.Service` and `withdrawfake.Fake` satisfy it, so callers are unchanged.
+- The title says "payee from matter contacts", but the accept list does not cover it and there
+  is no matter-contact dependency in WriteDeps. Payee is still free text. Open question.

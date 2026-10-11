@@ -38,7 +38,18 @@ type WriteDeps struct {
 	// TrustAccount returns the trust account that holds a matter's ledger.
 	TrustAccount func(ctx context.Context, matterID string) (string, error)
 	// Withdrawals records a withdrawal request and opens its Counsel gate.
-	Withdrawals withdraw.Service
+	Withdrawals Withdrawals
+	// Provenance holds the figures the run's read tools returned. When set, amount_cents
+	// must be one of them (a get_trust_balance or get_bill figure from the same run).
+	Provenance *agenttools.Provenance
+}
+
+// Withdrawals is the part of the trust withdrawal module the agent may reach: it requests and
+// reads the available balance. Authorize and RecordExecution are not in it, so no agent code
+// can call them (withdraw.Service satisfies it).
+type Withdrawals interface {
+	Request(ctx context.Context, r withdraw.Request) (withdraw.Withdrawal, error)
+	Available(ctx context.Context, trustAccountID, matterID string) (int64, error)
 }
 
 // WriteTools runs the Counsel write tools. A write tool only records a proposal and opens a
@@ -118,6 +129,14 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 	if !visible {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, ErrNotVisible)
 	}
+	// rule: ARC-U-027
+	// The amount is a figure the run read (trust balance or bill), never one the model made
+	// up; an unsourced amount is refused before any withdrawal row exists.
+	if t.deps.Provenance != nil {
+		if err := t.deps.Provenance.Check(c.RunID, []string{"/amount_cents"}, c.Input); err != nil {
+			return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
+		}
+	}
 	method := withdraw.MethodCheque
 	switch in.Method {
 	case "", string(withdraw.MethodCheque):
@@ -130,6 +149,15 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 	account, err := t.deps.TrustAccount(ctx, in.MatterID)
 	if err != nil {
 		return Result{}, fmt.Errorf("call %s: trust account: %w", c.Tool, err)
+	}
+	// rule: ARC-U-027
+	// An overdraw is refused here, before the trust module records anything.
+	available, err := t.deps.Withdrawals.Available(ctx, account, in.MatterID)
+	if err != nil {
+		return Result{}, fmt.Errorf("call %s: available balance: %w", c.Tool, err)
+	}
+	if in.AmountCents > available {
+		return Result{}, fmt.Errorf("call %s: %w", c.Tool, withdraw.ErrTrustOverdraw)
 	}
 	// rule: ARC-U-027
 	// The agent only requests: the withdrawal is recorded as requested (proposed) and its
