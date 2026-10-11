@@ -984,3 +984,16 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   CheckCitations validates it; quotes[i] is the name of contacts[i].
 - `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
   Q-FEAT-TOOL agent handler set), so the branches merge cleanly.
+
+## FEAT-TOOL-05 list_deadlines
+
+- Additive contract change (named in the task's accept text): `kernel/deadline` gains
+  `Filter` and a separate `Lister` interface (`List(ctx, Filter)`), so `Engine` and its
+  implementations are unchanged. deadlinefake implements it; the Postgres store has no List
+  yet and must implement `Lister` before boot wires list_deadlines.
+- Visibility: a named walled matter is refused with ErrNotVisible (404). Without a matter id,
+  deadlines of walled matters are omitted, and deadlines on a subject that is not a matter
+  are omitted too (walls cannot be checked on them: fail closed).
+- The result carries ids, rule references and dates only, no document or client text, so it
+  has no quoted envelope. Due dates are YYYY-MM-DD strings, which Provenance.ReadTool records.
+- Registered through `ListDeadlinesHandler()` for the boot HandlerSet, not init().
