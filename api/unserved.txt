@@ -5,9 +5,6 @@
 POST /agent/runs
 GET /agent/runs/{run_id}
 GET /audit-events
-GET /deadlines
-POST /deadlines
-GET /deadlines/{deadline_id}
 POST /payments/{payment_id}/allocations
 POST /payments/{payment_id}/refunds
 GET /roles

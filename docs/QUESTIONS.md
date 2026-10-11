@@ -1975,3 +1975,22 @@ Done in PORT-18:
   `{document_id, version_id, matter_id, kind, run_id, acting_for, created_at}`.
 - The Gate body copies bill's gate rendering (min_approvers 1 per spec/gates.json); a
   shared renderer in kernel/gate would be a follow-up.
+
+## HTTP-22: deadline list, propose and get routes (kernel/deadline)
+
+- `deadline.Engine` has no List: the route reads a `Lister` port in kernel/deadline/http.go
+  (List by ListFilter, ordered by id). PGBook implementing it is a boot follow-up. No
+  contract.go change.
+- The kernel handler takes every app name from `deadline.HTTPConfig` (capabilities, the
+  parent subject kind and its body/payload key, the deadline subject kind, the confirm
+  gate). app/legal/register.go supplies `DeadlineRoutes` (deadlines.view, deadlines.edit,
+  matter.matter, matter_id, deadline.deadline, cal.confirm) and mounts it from Register
+  after the modules loop: modules.go is one entry per package with a register.go, and
+  kernel/deadline is not an app package.
+- POST /deadlines takes `{matter_id, title, pack_id, rule_id, trigger_date}`; it computes,
+  saves the deadline proposed and opens cal.confirm with the gates.json payload
+  (`source` = pack id and version) in one tx, then answers 202 with the Gate body. A rule
+  that yields more than one deadline answers 422. It declares `deadline.status=proposed`;
+  Engine.Confirm is only the gate effect's (still listed in boot/unwired_gates.txt).
+- ErrUnknownRule and ErrUnknownPack answer 422 `unknown_rule` (proposed code).
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
