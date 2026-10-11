@@ -567,3 +567,21 @@ Template:
   `ErrUnverified` while `tax.verify_rules` is off.
 - T-014.2c and T-014.2d each replace a fail-closed placeholder in `pos.go` with a call into
   their own file (pos.go is not in their file lists).
+## T-019.1d-f: bill approval effect wiring, fees book storage, BN fail-closed
+
+- Fees book storage: 0001_init.sql has no fees book table. `ApproveEffect` writes the row
+  through `FeesBookWriter` in the gate tx, but there is no Postgres writer yet. Options:
+  (a) an additive `billing.fees_book` table (append-only, voids kept), or (b) treat the
+  numbered `billing.bill` rows as the register (bill_guard already refuses deleting a
+  non-draft bill and keeps voids) and drop the separate write. The integration test uses a
+  test-only table to prove the row commits and rolls back with the gate tx.
+- Registration: gate kinds are registered centrally by `gates.RegisterKinds`, so
+  `bill.Effects(*ApproveEffect)` returns the `billing.bill_approval` handler (as
+  `signatory.Effects` does) instead of a second GateKind registration in bill/register.go.
+  Integrator: pass it into the RegisterKinds effects map at boot.
+- Integrator: add `bill.FlagBillingRecordsVerified` to `TestFlagMirrorsMatchCanonicalNames`.
+- `CheckDeliverable` uses `tax.BNChecker`, which fails closed: while `tax.bn_check_verified`
+  is off, a GST/HST registrant cannot deliver any bill (tax.ErrUnverified). Confirm this is
+  intended before the deliver route is wired, or turn the flag on once BIL-T-061 is verified.
+- BIL-I-008 has its text in spec/eng/b3-billing-engine.json; `CheckNumbering` implements it.
+  It also lets a void bill have no number (voided before approval), as the 0001 CHECK does.
