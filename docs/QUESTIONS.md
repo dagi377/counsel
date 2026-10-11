@@ -1851,3 +1851,24 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## Q-FEAT-CON-01 F-CON-01 party extraction
+
+- Files: the task lists `app/legal/conflicts/ai_f_con_01_test.go`; the landed AI-033 test is
+  `app/legal/conflict/ai_f_con_01_test.go` (package `conflict`), so that file was moved to
+  FromFeature in place. `app/legal/agent/featureset/featureset.go` gained
+  `conflict.PartyExtractionDef()` (FEAT-CORE-17 registration); F-CON-01 is an extraction Def,
+  so no plugin skill is generated for it.
+- G2 has no kernel gate here: propose_conflict_parties runs the conflict check, and the open
+  check run is the pending conflict.clearance (G2), decided through `conflict.Clearance`
+  (gates.CheckDecision). So the tests assert the run is open with the acting user as preparer,
+  an agent decider is 403 (`gates.ErrAgentApproves`) and the acting user is refused as preparer
+  (`gates.ErrPreparerApproves`, the self-approval refusal of app/legal/gates), not
+  `agent.ErrSelfApproval` (stand-in gates only).
+- `get_matter`/`search_matters`/`read_document` have no `agent.Handler` and `agenttest.Seed.Deps`
+  carries no `ConflictCheckParties`, `conflict.Checker`, `DocumentLookup` or `SubjectMatters`; the
+  test adds them (con01World). `agenttest.QuotedOnly` does not know read_document's
+  `{"untrusted": true, pages}` envelope; the tests check it (docQuotedOnly).
+- Events: `lead.created` (intake submitted) and `document.uploaded` (document added), a2 events.
+- The landed test retried on `ai.ErrTimeout`; FromFeature's default RetryOn does not, so the
+  test sets it as the landed test did.
