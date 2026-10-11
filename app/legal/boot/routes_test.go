@@ -187,6 +187,7 @@ func TestWiredRoutesAreServed(t *testing.T) {
 		{"GET", "/credit-notes"},
 		{"GET", "/trust/accounts"},
 		{"GET", "/trust/ledgers"},
+		{"POST", "/trust/receipts"},
 		{"GET", "/trust/withdrawals"},
 		{"GET", "/trust/withdrawals/" + id},
 		{"GET", "/trust/reconciliations"},

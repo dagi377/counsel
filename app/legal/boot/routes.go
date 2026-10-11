@@ -130,6 +130,10 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	add(p.TrustLists != nil && p.TrustLedgers != nil, (&trust.HTTP{Lists: p.TrustLists,
 		Ledgers: p.TrustLedgers, Access: p.Access, Cursors: p.Cursors, Problems: p.Problems,
 		Principal: p.Principal}).Routes)
+	add(p.TrustLists != nil && p.DB != nil && p.Gates != nil && p.Idem != nil, (&trust.ReceiptHTTP{
+		Lists: p.TrustLists, Journal: trust.PGReceiptJournal{}, Access: p.Access, DB: p.DB, Gates: p.Gates,
+		Idem: p.Idem, Problems: p.Problems, Principal: p.Principal,
+		MinApprovers: approvers[trust.GateReceiptClassification]}).Routes)
 	add(p.Withdrawals != nil, (&withdraw.Reads{Lists: p.Withdrawals, Access: p.Access,
 		Cursors: p.Cursors, Problems: p.Problems, Principal: p.Principal}).Routes)
 	add(p.Reconciliations != nil, (&recon.Reads{Lists: p.Reconciliations, Access: p.Access,

@@ -34,6 +34,9 @@ type TrustPorts struct {
 	Firm withdraw.FirmPolicy
 	// Audit records withdrawal audit actions.
 	Audit withdraw.Auditor
+	// FeeBills reads the bill a fee withdrawal pays (WD-BILL). Nil is allowed at boot, but
+	// then the withdrawal effect refuses every fee withdrawal (it fails closed).
+	FeeBills withdraw.FeeBills
 }
 
 // trustSvcs are the trust services built at boot.
@@ -80,6 +83,7 @@ func trustServices(k *kboot.Kernel, p TrustPorts) (trustSvcs, error) {
 			Signers: p.Signers,
 			Firm:    p.Firm,
 			Audit:   p.Audit,
+			Bills:   p.FeeBills,
 			Now:     k.Clock.Now,
 		},
 	}, nil
