@@ -41,5 +41,6 @@ func appDefs() []feature.Def {
 		deadlines.RuleWatchDef(),
 		// conflicts
 		conflict.SearchRankingDef(),
+		conflict.ClearanceMemoDef(),
 	}
 }
