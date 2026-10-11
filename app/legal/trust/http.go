@@ -126,17 +126,27 @@ type ledgerView struct {
 	BalanceCents   int64  `json:"balance_cents"`
 	AvailableCents int64  `json:"available_cents"`
 	ProtectedCents int64  `json:"protected_cents"`
+	Overdrawn      bool   `json:"overdrawn"`
+	ShortfallCents int64  `json:"shortfall_cents"`
 }
 
+// ledgerOf reports the balance trust.Ledgers.Balance gives. An overdrawn ledger is never
+// hidden: openapi Cents is non-negative, so a negative amount is reported as 0 together with
+// overdrawn=true and shortfall_cents, the amount below zero. The true signed figure is
+// amount - shortfall_cents; nothing is clamped without saying so.
 func ledgerOf(l Ledger, b Balance) ledgerView {
-	// Cents is non-negative: a ledger whose holds exceed its cleared money has nothing
-	// available, not a negative amount.
-	avail := b.AvailableCents
-	if avail < 0 {
-		avail = 0
+	v := ledgerView{ID: string(l.ID), AccountID: string(l.AccountID), ClientID: l.ClientID, MatterID: l.MatterID,
+		BalanceCents: b.PostedCents, AvailableCents: b.AvailableCents, ProtectedCents: b.ProtectedCents}
+	// rule: BIL-I-010
+	// By-law 9: no client ledger may go into overdraft. A negative posted or available
+	// balance is reported as overdrawn with its shortfall.
+	if low := min(b.PostedCents, b.AvailableCents); low < 0 {
+		v.Overdrawn = true
+		v.ShortfallCents = -low
+		v.BalanceCents = max(b.PostedCents, 0)
+		v.AvailableCents = max(b.AvailableCents, 0)
 	}
-	return ledgerView{ID: string(l.ID), AccountID: string(l.AccountID), ClientID: l.ClientID, MatterID: l.MatterID,
-		BalanceCents: b.PostedCents, AvailableCents: avail, ProtectedCents: b.ProtectedCents}
+	return v
 }
 
 // lineView is the openapi TrustJournalLine.

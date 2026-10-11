@@ -1587,3 +1587,21 @@ Done in PORT-18:
 - openapi gives no 200 schema for GET /matters, /contacts, /time-entries, /expenses; their
   tests check the whole body against the openapi list page envelope. Declaring those 200
   schemas is an open additive openapi change.
+
+## HTTP-10b trust ledger overdraft fields
+
+- Trust ledger overdraft is never hidden (By-law 9; BIL-I-010, ARC-I-025). GET /trust/ledgers
+  always sends `overdrawn` (bool) and `shortfall_cents` (>= 0) on each ledger. openapi `Cents`
+  is non-negative, so a negative posted or available balance is reported as 0 with
+  `overdrawn: true` and `shortfall_cents` = the amount below zero of the lower of the two; the
+  true signed figure is that amount minus shortfall_cents. The web must show `overdrawn` as an
+  error state. spec/legal names the By-law 9 no-overdraft rule only in prose (billing.json
+  "reg"); the code cites BIL-I-010 from spec/eng/b3.
+- Open (needs owner): the two fields are not yet declared on openapi `TrustLedger`. The
+  additive change needs a line in kernel/contract/additive.txt, and any pointer under
+  `/components/schemas/TrustLedger` puts the legal term "trust" in kernel/, which
+  TestKernelHasNoLegalTerms rejects; tools/kernel_allow.txt is a ratchet that may not grow
+  (TestKernelRatchet). `TrustLedger` has no `additionalProperties: false`, so the bodies still
+  validate. Proposed: exempt kernel/contract/additive.txt (openapi pointers, not kernel code)
+  from the term scan, then add `overdrawn: {type: boolean}` and
+  `shortfall_cents: {$ref: Cents}` to TrustLedger under this entry.

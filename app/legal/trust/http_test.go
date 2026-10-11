@@ -323,6 +323,62 @@ func TestTrustLedgersBalanceFromService(t *testing.T) {
 	}
 }
 
+// rule: BIL-I-010
+func TestTrustLedgerOverdraftIsReported(t *testing.T) {
+	tests := []struct {
+		name                 string
+		posted, available    int64
+		wantBalance, wantAvl int64
+		wantOverdrawn        bool
+		wantShortfall        int64
+	}{
+		{"in funds", 1000, 800, 1000, 800, false, 0},
+		{"exactly zero", 0, 0, 0, 0, false, 0},
+		{"holds exceed cleared money", 500, -250, 500, 0, true, 250},
+		{"posted balance below zero", -300, -400, 0, 0, true, 400},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			st, h := newRig(t, 1, 0)
+			id := ledgerID(1)
+			st.balances[id] = trust.Balance{LedgerID: id, PostedCents: tc.posted, AvailableCents: tc.available}
+			rec := do(h, http.MethodGet, "/v1/trust/ledgers?matter_id="+matterID, userViewer)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
+			}
+			var page struct {
+				Items []json.RawMessage `json:"items"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil || len(page.Items) != 1 {
+				t.Fatalf("page = %s (%v)", rec.Body, err)
+			}
+			validate(t, "#/components/schemas/TrustLedger", page.Items[0])
+			var v struct {
+				Balance   int64  `json:"balance_cents"`
+				Available int64  `json:"available_cents"`
+				Overdrawn *bool  `json:"overdrawn"`
+				Shortfall *int64 `json:"shortfall_cents"`
+			}
+			if err := json.Unmarshal(page.Items[0], &v); err != nil {
+				t.Fatal(err)
+			}
+			if v.Overdrawn == nil || v.Shortfall == nil {
+				t.Fatalf("overdrawn and shortfall_cents must always be present: %s", page.Items[0])
+			}
+			if *v.Overdrawn != tc.wantOverdrawn || *v.Shortfall != tc.wantShortfall {
+				t.Errorf("overdrawn=%v shortfall=%d, want %v %d", *v.Overdrawn, *v.Shortfall, tc.wantOverdrawn, tc.wantShortfall)
+			}
+			if v.Balance != tc.wantBalance || v.Available != tc.wantAvl {
+				t.Errorf("balance=%d available=%d, want %d %d", v.Balance, v.Available, tc.wantBalance, tc.wantAvl)
+			}
+			// The true signed balance is recoverable: lowest reported amount - shortfall.
+			if got := min(v.Balance, v.Available) - *v.Shortfall; got != min(tc.posted, tc.available) {
+				t.Errorf("signed balance = %d, want %d", got, min(tc.posted, tc.available))
+			}
+		})
+	}
+}
+
 func TestTrustListPages(t *testing.T) {
 	tests := []struct {
 		name      string
