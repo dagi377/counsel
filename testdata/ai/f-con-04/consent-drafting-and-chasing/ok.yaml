@@ -1,0 +1,37 @@
+synthetic: true
+feature: F-CON-04
+match:
+  prompt_hash: ""
+  last_user_regex: "consent letters for matter"
+latency_ms: 0
+turns:
+  - reply:
+      tool_calls:
+        - name: search_contacts
+          input: {query: "M-2026-0042 parties", limit: 20}
+      stop_reason: tool_use
+      usage: {input_tokens: 640, output_tokens: 32}
+  - expect_tool_results: [search_contacts]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: draft-letters, title: "Draft consent letters for M-2026-0042"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 720, output_tokens: 28}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input:
+            kind: conflict.consent_text
+            matter: "M-2026-0042"
+            letters:
+              - {to: "Northwind Ltd", basis: "former client, unrelated matter M-2025-0107", ask: "written consent to act"}
+              - {to: "Harbour Credit Union", basis: "current client on M-2026-0019", ask: "written consent to act"}
+      stop_reason: tool_use
+      usage: {input_tokens: 810, output_tokens: 96}
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      text: "Drafted consent letters for your review."
+      stop_reason: end_turn
+      usage: {input_tokens: 860, output_tokens: 12}

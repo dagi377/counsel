@@ -1,0 +1,4 @@
+synthetic: true
+feature: F-CON-04
+match: {last_user_regex: "consent letters for matter"}
+fault: timeout
