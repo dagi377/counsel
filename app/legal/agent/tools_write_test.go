@@ -156,6 +156,8 @@ func TestARC_U_027_AgentWithdrawalIsProposedOnly(t *testing.T) {
 		{"negative amount fails schema", withdrawalCall("run-1", matterA, -1, ""), agent.ErrInvalidInput},
 		{"acting user lacks capability", agent.Call{RunID: "run-1", ActingFor: lawyer, Tool: agent.ToolPrepareTrustWithdrawal, Input: withdrawalCall("run-1", matterA, 5_000, "").Input}, agent.ErrForbidden},
 		{"unknown tool", agent.Call{RunID: "run-1", ActingFor: preparer, Tool: "authorize_withdrawal", Input: json.RawMessage(`{}`)}, agent.ErrUnknownTool},
+		// rule: ARC-I-027
+		{"no acting user, no preparer", agent.Call{RunID: "run-1", Tool: agent.ToolPrepareTrustWithdrawal, Input: withdrawalCall("run-1", matterA, 5_000, "").Input}, agent.ErrForbidden},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

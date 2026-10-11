@@ -62,6 +62,9 @@ type fakeTx struct {
 	rows  map[string][]fakeRow // SQL fragment -> rows
 	order []string             // fragments, most specific first
 	execs []fakeExec
+	// queries records every QueryRow, so a test can read the values written by an
+	// INSERT ... RETURNING.
+	queries []fakeExec
 }
 
 type fakeExec struct {
@@ -78,7 +81,8 @@ func (t *fakeTx) match(sql string) []fakeRow {
 	return nil
 }
 
-func (t *fakeTx) QueryRow(_ context.Context, sql string, _ ...any) pgx.Row {
+func (t *fakeTx) QueryRow(_ context.Context, sql string, args ...any) pgx.Row {
+	t.queries = append(t.queries, fakeExec{sql: sql, args: args})
 	rs := t.match(sql)
 	if len(rs) == 0 {
 		return fakeRow{err: pgx.ErrNoRows}
