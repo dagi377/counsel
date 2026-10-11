@@ -82,7 +82,7 @@ func (a stubAccess) Can(_ context.Context, p registry.Principal, capability stri
 
 var testAccess = stubAccess{caps: map[string][]string{
 	"alice": {bill.CapView, bill.CapDraft}, "partner": {bill.CapView, bill.CapDraft, bill.CapApprove},
-	"viewer": {bill.CapView}, "reader": nil,
+	"viewer": {bill.CapView}, "reader": nil, "bot": {bill.CapDraft},
 }}
 
 func testPrincipal(r *http.Request) (registry.Principal, bool) {

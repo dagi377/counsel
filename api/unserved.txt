@@ -5,8 +5,6 @@
 POST /agent/runs
 GET /agent/runs/{run_id}
 GET /audit-events
-POST /bills
-PATCH /bills/{bill_id}
 POST /bills/{bill_id}/deliver
 POST /bills/{bill_id}/submit
 POST /bills/{bill_id}/void
