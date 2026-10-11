@@ -134,8 +134,8 @@ func (w *conWorld) proposedNames() []string {
 	return out
 }
 
-// pull appends the value of type T in d, if d has one.
-func pull[T any](d agent.Deps, out []any) []any {
+// con02Pull appends the value of type T in d, if d has one.
+func con02Pull[T any](d agent.Deps, out []any) []any {
 	if v, err := agent.DepOf[T](d); err == nil {
 		return append(out, v)
 	}
@@ -148,14 +148,14 @@ func (w *conWorld) handlers(t *testing.T, def feature.Def) agent.HandlerSet {
 	t.Helper()
 	deps := func(d agent.Deps) agent.Deps {
 		vals := []any{w, agent.ConflictCheckParties(w), conflict.Checker(w.Checks), agent.SubjectMatters(w), agenttools.RunScopes{}}
-		vals = pull[agent.CapabilityCheck](d, vals)
-		vals = pull[roles.Walls](d, vals)
-		vals = pull[agenttools.Plans](d, vals)
-		vals = pull[agenttools.GateOpener](d, vals)
-		vals = pull[agent.DocumentText](d, vals)
-		vals = pull[agent.ContactSearch](d, vals)
-		vals = pull[matter.Query](d, vals)
-		vals = pull[*agenttest.SeedStore](d, vals)
+		vals = con02Pull[agent.CapabilityCheck](d, vals)
+		vals = con02Pull[roles.Walls](d, vals)
+		vals = con02Pull[agenttools.Plans](d, vals)
+		vals = con02Pull[agenttools.GateOpener](d, vals)
+		vals = con02Pull[agent.DocumentText](d, vals)
+		vals = con02Pull[agent.ContactSearch](d, vals)
+		vals = con02Pull[matter.Query](d, vals)
+		vals = con02Pull[*agenttest.SeedStore](d, vals)
 		return agent.NewDeps(vals...)
 	}
 	var hs []agent.Handler
