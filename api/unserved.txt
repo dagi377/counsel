@@ -5,9 +5,6 @@
 POST /agent/runs
 GET /agent/runs/{run_id}
 GET /audit-events
-GET /credit-notes
-POST /credit-notes
-GET /credit-notes/{credit_note_id}
 GET /deadlines
 POST /deadlines
 GET /deadlines/{deadline_id}
