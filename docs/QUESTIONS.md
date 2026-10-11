@@ -1504,3 +1504,16 @@ Done in PORT-18:
   consumer that calls bill.Service.Deliver is a boot follow-up.
 - Gate subject kind for bills is `billing.bill` (bill.SubjectBill).
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+
+## HTTP-17: trust withdrawal request and cancel routes
+
+- POST /trust/withdrawals returns 202 with the openapi WithdrawalRequest body (status
+  awaiting_authorization, gate_id), not the Gate body the accept line names: openapi wins.
+- The route records the request through withdraw.Service.Request and opens the gate itself
+  (trust.withdrawal, or billing.trust_fee_withdrawal when bill_id is set). A real Service
+  must not also open a gate; please confirm.
+- New ports in http_request.go (Service stays frozen): LedgerReader (ledger_id -> account and
+  matter), Cancels (row version, ledger, bill; records the cancellation), Gates (Open, Withdraw).
+- Method wire answers 422 (no wire method in the module); direction_document_id carries the
+  Form 9A EFT authorization id. Only the preparer can withdraw the gate (403 otherwise).
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).

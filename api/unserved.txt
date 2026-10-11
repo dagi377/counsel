@@ -38,9 +38,7 @@ GET /trust/requests
 POST /trust/requests
 POST /trust/transfers
 GET /trust/withdrawals
-POST /trust/withdrawals
 GET /trust/withdrawals/{withdrawal_id}
-POST /trust/withdrawals/{withdrawal_id}/cancel
 GET /users
 PUT /users/{user_id}/roles
 GET /webhook-endpoints

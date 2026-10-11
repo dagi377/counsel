@@ -58,3 +58,13 @@ func (x *Execution) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	x.handle(w, r)
 }
+
+func init() { add(registerRequestRoutes) }
+
+// registerRequestRoutes mounts POST /trust/withdrawals and POST
+// /trust/withdrawals/{withdrawal_id}/cancel through Registry.Routes. Boot wiring supplies the
+// dependencies; until it does, the routes answer 503.
+func registerRequestRoutes(r registry.Registry) error {
+	r.Routes((&RequestHTTP{}).Routes)
+	return nil
+}
