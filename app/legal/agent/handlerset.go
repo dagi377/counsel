@@ -89,7 +89,10 @@ func (s HandlerSet) Names() []string {
 
 // Handlers is the app's handler set: every a2 tool with a real handler, listed here. A new
 // tool file adds its Handler to this list. Boot builds the registry from this set; nothing
-// registers itself from init().
+// registers itself from init(). Each handler reads its module ports (BillBalances,
+// MatterTrustAccounts, PublishedPacks, MatterTime, SubjectMatters, ProposedTasks,
+// ConflictCheckParties and the rest) from the Deps boot passes to Build; a port boot has not
+// wired yet makes that Build fail with ErrMissingDep.
 func Handlers() HandlerSet {
 	hs := []Handler{
 		{Name: ToolListDocuments, Build: buildListDocuments},
@@ -99,6 +102,18 @@ func Handlers() HandlerSet {
 		DraftDocumentHandler(),
 		DraftEmailHandler(),
 		DraftNoteHandler(),
+		ListDeadlinesHandler(),
+		ComputeDeadlineHandler(),
+		ListUnbilledHandler(),
+		GetBillHandler(),
+		GetTrustBalanceHandler(),
+		ProposeTimeEntriesHandler(),
+		ProposeDeadlineHandler(),
+		CreateTaskHandler(),
+		ProposeConflictPartiesHandler(),
+		SubmitForApprovalHandler(),
+		DraftBillHandler(),
+		ProposePaymentAllocationHandler(),
 	}
 	hs = append(hs, ReportHandlers()...)
 	s, err := NewHandlerSet(hs...)

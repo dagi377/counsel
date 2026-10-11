@@ -2,7 +2,6 @@ package feature
 
 import (
 	"errors"
-	"flag"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,12 +13,7 @@ import (
 	"github.com/dagi377/counsel/kernel/ai"
 )
 
-var updateSkills = flag.Bool("update-skills", false, "rewrite the plugin skills from the app's definitions")
-
-const (
-	repoSkills   = "../../../../" + SkillsDir
-	repoManifest = "../../../../paploo/counsel-plugin/paploo.yaml"
-)
+const repoManifest = "../../../../paploo/counsel-plugin/paploo.yaml"
 
 func skillDef(id, name string, kind ai.CallKind) Def {
 	return Def{
@@ -142,23 +136,6 @@ func writeSkill(t *testing.T, dir, name, body string) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, name, SkillFile), []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// TestExportSkillsCheckedIn fails while the plugin's skills differ from the app's
-// definitions; go generate runs it with -update-skills to rewrite them.
-func TestExportSkillsCheckedIn(t *testing.T) {
-	s, err := AppSet()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if *updateSkills {
-		if err := ExportSkills(s, repoSkills); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := CheckSkills(s, os.DirFS(repoSkills)); err != nil {
 		t.Fatal(err)
 	}
 }

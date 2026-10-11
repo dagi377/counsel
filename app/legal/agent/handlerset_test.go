@@ -11,7 +11,10 @@ import (
 
 func TestHandlersIsExplicitList(t *testing.T) {
 	want := []string{agent.ToolDraftDocument, agent.ToolDraftEmail, agent.ToolDraftNote, agent.ToolListDocuments,
-		agent.ToolListWorkItems, agent.ToolReportPlan, agent.ToolReportStep, agent.ToolSearchContacts, agent.ToolSearchDocuments}
+		agent.ToolListWorkItems, agent.ToolReportPlan, agent.ToolReportStep, agent.ToolSearchContacts, agent.ToolSearchDocuments,
+		agent.ToolListDeadlines, agent.ToolComputeDeadline, agent.ToolListUnbilled, agent.ToolGetBill, agent.ToolGetTrustBalance,
+		agent.ToolProposeTimeEntries, agent.ToolProposeDeadline, agent.ToolCreateTask, agent.ToolProposeConflictParties,
+		agent.ToolSubmitForApproval, agent.ToolDraftBill, agent.ToolProposePaymentAllocation}
 	slices.Sort(want)
 	if got := agent.HandlerNames(); !slices.Equal(got, want) {
 		t.Fatalf("HandlerNames() = %v, want %v", got, want)

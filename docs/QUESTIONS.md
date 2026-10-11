@@ -72,6 +72,7 @@ Template:
 - Reading B: the tasks' `files` must be extended to list `main.go` first.
 - Proposed: A. AI-005 adds two route lines to `handler()` plus `chat_test.go`. The AI-006 and
   AI-007 branches add their lines next to them; merging gives a trivial conflict in `handler()`.
+
 ## Q-AI-006 Fault layer and journal need main.go and messages_test.go
 
 - Task: AI-006
@@ -85,6 +86,7 @@ Template:
   `TestFaultFixtureRefused` is replaced by `faults_test.go`. When AI-005 merges, wrap
   `/v1/chat/completions` and `/v1/responses` the same way (a `decodeFunc` each, with
   `writeOpenAIError`).
+
 ## Q-AI-007 /v1/embeddings route registered in main.go
 
 - Task: AI-007
@@ -133,6 +135,7 @@ Template:
 - Reading B: keep the contract; the engine takes the label separately.
 - Done for now: B. `gate.Kinds.Label(slug, specID)` records it, and `Open` refuses a kind
   with no label (ErrInvalidKind). Proposed: A, so T-007L.1 can pass it through the Registry.
+
 ## Q-031.1 Rule pack schema cannot express clear days or months_after
 
 - Task: T-031.1
@@ -386,12 +389,14 @@ Template:
   (`SubmittedContactName`) and `party.Lead` (`LeadContact`), which `intake.Submission` and
   `intake.Lead` implement (additive methods in `app/legal/intake/party.go`). party no longer
   imports intake.
+
 ## Q-T-007.3 Decide inputs the gate schema does not hold
 
 - Task: T-007.3
 - Sources: migrations/0001_init.sql (gate.approval_request stores no payload; gate.gate_decision.decision allows only approve/reject/changes_requested; core.authority_limit.kind values are app terms); ARC-I-016, ARC-I-020.
 - Done for now: `PG.SetDecideHooks(DecideHooks{Preparers, Payload, LimitKinds})` in decide.go supplies editors of the underlying item, the payload (re-hashed against payload_hash) and the gate kind -> authority_limit kind map. The hooks sit in a package-level map keyed by *PG, because the PG struct lives in open.go (not this task's file).
 - Proposed: (1) move the hooks into a `PG` field at integration; (2) an approval above the limit returns `ErrRecommendOnly` and stores nothing, since the decision CHECK has no 'recommend' value and the trigger counts every 'approve'. Recording recommendations needs an additive table or decision value.
+
 ## Q-T035.4 PortalPage.Capability is registered but not enforced
 
 - Task: T-035.4 (kernel/portal page registration)
@@ -402,6 +407,7 @@ Template:
   enforces the session and the subject grant only.
 - Question: add `Guest.Capabilities []string` (additive) so `Load` refuses a page whose
   capability the guest does not carry, failing closed when the list is empty?
+
 ## T-011.2: trust book posting and files beyond the task list
 
 - Files: added `app/legal/trust/receipt_test.go` (unit tests against an in-memory store, as
@@ -436,6 +442,7 @@ Template:
   `Ledgers.BalanceTx(ctx, tx, id)` if the authorisation check must run under the lock too.
 - Branch: task/T-012.2 is cut from task/T-011.2 (it uses `trust.LedgerStore`); merge T-011.2
   first.
+
 ## T-024.1: interest start day (day after months_after, or months_after itself)
 
 - The frozen contract (`Calendar.AccrualStart`) and the T-024.1 accept line start interest on
@@ -556,6 +563,7 @@ Template:
   unchanged, into `allocate.go` (where the contract header says it lives), so it also touches
   `money.go` (deletion only) and this file. New tests are in `allocate_test.go`; the existing
   `TestAllocate` in `money_test.go` is kept as is.
+
 ## T-014.2: place of supply (additive contract change; decisions to confirm)
 
 - Additive change to the frozen `app/legal/billing/tax` contract: `Supply` gains
@@ -577,6 +585,7 @@ Template:
   `ErrUnverified` while `tax.verify_rules` is off.
 - T-014.2c and T-014.2d each replace a fail-closed placeholder in `pos.go` with a call into
   their own file (pos.go is not in their file lists).
+
 ## T-019.1d-f: bill approval effect wiring, fees book storage, BN fail-closed
 
 - Fees book storage: 0001_init.sql has no fees book table. `ApproveEffect` writes the row
@@ -595,6 +604,7 @@ Template:
   intended before the deliver route is wired, or turn the flag on once BIL-T-061 is verified.
 - BIL-I-008 has its text in spec/eng/b3-billing-engine.json; `CheckNumbering` implements it.
   It also lets a void bill have no number (voided before approval), as the 0001 CHECK does.
+
 ## T-043.1c: app.yaml touched beyond the task file list
 
 - Task: T-043.1c
@@ -612,6 +622,7 @@ Template:
   Any value that passes also meets MIG-061 (<= 3s). The task's accept line says the lint
   accepts <= 3s; that is looser than the owner's rule, so the lint uses 2s.
 - Answer: (owner)
+
 ## AI-034.0a: Embed moved out of aifake/fake.go
 
 The task lists only `kernel/ai/aifake/embed.go`. `Fake.Embed` was defined in `fake.go`, and a
@@ -773,6 +784,7 @@ s.33 as amended and either the rules or the decision change.
   three change search results). The row is written in the writer's transaction, so a search
   sees committed versions only; it reads the version first, so the hits are never older than
   it. Cost: name writes serialize on that one row.
+
 ## Q-PORT-20: cal.deadline cannot hold a kernel deadline without an additive migration
 
 - Task: PORT-20 (kernel/deadline Postgres store). Stopped; no code written.
@@ -979,6 +991,7 @@ contract declares yet. Not built.
   is wired at boot. No kernel module owns a River job yet, so `addKernelJobs` adds none.
 - `TestRunFlags` now runs the import role and declares its flag in `Define`: Run builds
   through BuildWith, which turns flags on before Register (ARC-I-040).
+
 ## Q-BOOT-16-FILES: BOOT-16 touches app/legal/boot/boot.go
 
 - Task: BOOT-16. Files listed: `effects.go`, `unwired_gates.txt`, `effects_test.go`.
@@ -990,6 +1003,7 @@ contract declares yet. Not built.
   trust.withdrawal, billing.bill_approval, billing.bill_void (bill.VoidEffects, per the
   integrator decision) and the two write-off kinds. CreditPorts come from the caller
   (no Postgres write-off store yet, Q-BOOT-13-PORTS).
+
 ## Q-BOOT-22 notification templates: Options.Sender and the app template list
 
 - Task: BOOT-22 (app/legal/boot notification templates).
@@ -1027,6 +1041,7 @@ contract declares yet. Not built.
   as an untrusted `agenttools.Quoted` envelope without a source; CheckCitations passes because
   only the "quotes" array needs citations. Matter-scoped items are those whose subject kind is
   "matter".
+
 ## Q-GATE-AMOUNT gate amount path, authority-limit kind and editor lookup per kind
 
 - Source: review of waves 2-3, items 4 and 5 (ARC-I-016, ARC-I-020, BIL-C-085).
@@ -1042,6 +1057,7 @@ contract declares yet. Not built.
 - Write-offs: `WriteOffEffect.Totals` (nil fails closed) sums write-offs on the same bill plus
   the client's other bills in the last 30 days (verify the window with the lawyer). The
   Postgres implementation must lock the bill row FOR UPDATE.
+
 ## Q-W3-LEGAL Wave-3 legal corrections (review items 6 to 9)
 
 Changed expectations, each with its citation. Every rule stays (verify) and behind its flag.
@@ -1120,6 +1136,7 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   of main's real one in jobs_kernel.go.
 - `kernel/registry/schemas/embed_integration_test.go` is added beyond the task's file list to
   meet the "integration test compiles" line; it needs no database.
+
 ## FEAT-TOOL-02 search_contacts
 
 - Additive contract change (approved in the FEAT plan answers): `party.Contacts` gains
@@ -1193,6 +1210,7 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   `orgSubject` so no app term enters kernel code.
 - There is no Postgres RoleAssignments in the kernel yet; the integration test reads
   core.app_user/core.role through a test-local one.
+
 ## HTTP-00: gate-owned-state guard (files outside the task, decisions taken)
 
 ## HTTP-03: contacts routes (files outside the task)
@@ -1229,6 +1247,7 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   addNotifyJobs and addWebhookJobs. The legal app schedules
   trust.withdrawal_release_expired every 15 minutes when gate services are built. kernel/idem
   problem bodies carry `type` (urn:counsel:problem:<code>, now api.ProblemTypePrefix).
+
 ## FEAT-CORE-02 answers carry citations; explicit tool HandlerSet
 
 - Owner decision (2026-10-11): tool handlers do not register through init(). Outside the
@@ -1268,6 +1287,7 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   `System = Preamble(id) + prompt`. Proposed one-line change at merge: `Preamble(id) + Rules() +
   "\n" + prompt`. `feature.PromptHash` hashes `Spec()`, so it follows that change by itself;
   no fixture pins a prompt_hash yet, so nothing needs rehashing.
+
 ## FEAT-TOOL-11 draft_document
 
 - Depends on FEAT-CORE-06 (run Scope), which has no branch yet. The handler takes a
@@ -1279,6 +1299,7 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   stand-in for draft_document.
 - The docs module has no draft API yet; the handler writes through `DocumentDrafts`
   (`CreateDraft`), which app/legal/docs implements at boot.
+
 ## FEAT-TOOL-12 draft_email
 
 - No init(): `DraftEmailHandler()` returns the Handler and boot adds it to the explicit
@@ -1296,6 +1317,7 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
 - No note-draft API exists yet. The handler writes through `NoteDrafts` (`CreateNoteDraft`)
   and opens `matter.agent_note` through `agenttools.GateOpener` with subject kind
   `agent_note`; the caller is the preparer (an agent's acting-for user).
+
 ## Q-PORT-15 write-off store has no table for draft write-offs (answered)
 
 PORT-15 asks for `PGWriteOffs` over `billing.write_off`, adding only a second-gate column in
@@ -1346,6 +1368,7 @@ Done in PORT-15:
   `billing.write_off` with `approval_id` = that gate, `ON CONFLICT (id) DO NOTHING`.
 - `ResponsibleLawyers` is the matter port `WriteOffBill` reads the lawyer through; nil or an
   empty lawyer fails closed. The matter-side adapter is wired at boot (BOOT-15/16).
+
 ## Q-PORT-18 conflict run model does not map onto conflict.check_run / conflict.hit (answered)
 
 PORT-18 asks for `PGRuns` over `conflict.check_run` / `conflict.hit` behind an additive
@@ -1522,6 +1545,7 @@ Done in PORT-18:
   route conformance test stays green.
 - Branch base: task/FEAT-CORE-11 (shared `SubjectRef`) with task/FEAT-CORE-02 (`CheckAnswer`)
   merged in; both are on top of task/FEAT-CORE-08.
+
 ## FEAT-TOOL-05 list_deadlines
 
 - Additive contract change (named in the task's accept text): `kernel/deadline` gains
@@ -1534,6 +1558,7 @@ Done in PORT-18:
 - The result carries ids, rule references and dates only, no document or client text, so it
   has no quoted envelope. Due dates are YYYY-MM-DD strings, which Provenance.ReadTool records.
 - Registered through `ListDeadlinesHandler()` for the boot HandlerSet, not init().
+
 ## FEAT-TOOL-06 compute_deadline
 
 - "Published pack": kernel/deadline has no publish state, so the tool reads a new
@@ -1549,6 +1574,7 @@ Done in PORT-18:
   text, so no quoted envelope; due dates are YYYY-MM-DD and recorded by Provenance.ReadTool.
 - Not yet in `agent.Handlers()`: `ComputeDeadlineHandler()` is added there (and to its test)
   when boot wires PublishedPacks.
+
 ## FEAT-TOOL-08 list_unbilled
 
 - `timekeeping.Entries` has no list by matter and carries no amounts, so the tool reads a new
@@ -1561,6 +1587,7 @@ Done in PORT-18:
   record (`time_entry:<id>`, page 1, line 1), as search_contacts does for contact names.
 - Not yet in `agent.Handlers()`: `ListUnbilledHandler()` is added there (and to its test)
   when boot wires MatterTime.
+
 ## FEAT-TOOL-09 get_bill
 
 - The frozen app/legal/billing/bill contract has no balance: `Bill` carries totals only and no
@@ -1573,6 +1600,7 @@ Done in PORT-18:
   line = ordinal); a bill has no document version.
 - The tool wraps itself with `Provenance.ReadTool`, so the cents it returns are what a later
   write in the run may carry; it needs the run's `*agenttools.Provenance` in Deps.
+
 ## FEAT-TOOL-10 get_trust_balance
 
 - withdraw.Available takes a trust account id and a matter id; nothing on main lists the
@@ -1584,6 +1612,7 @@ Done in PORT-18:
 - Registered through the explicit `GetTrustBalanceHandler()`, not init(). The result holds ids
   and cents only, so it quotes nothing; it wraps itself with `Provenance.ReadTool` and needs
   the run's `*agenttools.Provenance` in Deps.
+
 ## FEAT-TOOL-15 propose_deadline
 
 - Built on origin/task/FEAT-CORE-06 (run Scope) with origin/task/FEAT-CORE-07 (provenance)
@@ -1597,6 +1626,7 @@ Done in PORT-18:
   read returned with its citation). The manual path is not checked.
 - The gate kind is checked against the run scope before the deadline is saved, so a run whose
   feature does not declare cal.confirm leaves no proposed deadline behind.
+
 ## FEAT-TOOL-16 create_task
 
 - The a2 `create_task` input has `description_markdown`, but the frozen kernel/work `Item`
@@ -1606,6 +1636,7 @@ Done in PORT-18:
 - The proposed status is config, not a constant: the tool reads the task workflow and its
   proposed status through a new `agent.ProposedTasks` port, wired at boot from work config.
 - An assignee walled from the matter is refused as `ErrNotVisible` (404), like the acting user.
+
 ## FEAT-TOOL-19 propose_conflict_parties
 
 - The a2 input names a `check_id`, but the frozen conflict Checker runs by matter
@@ -1615,6 +1646,7 @@ Done in PORT-18:
   `conflict.Checker.Check` over every party name on the check.
 - The result is outcome `proposal` with the run id as ref, not `gate`: G2 is decided on the run
   through `conflict.Clearer`, not a kernel gate the runner could park on. The run stays open.
+
 ## FEAT-TOOL-21 prepare_trust_withdrawal amount provenance
 
 - `WriteDeps.Provenance` is checked only when set. `agenttest.New` (not this task's file) builds
@@ -1626,3 +1658,32 @@ Done in PORT-18:
   `withdraw.Service` and `withdrawfake.Fake` satisfy it, so callers are unchanged.
 - The title says "payee from matter contacts", but the accept list does not cover it and there
   is no matter-contact dependency in WriteDeps. Payee is still free text. Open question.
+
+## Q-INTEG-13b Pass 13b integration decisions
+
+- Feature list: `feature.AppSet`/`appDefs` could not list the deadline Defs, because
+  app/legal/deadlines imports app/legal/agent/feature (an import cycle). The list moved to a
+  new package app/legal/agent/featureset (`featureset.App()`, `appDefs()`), which imports both;
+  `go generate ./app/legal/agent/featureset` now regenerates the plugin skills, and
+  TestExportSkillsCheckedIn moved with it. F-DL-01/02/03/04/06 are listed; the three tool-use
+  ones (F-DL-02/03/06) generated skills under paploo/counsel-plugin/skills. Boot builds its
+  feature.Set from `featureset.App()` (BOOT-FEAT-WIRE).
+- Event type names in app/legal/deadlines (DL-05, DL-06) are kept: `deadline.trigger_date_changed`,
+  `rulepack.published`, `holiday.added`, `filing.receipt_received`, `claim.issued`,
+  `service.affidavit_received`. No module or spec/eng/a2-interfaces.json defines these yet. The
+  a2 `deadline.changed` event (cal) is a confirmed due-date change, not a trigger-date change, so
+  it is not reused. Open: the owning modules (cal, rulepacks, comms) should publish these types,
+  or the triggers rebind to whatever names those modules choose.
+- Handler set: `agent.Handlers()` now lists every tool handler (list_deadlines, compute_deadline,
+  list_unbilled, get_bill, get_trust_balance, propose_time_entries, propose_deadline,
+  create_task, propose_conflict_parties, submit_for_approval, draft_bill,
+  propose_payment_allocation). Their new ports (BillBalances, MatterTrustAccounts,
+  PublishedPacks, MatterTime, SubjectMatters, ProposedTasks, ConflictCheckParties) come through
+  `agent.Deps`; until boot wires them, the handler's Build fails with ErrMissingDep.
+- scope.go: FEAT-TOOL-15/17/18 each carried the CORE-06 kernel/agenttools/scope.go; the merge
+  kept main's single copy (the pass-12 RunScope version). No duplicate definitions remain.
+- Name clash: FEAT-TOOL-09 (get_bill) and FEAT-TOOL-17 (draft_bill) both declared `civilDate`
+  and test fixtures `billMatter`, `billRun`, `billWorld`. The draft-bill ones are renamed
+  (`parseCivilDate`, `draftBill*`).
+- 6200_agent_flag.sql (FEAT-CORE-13) gained the MIG-061 `SET lock_timeout` / `statement_timeout`.
+- Not done here: the FEAT-TOOL-16 `Item.Description` additive field (follow-up).
