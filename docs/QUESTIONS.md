@@ -4255,3 +4255,18 @@ of FEAT-TIM-01 above.
   draft_document schema FORM-SUBJECT changed. list_unbilled now records provenance itself
   (sourcedRead) and boot also wraps every read tool (TIME-FIX); recording a value twice is
   harmless, but one of the two can go.
+
+## Q-FEAT-PLT-12 F-PLT-11 stale matter sweep drafts on the matter
+
+- F-PLT-11 drafts each closing checklist (or closing letter) on the matter it read
+  (`matter_id`), not on the firm: `platform.closing` (G13, `matter.GateClosing`) is about one
+  matter. A weekly sweep that finds several stale matters drafts and submits one per matter.
+  The agent never closes a matter; a lawyer with `matters.close` approves.
+- The a2 payload schema of `platform.closing` names `trust_balance_cents`; submit_for_approval
+  opens the gate on the draft and the closing route that fills the payload is not in this
+  task. The tests use the fake gate store.
+- The weekly schedule acts for the designated lawyer (trigger.BindDesignated). The plte test
+  helpers (`ai_plte_helpers_test.go`) are shared with FEAT-PLT-13.
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (binding, and `matter-closing` as a matter screen with `matters.view`), the generated plugin
+  skill.
