@@ -5065,3 +5065,12 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   PGTransferStore, opening trust.transfer through the kernel gates), so F-TRU-08 is ready;
   with no gate opener the tool is not served. The readiness test also pins Payments and
   TrustTransfers.
+## DOC-UPLOAD
+- Additive migrations 5803/5804: `docs.document.idempotency_key` with a unique index on
+  `(created_by, idempotency_key)`, so a retried upload by the same member returns the stored
+  document even after the shared idempotency record expires.
+- No S3 SDK is an allowed dependency, so `kernel/docs/s3.go` signs S3 requests (SigV4) with the
+  standard library. Production reads the cell bucket from `$COUNSEL_DOCS_BUCKET_URL`,
+  `$COUNSEL_DOCS_BUCKET_REGION`, `$COUNSEL_DOCS_KMS_KEY_ID` and the AWS credential variables in
+  `app/legal/boot/services_docs.go`; without them the document routes keep answering 503.
+  Question: should these move to `cmd/counseld` flags once production.go is free to edit?
