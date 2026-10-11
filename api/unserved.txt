@@ -20,8 +20,6 @@ POST /trust/bank-lines/imports
 POST /trust/receipts
 POST /trust/reconciliations
 POST /trust/reconciliations/{reconciliation_id}/submit
-GET /trust/requests
-POST /trust/requests
 POST /trust/transfers
 POST /trust/withdrawals
 POST /trust/withdrawals/{withdrawal_id}/cancel
