@@ -58,7 +58,7 @@ func newSearchDocsRegistry(t *testing.T, actorCaps map[string]bool) *agenttools.
 	})
 	h, ok := agent.HandlerFor(agent.ToolSearchDocuments)
 	if !ok {
-		t.Fatal("search_documents registered no handler from init")
+		t.Fatal("search_documents is missing from the handler set")
 	}
 	tool, err := h.Build(agent.NewDeps(can, walls, idx, text))
 	if err != nil {

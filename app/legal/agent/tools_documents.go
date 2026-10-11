@@ -18,10 +18,6 @@ type MatterFolders interface {
 	Folders(ctx context.Context, matterID string) ([]legaldocs.Folder, error)
 }
 
-func init() {
-	addHandler(Handler{Name: ToolListDocuments, Build: buildListDocuments})
-}
-
 // buildListDocuments reads Deps: CapabilityCheck, roles.Walls, MatterFolders, MatterDocuments.
 func buildListDocuments(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)

@@ -984,3 +984,17 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   CheckCitations validates it; quotes[i] is the name of contacts[i].
 - `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
   Q-FEAT-TOOL agent handler set), so the branches merge cleanly.
+
+## FEAT-CORE-02 answers carry citations; explicit tool HandlerSet
+
+- Owner decision (2026-10-11): tool handlers do not register through init(). Outside the
+  task's files, `app/legal/agent/handlerset.go` now holds an explicit `HandlerSet`
+  (`NewHandlerSet` rejects duplicates, `For`, `Names`) and `Handlers()` lists every real
+  handler; the four tool files drop their init(). `HandlerFor`/`HandlerNames` remain as
+  wrappers over `Handlers()`, so existing callers keep working. A new tool adds its
+  `Handler` to the list in `Handlers()`.
+- Additive to the frozen `kernel/agenttools/run` contract: `Spec.AnswerMayBeUncited bool`
+  (default false, so an answer must cite). `CheckAnswer` reads `{answer, citations[]}` with
+  snake_case citation keys (`version_id`, `page`, `from_line`, `to_line`); `AnswerSchema` is the
+  matching `Spec.OutputSchema`. A cited range may be a sub-range of a citation a tool result of
+  the same run returned (same version and page).
