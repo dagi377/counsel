@@ -393,3 +393,10 @@ Template:
   ("sha256:" + hex SHA-256 of the normalised quote). docsfake hashes the same way. Comment only.
 - Resolved at wave 2a integration: interest runs from `months_after(delivery, 1)` itself
   (Solicitors Act s.33). The contract comment, `Months.AccrualStart` and tests now say so.
+
+## T-003.2: Allocate moved out of money.go
+
+- T-003.1 already shipped `Allocate` in `kernel/money/money.go`. T-003.2 moves the body,
+  unchanged, into `allocate.go` (where the contract header says it lives), so it also touches
+  `money.go` (deletion only) and this file. New tests are in `allocate_test.go`; the existing
+  `TestAllocate` in `money_test.go` is kept as is.
