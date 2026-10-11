@@ -4623,3 +4623,24 @@ and has a one-outbox-event test.
 - FEAT-ACC-06 did not carry ACC-04 and ACC-05 (each branch was one commit on main), so pass 18
   merged task/FEAT-ACC-04 (F-ACC-06) and task/FEAT-ACC-05 (F-ACC-07) after it. Their accb
   helpers were identical to the copy ACC-06 brought, so `ai_acc_helpers_test.go` keeps one copy.
+
+## Q-FEAT-CORE-16 Spec sync strict: gated until pass 19
+
+- Against origin/main (4c45ac3b) 51 of 194 spec features have no registered Def: F-ACC-01,
+  05, 08, 09, 11, 12, 13; F-BIL-03, 07, 08; F-PLT-01 to 28; F-RDY-01 to 09; F-TRU-02, 03, 08,
+  10. Each is registered on a pushed, unmerged branch (FEAT-ACC-07 to 11, FEAT-BIL-03/07/08,
+  FEAT-PLT-01 to 27, FEAT-RDY-01 to 09, FEAT-TRU-03/08/10/11).
+- agenttest.FromFeature still runs seven tools as stand-ins because its Seed lacks their
+  ports: create_task, draft_bill, get_bill, get_trust_balance, list_unbilled,
+  propose_payment_allocation, propose_time_entries. Their feature
+  tests pass the ports with FromFeatureWith; filling the Seed is an agenttest change outside
+  this task's files.
+- So `strictSync` in app/legal/agent/feature/spec_test.go stays false, with the open ids and
+  tools pinned in `pendingDefs` and `pendingStandIns`. With the gate off, any other
+  unregistered feature or stand-in fails, so the check is strict for everything not pinned;
+  a pinned entry that closes is logged. Pass 19 sets `strictSync = true` and deletes both
+  lists once those branches are merged and the Seed builds the seven tools.
+- featureset imports package feature, so the checks that need the app's Set live in a new
+  external test file, app/legal/agent/feature/spec_sync_test.go (package feature_test); the
+  gate and the lists stay in spec_test.go, exported to it as CheckRegistered, CheckStandIns,
+  SpecDef and SpecIDs. The old TestAI_R_002_RegisteredDefsMatchSpec checked an empty Set.

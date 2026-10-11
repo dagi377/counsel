@@ -7,15 +7,47 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/dagi377/counsel/app/legal/agent/schemas"
 	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
-// strictSync turns unregistered spec features from a reported count into a failure.
-// FEAT-CORE-16 flips it once all 194 features are registered.
+// strictSync is the spec-sync gate of FEAT-CORE-16 (AI-R-002). While it is false, every spec
+// feature must have a registered Def except the ids in pendingDefs, and every Def's tools
+// must run their real handlers under agenttest.FromFeature except the tools in
+// pendingStandIns: a new gap fails, and a pending entry that is closed is reported so the
+// list can shrink. Integration pass 19 sets it to true once the feature branches below are
+// merged and agenttest's Seed builds every tool; then any unregistered feature or any
+// stand-in fails. Never add an entry to either list to make a test pass.
 const strictSync = false
+
+// pendingDefs are the spec/ai/features.json ids with no registered Def on main when
+// FEAT-CORE-16 landed. Each is registered on a pushed task branch not yet merged:
+// FEAT-ACC-07 to 11, FEAT-BIL-03/07/08, FEAT-PLT-01 to 27, FEAT-RDY-01 to 09 and
+// FEAT-TRU-03/08/10/11.
+var pendingDefs = []string{
+	"F-ACC-01", "F-ACC-05", "F-ACC-08", "F-ACC-09", "F-ACC-11", "F-ACC-12", "F-ACC-13",
+	"F-BIL-03", "F-BIL-07", "F-BIL-08",
+	"F-PLT-01", "F-PLT-02", "F-PLT-03", "F-PLT-04", "F-PLT-05", "F-PLT-06", "F-PLT-07",
+	"F-PLT-08", "F-PLT-09", "F-PLT-10", "F-PLT-11", "F-PLT-12", "F-PLT-13", "F-PLT-14",
+	"F-PLT-15", "F-PLT-16", "F-PLT-17", "F-PLT-18", "F-PLT-19", "F-PLT-20", "F-PLT-21",
+	"F-PLT-22", "F-PLT-23", "F-PLT-24", "F-PLT-25", "F-PLT-26", "F-PLT-27", "F-PLT-28",
+	"F-RDY-01", "F-RDY-02", "F-RDY-03", "F-RDY-04", "F-RDY-05", "F-RDY-06", "F-RDY-07",
+	"F-RDY-08", "F-RDY-09",
+	"F-TRU-02", "F-TRU-03", "F-TRU-08", "F-TRU-10",
+}
+
+// pendingStandIns are the a2 tools agenttest.FromFeature still runs as stand-ins because its
+// Seed does not provide their ports (MatterTime, TaskCreator and ProposedTasks, BillReader and
+// BillBalances, TrustAvailable and MatterTrustAccounts, tk.Entries, payment.Service, the draft
+// bill stores). The feature tests of those tools pass the ports with FromFeatureWith; pass 19
+// moves them into the Seed.
+var pendingStandIns = []string{
+	"create_task", "draft_bill", "get_bill", "get_trust_balance", "list_unbilled",
+	"propose_payment_allocation", "propose_time_entries",
+}
 
 const (
 	featuresPath = "../../../../spec/ai/features.json"
@@ -148,8 +180,8 @@ func gapProblems(id string, tools, kinds []string, gaps map[string]bool) []strin
 }
 
 // syncProblems compares every Def in s with its features.json entry and returns one line per
-// mismatch, plus the number of spec features with no Def.
-func syncProblems(s *Set, spec aiSpec) (problems []string, unregistered int) {
+// mismatch, plus the spec features with no Def, in spec order.
+func syncProblems(s *Set, spec aiSpec) (problems []string, unregistered []string) {
 	for _, d := range s.All() {
 		sf, ok := spec.features[d.ID]
 		if !ok {
@@ -187,33 +219,121 @@ func syncProblems(s *Set, spec aiSpec) (problems []string, unregistered int) {
 	}
 	for _, id := range spec.order {
 		if _, ok := s.ByID(id); !ok {
-			unregistered++
+			unregistered = append(unregistered, id)
 		}
 	}
 	return problems, unregistered
 }
 
-// registeredSet builds the feature Set the way app/legal/boot does. Modules add their Defs
-// explicitly (no init()); none is wired yet, so the set starts empty and the count below
-// reports every spec feature as unregistered.
-func registeredSet(t *testing.T) *Set {
-	t.Helper()
-	return NewSet()
+// gateProblems applies the strictSync gate to gaps, the spec features or tools still open,
+// against pending. While the gate is off a gap outside pending is a problem and a pending
+// entry that is no longer a gap is returned as closed; once it is on every gap is a problem.
+func gateProblems(what string, gaps, pending []string) (problems, closed []string) {
+	for _, g := range gaps {
+		// rule: AI-R-002
+		if strictSync || !slices.Contains(pending, g) {
+			problems = append(problems, fmt.Sprintf("%s %s", what, g))
+		}
+	}
+	if !strictSync {
+		for _, p := range pending {
+			if !slices.Contains(gaps, p) {
+				closed = append(closed, p)
+			}
+		}
+	}
+	return problems, closed
 }
 
-// rule: AI-R-002
-func TestAI_R_002_RegisteredDefsMatchSpec(t *testing.T) {
+// CheckRegistered is the spec-sync check of the app's feature Set s (AI-R-002): every Def in
+// s matches its spec/ai/features.json entry, and every spec feature has a registered Def,
+// under the strictSync gate. featureset imports this package, so only the external test
+// package can build s (spec_sync_test.go).
+func CheckRegistered(t *testing.T, s *Set) {
+	t.Helper()
 	spec := loadSpec(t)
-	problems, unregistered := syncProblems(registeredSet(t), spec)
+	problems, unregistered := syncProblems(s, spec)
 	for _, p := range problems {
 		t.Error(p)
 	}
-	if unregistered > 0 {
-		if strictSync {
-			t.Errorf("%d of %d spec features have no registered Def", unregistered, len(spec.order))
-		} else {
-			t.Logf("%d of %d spec features have no registered Def (strict from FEAT-CORE-16)", unregistered, len(spec.order))
+	gaps, closed := gateProblems("spec feature with no registered Def:", unregistered, pendingDefs)
+	for _, p := range gaps {
+		t.Error(p)
+	}
+	if len(closed) > 0 {
+		t.Logf("registered now, drop from pendingDefs: %v", closed)
+	}
+	if !strictSync {
+		t.Logf("%d of %d spec features have no registered Def (strictSync is off)", len(unregistered), len(spec.order))
+	}
+}
+
+// CheckStandIns is the stand-in check of FEAT-CORE-16: standIns maps each spec feature to the
+// tools agenttest.FromFeature ran as stand-ins for it, and every one must run its real
+// handler, under the strictSync gate.
+func CheckStandIns(t *testing.T, standIns map[string][]string) {
+	t.Helper()
+	var tools []string
+	for _, names := range standIns {
+		for _, n := range names {
+			if !slices.Contains(tools, n) {
+				tools = append(tools, n)
+			}
 		}
+	}
+	slices.Sort(tools)
+	gaps, closed := gateProblems("tool runs as a stand-in under agenttest.FromFeature:", tools, pendingStandIns)
+	for _, p := range gaps {
+		t.Error(p)
+	}
+	if len(closed) > 0 {
+		t.Logf("real now, drop from pendingStandIns: %v", closed)
+	}
+}
+
+// SpecDef builds a Def from the spec/ai/features.json entry id, with a one-line prompt, so a
+// feature not registered yet can still be driven through agenttest.FromFeature.
+func SpecDef(t *testing.T, id string) Def {
+	t.Helper()
+	d := defFromSpec(t, loadSpec(t), id)
+	d.Prompt = fstest.MapFS{"spec.md": {Data: []byte("# " + id + "\n")}}
+	d.PromptPath = "spec.md"
+	return d
+}
+
+// SpecIDs lists the spec/ai/features.json ids in spec order.
+func SpecIDs(t *testing.T) []string {
+	t.Helper()
+	return slices.Clone(loadSpec(t).order)
+}
+
+// rule: AI-R-002
+func TestAI_R_002_GateRefusesNewGaps(t *testing.T) {
+	tests := []struct {
+		name        string
+		gaps        []string
+		pending     []string
+		wantProblem int
+		wantClosed  []string
+	}{
+		{"pending gap", []string{"F-X-01"}, []string{"F-X-01"}, 0, nil},
+		{"new gap", []string{"F-X-01", "F-X-02"}, []string{"F-X-01"}, 1, nil},
+		{"closed gap", nil, []string{"F-X-01"}, 0, []string{"F-X-01"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			problems, closed := gateProblems("gap", tt.gaps, tt.pending)
+			if strictSync {
+				// Once strict, every gap is a problem and nothing is pending.
+				if len(problems) != len(tt.gaps) || len(closed) != 0 {
+					t.Fatalf("strict: problems %v, closed %v", problems, closed)
+				}
+				return
+			}
+			if len(problems) != tt.wantProblem || !slices.Equal(closed, tt.wantClosed) {
+				t.Fatalf("problems %v, closed %v; want %d, %v", problems, closed, tt.wantProblem, tt.wantClosed)
+			}
+		})
 	}
 }
 
@@ -296,8 +416,8 @@ func TestAI_R_002_SpecSyncDetectsDrift(t *testing.T) {
 				t.Fatalf("Add: %v", err)
 			}
 			problems, unregistered := syncProblems(s, spec)
-			if want := len(spec.order) - 1; tt.want != "not in spec" && unregistered != want {
-				t.Fatalf("unregistered = %d, want %d", unregistered, want)
+			if want := len(spec.order) - 1; tt.want != "not in spec" && len(unregistered) != want {
+				t.Fatalf("unregistered = %d, want %d", len(unregistered), want)
 			}
 			if tt.want == "" {
 				if len(problems) != 0 {
