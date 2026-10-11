@@ -1,7 +1,7 @@
 synthetic: true
 feature: F-ACC-08
 match:
-  prompt_hash: "1fe7c236d9c2e6f1fce41285987a7e8bdc408303582159bd2cca9eefa26393f4"
+  prompt_hash: "d0e251974bf7906d7e84cc3d0c97dad89a3c7b0da51190427d7206ed5e26d6c4"
   last_user_regex: '\[ok\]'
 turns:
   - reply:
@@ -12,6 +12,6 @@ turns:
       usage: {input_tokens: 520, output_tokens: 22}
   - expect_tool_results: [search_matters]
     reply:
-      json: {answer: "Role rol-synth-clerk can read matters and record time, as on 2026-0412 and 2026-0413. It cannot approve bills, move trust money or decide gates.", citations: []}
+      json: {answer: "Role rol-synth-clerk can read matters and record time, as on 2026-0412 and 2026-0413. It cannot approve bills, move trust money or decide gates.", citations: [{version_id: "matter:matter-1", page: 1, from_line: 1, to_line: 1}, {version_id: "matter:matter-2", page: 1, from_line: 1, to_line: 1}]}
       stop_reason: end_turn
       usage: {input_tokens: 640, output_tokens: 60}

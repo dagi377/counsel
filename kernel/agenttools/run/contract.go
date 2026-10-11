@@ -30,9 +30,6 @@ type Spec struct {
 	Grant        []string        // capability ids granted to the run's agent principal
 	GateKinds    []string        // gate kinds the feature may open
 	OutputSchema json.RawMessage // extraction: JSON Schema the final output must satisfy
-	// AnswerMayBeUncited lets a chat answer that states no facts from documents carry zero
-	// citations (FEAT-CORE-02). Default false: every answer cites this run's tool results.
-	AnswerMayBeUncited bool
 }
 
 // Trigger is untrusted text that started the run (a message, a document passage). The

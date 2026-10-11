@@ -1257,7 +1257,8 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   wrappers over `Handlers()`, so existing callers keep working. A new tool adds its
   `Handler` to the list in `Handlers()`.
 - Additive to the frozen `kernel/agenttools/run` contract: `Spec.AnswerMayBeUncited bool`
-  (default false, so an answer must cite). `CheckAnswer` reads `{answer, citations[]}` with
+  (default false, so an answer must cite). Removed by SEARCH-CITE (Q-FEAT-ACC-07): every
+  answer cites. `CheckAnswer` reads `{answer, citations[]}` with
   snake_case citation keys (`version_id`, `page`, `from_line`, `to_line`); `AnswerSchema` is the
   matching `Spec.OutputSchema`. A cited range may be a sub-range of a citation a tool result of
   the same run returned (same version and page).
@@ -3724,12 +3725,19 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 ## Q-FEAT-ACC-07 Read-only access features answer without citations
 
 - Tasks: FEAT-ACC-07 (F-ACC-01), FEAT-ACC-08 (F-ACC-05), FEAT-ACC-09 (F-ACC-08, F-ACC-09).
-- The spec gives these chat features one tool, search_matters, which returns no document, so
-  `run.CheckAnswer` would refuse every answer (no citation) on the screen-action route and in
-  job runs. Additive, outside the task's files: `feature.Def.Uncited` (chat only, else
-  ErrBadDef) sets `run.Spec.AnswerMayBeUncited` (FEAT-CORE-02). A citation the answer does carry
-  must still come from the run. The tests also check that every matter number an answer names
-  came from a search_matters result of the run.
+- Status: closed by SEARCH-CITE. search_matters now gives each matter it returns a citation id
+  `matter:<id>` (`agent.MatterCitation`: version id `matter:<id>`, page 1, line 1, the kernel
+  citation shape) in `citation_id` and `citation`, and lists it in the result's citations, so
+  the Registry records it in the run scope and the runner in `Outcome.Citations`. These
+  answers cite the matters they rely on and pass `run.CheckAnswer` like every other answer.
+  `feature.Def.Uncited` and `run.Spec.AnswerMayBeUncited` are removed: no answer may be
+  uncited. Removing the Spec field is not additive to the frozen `kernel/agenttools/run`
+  contract; it was unused outside these features, and the owner asked for it so the citation
+  guarantee has no opt-out. An answer citing a matter the run never returned is refused
+  (ErrUncitedAnswer), and so is one with no citation, including when the search finds nothing.
+- Originally: the spec gives these chat features one tool, search_matters, which returned no
+  document, so `run.CheckAnswer` would refuse every answer. The tests also check that every
+  matter number an answer names came from a search_matters result of the run.
 - Each Def joins `featureset.appDefs` and its test; chat Defs export no plugin skill.
   `app/legal/boot/agent.go` binds the job features and lists their screens as firm-level
   (`boot.FirmSubject`): role-editor and duty-rules (admin.roles).

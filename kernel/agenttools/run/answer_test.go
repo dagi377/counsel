@@ -10,6 +10,7 @@ import (
 
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/agenttools/run"
+	"github.com/dagi377/counsel/kernel/ai"
 )
 
 // rule: ARC-I-038
@@ -57,15 +58,15 @@ func TestARC_I_038_CheckAnswerCitations(t *testing.T) {
 }
 
 // rule: AI-R-005
-func TestAI_R_005_AnswerUncitedOnlyWhenSpecAllows(t *testing.T) {
+func TestAI_R_005_AnswerWithoutCitationRefused(t *testing.T) {
 	const noFacts = `{"answer":"I can help with that.","citations":[]}`
 	tests := []struct {
 		name    string
 		spec    run.Spec
 		wantErr error
 	}{
-		{name: "default requires citations", spec: run.Spec{FeatureID: feature}, wantErr: run.ErrUncitedAnswer},
-		{name: "spec allows uncited", spec: run.Spec{FeatureID: feature, AnswerMayBeUncited: true}},
+		{name: "tool-use spec", spec: run.Spec{FeatureID: feature}, wantErr: run.ErrUncitedAnswer},
+		{name: "chat spec", spec: run.Spec{FeatureID: feature, Kind: ai.KindChat, OutputSchema: run.AnswerSchema}, wantErr: run.ErrUncitedAnswer},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

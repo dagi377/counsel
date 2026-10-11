@@ -177,6 +177,32 @@ func (t *ReadTools) visible(ctx context.Context, userID, matterID string) error 
 	return nil
 }
 
+// MatterCitationPrefix starts the citation id of a matter search_matters returned.
+const MatterCitationPrefix = "matter:"
+
+// MatterCitation is the citation search_matters returns for matter id: version id
+// "matter:<id>", page 1, line 1. A matter record has no pages, so the fixed position only
+// gives it the kernel citation shape; an answer about the matter cites exactly this.
+func MatterCitation(id string) Citation {
+	return Citation{VersionID: MatterCitationPrefix + id, Page: 1, FromLine: 1, ToLine: 1}
+}
+
+// citationOut is a citation as a tool result shows it to the model, in the answer's shape.
+type citationOut struct {
+	VersionID string `json:"version_id"`
+	Page      int    `json:"page"`
+	FromLine  int    `json:"from_line"`
+	ToLine    int    `json:"to_line"`
+}
+
+// matterHit is one search_matters result: the matter and the citation an answer about it
+// copies.
+type matterHit struct {
+	matterOut
+	CitationID string      `json:"citation_id"`
+	Citation   citationOut `json:"citation"`
+}
+
 func (t *ReadTools) searchMatters(ctx context.Context, c Call) (Result, error) {
 	var in struct {
 		Query  string `json:"query"`
@@ -194,7 +220,8 @@ func (t *ReadTools) searchMatters(ctx context.Context, c Call) (Result, error) {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}
 	q := strings.ToLower(strings.TrimSpace(in.Query))
-	out := []matterOut{}
+	out := []matterHit{}
+	var cites []Citation
 	for _, m := range all {
 		if len(out) == in.Limit {
 			break
@@ -209,13 +236,21 @@ func (t *ReadTools) searchMatters(ctx context.Context, c Call) (Result, error) {
 			}
 			return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 		}
-		out = append(out, toMatterOut(m))
+		// rule: ARC-I-038
+		// Each result carries its citation id, and the run records it, so an answer may cite
+		// a matter this search returned and no other.
+		mc := MatterCitation(string(m.ID))
+		cites = append(cites, mc)
+		out = append(out, matterHit{
+			matterOut: toMatterOut(m), CitationID: mc.VersionID,
+			Citation: citationOut{VersionID: mc.VersionID, Page: mc.Page, FromLine: mc.FromLine, ToLine: mc.ToLine},
+		})
 	}
 	b, err := json.Marshal(map[string]any{"matters": out})
 	if err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}
-	return Result{Output: b}, nil
+	return Result{Output: b, Citations: cites}, nil
 }
 
 func (t *ReadTools) getMatter(ctx context.Context, c Call) (Result, error) {

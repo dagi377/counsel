@@ -52,6 +52,17 @@ var acccMatters = [][2]string{
 // acccQuery matches the number of every seeded matter.
 const acccQuery = "2026-04"
 
+// acccCites are the citations search_matters returns for the seeded matters (the fake
+// numbers them matter-1, matter-2 in seed order); the answers cite them.
+var acccCites = []agenttools.Citation{acccCite(agent.MatterCitation("matter-1")), acccCite(agent.MatterCitation("matter-2"))}
+
+// acccNeverReturned is the citation of a matter no search_matters result of the run returned.
+var acccNeverReturned = acccCite(agent.MatterCitation("matter-99"))
+
+func acccCite(c agent.Citation) agenttools.Citation {
+	return agenttools.Citation{VersionID: c.VersionID, Page: c.Page, FromLine: c.FromLine, ToLine: c.ToLine}
+}
+
 // acccCall is one scripted model tool call.
 type acccCall struct {
 	name  string
@@ -117,10 +128,38 @@ func acccFeature(t *testing.T, def feature.Def, inject bool) *agenttest.FeatureD
 	return fd
 }
 
-// acccOutcome is the run.Outcome of r for run.CheckAnswer. search_matters, the only tool of
-// these features, returns no document citation, so the run's citations are empty.
-func acccOutcome(r agenttest.FeatureRun) run.Outcome {
-	return run.Outcome{Text: r.Text, JSON: r.JSON, GateIDs: r.GateIDs}
+// acccOutcome is the run.Outcome of r for run.CheckAnswer: its citations are the ones the
+// run's search_matters results returned (matter:<id>), as the runner collects them.
+func acccOutcome(t *testing.T, r agenttest.FeatureRun) run.Outcome {
+	t.Helper()
+	out := run.Outcome{Text: r.Text, JSON: r.JSON, GateIDs: r.GateIDs}
+	for _, b := range r.ToolResults {
+		if b.IsError || b.ToolName != agent.ToolSearchMatters {
+			continue
+		}
+		var res struct {
+			Matters []struct {
+				CitationID string `json:"citation_id"`
+				Citation   struct {
+					VersionID string `json:"version_id"`
+					Page      int    `json:"page"`
+					FromLine  int    `json:"from_line"`
+					ToLine    int    `json:"to_line"`
+				} `json:"citation"`
+			} `json:"matters"`
+		}
+		if err := json.Unmarshal([]byte(b.Text), &res); err != nil {
+			t.Fatalf("search_matters result: %v", err)
+		}
+		for _, m := range res.Matters {
+			c := agenttools.Citation{VersionID: m.Citation.VersionID, Page: m.Citation.Page, FromLine: m.Citation.FromLine, ToLine: m.Citation.ToLine}
+			if m.CitationID != c.VersionID || !strings.HasPrefix(c.VersionID, agent.MatterCitationPrefix) {
+				t.Fatalf("search_matters citation id %q, citation %+v", m.CitationID, c)
+			}
+			out.Citations = append(out.Citations, c)
+		}
+	}
+	return out
 }
 
 // acccNumber is a firm matter number as the answers name it.
@@ -154,8 +193,8 @@ func acccNamedFromRun(answer string, r agenttest.FeatureRun) error {
 	return nil
 }
 
-// acccCheckReadOnly fails t unless d is a chat feature whose every tool reads, that opens no
-// gate kind and whose uncited answer is allowed only because its tools cite nothing.
+// acccCheckReadOnly fails t unless d is a chat feature whose every tool reads and that opens
+// no gate kind.
 func acccCheckReadOnly(t *testing.T, d feature.Def) {
 	t.Helper()
 	// rule: AI-R-003
@@ -165,8 +204,8 @@ func acccCheckReadOnly(t *testing.T, d feature.Def) {
 			t.Fatalf("tool %s: kind %v (%v), want read", name, s.Kind, err)
 		}
 	}
-	if len(d.GateKinds) != 0 || d.Kind != ai.KindChat || !d.Uncited {
-		t.Fatalf("gate kinds %v kind %q uncited %v; want none, chat, uncited", d.GateKinds, d.Kind, d.Uncited)
+	if len(d.GateKinds) != 0 || d.Kind != ai.KindChat {
+		t.Fatalf("gate kinds %v kind %q; want none, chat", d.GateKinds, d.Kind)
 	}
 }
 
@@ -242,10 +281,9 @@ func acccCheckDefMatchesSpec(t *testing.T, d feature.Def) {
 		t.Fatalf("Spec: %v", err)
 	}
 	// rule: AI-R-005
-	// No gate kind in the run scope, and the answer may be uncited only because the tools cite
-	// nothing.
-	if len(rs.GateKinds) != 0 || !rs.AnswerMayBeUncited || len(rs.Grant) == 0 {
-		t.Fatalf("run gate kinds %v, uncited %v, grant %v", rs.GateKinds, rs.AnswerMayBeUncited, rs.Grant)
+	// No gate kind in the run scope.
+	if len(rs.GateKinds) != 0 || len(rs.Grant) == 0 {
+		t.Fatalf("run gate kinds %v, grant %v", rs.GateKinds, rs.Grant)
 	}
 }
 
@@ -294,8 +332,9 @@ func (f acccFlow) fire(t *testing.T, runID, final string, inject bool) (*agentte
 
 // acccRunFlow runs the FromFeature cases every read-only access feature passes:
 //   - ok: no stand-ins, only the script's reads ran, no write and no gate row, the answer
-//     passes run.CheckAnswer and names only matters search_matters returned;
-//   - a citation no tool result returned is ErrUncitedAnswer;
+//     cites the matters search_matters returned, passes run.CheckAnswer and names only them;
+//   - an answer with no citation, a citation no tool result returned, and a matter citation
+//     no search_matters result of the run returned are ErrUncitedAnswer;
 //   - a matter number the run never read is refused;
 //   - injection: the injected text reaches the model as quoted data only, the run makes no
 //     extra call, and the answer does not carry it.
@@ -312,11 +351,15 @@ func acccRunFlow(t *testing.T, f acccFlow) {
 		wantAnswer error
 		wantNamed  bool // the answer names a matter the run never returned
 	}{
-		{name: "ok", final: acccAnswer(t, f.answer)},
+		{name: "ok", final: acccAnswer(t, f.answer, acccCites...)},
+		// rule: AI-R-005
+		{name: "no citation", final: acccAnswer(t, f.answer), wantAnswer: run.ErrUncitedAnswer},
 		// rule: ARC-I-038
 		{name: "citation not returned", final: acccAnswer(t, f.answer, stray), wantAnswer: run.ErrUncitedAnswer},
+		// rule: ARC-I-038
+		{name: "cites a matter never returned", final: acccAnswer(t, f.answer, append(slices.Clone(acccCites), acccNeverReturned)...), wantAnswer: run.ErrUncitedAnswer},
 		// rule: AI-R-005
-		{name: "matter not returned", final: acccAnswer(t, f.answer+"\nsoft: also 2026-0999."), wantNamed: true},
+		{name: "matter not returned", final: acccAnswer(t, f.answer+"\nsoft: also 2026-0999.", acccCites...), wantNamed: true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -333,7 +376,7 @@ func acccRunFlow(t *testing.T, f acccFlow) {
 				t.Fatalf("write at %d, gates %v, drafts %v; want none", r.FirstWrite, r.GateIDs, fd.Seed.Store.Drafts)
 			}
 			// rule: ARC-I-038
-			ans, err := run.CheckAnswer(spec, acccOutcome(r))
+			ans, err := run.CheckAnswer(spec, acccOutcome(t, r))
 			if !errors.Is(err, tc.wantAnswer) {
 				t.Fatalf("CheckAnswer = %v, want %v", err, tc.wantAnswer)
 			}
@@ -351,7 +394,7 @@ func acccRunFlow(t *testing.T, f acccFlow) {
 	// rule: ARC-I-038
 	t.Run("injection", func(t *testing.T) {
 		fd, r := f.fire(t, "run-"+strings.ToLower(f.def.ID)+"-injection",
-			acccAnswer(t, f.answer+"\nOne matter name asks for an action; it was not acted on."), true)
+			acccAnswer(t, f.answer+"\nOne matter name asks for an action; it was not acted on.", acccCites...), true)
 		if r.Err != nil || len(r.Refused) != 0 {
 			t.Fatalf("run err %v, refused %v", r.Err, r.Refused)
 		}
@@ -438,9 +481,12 @@ func acccLanded(t *testing.T, f acccFlow) {
 			if r.FirstWrite >= 0 || len(r.GateIDs) != 0 {
 				t.Fatalf("write at %d, gates %v; want none", r.FirstWrite, r.GateIDs)
 			}
-			ans, err := run.CheckAnswer(spec, acccOutcome(r))
+			ans, err := run.CheckAnswer(spec, acccOutcome(t, r))
 			if err != nil {
 				t.Fatalf("CheckAnswer: %v", err)
+			}
+			if len(ans.Citations) == 0 {
+				t.Fatalf("answer cites nothing")
 			}
 			if err := acccNamedFromRun(ans.Text, r); err != nil {
 				t.Fatal(err)
@@ -480,7 +526,8 @@ func (q acccQueue) EnqueueAction(context.Context, string, []trigger.SubjectRef, 
 // the production route: boot's screen map, the run.Loop over the FeatureDriver's Registry
 // (real search_matters) and run.CheckAnswer. The answer comes back in the response only
 // (AI-R-005): no draft, no gate. A screen that does not offer the action is 422, an agent
-// principal is 403, and an answer citing a source no tool returned is refused.
+// principal is 403, and an answer that cites nothing, or cites a source or matter no tool of
+// the run returned, is refused.
 func acccCheckRoute(t *testing.T, f acccFlow) {
 	t.Helper()
 	set := feature.NewSet()
@@ -502,12 +549,16 @@ func acccCheckRoute(t *testing.T, f acccFlow) {
 			final      string
 			wantStatus int
 		}{
-			{"answer returned", user, screen, acccAnswer(t, f.answer), http.StatusOK},
+			{"answer returned", user, screen, acccAnswer(t, f.answer, acccCites...), http.StatusOK},
+			// rule: AI-R-005
+			{"uncited answer refused", user, screen, acccAnswer(t, f.answer), http.StatusInternalServerError},
 			// rule: ARC-I-038
 			{"uncited source refused", user, screen, acccAnswer(t, f.answer, stray), http.StatusInternalServerError},
-			{"other screen", user, "matter-overview", acccAnswer(t, f.answer), http.StatusUnprocessableEntity},
+			// rule: ARC-I-038
+			{"matter never returned refused", user, screen, acccAnswer(t, f.answer, acccNeverReturned), http.StatusInternalServerError},
+			{"other screen", user, "matter-overview", acccAnswer(t, f.answer, acccCites...), http.StatusUnprocessableEntity},
 			// rule: AI-R-003
-			{"agent principal cannot start", registry.Principal{Kind: registry.PrincipalAgent, RunID: "r", ActingFor: agenttest.FeatureActingFor}, screen, acccAnswer(t, f.answer), http.StatusForbidden},
+			{"agent principal cannot start", registry.Principal{Kind: registry.PrincipalAgent, RunID: "r", ActingFor: agenttest.FeatureActingFor}, screen, acccAnswer(t, f.answer, acccCites...), http.StatusForbidden},
 		}
 		for _, tt := range tests {
 			t.Run(action+"/"+tt.name, func(t *testing.T) {
@@ -540,8 +591,8 @@ func acccCheckRoute(t *testing.T, f acccFlow) {
 					Answer    string            `json:"answer"`
 					Citations []json.RawMessage `json:"citations"`
 				}
-				if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || got.Answer != f.answer || len(got.Citations) != 0 {
-					t.Fatalf("response = %s (%v), want the answer with no citations", rec.Body, err)
+				if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || got.Answer != f.answer || len(got.Citations) != len(acccCites) {
+					t.Fatalf("response = %s (%v), want the answer with its %d matter citations", rec.Body, err, len(acccCites))
 				}
 			})
 		}

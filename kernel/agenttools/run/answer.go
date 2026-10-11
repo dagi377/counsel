@@ -60,8 +60,8 @@ type citationJSON struct {
 // CheckAnswer reads the final chat answer of out ({answer, citations[]}, from out.JSON, else
 // out.Text) and checks every citation against the citations this run's tool results carried.
 // A citation must have the kernel shape and fall inside a citation of the same run: same
-// version and page, lines within the returned range. An answer with no citations passes only
-// when spec.AnswerMayBeUncited. Errors never carry the answer text.
+// version and page, lines within the returned range. An answer with no citations is refused.
+// Errors never carry the answer text.
 func CheckAnswer(spec Spec, out Outcome) (Answer, error) {
 	raw := bytes.TrimSpace(out.JSON)
 	if len(raw) == 0 {
@@ -75,8 +75,8 @@ func CheckAnswer(spec Spec, out Outcome) (Answer, error) {
 		return Answer{}, fmt.Errorf("answer %s: %w", spec.FeatureID, ErrBadOutput)
 	}
 	// rule: AI-R-005
-	// The answer must be grounded: zero citations only when the spec allows it.
-	if len(a.Citations) == 0 && !spec.AnswerMayBeUncited {
+	// The answer must be grounded: it cites at least one tool result of this run.
+	if len(a.Citations) == 0 {
 		return Answer{}, fmt.Errorf("answer %s: no citations: %w", spec.FeatureID, ErrUncitedAnswer)
 	}
 	ans := Answer{Text: a.Answer, Citations: make([]agenttools.Citation, 0, len(a.Citations))}

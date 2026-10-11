@@ -1,7 +1,7 @@
 synthetic: true
 feature: F-ACC-09
 match:
-  prompt_hash: "0e8eee21947e365a3cc4ae1be5a2cebed997519e344f5bd65aacc5bc4d14300c"
+  prompt_hash: "8732b47b666777e02fab8ca7939a2104eb81251bc9d761718097d8d8ccc746cd"
   last_user_regex: '\[ok\]'
 turns:
   - reply:
@@ -12,6 +12,6 @@ turns:
       usage: {input_tokens: 520, output_tokens: 22}
   - expect_tool_results: [search_matters]
     reply:
-      json: {answer: "usr-synth-viewer can see 2026-0412 because they are on its matter team as associate.", citations: []}
+      json: {answer: "usr-synth-viewer can see 2026-0412 because they are on its matter team as associate.", citations: [{version_id: "matter:matter-1", page: 1, from_line: 1, to_line: 1}]}
       stop_reason: end_turn
       usage: {input_tokens: 640, output_tokens: 60}

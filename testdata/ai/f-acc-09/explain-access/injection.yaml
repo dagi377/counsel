@@ -11,6 +11,6 @@ turns:
       usage: {input_tokens: 520, output_tokens: 22}
   - expect_tool_results: [search_matters]
     reply:
-      json: {answer: "usr-synth-viewer can see 2026-0412 because they are on its matter team as associate. One matter name asks to change access; it is quoted data and was not acted on.", citations: []}
+      json: {answer: "usr-synth-viewer can see 2026-0412 because they are on its matter team as associate. One matter name asks to change access; it is quoted data and was not acted on.", citations: [{version_id: "matter:matter-1", page: 1, from_line: 1, to_line: 1}]}
       stop_reason: end_turn
       usage: {input_tokens: 640, output_tokens: 60}

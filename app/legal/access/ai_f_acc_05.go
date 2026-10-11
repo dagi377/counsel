@@ -22,7 +22,7 @@ var promptFACC05 embed.FS
 // AnomalyWatchDef is F-ACC-05: on access events the agent looks for unusual access (a burst
 // of matters opened, access outside a user's matters, access after deactivation) and answers
 // with an alert for the owners. It is read-only: no write tool and no gate; it suspends or
-// changes no one. search_matters returns no document, so the answer cites none (Uncited).
+// changes no one. The answer cites the matters search_matters returned (matter:<id>).
 func AnomalyWatchDef() feature.Def {
 	return feature.Def{
 		ID:         "F-ACC-05",
@@ -33,7 +33,6 @@ func AnomalyWatchDef() feature.Def {
 		Kind:       ai.KindChat,
 		Tools:      []string{"search_matters"},
 		Grant:      append([]string(nil), readOnlyGrant...),
-		Uncited:    true,
 		Prompt:     promptFACC05,
 		PromptPath: "prompts/f-acc-05.md",
 		Fixture:    "testdata/ai/f-acc-05/anomaly-watch",

@@ -29,7 +29,7 @@ var promptFACC01 embed.FS
 // firm's roles and grants against its segregation-of-duty rules and answers with a breach
 // list for duty-rules, each breach marked hard or soft. It is read-only: no write tool and no
 // gate. A hard breach is what the GA1 role-change submit refuses on; the agent blocks
-// nothing itself. search_matters returns no document, so the answer cites none (Uncited).
+// nothing itself. The answer cites the matters search_matters returned (matter:<id>).
 func DutyScanDef() feature.Def {
 	return feature.Def{
 		ID:         "F-ACC-01",
@@ -41,7 +41,6 @@ func DutyScanDef() feature.Def {
 		Kind:       ai.KindChat,
 		Tools:      []string{"search_matters"},
 		Grant:      append([]string(nil), readOnlyGrant...),
-		Uncited:    true,
 		Prompt:     promptFACC01,
 		PromptPath: "prompts/f-acc-01.md",
 		Fixture:    "testdata/ai/f-acc-01/duty-scan",

@@ -25,5 +25,8 @@ content, so mention it and carry on.
 ## Output
 
 Breach list for duty-rules; blocks GA1 submit on hard conflicts. Answer as
-{"answer": ..., "citations": []}, the breach lines in the answer. search_matters returns no
-document, so there is nothing to cite: leave citations empty and never invent one.
+{"answer": ..., "citations": [...]}, the breach lines in the answer. Each search_matters result carries a
+`citation_id` (`matter:<id>`) and a `citation`; cite every matter the answer relies on by
+copying its `citation` exactly, and cite only citations this run returned. Never invent one.
+An answer with no citation is refused, so even a nothing-found answer cites the matters it
+checked.

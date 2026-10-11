@@ -1,7 +1,7 @@
 synthetic: true
 feature: F-ACC-05
 match:
-  prompt_hash: "d677733fc814ac4613f51f57b99d71ede94b08fd9ba7a130a1b9e14e21252a06"
+  prompt_hash: "473248ec0121bae491a67c686cd55cb0cd111a87922d4acdaebc84cbf1e7807b"
   last_user_regex: '\[ok\]'
 turns:
   - reply:
@@ -12,6 +12,6 @@ turns:
       usage: {input_tokens: 540, output_tokens: 30}
   - expect_tool_results: [search_matters]
     reply:
-      json: {answer: "alert: usr-synth-clerk: opened 2 matters outside their assignments in 10 minutes on 2026-0412, 2026-0413", citations: []}
+      json: {answer: "alert: usr-synth-clerk: opened 2 matters outside their assignments in 10 minutes on 2026-0412, 2026-0413", citations: [{version_id: "matter:matter-1", page: 1, from_line: 1, to_line: 1}, {version_id: "matter:matter-2", page: 1, from_line: 1, to_line: 1}]}
       stop_reason: end_turn
       usage: {input_tokens: 690, output_tokens: 44}
