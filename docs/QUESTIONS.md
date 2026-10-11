@@ -3001,3 +3001,24 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-FEAT-WRK-01 F-WRK-01 events, the work-item screen and create_task's due date
+
+- Task: FEAT-WRK-01 (F-WRK-01 Pick up agent-ready items).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs), `app/legal/boot/agent.go` (the job binding and the `work-item` screen),
+  `app/legal/work/ai_wrk_helpers_test.go` (shared wrk test helpers) and the generated skill
+  `paploo/counsel-plugin/skills/f-wrk-01-pick-up-agent-ready-items/SKILL.md`.
+- No work event exists in spec/eng/a2-interfaces.json for "item enters Agent-ready" or
+  "assigned to agent". The Def binds `work.item_agent_ready` and `work.item_assigned_to_agent`
+  (consts in app/legal/work); nothing publishes them yet. Confirm the names when kernel/work
+  publishes item events.
+- The `work-item` action screen selects subject kind `work_item` with `work.edit`; no
+  registry constant names that kind yet.
+- `create_task`'s `due_on` is not held to the run's provenance in production (only
+  propose_deadline, draft_bill and payment allocation use `SourcedWrite`). The wrk tests wrap
+  create_task with `SourcedWrite("/due_on")` and check an unread date is refused with
+  `ErrUnsourcedValue`. Proposed: wrap create_task the same way in
+  `app/legal/agent/tools_task.go`. Note that none of the F-WRK tools returns a bare
+  `YYYY-MM-DD` value (list_work_items gives RFC 3339 `due_at`), so once wrapped an agent can
+  write no due date until a read tool returns one.

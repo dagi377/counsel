@@ -23,6 +23,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
+	"github.com/dagi377/counsel/app/legal/work"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
@@ -294,6 +295,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		legaldocs.IngestDocumentDef().ID:            legaldocs.IngestDocumentBinding,
 		legaldocs.EngagementLetterDef().ID:          legaldocs.EngagementLetterBinding,
 		legaldocs.DraftWithCitationsDef().ID:        legaldocs.DraftWithCitationsBinding,
+		work.PickUpAgentReadyDef().ID:               work.PickUpAgentReadyBinding,
 		legaldocs.FeatureTemplateCurrency: func() (trigger.Binding, error) {
 			// F-DOC-06 runs weekly and on a known rule change; no form-change event exists
 			// yet (Q-INTEG-15A-SCHEDULED).
@@ -356,6 +358,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
+	// Work: the work-item screen selects the item the agent posts its result on.
+	"work-item": {SubjectKind: "work_item", Capability: "work.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
