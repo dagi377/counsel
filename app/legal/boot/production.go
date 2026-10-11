@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"time"
@@ -16,6 +17,8 @@ import (
 	"github.com/dagi377/counsel/app/legal/party"
 	legalroles "github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/app/legal/trust"
+	"github.com/dagi377/counsel/kernel/ai"
+	"github.com/dagi377/counsel/kernel/ai/httpclient"
 	"github.com/dagi377/counsel/kernel/api"
 	"github.com/dagi377/counsel/kernel/audit"
 	kboot "github.com/dagi377/counsel/kernel/boot"
@@ -64,7 +67,30 @@ type Production struct {
 	Dev bool
 	// BillPrefix is the bill number series prefix; empty uses DefaultBillPrefix.
 	BillPrefix string
+
+	// Model names the model provider and models the agent runs on (spec/ai/mocks.md sec. 8).
+	// Nil outside dev leaves the agent features not ready (Readiness) without stopping boot;
+	// in dev nil is the in-process mock. ModelClient, when set, is used as is (tests: a mock).
+	Model       *ai.Config
+	ModelClient ai.ModelClient
+	// ModelEnv is the deployment environment the model config is checked for: a live model is
+	// refused in test and CI. ModelKey resolves Model.KeyRef; the key is never logged.
+	ModelEnv string
+	ModelKey httpclient.KeyFunc
+	// ModelFixtures are the mock model's fixtures (testdata/ai layout); nil holds none.
+	ModelFixtures fs.FS
+	// FirmAccount is the payee id of the firm's general account, which fee transfers out of
+	// trust pay. Empty leaves the agent features not ready.
+	FirmAccount string
+	// Jobs enqueues the queued agent runs and the job features' triggers. Nil leaves the
+	// queued features not ready.
+	Jobs trigger.Enqueuer
+	// Readiness, when set, receives every agent feature that cannot run and why.
+	Readiness *AgentReadiness
 }
+
+// ModelConfig is the model section of the deployment config (kernel/ai).
+type ModelConfig = ai.Config
 
 // Login is the member sign-in configuration (kernel/identity/login).
 type Login = login.Config
@@ -78,7 +104,7 @@ type pgConn interface {
 
 // bindProduction fills every Options group left nil from Postgres on the kernel. It runs
 // first, so the later Register steps see the filled groups.
-func (w *wiring) bindProduction(_ context.Context, k *kboot.Kernel) error {
+func (w *wiring) bindProduction(ctx context.Context, k *kboot.Kernel) error {
 	if w.opts.Production == nil {
 		return nil
 	}
@@ -111,6 +137,16 @@ func (w *wiring) bindProduction(_ context.Context, k *kboot.Kernel) error {
 			// rule: ARC-I-017
 			opts.HTTP.StepUp = svc.StepUp
 		}
+	}
+	// The agent layer is built after sign-in, so the action route authenticates like the rest.
+	if w.opts.HTTP == nil {
+		ag, err := p.bindAgent(ctx, k, &opts, w.opts.Agent)
+		if err != nil {
+			return fmt.Errorf("production: %w", err)
+		}
+		// An agent that is not ready registers nothing, even a wiring the caller preset.
+		opts.Agent = ag
+		w.opts.Agent = ag
 	}
 	w.opts = merge(w.opts, opts)
 	return nil
@@ -284,6 +320,7 @@ func moduleMounts(k *kboot.Kernel, p HTTPPorts, approvers map[string]int) []moun
 	if w := matterWrites(k, p, reads, approvers); w != nil {
 		out = append(out, w.WriteRoutes)
 	}
+	out = append(out, docsMounts(k, p)...)
 	return out
 }
 

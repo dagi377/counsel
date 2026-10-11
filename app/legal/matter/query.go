@@ -17,7 +17,8 @@ var _ Service = (*Store)(nil)
 
 const matterColumns = `m.id::text, m.number, m.short_name, m.client_id::text, m.practice_area_id::text,
   m.responsible_lawyer_id::text, m.status, m.visibility, m.open_date, m.retention_class,
-  m.created_at, m.row_version, coalesce(btrim(m.court_province), ''), coalesce(btrim(m.property_province), '')`
+  m.created_at, m.row_version, coalesce(btrim(m.court_province), ''), coalesce(btrim(m.property_province), ''),
+  coalesce(m.rate_table_id::text, '')`
 
 // rowScanner is the Scan half of pgx.Row and pgx.Rows.
 type rowScanner interface {
@@ -33,7 +34,7 @@ func scanMatter(r rowScanner) (Matter, error) {
 	)
 	if err := r.Scan(&id, &m.Number, &m.ShortName, &client, &m.PracticeAreaID,
 		&m.ResponsibleLawyerID, &status, &visibility, &open, &m.RetentionClass,
-		&m.CreatedAt, &m.RowVersion, &m.CourtProvince, &m.PropertyProvince); err != nil {
+		&m.CreatedAt, &m.RowVersion, &m.CourtProvince, &m.PropertyProvince, &m.RateTableID); err != nil {
 		return Matter{}, err
 	}
 	m.ID = ID(id)

@@ -718,6 +718,14 @@ func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Pr
 	return r.Runner.Run(ctx, spec, p, prompt, triggers...)
 }
 
+// recordFirst wraps r in RecordFirst when there is a run record store.
+func recordFirst(records RunRecords, r agentrun.Runner) agentrun.Runner {
+	if records == nil {
+		return r
+	}
+	return RecordFirst(records, r)
+}
+
 // AgentWiring is what the agent layer needs at boot beyond its ports.
 type AgentWiring struct {
 	Ports AgentPorts
@@ -745,6 +753,12 @@ type AgentWiring struct {
 	// Runners are every other agent runner boot hands out (the job-run worker's among them).
 	// Boot wraps each in place so it forgets a run's provenance values when the run ends.
 	Runners []*agentrun.Runner
+	// Unready, when set, serves a tool whose port has no implementation in this process as not
+	// served and reports its features not ready, instead of failing boot (Production).
+	Unready *AgentReadiness
+	// Records is where Actions.Runner and Runners record a run before it starts (AGENT-PROD-3).
+	// Nil uses agent.run_record on the kernel DB; with no DB the runners are not wrapped.
+	Records RunRecords
 }
 
 // timekeepers is the per-user features' user source: the wired one, else the active
@@ -774,6 +788,12 @@ func registerAgent(w *AgentWiring) hook {
 		if err != nil {
 			return err
 		}
+		// rule: AI-R-005
+		// Every runner boot hands out records its run before the run calls a tool, so a
+		// batch draft finds the run's preparer instead of failing closed.
+		if w.Records == nil && k.DB != nil {
+			w.Records = agentrun.PGRecords{DB: k.DB}
+		}
 		// One Provenance for every tool, write dep and runner: a run's values are recorded,
 		// checked and forgotten in the same place.
 		if w.Ports.Provenance == nil {
@@ -792,6 +812,9 @@ func registerAgent(w *AgentWiring) hook {
 			w.Ports.WriteTools = wt
 		}
 		tools, err := AgentTools(w.Ports)
+		if w.Unready != nil {
+			tools, err = servedTools(w.Ports, w.Unready, features)
+		}
 		if err != nil {
 			return err
 		}
@@ -820,12 +843,12 @@ func registerAgent(w *AgentWiring) hook {
 			if w.Queue != nil {
 				w.Actions.Queue = w.Queue
 			}
-			w.Actions.Runner = ForgetOnEnd(w.Ports.Provenance, w.Actions.Runner)
+			w.Actions.Runner = recordFirst(w.Records, ForgetOnEnd(w.Ports.Provenance, w.Actions.Runner))
 			k.Registry.Routes(w.Actions.Routes)
 		}
 		for _, r := range w.Runners {
 			if r != nil {
-				*r = ForgetOnEnd(w.Ports.Provenance, *r)
+				*r = recordFirst(w.Records, ForgetOnEnd(w.Ports.Provenance, *r))
 			}
 		}
 		if w.Flags != nil {
@@ -912,4 +935,10 @@ func soleTrustAccount(src agent.MatterTrustAccounts) func(ctx context.Context, m
 		}
 		return accts[0], nil
 	}
+}
+
+// registerAgent registers Options.Agent as it stands when the step runs, so the wiring
+// bindProduction built is the one registered.
+func (w *wiring) registerAgent(ctx context.Context, k *kboot.Kernel) error {
+	return registerAgent(w.opts.Agent)(ctx, k)
 }

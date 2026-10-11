@@ -178,10 +178,10 @@ func TestARC_I_035_DraftBill(t *testing.T) {
 		actorCaps map[string]bool
 		in        string
 		wantErr   error
-		wantNets  map[string]int64 // source entry -> net cents on the draft
+		wantNets  map[string]int64 // source entry -> net cents on the draft, held lines "held:<id>"
 	}{
 		{"agent assembles the pre-bill", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter), nil, map[string]int64{billEntryA: 50000, billEntryB: 20000}},
-		{"sourced write-down and a hold", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, writeDown(5000), hold), nil, map[string]int64{billEntryA: 45000}},
+		{"sourced write-down and a hold", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, writeDown(5000), hold), nil, map[string]int64{billEntryA: 45000, "held:" + billEntryB: 20000}},
 		{"no charge", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, `{"source_id":"`+billEntryB+`","action":"no_charge"}`), nil, map[string]int64{billEntryA: 50000, billEntryB: 0}},
 		{"manual path", context.Background(), user, caps, billInput(draftBillMatter), nil, map[string]int64{billEntryA: 50000, billEntryB: 20000}},
 		{"walled matter", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillWalled), agent.ErrNotVisible, nil},
@@ -247,7 +247,12 @@ func TestARC_I_035_DraftBill(t *testing.T) {
 			}
 			got := map[string]int64{}
 			for _, l := range lines {
-				got[l.SourceTimeEntryID] = w.store.Net(l)
+				// A hold is a status change: the held line stays on the draft, never deleted.
+				key := l.SourceTimeEntryID
+				if l.Held {
+					key = "held:" + key
+				}
+				got[key] = w.store.Net(l)
 			}
 			if fmt.Sprint(got) != fmt.Sprint(tc.wantNets) {
 				t.Fatalf("nets = %v, want %v", got, tc.wantNets)

@@ -4726,3 +4726,73 @@ and has a one-outbox-event test.
 - Open: boot does not yet put a registry in the agent Deps, because production has no
   Postgres `SubjectRecords`/`MatterTrustBalances` adapters yet (AgentPorts.OpenGate is not
   wired in production either). The adapters and the wiring are the next task.
+
+
+
+## AGENT-PROD-2a: Postgres for the six unwired agent tool ports
+
+Production now wires Text, Documents, Entries, DraftCalc, DraftStore and BatchDrafts, so
+search_documents, list_documents, the read tools, propose_time_entries and draft_bill are
+served and readiness no longer reports their features `tool_unwired`. Additive changes:
+
+- `kernel/docs.PGText` over a new append-only `docs.version_text` (0900): one row per stored
+  version holding its text layer (firm document content, never conversation text). Nothing
+  writes it yet except `PGText.Put`; the upload/OCR pipeline must call it, until then a
+  version reads as not found and the tools fail closed.
+- `app/legal/docs.FolderStore.Filed` lists a matter's live documents with a current version.
+- `timekeeping.PGEntries`: a suggestion lives in `time_suggestion` (state suggested) until its
+  owner accepts it; accepting writes the `time_entry` (origin suggestion) at the resolved rate
+  (the default rate table, else the activity rate; none is ErrInvalid). Open: a matter's own
+  rate table is read through the `PGEntries.RateTable` hook, which boot leaves nil because
+  matter.Query does not expose `rate_table_id` (ARC-I-041 forbids reading matter.matter). The
+  `time_entry` subject resolver also reads `time_suggestion`. Transition to on_draft_bill or
+  billed is refused: the draft builder sets the bill.
+- `draft.Calculator` (pure), `draft.PGStore` and `draft.PGBatch`. 5640 adds the write-down,
+  markup and discount columns to `billing.bill_line` (amount_cents stays the net before the
+  bill discount); 5641/5642 add `billing.bill.idempotency_key` for batch.Key (BIL-C-110).
+- Open: bill lines are never deleted, so `PGStore.SaveLines` refuses a line missing from the
+  saved set; draft_bill's `hold` action therefore fails closed in production. Decide whether
+  hold should be passed to `PGDrafts.Create` as a line action instead.
+- Open: `PGBatch` names the preparer from the agent run in ctx (`agent.run_record.acting_for`);
+  a scheduled batch run with no recorded run has no preparer and fails closed.
+
+## AGENT-PROD-3: hold, matter rate table, document text, recorded runs
+
+Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
+
+- `draft.Line.Held` and `billing.bill_line.on_hold` (5643). draft_bill's `hold` is a status
+  change: the line stays on the draft, held, and `PGStore.SaveLines` saves it (and can release
+  it); a held line counts toward no total, tax or journal line (`PGDrafts.compute`,
+  `bill.PGStore.JournalLines`). Open: the held time entry stays linked to this draft (the
+  0001 `bill_line_time_once` index), so it reaches a later bill only after this draft is
+  voided. `bill.PGService` still lists held lines without a held flag.
+- `matter.Matter.RateTableID` (matter.rate_table_id through matter.Query). Boot sets
+  `PGEntries.RateTable` from it: the matter's table prices accepted time, the default table
+  only when the matter has none. Rates live on the time entry; `draft.Calculator` carries no
+  rate table, so the draft takes the rate the entry was priced at.
+- `kernel/docs`: `StoreText` (the upload text step), `NativeText`, `Extractor`,
+  `ModelExtractor` (kernel `ai.ModelClient`, extraction call, the file as quoted tool_result
+  data), `ErrTextUnavailable` (wraps ErrNotFound) and `PGText.MarkUnavailable` over the new
+  `docs.version_text.unavailable_reason` (0901). Text and Markdown are stored as they are;
+  other formats go through the extractor; no text is recorded as text-unavailable, never as
+  empty text. Open: production has no `DocumentStore.Upload` (POST /documents is served only
+  with a fake), so no production path calls `StoreText` yet; the upload, email filing and
+  import paths must call it in the transaction that stores the version. The model sees the
+  file only as base64 text; a vision/document-block path in `ai.Request` would be needed for
+  scans.
+- `boot.RecordFirstRunner`: the screen-action runner and every `AgentWiring.Runners` entry
+  record the run in agent.run_record (queued, ids and grant only) before it runs, unless it
+  is already recorded, so draft_bill's preparer lookup finds the run. No store or a failed
+  write runs nothing. RunStarter already records first. The manual (user) draft_bill path
+  still has no run and fails closed in production.
+
+## DOC-UPLOAD
+
+- Additive migrations 5803/5804: `docs.document.idempotency_key` with a unique index on
+  `(created_by, idempotency_key)`, so a retried upload by the same member returns the stored
+  document even after the shared idempotency record expires.
+- No S3 SDK is an allowed dependency, so `kernel/docs/s3.go` signs S3 requests (SigV4) with the
+  standard library. Production reads the cell bucket from `$COUNSEL_DOCS_BUCKET_URL`,
+  `$COUNSEL_DOCS_BUCKET_REGION`, `$COUNSEL_DOCS_KMS_KEY_ID` and the AWS credential variables in
+  `app/legal/boot/services_docs.go`; without them the document routes keep answering 503.
+  Question: should these move to `cmd/counseld` flags once production.go is free to edit?

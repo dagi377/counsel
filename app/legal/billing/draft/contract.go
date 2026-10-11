@@ -85,6 +85,9 @@ type Line struct {
 	DiscountShareCents int64 // this line's share of the bill discount (BIL-C-022)
 	Taxable            bool
 	SourceTimeEntryID  string
+	// Held (additive, AGENT-PROD-3) is a line put on hold: it stays on the draft and counts
+	// toward no total until the hold is lifted. Lines are never deleted.
+	Held bool
 }
 
 // Item is one itemized disbursement inside an aggregated line (BIL-L-002).
