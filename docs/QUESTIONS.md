@@ -1665,3 +1665,16 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## FEAT-TOOL-05 list_deadlines
+
+- Additive contract change (named in the task's accept text): `kernel/deadline` gains
+  `Filter` and a separate `Lister` interface (`List(ctx, Filter)`), so `Engine` and its
+  implementations are unchanged. deadlinefake implements it; the Postgres store has no List
+  yet and must implement `Lister` before boot wires list_deadlines.
+- Visibility: a named walled matter is refused with ErrNotVisible (404). Without a matter id,
+  deadlines of walled matters are omitted, and deadlines on a subject that is not a matter
+  are omitted too (walls cannot be checked on them: fail closed).
+- The result carries ids, rule references and dates only, no document or client text, so it
+  has no quoted envelope. Due dates are YYYY-MM-DD strings, which Provenance.ReadTool records.
+- Registered through `ListDeadlinesHandler()` for the boot HandlerSet, not init().

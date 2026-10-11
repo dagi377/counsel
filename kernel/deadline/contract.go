@@ -122,3 +122,18 @@ type Engine interface {
 	// Get returns one stored deadline.
 	Get(ctx context.Context, id DeadlineID) (Deadline, error)
 }
+
+// Filter narrows List. A zero field matches every deadline. From and To bound the due date,
+// both inclusive. Additive (FEAT-TOOL-05, see docs/QUESTIONS.md).
+type Filter struct {
+	Subject *Subject
+	From    *Date
+	To      *Date
+}
+
+// Lister lists stored deadlines. It is a separate interface so Engine implementations are
+// unchanged; a store that lists implements both. Additive (FEAT-TOOL-05).
+type Lister interface {
+	// List returns the stored deadlines matching f, by due date then id.
+	List(ctx context.Context, f Filter) ([]Deadline, error)
+}
