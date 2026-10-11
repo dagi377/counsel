@@ -3217,3 +3217,23 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
   screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
   as served by its screen actions instead of binding it.
+
+## Q-FEAT-BIL-03 F-BIL-03 trust application: trigger event, payee and gate kind
+
+- No bill-delivered event exists on main. F-BIL-03 names `bill.delivered`
+  (`billing.EventBillDelivered`); billing must publish it when delivery evidence sets a bill's
+  delivered date, or the event half never fires. "Retainer permits" is checked by the run
+  (the prompt), not by the binding. The `trust-to-fees` screen maps to subject `matter` with
+  capability `trust.request`.
+- The trust withdrawal module opens `billing.trust_fee_withdrawal` (G-B4) for a request with a
+  `bill_id` (`withdraw.RequestGateKind`), so the Def declares that kind (Q-AGENT-002 reading A
+  for the tool, B for the gate). `agent.WriteTools` still names `trust.withdrawal` as its spec
+  kind; the tests assert the module's kind.
+- By-Law 9: a fee transfer pays the firm's general account. agenttest's write tools have no
+  fee-bills port (`noFeeBills`), so a firm payee is refused there and the fixtures pay the
+  matter contact with `purpose_category: fees` and the bill id. Proposed: give agenttest a
+  `FeeBills` over the Seed's bills so the fixtures can use `agenttest.FirmPayee`.
+- The end-to-end tests use `app/legal/billing/ai_bilc_helpers_test.go` (prefix `bilc`), shared
+  with FEAT-BIL-07 and FEAT-BIL-08. It supplies the bill, trust-balance and priced-time ports
+  the Seed lacks, and feeds read figures to the driver's Provenance (the one
+  `prepare_trust_withdrawal` checks), which differs from the Seed's.
