@@ -1,0 +1,35 @@
+synthetic: true
+feature: F-ACC-04
+match:
+  prompt_hash: ""
+  last_user_regex: "break-glass session ended"
+latency_ms: 0
+turns:
+  - reply:
+      tool_calls:
+        - name: search_matters
+          input: {query: "break-glass session bg-0042", limit: 20}
+      stop_reason: tool_use
+      usage: {input_tokens: 640, output_tokens: 32}
+  - expect_tool_results: [search_matters]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: summarise-session, title: "Summarise break-glass session bg-0042"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 720, output_tokens: 28}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input:
+            kind: core.break_glass_review
+            session: "bg-0042"
+            summary: "Opened M-2026-0007 under break-glass for 18 minutes; viewed 3 documents; no edits."
+      stop_reason: tool_use
+      usage: {input_tokens: 810, output_tokens: 96}
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      text: "Drafted the break-glass summary for your review."
+      stop_reason: end_turn
+      usage: {input_tokens: 860, output_tokens: 12}
