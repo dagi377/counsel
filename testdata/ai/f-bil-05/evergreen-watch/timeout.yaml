@@ -1,0 +1,4 @@
+synthetic: true
+feature: F-BIL-05
+match: {last_user_regex: "daily evergreen watch"}
+fault: timeout
