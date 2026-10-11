@@ -1851,3 +1851,20 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## HTTP-26: webhook endpoints, list, create, renew
+
+- kernel/webhook/http.go adds the `EndpointReads` port (Endpoints, Endpoint; never the secret
+  reference) because Dispatcher has no list, and `ErrEndpointExpired` (409 webhook_expired).
+  The expiry write reuses `ExpiryStore` and `RenewEndpoint`. Boot must wire Postgres ones;
+  until then the routes answer 503. app/legal/register.go mounts the kernel routes
+  (`registerKernelRoutes`) after the modules.
+- platform.webhook has no row version; `EndpointInfo.Version` is what If-Match checks, so the
+  Postgres reads need an additive version column (follow-up, kernel/webhook block 14xx).
+- POST opens gate platform.integration_scope with payload `{integration_id (minted endpoint
+  id), scopes (events), data_leaves_canada (default true), change}`; the effect creates the
+  endpoint and its secret. platform.integration_scope is still in pendingGateKinds.
+- PATCH: an expiry-only change applies now (200, ETag); any change to the events (widening
+  per ARC-I-049; narrowing too, since events are gate-owned) opens the gate with the whole
+  patch (202). An expired endpoint answers 409 webhook_expired: create a new one.
+- A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008).
