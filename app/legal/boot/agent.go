@@ -23,6 +23,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
+	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
@@ -320,6 +321,9 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
 	onRequest := map[string]bool{
 		matter.FeatureMatterQuestionAnswering: true,
+		// F-TRU-01's schedule binds with its write path (FEAT-TRU-02); until then its screen
+		// actions start it.
+		trust.FeatureBankFeedSync: true,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -418,6 +422,10 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Trust. The bank feed and the receipts journal are firm-level screens; with no firm
+	// subject yet they select the matter a deposit is for (docs/QUESTIONS.md Q-FEAT-TRU-01).
+	"trust-receipts-journal": {SubjectKind: "matter", Capability: "trust.view"},
+	"bank-feed-import":       {SubjectKind: "matter", Capability: "trust.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
