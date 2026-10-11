@@ -1,0 +1,17 @@
+synthetic: true
+feature: F-ACC-05
+match:
+  prompt_hash: ""
+  last_user_regex: "access events batch"
+turns:
+  - reply:
+      tool_calls:
+        - name: search_matters
+          input: {query: "matters opened by u-clerk-bo since 2026-10-09", limit: 50}
+      stop_reason: tool_use
+      usage: {input_tokens: 540, output_tokens: 30}
+  - expect_tool_results: [search_matters]
+    reply:
+      text: "Unusual access: u-clerk-bo opened 42 matters in 10 minutes, 40 outside their assignments. Flagged for the owners."
+      stop_reason: end_turn
+      usage: {input_tokens: 690, output_tokens: 34}

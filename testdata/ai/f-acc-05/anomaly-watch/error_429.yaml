@@ -1,0 +1,11 @@
+synthetic: true
+feature: F-ACC-05
+match: {last_user_regex: "access events batch"}
+fault: rate_limit
+turns:
+  - reply:
+      tool_calls:
+        - name: search_matters
+          input: {query: "matters opened by u-clerk-bo since 2026-10-09", limit: 50}
+  - reply:
+      text: "Unusual access: u-clerk-bo opened 42 matters in 10 minutes. Flagged for the owners."
