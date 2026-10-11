@@ -213,6 +213,10 @@ func bilFeature(t *testing.T, def feature.Def, narrativeA string, extra ...any) 
 		ID: bilBillA, MatterID: bilMatter, Status: bill.StatusDraft, PreparedBy: agenttest.FeatureActingFor,
 		FeesCents: bilEntryACents + bilEntryBCents, TotalCents: bilEntryACents + bilEntryBCents,
 		BalanceCents: bilEntryACents + bilEntryBCents, CreatedAt: bilDecideAt,
+		Lines: []bill.Line{
+			{Ordinal: 1, Source: bill.SourceTime, SourceID: bilEntryA, Narrative: narrativeA, QuantityMilli: 1000, RateCents: bilEntryACents, AmountCents: bilEntryACents},
+			{Ordinal: 2, Source: bill.SourceTime, SourceID: bilEntryB, Narrative: "Synthetic call with the client", QuantityMilli: 400, RateCents: bilEntryACents, AmountCents: bilEntryBCents},
+		},
 	}); err != nil {
 		t.Fatalf("bill: %v", err)
 	}
@@ -243,15 +247,27 @@ func bilPull[T any](vals []any, d agent.Deps) []any {
 	return vals
 }
 
-// bilHandlers is agent.Handlers() with each Build given ports ahead of the Seed's.
+// bilHandlers is agent.Handlers() with each Build given ports ahead of the Seed's. A port
+// that is an agent.Handler replaces the app's handler of its tool (a feature's own wrapper).
 // list_unbilled also records its figures in the run's provenance, as the Def's prompt and
 // accept text require (see docs/QUESTIONS.md FEAT-BIL-01: the boot handler does not yet).
 func bilHandlers(t *testing.T, ports ...any) agent.HandlerSet {
 	t.Helper()
 	app := agent.Handlers()
+	own := map[string]agent.Handler{}
+	ports = slices.DeleteFunc(slices.Clone(ports), func(p any) bool {
+		h, ok := p.(agent.Handler)
+		if ok {
+			own[h.Name] = h
+		}
+		return ok
+	})
 	var hs []agent.Handler
 	for _, name := range app.Names() {
 		h, _ := app.For(name)
+		if o, ok := own[name]; ok {
+			h = o
+		}
 		build := h.Build
 		hs = append(hs, agent.Handler{Name: name, Build: func(d agent.Deps) (registry.Tool, error) {
 			vals := slices.Clone(ports)

@@ -118,5 +118,6 @@ func appDefs() []feature.Def {
 		matter.SummarizeThisWeekDef(),
 		// billing
 		billing.BillingCycleDraftsDef(),
+		billing.BillRenderDef(),
 	}
 }

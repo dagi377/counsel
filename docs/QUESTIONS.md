@@ -3232,3 +3232,15 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - The Seed has no billing ports (MatterTime, UnbilledWIP, batch.Drafts, BillReader,
   BillBalances, TrustAvailable, MatterTrustAccounts), so the billing tests supply them from
   in-memory fakes ahead of the Seed's (ai_bil_helpers_test.go).
+
+## FEAT-BIL-02 F-BIL-02 bill render and pre-flight
+
+- draft_document's input has no cents field, so the provenance of a rendered bill's amounts
+  is checked in its text: billing.SourcedBillDraftHandler wraps draft_document and refuses an
+  agent draft whose title or body states an "<n> cents" figure no read returned in the run
+  (ErrUnsourcedValue, before the draft is stored). A HandlerSet holds one handler per tool,
+  so boot still serves the plain draft_document to every feature. Open: serve the sourced
+  wrapper as the boot draft_document (it only refuses invented cents figures), or let a Def
+  name per-feature handler overrides.
+- F-BIL-02 binds gate.decided (billing.EventGateDecided) for the event's user; the run renders
+  only when the decided gate is a G-B1 pre-bill review.
