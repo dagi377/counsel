@@ -22,6 +22,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
+	"github.com/dagi377/counsel/app/legal/platform"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
@@ -357,6 +358,11 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		work.AbsenceCoverPlannerDef().ID:   work.AbsenceCoverPlannerBinding,
 		work.DailyDigestDef().ID:           work.DailyDigestBinding,
 		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
+	}
+	// F-PLT-04 starts on the consented transcript event F-MAT-07 also uses, acting for the
+	// event's user, until FEAT-PLT-06 adds its own binding (Q-FEAT-PLT-05).
+	byID[platform.FeatureCallSummarizer] = func() (trigger.Binding, error) {
+		return trigger.Bind(platform.CallSummarizerDef(), "", matter.EventCallTranscriptFiled)
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).

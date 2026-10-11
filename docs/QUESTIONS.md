@@ -4255,3 +4255,21 @@ of FEAT-TIM-01 above.
   draft_document schema FORM-SUBJECT changed. list_unbilled now records provenance itself
   (sourcedRead) and boot also wraps every read tool (TIME-FIX); recording a value twice is
   harmless, but one of the two can go.
+
+## Q-FEAT-PLT-05 F-PLT-04 call summarizer: Def, prompt and tool-use pipeline
+
+- Gate kinds: `platform.summary_accuracy` (G-SUM) is new as `platform.GateSummaryAccuracy`;
+  G9 reuses `agent.GateTimeAccept`. No create_task tool is in the Def, so follow-up tasks are
+  items reviewed with the summary under G-SUM; FEAT-PLT-06 decides how they are filed.
+- A time entry's work date and minutes must be values the quoted transcript states or a read
+  of the run returned (Provenance, ARC-U-027); anything else is ErrUnsourcedValue and nothing
+  is filed. `CallSummarizerPipeline.Provenance` takes boot's read-tool set.
+- Outside the task's files: featureset.App() holds the Def (so its plugin skill is generated)
+  and the boot test then needs a job binding. F-PLT-04 binds inline in `boot.JobBindings` to
+  `matter.EventCallTranscriptFiled`, the consented-transcript event F-MAT-07 already uses,
+  until FEAT-PLT-06 adds its own binding. Open: both features now summarize the same
+  transcript; the owner should say whether F-PLT-04 replaces F-MAT-07 on that event or one of
+  them dedupes.
+- No fixture dir yet (testdata/ai/f-plt-04/call-summarizer); the pipeline test scripts aifake
+  inline over the app's real get_matter, search_documents and read_document handlers
+  (agenttest.FromFeature). Helpers are in `ai_plt_helpers_test.go` (prefix `plt`).
