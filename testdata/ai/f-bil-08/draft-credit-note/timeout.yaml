@@ -1,0 +1,5 @@
+synthetic: true
+feature: F-BIL-08
+match:
+  last_user_regex: '\[timeout\]'
+fault: timeout
