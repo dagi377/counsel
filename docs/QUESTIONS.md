@@ -3001,3 +3001,18 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## BOOT-24 / BOOT-25 (composition root)
+
+- Files beyond the task list: `app/legal/boot/production.go` (new `Options.Production`: the
+  Postgres graph is built at Register on `k.DB`, because kernel boot opens the pool inside
+  `boot.Run`), `boot.go`, `routes.go` (matter reads, contacts and `/firm/tax-registrations`
+  mounted), `agent.go` (every scheduled feature binds with `trigger.BindDesignated`; the
+  `RuleAdmin` field is replaced by `Designated`, default `agent.PGDesignatedLawyers`;
+  `conflict-search-settings` and `compliance-audit-log` use subject kind `firm`).
+- Not wired yet, so `testdata/unwired_routes.golden` lists the routes that still answer 503:
+  no request authentication exists (Production.Principal defaults to "nobody", so served
+  routes answer 401); no Postgres `matter.Updater`, docs, work, time-entry, deadline lister,
+  access directory or trust-request wiring; GatePorts (GL, Sealer, withdraw.Auditor, credit
+  second approval) and AgentPorts have no Postgres composition. `HTTPPorts.AgentModel` and the
+  HandlerSet are on `task/PG-RUNS-WEBHOOK`, which this branch could not merge.

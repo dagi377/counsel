@@ -256,14 +256,16 @@ func gateKindCodes() ([]string, error) {
 }
 
 // JobBindings binds every job feature of s to the events and schedule that start it.
-// ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-05,
-// F-DL-09, F-CON-05, F-CON-09 to 12, F-DOC-06; Q-INTEG-15A-SCHEDULED); empty fails with
-// trigger.ErrBadBinding. The F-DL-06 rule watch acts for its designated lawyer in firm
-// settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
-// job feature cannot ship unbound.
-func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
-	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
-		return func() (trigger.Binding, error) { return bind(ruleAdmin) }
+// Every scheduled run (F-DL-05, F-DL-09, F-CON-05, F-CON-09 to 12, F-DOC-06 and the F-DL-06
+// rule watch) acts for its feature's designated lawyer in firm settings, read at each tick
+// (JOB-ACTOR). A job feature with no binding listed here fails, so a new job feature cannot
+// ship unbound.
+func JobBindings(s *feature.Set, b *trigger.Bindings) error {
+	// rule: ARC-I-040
+	// A scheduled run acts for the feature's designated lawyer in firm settings, never for
+	// an administrator; with none named the feature does not run (JOB-ACTOR).
+	scheduled := func(d feature.Def, events ...string) func() (trigger.Binding, error) {
+		return func() (trigger.Binding, error) { return trigger.BindDesignated(d, events...) }
 	}
 	byID := map[string]func() (trigger.Binding, error){
 		deadlines.FeatureExtractDeadlines: func() (trigger.Binding, error) {
@@ -275,30 +277,28 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		deadlines.RecomputeDependantsDef().ID:       deadlines.RecomputeDependantsBinding,
 		deadlines.ComplianceEvidenceMatcherDef().ID: deadlines.ComplianceEvidenceMatcherBinding,
 		deadlines.RuleWatchDef().ID:                 deadlines.RuleWatchBinding,
-		deadlines.DigestDef().ID:                    scheduled(deadlines.DigestBinding),
+		deadlines.DigestDef().ID:                    scheduled(deadlines.DigestDef()),
 		deadlines.PostEventFollowUpDef().ID:         deadlines.PostEventFollowUpBinding,
 		deadlines.AdjournmentWatcherDef().ID:        deadlines.AdjournmentWatcherBinding,
-		deadlines.AbsenceCoverageCheckDef().ID:      scheduled(deadlines.AbsenceCoverageCheckBinding),
+		deadlines.AbsenceCoverageCheckDef().ID:      scheduled(deadlines.AbsenceCoverageCheckDef(), deadlines.EventAbsenceApproved),
 		conflict.FeaturePartyExtraction:             conflict.PartyExtractionBinding,
 		conflict.SearchRankingDef().ID:              conflict.SearchRankingBinding,
 		conflict.ClearanceMemoDef().ID:              conflict.ClearanceMemoBinding,
 		conflict.ConsentDraftingDef().ID:            conflict.ConsentDraftingBinding,
-		conflict.ReverseSweepDef().ID:               scheduled(conflict.ReverseSweepBinding),
+		conflict.ReverseSweepDef().ID:               scheduled(conflict.ReverseSweepDef()),
 		conflict.IDObligationWatcherDef().ID:        conflict.IDObligationWatcherBinding,
 		conflict.IDEvidenceCheckDef().ID:            conflict.IDEvidenceCheckBinding,
 		conflict.BeneficialOwnershipDef().ID:        conflict.BeneficialOwnershipBinding,
-		conflict.WallMonitorDef().ID:                scheduled(conflict.WallMonitorBinding),
-		conflict.ExpiryRetentionDef().ID:            scheduled(conflict.ExpiryRetentionBinding),
-		conflict.AuditAnomalyDigestDef().ID:         scheduled(conflict.AuditAnomalyDigestBinding),
-		conflict.DuplicateFinderDef().ID:            scheduled(conflict.DuplicateFinderBinding),
+		conflict.WallMonitorDef().ID:                scheduled(conflict.WallMonitorDef(), conflict.EventWalledMatterAccessed),
+		conflict.ExpiryRetentionDef().ID:            scheduled(conflict.ExpiryRetentionDef()),
+		conflict.AuditAnomalyDigestDef().ID:         scheduled(conflict.AuditAnomalyDigestDef()),
+		conflict.DuplicateFinderDef().ID:            scheduled(conflict.DuplicateFinderDef()),
 		legaldocs.IngestDocumentDef().ID:            legaldocs.IngestDocumentBinding,
 		legaldocs.EngagementLetterDef().ID:          legaldocs.EngagementLetterBinding,
 		legaldocs.DraftWithCitationsDef().ID:        legaldocs.DraftWithCitationsBinding,
-		legaldocs.FeatureTemplateCurrency: func() (trigger.Binding, error) {
-			// F-DOC-06 runs weekly and on a known rule change; no form-change event exists
-			// yet (Q-INTEG-15A-SCHEDULED).
-			return trigger.Bind(legaldocs.TemplateCurrencyDef(), ruleAdmin, deadlines.EventRulePackPublished)
-		},
+		// F-DOC-06 runs weekly and on a known rule change; no form-change event exists yet
+		// (Q-INTEG-15A-SCHEDULED).
+		legaldocs.FeatureTemplateCurrency: scheduled(legaldocs.TemplateCurrencyDef(), deadlines.EventRulePackPublished),
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -328,6 +328,10 @@ func AddTickJob(j *kboot.Jobs, b *trigger.Bindings) error {
 	return nil
 }
 
+// FirmSubject is the subject kind of a firm-level screen's records: settings and the audit
+// log belong to the firm, not to one matter.
+const FirmSubject = "firm"
+
 // actionScreens maps each screen that offers a feature action to the records it selects and
 // the capability the acting user needs on each. Every screen named in a feature's Actions
 // must be listed (TestActionScreensCoverFeatures).
@@ -351,8 +355,9 @@ var actionScreens = map[string]trigger.Screen{
 	"party-records-hygiene":       {SubjectKind: party.SubjectKind, Capability: "contacts.edit"},
 	"lateral-hire-intake":         {SubjectKind: party.SubjectKind, Capability: "conflicts.run"},
 	"ethical-walls":               {SubjectKind: "matter", Capability: "conflicts.walls"},
-	"conflict-search-settings":    {SubjectKind: "matter", Capability: "conflicts.run"},
-	"compliance-audit-log":        {SubjectKind: "matter", Capability: "admin.audit_log"},
+	// Firm-level screens act on the firm, not on a matter.
+	"conflict-search-settings": {SubjectKind: FirmSubject, Capability: "conflicts.run"},
+	"compliance-audit-log":     {SubjectKind: FirmSubject, Capability: "admin.audit_log"},
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
@@ -423,8 +428,9 @@ func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Pr
 // AgentWiring is what the agent layer needs at boot beyond its ports.
 type AgentWiring struct {
 	Ports AgentPorts
-	// RuleAdmin is the user the scheduled digest and coverage-check runs act for.
-	RuleAdmin string
+	// Designated reads, per scheduled feature, the lawyer its runs act for. Nil uses the
+	// Postgres firm setting on the kernel DB (agent.designated_lawyer).
+	Designated trigger.DesignatedLawyers
 	// Bindings receives the job-feature bindings; nil skips triggers and the tick job.
 	Bindings *trigger.Bindings
 	// Actions, when set, is mounted as the screen-action route. Boot sets its Features,
@@ -467,7 +473,10 @@ func registerAgent(w *AgentWiring) hook {
 			k.Registry.Tool(t)
 		}
 		if w.Bindings != nil {
-			if err := JobBindings(features, w.Bindings, w.RuleAdmin); err != nil {
+			if d := designatedOrPG(k, w.Designated); d != nil {
+				w.Bindings.WithDesignated(d)
+			}
+			if err := JobBindings(features, w.Bindings); err != nil {
 				return err
 			}
 			if k.Jobs != nil {

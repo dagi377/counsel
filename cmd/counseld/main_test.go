@@ -4,6 +4,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -22,6 +23,7 @@ var mainImports = map[string]bool{
 	"syscall":                                true,
 	"github.com/dagi377/counsel/kernel/boot": true,
 	"github.com/dagi377/counsel/app/legal":   true,
+	"github.com/dagi377/counsel/app/legal/boot": true,
 }
 
 func TestARC_I_040_MainsOnlyParseFlagsAndCallBoot(t *testing.T) {
@@ -48,17 +50,22 @@ func TestARC_I_040_MainsOnlyParseFlagsAndCallBoot(t *testing.T) {
 func TestParseFlags(t *testing.T) {
 	tests := []struct {
 		name      string
+		env       string
 		args      []string
 		wantAddr  string
-		wantFlags int
+		wantFlags []string
+		wantZone  string
 		wantErr   bool
 	}{
-		{name: "defaults", wantAddr: ":8080"},
-		{name: "addr and flags", args: []string{"-addr", ":9000", "-flags", "a.b,c.d"}, wantAddr: ":9000", wantFlags: 2},
+		{name: "defaults", wantAddr: ":8080", wantZone: "America/Toronto"},
+		{name: "addr and flags split", args: []string{"-addr", ":9000", "-flags", "a.b,c.d"}, wantAddr: ":9000", wantFlags: []string{"a.b", "c.d"}, wantZone: "America/Toronto"},
+		{name: "zone from env", env: "America/Vancouver", wantAddr: ":8080", wantZone: "America/Vancouver"},
+		{name: "zone flag overrides env", env: "America/Vancouver", args: []string{"-zone", "America/Halifax"}, wantAddr: ":8080", wantZone: "America/Halifax"},
 		{name: "unknown flag", args: []string{"-nope"}, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("COUNSEL_ZONE", tt.env)
 			cfg, err := parseFlags(tt.args)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
@@ -66,7 +73,7 @@ func TestParseFlags(t *testing.T) {
 			if tt.wantErr {
 				return
 			}
-			if cfg.Role != boot.RoleServer || cfg.Addr != tt.wantAddr || len(cfg.Flags) != tt.wantFlags {
+			if cfg.Role != boot.RoleServer || cfg.Addr != tt.wantAddr || cfg.Zone != tt.wantZone || !slices.Equal(cfg.Flags, tt.wantFlags) {
 				t.Fatalf("cfg = %+v", cfg)
 			}
 		})
