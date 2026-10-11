@@ -3260,3 +3260,18 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - work.workflow_publish is a tool-gap kind: the run drafts the lint report with draft_document
   and opens G-W3 on that draft. The G-W3 payload schema names {workflow_id, version}; the gate
   payload is the draft. Open: carry workflow_id/version once the workflow editor exists.
+
+## Q-FEAT-WRK-08 F-WRK-14 base branch and the workflow-templates screen
+
+- Task: FEAT-WRK-08 (F-WRK-14 Draft template from past matters).
+- Based on `task/FEAT-WRK-07` with `task/FEAT-WRK-04` merged in, to reuse
+  `work.GateWorkflowPublish` and the wrkb draft_document test helpers (neither is on main yet).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs), `app/legal/boot/agent.go` (the `workflow-templates` action screen) and the
+  generated skill `paploo/counsel-plugin/skills/f-wrk-14-draft-template-from-past-matters/SKILL.md`.
+- boot.FirmSubject is not on main, so the firm-level `workflow-templates` screen selects the
+  completed matters to mine (subject `matter`, capability `work.workflows`); switch it to
+  FirmSubject with `workflow-editor` once BOOT-24 merges.
+- work.workflow_publish is a tool-gap kind: the run drafts the template with draft_document on
+  the first selected matter and opens G-W3 on that draft. Open: carry a workflow template id
+  in the G-W3 payload once workflow templates are stored.

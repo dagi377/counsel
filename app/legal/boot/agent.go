@@ -428,6 +428,9 @@ var actionScreens = map[string]trigger.Screen{
 	// Work. The workflow editor is firm-level; it maps to matter until boot has a firm
 	// subject (Q-FEAT-WRK-04).
 	"workflow-editor": {SubjectKind: "matter", Capability: "work.workflows"},
+	// workflow-templates is firm-level too; it selects the completed matters to mine
+	// (Q-FEAT-WRK-08).
+	"workflow-templates": {SubjectKind: "matter", Capability: "work.workflows"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
