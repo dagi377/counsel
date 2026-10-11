@@ -267,6 +267,27 @@ func (s *LedgerStore) Balance(ctx context.Context, id LedgerID) (Balance, error)
 	return out, nil
 }
 
+// LockLedger locks the client ledger row FOR UPDATE in tx, the same lock Disburse takes, and
+// returns its balance and the sum of its authorised-not-executed withdrawal holds as of today.
+// The trust.withdrawal gate effect calls it before recording a hold, so concurrent
+// authorisations on one ledger serialise and each sees the holds committed before it.
+func (s *LedgerStore) LockLedger(ctx context.Context, tx pgx.Tx, id LedgerID) (Balance, int64, error) {
+	// rule: ARC-I-025
+	l, err := s.repo.lockLedger(ctx, tx, id)
+	if err != nil {
+		return Balance{}, 0, fmt.Errorf("lock ledger %s: %w", id, err)
+	}
+	sum, err := s.repo.sums(ctx, tx, l.ID, s.today(ctx), "")
+	if err != nil {
+		return Balance{}, 0, fmt.Errorf("lock ledger %s: %w", id, err)
+	}
+	return Balance{
+		LedgerID: l.ID, PostedCents: sum.PostedCents, ClearedCents: sum.ClearedCents,
+		ProtectedCents: l.ProtectedCents, MinimumCents: l.MinimumBalanceCents,
+		AvailableCents: AvailableCents(sum.ClearedCents, l.ProtectedCents, l.MinimumBalanceCents, sum.HeldCents),
+	}, sum.HeldCents, nil
+}
+
 // Txns implements Ledgers.
 func (s *LedgerStore) Txns(ctx context.Context, id LedgerID) ([]Txn, error) {
 	var out []Txn

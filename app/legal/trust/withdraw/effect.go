@@ -65,10 +65,12 @@ type EffectStore interface {
 	MarkExecuted(ctx context.Context, tx pgx.Tx, id, by string, on time.Time) error
 }
 
-// TrustLedgers is the slice of trust.Ledgers the effect uses; trust.LedgerStore and
-// trustfake implement it.
+// TrustLedgers is the slice of the trust ledger the effect uses; trust.LedgerStore and
+// trustfake implement it. Both methods run in the caller's tx.
 type TrustLedgers interface {
-	Balance(ctx context.Context, id trust.LedgerID) (trust.Balance, error)
+	// LockLedger locks the client ledger row FOR UPDATE in tx (the lock Disburse takes) and
+	// returns its balance and the sum of its authorised-not-executed withdrawal holds.
+	LockLedger(ctx context.Context, tx pgx.Tx, id trust.LedgerID) (trust.Balance, int64, error)
 	Disburse(ctx context.Context, tx pgx.Tx, d trust.Disbursement) (trust.TxnID, error)
 }
 
@@ -100,8 +102,11 @@ type Effect struct {
 	Now     func() time.Time
 }
 
-// Apply is the trust.withdrawal EffectFunc. It re-checks the ledger's available balance at
-// approval time and marks the withdrawal authorised, which holds its amount.
+// Apply is the trust.withdrawal EffectFunc. It runs in the gate's tx: it locks the withdrawal,
+// then the client ledger (the order Execute and Disburse use), re-checks the available balance
+// net of the authorised holds already on the ledger and marks the withdrawal authorised, which
+// holds its amount. The ledger lock is held until tx ends, so a concurrent authorisation on the
+// same ledger waits and then sees this hold.
 func (e *Effect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approved) error {
 	var p EffectPayload
 	if err := json.Unmarshal(g.Payload, &p); err != nil || p.WithdrawalID == "" {
@@ -134,14 +139,19 @@ func (e *Effect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approved) erro
 		return failed(CodeNotAuthorized, ErrSignerNotAuthorized)
 	}
 	// rule: ARC-I-024
-	b, err := e.Ledgers.Balance(ctx, h.LedgerID)
+	// rule: ARC-I-025
+	// Lock the ledger before reading it: without the lock two authorisations could both read
+	// the same available balance and together overdraw the client's trust money.
+	b, held, err := e.Ledgers.LockLedger(ctx, tx, h.LedgerID)
 	if err != nil {
-		return fmt.Errorf("withdrawal effect: balance: %w", err)
+		return fmt.Errorf("withdrawal effect: lock ledger: %w", err)
 	}
-	if h.Request.AmountCents > b.AvailableCents {
+	avail := trust.AvailableCents(b.ClearedCents, b.ProtectedCents, b.MinimumCents, held)
+	if h.Request.AmountCents > avail {
 		return failed(CodeInsufficientTrustFunds, fmt.Errorf("available %d, requested %d: %w",
-			b.AvailableCents, h.Request.AmountCents, ErrTrustOverdraw))
+			avail, h.Request.AmountCents, ErrTrustOverdraw))
 	}
+	// The hold is recorded in tx, under the ledger lock, so the next authorisation sees it.
 	if err := e.Store.MarkAuthorized(ctx, tx, h.ID, approver.UserID, g.GateID, e.Now()); err != nil {
 		return fmt.Errorf("withdrawal effect: %w", err)
 	}

@@ -660,3 +660,15 @@ s.33 as amended and either the rules or the decision change.
 - Integrator: `ApproveEffect` refuses to run without `Journal` (PGStore{}) and `Ledger`
   (*ledger.PG); `VoidEffect.Entries` is PGStore{}. The chart (books) must be synced into
   gl.account before the first approval.
+
+
+## fix/trust-auth-race: withdrawal authorisation locks the client ledger
+
+- Effect.Apply read `Balance` in its own transaction without a lock, so two concurrent
+  authorisations could both pass and together overdraw a client ledger (By-law 9). Apply now
+  locks the withdrawal, then the client ledger row FOR UPDATE in the gate's tx (the order
+  Execute/Disburse use), re-checks `trust.AvailableCents` net of authorised holds and records
+  its hold in the same tx.
+- Files outside withdraw/: `withdraw.TrustLedgers` swaps `Balance` for
+  `LockLedger(ctx, tx, id) (Balance, held, error)`, so `trust.LedgerStore` (receipt.go) and
+  `trustfake` gain that method (additive; the frozen `trust.Ledgers` contract is unchanged).

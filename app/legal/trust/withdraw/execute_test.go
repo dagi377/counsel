@@ -164,10 +164,10 @@ type holdingLedgers struct {
 	store *lockedStore
 }
 
-func (h holdingLedgers) Balance(ctx context.Context, id trust.LedgerID) (trust.Balance, error) {
-	b, err := h.TrustLedgers.Balance(ctx, id)
+func (h holdingLedgers) LockLedger(ctx context.Context, tx pgx.Tx, id trust.LedgerID) (trust.Balance, int64, error) {
+	b, _, err := h.TrustLedgers.LockLedger(ctx, tx, id)
 	if err != nil {
-		return trust.Balance{}, err
+		return trust.Balance{}, 0, err
 	}
 	var held int64
 	for _, w := range h.store.w {
@@ -176,7 +176,7 @@ func (h holdingLedgers) Balance(ctx context.Context, id trust.LedgerID) (trust.B
 		}
 	}
 	b.AvailableCents = trust.AvailableCents(b.ClearedCents, b.ProtectedCents, b.MinimumCents, held)
-	return b, nil
+	return b, held, nil
 }
 
 type lockedStore struct {
