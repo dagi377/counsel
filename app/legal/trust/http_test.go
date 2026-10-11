@@ -283,7 +283,7 @@ func TestTrustAccountsList(t *testing.T) {
 		t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
 	}
 	var page struct {
-		Items []json.RawMessage `json:"items"`
+		Items []json.RawMessage `json:"data"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil || len(page.Items) != 1 {
 		t.Fatalf("page = %s (%v)", rec.Body, err)
@@ -301,7 +301,7 @@ func TestTrustLedgersBalanceFromService(t *testing.T) {
 		t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
 	}
 	var page struct {
-		Items []json.RawMessage `json:"items"`
+		Items []json.RawMessage `json:"data"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
 		t.Fatal(err)
@@ -347,8 +347,8 @@ func TestTrustListPages(t *testing.T) {
 					t.Fatalf("page %d status = %d (%s)", i, rec.Code, rec.Body)
 				}
 				var page struct {
-					Items []json.RawMessage `json:"items"`
-					Next  string            `json:"next"`
+					Items []json.RawMessage `json:"data"`
+					Next  string            `json:"next_cursor"`
 				}
 				if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
 					t.Fatal(err)
