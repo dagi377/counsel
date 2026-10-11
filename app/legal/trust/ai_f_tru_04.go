@@ -13,9 +13,9 @@ const FeatureMonthEndReconciliation = "F-TRU-04"
 // being received (docs/QUESTIONS.md Q-FEAT-TRU-04).
 const EventStatementReceived = "trust.statement_received"
 
-// GateReconciliationSignOff is G12, recon.GateSignOff. recon imports trust, so the kind is
+// GateSignOff is G12, recon.GateSignOff. recon imports trust, so the kind is
 // restated here; a test holds the two equal.
-const GateReconciliationSignOff = "trust.reconciliation_signoff"
+const GateSignOff = "trust.reconciliation_signoff"
 
 // MonthEndReconciliationDef is F-TRU-04: once the bank statement for a closed month is
 // received, the agent reads each matter's trust balance and the bills it touches, drafts the
@@ -38,7 +38,7 @@ func MonthEndReconciliationDef() feature.Def {
 		// rule: ARC-I-035
 		// trust.reconciliation_signoff has no dedicated write tool: the package is drafted and
 		// submitted, never signed.
-		GateKinds:  []string{GateReconciliationSignOff},
+		GateKinds:  []string{GateSignOff},
 		Grant:      []string{"agent.ask", "billing.view", "documents.edit", "matters.view", "trust.view"},
 		Prompt:     prompts,
 		PromptPath: "prompts/f-tru-04.md",

@@ -43,8 +43,8 @@ func TestFTRU04_DefMatchesSpec(t *testing.T) {
 	d := trust.MonthEndReconciliationDef()
 	truSpecSync(t, d, false)
 	// The restated kind is G12, the reconciliation module's sign-off gate.
-	if trust.GateReconciliationSignOff != recon.GateSignOff {
-		t.Fatalf("gate kind = %s, want %s", trust.GateReconciliationSignOff, recon.GateSignOff)
+	if trust.GateSignOff != recon.GateSignOff {
+		t.Fatalf("gate kind = %s, want %s", trust.GateSignOff, recon.GateSignOff)
 	}
 	if sf := truSpec(t, d.ID); !slices.Equal(sf.ToolGap, d.GateKinds) {
 		t.Fatalf("tool-gap kinds = %v, want %v opened by draft_document then submit_for_approval", sf.ToolGap, d.GateKinds)
@@ -102,7 +102,7 @@ func TestFTRU04_FromFeature(t *testing.T) {
 			if len(w.fd.StandIns) != 0 {
 				t.Fatalf("stand-ins = %v, want none", w.fd.StandIns)
 			}
-			calls := truReconCalls(w, truReconBody, trust.GateReconciliationSignOff)
+			calls := truReconCalls(w, truReconBody, trust.GateSignOff)
 			run := w.fd.Fire(ctx, truScript(t, trust.FeatureMonthEndReconciliation, calls, "Package drafted for sign-off."), "run-f-tru-04-"+tc.name, "statement received for 2026-09")
 			if run.Err != nil || len(run.Refused) != 0 || len(run.StandIns) != 0 {
 				t.Fatalf("run err = %v, refused = %v, stand-ins = %v", run.Err, run.Refused, run.StandIns)
@@ -120,9 +120,9 @@ func TestFTRU04_FromFeature(t *testing.T) {
 				t.Fatalf("drafts = %+v, want the package prepared by the acting user", d)
 			}
 			if len(run.GateIDs) != 1 {
-				t.Fatalf("gates = %v, want one %s", run.GateIDs, trust.GateReconciliationSignOff)
+				t.Fatalf("gates = %v, want one %s", run.GateIDs, trust.GateSignOff)
 			}
-			truCheckGate(t, w.fd, run.GateIDs[0], trust.GateReconciliationSignOff)
+			truCheckGate(t, w.fd, run.GateIDs[0], trust.GateSignOff)
 			if tc.name != "injection" {
 				return
 			}
@@ -150,12 +150,12 @@ func TestFTRU04_FromFeatureRefusesWrites(t *testing.T) {
 		drafts  int
 	}{
 		{"gate kind outside the Def", truReconBody, "trust.withdrawal", agent.ToolSubmitForApproval, agenttools.ErrGateKindNotAllowed, 1},
-		{"model-invented amount", truReconBody + "\nClient ledgers total 245000 cents.", trust.GateReconciliationSignOff, agent.ToolDraftDocument, agenttools.ErrUnsourcedValue, 0},
+		{"model-invented amount", truReconBody + "\nClient ledgers total 245000 cents.", trust.GateSignOff, agent.ToolDraftDocument, agenttools.ErrUnsourcedValue, 0},
 		// rule: BIL-L-036
 		// An overdraft written without its sign hides it: the unsigned figure was never read.
-		{"overdraft without its sign", strings.Replace(truReconBody, "-5000 cents", "5000 cents", 1), trust.GateReconciliationSignOff, agent.ToolDraftDocument, agenttools.ErrUnsourcedValue, 0},
-		{"amount in dollars", strings.Replace(truReconBody, "250000 cents", "$2,500.00", 1), trust.GateReconciliationSignOff, agent.ToolDraftDocument, agenttools.ErrUnsourcedValue, 0},
-		{"date no read returned", truReconBody + "\nStatement closing 2026-09-30.", trust.GateReconciliationSignOff, agent.ToolDraftDocument, agenttools.ErrUnsourcedValue, 0},
+		{"overdraft without its sign", strings.Replace(truReconBody, "-5000 cents", "5000 cents", 1), trust.GateSignOff, agent.ToolDraftDocument, agenttools.ErrUnsourcedValue, 0},
+		{"amount in dollars", strings.Replace(truReconBody, "250000 cents", "$2,500.00", 1), trust.GateSignOff, agent.ToolDraftDocument, agenttools.ErrUnsourcedValue, 0},
+		{"date no read returned", truReconBody + "\nStatement closing 2026-09-30.", trust.GateSignOff, agent.ToolDraftDocument, agenttools.ErrUnsourcedValue, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

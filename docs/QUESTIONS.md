@@ -4574,3 +4574,11 @@ and has a one-outbox-event test.
 - The AI-021 test (ai_f_acc_10_test.go) now runs through agenttest.FromFeature with no
   stand-ins; the fixtures use a2 inputs, the injection variant makes no extra tool call, and
   ok pins match.prompt_hash.
+
+## Q-INTEG-18-NAMES pass 18 gate names and access helpers
+
+- One name per gate kind: F-TRU-04's `trust.GateReconciliationSignOff` is renamed
+  `trust.GateSignOff`, the name recon uses (recon imports trust, so the kind is restated and a
+  test holds the two equal). `trust.GateOutgoingEmail` already has agent's name.
+- `ai_acc_helpers_test.go` came from both ACC-03 (acc family) and ACC-06 (accb family); the
+  two were folded into one file, each family keeping its prefix and every assertion.

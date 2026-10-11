@@ -179,7 +179,6 @@ func appDefs() []feature.Def {
 		billing.BillingCycleDraftsDef(),
 		billing.BillRenderDef(),
 		billing.PaymentMatchingDef(),
-		// billing
 		billing.EvergreenWatchDef(),
 		billing.AgingCollectionsDef(),
 		// trust
@@ -193,7 +192,6 @@ func appDefs() []feature.Def {
 		access.LicenceCheckDef(),
 		access.AccessReviewPreFillDef(),
 		access.BreakGlassSummaryDef(),
-		// access
 		access.SuggestTeamDef(),
 	}
 }
