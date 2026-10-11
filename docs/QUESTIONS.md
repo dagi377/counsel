@@ -1002,3 +1002,13 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
 - Drafts are keyed by the write output ref (the subject id); submit_for_approval on any other
   subject is ErrNotFound (404). The gate payload carries subject ids only; the model's note is
   not stored (AI-R-005).
+
+## FEAT-TOOL-19 propose_conflict_parties
+
+- The a2 input names a `check_id`, but the frozen conflict Checker runs by matter
+  (`Request{MatterID, Terms}`) and has no check entity or check parties. The tool reads the
+  check through a new `agent.ConflictCheckParties` port (CheckMatter, ProposeParties, wired at
+  boot over `conflict.conflict_check` / `conflict.check_party`), then runs
+  `conflict.Checker.Check` over every party name on the check.
+- The result is outcome `proposal` with the run id as ref, not `gate`: G2 is decided on the run
+  through `conflict.Clearer`, not a kernel gate the runner could park on. The run stays open.
