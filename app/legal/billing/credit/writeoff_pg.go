@@ -60,6 +60,71 @@ func SplitWriteOff(amount int64, open WriteOffBuckets) (WriteOffBuckets, error) 
 	return out, nil
 }
 
+// DraftOpenBuckets returns the buckets a write-off on a bill is split over. open is the
+// outstanding per bucket from allocations, write-offs and credit notes; balance is the bill
+// balance net of reserved fee transfers; transfer is its trust fee transfers net of excess.
+// With no transfer the buckets must add up to the balance. With one, the buckets less the
+// transfer must add up to the balance, and the balance is apportioned by TransferOpenBuckets.
+// It fails closed on a reduction it cannot attribute.
+func DraftOpenBuckets(open, issued WriteOffBuckets, balance, transfer int64) (WriteOffBuckets, error) {
+	switch {
+	case transfer < 0:
+		return WriteOffBuckets{}, fmt.Errorf("open buckets: negative transfer: %w", ErrInvalidState)
+	case open.Sum()-transfer != balance:
+		return WriteOffBuckets{}, fmt.Errorf("open buckets: buckets do not match the balance: %w", ErrInvalidState)
+	case transfer == 0:
+		return open, nil
+	}
+	return TransferOpenBuckets(balance, issued, open)
+}
+
+// TransferOpenBuckets returns the outstanding buckets of a bill paid partly by a trust fee
+// transfer (Q-INTEG-12.1). The transfer is never re-split: unpaid, the bill balance left after
+// the transfer, less the open interest, is apportioned over fees, taxable and non-taxable
+// disbursements and sales tax in the bill's own proportions (issued, the bill's components
+// after discount), and open interest stays its own bucket. open is the outstanding per bucket
+// before the transfer; no apportioned bucket may exceed it. It fails closed on anything else.
+func TransferOpenBuckets(unpaid int64, issued, open WriteOffBuckets) (WriteOffBuckets, error) {
+	principal := unpaid - open.Interest
+	if unpaid < 0 || open.Interest < 0 || principal < 0 {
+		return WriteOffBuckets{}, fmt.Errorf("transfer open buckets: %w", ErrInvalidState)
+	}
+	weights := []int64{issued.Fee, issued.Dtx, issued.Dnt, issued.Tax}
+	caps := []int64{open.Fee, open.Dtx, open.Dnt, open.Tax}
+	var total int64
+	for _, w := range weights {
+		if w < 0 {
+			return WriteOffBuckets{}, fmt.Errorf("transfer open buckets: negative bill component: %w", ErrInvalidState)
+		}
+		total += w
+	}
+	if principal == 0 {
+		return WriteOffBuckets{Interest: open.Interest}, nil
+	}
+	if total == 0 {
+		return WriteOffBuckets{}, fmt.Errorf("transfer open buckets: bill has no components: %w", ErrInvalidState)
+	}
+	// rule: BIL-C-205
+	// The unpaid balance keeps the bill's own fee, disbursement and tax fractions, the tax
+	// fraction ETA s.231 bad-debt relief uses.
+	parts, err := money.Allocate(money.Cents(principal), weights)
+	if err != nil || len(parts) != len(weights) {
+		return WriteOffBuckets{}, fmt.Errorf("transfer open buckets: allocate: %w", ErrInvalidState)
+	}
+	var sum int64
+	for i, p := range parts {
+		if p < 0 || int64(p) > caps[i] {
+			return WriteOffBuckets{}, fmt.Errorf("transfer open buckets: bucket exceeds outstanding: %w", ErrInvalidState)
+		}
+		sum += int64(p)
+	}
+	if sum != principal {
+		return WriteOffBuckets{}, fmt.Errorf("transfer open buckets: parts do not sum: %w", ErrInvalidState)
+	}
+	return WriteOffBuckets{Fee: int64(parts[0]), Dtx: int64(parts[1]), Dnt: int64(parts[2]), Tax: int64(parts[3]),
+		Interest: open.Interest}, nil
+}
+
 // ResponsibleLawyers is the matter port the billing module reads a bill's responsible lawyer
 // through; billing never joins matter.matter. It runs in the caller's tx.
 type ResponsibleLawyers interface {
@@ -110,7 +175,7 @@ func (PGWriteOffs) Lock(ctx context.Context, tx pgx.Tx, id string) (WriteOff, er
 	}
 	w.Status = Status(status)
 	switch {
-	case w.Status == StatusDraft && w.ApprovedBy == "" && at == nil:
+	case (w.Status == StatusDraft || w.Status == StatusRejected || w.Status == StatusWithdrawn) && w.ApprovedBy == "" && at == nil:
 	case w.Status == StatusApproved && w.ApprovedBy != "" && at != nil:
 		t := *at
 		w.ApprovedAt = &t
@@ -118,6 +183,27 @@ func (PGWriteOffs) Lock(ctx context.Context, tx pgx.Tx, id string) (WriteOff, er
 		return WriteOff{}, fmt.Errorf("lock write-off %s: status %q: %w", id, status, ErrInvalidState)
 	}
 	return w, nil
+}
+
+const writeOffCloseSQL = `UPDATE billing.write_off_draft SET status = $2
+  WHERE id = $1::uuid AND status = 'draft' AND credit_gate_id IS NOT NULL`
+
+// Close ends submitted draft id without approving it: StatusRejected when its gate was
+// rejected, StatusWithdrawn when its preparer took it back. A closed draft is final and no
+// longer counts toward the second-approval total. Any other status, or a draft that is not
+// submitted or no longer a draft, is refused.
+func (PGWriteOffs) Close(ctx context.Context, tx pgx.Tx, id string, to Status) error {
+	if id == "" || (to != StatusRejected && to != StatusWithdrawn) {
+		return fmt.Errorf("close write-off: %w", ErrInvalidState)
+	}
+	tag, err := tx.Exec(ctx, writeOffCloseSQL, id, string(to))
+	if err != nil {
+		return fmt.Errorf("close write-off %s: %w", id, err)
+	}
+	if tag.RowsAffected() != 1 {
+		return fmt.Errorf("close write-off %s: %w", id, ErrInvalidState)
+	}
+	return nil
 }
 
 const writeOffMarkSecondSQL = `UPDATE billing.write_off_draft SET second_gate_id = $2::uuid
@@ -226,14 +312,21 @@ func (PGWriteOffs) SaveApproved(ctx context.Context, tx pgx.Tx, w WriteOff) erro
 // components (the discount off fees first, then taxable disbursements) and posted interest,
 // less every allocation and approved write-off by bucket and every issued credit note (pre-tax
 // off fees, tax off tax), plus the bill balance net of reserved fee transfers. Every source
-// is a billing table.
+// is a billing table. It also reads the bill's issued components and its trust fee transfers
+// (authorized, executed or applied), net of excess.
 const writeOffOutstandingSQL = `SELECT
   (b.fees_cents - LEAST(b.discount_cents, b.fees_cents) - x.fee - x.cn_fee)::bigint,
   (b.taxable_disb_cents - GREATEST(b.discount_cents - b.fees_cents, 0) - x.dtx)::bigint,
   (b.nontaxable_disb_cents - x.dnt)::bigint,
   (b.tax_cents - x.tax - x.cn_tax)::bigint,
   (x.interest_posted - x.interest)::bigint,
-  (bb.balance_cents - bb.reserved_cents)::bigint
+  (bb.balance_cents - bb.reserved_cents)::bigint,
+  (b.fees_cents - LEAST(b.discount_cents, b.fees_cents))::bigint,
+  (b.taxable_disb_cents - GREATEST(b.discount_cents - b.fees_cents, 0))::bigint,
+  b.nontaxable_disb_cents::bigint,
+  b.tax_cents::bigint,
+  coalesce((SELECT sum(f.amount_cents - f.excess_cents) FROM billing.trust_fee_transfer f
+    WHERE f.bill_id = b.id AND f.status IN ('authorized','executed','applied')), 0)::bigint
   FROM billing.bill b
   JOIN billing.bill_balance bb ON bb.bill_id = b.id
   CROSS JOIN LATERAL (SELECT
@@ -272,18 +365,20 @@ func (PGWriteOffs) Draft(ctx context.Context, tx pgx.Tx, w WriteOff) (WriteOff, 
 		return WriteOff{}, fmt.Errorf("draft write-off: %w", ErrInvalidAmount)
 	}
 	var (
-		open    WriteOffBuckets
-		balance int64
+		open, issued      WriteOffBuckets
+		balance, transfer int64
 	)
-	err := tx.QueryRow(ctx, writeOffOutstandingSQL, w.BillID).Scan(&open.Fee, &open.Dtx, &open.Dnt, &open.Tax, &open.Interest, &balance)
+	err := tx.QueryRow(ctx, writeOffOutstandingSQL, w.BillID).Scan(&open.Fee, &open.Dtx, &open.Dnt, &open.Tax, &open.Interest, &balance,
+		&issued.Fee, &issued.Dtx, &issued.Dnt, &issued.Tax, &transfer)
 	if notFound(err) {
 		return WriteOff{}, fmt.Errorf("draft write-off on bill %s: %w", w.BillID, ErrNotFound)
 	}
 	if err != nil {
 		return WriteOff{}, fmt.Errorf("draft write-off on bill %s: %w", w.BillID, err)
 	}
-	if open.Sum() != balance {
-		return WriteOff{}, fmt.Errorf("draft write-off on bill %s: buckets do not match the balance: %w", w.BillID, ErrInvalidState)
+	open, err = DraftOpenBuckets(open, issued, balance, transfer)
+	if err != nil {
+		return WriteOff{}, fmt.Errorf("draft write-off on bill %s: %w", w.BillID, err)
 	}
 	split, err := SplitWriteOff(w.AmountCents, open)
 	if err != nil {

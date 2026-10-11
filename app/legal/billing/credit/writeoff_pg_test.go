@@ -56,7 +56,9 @@ type pgBill struct {
 	delivered          bool
 	tax, total, open   int64
 	outstanding        WriteOffBuckets
-	balance            int64 // bill_balance net of reserved, for Draft
+	balance            int64           // bill_balance net of reserved, for Draft
+	issued             WriteOffBuckets // the bill's components after discount
+	transfer           int64           // trust fee transfers net of excess
 	outstandingFailure error
 }
 
@@ -137,7 +139,8 @@ func (t *draftTx) QueryRow(_ context.Context, sql string, args ...any) pgx.Row {
 			return valsRow{err: b.outstandingFailure}
 		}
 		o := b.outstanding
-		return valsRow{vals: []any{o.Fee, o.Dtx, o.Dnt, o.Tax, o.Interest, b.balance}}
+		i := b.issued
+		return valsRow{vals: []any{o.Fee, o.Dtx, o.Dnt, o.Tax, o.Interest, b.balance, i.Fee, i.Dtx, i.Dnt, i.Tax, b.transfer}}
 	case writeOffDraftInsertSQL:
 		t.nextID++
 		id := fmt.Sprintf("w%d", 100+t.nextID)
@@ -180,6 +183,13 @@ func (t *draftTx) Exec(_ context.Context, sql string, args ...any) (pgconn.Comma
 			return none, nil
 		}
 		*g = args[1].(string)
+		return one, nil
+	case writeOffCloseSQL:
+		d, ok := t.drafts[args[0].(string)]
+		if !ok || d.w.Status != StatusDraft || d.creditGate == "" {
+			return none, nil
+		}
+		d.w.Status = Status(args[1].(string))
 		return one, nil
 	case writeOffApproveSQL:
 		d, ok := t.drafts[args[0].(string)]
