@@ -366,7 +366,7 @@ Max width 301.
 | [x] | T-018.1 | T-018 | app | Tax per tax line | T-017.0, T-018.0 | `app/legal/billing/total/tax.go`<br>`app/legal/billing/total/tax_test.go` |  |
 | [x] | T-018.3 | T-018 | app | Tax point | T-017.0, T-018.0 | `app/legal/billing/total/taxpoint.go`<br>`app/legal/billing/total/taxpoint_test.go` |  |
 | [x] | T-019.1 | T-019 | app | Bill approval effect and numbering | T-007L.0, T-010L.0, T-010b.0, T-018.0, T-019.0 | `app/legal/billing/bill/approve.go`<br>`app/legal/billing/bill/approve_integration_test.go` |  |
-| [ ] | T-020.1 | T-020 | app | Bill void | T-019.0 | `app/legal/billing/bill/void.go`<br>`app/legal/billing/bill/void_integration_test.go` |  |
+| [x] | T-020.1 | T-020 | app | Bill void | T-019.0 | `app/legal/billing/bill/void.go`<br>`app/legal/billing/bill/void_integration_test.go` |  |
 | [x] | T-020.2 | T-020 | app | Place-of-supply change after delivery | T-019.0 | `app/legal/billing/bill/pos_change.go`<br>`app/legal/billing/bill/pos_change_test.go` |  |
 | [x] | T-021.1 | T-021 | app | Payment capture and allocation | T-008.0, T-008b.0, T-019.0, T-021.0 | `app/legal/billing/payment/allocate.go`<br>`app/legal/billing/payment/allocate_test.go` |  |
 | [x] | T-022.1 | T-022 | app | Apply trust to bill | T-012.0, T-021.0 | `app/legal/billing/trustapply/apply.go`<br>`app/legal/billing/trustapply/apply_test.go` | trust.bylaw9_verified |
@@ -423,7 +423,7 @@ Max width 301.
 | [x] | T-041.5 | T-041 | app | Imported reconciliations | T-013.0, T-040L.0 | `app/legal/clio/recon_import.go`<br>`app/legal/clio/recon_import_test.go` | trust.bylaw9_verified |
 | [x] | T-042.1 | T-042 | app | Firm export layout and manifest | T-032L.0, T-035L.0, T-037L.0, T-038L.0, T-039L.0, T-040L.0 | `app/legal/export/export.go`<br>`app/legal/export/manifest.go`<br>`app/legal/export/export_test.go` |  |
 | [x] | T-043.1 | T-043 | kernel | Helm chart per cell | T-009.0 | `deploy/helm/counsel/Chart.yaml`<br>`deploy/helm/counsel/values.yaml`<br>`deploy/helm/counsel/templates/app.yaml`<br>`tools/helm_render_test.go` |  |
-| [ ] | T-043.2 | T-043 | kernel | CloudNativePG backups and restore drill | T-009.0 | `deploy/cnpg/`<br>`docs/runbooks/restore.md` |  |
+| [x] | T-043.2 | T-043 | kernel | CloudNativePG backups and restore drill | T-009.0 | `deploy/cnpg/`<br>`docs/runbooks/restore.md` |  |
 | [x] | T-043.3 | T-043 | kernel | DR bucket month-end export ordering | T-009.0, T-043.0 | `kernel/backup/export.go`<br>`kernel/backup/export_test.go` |  |
 | [x] | T-043.4 | T-043 | kernel | Migration job and expand-contract lint | T-009.0 | `deploy/helm/counsel/templates/migrate-job.yaml`<br>`tools/migration_lint.py`<br>`tools/migration_lint_test.go` |  |
 | [x] | T-043.5 | T-043 | kernel | Pooled connection session reset | T-009.0, T-043.0 | `kernel/db/pool.go`<br>`kernel/db/pool_integration_test.go` |  |
@@ -533,7 +533,7 @@ Max width 301.
 | [x] | T-042.2 | T-042 | app | Export trust balances reconcile | T-032L.0, T-035L.0, T-037L.0, T-038L.0, T-039L.0, T-040L.0 +1 | `app/legal/export/trust.go`<br>`app/legal/export/trust_test.go` |  |
 | [ ] | T-043.7 | T-043 | kernel | Rollout rings | T-009.0, T-043.1 | `deploy/rings.yaml`<br>`docs/runbooks/rollout.md`<br>`tools/rings_test.go` |  |
 | [x] | T-044.6 | T-044 | kernel | Status page | T-043.0, T-044.0, T-044.2 | `kernel/metrics/status.go`<br>`kernel/metrics/status_test.go` |  |
-| [ ] | T-045.3 | T-045 | kernel | web shell navigation from feature list | T-009.0, T-045.1 | `web/src/kernel/shell/Shell.tsx`<br>`web/src/kernel/shell/nav.ts`<br>`web/src/kernel/shell/Shell.test.tsx` |  |
+| [x] | T-045.3 | T-045 | kernel | web shell navigation from feature list | T-009.0, T-045.1 | `web/src/kernel/shell/Shell.tsx`<br>`web/src/kernel/shell/nav.ts`<br>`web/src/kernel/shell/Shell.test.tsx` |  |
 
 ### Wave 3 (45 tasks)
 
@@ -555,22 +555,22 @@ Max width 301.
 | [x] | T-007.5 | T-007 | kernel | kernel/gate: effect runs exactly once | T-005.0, T-006.0, T-007.0, T-007.3, T-008.0 | `kernel/gate/effect.go`<br>`kernel/gate/effect_integration_test.go` |  |
 | [x] | T-007.6 | T-007 | kernel | kernel/gate: SelfApprovalPolicy hook (default deny) | T-005.0, T-006.0, T-007.0, T-007.3, T-008.0 | `kernel/gate/selfapproval.go`<br>`kernel/gate/selfapproval_test.go` |  |
 | [x] | T-011.3 | T-011 | app | Cash receipt limit | T-007L.0, T-010L.0, T-010b.0, T-011.0, T-011.2 | `app/legal/trust/cashlimit.go`<br>`app/legal/trust/cashlimit_test.go` | trust.bylaw9_verified |
-| [ ] | T-011.4 | T-011 | app | NSF reversal and replenishment | T-007L.0, T-010L.0, T-010b.0, T-011.0, T-011.2 | `app/legal/trust/nsf.go`<br>`app/legal/trust/nsf_test.go` | trust.bylaw9_verified |
-| [ ] | T-011.5 | T-011 | app | Ledger lock under concurrency | T-007L.0, T-010L.0, T-010b.0, T-011.0, T-011.2 | `app/legal/trust/ledgerlock.go`<br>`app/legal/trust/ledgerlock_integration_test.go` | trust.bylaw9_verified |
+| [x] | T-011.4 | T-011 | app | NSF reversal and replenishment | T-007L.0, T-010L.0, T-010b.0, T-011.0, T-011.2 | `app/legal/trust/nsf.go`<br>`app/legal/trust/nsf_test.go` | trust.bylaw9_verified |
+| [x] | T-011.5 | T-011 | app | Ledger lock under concurrency | T-007L.0, T-010L.0, T-010b.0, T-011.0, T-011.2 | `app/legal/trust/ledgerlock.go`<br>`app/legal/trust/ledgerlock_integration_test.go` | trust.bylaw9_verified |
 | [x] | T-012.3 | T-012 | app | Execution recording and bank match | T-011.0, T-012.0, T-012.2 | `app/legal/trust/withdraw/execute.go`<br>`app/legal/trust/withdraw/execute_test.go` | trust.bylaw9_verified |
-| [ ] | T-012.4 | T-012 | app | Withdrawal effect replay once | T-011.0, T-012.2 | `app/legal/trust/withdraw/replay_integration_test.go` | trust.bylaw9_verified |
-| [ ] | T-012.5 | T-012 | app | Transfers and EFT authorization | T-011.0, T-012.0, T-012.2 | `app/legal/trust/withdraw/transfer.go`<br>`app/legal/trust/withdraw/eft.go`<br>`app/legal/trust/withdraw/eft_test.go` | trust.bylaw9_verified |
+| [x] | T-012.4 | T-012 | app | Withdrawal effect replay once | T-011.0, T-012.2 | `app/legal/trust/withdraw/replay_integration_test.go` | trust.bylaw9_verified |
+| [x] | T-012.5 | T-012 | app | Transfers and EFT authorization | T-011.0, T-012.0, T-012.2 | `app/legal/trust/withdraw/transfer.go`<br>`app/legal/trust/withdraw/eft.go`<br>`app/legal/trust/withdraw/eft_test.go` | trust.bylaw9_verified |
 | [x] | T-013.3 | T-013 | app | Reconciliation sign-off locks month | T-011.0, T-013.0, T-013.2 | `app/legal/trust/recon/signoff.go`<br>`app/legal/trust/recon/signoff_integration_test.go` | trust.bylaw9_verified |
 | [ ] | T-014.5 | T-014 | app | Verify-flagged tax rules | T-003.0, T-004.0, T-014.0, T-014.2 | `app/legal/billing/tax/verify_rules.go`<br>`app/legal/billing/tax/verify_rules_test.go` | tax.verify_rules |
 | [x] | T-017.4 | T-017 | app | Itemized disbursement delivery block | T-014.0, T-016.0, T-017.0, T-017.3 | `app/legal/billing/draft/itemize.go`<br>`app/legal/billing/draft/itemize_test.go` |  |
 | [x] | T-024.4 | T-024 | app | Interest posting job | T-021.0, T-024.0, T-024.1, T-024.2 | `app/legal/billing/interest/post.go`<br>`app/legal/billing/interest/post_test.go` |  |
 | [x] | T-031.3 | T-031 | kernel | kernel/deadline: human confirmation | T-004.0, T-007.0, T-031.0, T-031.2, T-034.0 | `kernel/deadline/confirm.go`<br>`kernel/deadline/confirm_test.go` |  |
-| [ ] | T-031L.3 | T-031L | app | Limitation assessment | T-010b.0, T-031.0, T-031L.0, T-031L.2 | `app/legal/limitation/assess.go`<br>`app/legal/limitation/assess_test.go` | deadline.ontario_pack |
+| [x] | T-031L.3 | T-031L | app | Limitation assessment | T-010b.0, T-031.0, T-031L.0, T-031L.2 | `app/legal/limitation/assess.go`<br>`app/legal/limitation/assess_test.go` | deadline.ontario_pack |
 | [ ] | T-034.3 | T-034 | kernel | kernel/work: append-only automation | T-006.0, T-007.0, T-034.0, T-034.2 | `kernel/work/automation.go`<br>`kernel/work/automation_test.go` |  |
-| [ ] | T-035.5 | T-035 | kernel | web portal shell | T-006.0, T-009.0, T-032.0, T-035.4 | `web/src/kernel/portal/PortalShell.tsx`<br>`web/src/kernel/portal/PortalShell.test.tsx` |  |
+| [x] | T-035.5 | T-035 | kernel | web portal shell | T-006.0, T-009.0, T-032.0, T-035.4 | `web/src/kernel/portal/PortalShell.tsx`<br>`web/src/kernel/portal/PortalShell.test.tsx` |  |
 | [x] | T-040.3 | T-040 | kernel | kernel/importer: dry run and import gate | T-007.0, T-008.0, T-032.0, T-040.0, T-040.2 | `kernel/importer/dryrun.go`<br>`kernel/importer/dryrun_test.go` |  |
-| [ ] | T-040L.3 | T-040L | app | Rate limit and decimal money | T-010b.0, T-012.0, T-021.0, T-032L.0, T-040.0, T-040L.0 +1 | `app/legal/clio/ratelimit.go`<br>`app/legal/clio/decimal.go`<br>`app/legal/clio/ratelimit_test.go` |  |
-| [ ] | T-040L.4 | T-040L | app | Resource extract and transform | T-010b.0, T-012.0, T-021.0, T-032L.0, T-040.0, T-040L.0 +1 | `app/legal/clio/transform.go`<br>`app/legal/clio/transform_test.go` |  |
+| [x] | T-040L.3 | T-040L | app | Rate limit and decimal money | T-010b.0, T-012.0, T-021.0, T-032L.0, T-040.0, T-040L.0 +1 | `app/legal/clio/ratelimit.go`<br>`app/legal/clio/decimal.go`<br>`app/legal/clio/ratelimit_test.go` |  |
+| [x] | T-040L.4 | T-040L | app | Resource extract and transform | T-010b.0, T-012.0, T-021.0, T-032L.0, T-040.0, T-040L.0 +1 | `app/legal/clio/transform.go`<br>`app/legal/clio/transform_test.go` |  |
 | [x] | T-040L.5 | T-040L | app | Document version import | T-010b.0, T-012.0, T-021.0, T-032L.0, T-040.0, T-040L.0 +1 | `app/legal/clio/documents.go`<br>`app/legal/clio/documents_test.go` |  |
 | [ ] | T-045L.1 | T-045L | app | Legal screens: matters | T-010b.0, T-045.1, T-045.2, T-045.3 | `web/src/features/matters/` |  |
 | [ ] | T-045L.10 | T-045L | app | Legal screens: reports | T-010b.0, T-045.1, T-045.2, T-045.3 | `web/src/features/reports/` |  |
