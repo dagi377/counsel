@@ -158,7 +158,7 @@ func (PGStore) JournalLines(ctx context.Context, tx pgx.Tx, id ID) ([]Line, []Ta
 	rows, err := tx.Query(ctx, `
 SELECT ordinal, source_type, coalesce(time_entry_id::text, expense_id::text, ''), narrative, quantity_milli,
        rate_cents, amount_cents, tax_code
-  FROM billing.bill_line WHERE bill_id = $1::uuid ORDER BY ordinal`, string(id))
+  FROM billing.bill_line WHERE bill_id = $1::uuid AND NOT on_hold ORDER BY ordinal`, string(id))
 	if err != nil {
 		return nil, nil, fmt.Errorf("lines of bill %s: %w", id, err)
 	}

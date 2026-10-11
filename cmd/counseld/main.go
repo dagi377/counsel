@@ -51,8 +51,23 @@ func parseFlags(args []string) (boot.Config, legalboot.Production, error) {
 	fs.StringVar(&login.DevUserEmail, "dev-login-email", os.Getenv("COUNSEL_DEV_LOGIN_EMAIL"), "dev only: the seeded user the dev login signs in")
 	prod := legalboot.Production{SealKeyBase64: legalboot.Secret(os.Getenv("COUNSEL_SEAL_KEY"))}
 	fs.StringVar(&prod.SealKeyFile, "seal-key-file", os.Getenv("COUNSEL_SEAL_KEY_FILE"), "file holding the base64 trust seal key (default $COUNSEL_SEAL_KEY_FILE); $COUNSEL_SEAL_KEY wins")
+	model := legalboot.ModelConfig{KeyRef: "COUNSEL_MODEL_KEY"}
+	fs.StringVar(&model.Mode, "model-mode", os.Getenv("COUNSEL_MODEL_MODE"), "model provider mode: mock or live (default $COUNSEL_MODEL_MODE); empty leaves the agent not ready outside dev")
+	fs.StringVar(&model.BaseURL, "model-base-url", os.Getenv("COUNSEL_MODEL_BASE_URL"), "model provider base URL (default $COUNSEL_MODEL_BASE_URL); the key is $COUNSEL_MODEL_KEY")
+	fs.StringVar(&model.Protocol, "model-protocol", envOr("COUNSEL_MODEL_PROTOCOL", "messages"), "model provider protocol: messages, chat or responses")
+	modelID := fs.String("model", os.Getenv("COUNSEL_MODEL"), "provider model id the agent runs on (default $COUNSEL_MODEL)")
+	fs.StringVar(&prod.FirmAccount, "firm-account", os.Getenv("COUNSEL_FIRM_ACCOUNT"), "payee id of the firm general account (default $COUNSEL_FIRM_ACCOUNT)")
 	if err := fs.Parse(args); err != nil {
 		return boot.Config{}, legalboot.Production{}, err
+	}
+	if model.Mode != "" {
+		if *modelID != "" {
+			model.Models = map[string]string{"default": *modelID}
+		}
+		prod.Model = &model
+		prod.ModelEnv = *env
+		// The key comes only from the environment; it is never a flag and never logged.
+		prod.ModelKey = func(_ context.Context, ref string) (string, error) { return os.Getenv(ref), nil }
 	}
 	if *flagList != "" {
 		cfg.Flags = strings.Split(*flagList, ",")
