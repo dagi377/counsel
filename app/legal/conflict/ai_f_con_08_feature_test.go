@@ -42,10 +42,11 @@ const con08Evidence = "Register of individuals with significant control. Synth H
 
 // con08Calls is the F-CON-08 script: find the organization, read its register, plan, draft
 // the organization record, submit it under gateKind.
-func con08Calls(gateKind string) []conCall {
+// read is the read_document call of the filed document.
+func con08Calls(read conCall, gateKind string) []conCall {
 	return []conCall{
 		{"search_contacts", `{"query": "Synth Holdings", "limit": 5}`},
-		{agent.ToolReadDocument, `{"doc_id": "00000000-0000-4000-8000-0000000000e1"}`},
+		read,
 		{agenttools.ToolReportPlan, `{"steps": [{"step_id": "map", "title": "Map the ownership chain"}, {"step_id": "record", "title": "Draft the organization record"}]}`},
 		{agent.ToolDraftDocument, `{"matter_id": "` + conMatter + `", "title": "Organization record: Synth Holdings Ltd", "body_markdown": "Beneficial owner: Synth Owner, 60% through Synth Parent Inc. Directors: not in the records read; request them. To verify."}`},
 		{agent.ToolSubmitForApproval, `{"subject_type": "document", "subject_id": "` + conDraftID(1) + `", "gate_kind": "` + gateKind + `"}`},
@@ -55,8 +56,8 @@ func con08Calls(gateKind string) []conCall {
 func con08Run(t *testing.T, readText, gateKind string) (*agenttest.FeatureDriver, *conDrafts, agenttest.FeatureRun) {
 	t.Helper()
 	fd, drafts := conFeature(t, conflict.BeneficialOwnershipDef())
-	fd.SetRead(agent.ToolReadDocument, readText)
-	model := aifake.New(conScript("F-CON-08", "beneficial-ownership-mapping", con08Calls(gateKind), "Drafted the organization record for verification."))
+	read := conRead(fd, conMatter, readText)
+	model := aifake.New(conScript("F-CON-08", "beneficial-ownership-mapping", con08Calls(read, gateKind), "Drafted the organization record for verification."))
 	return fd, drafts, fd.Fire(context.Background(), model, "run-fcon08", "organization client created")
 }
 
@@ -67,8 +68,8 @@ func TestFCON08_FromFeature(t *testing.T) {
 	if run.Err != nil || len(run.Refused) != 0 {
 		t.Fatalf("run err = %v, refused = %v", run.Err, run.Refused)
 	}
-	if !slices.Equal(fd.StandIns, conStandIns) || !slices.Equal(run.StandIns, []string{agent.ToolReadDocument}) {
-		t.Fatalf("stand-ins = %v, run used %v; want only %v registered and read_document called", fd.StandIns, run.StandIns, conStandIns)
+	if len(fd.StandIns) != 0 || len(run.StandIns) != 0 {
+		t.Fatalf("stand-ins = %v, run used %v; want every tool on its real handler", fd.StandIns, run.StandIns)
 	}
 	// rule: ARC-I-039
 	if run.PlanAt < 0 || run.FirstWrite <= run.PlanAt || run.Tools[run.FirstWrite] != agent.ToolDraftDocument {
@@ -105,7 +106,7 @@ func TestFCON08_Injection(t *testing.T) {
 	if run.Err != nil || len(run.Refused) != 0 {
 		t.Fatalf("run err = %v, refused = %v", run.Err, run.Refused)
 	}
-	if want := conToolNames(con08Calls(conflict.GateClientID)); !slices.Equal(run.Tools, want) {
+	if want := conToolNames(con08Calls(conCall{name: agent.ToolReadDocument}, conflict.GateClientID)); !slices.Equal(run.Tools, want) {
 		t.Fatalf("tools = %v, want %v (no extra call)", run.Tools, want)
 	}
 	if err := agenttest.QuotedOnly(run.Run, injected); err != nil {
