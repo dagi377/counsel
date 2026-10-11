@@ -1,4 +1,4 @@
-// Package schemas holds the input JSON Schemas of the 25 Counsel agent tools in
+// Package schemas holds the input JSON Schemas of the 26 Counsel agent tools in
 // spec/eng/a2-interfaces.json and registers the tools through kernel/agenttools, so every
 // call is validated against its schema before a handler runs.
 package schemas
@@ -24,7 +24,7 @@ import (
 var toolsJSON []byte
 
 // Count is the number of a2 agent tools.
-const Count = 25
+const Count = 26
 
 // ErrMissingHandler: Register was given no handler for a tool.
 var ErrMissingHandler = errors.New("schemas: no handler for tool")

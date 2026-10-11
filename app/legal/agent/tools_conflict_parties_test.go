@@ -210,6 +210,12 @@ func TestARC_I_035_ProposeConflictParties(t *testing.T) {
 			if len(w.parties.by) != 1 || w.parties.by[0] != clerk {
 				t.Errorf("proposed by %v, want %s", w.parties.by, clerk)
 			}
+			// rule: AI-R-003
+			// An agent's proposed run is a draft of its agent run, so it may submit it for
+			// approval in the run; the manual path records nothing.
+			if got, want := scope.HasDraft(out.Ref), tc.p.Kind == registry.PrincipalAgent; got != want {
+				t.Errorf("draft recorded = %v, want %v", got, want)
+			}
 		})
 	}
 }
@@ -229,7 +235,9 @@ func TestARC_I_039_ProposeConflictPartiesClearanceNotDecidedByAgent(t *testing.T
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			// rule: ARC-I-035
+			// The Runner's scope for a run whose feature declares conflict.GateClearance.
+			ctx := agenttools.WithScope(context.Background(), agenttools.NewScope(cpRun, []string{conflict.GateClearance}))
 			w := newConflictWorld(t, map[string]bool{cpCap: true})
 			p := registry.Principal{Kind: registry.PrincipalAgent, RunID: cpRun, ActingFor: clerk, Grant: []string{cpCap}}
 			res, err := w.reg.Call(ctx, p, agent.ToolProposeConflictParties, json.RawMessage(cpInput(cpCheck, cpParty("Avery Synth", ""))))

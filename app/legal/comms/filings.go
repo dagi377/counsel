@@ -233,6 +233,29 @@ func (s *FilingStore) IssueClaim(ctx context.Context, id, courtFileNo string, is
 	return out, nil
 }
 
+// MatterOfFiling returns the matter of live filing id, so a route can check the matter's
+// wall and capability before it writes. A missing or unseen filing is ErrNotFound.
+func (s *FilingStore) MatterOfFiling(ctx context.Context, id string) (string, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return "", fmt.Errorf("matter of filing: %w", ErrNotFound)
+	}
+	var matterID string
+	err := s.db.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		err := tx.QueryRow(ctx,
+			`SELECT matter_id::text FROM legal.court_filing
+			  WHERE id::text = $1 AND archived_at IS NULL`, id).Scan(&matterID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	})
+	if err != nil {
+		return "", fmt.Errorf("matter of filing %s: %w", id, err)
+	}
+	return matterID, nil
+}
+
 // claimIssuedEvent is the body of EventClaimIssued for issued filing f.
 func claimIssuedEvent(f Filing, on clock.Date) ClaimIssued {
 	return ClaimIssued{FilingID: f.ID, MatterID: f.MatterID, DocumentID: f.DocumentID,

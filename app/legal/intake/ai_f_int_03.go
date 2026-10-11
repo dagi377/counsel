@@ -7,10 +7,6 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
 )
 
-// EventLeadAwaitingInfo is the event intake publishes when a lead is set to wait for
-// information from the prospective client. It starts F-INT-03.
-const EventLeadAwaitingInfo = "intake.lead_awaiting_info"
-
 // ActionRequestMissingInfo is the lead-detail screen action that runs F-INT-03 on request.
 const ActionRequestMissingInfo = "lead-detail > Request missing info"
 

@@ -72,7 +72,7 @@ func TestRegisterNeedsEveryHandler(t *testing.T) {
 	}
 }
 
-// TestEveryToolValidatesInput registers all 25 tools through kernel/agenttools and checks
+// TestEveryToolValidatesInput registers all 26 tools through kernel/agenttools and checks
 // that a valid input reaches the handler and an invalid one is refused before it.
 func TestEveryToolValidatesInput(t *testing.T) {
 	defs, err := schemas.Defs()

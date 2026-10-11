@@ -32,6 +32,7 @@ type LeadStatus string
 // Lead statuses. A declined lead is reduced to a sealed prospect per its retention class.
 const (
 	LeadOpen           LeadStatus = "open"
+	LeadAwaitingInfo   LeadStatus = "awaiting_info" // additive, Q-EVENTS-WIRE-6
 	LeadConverted      LeadStatus = "converted"
 	LeadDeclined       LeadStatus = "declined"
 	LeadSealedProspect LeadStatus = "sealed_prospect"

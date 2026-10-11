@@ -25,11 +25,6 @@ const FeatureTriageNewLead = "F-INT-01"
 // it with submit_for_approval.
 const GateLeadDecision = "intake.lead_decision"
 
-// EventLeadCreated is the kernel event that starts F-INT-01 (spec/eng/a2-interfaces.json
-// events). A received form submission creates its lead, so "lead.created or
-// submission.received" is the one kernel type lead.created.
-const EventLeadCreated = "lead.created"
-
 // Triage item kinds: what one line of the triage card says about the lead.
 const (
 	TriageSummary          = "summary"

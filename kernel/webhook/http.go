@@ -46,6 +46,15 @@ const (
 // ErrEndpointExpired: the endpoint has expired and cannot be changed or renewed.
 var ErrEndpointExpired = errors.New("webhook: endpoint expired")
 
+// ErrStaleVersion: the endpoint changed since the version the caller read.
+var ErrStaleVersion = errors.New("webhook: stale endpoint version")
+
+// VersionedExpiry is an ExpiryStore that renews only while the endpoint is at the version
+// read (PGExpiry). The PATCH route uses it when the Expiry port has it.
+type VersionedExpiry interface {
+	SetExpiryAt(ctx context.Context, id string, expiresAt *time.Time, version int) error
+}
+
 // Endpoint statuses (platform.webhook.status).
 const (
 	StatusActive   = "active"
@@ -167,6 +176,8 @@ func (h *HTTP) writeErr(w http.ResponseWriter, r *http.Request, err error) {
 		h.fail(w, r, http.StatusNotFound, CodeNotFound, "No such webhook endpoint")
 	case errors.Is(err, ErrEndpointExpired):
 		h.fail(w, r, http.StatusConflict, CodeWebhookExpired, "The endpoint has expired; create a new one")
+	case errors.Is(err, ErrStaleVersion):
+		h.fail(w, r, http.StatusPreconditionFailed, server.CodeVersionConflict, "If-Match does not match the current version")
 	case errors.Is(err, ErrPastExpiry):
 		h.fail(w, r, http.StatusUnprocessableEntity, server.CodeValidationFailed, "expires_at must be in the future")
 	default:
@@ -424,7 +435,7 @@ func (h *HTTP) applyPatch(w http.ResponseWriter, r *http.Request, p registry.Pri
 		writeJSON(w, http.StatusOK, viewOf(cur))
 		return
 	}
-	if err := RenewEndpoint(ctx, h.Expiry, id, exp, h.now()); err != nil {
+	if err := h.renew(ctx, id, exp, cur.Version); err != nil {
 		h.writeErr(w, r, err)
 		return
 	}
@@ -435,6 +446,24 @@ func (h *HTTP) applyPatch(w http.ResponseWriter, r *http.Request, p registry.Pri
 	}
 	server.SetETag(w, int64(out.Version))
 	writeJSON(w, http.StatusOK, viewOf(out))
+}
+
+// renew sets the expiry. With a VersionedExpiry the write holds only at version, so a change
+// made after the If-Match check is ErrStaleVersion (412), never overwritten.
+func (h *HTTP) renew(ctx context.Context, id string, exp *time.Time, version int) error {
+	v, ok := h.Expiry.(VersionedExpiry)
+	if !ok {
+		return RenewEndpoint(ctx, h.Expiry, id, exp, h.now())
+	}
+	// rule: ARC-I-049
+	if exp != nil && !exp.After(h.now()) {
+		return fmt.Errorf("renew endpoint %s: %w", id, ErrPastExpiry)
+	}
+	// rule: ARC-I-006
+	if err := v.SetExpiryAt(ctx, id, exp, version); err != nil {
+		return fmt.Errorf("renew endpoint %s: %w", id, err)
+	}
+	return nil
 }
 
 func sameEvents(a, b []string) bool {

@@ -42,6 +42,7 @@ const (
 	CodeNoStatementParser     = "no_statement_parser"
 	CodeBankBalanceMismatch   = "bank_balance_mismatch"
 	CodeUnverified            = "trust_rules_unverified"
+	CodeUnbalanced            = "unbalanced"
 )
 
 // ErrUnparseable is returned by a Parser for a statement file it cannot read (422).
@@ -341,6 +342,13 @@ func (h *WriteHTTP) submit(w http.ResponseWriter, r *http.Request, p registry.Pr
 	}
 	if rec.Status != StatusPrepared {
 		h.fail(w, r, http.StatusConflict, CodePeriodLocked, "Reconciliation is already signed off")
+		return
+	}
+	// rule: BIL-I-009
+	// By-law 9: a stored adjusted bank balance that is not the bank balance plus its items is
+	// unbalanced and is refused, never signed as stored.
+	if !rec.Result.ItemsAgree() {
+		h.fail(w, r, http.StatusUnprocessableEntity, CodeUnbalanced, "Adjusted bank balance does not equal the bank balance plus its reconciling items")
 		return
 	}
 	// rule: BIL-I-009

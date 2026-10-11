@@ -13,6 +13,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/trust/signatory"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	kboot "github.com/dagi377/counsel/kernel/boot"
+	"github.com/dagi377/counsel/kernel/identity"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -187,6 +188,9 @@ type wiring struct {
 	clearance *conflict.Clearance
 	// rest holds the services registerRest built.
 	rest *RestServices
+	// roles is the capability catalog Production built empty; loadRoles fills it from the
+	// app's registrations once every Register step ran.
+	roles *identity.Roles
 }
 
 // registerGates registers the gate kinds that have an effect (gates.RegisterWired), so no

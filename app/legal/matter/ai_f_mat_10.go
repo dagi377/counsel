@@ -12,10 +12,10 @@ import (
 // FeatureRelatedMatters is the spec id of "Related matter finder".
 const FeatureRelatedMatters = "F-MAT-10"
 
-// relatedMatterEvents are the kernel event types of "party added or matter opened". The
-// a2 events have no party event of their own: a party added to a matter is a
-// matter.updated.
-var relatedMatterEvents = []string{"matter.updated", "matter.opened"}
+// relatedMatterEvents are the event types of "party added or matter opened": parties added
+// to a matter's conflict check publish matter.party_added (PARTY-ADDED); a party is not
+// mapped to matter.updated.
+var relatedMatterEvents = []string{EventPartyAdded, "matter.opened"}
 
 //go:embed prompts/f-mat-10.md
 var promptFMAT10 embed.FS
@@ -41,7 +41,7 @@ func RelatedMattersDef() feature.Def {
 	}
 }
 
-// RelatedMattersBinding binds F-MAT-10 to a matter opened or updated. Event runs act for the
+// RelatedMattersBinding binds F-MAT-10 to a matter opened or gaining a party. Event runs act for the
 // event's user, so it needs no scheduled acting user.
 func RelatedMattersBinding() (trigger.Binding, error) {
 	return trigger.Bind(RelatedMattersDef(), "", slices.Clone(relatedMatterEvents)...)

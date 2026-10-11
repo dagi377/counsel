@@ -76,6 +76,12 @@ type decideRig struct {
 
 func newDecideRig(t *testing.T, trustShort bool) decideRig {
 	t.Helper()
+	return newDecideRigWith(t, trustShort, testAccessT{})
+}
+
+// newDecideRigWith is newDecideRig over access instead of testAccessT.
+func newDecideRigWith(t *testing.T, trustShort bool, access gates.Access) decideRig {
+	t.Helper()
 	now := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
 	clock := func() time.Time { return now }
 	effects := 0
@@ -112,7 +118,7 @@ func newDecideRig(t *testing.T, trustShort bool) decideRig {
 	if err := fake.Withdraw(context.Background(), nil, eng.ids[dGateGone], alice); err != nil {
 		t.Fatal(err)
 	}
-	h := &gates.DecideHTTP{Gates: eng, Kinds: catalog(), Access: testAccessT{}, DB: txStub{}, Idem: idemfake.New(),
+	h := &gates.DecideHTTP{Gates: eng, Kinds: catalog(), Access: access, DB: txStub{}, Idem: idemfake.New(),
 		Problems: &server.Problems{}, Principal: testPrincipal, Now: clock,
 		StepUp: func(r *http.Request) time.Time {
 			switch r.Header.Get("X-Test-StepUp") {

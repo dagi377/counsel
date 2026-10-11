@@ -130,7 +130,9 @@ func TestARC_I_035_DraftNote(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			// rule: ARC-I-035
+			// The Runner's scope for a run whose feature declares agent.GateAgentNote.
+			ctx := agenttools.WithScope(context.Background(), agenttools.NewScope("run-note", []string{agent.GateAgentNote}))
 			w := newNoteWorld(t, tc.actorCaps)
 			res, err := w.reg.Call(ctx, tc.p, agent.ToolDraftNote, json.RawMessage(tc.in))
 			if !errors.Is(err, tc.wantErr) {
@@ -196,7 +198,9 @@ func TestARC_I_039_DraftNoteGateNotDecidedByAgent(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			// rule: ARC-I-035
+			// The Runner's scope for a run whose feature declares agent.GateAgentNote.
+			ctx := agenttools.WithScope(context.Background(), agenttools.NewScope("run-note", []string{agent.GateAgentNote}))
 			w := newNoteWorld(t, map[string]bool{"matters.edit": true})
 			res, err := w.reg.Call(ctx, agentP, agent.ToolDraftNote, json.RawMessage(noteInput(noteMatter, "")))
 			if err != nil {

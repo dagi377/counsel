@@ -1527,7 +1527,11 @@ func timdHandlers(t *testing.T, seed **agenttest.Seed) agent.HandlerSet {
 				if err != nil {
 					return registry.Tool{}, err
 				}
-				return build(agent.NewDeps(can, walls, timdMatterTime{seed: seed}))
+				prov, err := agent.DepOf[*agenttools.Provenance](d)
+				if err != nil {
+					return registry.Tool{}, err
+				}
+				return build(agent.NewDeps(can, walls, timdMatterTime{seed: seed}, prov))
 			}
 		}
 		hs = append(hs, h)

@@ -46,7 +46,7 @@ func deadlinesWorld(t *testing.T, actorCaps map[string]bool) (*agenttools.Regist
 	can := agent.CapabilityCheck(func(_ context.Context, user, capability string) (bool, error) {
 		return user == clerk && actorCaps[capability], nil
 	})
-	tool, err := agent.ListDeadlinesHandler().Build(agent.NewDeps(can, walls, engine))
+	tool, err := agent.ListDeadlinesHandler().Build(agent.NewDeps(can, walls, engine, agenttools.NewProvenance()))
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}

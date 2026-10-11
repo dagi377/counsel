@@ -66,6 +66,19 @@
    "note": ""
   },
   {
+   "type": "matter.party_added",
+   "version": 1,
+   "module": "matter",
+   "subject_type": "matter",
+   "payload": [
+    "matter_id",
+    "conflict_check_id",
+    "check_party_ids[]",
+    "added_by"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-PARTY-ADDED): parties added to a matter's conflict check; ids only, never party names."
+  },
+  {
    "type": "contact.created",
    "version": 1,
    "module": "matter",
@@ -87,6 +100,19 @@
     "gate_id"
    ],
    "note": ""
+  },
+  {
+   "type": "matter.note_added",
+   "version": 1,
+   "module": "matter",
+   "subject_type": "matter",
+   "payload": [
+    "matter_id",
+    "note_id",
+    "author_id",
+    "visibility"
+   ],
+   "note": "Q-EVENTS-WIRE-4; never the note body"
   },
   {
    "type": "conflict.check_completed",
@@ -149,6 +175,16 @@
    "note": ""
   },
   {
+   "type": "intake.lead_awaiting_info",
+   "version": 1,
+   "module": "intake",
+   "subject_type": "lead",
+   "payload": [
+    "lead_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-WIRE-6): a lead moved into awaiting info; starts the missing-info chaser."
+  },
+  {
    "type": "lead.converted",
    "version": 1,
    "module": "intake",
@@ -204,6 +240,32 @@
    "note": ""
   },
   {
+   "type": "document.revision_requested",
+   "version": 1,
+   "module": "docs",
+   "subject_type": "document",
+   "payload": [
+    "document_id",
+    "version_id",
+    "matter_id?",
+    "requested_by"
+   ],
+   "note": "Q-EVENTS-WIRE-4; ids only, never the reviewer's comments"
+  },
+  {
+   "type": "court_form.changed",
+   "version": 1,
+   "module": "docs",
+   "subject_type": "court_form",
+   "payload": [
+    "court_form_id",
+    "rule_set",
+    "form_number",
+    "version_date"
+   ],
+   "note": "Q-EVENTS-WIRE-4; a new version of a court form was recorded"
+  },
+  {
    "type": "email.filed",
    "version": 1,
    "module": "comms",
@@ -214,6 +276,19 @@
     "filed_by"
    ],
    "note": "Additive (docs/QUESTIONS.md Q-DRAFT-FIX): an email filed to a matter; starts F-DL-01 like document.uploaded."
+  },
+  {
+   "type": "email.received",
+   "version": 1,
+   "module": "comms",
+   "subject_type": "comm_item",
+   "payload": [
+    "comm_item_id",
+    "connector_id?",
+    "occurred_at",
+    "to"
+   ],
+   "note": "Q-EVENTS-WIRE-4; ids, the time and the recipient addresses (to, additive Q-EVENTS-WIRE-6) only, never the subject, body or sender"
   },
   {
    "type": "deadline.proposed",
@@ -265,6 +340,21 @@
     "gate_id?"
    ],
    "note": ""
+  },
+  {
+   "type": "calendar_event.added",
+   "version": 1,
+   "module": "cal",
+   "subject_type": "calendar_event",
+   "payload": [
+    "event_id",
+    "calendar_id",
+    "matter_id?",
+    "type",
+    "starts_at",
+    "ends_at"
+   ],
+   "note": "Q-EVENTS-WIRE-4; never the title or location"
   },
   {
    "type": "work_item.created",
@@ -3109,6 +3199,95 @@
    "creates": "gates",
    "gate_kind": null,
    "manifest_scope": "data.write:gates"
+  },
+  {
+   "name": "shift_date",
+   "kind": "read",
+   "capability": "deadlines.view",
+   "description": "Add or subtract calendar or business days (America/Toronto, Ontario holidays) from a date the run read; pure function, no write. The result is a date the run read.",
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+     "citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "doc_id",
+       "version_id",
+       "page",
+       "line_start",
+       "line_end",
+       "quote_hash"
+      ],
+      "properties": {
+       "doc_id": {
+        "type": "string",
+        "format": "uuid"
+       },
+       "version_id": {
+        "type": "string",
+        "format": "uuid"
+       },
+       "page": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "line_start": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "line_end": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "quote_hash": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+       }
+      }
+     },
+     "cents": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100000000000
+     },
+     "uuid": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "date": {
+      "type": "string",
+      "format": "date"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "date",
+     "days",
+     "unit"
+    ],
+    "properties": {
+     "date": {
+      "$ref": "#/$defs/date"
+     },
+     "days": {
+      "type": "integer",
+      "minimum": -3660,
+      "maximum": 3660
+     },
+     "unit": {
+      "type": "string",
+      "enum": [
+       "calendar",
+       "business"
+      ]
+     }
+    }
+   },
+   "creates": null,
+   "gate_kind": null,
+   "manifest_scope": "data.read"
   }
  ],
  "rules": [

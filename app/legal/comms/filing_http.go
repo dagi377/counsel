@@ -33,6 +33,8 @@ const (
 type FilingWrites interface {
 	IssueClaim(ctx context.Context, id, courtFileNo string, issuedOn time.Time) (Filing, error)
 	RecordAffidavitOfService(ctx context.Context, f Filing) (Filing, error)
+	// MatterOfFiling returns the matter a filing belongs to; ErrNotFound when there is none.
+	MatterOfFiling(ctx context.Context, id string) (string, error)
 }
 
 // EmailFiler files an email to a matter; *EmailFilingStore implements it.
@@ -204,7 +206,7 @@ type issueBody struct {
 
 // issue serves POST /filings/{filing_id}/issue: the court issued the filed claim.
 func (h *FilingHTTP) issue(w http.ResponseWriter, r *http.Request) {
-	h.guard(w, r, func(w http.ResponseWriter, r *http.Request, _ registry.Principal) {
+	h.guard(w, r, func(w http.ResponseWriter, r *http.Request, p registry.Principal) {
 		var b issueBody
 		if err := decodeStrict(r, &b); err != nil || strings.TrimSpace(b.CourtFileNo) == "" {
 			h.fail(w, r, http.StatusBadRequest, server.CodeValidationFailed, "Body is not valid")
@@ -215,7 +217,18 @@ func (h *FilingHTTP) issue(w http.ResponseWriter, r *http.Request) {
 			h.fail(w, r, http.StatusBadRequest, server.CodeValidationFailed, "issued_on is not a date")
 			return
 		}
-		f, err := h.Filings.IssueClaim(r.Context(), chi.URLParam(r, "filing_id"), b.CourtFileNo, on)
+		id := chi.URLParam(r, "filing_id")
+		matterID, err := h.Filings.MatterOfFiling(r.Context(), id)
+		if err != nil {
+			h.writeErr(w, r, err)
+			return
+		}
+		// rule: ARC-I-042
+		// The filing's matter is checked: a walled matter answers 404, a missing capability 403.
+		if !h.can(w, r, p, registry.Subject{Kind: matterkind.Subject, ID: matterID}) {
+			return
+		}
+		f, err := h.Filings.IssueClaim(r.Context(), id, b.CourtFileNo, on)
 		if err != nil {
 			h.writeErr(w, r, err)
 			return

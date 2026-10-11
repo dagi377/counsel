@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/dagi377/counsel/app/legal/agent"
+	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
@@ -158,6 +159,9 @@ func TestSubjectMatterFailsClosed(t *testing.T) {
 		{"empty kind", "", "0192f000-0000-7000-8000-000000000001", agenttools.ErrNotFound},
 		{"bad id", agent.SubjectAgentNote, "note-1", agenttools.ErrNotFound},
 		{"known kind reaches the db", agent.SubjectAgentNote, "0192f000-0000-7000-8000-000000000001", errNoDB},
+		// PROPOSAL-DRAFT submits a re-run conflict check and a proposed task.
+		{"conflict run reaches the db", conflict.SubjectRun, "0192f000-0000-7000-8000-000000000001", errNoDB},
+		{"work item reaches the db", subjectWorkItem, "0192f000-0000-7000-8000-000000000001", errNoDB},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

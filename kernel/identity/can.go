@@ -22,36 +22,60 @@ func NewChecker(roles *Roles, assign RoleAssignments) *Checker {
 	return &Checker{roles: roles, assign: assign}
 }
 
-func (c *Checker) userHolds(ctx context.Context, u UserID, capability string) (bool, error) {
+// userRank is the highest rank u's roles hold on capability. A role the app did not
+// register is read through the assignments' RoleGrants, when they have it.
+func (c *Checker) userRank(ctx context.Context, u UserID, capability string, deciding bool) (int, error) {
 	if u == "" {
-		return false, ErrNoPrincipal
+		return 0, ErrNoPrincipal
 	}
 	rs, err := c.assign.RolesOf(ctx, u)
 	if err != nil {
-		return false, fmt.Errorf("roles of user: %w", err)
+		return 0, fmt.Errorf("roles of user: %w", err)
 	}
-	return c.roles.rolesHold(rs, capability), nil
+	grants, _ := c.assign.(RoleGrants)
+	return c.roles.rolesRank(ctx, rs, capability, deciding, grants)
 }
 
-// Can implements Access. Authorization is evaluated per call, never cached, so a decider's
-// capability is re-checked at decision time.
+func (c *Checker) userHolds(ctx context.Context, u UserID, capability string) (bool, error) {
+	n, err := c.userRank(ctx, u, capability, false)
+	return n >= 1, err
+}
+
+// Can implements Access: p holds capability at any level above none. Authorization is
+// evaluated per call, never cached, so a decider's capability is re-checked at decision time.
 func (c *Checker) Can(ctx context.Context, p Principal, capability string, s Subject) (bool, error) {
+	return c.CanAt(ctx, p, capability, "", s)
+}
+
+// CanAt is Can with a minimum level: p passes when its role's level on capability is level
+// or stronger (LevelOrder). The empty level is the weakest holding level. A check at or
+// above the decide level on a gate approver capability is a decision: the agent and the
+// reserved roles (admin, agent) never pass it.
+func (c *Checker) CanAt(ctx context.Context, p Principal, capability, level string, s Subject) (bool, error) {
 	if !c.roles.known(capability) {
 		return false, fmt.Errorf("can %q: %w", capability, ErrUnknownCapability)
 	}
+	need, err := c.roles.need(level)
+	if err != nil {
+		return false, fmt.Errorf("can %q: %w", capability, err)
+	}
+	deciding := c.roles.deciding(capability, need)
 	var holds bool
-	var err error
+	var rank int
 	switch p.Kind {
 	case registry.PrincipalUser, registry.PrincipalGuest:
-		holds, err = c.userHolds(ctx, UserID(p.UserID), capability)
+		rank, err = c.userRank(ctx, UserID(p.UserID), capability, deciding)
+		holds = rank >= need
 	case registry.PrincipalAgent:
 		// rule: ARC-I-036
 		holds = slices.Contains(p.Grant, capability)
 		if holds {
-			holds, err = c.userHolds(ctx, UserID(p.ActingFor), capability)
+			rank, err = c.userRank(ctx, UserID(p.ActingFor), capability, deciding)
+			holds = rank >= need
 		}
 		// rule: ARC-I-018
-		if c.roles.IsApprover(capability) {
+		// The agent never decides a gate.
+		if deciding {
 			holds = false
 		}
 	default:

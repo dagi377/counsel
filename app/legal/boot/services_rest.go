@@ -10,6 +10,8 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/comms"
+	"github.com/dagi377/counsel/app/legal/intake"
+	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/matter/matterkind"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
@@ -49,8 +51,18 @@ type RestPorts struct {
 	Receipts *ReceiptPorts
 	// Refunds, when set, wires the billing.refund effect (REFUND-EFFECT).
 	Refunds *RefundPorts
+	// Leads overrides intake.Leads' stores; nil uses the Postgres intake.PGForms and
+	// intake.PGLeads. intake.Leads is always built (EVENTS-WIRE-4).
+	Leads *LeadPorts
 	// Deadlines, when set, adds the deadline.remind and deadline.digest jobs (BOOT-21).
 	Deadlines *DeadlinePorts
+}
+
+// LeadPorts override intake.Leads' stores (tests). Contacts come from the event-emitting
+// party store.
+type LeadPorts struct {
+	Forms intake.FormStore
+	Leads intake.LeadStore
 }
 
 // ReceiptPorts are the receipt classification effect's dependencies.
@@ -85,6 +97,11 @@ type RestServices struct {
 	Contacts   *party.Store
 	Walls      *roles.WallResolver
 	LeadEvents outbox.Emitter
+	// Leads creates leads from portal submissions and publishes identity.portal_submission
+	// through LeadEvents, on the Postgres stores unless RestPorts.Leads overrides them.
+	Leads *intake.Leads
+	// Events are the publishing write points (matter, documents, inbound email, calendar).
+	Events EventStores
 }
 
 // AuditMasker is the audit masker the legal app stores detail through. It keeps only ids,
@@ -131,6 +148,7 @@ func restServices(k *kboot.Kernel) (RestServices, error) {
 		Contacts:   ev.Contacts,
 		Walls:      ev.Walls,
 		LeadEvents: ev.OwnTx,
+		Events:     ev,
 	}, nil
 }
 
@@ -140,6 +158,17 @@ func restEffects(k *kboot.Kernel, p *RestPorts) (map[string]registry.EffectFunc,
 	out := map[string]registry.EffectFunc{}
 	if p == nil {
 		return out, nil
+	}
+	if k.DB != nil && k.Emitter != nil && k.Clock != nil {
+		// rule: ARC-I-030
+		// PATCH /matters status=open applies through this effect, publishing matter.opened.
+		m := matter.NewStore(k.DB, nil)
+		m.Events = k.Emitter
+		out[matter.GateOpening] = m.OpeningEffect(k.Clock)
+		// rule: ARC-I-017
+		// An approved matter.stage_move (G-ST, F-MAT-03) moves the stage, publishing
+		// matter.stage_changed; the agent only prepares it.
+		out[matter.GateStageMove] = m.StageMoveEffect(k.Clock)
 	}
 	if p.Receipts != nil {
 		if p.Receipts.Poster == nil {
@@ -190,6 +219,7 @@ func (w *wiring) registerRest(_ context.Context, k *kboot.Kernel) error {
 	if err != nil {
 		return err
 	}
+	s.Leads = buildLeads(k, s, w.opts.Rest.Leads)
 	w.rest = &s
 	if w.opts.Rest.Renew != nil {
 		if err := addRenewJobs(k, *w.opts.Rest.Renew); err != nil {
@@ -197,11 +227,33 @@ func (w *wiring) registerRest(_ context.Context, k *kboot.Kernel) error {
 		}
 	}
 	if w.opts.Rest.Deadlines != nil {
-		if err := addDeadlineJobs(k, *w.opts.Rest.Deadlines); err != nil {
+		dp, err := withDeadlineDefaults(k, w.rest, *w.opts.Rest.Deadlines)
+		if err != nil {
+			return err
+		}
+		if err := addDeadlineJobs(k, dp); err != nil {
 			return err
 		}
 	}
 	return addSoleSyncJob(k, k.DB)
+}
+
+// buildLeads builds intake.Leads on the Postgres intake stores (or p's, when both are set)
+// and s's contact store, publishing through s.LeadEvents.
+func buildLeads(k *kboot.Kernel, s RestServices, p *LeadPorts) *intake.Leads {
+	if s.Contacts == nil {
+		return nil
+	}
+	var forms intake.FormStore = intake.PGForms{DB: k.DB}
+	var leads intake.LeadStore = intake.PGLeads{DB: k.DB}
+	if p != nil && p.Forms != nil && p.Leads != nil {
+		forms, leads = p.Forms, p.Leads
+	}
+	l := intake.NewLeads(forms, leads, s.Contacts, k.Clock.Now)
+	l.Events = s.LeadEvents
+	// The lead store also moves statuses when it can (Q-EVENTS-WIRE-6).
+	l.Statuses, _ = leads.(intake.LeadStatuses)
+	return l
 }
 
 // Wired returns the rest services the app built at Register, or nil before it ran.

@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/kernel/api"
 	"github.com/dagi377/counsel/kernel/audit"
 	"github.com/dagi377/counsel/kernel/gate"
@@ -35,6 +36,21 @@ const ActionViewed = "gate.viewed"
 // Access is the part of identity.Access the gate routes use.
 type Access interface {
 	Can(ctx context.Context, p registry.Principal, capability string, s registry.Subject) (bool, error)
+}
+
+// LevelAccess is an Access that checks a minimum capability level (identity.Checker.CanAt).
+type LevelAccess interface {
+	CanAt(ctx context.Context, p registry.Principal, capability, level string, s registry.Subject) (bool, error)
+}
+
+// canDecide reports whether p may decide a gate on approver capability c for s: c held at
+// roles.DecideLevel (all, or approve) or stronger. An Access without levels falls back to Can.
+func canDecide(ctx context.Context, a Access, p registry.Principal, c string, s registry.Subject) (bool, error) {
+	// rule: ARC-I-018
+	if la, ok := a.(LevelAccess); ok {
+		return la.CanAt(ctx, p, c, string(roles.DecideLevel), s)
+	}
+	return a.Can(ctx, p, c, s)
 }
 
 // TxRunner runs fn in one transaction.
