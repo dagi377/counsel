@@ -14,6 +14,7 @@ package featureset
 
 import (
 	"github.com/dagi377/counsel/app/legal/agent/feature"
+	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 )
 
@@ -46,5 +47,7 @@ func appDefs() []feature.Def {
 		deadlines.DraftAgendaDef(),
 		deadlines.AdjournmentWatcherDef(),
 		deadlines.AbsenceCoverageCheckDef(),
+		// conflicts
+		conflict.PartyExtractionDef(),
 	}
 }
