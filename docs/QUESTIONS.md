@@ -3001,3 +3001,10 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-FEAT-INT-10 F-INT-14 engagement letter draft: gate kind and screen
+
+- F-INT-14 reuses `docs.GateEngagementLetter` (G5, F-DOC-02): intake hands the letter to the
+  engagement area, which owns the kind.
+- Boot maps every action screen (TestActionScreensCoverFeatures), so `app/legal/boot/agent.go`
+  gains `consult-outcome` (subject `intake.lead`, capability `intake.convert`).
