@@ -4267,9 +4267,34 @@ of FEAT-TIM-01 above.
 - Outside the task's files: featureset.App() holds the Def (so its plugin skill is generated)
   and the boot test then needs a job binding. F-PLT-04 binds inline in `boot.JobBindings` to
   `matter.EventCallTranscriptFiled`, the consented-transcript event F-MAT-07 already uses,
-  until FEAT-PLT-06 adds its own binding. Open: both features now summarize the same
-  transcript; the owner should say whether F-PLT-04 replaces F-MAT-07 on that event or one of
-  them dedupes.
+  until FEAT-PLT-06 adds its own binding. Decided (dedupe): F-MAT-07 owns that event and
+  F-PLT-04 runs on request only; see Q-FEAT-PLT-06.
 - No fixture dir yet (testdata/ai/f-plt-04/call-summarizer); the pipeline test scripts aifake
   inline over the app's real get_matter, search_documents and read_document handlers
   (agenttest.FromFeature). Helpers are in `ai_plt_helpers_test.go` (prefix `plt`).
+
+## Q-FEAT-PLT-06 F-PLT-04 call summarizer: write path, gates and trigger (decided)
+
+- Write path, as decided for F-INT-06 (Q-FEAT-INT-06) and F-DL-02 (Q-FEAT-DL-04): draft_note
+  always opens matter.agent_note (G-NT), which F-PLT-04 does not hold, so the scoped opener
+  refuses it. draft_document is added to F-PLT-04 in spec/ai/features.json and in
+  CallSummarizerDef (Grant `documents.edit`), and `platform.summary_accuracy` is listed as a
+  tool-gap kind (F-PLT-04 tool_gap and tool_gaps.kinds; the kind count in
+  kernel/agenttools/scope_test.go goes from 39 to 40). The run drafts the summary and tasks with
+  draft_document and opens G-SUM with submit_for_approval; propose_time_entries opens G9.
+  draft_note stays in the Def as the spec lists it, and the prompt tells the model not to use
+  it. draft_note itself is unchanged.
+- Trigger (dedupe): F-MAT-07 owns `matter.call_transcript_filed`, so one transcript starts
+  one summary. F-PLT-04 binds no event: boot lists it as an on-request job feature and drops
+  the PLT-05 interim binding, and TestCallTranscriptStartsOneSummary pins that the event
+  starts F-MAT-07 only. The FEAT-PLT-06 accept line "Trigger bound: event: transcript with
+  recorded consent" is superseded by this decision.
+- F-PLT-04's spec trigger becomes "on request from comms-log", with the on-request action
+  `comms-log > Summarize call` (platform.ActionSummarizeCall). comms-log lists no agent action
+  that summarizes a call ("Confirm summary" is the human G-SUM decision), so the action name is
+  new. The comms-log screen selects the matter, capability matters.view, the same line
+  FEAT-PLT-02 and FEAT-PLT-04 add (keep one at merge).
+- Outside the task's files: ai_f_plt_04.go (Def), prompts/f-plt-04.md, the pipeline test's
+  tool count (8 to 9), spec/ai/features.json, kernel/agenttools/scope_test.go,
+  app/legal/boot/agent.go and agent_test.go, and the regenerated F-PLT-04 skill. The write-path
+  helpers are in ai_plt_helpers_test.go (prefix `plti`).

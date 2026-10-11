@@ -7,6 +7,9 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
+
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
@@ -17,6 +20,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/platform"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/kernel/agenttools"
@@ -24,6 +28,7 @@ import (
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/deadline"
 	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -230,6 +235,54 @@ func TestJobBindings(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+// recordingEnqueuer keeps the feature id of every run a binding enqueues.
+type recordingEnqueuer struct{ features []string }
+
+func (r *recordingEnqueuer) Insert(_ context.Context, args river.JobArgs, _ *river.InsertOpts) (*rivertype.JobInsertResult, error) {
+	if a, ok := args.(trigger.RunArgs); ok {
+		r.features = append(r.features, a.FeatureID)
+	}
+	return &rivertype.JobInsertResult{}, nil
+}
+
+// A consented call transcript starts F-MAT-07 only: F-PLT-04 summarizes a call on request
+// from the comms-log, so one transcript never starts two summaries (Q-FEAT-PLT-06).
+func TestCallTranscriptStartsOneSummary(t *testing.T) {
+	s, err := Features()
+	if err != nil {
+		t.Fatal(err)
+	}
+	clk, err := clock.New("America/Toronto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := &recordingEnqueuer{}
+	b := trigger.New(q, clk, nil)
+	if err := JobBindings(s, b); err != nil {
+		t.Fatal(err)
+	}
+	n, err := b.OnEvent(context.Background(), outbox.Message{
+		ID: "evt-transcript-synthetic", Type: matter.EventCallTranscriptFiled,
+		Subject: outbox.Subject{Kind: "matter", ID: "matter-synthetic"}, Payload: json.RawMessage(`{"user_id":"user-synthetic-lawyer"}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 || !slices.Equal(q.features, []string{matter.FeatureCallSummary}) {
+		t.Fatalf("transcript started %d runs %v, want only %s", n, q.features, matter.FeatureCallSummary)
+	}
+	d, ok := s.ByID(platform.FeatureCallSummarizer)
+	if !ok {
+		t.Fatalf("%s not in the feature set", platform.FeatureCallSummarizer)
+	}
+	if !slices.Equal(d.Actions, []string{platform.ActionSummarizeCall}) {
+		t.Fatalf("%s actions = %v, want %s", d.ID, d.Actions, platform.ActionSummarizeCall)
+	}
+	if _, ok := ActionScreens()[screenOf(platform.ActionSummarizeCall)]; !ok {
+		t.Fatalf("screen of %q not mapped", platform.ActionSummarizeCall)
 	}
 }
 

@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -17,6 +19,8 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/agenttest"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
+	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
@@ -294,4 +298,198 @@ func pltCheckNoApproval(t *testing.T, def feature.Def) {
 	if _, err := fd.Decided(ctx, agent.GateDecided{GateID: "gate-any", Decision: agent.Approved, By: agenttest.FeatureActingFor}); !errors.Is(err, agent.ErrUnknownGate) {
 		t.Fatalf("Decided = %v, want ErrUnknownGate", err)
 	}
+}
+
+// The plti helpers drive a platform Def's write path over the app's real handlers
+// (agent.Handlers()): drafts land in pltiDrafts, each read tool records what it returned in
+// the run's provenance as boot wraps it in production, and the gate store lets a lawyer other
+// than the preparer decide. Every name carries the plti prefix.
+
+// pltiDrafts stores document drafts with deterministic uuid ids and maps each to its matter.
+type pltiDrafts struct {
+	mu      sync.Mutex
+	matters map[string]string
+	drafts  []agent.NewDraftDocument
+}
+
+// pltiDraftID is the id of the n-th draft a run stores.
+func pltiDraftID(n int) string { return fmt.Sprintf("00000000-0000-4000-8000-00000000c%03d", n) }
+
+// CreateDraft implements agent.DocumentDrafts.
+func (s *pltiDrafts) CreateDraft(_ context.Context, d agent.NewDraftDocument) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.drafts = append(s.drafts, d)
+	id := pltiDraftID(len(s.drafts))
+	s.matters[id] = d.MatterID
+	return id, nil
+}
+
+// SubjectMatter implements agent.SubjectMatters.
+func (s *pltiDrafts) SubjectMatter(_ context.Context, _, id string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.matters[id], nil
+}
+
+// list returns a copy of the stored drafts.
+func (s *pltiDrafts) list() []agent.NewDraftDocument {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.drafts)
+}
+
+// pltiDepOf appends d's value of type T to vals, when d has one.
+func pltiDepOf[T any](vals []any, d agent.Deps) []any {
+	if v, err := agent.DepOf[T](d); err == nil {
+		return append(vals, v)
+	}
+	return vals
+}
+
+// pltiHandlers is agent.Handlers() with each Build given ports ahead of the Seed's, and each
+// read tool wrapped so pv records the values it returns (boot's production wrap).
+func pltiHandlers(t *testing.T, pv *agenttools.Provenance, ports ...any) agent.HandlerSet {
+	t.Helper()
+	app := agent.Handlers()
+	var hs []agent.Handler
+	for _, name := range app.Names() {
+		h, _ := app.For(name)
+		build := h.Build
+		hs = append(hs, agent.Handler{Name: name, Build: func(d agent.Deps) (registry.Tool, error) {
+			vals := append([]any{pv}, ports...)
+			vals = pltiDepOf[agent.CapabilityCheck](vals, d)
+			vals = pltiDepOf[roles.Walls](vals, d)
+			vals = pltiDepOf[agenttools.Plans](vals, d)
+			vals = pltiDepOf[agenttools.GateOpener](vals, d)
+			vals = pltiDepOf[agenttools.RunScopes](vals, d)
+			vals = pltiDepOf[agent.DocumentText](vals, d)
+			vals = pltiDepOf[agent.ClientMatters](vals, d)
+			vals = pltiDepOf[agent.ContactSearch](vals, d)
+			vals = pltiDepOf[matter.Query](vals, d)
+			vals = pltiDepOf[agent.DocumentLookup](vals, d)
+			vals = pltiDepOf[*agenttest.SeedStore](vals, d)
+			tool, err := build(agent.NewDeps(vals...))
+			if err != nil || tool.Kind != registry.ToolRead {
+				return tool, err
+			}
+			return pv.ReadTool(tool)
+		}})
+	}
+	set, err := agent.NewHandlerSet(hs...)
+	if err != nil {
+		t.Fatalf("handler set: %v", err)
+	}
+	return set
+}
+
+// pltiWorld is one feature driver over the real handlers with a seeded matter and one
+// document on it.
+type pltiWorld struct {
+	fd      *agenttest.FeatureDriver
+	drafts  *pltiDrafts
+	matter  string
+	doc     string
+	version string
+}
+
+// pltiFeature builds def's FeatureDriver over the real handlers, with a gate store in which
+// the acting user and pltOtherLawyer hold every Def gate kind's approver capability (so the
+// preparer rule, not a missing capability, stops the acting user), a seeded matter and one
+// document holding lines on page 1. ports go to the handlers ahead of the Seed's.
+func pltiFeature(t *testing.T, def feature.Def, lines []string, ports ...any) pltiWorld {
+	t.Helper()
+	drafts := &pltiDrafts{matters: map[string]string{}}
+	fd := agenttest.FromFeatureWith(t, def, pltiHandlers(t, agenttools.NewProvenance(), append([]any{drafts}, ports...)...))
+	caps := gatefake.Caps{}
+	for _, k := range def.GateKinds {
+		for _, u := range []string{agenttest.FeatureActingFor, pltOtherLawyer} {
+			caps[u] = append(caps[u], k+".approve")
+		}
+	}
+	fd.Seed.Gates = gatefake.New(func() time.Time { return pltDecideAt }, caps)
+	for _, k := range def.GateKinds {
+		fd.Seed.GateKind(k)
+	}
+	m := fd.Seed.Matter("2026-0412", "Synth call file")
+	doc, ver := fd.Seed.Document(string(m.ID), lines)
+	return pltiWorld{fd: fd, drafts: drafts, matter: string(m.ID), doc: doc, version: string(ver)}
+}
+
+// pltiToolNames lists the tool names of calls, in order.
+func pltiToolNames(calls []pltCall) []string {
+	out := make([]string, len(calls))
+	for i, c := range calls {
+		out[i] = c.name
+	}
+	return out
+}
+
+// pltiCheckGate fails t unless gate id is pending, of kind, prepared for the acting user, and
+// neither the agent principal (403) nor the acting user (self-approval, 403) can decide it
+// while another lawyer can.
+func pltiCheckGate(t *testing.T, fd *agenttest.FeatureDriver, id, kind string) {
+	t.Helper()
+	ctx := context.Background()
+	g, err := fd.Seed.Gates.Get(ctx, gate.GateID(id))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// rule: AI-R-003
+	if g.Kind != kind || g.Status != gate.StatusPending || g.Preparer.ActingFor != agenttest.FeatureActingFor {
+		t.Fatalf("gate = %s %s preparer %+v; want pending %s prepared for %s", g.Kind, g.Status, g.Preparer, kind, agenttest.FeatureActingFor)
+	}
+	tests := []struct {
+		name       string
+		by         registry.Principal
+		wantErr    error
+		wantStatus int
+	}{
+		{"agent principal", registry.Principal{Kind: registry.PrincipalAgent, RunID: "run-" + id, ActingFor: agenttest.FeatureActingFor}, gate.ErrAgentApprover, http.StatusForbidden},
+		// rule: ARC-I-039
+		{"acting user decides own gate", registry.Principal{Kind: registry.PrincipalUser, UserID: agenttest.FeatureActingFor}, gate.ErrSelfApproval, http.StatusForbidden},
+		{"another lawyer", registry.Principal{Kind: registry.PrincipalUser, UserID: pltOtherLawyer}, nil, http.StatusOK},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g, err := fd.Seed.Gates.Get(ctx, gate.GateID(id))
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = fd.Seed.Gates.Decide(ctx, nil, g.ID, g.Version, gate.Decision{
+				Verdict: gate.VerdictApprove, PayloadHash: g.PayloadHash, MFAVerifiedAt: pltDecideAt.Add(-time.Minute),
+			}, tt.by)
+			if !errors.Is(err, tt.wantErr) || pltStatus(err) != tt.wantStatus {
+				t.Fatalf("decide = %v (%d), want %v (%d)", err, pltStatus(err), tt.wantErr, pltStatus(tt.wantErr))
+			}
+		})
+	}
+}
+
+// pltiAbsent reports an error when text is in any write tool's input in run, or in the
+// payload of any gate the run opened.
+func pltiAbsent(ctx context.Context, fd *agenttest.FeatureDriver, run agenttest.FeatureRun, text string) error {
+	write := map[string]bool{}
+	for _, s := range fd.Feature.Tools {
+		write[s.Name] = s.Kind == agent.Write
+	}
+	for _, req := range run.Requests {
+		for _, m := range req.Messages {
+			for _, b := range m.Content {
+				if b.Type == "tool_use" && write[b.ToolName] && strings.Contains(string(b.Input), text) {
+					return fmt.Errorf("%s input carries the injected text", b.ToolName)
+				}
+			}
+		}
+	}
+	for _, id := range run.GateIDs {
+		g, err := fd.Seed.Gates.Get(ctx, gate.GateID(id))
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(g.Payload), text) {
+			return fmt.Errorf("gate %s payload carries the injected text", id)
+		}
+	}
+	return nil
 }

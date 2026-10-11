@@ -179,11 +179,11 @@ func TestARC_I_038_CallSummarizerPipeline(t *testing.T) {
 					t.Fatalf("item %d carries the injected text", i)
 				}
 			}
-			// The model made exactly the scripted calls, as one tool-use run offering the 8
+			// The model made exactly the scripted calls, as one tool-use run offering the 9
 			// feature tools, acting for the preparing user.
 			last := model.reqs[len(model.reqs)-1]
-			if len(model.reqs) != len(calls)+1 || last.Kind != ai.KindToolUse || len(last.Tools) != 8 {
-				t.Fatalf("model requests = %d kind %s tools %d; want %d tool-use calls offering 8 tools", len(model.reqs), last.Kind, len(last.Tools), len(calls)+1)
+			if len(model.reqs) != len(calls)+1 || last.Kind != ai.KindToolUse || len(last.Tools) != 9 {
+				t.Fatalf("model requests = %d kind %s tools %d; want %d tool-use calls offering 9 tools", len(model.reqs), last.Kind, len(last.Tools), len(calls)+1)
 			}
 			if !strings.HasPrefix(last.System, feature.Preamble(platform.FeatureCallSummarizer)+feature.Rules()) {
 				t.Fatalf("system prompt does not start with the preamble and shared rules")

@@ -81,10 +81,11 @@ var callSummarizerSchema = json.RawMessage(`{
   }
 }`)
 
-// CallSummarizerDef is F-PLT-04: when a call transcript is filed with the participants'
-// recorded consent, one tool-use run over the quoted transcript drafts the summary and the
+// CallSummarizerDef is F-PLT-04: on request from the comms-log, one tool-use run over a call
+// transcript filed with the participants' recorded consent drafts the summary and the
 // follow-up tasks for G-SUM (platform.summary_accuracy) and the lawyer's time for G9
-// (timekeeping.accept). Each gate is prepared by the acting user; a person other than the
+// (timekeeping.accept). It binds no event: F-MAT-07 owns the transcript-filed event
+// (ai_f_plt_04_write.go). Each gate is prepared by the acting user; a person other than the
 // preparer decides it and the agent never does.
 func CallSummarizerDef() feature.Def {
 	return feature.Def{
@@ -92,18 +93,21 @@ func CallSummarizerDef() feature.Def {
 		Area:    "platform",
 		Name:    "Call summarizer",
 		Source:  feature.SourceJob,
-		Trigger: "event: transcript with recorded consent",
+		Trigger: "on request from comms-log",
+		Actions: []string{ActionSummarizeCall},
 		Kind:    ai.KindToolUse,
 		Tools: []string{
 			"get_matter", "search_documents", "read_document",
-			"draft_note", "propose_time_entries", "report_plan", "report_step", "submit_for_approval",
+			"draft_note", "draft_document", "propose_time_entries", "report_plan", "report_step", "submit_for_approval",
 		},
 		// rule: ARC-I-035
-		// draft_note's draft goes to G-SUM through submit_for_approval; propose_time_entries
-		// opens G9.
+		// G-SUM is a tool-gap kind (Q-FEAT-PLT-06): draft_document stores the summary and
+		// submit_for_approval opens G-SUM on it; propose_time_entries opens G9. draft_note
+		// stays as the spec lists it, but it opens matter.agent_note, which this run does not
+		// hold, so the scoped opener refuses it.
 		GateKinds: []string{GateSummaryAccuracy, agent.GateTimeAccept},
 		// The run's agent principal holds the capabilities of its tools and no other.
-		Grant:        []string{"agent.ask", "documents.view", "matters.edit", "matters.view", "time.record"},
+		Grant:        []string{"agent.ask", "documents.edit", "documents.view", "matters.edit", "matters.view", "time.record"},
 		Prompt:       promptFPLT04,
 		PromptPath:   "prompts/f-plt-04.md",
 		Fixture:      "testdata/ai/f-plt-04/call-summarizer",
