@@ -313,6 +313,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.ConfigHygieneDef().ID:                matter.ConfigHygieneBinding,
 		matter.TemplateFitDef().ID:                  matter.TemplateFitBinding,
 		work.WorkflowLintDef().ID:                   work.WorkflowLintBinding,
+		work.RuleSuggesterDef().ID:                  work.RuleSuggesterBinding,
 		matter.FeatureChronology: func() (trigger.Binding, error) {
 			// F-MAT-12 refreshes on a new document or email on the matter, for the event's user
 			// (Q-INTEG-16-SCREENS); the screen action covers on-request runs.
@@ -400,9 +401,10 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
-	// Work. The workflow editor is firm-level; it maps to matter until boot has a firm
-	// subject (Q-FEAT-WRK-04).
-	"workflow-editor": {SubjectKind: "matter", Capability: "work.workflows"},
+	// Work. The workflow editor and work automations are firm-level; they map to matter
+	// until boot has a firm subject (Q-FEAT-WRK-04).
+	"workflow-editor":  {SubjectKind: "matter", Capability: "work.workflows"},
+	"work-automations": {SubjectKind: "matter", Capability: "work.workflows"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

@@ -222,7 +222,9 @@ func TestCreateTaskDescription(t *testing.T) {
 // rule: AI-R-003
 // rule: ARC-I-035
 // An agent run whose feature declares a gate kind on work items gets a draft of the run, which
-// submit_for_approval may open that gate on; every other caller gets a proposal.
+// submit_for_approval may open that gate on; every other caller gets a proposal. An agent's
+// proposal in its own run scope is recorded as a draft of the run too, so the run may submit
+// it under its feature's gate kind; nothing outside the run records anything.
 func TestAI_R_003_CreateTaskDraft(t *testing.T) {
 	agentP := registry.Principal{Kind: registry.PrincipalAgent, RunID: taskRun, ActingFor: clerk, Grant: []string{taskCap}}
 	user := registry.Principal{Kind: registry.PrincipalUser, UserID: clerk}
@@ -232,13 +234,14 @@ func TestAI_R_003_CreateTaskDraft(t *testing.T) {
 		scopeRun string
 		scope    []string // gate kinds of the run scope; nil means no scope in ctx
 		want     agenttools.WriteOutcome
+		recorded bool // recorded as a draft of the run
 	}{
-		{"feature declares work.absence", agentP, taskRun, []string{"work.absence"}, agenttools.OutcomeDraft},
-		{"feature declares work.output", agentP, taskRun, []string{"work.output"}, agenttools.OutcomeDraft},
-		{"feature declares no work item kind", agentP, taskRun, []string{"cal.confirm"}, agenttools.OutcomeProposal},
-		{"no run scope", agentP, "", nil, agenttools.OutcomeProposal},
-		{"scope of another run", agentP, "run-other", []string{"work.absence"}, agenttools.OutcomeProposal},
-		{"manual path", user, taskRun, []string{"work.absence"}, agenttools.OutcomeProposal},
+		{"feature declares work.absence", agentP, taskRun, []string{"work.absence"}, agenttools.OutcomeDraft, true},
+		{"feature declares work.output", agentP, taskRun, []string{"work.output"}, agenttools.OutcomeDraft, true},
+		{"feature declares no work item kind", agentP, taskRun, []string{"cal.confirm"}, agenttools.OutcomeProposal, true},
+		{"no run scope", agentP, "", nil, agenttools.OutcomeProposal, false},
+		{"scope of another run", agentP, "run-other", []string{"work.absence"}, agenttools.OutcomeProposal, false},
+		{"manual path", user, taskRun, []string{"work.absence"}, agenttools.OutcomeProposal, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -261,8 +264,8 @@ func TestAI_R_003_CreateTaskDraft(t *testing.T) {
 				t.Fatalf("output = %s gate %q, want %s", res.Output, res.GateID, tc.want)
 			}
 			// The draft is recorded in the run, so submit_for_approval can find it.
-			if recorded := scope != nil && scope.HasDraft(out.Ref); recorded != (tc.want == agenttools.OutcomeDraft) {
-				t.Fatalf("draft recorded = %v, want %v", recorded, tc.want == agenttools.OutcomeDraft)
+			if recorded := scope != nil && scope.HasDraft(out.Ref); recorded != tc.recorded {
+				t.Fatalf("draft recorded = %v, want %v", recorded, tc.recorded)
 			}
 			// rule: ARC-I-039
 			// A draft is still a task nobody accepted: no approver, in the proposed status.

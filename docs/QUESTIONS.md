@@ -3220,3 +3220,16 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - work.workflow_publish is a tool-gap kind: the run drafts the lint report with draft_document
   and opens G-W3 on that draft. The G-W3 payload schema names {workflow_id, version}; the gate
   payload is the draft. Open: carry workflow_id/version once the workflow editor exists.
+
+## Q-FEAT-WRK-05 F-WRK-07 rule suggester: draft rule subject and PROPOSAL-DRAFT
+
+- Task: FEAT-WRK-05 (F-WRK-07). work.automation is not a work-item gate kind
+  (agent.WorkItemGateKinds), so create_task returns a proposal. The branch carries the
+  PROPOSAL-DRAFT change to app/legal/agent/tools_task.go and its test (db1212d, byte-identical),
+  which records a proposal as a run draft, so the run submits the proposed rule task for
+  work.automation in the run. Merge after (or with) task/PROPOSAL-DRAFT; the files merge clean.
+- The G-AR payload schema names {rule_id}; until work.automation_rule has a store the draft rule
+  is a proposed work item. Open: create an automation_rule draft once the work-automations
+  service exists.
+- The weekly run acts for the designated lawyer (BindDesignated, JOB-ACTOR); the firm-level
+  work-automations screen maps to matter until boot.FirmSubject lands (see Q-FEAT-WRK-04).

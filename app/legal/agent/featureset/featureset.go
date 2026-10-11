@@ -108,5 +108,6 @@ func appDefs() []feature.Def {
 		matter.RequestIDDef(),
 		// work
 		work.WorkflowLintDef(),
+		work.RuleSuggesterDef(),
 	}
 }
