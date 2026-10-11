@@ -2498,3 +2498,25 @@ Done in PORT-18:
   deleted, so lines change only through `draft.PGDrafts.Edit` line actions.
 - `draft.PGDrafts` taxes every draft at one component (boot: HST-ON at 130000 ppm). Place of supply
   per payer (BIL-C-201/207) is not applied at draft time.
+
+## Q-PG-BILL-FIX
+
+- `billing.bill_guard` is replaced additively by `migrations/5620_bill_sign_after_approval.sql`
+  (billing block, `CREATE OR REPLACE FUNCTION`, trigger unchanged). The only change: on an
+  approved, undelivered, unsigned bill, `signed_by`, `signed_at` and `signature_hash` may go
+  from NULL to a value once, all three together (BIL-L-001). Every other column 0001 froze,
+  `signature_ref` included, stays frozen; a partial, repeated or cleared signature is DM-041.
+  `migrations/bill_guard_test.go` pins the column sets against 0001 and
+  `app/legal/billing/bill/sign_integration_test.go` (integration, vet-only in `make check`)
+  signs through `PGService.Sign` and refuses every other column before and after signing.
+- `draft.PGDrafts` no longer has a fixed HST-ON 13%: it takes `Places` (supply facts from the
+  matter's client), `Decider` (tax.PlaceOfSupply, T-014.2 CRA rules) and `Calc` and fails closed
+  with `draft.ErrPlaceUnknown` when the place cannot be decided. The draft stores
+  `place_of_supply_province` and `place_of_supply` ({jurisdiction, rule_applied}); approval still
+  needs the lawyer's confirmation (BIL-C-201).
+- Open: boot's `ClientPlaces` reads `addresses->0->>'province'` and `'country'` of the matter's
+  client; the address JSON keys are not specified anywhere, so the party module should own a
+  typed reader. Court and property provinces and the firm's provincial registrations are not
+  recorded yet, so they are passed empty (GST only outside HST provinces). A zero-rated
+  (non-resident) draft stores a NULL province, which the approval CHECK refuses until the
+  zero-rated place has a representation.

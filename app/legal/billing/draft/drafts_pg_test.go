@@ -1,14 +1,43 @@
 package draft
 
 import (
+	"context"
 	"errors"
+	"slices"
 	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/dagi377/counsel/app/legal/billing/bill"
+	"github.com/dagi377/counsel/app/legal/billing/tax"
 )
 
+// places is a scripted Places: the supply facts per matter.
+type places map[string]tax.Supply
+
+func (p places) Supply(_ context.Context, _ pgx.Tx, matterID string) (tax.Supply, error) {
+	s, ok := p[matterID]
+	if !ok {
+		return tax.Supply{}, errNoMatter
+	}
+	return s, nil
+}
+
+var errNoMatter = errors.New("no such matter")
+
+func taxedDrafts(p places) PGDrafts {
+	return PGDrafts{Places: p, Decider: tax.NewPlaceOfSupply(), Calc: tax.NewCalculator(tax.NewRateTable(tax.Seed())),
+		Now: func() time.Time { return time.Date(2026, 10, 9, 15, 0, 0, 0, time.UTC) }}
+}
+
+// rule: BIL-C-021
 func TestBIL_C_021_PGDraftsTotals(t *testing.T) {
-	d := PGDrafts{TaxCode: "HST-ON", Component: "HST", TaxRatePPM: 130000}
+	d := taxedDrafts(places{"m": {ClientProvince: "ON", RecipientResident: true}})
+	sup, err := d.place(context.Background(), nil, "m")
+	if err != nil {
+		t.Fatal(err)
+	}
 	lines := []pgLine{
 		{source: bill.SourceTime, amount: 100000, taxCode: "HST-ON"},
 		{source: bill.SourceExpense, amount: 20000, taxCode: "HST-ON"},
@@ -26,7 +55,7 @@ func TestBIL_C_021_PGDraftsTotals(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := d.compute(lines, tt.discount)
+			got, err := d.compute(context.Background(), lines, tt.discount, sup)
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("err = %v, want %v", err, tt.want)
 			}
@@ -40,6 +69,98 @@ func TestBIL_C_021_PGDraftsTotals(t *testing.T) {
 		})
 	}
 }
+
+// rule: BIL-T-010
+// Draft tax follows the place of supply from the matter and client data: HST in a
+// participating province, GST elsewhere, and an unknown place refuses the draft (fail closed).
+func TestBIL_T_010_DraftTaxByPlaceOfSupply(t *testing.T) {
+	d := taxedDrafts(places{
+		"on":      {ClientProvince: "ON", RecipientResident: true},
+		"ab":      {ClientProvince: "AB", RecipientResident: true},
+		"mb":      {ClientProvince: "MB", RecipientResident: true},
+		"court":   {ClientProvince: "AB", CourtProvince: "NS", RecipientResident: true},
+		"unknown": {},
+		"bad":     {ClientProvince: "XX", CourtProvince: "XX"},
+	})
+	lines := []pgLine{
+		{source: bill.SourceTime, amount: 100000},
+		{source: bill.SourceExpense, amount: 7000, taxCode: bill.TaxCodeExempt},
+	}
+	tests := []struct {
+		name, matter   string
+		want           error
+		province, code string
+		breakdown      []bill.TaxLine
+	}{
+		{"ON client pays ON HST", "on", nil, "ON", "HST-ON",
+			[]bill.TaxLine{{TaxCode: "HST-ON", Component: "HST", RatePPM: 130000, BaseCents: 100000, TaxCents: 13000}}},
+		{"AB client, non-participating, pays GST only", "ab", nil, "AB", "GST",
+			[]bill.TaxLine{{TaxCode: "GST", Component: "GST", RatePPM: 50000, BaseCents: 100000, TaxCents: 5000}}},
+		{"MB client, firm not registered for RST, pays GST only", "mb", nil, "MB", "GST",
+			[]bill.TaxLine{{TaxCode: "GST", Component: "GST", RatePPM: 50000, BaseCents: 100000, TaxCents: 5000}}},
+		{"NS litigation beats the AB address", "court", nil, "NS", "HST-NS",
+			[]bill.TaxLine{{TaxCode: "HST-NS", Component: "HST", RatePPM: 140000, BaseCents: 100000, TaxCents: 14000}}},
+		{"no address and not resident is unknown", "unknown", ErrPlaceUnknown, "", "", nil},
+		{"unknown court province is unknown", "bad", ErrPlaceUnknown, "", "", nil},
+		{"matter without supply facts refused", "missing", errNoMatter, "", "", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sup, err := d.place(context.Background(), nil, tt.matter)
+			if !errors.Is(err, tt.want) {
+				t.Fatalf("place err = %v, want %v", err, tt.want)
+			}
+			if err != nil {
+				return
+			}
+			if sup.province() != tt.province || sup.lineCode() != tt.code {
+				t.Fatalf("place = %s %s, want %s %s", sup.province(), sup.lineCode(), tt.province, tt.code)
+			}
+			got, err := d.compute(context.Background(), lines, 0, sup)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(got.breakdown, tt.breakdown) || got.total != 107000+tt.breakdown[0].TaxCents {
+				t.Fatalf("breakdown = %+v total %d, want %+v", got.breakdown, got.total, tt.breakdown)
+			}
+		})
+	}
+}
+
+// A draft without the place-of-supply engine is refused rather than taxed at a default.
+func TestPGDraftsNeedTaxEngine(t *testing.T) {
+	full := taxedDrafts(places{})
+	full.WIP, full.Payers = noWIP{}, noPayers{}
+	tests := []struct {
+		name string
+		d    func() PGDrafts
+		want error
+	}{
+		{"complete", func() PGDrafts { return full }, nil},
+		{"no places", func() PGDrafts { d := full; d.Places = nil; return d }, bill.ErrInvalid},
+		{"no decider", func() PGDrafts { d := full; d.Decider = nil; return d }, bill.ErrInvalid},
+		{"no calculator", func() PGDrafts { d := full; d.Calc = nil; return d }, bill.ErrInvalid},
+		{"no clock", func() PGDrafts { d := full; d.Now = nil; return d }, bill.ErrInvalid},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.d().ready(); !errors.Is(err, tt.want) {
+				t.Fatalf("ready = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}
+
+type noWIP struct{}
+
+func (noWIP) Unbilled(context.Context, pgx.Tx, string, time.Time, time.Time) ([]WIPItem, error) {
+	return nil, nil
+}
+func (noWIP) Claim(context.Context, pgx.Tx, string, []WIPItem) error { return nil }
+
+type noPayers struct{}
+
+func (noPayers) Payer(context.Context, pgx.Tx, string) (string, error) { return "", nil }
 
 func TestBIL_C_023_LineActions(t *testing.T) {
 	tests := []struct {

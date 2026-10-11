@@ -5,14 +5,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/dagi377/counsel/app/legal/billing/bill"
+	"github.com/dagi377/counsel/app/legal/billing/tax"
 	"github.com/dagi377/counsel/kernel/money"
 )
+
+// ErrPlaceUnknown is returned when a draft's place of supply cannot be decided from the
+// matter and client data. Drafting fails closed: it never assumes a province.
+var ErrPlaceUnknown = errors.New("draft: place of supply unknown")
 
 // WIPItem is one unbilled time entry or expense a draft can bill. Amounts are int64 cents.
 type WIPItem struct {
@@ -41,19 +47,27 @@ type Payers interface {
 	Payer(ctx context.Context, tx pgx.Tx, matterID string) (string, error)
 }
 
+// Places reads the place-of-supply facts of a matter's bill from the matter and its client:
+// the client's address province and residency, the court province of commenced litigation
+// and the province of the real property the matter relates to (tax.Supply).
+type Places interface {
+	Supply(ctx context.Context, tx pgx.Tx, matterID string) (tax.Supply, error)
+}
+
 // SQL PGDrafts runs. Tests script a pgx.Tx against these exact strings.
 const (
 	draftInsertSQL = `
 INSERT INTO billing.bill (matter_id, payer_id, status, period, fees_cents, taxable_disb_cents, nontaxable_disb_cents,
-                          tax_cents, total_cents, tax_breakdown, layout_id, created_by, updated_by)
+                          tax_cents, total_cents, tax_breakdown, layout_id, created_by, updated_by,
+                          place_of_supply_province, place_of_supply)
 VALUES ($1::uuid, $2::uuid, 'draft', daterange($3::date, $4::date, '[]'), $5, $6, $7, $8, $9, $10::jsonb,
-        nullif($11, '')::uuid, $12::uuid, $12::uuid)
+        nullif($11, '')::uuid, $12::uuid, $12::uuid, nullif($13, ''), $14::jsonb)
 RETURNING id::text`
 	draftLineInsertSQL = `
 INSERT INTO billing.bill_line (bill_id, ordinal, source_type, time_entry_id, expense_id, narrative, quantity_milli,
                                rate_cents, amount_cents, tax_code)
 VALUES ($1::uuid, $2, $3, nullif($4, '')::uuid, nullif($5, '')::uuid, $6, $7, $8, $9, $10)`
-	draftLockSQL  = `SELECT status, discount_cents FROM billing.bill WHERE id = $1::uuid FOR UPDATE`
+	draftLockSQL  = `SELECT status, discount_cents, matter_id::text FROM billing.bill WHERE id = $1::uuid FOR UPDATE`
 	draftLinesSQL = `
 SELECT ordinal, source_type, coalesce(time_entry_id::text, expense_id::text, ''), amount_cents, tax_code
   FROM billing.bill_line WHERE bill_id = $1::uuid ORDER BY ordinal`
@@ -66,19 +80,25 @@ UPDATE billing.bill
                      ELSE daterange(coalesce($2::date, lower(period)), coalesce($3::date, upper(period) - 1), '[]') END,
        layout_id = CASE WHEN $4::text IS NULL THEN layout_id ELSE nullif($4, '')::uuid END,
        fees_cents = $5, taxable_disb_cents = $6, nontaxable_disb_cents = $7, discount_cents = $8,
-       tax_cents = $9, total_cents = $10, tax_breakdown = $11::jsonb, updated_by = $12::uuid
+       tax_cents = $9, total_cents = $10, tax_breakdown = $11::jsonb, updated_by = $12::uuid,
+       place_of_supply_province = nullif($13, ''), place_of_supply = $14::jsonb
  WHERE id = $1::uuid AND status IN ('draft', 'preflight_failed')`
+	draftLineCodeSQL = `
+UPDATE billing.bill_line SET tax_code = $2 WHERE bill_id = $1::uuid AND tax_code <> 'EXEMPT' AND tax_code <> $2`
 )
 
 // PGDrafts is the Postgres bill.Drafts over billing.bill and billing.bill_line. It reads and
-// claims unbilled work through WIP and the payer through Payers. A draft's tax is one
-// component (TaxCode at TaxRatePPM) on fees and own-cost disbursements less the discount.
+// claims unbilled work through WIP and the payer through Payers. A draft's tax comes from
+// the place-of-supply engine: Places gives the matter's supply facts, Decider applies the CRA
+// place-of-supply rules (T-014.2) and Calc computes one line per component on fees and
+// own-cost disbursements less the discount. There is no default province.
 type PGDrafts struct {
-	WIP        WIP
-	Payers     Payers
-	TaxCode    string // e.g. "HST-ON"
-	Component  string // e.g. "HST"
-	TaxRatePPM int64  // e.g. 130000
+	WIP     WIP
+	Payers  Payers
+	Places  Places
+	Decider tax.PlaceOfSupply
+	Calc    tax.Calculator
+	Now     func() time.Time // the tax point of a draft; bills are dated in America/Toronto
 }
 
 var _ bill.Drafts = PGDrafts{}
@@ -98,8 +118,68 @@ type pgLine struct {
 	taxCode  string
 }
 
-// compute returns the totals of lines under discount. It has no I/O.
-func (d PGDrafts) compute(lines []pgLine, discount int64) (totals, error) {
+// supply is a draft's decided place of supply and the date its rates are taken on.
+type supply struct {
+	place tax.Place
+	on    time.Time
+}
+
+// province is the place_of_supply_province column: empty (NULL) for a zero-rated supply.
+func (s supply) province() string {
+	if s.place.Province == tax.Zero {
+		return ""
+	}
+	return s.place.Province
+}
+
+// detail is the place_of_supply column: where the supply is made and the rules that decided it.
+func (s supply) detail() (string, error) {
+	b, err := json.Marshal(map[string]string{"jurisdiction": s.place.Province, "rule_applied": strings.Join(s.place.Rules, ",")})
+	return string(b), err
+}
+
+// lineCode is the tax code of a taxable line: the code of the place's first component.
+func (s supply) lineCode() string {
+	if s.place.Province == tax.Zero || len(s.place.Components) == 0 {
+		return tax.Zero
+	}
+	return taxCode(s.place.Province, s.place.Components[0])
+}
+
+// taxCode is the billing.tax_rate code of component c at prov (tax.Seed).
+func taxCode(prov string, c tax.Component) string {
+	if c == tax.GST {
+		return "GST"
+	}
+	return string(c) + "-" + prov
+}
+
+// place decides the place of supply of a draft on matterID, failing closed when it is unknown.
+func (d PGDrafts) place(ctx context.Context, tx pgx.Tx, matterID string) (supply, error) {
+	s, err := d.Places.Supply(ctx, tx, matterID)
+	if err != nil {
+		return supply{}, fmt.Errorf("place of supply of matter %s: %w", matterID, err)
+	}
+	loc, err := time.LoadLocation("America/Toronto")
+	if err != nil {
+		return supply{}, fmt.Errorf("place of supply: %w", err)
+	}
+	now := d.Now().In(loc)
+	on := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	s.Date = on
+	// rule: BIL-T-010
+	p, err := d.Decider.Decide(ctx, s)
+	if errors.Is(err, tax.ErrUnknownProvince) {
+		return supply{}, fmt.Errorf("place of supply of matter %s: %w: %w", matterID, ErrPlaceUnknown, err)
+	}
+	if err != nil {
+		return supply{}, fmt.Errorf("place of supply of matter %s: %w", matterID, err)
+	}
+	return supply{place: p, on: on}, nil
+}
+
+// compute returns the totals of lines under discount, taxed at the place of supply.
+func (d PGDrafts) compute(ctx context.Context, lines []pgLine, discount int64, s supply) (totals, error) {
 	var t totals
 	for _, l := range lines {
 		switch {
@@ -117,19 +197,24 @@ func (d PGDrafts) compute(lines []pgLine, discount int64) (totals, error) {
 	}
 	t.discount = discount
 	base := t.fees + t.taxable - discount
-	tax, err := money.Rhu(base*d.TaxRatePPM, 1_000_000)
+	// rule: BIL-C-200
+	taxLines, err := d.Calc.Compute(ctx, money.Cents(base), s.place, s.on)
 	if err != nil {
 		return totals{}, fmt.Errorf("draft totals: %w", err)
 	}
-	t.tax = tax
-	t.total = t.fees + t.taxable + t.nontaxable - discount + tax
-	t.breakdown = []bill.TaxLine{{TaxCode: d.TaxCode, Component: d.Component, RatePPM: d.TaxRatePPM, BaseCents: base, TaxCents: tax}}
+	t.breakdown = []bill.TaxLine{}
+	for _, l := range taxLines {
+		t.tax += int64(l.Amount)
+		t.breakdown = append(t.breakdown, bill.TaxLine{TaxCode: taxCode(s.place.Province, l.Component), Component: string(l.Component),
+			RatePPM: int64(l.RatePPM), BaseCents: int64(l.Base), TaxCents: int64(l.Amount)})
+	}
+	t.total = t.fees + t.taxable + t.nontaxable - discount + t.tax
 	return t, nil
 }
 
 func (d PGDrafts) ready() error {
-	if d.WIP == nil || d.Payers == nil || d.TaxCode == "" || d.Component == "" || d.TaxRatePPM < 0 {
-		return fmt.Errorf("drafts: WIP, Payers and tax: %w", bill.ErrInvalid)
+	if d.WIP == nil || d.Payers == nil || d.Places == nil || d.Decider == nil || d.Calc == nil || d.Now == nil {
+		return fmt.Errorf("drafts: WIP, Payers, Places, Decider, Calc and Now: %w", bill.ErrInvalid)
 	}
 	return nil
 }
@@ -142,6 +227,12 @@ func (d PGDrafts) Create(ctx context.Context, tx pgx.Tx, r bill.DraftRequest) (b
 	}
 	if r.MatterID == "" || r.PreparedBy == "" || r.PeriodTo.IsZero() {
 		return "", fmt.Errorf("create draft: %w", bill.ErrInvalid)
+	}
+	// rule: BIL-T-010
+	// Tax follows the place of supply; an unknown place refuses the draft before WIP is read.
+	sup, err := d.place(ctx, tx, r.MatterID)
+	if err != nil {
+		return "", fmt.Errorf("create draft: %w", err)
 	}
 	items, err := d.WIP.Unbilled(ctx, tx, r.MatterID, r.PeriodFrom, r.PeriodTo)
 	if err != nil {
@@ -170,7 +261,7 @@ func (d PGDrafts) Create(ctx context.Context, tx pgx.Tx, r bill.DraftRequest) (b
 			it.Narrative = a.Narrative
 		}
 		it.AmountCents = amount
-		code := d.TaxCode
+		code := sup.lineCode()
 		if it.Source == bill.SourceExpense && it.Agency {
 			code = bill.TaxCodeExempt
 		}
@@ -184,7 +275,11 @@ func (d PGDrafts) Create(ctx context.Context, tx pgx.Tx, r bill.DraftRequest) (b
 	if len(billed) == 0 {
 		return "", fmt.Errorf("create draft for matter: %w", bill.ErrNoUnbilledWIP)
 	}
-	t, err := d.compute(lines, 0)
+	t, err := d.compute(ctx, lines, 0, sup)
+	if err != nil {
+		return "", fmt.Errorf("create draft: %w", err)
+	}
+	pos, err := sup.detail()
 	if err != nil {
 		return "", fmt.Errorf("create draft: %w", err)
 	}
@@ -198,7 +293,7 @@ func (d PGDrafts) Create(ctx context.Context, tx pgx.Tx, r bill.DraftRequest) (b
 	}
 	var id string
 	if err := tx.QueryRow(ctx, draftInsertSQL, r.MatterID, payer, from.Format(time.DateOnly), r.PeriodTo.Format(time.DateOnly),
-		t.fees, t.taxable, t.nontaxable, t.tax, t.total, string(taxes), r.TemplateID, r.PreparedBy).Scan(&id); err != nil {
+		t.fees, t.taxable, t.nontaxable, t.tax, t.total, string(taxes), r.TemplateID, r.PreparedBy, sup.province(), pos).Scan(&id); err != nil {
 		return "", fmt.Errorf("create draft: %w", err)
 	}
 	for i, l := range lines {
@@ -253,9 +348,9 @@ func (d PGDrafts) Edit(ctx context.Context, tx pgx.Tx, id bill.ID, e bill.DraftE
 	if e.EditedBy == "" {
 		return fmt.Errorf("edit draft %s: %w", id, bill.ErrInvalid)
 	}
-	var status string
+	var status, matterID string
 	var discount int64
-	if err := tx.QueryRow(ctx, draftLockSQL, string(id)).Scan(&status, &discount); err != nil {
+	if err := tx.QueryRow(ctx, draftLockSQL, string(id)).Scan(&status, &discount, &matterID); err != nil {
 		var pg *pgconn.PgError
 		if errors.Is(err, pgx.ErrNoRows) || (errors.As(err, &pg) && pg.Code == "22P02") {
 			return fmt.Errorf("edit draft %s: %w", id, bill.ErrNotFound)
@@ -296,7 +391,20 @@ func (d PGDrafts) Edit(ctx context.Context, tx pgx.Tx, id bill.ID, e bill.DraftE
 	if e.DiscountCents != nil {
 		discount = *e.DiscountCents
 	}
-	t, err := d.compute(lines, discount)
+	// rule: BIL-T-010
+	// The place is decided again, so a draft follows the matter and client data it is edited under.
+	sup, err := d.place(ctx, tx, matterID)
+	if err != nil {
+		return fmt.Errorf("edit draft %s: %w", id, err)
+	}
+	if _, err := tx.Exec(ctx, draftLineCodeSQL, string(id), sup.lineCode()); err != nil {
+		return fmt.Errorf("edit draft %s: line tax codes: %w", id, err)
+	}
+	t, err := d.compute(ctx, lines, discount, sup)
+	if err != nil {
+		return fmt.Errorf("edit draft %s: %w", id, err)
+	}
+	pos, err := sup.detail()
 	if err != nil {
 		return fmt.Errorf("edit draft %s: %w", id, err)
 	}
@@ -305,7 +413,7 @@ func (d PGDrafts) Edit(ctx context.Context, tx pgx.Tx, id bill.ID, e bill.DraftE
 		return fmt.Errorf("edit draft %s: %w", id, err)
 	}
 	tag, err := tx.Exec(ctx, draftUpdateSQL, string(id), datePtr(e.PeriodFrom), datePtr(e.PeriodTo), e.TemplateID,
-		t.fees, t.taxable, t.nontaxable, t.discount, t.tax, t.total, string(taxes), e.EditedBy)
+		t.fees, t.taxable, t.nontaxable, t.discount, t.tax, t.total, string(taxes), e.EditedBy, sup.province(), pos)
 	if err != nil {
 		return fmt.Errorf("edit draft %s: %w", id, err)
 	}

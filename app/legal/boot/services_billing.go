@@ -2,6 +2,7 @@ package boot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
+	"github.com/dagi377/counsel/app/legal/billing/tax"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
@@ -76,12 +78,50 @@ func billingServices(k *kboot.Kernel, p BillingPorts) (billingSvcs, error) {
 	}, nil
 }
 
-// Draft tax defaults: Ontario HST on fees and own-cost disbursements.
-const (
-	draftTaxCode    = "HST-ON"
-	draftComponent  = "HST"
-	draftTaxRatePPM = 130000
-)
+// ClientPlaces is the draft.Places adapter over the matter's client: the place-of-supply
+// facts are the province and country of the client's first address (party.contact.addresses)
+// and whether the client is an organization. A client with no province on file gives an
+// empty ClientProvince, which the decider refuses (draft.ErrPlaceUnknown). Court and property
+// provinces and the firm's provincial registrations are not recorded yet, so they stay empty.
+type ClientPlaces struct {
+	Matters MatterReader
+}
+
+var _ draft.Places = ClientPlaces{}
+
+const clientPlaceSQL = `
+SELECT coalesce(upper(btrim(addresses->0->>'province')), ''), coalesce(upper(btrim(addresses->0->>'country')), ''),
+       kind = 'organization'
+  FROM party.contact WHERE id = $1::uuid`
+
+// Supply implements draft.Places. A Canadian address (country CA or none given) is taxed by
+// its province; a foreign country is passed as the client's code so the non-resident rules
+// apply. The client comes from the matter module's reader (ARC-I-041); a nil reader, an
+// unknown matter or a matter without a client fails closed.
+func (p ClientPlaces) Supply(ctx context.Context, tx pgx.Tx, matterID string) (tax.Supply, error) {
+	client, err := MatterPayers(p).Payer(ctx, tx, matterID)
+	if err != nil {
+		return tax.Supply{}, fmt.Errorf("supply: %w", err)
+	}
+	var province, country string
+	var business bool
+	err = tx.QueryRow(ctx, clientPlaceSQL, client).Scan(&province, &country, &business)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return tax.Supply{}, fmt.Errorf("supply of %s: client %s: %w", matterID, client, party.ErrNotFound)
+	}
+	if err != nil {
+		return tax.Supply{}, fmt.Errorf("supply of %s: %w", matterID, err)
+	}
+	s := tax.Supply{ClientProvince: province, RecipientBusiness: business, ServiceType: "general"}
+	switch country {
+	case "CA":
+		s.RecipientResident = true
+	case "":
+	default:
+		s.ClientProvince = country
+	}
+	return s, nil
+}
 
 // draftWIP adapts timekeeping.PGWIP, which owns the time and expense rows, to draft.WIP.
 type draftWIP struct{ wip timekeeping.PGWIP }
@@ -149,12 +189,14 @@ func (p HTTPPorts) withPostgresBilling(k *kboot.Kernel) HTTPPorts {
 		p.Bills = bill.NewPGService(k.DB, k.Clock.Now)
 	}
 	if p.Drafts == nil {
+		matters := matter.NewStore(k.DB, party.NewStore(k.DB))
 		p.Drafts = draft.PGDrafts{
-			WIP:        draftWIP{},
-			Payers:     MatterPayers{Matters: matter.NewStore(k.DB, party.NewStore(k.DB))},
-			TaxCode:    draftTaxCode,
-			Component:  draftComponent,
-			TaxRatePPM: draftTaxRatePPM,
+			WIP:     draftWIP{},
+			Payers:  MatterPayers{Matters: matters},
+			Places:  ClientPlaces{Matters: matters},
+			Decider: tax.NewPlaceOfSupply(),
+			Calc:    tax.NewCalculator(tax.NewRateTable(tax.Seed())),
+			Now:     k.Clock.Now,
 		}
 	}
 	if p.Outbox == nil && k.Emitter != nil {
