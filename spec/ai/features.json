@@ -1725,6 +1725,7 @@
     "list_documents",
     "read_document",
     "search_documents",
+    "draft_document",
     "propose_deadline",
     "report_plan",
     "report_step",

@@ -73,13 +73,14 @@ func IngestDocumentDef() feature.Def {
 		// embedding+extraction: passages are ranked by embedding, then one extraction call.
 		Kind: ai.KindExtraction,
 		Tools: []string{
-			"get_matter", "list_documents", "read_document", "search_documents",
+			"get_matter", "list_documents", "read_document", "search_documents", "draft_document",
 			"propose_deadline", "report_plan", "report_step", "submit_for_approval",
 		},
-		// docs.filing_privilege has no dedicated write tool: the run submits the filed
-		// document. propose_deadline opens cal.confirm.
+		// docs.filing_privilege is a tool-gap kind with no write tool of its own: the run drafts
+		// the filing review with draft_document and opens it with submit_for_approval.
+		// propose_deadline opens cal.confirm.
 		GateKinds:    []string{GateFilingPrivilege, GateCalConfirm},
-		Grant:        []string{"agent.ask", "deadlines.edit", "documents.view", "matters.view"},
+		Grant:        []string{"agent.ask", "deadlines.edit", "documents.edit", "documents.view", "matters.view"},
 		Prompt:       prompts,
 		PromptPath:   "prompts/f-doc-01.md",
 		Fixture:      "testdata/ai/f-doc-01/ingest-document",

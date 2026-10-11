@@ -2519,3 +2519,14 @@ Done in PORT-18:
   `agenttest/quoted_test.go` covers both shapes and the refusals.
 - F-DOC-02 binds both `conflict.cleared` and `lead.converted` (the spec trigger names G2 and
   G1); the prompt has the agent draft only when the matter shows both done.
+## Q-FEAT-DOC-02 F-DOC-01 drafts its filing review: draft_document added to the Def and spec
+
+- FEAT-DOC-02 asks that the tool-gap kind docs.filing_privilege (G-D1) be opened "via
+  draft_document then submit_for_approval". submit_for_approval opens a gate only for a
+  subject the run drafted, and F-DOC-01 listed no draft tool, so its run could not open G-D1.
+- As decided for F-DL-02 (Q-FEAT-DL-04), draft_document is added to F-DOC-01 in
+  spec/ai/features.json and in IngestDocumentDef (app/legal/docs/ai_f_doc_01.go), with its
+  capability documents.edit in the Grant. The change is additive; the extraction pipeline
+  (IngestPipeline and its IngestSink) is unchanged.
+- The four intake channels (upload, email-in, portal upload, scan) all file a document
+  version, and a2 names one event for that, document.uploaded, so the binding has one event.
