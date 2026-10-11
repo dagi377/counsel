@@ -1,0 +1,72 @@
+# Ontario Rules of Civil Procedure (R.R.O. 1990, Reg. 194) day counting, as rule-pack data.
+# Every entry is (verify): a lawyer must confirm it before the flag is turned on.
+# Feature flag: deadline.ontario_pack (off by default). Every computed date needs a person's
+# confirmation (confirm: true).
+#
+# r. 3.01(1)(a): exclude the trigger day, include the last day ("clear days" is abolished),
+#   so periods use day_count calendar, not clear.
+# r. 3.01(1)(b): a period of 7 days or less does not count holidays -> day_count business.
+# r. 3.01(1)(c): a period that ends on a holiday ends on the next day that is not -> roll forward.
+# r. 1.03 "holiday" includes Saturday and Sunday; the dated holidays below match holidays.yaml.
+# Not expressible yet (left out): periods counted back from a hearing, and the
+# December 21 - January 6 pleading service rule.
+pack: ontario_civil_procedure
+version: 1
+time_zone: America/Toronto
+holidays:
+  - "2026-01-01" # New Year's Day
+  - "2026-02-16" # Family Day
+  - "2026-04-03" # Good Friday
+  - "2026-04-06" # Easter Monday
+  - "2026-05-18" # Victoria Day
+  - "2026-07-01" # Canada Day
+  - "2026-08-03" # Civic Holiday
+  - "2026-09-07" # Labour Day
+  - "2026-10-12" # Thanksgiving Day
+  - "2026-11-11" # Remembrance Day
+  - "2026-12-25" # Christmas Day
+  - "2026-12-26" # Boxing Day (Saturday)
+  - "2026-12-28" # Monday after Christmas Day falling on a Friday
+rules:
+  - id: statement_of_defence
+    description: "r. 18.01(a) (verify): statement of defence, 20 days after service of the claim in Ontario."
+    trigger: claim_served
+    offset_days: 20
+    day_count: calendar
+    roll: forward
+    confirm: true
+  - id: notice_of_intent_to_defend
+    description: "r. 18.02(1) (verify): notice of intent to defend, 10 days after service of the claim."
+    trigger: claim_served
+    offset_days: 10
+    day_count: calendar
+    roll: forward
+    confirm: true
+  - id: reply
+    description: "r. 25.04(1) (verify): reply, 10 days after service of the statement of defence."
+    trigger: defence_served
+    offset_days: 10
+    day_count: calendar
+    roll: forward
+    confirm: true
+  - id: notice_of_appeal
+    description: "r. 61.04(1) (verify): notice of appeal, 30 days after the order appealed from."
+    trigger: order_made
+    offset_days: 30
+    day_count: calendar
+    roll: forward
+    confirm: true
+  - id: leave_to_appeal_motion
+    description: "r. 62.02(2) (verify): notice of motion for leave to appeal, 15 days after the order."
+    trigger: order_made
+    offset_days: 15
+    day_count: calendar
+    roll: forward
+    confirm: true
+  - id: short_period_7_days
+    description: "r. 3.01(1)(b) (verify): a 7-day period, holidays and weekends not counted."
+    trigger: any_event
+    offset_days: 7
+    day_count: business
+    roll: forward
+    confirm: true
