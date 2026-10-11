@@ -392,12 +392,12 @@ Max width 301.
 | [x] | T-032.1 | T-032 | kernel | kernel/docs: document kinds and upload | T-005.0, T-006.0, T-007.0, T-032.0 | `kernel/docs/kind.go`<br>`kernel/docs/upload.go`<br>`kernel/docs/kind_test.go` |  |
 | [x] | T-032.4 | T-032 | kernel | kernel/retention: retention classes | T-005.0, T-006.0, T-007.0, T-032.0 | `kernel/retention/class.go`<br>`kernel/retention/class_test.go` |  |
 | [x] | T-032L.1 | T-032L | app | Legal document kinds and retention classes | T-007L.0, T-010b.0, T-032.0, T-032L.0 | `app/legal/docs/kinds.go`<br>`app/legal/docs/kinds_test.go` |  |
-| [ ] | T-033.1 | T-033 | app | Leads and intake forms | T-029.0, T-033.0 | `app/legal/intake/lead.go`<br>`app/legal/intake/form.go`<br>`app/legal/intake/lead_test.go` |  |
+| [x] | T-033.1 | T-033 | app | Leads and intake forms | T-029.0, T-033.0 | `app/legal/intake/lead.go`<br>`app/legal/intake/form.go`<br>`app/legal/intake/lead_test.go` |  |
 | [ ] | T-034.1 | T-034 | kernel | kernel/work: work items on registered subjects | T-006.0, T-007.0, T-034.0 | `kernel/work/item.go`<br>`kernel/work/item_test.go` |  |
 | [x] | T-035.1 | T-035 | kernel | kernel/notify: templates and channel preferences | T-006.0, T-009.0, T-032.0, T-035.0 | `kernel/notify/notify.go`<br>`kernel/notify/notify_test.go` |  |
 | [x] | T-035.3 | T-035 | kernel | kernel/portal: guest identity and sign-in | T-006.0, T-009.0, T-032.0, T-035.0 | `kernel/portal/auth.go`<br>`kernel/portal/auth_test.go` |  |
 | [x] | T-035L.1 | T-035L | app | Client portal page loaders | T-010b.0, T-021.0, T-035.0, T-035L.0 | `app/legal/comms/portal.go`<br>`app/legal/comms/portal_test.go` |  |
-| [ ] | T-035L.2 | T-035L | app | Court filings and message templates | T-010b.0, T-021.0, T-035.0, T-035L.0 | `app/legal/comms/filings.go`<br>`app/legal/comms/templates.go`<br>`app/legal/comms/filings_test.go` |  |
+| [x] | T-035L.2 | T-035L | app | Court filings and message templates | T-010b.0, T-021.0, T-035.0, T-035L.0 | `app/legal/comms/filings.go`<br>`app/legal/comms/templates.go`<br>`app/legal/comms/filings_test.go` |  |
 | [x] | T-036.1 | T-036 | kernel | kernel/webhook: Standard Webhooks signing | T-008.0, T-036.0 | `kernel/webhook/sign.go`<br>`kernel/webhook/sign_test.go` |  |
 | [x] | T-036.3 | T-036 | kernel | kernel/webhook: registered event types with schema | T-008.0, T-036.0 | `kernel/webhook/types.go`<br>`kernel/webhook/types_test.go` |  |
 | [x] | T-037.1 | T-037 | kernel | kernel/agenttools: Tool registration and input schema | T-007.0, T-032.0, T-037.0 | `kernel/agenttools/tool.go`<br>`kernel/agenttools/tool_test.go` |  |
@@ -433,7 +433,7 @@ Max width 301.
 | [x] | T-044.3 | T-044 | kernel | kernel/flags: owner and expiry validation | T-043.0, T-044.0 | `kernel/flags/config.go`<br>`kernel/flags/config_test.go` |  |
 | [x] | T-044.4 | T-044 | kernel | Dead letter paging and replay | T-008.0, T-043.0 | `kernel/outbox/deadletter.go`<br>`kernel/outbox/deadletter_test.go` |  |
 | [x] | T-044.5 | T-044 | kernel | Purge guard for never_purge classes | T-032.0, T-043.0 | `kernel/retention/guard.go`<br>`kernel/retention/guard_test.go` |  |
-| [ ] | T-045.1 | T-045 | kernel | web generated API client | T-009.0 | `web/src/kernel/api/client.ts`<br>`web/src/kernel/api/client.test.ts`<br>`tools/gen_client.mjs` |  |
+| [x] | T-045.1 | T-045 | kernel | web generated API client | T-009.0 | `web/src/kernel/api/client.ts`<br>`web/src/kernel/api/client.test.ts`<br>`tools/gen_client.mjs` |  |
 | [x] | T-045.2 | T-045 | kernel | web money formatter and float lint | T-009.0 | `web/src/kernel/money.ts`<br>`web/src/kernel/money.test.ts`<br>`web/eslint.config.js` |  |
 
 ### Wave 2 (94 tasks)
@@ -442,97 +442,97 @@ Max width 301.
 |---|---|---|---|---|---|---|---|
 | [ ] | AI-009 | AI-009 | kernel | Paploo plugin path on the mock: Paploo dev stack with test/fakes/llm | AI-004, AI-008, T-037L.0 | `deploy/compose.paploo.yaml`<br>`paploo/counsel-plugin/paploo.yaml`<br>`test/e2e/suites/paploo-mock.sh` |  |
 | [ ] | AI-011 | AI-011 | kernel | CI guard: no live model anywhere in tests | AI-008 | `.github/workflows/ci.yaml`<br>`tools/no_live_model_test.go` |  |
-| [ ] | T-003.2 | T-003 | kernel | kernel/money: Allocate largest remainder | T-001.1, T-001.2, T-001.3, T-001.4, T-003.0, T-003.1 | `kernel/money/allocate.go`<br>`kernel/money/allocate_test.go` |  |
+| [x] | T-003.2 | T-003 | kernel | kernel/money: Allocate largest remainder | T-001.1, T-001.2, T-001.3, T-001.4, T-003.0, T-003.1 | `kernel/money/allocate.go`<br>`kernel/money/allocate_test.go` |  |
 | [x] | T-005.2 | T-005 | kernel | kernel/audit: Verify and immutability triggers | T-002.0, T-004.0, T-005.0, T-005.1 | `kernel/audit/verify.go`<br>`kernel/audit/immutable_integration_test.go` |  |
-| [ ] | T-005.3 | T-005 | kernel | kernel/audit: detail masking | T-002.0, T-004.0, T-005.0, T-005.1 | `kernel/audit/mask.go`<br>`kernel/audit/mask_test.go` |  |
-| [ ] | T-006.2 | T-006 | kernel | kernel/identity: SubjectResolver visibility | T-002.0, T-006.0, T-006.1 | `kernel/identity/resolver.go`<br>`kernel/identity/resolver_test.go` |  |
+| [x] | T-005.3 | T-005 | kernel | kernel/audit: detail masking | T-002.0, T-004.0, T-005.0, T-005.1 | `kernel/audit/mask.go`<br>`kernel/audit/mask_test.go` |  |
+| [x] | T-006.2 | T-006 | kernel | kernel/identity: SubjectResolver visibility | T-002.0, T-006.0, T-006.1 | `kernel/identity/resolver.go`<br>`kernel/identity/resolver_test.go` |  |
 | [x] | T-006.3 | T-006 | kernel | kernel/identity: AgentPrincipal capability intersection | T-002.0, T-006.0, T-006.1 | `kernel/identity/agent.go`<br>`kernel/identity/agent_test.go` |  |
-| [ ] | T-006.4 | T-006 | kernel | kernel/identity: per-request RLS session | T-002.0, T-006.0, T-006.1 | `kernel/identity/session.go`<br>`kernel/identity/session_integration_test.go` |  |
-| [ ] | T-006L.2 | T-006L | app | Agent limits and module naming | T-002L.1, T-002L.2, T-006.0, T-006L.0, T-006L.1 | `app/legal/roles/agent.go`<br>`app/legal/roles/agent_test.go` |  |
-| [ ] | T-006L.3 | T-006L | app | Walls SubjectResolver | T-002L.1, T-002L.2, T-006.0, T-006L.0, T-006L.1 | `app/legal/roles/walls.go`<br>`app/legal/roles/walls_test.go` |  |
-| [ ] | T-007.2 | T-007 | kernel | kernel/gate: JCS payload hash and versions | T-005.0, T-006.0, T-007.0, T-007.1, T-008.0 | `kernel/gate/version.go`<br>`kernel/gate/jcs.go`<br>`kernel/gate/version_test.go` |  |
-| [ ] | T-007.3 | T-007 | kernel | kernel/gate: Decide with SoD and authority limits | T-005.0, T-006.0, T-007.0, T-007.1, T-008.0 | `kernel/gate/decide.go`<br>`kernel/gate/decide_test.go` |  |
+| [x] | T-006.4 | T-006 | kernel | kernel/identity: per-request RLS session | T-002.0, T-006.0, T-006.1 | `kernel/identity/session.go`<br>`kernel/identity/session_integration_test.go` |  |
+| [x] | T-006L.2 | T-006L | app | Agent limits and module naming | T-002L.1, T-002L.2, T-006.0, T-006L.0, T-006L.1 | `app/legal/roles/agent.go`<br>`app/legal/roles/agent_test.go` |  |
+| [x] | T-006L.3 | T-006L | app | Walls SubjectResolver | T-002L.1, T-002L.2, T-006.0, T-006L.0, T-006L.1 | `app/legal/roles/walls.go`<br>`app/legal/roles/walls_test.go` |  |
+| [x] | T-007.2 | T-007 | kernel | kernel/gate: JCS payload hash and versions | T-005.0, T-006.0, T-007.0, T-007.1, T-008.0 | `kernel/gate/version.go`<br>`kernel/gate/jcs.go`<br>`kernel/gate/version_test.go` |  |
+| [x] | T-007.3 | T-007 | kernel | kernel/gate: Decide with SoD and authority limits | T-005.0, T-006.0, T-007.0, T-007.1, T-008.0 | `kernel/gate/decide.go`<br>`kernel/gate/decide_test.go` |  |
 | [x] | T-007L.2 | T-007L | app | Sole-practitioner self-approval policy | T-006L.0, T-007.0, T-007L.0, T-007L.1 | `app/legal/gates/selfapproval.go`<br>`app/legal/gates/selfapproval_test.go` |  |
-| [ ] | T-007L.3 | T-007L | app | Trust cooling-off periods | T-006L.0, T-007.0, T-007L.0, T-007L.1 | `app/legal/gates/coolingoff.go`<br>`app/legal/gates/coolingoff_test.go` |  |
-| [ ] | T-007L.4 | T-007L | app | Human non-preparer decision check | T-006L.0, T-007.0, T-007L.0, T-007L.1 | `app/legal/gates/decision.go`<br>`app/legal/gates/decision_test.go` |  |
+| [x] | T-007L.3 | T-007L | app | Trust cooling-off periods | T-006L.0, T-007.0, T-007L.0, T-007L.1 | `app/legal/gates/coolingoff.go`<br>`app/legal/gates/coolingoff_test.go` |  |
+| [x] | T-007L.4 | T-007L | app | Human non-preparer decision check | T-006L.0, T-007.0, T-007L.0, T-007L.1 | `app/legal/gates/decision.go`<br>`app/legal/gates/decision_test.go` |  |
 | [ ] | T-008.2 | T-008 | kernel | Money POST requires Idempotency-Key (conformance) | T-002.0, T-004.0, T-008.0, T-008.1 | `kernel/server/middleware/require_idem.go`<br>`kernel/server/middleware/require_idem_test.go` |  |
 | [ ] | T-008.4 | T-008 | kernel | kernel/outbox: gap-free subject_seq | T-002.0, T-004.0, T-008.0, T-008.3 | `kernel/outbox/seq.go`<br>`kernel/outbox/seq_integration_test.go` |  |
-| [ ] | T-008b.2 | T-008b | kernel | kernel/inbound: signature and timestamp check | T-008.0, T-008b.0, T-008b.1 | `kernel/inbound/verify.go`<br>`kernel/inbound/verify_test.go` |  |
+| [x] | T-008b.2 | T-008b | kernel | kernel/inbound: signature and timestamp check | T-008.0, T-008b.0, T-008b.1 | `kernel/inbound/verify.go`<br>`kernel/inbound/verify_test.go` |  |
 | [ ] | T-009.4 | T-009 | kernel | kernel/server: route registration and OpenAPI conformance | T-006.0, T-008.0, T-009.0, T-009.1 | `kernel/server/routes.go`<br>`kernel/server/conformance_test.go` |  |
-| [ ] | T-010.2 | T-010 | kernel | kernel/ledger: Reverse | T-003.0, T-005.0, T-010.0, T-010.1 | `kernel/ledger/reverse.go`<br>`kernel/ledger/reverse_test.go` |  |
-| [ ] | T-010.3 | T-010 | kernel | kernel/ledger: periods and ClosePeriod | T-003.0, T-005.0, T-010.0, T-010.1 | `kernel/ledger/period.go`<br>`kernel/ledger/period_integration_test.go` |  |
-| [ ] | T-010.4 | T-010 | kernel | kernel/ledger: chart registration and Balance | T-003.0, T-005.0, T-010.0, T-010.1 | `kernel/ledger/chart.go`<br>`kernel/ledger/balance.go`<br>`kernel/ledger/chart_test.go` |  |
-| [ ] | T-010L.2 | T-010L | app | AR and client credit invariants | T-002L.1, T-002L.2, T-010.0, T-010L.0, T-010L.1 | `app/legal/books/invariants.go`<br>`app/legal/books/invariants_test.go` |  |
-| [ ] | T-010L.3 | T-010L | app | Vendor bills in gl | T-002L.1, T-002L.2, T-010.0, T-010L.0, T-010L.1 | `app/legal/books/vendorbill.go`<br>`app/legal/books/vendorbill_test.go` |  |
-| [ ] | T-010b.3 | T-010b | app | Matter query API and api_matter view | T-006L.0, T-009.0, T-010b.0, T-010b.1 | `app/legal/matter/query.go`<br>`app/legal/matter/query_test.go` |  |
-| [ ] | T-011.2 | T-011 | app | Trust receipts and client ledgers | T-007L.0, T-010L.0, T-010b.0, T-011.0, T-011.1 | `app/legal/trust/receipt.go`<br>`app/legal/trust/receipt_integration_test.go` | trust.bylaw9_verified |
-| [ ] | T-012.2 | T-012 | app | Withdrawal gate effect with balance re-check | T-011.0, T-012.0, T-012.1 | `app/legal/trust/withdraw/effect.go`<br>`app/legal/trust/withdraw/effect_integration_test.go` | trust.bylaw9_verified |
-| [ ] | T-013.2 | T-013 | app | Three-way reconciliation | T-011.0, T-013.0, T-013.1 | `app/legal/trust/recon/threeway.go`<br>`app/legal/trust/recon/threeway_test.go` | trust.bylaw9_verified |
+| [x] | T-010.2 | T-010 | kernel | kernel/ledger: Reverse | T-003.0, T-005.0, T-010.0, T-010.1 | `kernel/ledger/reverse.go`<br>`kernel/ledger/reverse_test.go` |  |
+| [x] | T-010.3 | T-010 | kernel | kernel/ledger: periods and ClosePeriod | T-003.0, T-005.0, T-010.0, T-010.1 | `kernel/ledger/period.go`<br>`kernel/ledger/period_integration_test.go` |  |
+| [x] | T-010.4 | T-010 | kernel | kernel/ledger: chart registration and Balance | T-003.0, T-005.0, T-010.0, T-010.1 | `kernel/ledger/chart.go`<br>`kernel/ledger/balance.go`<br>`kernel/ledger/chart_test.go` |  |
+| [x] | T-010L.2 | T-010L | app | AR and client credit invariants | T-002L.1, T-002L.2, T-010.0, T-010L.0, T-010L.1 | `app/legal/books/invariants.go`<br>`app/legal/books/invariants_test.go` |  |
+| [x] | T-010L.3 | T-010L | app | Vendor bills in gl | T-002L.1, T-002L.2, T-010.0, T-010L.0, T-010L.1 | `app/legal/books/vendorbill.go`<br>`app/legal/books/vendorbill_test.go` |  |
+| [x] | T-010b.3 | T-010b | app | Matter query API and api_matter view | T-006L.0, T-009.0, T-010b.0, T-010b.1 | `app/legal/matter/query.go`<br>`app/legal/matter/query_test.go` |  |
+| [x] | T-011.2 | T-011 | app | Trust receipts and client ledgers | T-007L.0, T-010L.0, T-010b.0, T-011.0, T-011.1 | `app/legal/trust/receipt.go`<br>`app/legal/trust/receipt_integration_test.go` | trust.bylaw9_verified |
+| [x] | T-012.2 | T-012 | app | Withdrawal gate effect with balance re-check | T-011.0, T-012.0, T-012.1 | `app/legal/trust/withdraw/effect.go`<br>`app/legal/trust/withdraw/effect_integration_test.go` | trust.bylaw9_verified |
+| [x] | T-013.2 | T-013 | app | Three-way reconciliation | T-011.0, T-013.0, T-013.1 | `app/legal/trust/recon/threeway.go`<br>`app/legal/trust/recon/threeway_test.go` | trust.bylaw9_verified |
 | [ ] | T-014.2 | T-014 | app | Place-of-supply decision table | T-003.0, T-004.0, T-014.0, T-014.1 | `app/legal/billing/tax/pos.go`<br>`app/legal/billing/tax/decision_table_test.go` |  |
-| [ ] | T-014.3 | T-014 | app | Tax computation, no tax on tax | T-003.0, T-004.0, T-014.0, T-014.1 | `app/legal/billing/tax/compute.go`<br>`app/legal/billing/tax/compute_test.go` |  |
-| [ ] | T-015.2 | T-015 | app | Effective-dated re-pricing | T-003.0, T-006L.0, T-015.0, T-015.1 | `app/legal/timekeeping/rates/reprice.go`<br>`app/legal/timekeeping/rates/reprice_test.go` |  |
-| [ ] | T-015.4 | T-015 | app | Matter move rate recheck | T-003.0, T-006L.0, T-015.0, T-015.1 | `app/legal/timekeeping/rates/move.go`<br>`app/legal/timekeeping/rates/move_test.go` |  |
-| [ ] | T-016.2 | T-016 | app | Timers | T-007L.0, T-010b.0, T-015.0, T-016.0, T-016.1 | `app/legal/timekeeping/timer.go`<br>`app/legal/timekeeping/timer_test.go` |  |
-| [ ] | T-016.3 | T-016 | app | Write-downs and billed-entry lock | T-007L.0, T-010b.0, T-015.0, T-016.0, T-016.1 | `app/legal/timekeeping/writedown.go`<br>`app/legal/timekeeping/writedown_test.go` |  |
-| [ ] | T-016.4 | T-016 | app | Paralegal scope check | T-007L.0, T-010b.0, T-015.0, T-016.0, T-016.1 | `app/legal/timekeeping/paralegal.go`<br>`app/legal/timekeeping/paralegal_test.go` |  |
-| [ ] | T-017.2 | T-017 | app | Bill discounts | T-014.0, T-016.0, T-017.0, T-017.1 | `app/legal/billing/draft/discount.go`<br>`app/legal/billing/draft/discount_test.go` |  |
-| [ ] | T-017.3 | T-017 | app | Disbursements and markup | T-014.0, T-016.0, T-017.0, T-017.1 | `app/legal/billing/draft/disbursement.go`<br>`app/legal/billing/draft/disbursement_test.go` |  |
-| [ ] | T-017.5 | T-017 | app | Line reductions | T-014.0, T-016.0, T-017.0, T-017.1 | `app/legal/billing/draft/reduction.go`<br>`app/legal/billing/draft/reduction_test.go` |  |
-| [ ] | T-018.2 | T-018 | app | Bill totals and server recompute | T-017.0, T-018.0, T-018.1 | `app/legal/billing/total/total.go`<br>`app/legal/billing/total/total_test.go` |  |
+| [x] | T-014.3 | T-014 | app | Tax computation, no tax on tax | T-003.0, T-004.0, T-014.0, T-014.1 | `app/legal/billing/tax/compute.go`<br>`app/legal/billing/tax/compute_test.go` |  |
+| [x] | T-015.2 | T-015 | app | Effective-dated re-pricing | T-003.0, T-006L.0, T-015.0, T-015.1 | `app/legal/timekeeping/rates/reprice.go`<br>`app/legal/timekeeping/rates/reprice_test.go` |  |
+| [x] | T-015.4 | T-015 | app | Matter move rate recheck | T-003.0, T-006L.0, T-015.0, T-015.1 | `app/legal/timekeeping/rates/move.go`<br>`app/legal/timekeeping/rates/move_test.go` |  |
+| [x] | T-016.2 | T-016 | app | Timers | T-007L.0, T-010b.0, T-015.0, T-016.0, T-016.1 | `app/legal/timekeeping/timer.go`<br>`app/legal/timekeeping/timer_test.go` |  |
+| [x] | T-016.3 | T-016 | app | Write-downs and billed-entry lock | T-007L.0, T-010b.0, T-015.0, T-016.0, T-016.1 | `app/legal/timekeeping/writedown.go`<br>`app/legal/timekeeping/writedown_test.go` |  |
+| [x] | T-016.4 | T-016 | app | Paralegal scope check | T-007L.0, T-010b.0, T-015.0, T-016.0, T-016.1 | `app/legal/timekeeping/paralegal.go`<br>`app/legal/timekeeping/paralegal_test.go` |  |
+| [x] | T-017.2 | T-017 | app | Bill discounts | T-014.0, T-016.0, T-017.0, T-017.1 | `app/legal/billing/draft/discount.go`<br>`app/legal/billing/draft/discount_test.go` |  |
+| [x] | T-017.3 | T-017 | app | Disbursements and markup | T-014.0, T-016.0, T-017.0, T-017.1 | `app/legal/billing/draft/disbursement.go`<br>`app/legal/billing/draft/disbursement_test.go` |  |
+| [x] | T-017.5 | T-017 | app | Line reductions | T-014.0, T-016.0, T-017.0, T-017.1 | `app/legal/billing/draft/reduction.go`<br>`app/legal/billing/draft/reduction_test.go` |  |
+| [x] | T-018.2 | T-018 | app | Bill totals and server recompute | T-017.0, T-018.0, T-018.1 | `app/legal/billing/total/total.go`<br>`app/legal/billing/total/total_test.go` |  |
 | [ ] | T-019.2 | T-019 | app | Approved bill guard | T-007L.0, T-010L.0, T-010b.0, T-018.0, T-019.0, T-019.1 | `app/legal/billing/bill/guard.go`<br>`app/legal/billing/bill/guard_integration_test.go` |  |
 | [ ] | T-019.3 | T-019 | app | Bill signature and delivery | T-007L.0, T-010L.0, T-010b.0, T-018.0, T-019.0, T-019.1 | `app/legal/billing/bill/deliver.go`<br>`app/legal/billing/bill/deliver_test.go` |  |
 | [ ] | T-019.4 | T-019 | app | Delivered bill content | T-007L.0, T-010L.0, T-010b.0, T-018.0, T-019.0, T-019.1 | `app/legal/billing/bill/pdf.go`<br>`app/legal/billing/bill/pdf_test.go` | billing.solicitors_act_verified |
 | [ ] | T-019.5 | T-019 | app | Bill approval journal | T-007L.0, T-010L.0, T-010b.0, T-018.0, T-019.0, T-019.1 | `app/legal/billing/bill/journal.go`<br>`app/legal/billing/bill/journal_integration_test.go` |  |
 | [ ] | T-019.6 | T-019 | app | Paralegal bills and fee basis | T-007L.0, T-010L.0, T-010b.0, T-018.0, T-019.0, T-019.1 | `app/legal/billing/bill/paralegal.go`<br>`app/legal/billing/bill/paralegal_test.go` | billing.solicitors_act_verified |
-| [ ] | T-021.2 | T-021 | app | Payment provider webhook dedup | T-008.0, T-008b.0, T-019.0, T-021.0, T-021.1 | `app/legal/billing/payment/provider.go`<br>`app/legal/billing/payment/provider_test.go` |  |
-| [ ] | T-021.3 | T-021 | app | Overpayment and client credit | T-008.0, T-008b.0, T-019.0, T-021.0, T-021.1 | `app/legal/billing/payment/overpay.go`<br>`app/legal/billing/payment/overpay_test.go` |  |
-| [ ] | T-021.4 | T-021 | app | Operating receipts journal | T-008.0, T-008b.0, T-019.0, T-021.0, T-021.1 | `app/legal/billing/payment/receipts.go`<br>`app/legal/billing/payment/receipts_test.go` |  |
-| [ ] | T-021.5 | T-021 | app | NSF reversal of payments | T-008.0, T-008b.0, T-019.0, T-021.0, T-021.1 | `app/legal/billing/payment/nsf.go`<br>`app/legal/billing/payment/nsf_test.go` |  |
-| [ ] | T-021.6 | T-021 | app | Refunds, disputes and chargebacks | T-008.0, T-008b.0, T-019.0, T-021.0, T-021.1 | `app/legal/billing/payment/dispute.go`<br>`app/legal/billing/payment/dispute_test.go` |  |
-| [ ] | T-022.2 | T-022 | app | Disbursement paid from trust | T-012.0, T-021.0, T-022.1 | `app/legal/billing/trustapply/disbursement.go`<br>`app/legal/billing/trustapply/disbursement_test.go` | trust.bylaw9_verified |
-| [ ] | T-022.3 | T-022 | app | Auto-apply proposals | T-012.0, T-021.0, T-022.1 | `app/legal/billing/trustapply/auto.go`<br>`app/legal/billing/trustapply/auto_test.go` | trust.bylaw9_verified |
-| [ ] | T-022.4 | T-022 | app | Retainer tax timing | T-012.0, T-021.0, T-022.1 | `app/legal/billing/trustapply/retainer.go`<br>`app/legal/billing/trustapply/retainer_test.go` | trust.bylaw9_verified |
-| [ ] | T-023.2 | T-023 | app | Write-offs and bad-debt adjustment | T-021.0, T-023.0, T-023.1 | `app/legal/billing/credit/writeoff.go`<br>`app/legal/billing/credit/writeoff_test.go` |  |
-| [ ] | T-024.1 | T-024 | app | Interest accrual start | T-021.0, T-024.0, T-024.3 | `app/legal/billing/interest/start.go`<br>`app/legal/billing/interest/start_test.go` | billing.solicitors_act_verified |
-| [ ] | T-024b.3 | T-024b | app | Assessment result repayment | T-023.0, T-024.0, T-024b.2 | `app/legal/billing/assessment/result.go`<br>`app/legal/billing/assessment/result_test.go` | billing.solicitors_act_verified |
-| [ ] | T-025.3 | T-025 | app | Combined client bills | T-019.0, T-025.2 | `app/legal/billing/batch/combined.go`<br>`app/legal/billing/batch/combined_test.go` |  |
-| [ ] | T-026.2 | T-026 | app | Surcharge tax and refunds | T-021.0, T-026.1 | `app/legal/billing/surcharge/tax.go`<br>`app/legal/billing/surcharge/tax_test.go` | billing.card_surcharge |
-| [ ] | T-027.2 | T-027 | app | Settlement statement | T-017.0, T-027.1 | `app/legal/billing/contingency/settlement.go`<br>`app/legal/billing/contingency/settlement_test.go` | billing.contingency_fees |
-| [ ] | T-029.2 | T-029 | app | G2 clearance | T-007L.0, T-010b.0, T-029.0, T-029.1 | `app/legal/conflict/clearance.go`<br>`app/legal/conflict/clearance_test.go` |  |
-| [ ] | T-029.3 | T-029 | app | Ethical walls | T-007L.0, T-010b.0, T-029.0, T-029.1 | `app/legal/conflict/walls.go`<br>`app/legal/conflict/walls_test.go` |  |
-| [ ] | T-030.2 | T-030 | app | Matter team and stages | T-010b.0, T-029.0, T-030.1 | `app/legal/matter/team.go`<br>`app/legal/matter/stages.go`<br>`app/legal/matter/stages_test.go` |  |
-| [ ] | T-030.3 | T-030 | app | Matter notes and facts | T-010b.0, T-029.0, T-030.1 | `app/legal/matter/notes.go`<br>`app/legal/matter/notes_test.go` |  |
-| [ ] | T-030.4 | T-030 | app | Matter RLS policies | T-010b.0, T-029.0, T-030.1 | `app/legal/matter/rls.go`<br>`app/legal/matter/rls_integration_test.go` |  |
-| [ ] | T-031.2 | T-031 | kernel | kernel/deadline: day-count computation | T-004.0, T-007.0, T-031.0, T-031.1, T-034.0 | `kernel/deadline/compute.go`<br>`kernel/deadline/compute_test.go` |  |
-| [ ] | T-031L.2 | T-031L | app | Rules of Civil Procedure rule pack | T-010b.0, T-031.0, T-031L.1 | `app/legal/rulepacks/ontario/civil-procedure.yaml`<br>`app/legal/rulepacks/ontario/golden_test.go` | deadline.ontario_pack |
-| [ ] | T-032.2 | T-032 | kernel | kernel/docs: page/line text and citations | T-005.0, T-006.0, T-007.0, T-032.0, T-032.1 | `kernel/docs/text.go`<br>`kernel/docs/cite.go`<br>`kernel/docs/cite_test.go` |  |
-| [ ] | T-032.3 | T-032 | kernel | kernel/docs: blob storage, no text in logs | T-005.0, T-006.0, T-007.0, T-032.0, T-032.1 | `kernel/docs/blob.go`<br>`kernel/docs/blob_test.go` |  |
-| [ ] | T-032.5 | T-032 | kernel | kernel/retention: purge proposals via destruction gate | T-005.0, T-006.0, T-007.0, T-032.0, T-032.4 | `kernel/retention/purge.go`<br>`kernel/retention/purge_test.go` |  |
-| [ ] | T-032L.2 | T-032L | app | Matter folders | T-007L.0, T-010b.0, T-032.0, T-032L.0, T-032L.1 | `app/legal/docs/folders.go`<br>`app/legal/docs/folders_test.go` |  |
-| [ ] | T-032L.3 | T-032L | app | File destruction proposals via G14 | T-007L.0, T-010b.0, T-032.0, T-032L.0, T-032L.1 | `app/legal/docs/destruction.go`<br>`app/legal/docs/destruction_test.go` |  |
+| [x] | T-021.2 | T-021 | app | Payment provider webhook dedup | T-008.0, T-008b.0, T-019.0, T-021.0, T-021.1 | `app/legal/billing/payment/provider.go`<br>`app/legal/billing/payment/provider_test.go` |  |
+| [x] | T-021.3 | T-021 | app | Overpayment and client credit | T-008.0, T-008b.0, T-019.0, T-021.0, T-021.1 | `app/legal/billing/payment/overpay.go`<br>`app/legal/billing/payment/overpay_test.go` |  |
+| [x] | T-021.4 | T-021 | app | Operating receipts journal | T-008.0, T-008b.0, T-019.0, T-021.0, T-021.1 | `app/legal/billing/payment/receipts.go`<br>`app/legal/billing/payment/receipts_test.go` |  |
+| [x] | T-021.5 | T-021 | app | NSF reversal of payments | T-008.0, T-008b.0, T-019.0, T-021.0, T-021.1 | `app/legal/billing/payment/nsf.go`<br>`app/legal/billing/payment/nsf_test.go` |  |
+| [x] | T-021.6 | T-021 | app | Refunds, disputes and chargebacks | T-008.0, T-008b.0, T-019.0, T-021.0, T-021.1 | `app/legal/billing/payment/dispute.go`<br>`app/legal/billing/payment/dispute_test.go` |  |
+| [x] | T-022.2 | T-022 | app | Disbursement paid from trust | T-012.0, T-021.0, T-022.1 | `app/legal/billing/trustapply/disbursement.go`<br>`app/legal/billing/trustapply/disbursement_test.go` | trust.bylaw9_verified |
+| [x] | T-022.3 | T-022 | app | Auto-apply proposals | T-012.0, T-021.0, T-022.1 | `app/legal/billing/trustapply/auto.go`<br>`app/legal/billing/trustapply/auto_test.go` | trust.bylaw9_verified |
+| [x] | T-022.4 | T-022 | app | Retainer tax timing | T-012.0, T-021.0, T-022.1 | `app/legal/billing/trustapply/retainer.go`<br>`app/legal/billing/trustapply/retainer_test.go` | trust.bylaw9_verified |
+| [x] | T-023.2 | T-023 | app | Write-offs and bad-debt adjustment | T-021.0, T-023.0, T-023.1 | `app/legal/billing/credit/writeoff.go`<br>`app/legal/billing/credit/writeoff_test.go` |  |
+| [x] | T-024.1 | T-024 | app | Interest accrual start | T-021.0, T-024.0, T-024.3 | `app/legal/billing/interest/start.go`<br>`app/legal/billing/interest/start_test.go` | billing.solicitors_act_verified |
+| [x] | T-024b.3 | T-024b | app | Assessment result repayment | T-023.0, T-024.0, T-024b.2 | `app/legal/billing/assessment/result.go`<br>`app/legal/billing/assessment/result_test.go` | billing.solicitors_act_verified |
+| [x] | T-025.3 | T-025 | app | Combined client bills | T-019.0, T-025.2 | `app/legal/billing/batch/combined.go`<br>`app/legal/billing/batch/combined_test.go` |  |
+| [x] | T-026.2 | T-026 | app | Surcharge tax and refunds | T-021.0, T-026.1 | `app/legal/billing/surcharge/tax.go`<br>`app/legal/billing/surcharge/tax_test.go` | billing.card_surcharge |
+| [x] | T-027.2 | T-027 | app | Settlement statement | T-017.0, T-027.1 | `app/legal/billing/contingency/settlement.go`<br>`app/legal/billing/contingency/settlement_test.go` | billing.contingency_fees |
+| [x] | T-029.2 | T-029 | app | G2 clearance | T-007L.0, T-010b.0, T-029.0, T-029.1 | `app/legal/conflict/clearance.go`<br>`app/legal/conflict/clearance_test.go` |  |
+| [x] | T-029.3 | T-029 | app | Ethical walls | T-007L.0, T-010b.0, T-029.0, T-029.1 | `app/legal/conflict/walls.go`<br>`app/legal/conflict/walls_test.go` |  |
+| [x] | T-030.2 | T-030 | app | Matter team and stages | T-010b.0, T-029.0, T-030.1 | `app/legal/matter/team.go`<br>`app/legal/matter/stages.go`<br>`app/legal/matter/stages_test.go` |  |
+| [x] | T-030.3 | T-030 | app | Matter notes and facts | T-010b.0, T-029.0, T-030.1 | `app/legal/matter/notes.go`<br>`app/legal/matter/notes_test.go` |  |
+| [x] | T-030.4 | T-030 | app | Matter RLS policies | T-010b.0, T-029.0, T-030.1 | `app/legal/matter/rls.go`<br>`app/legal/matter/rls_integration_test.go` |  |
+| [x] | T-031.2 | T-031 | kernel | kernel/deadline: day-count computation | T-004.0, T-007.0, T-031.0, T-031.1, T-034.0 | `kernel/deadline/compute.go`<br>`kernel/deadline/compute_test.go` |  |
+| [x] | T-031L.2 | T-031L | app | Rules of Civil Procedure rule pack | T-010b.0, T-031.0, T-031L.1 | `app/legal/rulepacks/ontario/civil-procedure.yaml`<br>`app/legal/rulepacks/ontario/golden_test.go` | deadline.ontario_pack |
+| [x] | T-032.2 | T-032 | kernel | kernel/docs: page/line text and citations | T-005.0, T-006.0, T-007.0, T-032.0, T-032.1 | `kernel/docs/text.go`<br>`kernel/docs/cite.go`<br>`kernel/docs/cite_test.go` |  |
+| [x] | T-032.3 | T-032 | kernel | kernel/docs: blob storage, no text in logs | T-005.0, T-006.0, T-007.0, T-032.0, T-032.1 | `kernel/docs/blob.go`<br>`kernel/docs/blob_test.go` |  |
+| [x] | T-032.5 | T-032 | kernel | kernel/retention: purge proposals via destruction gate | T-005.0, T-006.0, T-007.0, T-032.0, T-032.4 | `kernel/retention/purge.go`<br>`kernel/retention/purge_test.go` |  |
+| [x] | T-032L.2 | T-032L | app | Matter folders | T-007L.0, T-010b.0, T-032.0, T-032L.0, T-032L.1 | `app/legal/docs/folders.go`<br>`app/legal/docs/folders_test.go` |  |
+| [x] | T-032L.3 | T-032L | app | File destruction proposals via G14 | T-007L.0, T-010b.0, T-032.0, T-032L.0, T-032L.1 | `app/legal/docs/destruction.go`<br>`app/legal/docs/destruction_test.go` |  |
 | [ ] | T-033.2 | T-033 | app | Consultations | T-029.0, T-033.0, T-033.1 | `app/legal/intake/consult.go`<br>`app/legal/intake/consult_test.go` |  |
 | [ ] | T-033.3 | T-033 | app | Lead to matter conversion | T-029.0, T-033.0, T-033.1 | `app/legal/intake/convert.go`<br>`app/legal/intake/convert_test.go` |  |
 | [ ] | T-034.2 | T-034 | kernel | kernel/work: boards and workflows | T-006.0, T-007.0, T-034.0, T-034.1 | `kernel/work/board.go`<br>`kernel/work/workflow.go`<br>`kernel/work/workflow_test.go` |  |
-| [ ] | T-035.2 | T-035 | kernel | kernel/notify: delivery worker | T-006.0, T-009.0, T-032.0, T-035.0, T-035.1 | `kernel/notify/worker.go`<br>`kernel/notify/worker_test.go` |  |
-| [ ] | T-035.4 | T-035 | kernel | kernel/portal: page registration | T-006.0, T-009.0, T-032.0, T-035.0, T-035.3 | `kernel/portal/pages.go`<br>`kernel/portal/pages_test.go` |  |
-| [ ] | T-035L.3 | T-035L | app | Portal web feature | T-010b.0, T-021.0, T-035.0, T-035L.1 | `web/src/features/portal/feature.ts`<br>`web/src/features/portal/PortalMatters.tsx`<br>`web/src/features/portal/PortalMatters.test.tsx` |  |
+| [x] | T-035.2 | T-035 | kernel | kernel/notify: delivery worker | T-006.0, T-009.0, T-032.0, T-035.0, T-035.1 | `kernel/notify/worker.go`<br>`kernel/notify/worker_test.go` |  |
+| [x] | T-035.4 | T-035 | kernel | kernel/portal: page registration | T-006.0, T-009.0, T-032.0, T-035.0, T-035.3 | `kernel/portal/pages.go`<br>`kernel/portal/pages_test.go` |  |
+| [x] | T-035L.3 | T-035L | app | Portal web feature | T-010b.0, T-021.0, T-035.0, T-035L.1 | `web/src/features/portal/feature.ts`<br>`web/src/features/portal/PortalMatters.tsx`<br>`web/src/features/portal/PortalMatters.test.tsx` |  |
 | [ ] | T-036.2 | T-036 | kernel | kernel/webhook: ordered delivery per endpoint and subject | T-008.0, T-036.0, T-036.1 | `kernel/webhook/deliver.go`<br>`kernel/webhook/deliver_integration_test.go` |  |
-| [ ] | T-037.2 | T-037 | kernel | kernel/agenttools: write tools draft or open gates only | T-007.0, T-032.0, T-037.0, T-037.1 | `kernel/agenttools/write.go`<br>`kernel/agenttools/write_test.go` |  |
-| [ ] | T-037.3 | T-037 | kernel | kernel/agenttools: injection returned as quoted data | T-007.0, T-032.0, T-037.0, T-037.1 | `kernel/agenttools/quote.go`<br>`kernel/agenttools/quote_test.go` |  |
-| [ ] | T-037.4 | T-037 | kernel | kernel/agenttools: citation shape | T-007.0, T-032.0, T-037.0, T-037.1 | `kernel/agenttools/cite.go`<br>`kernel/agenttools/cite_test.go` |  |
-| [ ] | T-037.5 | T-037 | kernel | kernel/agenttools: plans and steps | T-007.0, T-032.0, T-037.0, T-037.1 | `kernel/agenttools/plan.go`<br>`kernel/agenttools/plan_test.go` |  |
-| [ ] | T-037L.4 | T-037L | app | Tool schema validation for all 25 tools | T-007L.0, T-010b.0, T-037.0, T-037L.1, T-037L.2 | `app/legal/agent/schemas/`<br>`app/legal/agent/schemas_test.go` |  |
-| [ ] | T-038.2 | T-038 | kernel | kernel/report: River schedules | T-006.0, T-009.0, T-038.0, T-038.1 | `kernel/report/schedule.go`<br>`kernel/report/schedule_test.go` |  |
-| [ ] | T-038.3 | T-038 | kernel | kernel/report: CSV/PDF export with manifest | T-006.0, T-009.0, T-038.0, T-038.1 | `kernel/report/export.go`<br>`kernel/report/export_test.go` |  |
-| [ ] | T-039.4 | T-039 | kernel | web access admin pages | T-006.0, T-007.0, T-039.1, T-039.2, T-039.3 | `web/src/kernel/access/AccessAdmin.tsx`<br>`web/src/kernel/access/AccessAdmin.test.tsx` |  |
-| [ ] | T-040.2 | T-040 | kernel | kernel/importer: id map and idempotent transform | T-007.0, T-008.0, T-032.0, T-040.0, T-040.1 | `kernel/importer/idmap.go`<br>`kernel/importer/idmap_test.go` |  |
-| [ ] | T-040.4 | T-040 | kernel | kernel/importer: UTC instants, unshifted dates | T-007.0, T-008.0, T-032.0, T-040.0, T-040.1 | `kernel/importer/timefix.go`<br>`kernel/importer/timefix_test.go` |  |
-| [ ] | T-040L.2 | T-040L | app | Source client, region and token | T-010b.0, T-012.0, T-021.0, T-032L.0, T-040.0, T-040L.0 +1 | `app/legal/clio/client.go`<br>`app/legal/clio/client_test.go` |  |
-| [ ] | T-040b.4 | T-040b | app | Polling fallback | T-008.0, T-036.0, T-040L.0, T-040b.1 | `app/legal/clio/sync/poll.go`<br>`app/legal/clio/sync/poll_test.go` |  |
+| [x] | T-037.2 | T-037 | kernel | kernel/agenttools: write tools draft or open gates only | T-007.0, T-032.0, T-037.0, T-037.1 | `kernel/agenttools/write.go`<br>`kernel/agenttools/write_test.go` |  |
+| [x] | T-037.3 | T-037 | kernel | kernel/agenttools: injection returned as quoted data | T-007.0, T-032.0, T-037.0, T-037.1 | `kernel/agenttools/quote.go`<br>`kernel/agenttools/quote_test.go` |  |
+| [x] | T-037.4 | T-037 | kernel | kernel/agenttools: citation shape | T-007.0, T-032.0, T-037.0, T-037.1 | `kernel/agenttools/cite.go`<br>`kernel/agenttools/cite_test.go` |  |
+| [x] | T-037.5 | T-037 | kernel | kernel/agenttools: plans and steps | T-007.0, T-032.0, T-037.0, T-037.1 | `kernel/agenttools/plan.go`<br>`kernel/agenttools/plan_test.go` |  |
+| [x] | T-037L.4 | T-037L | app | Tool schema validation for all 25 tools | T-007L.0, T-010b.0, T-037.0, T-037L.1, T-037L.2 | `app/legal/agent/schemas/`<br>`app/legal/agent/schemas_test.go` |  |
+| [x] | T-038.2 | T-038 | kernel | kernel/report: River schedules | T-006.0, T-009.0, T-038.0, T-038.1 | `kernel/report/schedule.go`<br>`kernel/report/schedule_test.go` |  |
+| [x] | T-038.3 | T-038 | kernel | kernel/report: CSV/PDF export with manifest | T-006.0, T-009.0, T-038.0, T-038.1 | `kernel/report/export.go`<br>`kernel/report/export_test.go` |  |
+| [x] | T-039.4 | T-039 | kernel | web access admin pages | T-006.0, T-007.0, T-039.1, T-039.2, T-039.3 | `web/src/kernel/access/AccessAdmin.tsx`<br>`web/src/kernel/access/AccessAdmin.test.tsx` |  |
+| [x] | T-040.2 | T-040 | kernel | kernel/importer: id map and idempotent transform | T-007.0, T-008.0, T-032.0, T-040.0, T-040.1 | `kernel/importer/idmap.go`<br>`kernel/importer/idmap_test.go` |  |
+| [x] | T-040.4 | T-040 | kernel | kernel/importer: UTC instants, unshifted dates | T-007.0, T-008.0, T-032.0, T-040.0, T-040.1 | `kernel/importer/timefix.go`<br>`kernel/importer/timefix_test.go` |  |
+| [x] | T-040L.2 | T-040L | app | Source client, region and token | T-010b.0, T-012.0, T-021.0, T-032L.0, T-040.0, T-040L.0 +1 | `app/legal/clio/client.go`<br>`app/legal/clio/client_test.go` |  |
+| [x] | T-040b.4 | T-040b | app | Polling fallback | T-008.0, T-036.0, T-040L.0, T-040b.1 | `app/legal/clio/sync/poll.go`<br>`app/legal/clio/sync/poll_test.go` |  |
 | [ ] | T-041.1 | T-041 | app | Cut-over validation checks | T-013.0, T-040L.0, T-041.2, T-041.3, T-041.4, T-041.5 | `app/legal/clio/validate.go`<br>`app/legal/clio/validate_test.go` | trust.bylaw9_verified |
-| [ ] | T-042.2 | T-042 | app | Export trust balances reconcile | T-032L.0, T-035L.0, T-037L.0, T-038L.0, T-039L.0, T-040L.0 +1 | `app/legal/export/trust.go`<br>`app/legal/export/trust_test.go` |  |
+| [x] | T-042.2 | T-042 | app | Export trust balances reconcile | T-032L.0, T-035L.0, T-037L.0, T-038L.0, T-039L.0, T-040L.0 +1 | `app/legal/export/trust.go`<br>`app/legal/export/trust_test.go` |  |
 | [ ] | T-043.7 | T-043 | kernel | Rollout rings | T-009.0, T-043.1 | `deploy/rings.yaml`<br>`docs/runbooks/rollout.md`<br>`tools/rings_test.go` |  |
-| [ ] | T-044.6 | T-044 | kernel | Status page | T-043.0, T-044.0, T-044.2 | `kernel/metrics/status.go`<br>`kernel/metrics/status_test.go` |  |
+| [x] | T-044.6 | T-044 | kernel | Status page | T-043.0, T-044.0, T-044.2 | `kernel/metrics/status.go`<br>`kernel/metrics/status_test.go` |  |
 | [ ] | T-045.3 | T-045 | kernel | web shell navigation from feature list | T-009.0, T-045.1 | `web/src/kernel/shell/Shell.tsx`<br>`web/src/kernel/shell/nav.ts`<br>`web/src/kernel/shell/Shell.test.tsx` |  |
 
 ### Wave 3 (45 tasks)
