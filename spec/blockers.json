@@ -17,7 +17,10 @@
       "T-024",
       "T-025"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Parts per million everywhere: it is the only unit that holds QST 9.975% exactly, and the spec has already been restated this way.",
+    "decided": "2026-10-11"
   },
   {
     "id": "V-TRUST",
@@ -36,7 +39,11 @@
       "T-038L",
       "T-041"
     ],
-    "flaggable": true
+    "flaggable": true,
+    "status": "assumed",
+    "decision": "A lawyer confirms each listed By-Law 9 rule: trust money is the highest-risk area for an Ontario firm, and every trust rule in the spec is marked (verify).",
+    "decided": "2026-10-11",
+    "note": "Working assumption adopted by owner on 2026-10-11 so the build can proceed. Code stays behind an off-by-default flag until a licensed Ontario lawyer or accountant confirms it before go-live."
   },
   {
     "id": "CF-03",
@@ -55,7 +62,10 @@
       "T-021",
       "T-040b"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Add them to the first migration now: nothing is released, so there is no upgrade cost; coders must not invent tables.",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-02",
@@ -72,7 +82,10 @@
       "T-010L",
       "T-011"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Separate trust book of record: it mirrors the client trust ledgers By-Law 9 requires and keeps trust money physically apart from firm money in the data.",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-05",
@@ -89,7 +102,10 @@
       "T-002L",
       "T-010b"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Database schema name = code package = module: one name per thing; the interface spec has already been updated to match.",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-07",
@@ -105,7 +121,10 @@
       "T-011",
       "T-039L"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Two-person approval (GA6): it is the stricter control on who can move client money; the spec already adopted it.",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-12",
@@ -121,7 +140,10 @@
       "T-028",
       "T-029"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Use the data model's merges; file a question for each empty one: invented fields in a law-practice system become compliance and migration debt.",
+    "decided": "2026-10-11"
   },
   {
     "id": "V-BILL",
@@ -137,7 +159,11 @@
       "T-024",
       "T-024b"
     ],
-    "flaggable": true
+    "flaggable": true,
+    "status": "assumed",
+    "decision": "A lawyer confirms: these dates decide when the firm may sue on a bill and what the client is told about assessment.",
+    "decided": "2026-10-11",
+    "note": "Working assumption adopted by owner on 2026-10-11 so the build can proceed. Code stays behind an off-by-default flag until a licensed Ontario lawyer or accountant confirms it before go-live."
   },
   {
     "id": "CF-10",
@@ -152,7 +178,10 @@
       "T-019",
       "T-024"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Yes, per BIL-T-050/051: this fixes a wrong cross-reference in the tax spec; the reading itself should be sanity-checked by the accountant.",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-11",
@@ -167,7 +196,10 @@
       "T-012",
       "T-022"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "One approval kind with one signatory: one clear control; the amount is capped at the unpaid bill and the available trust balance.",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-15",
@@ -182,7 +214,10 @@
       "T-011",
       "T-032L"
     ],
-    "flaggable": true
+    "flaggable": true,
+    "status": "decided",
+    "decision": "Keep everything; no purge in v1: over-keeping is safe and reversible; deleting early is not. Periods are still (verify).",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-04",
@@ -197,7 +232,10 @@
       "T-007",
       "T-007L"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Data-model tables with slug codes: already applied in the spec (RV2-001).",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-06",
@@ -212,7 +250,10 @@
       "T-002",
       "T-002L"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Constant firm id in messages only: each firm already has its own database.",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-08",
@@ -227,7 +268,10 @@
       "T-016",
       "T-020"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Yes, uniqueness only among non-void bills: otherwise void-and-rebill is impossible, which b3 requires.",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-09",
@@ -242,7 +286,10 @@
       "T-017",
       "T-019"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Add and freeze them at approval: the interest rate printed on the bill (Solicitors Act s.33(3)) and the signature (s.2(1)) must not change later.",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-13",
@@ -256,7 +303,10 @@
     "blocks": [
       "T-021"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Short-lived credit, 5 business days default: the excess is client money, not earned fees; the 5-day default is (verify) against By-Law 9.",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-16",
@@ -270,7 +320,10 @@
     "blocks": [
       "T-032L"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Approval for deletion; pre-approved templates for reminders and transfers: nothing leaves the firm or is destroyed without a human having approved it.",
+    "decided": "2026-10-11"
   },
   {
     "id": "V-CFA",
@@ -284,7 +337,11 @@
     "blocks": [
       "T-027"
     ],
-    "flaggable": true
+    "flaggable": true,
+    "status": "assumed",
+    "decision": "Lawyer confirms: an over-cap contingency fee is unenforceable and a conduct issue.",
+    "decided": "2026-10-11",
+    "note": "Working assumption adopted by owner on 2026-10-11 so the build can proceed. Code stays behind an off-by-default flag until a licensed Ontario lawyer or accountant confirms it before go-live."
   },
   {
     "id": "V-DEADLINES",
@@ -298,7 +355,11 @@
     "blocks": [
       "T-031L"
     ],
-    "flaggable": true
+    "flaggable": true,
+    "status": "assumed",
+    "decision": "Lawyer checks each entry before switch-on: a wrong computed deadline is a direct malpractice exposure.",
+    "decided": "2026-10-11",
+    "note": "Working assumption adopted by owner on 2026-10-11 so the build can proceed. Code stays behind an off-by-default flag until a licensed Ontario lawyer or accountant confirms it before go-live."
   },
   {
     "id": "V-ID",
@@ -312,7 +373,11 @@
     "blocks": [
       "T-029"
     ],
-    "flaggable": true
+    "flaggable": true,
+    "status": "assumed",
+    "decision": "Lawyer confirms: ID verification gates opening matters and moving money.",
+    "decided": "2026-10-11",
+    "note": "Working assumption adopted by owner on 2026-10-11 so the build can proceed. Code stays behind an off-by-default flag until a licensed Ontario lawyer or accountant confirms it before go-live."
   },
   {
     "id": "V-SURCHARGE",
@@ -326,7 +391,11 @@
     "blocks": [
       "T-026"
     ],
-    "flaggable": true
+    "flaggable": true,
+    "status": "assumed",
+    "decision": "Keep it off until confirmed: the 2.4% cap and conditions come from card-network rules reported by processors, not cited law, and the HST treatment is (verify).",
+    "decided": "2026-10-11",
+    "note": "Working assumption adopted by owner on 2026-10-11 so the build can proceed. Code stays behind an off-by-default flag until a licensed Ontario lawyer or accountant confirms it before go-live."
   },
   {
     "id": "V-TAX",
@@ -340,7 +409,11 @@
     "blocks": [
       "T-014"
     ],
-    "flaggable": true
+    "flaggable": true,
+    "status": "assumed",
+    "decision": "Accountant confirms both: wrong tax on a bill is the firm's liability with CRA.",
+    "decided": "2026-10-11",
+    "note": "Working assumption adopted by owner on 2026-10-11 so the build can proceed. Code stays behind an off-by-default flag until a licensed Ontario lawyer or accountant confirms it before go-live."
   },
   {
     "id": "CF-14",
@@ -354,7 +427,10 @@
     "blocks": [
       "T-020"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Never return to draft: approved bills stay immutable; already applied in the spec.",
+    "decided": "2026-10-11"
   },
   {
     "id": "CF-20",
@@ -368,6 +444,9 @@
     "blocks": [
       "T-020"
     ],
-    "flaggable": false
+    "flaggable": false,
+    "status": "decided",
+    "decision": "Void only before delivery, by a second person: a delivered bill has started the Solicitors Act clocks, so it must be corrected visibly, not erased.",
+    "decided": "2026-10-11"
   }
 ]

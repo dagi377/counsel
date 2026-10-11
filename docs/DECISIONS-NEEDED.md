@@ -1,5 +1,11 @@
 # Decisions needed
 
+> **Status 2026-10-11:** the owner adopted every recommendation below, so no blocker stops the build.
+> - **CF-\* items:** decided.
+> - **V-\* items:** working assumptions. Their code ships behind feature flags that are off by default, and they must be confirmed by a licensed Ontario lawyer (or an accountant, for tax) before go-live.
+>
+> `spec/blockers.json` carries `status` and `decision` for each item.
+
 Counsel is still a spec. Some build tasks are waiting on a decision or a legal check. This page lists every blocker named in `spec/eng/o1-tasks.json` (field `blocked_by`), ordered by how many tasks each one holds up. The same data is in `spec/blockers.json`.
 
 Who answers:
