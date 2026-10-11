@@ -1678,3 +1678,19 @@ Done in PORT-18:
 - The result carries ids, rule references and dates only, no document or client text, so it
   has no quoted envelope. Due dates are YYYY-MM-DD strings, which Provenance.ReadTool records.
 - Registered through `ListDeadlinesHandler()` for the boot HandlerSet, not init().
+
+## FEAT-DL-11 F-DL-05 daily digest (also FEAT-DL-12, FEAT-DL-13)
+
+- appDefs (FEAT-CORE-17) lives in `app/legal/agent/feature`, and every feature Def imports
+  that package, so `feature.appDefs()` cannot list `deadlines.DigestDef()` without an import
+  cycle. The Defs are not in appDefs yet; the list has to move to a package that imports the
+  modules (app/legal/boot) or take the Defs as a parameter. Decision needed before the skill
+  export covers deadline features.
+- agenttest `Seed.Deadline` files deadlines on subject kind `"matter"`, but list_deadlines
+  (FEAT-TOOL-05) keeps only `roles.SubjectMatter` (`"matter.matter"`), so a seeded deadline
+  never lists. The F-DL feature tests save their deadline on `roles.SubjectMatter` directly;
+  Seed.Deadline should use `roles.SubjectMatter`.
+- get_matter, read_document and compute_deadline are not in `agent.Handlers()`. The tests run
+  list_deadlines as its real handler and read_document as a quoting handler over the seed's
+  document text (so CheckAnswer has real citations); get_matter and compute_deadline run as
+  stand-ins.
