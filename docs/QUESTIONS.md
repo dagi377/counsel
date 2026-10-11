@@ -3737,3 +3737,14 @@ of FEAT-TIM-01 above.
   work-reports. Main has no boot.FirmSubject, so the action route's screen map selects a
   matter on each (work.view). Open: these are firm-level screens (an automation run, the
   category list, a report figure); switch them to the firm subject once it lands.
+- Test helpers are one file per package: app/legal/intake/ai_int_helpers_test.go,
+  app/legal/timekeeping/ai_tim_helpers_test.go and app/legal/work/ai_wrk_helpers_test.go
+  hold every branch's helpers (prefixes int..inth, tim..timd, wrk..wrke kept, so names stay
+  unique). Earlier entries naming ai_int<x>/ai_tim<x>/ai_wrk<x>_helpers_test.go refer to them.
+  The timc helpers wrap read tools with the run's Provenance, as boot does since TIME-FIX.
+- `work-automations` keeps FEAT-WRK-11's capability `work.workflows`; FEAT-WRK-13's read-only
+  answers asked for `work.view` on the same key. Open: whether the read-only answers need a
+  separate screen key.
+- `ai-receptionist` keeps FEAT-INT-08's subject `intake.lead` / `intake.leads`; FEAT-INT-13
+  (F-INT-19, firm settings) asked for `matter` / `intake.forms`. Open until a firm subject
+  exists (BOOT-24).
