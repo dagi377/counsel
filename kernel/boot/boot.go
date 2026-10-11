@@ -11,7 +11,13 @@ import (
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/notify"
+	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
+	"github.com/dagi377/counsel/kernel/report"
+	"github.com/dagi377/counsel/kernel/server"
+	"github.com/dagi377/counsel/kernel/webhook"
 
 	// Every kernel package, so each can register itself from its own files.
 	_ "github.com/dagi377/counsel/kernel/all"
@@ -75,6 +81,31 @@ type Kernel struct {
 	Registry registry.Booter // nil when built without one (Build)
 	DB       db.DB
 	Clock    clock.Clock
+	Gates    gate.Engine
+	Reports  report.Engine
+	Server   server.Server
+	Events   *webhook.Types
+	Jobs     *Jobs // River workers and periodic jobs apps add at Register
+	// Outbox delivers pending outbox messages to the registered consumers (kind outbox.relay).
+	// Nil leaves the relay unscheduled.
+	Outbox *outbox.Deliverer
+	// Emitter writes outbox events in a caller's transaction (kernel jobs that emit events).
+	Emitter outbox.Emitter
+	// Notify is the notification service; its delivery worker runs as an outbox consumer.
+	Notify *notify.Service
+	// NotifySender delivers rendered notifications. Nil means a sender that only counts.
+	NotifySender notify.Sender
+	// WebhookExpiry is the outbound endpoint expiry store (kind webhook.endpoint_expiry).
+	WebhookExpiry webhook.ExpiryStore
+	// Dispatcher queues outbound webhook deliveries in order per (endpoint, subject). Nil
+	// leaves kind webhook.deliver out.
+	Dispatcher WebhookQueue
+	// WebhookEndpoints lists the endpoints to drain; WebhookPoster sends one delivery. Both
+	// are required when Dispatcher is set.
+	WebhookEndpoints WebhookEndpoints
+	WebhookPoster    WebhookPoster
+
+	sealed bool // Registry.Seal passed; apply runs only then
 }
 
 // App is one application that registers with the kernel at boot.
@@ -94,6 +125,20 @@ type Deps struct {
 	Registry registry.Booter // sealed after every Register; nil skips Seal
 	DB       db.DB
 	Clock    clock.Clock
+	Gates    gate.Engine
+	Reports  report.Engine
+	Server   server.Server
+	Events   *webhook.Types
+	Outbox   *outbox.Deliverer
+	Emitter  outbox.Emitter
+	Notify   *notify.Service
+	// NotifySender is optional; nil keeps the count-only sender.
+	NotifySender  notify.Sender
+	WebhookExpiry webhook.ExpiryStore
+	// Dispatcher is optional; nil leaves outbound webhook delivery off.
+	Dispatcher       WebhookQueue
+	WebhookEndpoints WebhookEndpoints
+	WebhookPoster    WebhookPoster
 }
 
 // Build creates the kernel and calls every app's Register in order.
@@ -105,7 +150,13 @@ func Build(ctx context.Context, apps ...App) (*Kernel, error) {
 // turned on, then every app's Register (with the flag set in ctx), then Registry.Seal. A flag
 // in on that no app defined fails before any Register.
 func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kernel, error) {
-	k := &Kernel{Flags: flags.New(), Registry: deps.Registry, DB: deps.DB, Clock: deps.Clock}
+	k := &Kernel{
+		Flags: flags.New(), Registry: deps.Registry, DB: deps.DB, Clock: deps.Clock,
+		Gates: deps.Gates, Reports: deps.Reports, Server: deps.Server, Events: deps.Events,
+		Jobs: NewJobs(), Outbox: deps.Outbox, Emitter: deps.Emitter, Notify: deps.Notify,
+		NotifySender: deps.NotifySender, WebhookExpiry: deps.WebhookExpiry,
+		Dispatcher: deps.Dispatcher, WebhookEndpoints: deps.WebhookEndpoints, WebhookPoster: deps.WebhookPoster,
+	}
 	for _, a := range apps {
 		if a.Register == nil {
 			return nil, fmt.Errorf("register app %q: nil Register: %w", a.Name, ErrConfig)
@@ -136,6 +187,7 @@ func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kerne
 		if err := k.Registry.Seal(); err != nil {
 			return nil, fmt.Errorf("seal registry: %w", err)
 		}
+		k.sealed = true
 	}
 	return k, nil
 }
