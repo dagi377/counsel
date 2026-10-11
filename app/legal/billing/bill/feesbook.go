@@ -8,12 +8,13 @@ import (
 	"slices"
 	"time"
 
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/flags"
 )
 
-// FlagBillingRecordsVerified turns the fees book export on. It is the same name as
-// legal.FlagBillingRecordsVerified; app/legal imports this package, so the name is repeated.
-const FlagBillingRecordsVerified = "billing.records_verified"
+// FlagBillingRecordsVerified turns the fees book export on. It mirrors
+// legal.FlagBillingRecordsVerified, which this package cannot import.
+const FlagBillingRecordsVerified = legalflags.BillingRecordsVerified
 
 // ErrUnverified is returned by ExportFeesBook while the billing.records_verified flag is
 // off. The export fails closed until a lawyer confirms the By-law 9 record rule.

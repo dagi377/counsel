@@ -16,18 +16,6 @@ import (
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
-// pgFeesBook is a test fees book in the throwaway database. 0001_init.sql has no fees book
-// table yet (docs/QUESTIONS.md, T-019.1f); this one shows the row lives and dies with the
-// gate tx.
-type pgFeesBook struct{}
-
-func (pgFeesBook) Append(ctx context.Context, tx pgx.Tx, e FeesBookEntry) error {
-	_, err := tx.Exec(ctx, `INSERT INTO public.test_fees_book (number, bill_date, client_id, matter_id, total_cents, status)
-VALUES ($1, $2::date, $3::uuid, $4::uuid, $5, $6)`,
-		e.Number, e.BillDate.In(business).Format(time.DateOnly), e.ClientID, e.MatterID, e.TotalCents, string(e.Status))
-	return err
-}
-
 type approveEnv struct {
 	pool     *pgxpool.Pool
 	preparer string
@@ -41,10 +29,6 @@ func seedApproveEnv(t *testing.T) approveEnv {
 	ctx := context.Background()
 	env := approveEnv{pool: testPool(t)}
 	err := pgx.BeginFunc(ctx, env.pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `CREATE TABLE public.test_fees_book (number text PRIMARY KEY, bill_date date NOT NULL,
-client_id uuid NOT NULL, matter_id uuid NOT NULL, total_cents bigint NOT NULL, status text NOT NULL)`); err != nil {
-			return err
-		}
 		var role, area string
 		if err := tx.QueryRow(ctx, `INSERT INTO core.role(key, name, status) VALUES ('staff', 'Staff', 'active') RETURNING id::text`).Scan(&role); err != nil {
 			return err
@@ -105,7 +89,7 @@ func (env approveEnv) state(t *testing.T, billID string) (status, number string,
 	if err := env.pool.QueryRow(ctx, `SELECT status, coalesce(number, '') FROM billing.bill WHERE id = $1::uuid`, billID).Scan(&status, &number); err != nil {
 		t.Fatal(err)
 	}
-	if err := env.pool.QueryRow(ctx, `SELECT count(*) FROM public.test_fees_book WHERE number = $1`, number).Scan(&rows); err != nil {
+	if err := env.pool.QueryRow(ctx, `SELECT count(*) FROM billing.fees_book WHERE number = $1`, number).Scan(&rows); err != nil {
 		t.Fatal(err)
 	}
 	return status, number, rows
@@ -117,7 +101,7 @@ var errRollback = errors.New("roll back after the effect")
 func TestBIL_C_120_ApproveViaGateInTx(t *testing.T) {
 	env := seedApproveEnv(t)
 	ctx := context.Background()
-	eff := &ApproveEffect{Store: PGStore{}, FeesBook: pgFeesBook{}, Prefix: "INV",
+	eff := &ApproveEffect{Store: PGStore{}, FeesBook: PGFeesBook{}, Prefix: "INV",
 		Now: func() time.Time { return time.Date(2026, 9, 15, 15, 0, 0, 0, time.UTC) }}
 	billOf := func(g registry.Approved) string {
 		var p ApprovalPayload

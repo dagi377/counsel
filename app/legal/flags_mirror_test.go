@@ -4,10 +4,12 @@ import (
 	"testing"
 
 	"github.com/dagi377/counsel/app/legal/billing/assessment"
+	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/credit"
 	"github.com/dagi377/counsel/app/legal/billing/interest"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/billing/split"
+	"github.com/dagi377/counsel/app/legal/billing/surcharge"
 	"github.com/dagi377/counsel/app/legal/billing/tax"
 	"github.com/dagi377/counsel/app/legal/billing/trustapply"
 	"github.com/dagi377/counsel/app/legal/clio"
@@ -16,6 +18,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/reports"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
+	"github.com/dagi377/counsel/app/legal/trust/recon"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 )
 
@@ -42,6 +45,9 @@ func TestFlagMirrorsMatchCanonicalNames(t *testing.T) {
 		{"export", export.FlagPostCancelWindow, FlagExportPostCancelWindow},
 		{"interest", interest.FlagSolicitorsActVerified, FlagSolicitorsActVerified},
 		{"payment receipts journal", payment.FlagReceiptsJournalVerified, FlagReceiptsJournalVerified},
+		{"bill fees book", bill.FlagBillingRecordsVerified, FlagBillingRecordsVerified},
+		{"trust recon", recon.FlagBylaw9Verified, FlagTrustBylaw9Verified},
+		{"surcharge", surcharge.Flag, FlagCardSurcharge},
 		{"timekeeping paralegal scope", timekeeping.FlagParalegalScopeVerified, FlagParalegalScopeVerified},
 	}
 	for _, tt := range tests {
