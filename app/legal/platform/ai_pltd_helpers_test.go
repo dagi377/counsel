@@ -502,3 +502,46 @@ func pltdCheckDesignated(t *testing.T, b trigger.Binding) {
 		t.Fatalf("readiness = %+v, %v; want %+v", unready, err, want)
 	}
 }
+
+// pltdEmailWrites plans, then drafts body as an email on w's matter to its client and submits
+// it in the same call, which opens the outgoing-email gate.
+func pltdEmailWrites(t *testing.T, w pltdWorld, subject, body string) []pltdCall {
+	t.Helper()
+	return []pltdCall{
+		{agenttools.ToolReportPlan, `{"steps": [{"step_id": "read", "title": "Read the matter"}, {"step_id": "reply", "title": "Draft the reply for approval"}]}`},
+		{agent.ToolDraftEmail, pltdJSON(t, map[string]any{
+			"matter_id": w.matterID, "to_contact_ids": []string{w.clientID}, "subject": subject, "body_markdown": body, "submit": true,
+		})},
+	}
+}
+
+// pltdCheckEmailRun fails t unless run used no stand-in, ran every call, planned before its
+// first write (draft_email), read every seeded document for real, stored one email on w's
+// matter prepared for the acting user under runID and opened one gate of kind that only
+// another lawyer can decide.
+func pltdCheckEmailRun(t *testing.T, w pltdWorld, run agenttest.FeatureRun, calls []pltdCall, runID, kind string) {
+	t.Helper()
+	if run.Err != nil || len(run.Refused) != 0 {
+		t.Fatalf("run err = %v, refused = %v", run.Err, run.Refused)
+	}
+	// rule: ARC-I-035
+	if len(w.fd.StandIns) != 0 || len(run.StandIns) != 0 {
+		t.Fatalf("stand-ins = %v, run used %v; want every tool on its real handler", w.fd.StandIns, run.StandIns)
+	}
+	if want := pltdToolNames(calls); !slices.Equal(run.Tools, want) {
+		t.Fatalf("tools = %v, want %v", run.Tools, want)
+	}
+	// rule: ARC-I-039
+	if run.PlanAt < 0 || run.FirstWrite <= run.PlanAt || run.Tools[run.FirstWrite] != agent.ToolDraftEmail {
+		t.Fatalf("plan at %d, first write %d in %v; want report_plan before draft_email", run.PlanAt, run.FirstWrite, run.Tools)
+	}
+	pltdCheckReads(t, w, run)
+	// The reply is stored for the acting user on the matter the text came in on, never in
+	// the agent's name.
+	ds := w.fd.Seed.Store.Drafts
+	if len(ds) != 1 || ds[0].Kind != "email" || ds[0].ID != w.draftID("email") || ds[0].MatterID != w.matterID ||
+		ds[0].PreparedBy != agenttest.FeatureActingFor || ds[0].RunID != runID {
+		t.Fatalf("drafts = %+v, want one email on %s prepared by %s", ds, w.matterID, agenttest.FeatureActingFor)
+	}
+	pltdCheckGate(t, w.fd, run, kind)
+}

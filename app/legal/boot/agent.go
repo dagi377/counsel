@@ -360,6 +360,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
 		platform.DestructionBatchDef().ID:  platform.DestructionBatchBinding,
 		platform.AccessReviewDef().ID:      platform.AccessReviewBinding,
+		platform.TextTriageDef().ID:        platform.TextTriageBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -531,6 +532,8 @@ var actionScreens = map[string]trigger.Screen{
 	"archive-retention": {SubjectKind: FirmSubject, Capability: "matters.close"},
 	// users-roles is firm-level: an access review covers every matter (F-PLT-08).
 	"users-roles": {SubjectKind: FirmSubject, Capability: "admin.access_review"},
+	// A text thread is on the client's matter; the reply is drafted there (F-PLT-10).
+	"text-messaging": {SubjectKind: "matter", Capability: "documents.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

@@ -4277,3 +4277,14 @@ of FEAT-TIM-01 above.
 - `users-roles` maps to `boot.FirmSubject` with capability `admin.access_review`.
 - Branch is based on task/FEAT-PLT-09 so the platform package and its one helper file
   (`ai_pltd_helpers_test.go`) merge cleanly.
+
+## Q-FEAT-PLT-11 F-PLT-10 text triage: inbound text event and screen
+
+- No module publishes an inbound text yet; F-PLT-10 binds `text.received`
+  (`platform.EventTextReceived`, named like `email.received`). Open: the text-messaging
+  module publishes it, with the matter and the sender contact, acting for the matter's
+  responsible lawyer.
+- The reply goes through draft_email with `submit` true on the client's matter, which opens
+  `platform.outgoing_email` (G-OUT); F-PLT-10 has no tool-gap kind.
+- `text-messaging` maps to subject `matter` with capability `documents.edit` (draft_email's).
+- Branch is based on task/FEAT-PLT-10 (one platform helper file).
