@@ -41,5 +41,6 @@ func appDefs() []feature.Def {
 		deadlines.RuleWatchDef(),
 		// documents
 		docs.EngagementLetterDef(),
+		docs.DraftWithCitationsDef(),
 	}
 }

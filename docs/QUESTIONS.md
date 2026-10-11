@@ -1872,3 +1872,8 @@ Done in PORT-18:
   `agenttest/quoted_test.go` covers both shapes and the refusals.
 - F-DOC-02 binds both `conflict.cleared` and `lead.converted` (the spec trigger names G2 and
   G1); the prompt has the agent draft only when the matter shows both done.
+
+## Q-FEAT-DOC-04 F-DOC-03 trigger event
+
+- "user instruction or task from the matter plan": the task half binds `work_item.created`;
+  a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
