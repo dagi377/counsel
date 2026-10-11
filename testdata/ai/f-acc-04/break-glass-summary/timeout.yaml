@@ -2,3 +2,22 @@ synthetic: true
 feature: F-ACC-04
 match: {last_user_regex: "break-glass session ended"}
 fault: timeout
+turns:
+  - reply:
+      tool_calls:
+        - name: search_matters
+          input: {query: "break-glass session bg-0042", limit: 20}
+  - reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{step_id: summarise-session, title: "Summarise break-glass session bg-0042"}]}
+  - reply:
+      tool_calls:
+        - name: draft_document
+          input: {matter_id: "00000000-0000-4000-8000-0000000000ac", title: "Break-glass session bg-0042: summary", body_markdown: "Session bg-0042 on 2026-10-09 opened matter 2026-0042 for 18 minutes; 3 documents viewed; no edits."}
+  - reply:
+      tool_calls:
+        - name: submit_for_approval
+          input: {subject_type: document, subject_id: "00000000-0000-4000-8000-00000000a001", gate_kind: core.break_glass_review}
+  - reply:
+      text: "Drafted the break-glass summary for your review."

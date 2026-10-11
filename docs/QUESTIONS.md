@@ -3242,4 +3242,9 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - AI-014 (`ai_f_acc_03_test.go`) moved to `package access_test` and `agenttest.FromFeature`;
   its fixtures now draft with `draft_document` and submit the draft with the a2
   `submit_for_approval` input, and the ok fixture pins `match.prompt_hash`.
-- Event types with no publisher yet: `user.invited` (F-ACC-02).
+- F-ACC-04 declares `access.GateBreakGlassReview` (`core.break_glass_review`, GA7) and binds
+  to the session end event; the run acts for the event's user, so the session's own user can
+  prepare the summary but never decide it (ErrSelfApproval). AI-015 (`ai_f_acc_04_test.go`)
+  moved the same way as AI-014.
+- Event types with no publisher yet: `user.invited` (F-ACC-02), `break_glass.ended` (F-ACC-04;
+  identity writes only the `core.break_glass_expire` audit action today).

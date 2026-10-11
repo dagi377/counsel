@@ -318,6 +318,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		access.LicenceCheckDef().ID:                 access.LicenceCheckBinding,
 		access.AccessReviewPreFillDef().ID:          access.AccessReviewPreFillBinding,
+		access.BreakGlassSummaryDef().ID:            access.BreakGlassSummaryBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
