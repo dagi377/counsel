@@ -1566,3 +1566,11 @@ Done in PORT-18:
   Expiry no longer depends on `audit.audit_event`, so the boot audit masker need not keep
   `grant_id` for ExpireDue to stay idempotent. Grants expired before this migration have no
   `expired_at` and are audited once more on the first run after it.
+- PORT-27 (logged, autopilot): `kernel/portal/auth.go` is edited outside the task's file list,
+  because Shell has to use the new `SessionStore` (field `Shell.Store`; NewShell sets an
+  in-memory store). The migration is `1500_portal_token.sql` in the kernel/portal block, not
+  `6240` (an app block). `core.user_session` has no hash or expiry column, so
+  `platform.portal_token` holds the SHA-256 keys of sign-in tokens and session handles, the
+  grants and the expiry, and links each session to its `core.user_session` row
+  (platform 'portal'). Ending that row (logout or revocation) ends the portal session. Guest
+  ids must be `core.app_user` ids.
