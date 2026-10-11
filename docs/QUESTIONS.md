@@ -3720,3 +3720,30 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   lawyer like every other scheduled feature.
 - Open: PROPOSAL-DRAFT mapped `matter-open-wizard` to `matters.open`; main's pass-16 mapping
   (`matters.view`, Q-INTEG-16-SCREENS) was kept. Decide which capability the wizard needs.
+
+## AGENT-PROD / AGENT-PROD-2b: production agent wiring, draft bodies, feature-run worker
+
+- AGENT-PROD edited files outside the boot module's own list: `cmd/counseld/main.go` gained
+  the model flags (`-model-mode`, `-model-base-url`, `-model-protocol`, `-model`,
+  `-firm-account`; the key only from `$COUNSEL_MODEL_KEY`), and `app/legal/boot/boot.go`
+  registers the agent through `w.registerAgent`, so the wiring `bindProduction` builds is the
+  one registered. Both are wiring only: the flags fill `legalboot.Production`, which holds the
+  logic. AGENT-PROD-2b adds the same model flags to `cmd/counsel-worker/main.go`, since the
+  worker now runs the agent features. Confirm these files may be touched by agent wiring tasks.
+- Draft bodies: new table `agent.draft_body` (migration 6202, block app/legal/agent) holds
+  each agent draft's body sealed with AES-256-GCM under the boot seal key
+  (`PGDraftBodies`). Draft rows keep only `agent.draft_body:<uuid>`. DM-020 names encrypted
+  object storage; this is Postgres with app-side sealing until a bucket exists. Open: move
+  the bodies to the cell bucket (kernel/docs Blobs) when one is wired, and add a reader for
+  the review screens (`PGDraftBodies.Get`).
+- Feature-run worker: `FeatureRunWorker` runs `agent_feature_run` jobs. The run id is a UUID
+  derived from the River job id (`JobRunID`), so retries resume one run record and drafts reuse
+  their rows by idempotency key; the action route now answers that run id. A transient model
+  fault retries the job; an unknown feature or no acting user cancels it.
+- Open: production sets no `Production.Jobs` enqueuer (the River client lives inside the
+  kernel worker role), so counseld still queues no write action and no tick enqueues a
+  scheduled run. The kernel needs to expose an insert-only River client to apps.
+- Open: most gate kinds the agent features declare (`conflict.wall`, `docs.template_publish`,
+  ...) are not registered in the boot graph; only 9 kinds are. A run that submits for one of
+  those fails `gate: unknown kind`. The worker end-to-end test registers
+  `docs.template_publish` itself for the scheduled case.

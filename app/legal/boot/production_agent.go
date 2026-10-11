@@ -243,6 +243,13 @@ func (p Production) bindAgent(ctx context.Context, k *kboot.Kernel, opts *Option
 		})
 	}
 	ready.setBindings(w.Bindings)
+	// The agent_feature_run worker runs on the same model and tools as the action route.
+	if w.RunModel == nil {
+		w.RunModel = model
+	}
+	if w.RunTools == nil {
+		w.RunTools = tools
+	}
 	opts.HTTP.AgentModel = model
 	opts.HTTP.AgentTools = tools
 	return w, nil
@@ -354,7 +361,11 @@ func (p Production) agentPorts(k *kboot.Kernel, opts *Options, w *AgentWiring) e
 	if ports.OpenGate == nil && k.Gates != nil {
 		ports.OpenGate = gateOpener(k)
 	}
-	if err := WireMatterPorts(ports, k.DB, matters, unstoredBodies{}); err != nil {
+	bodies, err := p.draftBodies(k)
+	if err != nil {
+		return err
+	}
+	if err := WireMatterPorts(ports, k.DB, matters, bodies); err != nil {
 		return err
 	}
 	if k.Emitter != nil {
@@ -412,7 +423,20 @@ func gateOpener(k *kboot.Kernel) agenttools.GateOpener {
 	}
 }
 
-// unstoredBodies has no object store: a drafted body is refused, so its tool fails closed.
+// draftBodies is the agent draft body store: agent.draft_body on k.DB, sealed with the boot
+// seal key. With no seal key it is unstoredBodies, so every drafting tool fails closed.
+func (p Production) draftBodies(k *kboot.Kernel) (matter.Bodies, error) {
+	if p.SealKey == nil {
+		return unstoredBodies{}, nil
+	}
+	sealer, err := trust.NewAESSealer(*p.SealKey)
+	if err != nil {
+		return nil, fmt.Errorf("draft bodies: %w", err)
+	}
+	return PGDraftBodies{DB: k.DB, Sealer: sealer}, nil
+}
+
+// unstoredBodies has no store: a drafted body is refused, so its tool fails closed.
 type unstoredBodies struct{}
 
 // Put implements matter.Bodies.
