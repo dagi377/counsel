@@ -52,5 +52,6 @@ func appDefs() []feature.Def {
 		conflict.SearchRankingDef(),
 		conflict.ClearanceMemoDef(),
 		conflict.ConsentDraftingDef(),
+		conflict.ReverseSweepDef(),
 	}
 }
