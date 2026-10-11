@@ -3217,3 +3217,22 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
   screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
   as served by its screen actions instead of binding it.
+
+## Q-FEAT-ACC-01 Access features F-ACC-02 to F-ACC-04: shared layout
+
+- Tasks: FEAT-ACC-01, FEAT-ACC-02, FEAT-ACC-03. Each Def joins `featureset.appDefs`, its
+  featureset test row and `boot.JobBindings`; the generated plugin skill is checked in. The
+  branches stack (`task/FEAT-ACC-02` on `task/FEAT-ACC-01`, `task/FEAT-ACC-03` on
+  `task/FEAT-ACC-02`) so the one helper file, `app/legal/access/ai_acc_helpers_test.go`, is
+  shared rather than copied.
+- Firm subject: main has no `boot.FirmSubject`, and `draft_document` takes a `matter_id`
+  (a2 schema). The access drafts are firm-level (licence, access review, break-glass), so the
+  tests draft on a synthetic matter. Proposed follow-up: once a firm subject lands
+  (`task/FORM-SUBJECT`), draft these on it.
+- F-ACC-02 reuses `identity.KindUserActivation` for `core.user_activation`. Its monthly run
+  binds with `trigger.BindDesignated` (fails closed without a designated lawyer); an invite run
+  acts for the inviting user.
+- Provenance: the access drafts carry no amount fields, and `draft_document` declares no
+  provenance pointer. The tests check every date in a draft against the run's reads with
+  `agenttools.Provenance` (`accSourcedDates`) and pin `ErrUnsourcedValue` for a date never read.
+- Event types with no publisher yet: `user.invited` (F-ACC-02).
