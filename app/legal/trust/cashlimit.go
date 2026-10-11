@@ -184,7 +184,9 @@ func (s *LedgerStore) enforceCash(ctx context.Context, tx pgx.Tx, matterID strin
 // checkCashGate requires gateID to be an approved trust.cash_over_limit gate for exactly this
 // matter, amount and exception code.
 func (s *LedgerStore) checkCashGate(ctx context.Context, tx pgx.Tx, matterID string, amountCents int64, code, gateID string) error {
-	refused := func(why string) error { return fmt.Errorf("cash exception %s: %w: %w", why, ErrCashLimit, ErrCashGateRequired) }
+	refused := func(why string) error {
+		return fmt.Errorf("cash exception %s: %w: %w", why, ErrCashLimit, ErrCashGateRequired)
+	}
 	if gateID == "" {
 		return refused("no gate")
 	}

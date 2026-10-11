@@ -20,8 +20,20 @@ import (
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
-// memStore is an in-memory EffectStore.
-type memStore struct{ w map[string]Held }
+// memStore is an in-memory EffectStore. It also stands in for the gate's stored payload:
+// MarkAuthorized keeps the payload Apply approved, and ApprovedPayload returns it.
+type memStore struct {
+	w        map[string]Held
+	approved map[string]json.RawMessage // gate id -> approved payload
+}
+
+func (m *memStore) ApprovedPayload(_ context.Context, _ pgx.Tx, gateID, withdrawalID string) (json.RawMessage, error) {
+	p, ok := m.approved[gateID]
+	if !ok || m.w[withdrawalID].GateID != gateID {
+		return nil, ErrNotFound
+	}
+	return p, nil
+}
 
 func (m *memStore) Lock(_ context.Context, _ pgx.Tx, id string) (Held, error) {
 	h, ok := m.w[id]
@@ -33,9 +45,26 @@ func (m *memStore) Lock(_ context.Context, _ pgx.Tx, id string) (Held, error) {
 
 func (m *memStore) MarkAuthorized(_ context.Context, _ pgx.Tx, id, by, gateID string, at time.Time) error {
 	h := m.w[id]
-	h.Status, h.AuthorizedBy, h.GateID, h.AuthorizedAt = StatusAuthorized, by, gateID, at
+	h.Status, h.AuthorizedBy, h.GateID, h.AuthorizedAt, h.ExpiresAt = StatusAuthorized, by, gateID, at, at.Add(AuthorizationTTL)
 	m.w[id] = h
+	if m.approved == nil {
+		m.approved = map[string]json.RawMessage{}
+	}
+	m.approved[gateID], _ = json.Marshal(PayloadFor(h))
 	return nil
+}
+
+// ReleaseExpiredOnLedger cancels authorisations on ledger expired at now, as PGStore does.
+func (m *memStore) ReleaseExpiredOnLedger(_ context.Context, _ pgx.Tx, ledger trust.LedgerID, now time.Time) (int64, error) {
+	var n int64
+	for id, h := range m.w {
+		if h.LedgerID == ledger && h.Status == StatusAuthorized && (h.ExpiresAt.IsZero() || !now.Before(h.ExpiresAt)) {
+			h.Status = StatusRejected
+			m.w[id] = h
+			n++
+		}
+	}
+	return n, nil
 }
 
 func (m *memStore) MarkExecuted(_ context.Context, _ pgx.Tx, id, by string, on time.Time) error {
@@ -100,12 +129,22 @@ func newEffectRig(t *testing.T, balance, amount int64, solo bool) effectRig {
 			Method: MethodCheque, Reason: "disbursement", PreparedBy: "prep"}}}}}
 	a := &audit{}
 	e := &Effect{Ledgers: tf, Store: store, Signers: sigs{"lawyer1": true, "lawyer2": true}, Firm: firm(solo), Audit: a,
-		Now: func() time.Time { return execDay.Add(9 * time.Hour) }}
+		Now: func() time.Time { return execDay.Add(9 * time.Hour) }, Approvals: store}
 	return effectRig{e: e, tf: tf, store: store, audit: a, led: led}
 }
 
-func approved(by registry.Principal) registry.Approved {
-	p, _ := json.Marshal(EffectPayload{WithdrawalID: "w1"})
+// approved is the gate approval of the rig's withdrawal w1 on its current terms.
+func (r effectRig) approved(by registry.Principal) registry.Approved {
+	return approvedPayload(termsPayload(r.store.w["w1"]), by)
+}
+
+// termsPayload is the gate payload that approves exactly h's terms.
+func termsPayload(h Held) json.RawMessage {
+	p, _ := json.Marshal(PayloadFor(h))
+	return p
+}
+
+func approvedPayload(p json.RawMessage, by registry.Principal) registry.Approved {
 	return registry.Approved{GateID: "gate-1", Kind: GateKind, Version: 1, Payload: p,
 		Preparer: registry.Principal{Kind: registry.PrincipalUser, UserID: "prep"}, Approvers: []registry.Principal{by}}
 }
@@ -149,7 +188,7 @@ func TestARC_I_027_WithdrawalOnlyViaGateEffect(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := newEffectRig(t, 10000, 4000, tt.solo)
 			ctx := context.Background()
-			err := r.e.Apply(ctx, nil, approved(tt.approver))
+			err := r.e.Apply(ctx, nil, r.approved(tt.approver))
 			if !errors.Is(err, tt.applyErr) {
 				t.Fatalf("apply = %v, want %v", err, tt.applyErr)
 			}
@@ -219,7 +258,7 @@ func TestARC_I_024_EffectRechecksBalance(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := newEffectRig(t, tt.balance, tt.amount, false)
 			ctx := context.Background()
-			err := r.e.Apply(ctx, nil, approved(user("lawyer1")))
+			err := r.e.Apply(ctx, nil, r.approved(user("lawyer1")))
 			if !errors.Is(err, tt.applyErr) {
 				t.Fatalf("apply = %v, want %v", err, tt.applyErr)
 			}
@@ -271,12 +310,36 @@ func TestExecuteGuards(t *testing.T) {
 			h := r.store.w["w1"]
 			h.ExpiresAt = execDay
 			r.store.w["w1"] = h
-		}, ErrNotAuthorized},
+		}, ErrAuthorizationExpired},
 		{"unknown withdrawal", func(r effectRig) { delete(r.store.w, "w1") }, ErrNotFound},
+		{"no expiry recorded", func(r effectRig) {
+			h := r.store.w["w1"]
+			h.ExpiresAt = time.Time{}
+			r.store.w["w1"] = h
+		}, ErrAuthorizationExpired},
+		{"amount changed after approval", func(r effectRig) {
+			h := r.store.w["w1"]
+			h.Request.AmountCents = 3000
+			r.store.w["w1"] = h
+		}, ErrTermsMismatch},
+		{"payee changed after approval", func(r effectRig) {
+			h := r.store.w["w1"]
+			h.Request.Payee = "Someone Else Ltd"
+			r.store.w["w1"] = h
+		}, ErrTermsMismatch},
+		{"method changed after approval", func(r effectRig) {
+			h := r.store.w["w1"]
+			h.Request.Method = MethodEFT
+			r.store.w["w1"] = h
+		}, ErrTermsMismatch},
+		{"no approved payload stored", func(r effectRig) { delete(r.store.approved, "gate-1") }, ErrTermsMismatch},
+		{"no approved payload source", func(r effectRig) { r.e.Approvals = nil }, ErrTermsMismatch},
 		{"uncleared funds", func(r effectRig) {
+			// The gate approved 15000 (its stored payload says so); Disburse finds it uncleared.
 			h := r.store.w["w1"]
 			h.Request.AmountCents = 15000
 			r.store.w["w1"] = h
+			r.store.approved[h.GateID] = termsPayload(h)
 			if _, err := r.tf.Receive(context.Background(), nil, trust.Receipt{LedgerID: r.led, TxnDate: execDay, Method: trust.MethodCheque,
 				Counterparty: "Client", AmountCents: 10000, Purpose: "retainer", PostedBy: "prep"}); err != nil {
 				panic(err)
@@ -286,7 +349,7 @@ func TestExecuteGuards(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := newEffectRig(t, 10000, 4000, false)
-			if err := r.e.Apply(context.Background(), nil, approved(user("lawyer1"))); err != nil {
+			if err := r.e.Apply(context.Background(), nil, r.approved(user("lawyer1"))); err != nil {
 				t.Fatal(err)
 			}
 			tt.mod(r)
@@ -311,7 +374,7 @@ func TestApplyBadPayload(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := newEffectRig(t, 10000, 4000, false)
-			g := approved(user("lawyer1"))
+			g := r.approved(user("lawyer1"))
 			g.Payload = json.RawMessage(tt.payload)
 			if err := r.e.Apply(context.Background(), nil, g); !errors.Is(err, gate.ErrEffectFailed) {
 				t.Fatalf("apply = %v, want effect failed", err)
@@ -481,11 +544,13 @@ func TestARC_I_025_ConcurrentApplyLocksLedger(t *testing.T) {
 				start := make(chan struct{})
 				errs := make([]error, tc.n)
 				var wg sync.WaitGroup
+				gates := make([]registry.Approved, tc.n)
 				for i, id := range ids {
+					gates[i] = approvedPayload(termsPayload(db.w[id]), user("lawyer1"))
+				}
+				for i := range ids {
 					wg.Go(func() {
-						p, _ := json.Marshal(EffectPayload{WithdrawalID: id})
-						g := approved(user("lawyer1"))
-						g.Payload = p
+						g := gates[i]
 						tx := db.begin()
 						<-start
 						errs[i] = rig.e.Apply(context.Background(), tx, g)
@@ -518,6 +583,86 @@ func TestARC_I_025_ConcurrentApplyLocksLedger(t *testing.T) {
 				if held > tc.balance {
 					t.Fatalf("authorised holds %d exceed the ledger's %d", held, tc.balance)
 				}
+			}
+		})
+	}
+}
+
+// rule: ARC-I-019
+// The approved gate binds amount, payee, method and matter: Apply refuses a payload that does
+// not state the withdrawal's terms exactly, and authorises nothing.
+func TestARC_I_019_ApplyBindsApprovedTerms(t *testing.T) {
+	amount := func(v int64) *int64 { return &v }
+	tests := []struct {
+		name string
+		mod  func(p *EffectPayload)
+		want error
+	}{
+		{"exact terms authorise", func(*EffectPayload) {}, nil},
+		{"approved amount differs", func(p *EffectPayload) { p.AmountCents = amount(4001) }, ErrTermsMismatch},
+		{"approved amount missing", func(p *EffectPayload) { p.AmountCents = nil }, ErrTermsMismatch},
+		{"approved payee differs", func(p *EffectPayload) { p.Payee = "Other Payee" }, ErrTermsMismatch},
+		{"approved payee missing", func(p *EffectPayload) { p.Payee = "" }, ErrTermsMismatch},
+		{"approved method differs", func(p *EffectPayload) { p.Method = MethodEFT }, ErrTermsMismatch},
+		{"approved method missing", func(p *EffectPayload) { p.Method = "" }, ErrTermsMismatch},
+		{"approved matter differs", func(p *EffectPayload) { p.MatterID = "M2" }, ErrTermsMismatch},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newEffectRig(t, 10000, 4000, false)
+			p := PayloadFor(r.store.w["w1"])
+			tt.mod(&p)
+			raw, _ := json.Marshal(p)
+			err := r.e.Apply(context.Background(), nil, approvedPayload(raw, user("lawyer1")))
+			if !errors.Is(err, tt.want) {
+				t.Fatalf("apply = %v, want %v", err, tt.want)
+			}
+			if tt.want == nil {
+				if r.store.w["w1"].Status != StatusAuthorized || !r.store.w["w1"].ExpiresAt.Equal(execDay.Add(9*time.Hour+AuthorizationTTL)) {
+					t.Fatalf("authorised row = %+v, want authorized expiring after %v", r.store.w["w1"].Withdrawal, AuthorizationTTL)
+				}
+				return
+			}
+			if !errors.Is(err, ErrNotAuthorized) || !errors.Is(err, gate.ErrEffectFailed) {
+				t.Fatalf("apply = %v, want a failed effect matching ErrNotAuthorized", err)
+			}
+			if r.store.w["w1"].Status != StatusRequested {
+				t.Fatalf("status = %s after refused apply", r.store.w["w1"].Status)
+			}
+		})
+	}
+}
+
+// rule: ARC-I-025
+// An expired authorisation's hold is released: the next authorisation on the ledger sees the
+// money again, and the expired withdrawal can no longer execute.
+func TestARC_I_025_ExpiredHoldReleased(t *testing.T) {
+	tests := []struct {
+		name        string
+		expiresAt   time.Time
+		wantErr     error
+		wantW1Still Status
+	}{
+		{"expired hold released", execDay, nil, StatusRejected},
+		{"hold with no expiry released", time.Time{}, nil, StatusRejected},
+		{"live hold kept", execDay.Add(48 * time.Hour), ErrTrustOverdraw, StatusAuthorized},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newEffectRig(t, 10000, 8000, false)
+			w1 := r.store.w["w1"]
+			w1.Status, w1.GateID, w1.AuthorizedBy, w1.ExpiresAt = StatusAuthorized, "gate-0", "lawyer1", tt.expiresAt
+			r.store.w["w1"] = w1
+			w2 := w1
+			w2.ID, w2.Status, w2.GateID, w2.AuthorizedBy, w2.ExpiresAt = "w2", StatusRequested, "", "", time.Time{}
+			r.store.w["w2"] = w2
+			r.e.Ledgers = holdingLedgers{TrustLedgers: r.e.Ledgers, store: &lockedStore{memStore: r.store}}
+			err := r.e.Apply(context.Background(), nil, approvedPayload(termsPayload(w2), user("lawyer1")))
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("apply w2 = %v, want %v", err, tt.wantErr)
+			}
+			if got := r.store.w["w1"].Status; got != tt.wantW1Still {
+				t.Fatalf("w1 status = %s, want %s", got, tt.wantW1Still)
 			}
 		})
 	}

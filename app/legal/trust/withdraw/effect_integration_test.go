@@ -5,6 +5,7 @@ package withdraw
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -139,6 +140,7 @@ func newItEnv(t *testing.T, balance int64) itEnv {
 }
 
 // request inserts a proposed withdrawal and an approved trust.withdrawal gate bound to it.
+// terms returns that gate's stored payload.
 func (env itEnv) request(t *testing.T, amount int64) (string, string) {
 	t.Helper()
 	var wid, gid string
@@ -147,9 +149,24 @@ func (env itEnv) request(t *testing.T, amount int64) (string, string) {
 VALUES ($1::uuid, 'disbursement', 'Vendor Inc', $2, 'cheque', $3::uuid) RETURNING id::text`, string(env.ledger), amount, env.users["prep"]).Scan(&wid); err != nil {
 			return err
 		}
-		return tx.QueryRow(ctx, `INSERT INTO gate.approval_request(gate_code, spec_gate, payload_type, payload_id, payload_hash, requested_by, status, expires_at)
-VALUES ('trust.withdrawal', 'G11', 'trust.withdrawal_request', $1::uuid, '\x00'::bytea, $2::uuid, 'approved', now() + interval '1 day') RETURNING id::text`,
-			wid, env.users["prep"]).Scan(&gid)
+		// The gate stores the JCS bytes of the payload it approved: exactly this withdrawal's terms.
+		var matter string
+		if err := tx.QueryRow(ctx, `SELECT matter_id::text FROM trust.client_ledger WHERE id = $1::uuid`, string(env.ledger)).Scan(&matter); err != nil {
+			return err
+		}
+		raw, err := json.Marshal(EffectPayload{WithdrawalID: wid, MatterID: matter, AmountCents: &amount, Payee: "Vendor Inc", Method: MethodCheque})
+		if err != nil {
+			return err
+		}
+		jcs, err := gate.JCS(raw)
+		if err != nil {
+			return err
+		}
+		sum := sha256.Sum256(jcs)
+		return tx.QueryRow(ctx, `INSERT INTO gate.approval_request(gate_code, spec_gate, payload_type, payload_id, payload_hash, requested_by, status, expires_at,
+  payload_jcs, payload_sha256)
+VALUES ('trust.withdrawal', 'G11', 'trust.withdrawal_request', $1::uuid, $3, $2::uuid, 'approved', now() + interval '1 day', $4, $3) RETURNING id::text`,
+			wid, env.users["prep"], sum[:], jcs).Scan(&gid)
 	})
 	if err != nil {
 		t.Fatalf("request: %v", err)
@@ -158,7 +175,20 @@ VALUES ('trust.withdrawal', 'G11', 'trust.withdrawal_request', $1::uuid, '\x00':
 }
 
 func (env itEnv) effect() *Effect {
-	return &Effect{Ledgers: env.store, Store: PGStore{}, Signers: itSigners{}, Firm: itFirm{}, Audit: itAudit{}, Now: func() time.Time { return env.now }}
+	return &Effect{Ledgers: env.store, Store: PGStore{}, Signers: itSigners{}, Firm: itFirm{}, Audit: itAudit{}, Now: func() time.Time { return env.now },
+		Approvals: PGApprovals{}}
+}
+
+// terms is the stored payload of the approved gate bound to withdrawal wid.
+func (env itEnv) terms(t *testing.T, wid string) json.RawMessage {
+	t.Helper()
+	var raw []byte
+	if err := env.pool.InTx(context.Background(), func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT payload_jcs FROM gate.approval_request WHERE payload_id = $1::uuid`, wid).Scan(&raw)
+	}); err != nil {
+		t.Fatalf("terms: %v", err)
+	}
+	return raw
 }
 
 func (env itEnv) posted(t *testing.T) int64 {
@@ -187,7 +217,7 @@ func TestARC_I_027_EffectIntegration(t *testing.T) {
 			wid, gid := env.request(t, 4000)
 			e := env.effect()
 			ctx := context.Background()
-			p, _ := json.Marshal(EffectPayload{WithdrawalID: wid})
+			p := env.terms(t, wid)
 			if err := env.pool.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 				return e.Apply(ctx, tx, registry.Approved{GateID: gid, Kind: GateKind, Payload: p,
 					Approvers: []registry.Principal{{Kind: registry.PrincipalUser, UserID: env.users["lawyer1"]}}})
@@ -212,7 +242,7 @@ func TestARC_I_027_EffectIntegration(t *testing.T) {
 func TestARC_I_024_EffectIntegration(t *testing.T) {
 	env := newItEnv(t, 10000)
 	wid, gid := env.request(t, 12000)
-	p, _ := json.Marshal(EffectPayload{WithdrawalID: wid})
+	p := env.terms(t, wid)
 	err := env.pool.InTx(context.Background(), func(ctx context.Context, tx pgx.Tx) error {
 		return env.effect().Apply(ctx, tx, registry.Approved{GateID: gid, Kind: GateKind, Payload: p,
 			Approvers: []registry.Principal{{Kind: registry.PrincipalUser, UserID: env.users["lawyer1"]}}})
@@ -247,12 +277,16 @@ func TestARC_I_025_ConcurrentAuthorizationsIntegration(t *testing.T) {
 		reqs[i].wid, reqs[i].gid = env.request(t, each)
 	}
 	e := env.effect()
+	terms := make([]json.RawMessage, n)
+	for i, r := range reqs {
+		terms[i] = env.terms(t, r.wid)
+	}
 	start := make(chan struct{})
 	errs := make([]error, n)
 	var wg sync.WaitGroup
 	for i, r := range reqs {
 		wg.Go(func() {
-			p, _ := json.Marshal(EffectPayload{WithdrawalID: r.wid})
+			p := terms[i]
 			<-start
 			errs[i] = env.pool.InTx(context.Background(), func(ctx context.Context, tx pgx.Tx) error {
 				return e.Apply(ctx, tx, registry.Approved{GateID: r.gid, Kind: GateKind, Payload: p,
