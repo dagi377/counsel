@@ -1924,3 +1924,19 @@ Done in PORT-18:
 - Submit is refused 422 unexplained_difference unless the three-way totals agree after
   reconciling items; a signed-off reconciliation answers 409 period_locked.
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+
+## HTTP-19: trust request routes (approved scope)
+
+- No trust-request service existed; the owner approved a minimal one because the operations
+  are in the frozen openapi (same rule as HTTP-05). `trust/request.go` adds `Request`,
+  `Requests` (Create, Get, List) and the Postgres `RequestStore` on a new table
+  `trust.trust_request` (migration `5504_trust_request.sql`, trust block). `trustfake.Requests`
+  is the in-memory fake. Boot wiring supplies the store; until then the routes answer 503.
+- Create writes a draft only. The agent may draft for the person it acts for
+  (`prepared_by_agent`), but never approves; the preparer never approves their own request.
+  Both are enforced by `CheckApprover` and the table's CHECK (approved_by <> prepared_by).
+  There is no approve route yet: approval belongs to a later gate step.
+- GET needs trust.view, POST needs trust.request; walls and RLS limit rows. openapi has no
+  body or response schema for these operations; the views are documented here until it does.
+- `billing.retainer_request` (0001) is left untouched; reconciling the two is a follow-up.
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008), as in HTTP-05.

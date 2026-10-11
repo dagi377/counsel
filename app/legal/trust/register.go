@@ -34,3 +34,13 @@ func registerReadRoutes(r registry.Registry) error {
 	r.Routes((&HTTP{}).Routes)
 	return nil
 }
+
+func init() { add(registerRequestRoutes) }
+
+// registerRequestRoutes mounts GET /trust/requests and POST /trust/requests through
+// Registry.Routes. Boot wiring supplies the dependencies (RequestStore); until it does, the
+// routes answer 503.
+func registerRequestRoutes(r registry.Registry) error {
+	r.Routes((&RequestHTTP{}).Routes)
+	return nil
+}

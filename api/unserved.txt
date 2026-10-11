@@ -17,8 +17,6 @@ POST /payments/{payment_id}/allocations
 POST /payments/{payment_id}/refunds
 GET /roles
 POST /trust/receipts
-GET /trust/requests
-POST /trust/requests
 POST /trust/transfers
 GET /users
 PUT /users/{user_id}/roles
