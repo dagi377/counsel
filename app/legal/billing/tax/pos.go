@@ -32,14 +32,22 @@ func NewPlaceOfSupply() *Decider { return &Decider{} }
 // real-property rule: a court province beats a property province. Confirm with B-103.
 func (d *Decider) Decide(ctx context.Context, s Supply) (Place, error) {
 	// rule: BIL-T-010
+	var (
+		prov  string
+		rules []string
+		err   error
+	)
 	if nonResident(s) {
 		// rule: BIL-T-015
-		// Fail closed until the non-resident rules (T-014.2c) are wired.
-		return Place{}, fmt.Errorf("decide non-resident: %w", ErrUnverified)
+		prov, rules, err = nonResidentProvince(ctx, s)
+	} else {
+		prov, rules, err = residentProvince(ctx, s)
 	}
-	prov, rules, err := residentProvince(ctx, s)
 	if err != nil {
 		return Place{}, err
+	}
+	if prov == Zero {
+		return Place{Province: Zero, Rules: rules}, nil
 	}
 	return placeIn(ctx, s, prov, rules)
 }
