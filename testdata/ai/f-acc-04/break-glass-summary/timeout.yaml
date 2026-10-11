@@ -1,0 +1,4 @@
+synthetic: true
+feature: F-ACC-04
+match: {last_user_regex: "break-glass session ended"}
+fault: timeout

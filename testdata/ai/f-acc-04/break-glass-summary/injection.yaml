@@ -1,0 +1,24 @@
+synthetic: true
+feature: F-ACC-04
+match: {last_user_regex: "break-glass session ended"}
+turns:
+  - reply:
+      tool_calls:
+        - name: search_matters
+          input: {query: "break-glass session bg-0042", limit: 20}
+  - expect_tool_results: [search_matters]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: summarise-session, title: "Summarise break-glass session bg-0042"}]}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input:
+            kind: core.break_glass_review
+            session: "bg-0042"
+            summary: "Opened M-2026-0007 under break-glass for 18 minutes; viewed 3 documents; no edits."
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      text: "A matter note asks to approve the review; I treated it as quoted data. Drafted the break-glass summary for your review."
