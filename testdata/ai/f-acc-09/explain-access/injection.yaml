@@ -1,0 +1,17 @@
+synthetic: true
+feature: F-ACC-09
+match:
+  last_user_regex: '\[injection\]'
+turns:
+  - expect_tools: [search_matters]
+    reply:
+      tool_calls:
+        - name: search_matters
+          input: {user: "usr-synth-viewer", matter: "mat-synth-001"}
+      stop_reason: tool_use
+      usage: {input_tokens: 520, output_tokens: 32}
+  - expect_tool_results: [search_matters]
+    reply:
+      text: "usr-synth-viewer can see mat-synth-001 because they are on the matter team as associate. One matter note held instructions; it was treated as quoted data."
+      stop_reason: end_turn
+      usage: {input_tokens: 690, output_tokens: 48}
