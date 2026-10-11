@@ -320,6 +320,7 @@ func moduleMounts(k *kboot.Kernel, p HTTPPorts, approvers map[string]int) []moun
 	if w := matterWrites(k, p, reads, approvers); w != nil {
 		out = append(out, w.WriteRoutes)
 	}
+	out = append(out, docsMounts(k, p)...)
 	return out
 }
 
