@@ -109,31 +109,31 @@ func TestBIL_C_085_PGWriteOffTotals(t *testing.T) {
 		{name: "the write-off being decided never counts", scope: scope, want: 100000,
 			tx: &totalsTx{lock: totalsRow{vals: []any{"c1"}}, bills: clientBills,
 				approved: [][]any{{"w1", int64(100000)}},
-				pending:  [][]any{{"w-new", true, "b1", int64(59000), inWindow}}}},
-		{name: "pending on the bill counts once across both gates", scope: scope, want: 70000,
+				pending:  [][]any{{"w-new", "b1", int64(59000), inWindow}}}},
+		{name: "pending draft listed twice counts once", scope: scope, want: 70000,
 			tx: &totalsTx{lock: totalsRow{vals: []any{"c1"}}, bills: clientBills,
-				pending: [][]any{{"w3", true, "b1", int64(70000), before}, {"w3", true, "b1", int64(70000), inWindow}}}},
+				pending: [][]any{{"w3", "b1", int64(70000), before}, {"w3", "b1", int64(70000), inWindow}}}},
 		{name: "approved and pending on one write-off count once", scope: scope, want: 40000,
 			tx: &totalsTx{lock: totalsRow{vals: []any{"c1"}}, bills: clientBills,
 				approved: [][]any{{"w4", int64(40000)}},
-				pending:  [][]any{{"w4", true, "b1", int64(40000), inWindow}}}},
+				pending:  [][]any{{"w4", "b1", int64(40000), inWindow}}}},
 		{name: "client's other bill in window counts, outside does not", scope: scope, want: 20000,
 			tx: &totalsTx{lock: totalsRow{vals: []any{"c1"}}, bills: clientBills,
-				pending: [][]any{{"w5", true, "b2", int64(20000), inWindow}, {"w6", true, "b2", int64(30000), before}}}},
+				pending: [][]any{{"w5", "b2", int64(20000), inWindow}, {"w6", "b2", int64(30000), before}}}},
 		{name: "another client's bill does not count", scope: scope,
 			tx: &totalsTx{lock: totalsRow{vals: []any{"c1"}}, bills: clientBills,
-				pending: [][]any{{"w7", true, "b9", int64(20000), inWindow}}}},
+				pending: [][]any{{"w7", "b9", int64(20000), inWindow}}}},
 		{name: "unknown bill", scope: scope, err: ErrNotFound, tx: &totalsTx{lock: totalsRow{err: pgx.ErrNoRows}}},
 		{name: "malformed bill id", scope: scope, err: ErrNotFound, tx: &totalsTx{lock: totalsRow{err: &pgconn.PgError{Code: "22P02"}}}},
 		{name: "lock error", scope: scope, err: boom, tx: &totalsTx{lock: totalsRow{err: boom}}},
 		{name: "client is not the payer", scope: scope, err: ErrInvalidState, tx: &totalsTx{lock: totalsRow{vals: []any{"c2"}}}},
 		{name: "incomplete scope", scope: WriteOffScope{BillID: "b1"}, err: ErrInvalidState, tx: &totalsTx{}},
-		{name: "pending gate without stored payload", scope: scope, err: ErrInvalidState,
+		{name: "pending draft with a zero amount", scope: scope, err: ErrInvalidState,
 			tx: &totalsTx{lock: totalsRow{vals: []any{"c1"}}, bills: clientBills,
-				pending: [][]any{{"w8", false, "", int64(-1), inWindow}}}},
-		{name: "pending payload without amount", scope: scope, err: ErrInvalidState,
+				pending: [][]any{{"w8", "b1", int64(0), inWindow}}}},
+		{name: "pending draft without a positive amount", scope: scope, err: ErrInvalidState,
 			tx: &totalsTx{lock: totalsRow{vals: []any{"c1"}}, bills: clientBills,
-				pending: [][]any{{"w8", true, "b1", int64(-1), inWindow}}}},
+				pending: [][]any{{"w8", "b1", int64(-1), inWindow}}}},
 		{name: "approved query error", scope: scope, err: boom,
 			tx: &totalsTx{lock: totalsRow{vals: []any{"c1"}}, bills: clientBills, queryErr: map[string]error{approvedWriteOffsSQL: boom}}},
 		{name: "pending query error", scope: scope, err: boom,
@@ -169,7 +169,7 @@ func TestBIL_C_085_PGWriteOffTotals(t *testing.T) {
 			if a := tt.tx.args[lockBillSQL]; len(a) != 1 || a[0] != "b1" {
 				t.Fatalf("lock args = %v", a)
 			}
-			if a := tt.tx.args[pendingWriteOffsSQL]; len(a) != 1 || a[0] != SubjectWriteOff {
+			if a, ok := tt.tx.args[pendingWriteOffsSQL]; ok && len(a) != 0 {
 				t.Fatalf("pending args = %v", a)
 			}
 		})
@@ -180,8 +180,15 @@ func TestPGWriteOffTotalsLocksBillRow(t *testing.T) {
 	if !strings.Contains(lockBillSQL, "FROM billing.bill") || !strings.HasSuffix(strings.TrimSpace(lockBillSQL), "FOR UPDATE") {
 		t.Fatalf("lockBillSQL does not lock the bill row: %q", lockBillSQL)
 	}
-	if !strings.Contains(pendingWriteOffsSQL, "status = 'pending'") {
-		t.Fatalf("pending SQL lacks the pending predicate: %q", pendingWriteOffsSQL)
+	if !strings.Contains(pendingWriteOffsSQL, "FROM billing.write_off_draft") ||
+		!strings.Contains(pendingWriteOffsSQL, "status = 'draft' AND credit_gate_id IS NOT NULL") {
+		t.Fatalf("pending SQL does not read submitted write-off drafts: %q", pendingWriteOffsSQL)
+	}
+	// No cross-module read: the kernel gate table is never queried.
+	for _, q := range []string{lockBillSQL, clientBillsSQL, approvedWriteOffsSQL, pendingWriteOffsSQL} {
+		if strings.Contains(q, "gate.") {
+			t.Fatalf("write-off totals reads the gate schema: %q", q)
+		}
 	}
 	if _, err := (PGWriteOffTotals{}).CumulativeCents(context.Background(), nil, WriteOffScope{BillID: "b1", ClientID: "c1", Since: time.Now()}); !errors.Is(err, ErrInvalidState) {
 		t.Fatalf("nil tx err = %v", err)

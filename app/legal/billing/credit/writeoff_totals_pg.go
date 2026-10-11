@@ -15,9 +15,10 @@ var _ WriteOffTotals = PGWriteOffTotals{}
 
 // PGWriteOffTotals is the Postgres WriteOffTotals. It locks the bill row FOR UPDATE first,
 // so two write-offs on one bill are decided one after the other, then sums approved
-// write-offs (billing.write_off) and write-offs still waiting on a pending gate whose
-// subject is a write-off (the G-B5 gate or the managing lawyer's second approval). The
-// pending amount is the gate's stored payload amount. Anything it cannot count fails closed.
+// write-offs (billing.write_off) and submitted write-offs still in billing.write_off_draft
+// (status draft with a G-B5 gate). It reads only billing tables, never the kernel gate
+// table. A submitted draft whose gate was rejected still counts, which can only raise the
+// total toward the second approval (fails closed). Anything it cannot count fails closed.
 type PGWriteOffTotals struct{}
 
 // lockBillSQL locks the bill a write-off reduces and reads its payer (the client).
@@ -33,16 +34,11 @@ FROM billing.write_off
 WHERE bill_id = $1::uuid OR (bill_id = ANY($2::uuid[]) AND created_at >= $3)
 ORDER BY id`
 
-// pendingWriteOffsSQL lists the pending gates on write-offs with the bill id and cents of
-// their stored payload. A NULL payload is returned as such and fails the sum closed.
-const pendingWriteOffsSQL = `SELECT payload_id::text,
-  payload_jcs IS NOT NULL,
-  COALESCE(convert_from(payload_jcs, 'UTF8')::jsonb ->> 'bill_id', ''),
-  COALESCE((convert_from(payload_jcs, 'UTF8')::jsonb ->> 'amount_cents')::bigint, -1),
-  created_at
-FROM gate.approval_request
-WHERE payload_type = $1 AND status = 'pending'
-ORDER BY payload_id, created_at`
+// pendingWriteOffsSQL lists submitted write-off drafts that are not approved yet.
+const pendingWriteOffsSQL = `SELECT id::text, bill_id::text, amount_cents, created_at
+FROM billing.write_off_draft
+WHERE status = 'draft' AND credit_gate_id IS NOT NULL
+ORDER BY id`
 
 // CumulativeCents implements WriteOffTotals.
 func (PGWriteOffTotals) CumulativeCents(ctx context.Context, tx pgx.Tx, s WriteOffScope) (int64, error) {
@@ -106,7 +102,7 @@ func (PGWriteOffTotals) CumulativeCents(ctx context.Context, tx pgx.Tx, s WriteO
 		return 0, fmt.Errorf("write-off totals: approved: %w", approvedErr)
 	}
 
-	pending, err := tx.Query(ctx, pendingWriteOffsSQL, SubjectWriteOff)
+	pending, err := tx.Query(ctx, pendingWriteOffsSQL)
 	if err != nil {
 		return 0, fmt.Errorf("write-off totals: pending: %w", err)
 	}
@@ -114,17 +110,13 @@ func (PGWriteOffTotals) CumulativeCents(ctx context.Context, tx pgx.Tx, s WriteO
 		defer pending.Close()
 		for pending.Next() {
 			var id, bill string
-			var hasPayload bool
 			var cents int64
 			var at time.Time
-			if err := pending.Scan(&id, &hasPayload, &bill, &cents, &at); err != nil {
+			if err := pending.Scan(&id, &bill, &cents, &at); err != nil {
 				return err
 			}
 			if counted[id] {
 				continue
-			}
-			if !hasPayload {
-				return fmt.Errorf("pending gate on write-off %s has no stored payload: %w", id, ErrInvalidState)
 			}
 			if bill != s.BillID && (!clientBill[bill] || at.Before(s.Since)) {
 				continue

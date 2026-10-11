@@ -77,7 +77,7 @@ func TestPGWriteOffTotalsIntegration(t *testing.T) {
 		{"lock bill", lockBillSQL, []any{"00000000-0000-7000-8000-000000000001"}},
 		{"client bills", clientBillsSQL, []any{"00000000-0000-7000-8000-000000000002"}},
 		{"approved", approvedWriteOffsSQL, []any{"00000000-0000-7000-8000-000000000001", []string{}, since}},
-		{"pending", pendingWriteOffsSQL, []any{SubjectWriteOff}},
+		{"pending", pendingWriteOffsSQL, nil},
 	}
 	for _, st := range statements {
 		t.Run(st.name, func(t *testing.T) {
