@@ -270,6 +270,10 @@ func gateKindCodes() ([]string, error) {
 // F-CON-09, F-CON-11, F-CON-12, F-DOC-09; Q-INTEG-15A-SCHEDULED); empty fails with
 // trigger.ErrBadBinding. F-DL-05, F-DL-06, F-CON-05, F-CON-10, F-DOC-06, F-DOC-07, F-MAT-05,
 // F-MAT-09 and F-MAT-14 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
+// ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-05,
+// F-DL-09, F-CON-05, F-CON-09 to 12, F-DOC-06, F-TIM-03; Q-INTEG-15A-SCHEDULED); empty
+// fails with trigger.ErrBadBinding. The F-DL-06 rule watch acts for its designated lawyer in firm
+// settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
 // job feature cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
@@ -337,7 +341,10 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		intake.WeeklyIntakeDigestDef().ID:           intake.WeeklyIntakeDigestBinding,
 		// F-TIM-01 runs at the end of each business day once per active timekeeper, each
 		// run acting for that timekeeper (TIME-FIX); the screen actions cover on-request runs.
-		tk.RebuildDayDef().ID: tk.RebuildDayBinding,
+		tk.RebuildDayDef().ID:         tk.RebuildDayBinding,
+		tk.ReceiptCaptureDef().ID:     tk.ReceiptCaptureBinding,
+		tk.PreBillCheckDef().ID:       scheduled(tk.PreBillCheckBinding),
+		tk.TimesheetPreReviewDef().ID: tk.TimesheetPreReviewBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -465,6 +472,11 @@ var actionScreens = map[string]trigger.Screen{
 	"my-time":           {SubjectKind: "matter", Capability: "time.record"},
 	"suggested-entries": {SubjectKind: "matter", Capability: "time.record"},
 	"activity-ledger":   {SubjectKind: "matter", Capability: "time.record"},
+	// Time: an expense is recorded on its matter.
+	"expenses": {SubjectKind: "matter", Capability: "time.record"},
+	// A pre-bill check reviews the matter's unbilled time.
+	"matter-wip":  {SubjectKind: "matter", Capability: agent.CapBillingView},
+	"write-downs": {SubjectKind: "matter", Capability: agent.CapBillingView},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

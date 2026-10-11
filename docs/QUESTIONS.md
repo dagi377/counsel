@@ -3491,3 +3491,33 @@ of FEAT-TIM-01 above.
 - Open: wire `AgentWiring.Timekeepers` to a store query of active timekeepers (users holding
   `time.record`, not disabled); until then F-TIM-01's end-of-day run does not start and the
   screen actions cover on-request runs.
+
+## Q-FEAT-TIM-02 F-TIM-02 receipt capture: trigger events and shared helpers
+
+- No receipt event exists. "receipt email or upload" binds the existing `document.uploaded`
+  and `email.filed` events (the strings the documents and comms modules publish); the prompt
+  has the agent draft nothing unless the file is a receipt. A dedicated receipt event, if one
+  is added, replaces them.
+- The `expenses` screen maps to subject `matter` with capability `time.record`.
+- `draft_document` takes free-text markdown, so the expense amounts carry no provenance
+  pointer; the prompt has the agent copy only values on the receipt or in a tool result.
+- The end-to-end tests use `app/legal/timekeeping/ai_timb_helpers_test.go` (prefix `timb`),
+  shared with FEAT-TIM-03 and FEAT-TIM-04. It prices the Seed's time entries for
+  `list_unbilled` (the Seed has no `agent.MatterTime`).
+
+## Q-FEAT-TIM-03 F-TIM-03 pre-bill check: trigger event and acting user
+
+- No bill-draft-requested event exists on main. F-TIM-03 names `bill.draft_requested`
+  (`timekeeping.EventBillDraftRequested`); billing must publish it when a user asks for a
+  draft bill, or the event half never fires. The monthly half runs today.
+- The monthly run has no designated lawyer, so boot binds it for `ruleAdmin` like the other
+  scheduled features (Q-INTEG-15A-SCHEDULED).
+- `matter-wip` and `write-downs` map to subject `matter` with capability `billing.view`
+  (what `list_unbilled` needs).
+
+## Q-FEAT-TIM-04 F-TIM-04 timesheet pre-review: trigger event
+
+- No week-submitted event exists on main. F-TIM-04 names `timesheet.week_submitted`
+  (`timekeeping.EventTimesheetWeekSubmitted`); timekeeping must publish it when a week is
+  submitted for G9c, or the feature never fires. It has no screen action (spec `on_request`
+  is empty).

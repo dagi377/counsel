@@ -19,6 +19,7 @@ import (
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/timekeeping"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 )
 
@@ -141,5 +142,8 @@ func appDefs() []feature.Def {
 		intake.DryRunLastLeadsDef(),
 		// time
 		tk.RebuildDayDef(),
+		timekeeping.ReceiptCaptureDef(),
+		timekeeping.PreBillCheckDef(),
+		timekeeping.TimesheetPreReviewDef(),
 	}
 }
