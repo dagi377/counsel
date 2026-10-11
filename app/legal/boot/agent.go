@@ -22,6 +22,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
+	"github.com/dagi377/counsel/app/legal/platform"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
@@ -357,6 +358,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		work.AbsenceCoverPlannerDef().ID:   work.AbsenceCoverPlannerBinding,
 		work.DailyDigestDef().ID:           work.DailyDigestBinding,
 		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
+		platform.DestructionBatchDef().ID:  platform.DestructionBatchBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -523,6 +525,9 @@ var actionScreens = map[string]trigger.Screen{
 	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
 	"work-categories": {SubjectKind: "matter", Capability: "work.view"},
 	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
+	// Platform. archive-retention is firm-level: a destruction batch spans closed matters
+	// (F-PLT-07). platform.retention is a kernel id, so the screen asks for matters.close.
+	"archive-retention": {SubjectKind: FirmSubject, Capability: "matters.close"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

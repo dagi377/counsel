@@ -4255,3 +4255,16 @@ of FEAT-TIM-01 above.
   draft_document schema FORM-SUBJECT changed. list_unbilled now records provenance itself
   (sourcedRead) and boot also wraps every read tool (TIME-FIX); recording a value twice is
   harmless, but one of the two can go.
+
+## Q-FEAT-PLT-09 F-PLT-07 destruction batch on the firm subject
+
+- The destruction batch spans closed matters and belongs to none, so F-PLT-07 drafts it on
+  the firm subject (`subject_ref` `"firm"`, no `matter_id`) and opens
+  `platform.file_destruction` (`legaldocs.DestructionGate`, G14) on that draft.
+- draft_document gates a firm draft on `intake.forms` (`agent.CapIntakeForms`,
+  Q-FORM-SUBJECT), so F-PLT-07's grant names it and the designated lawyer must hold it. Open:
+  a general firm-draft capability instead of `intake.forms`.
+- `archive-retention` maps to `boot.FirmSubject` with capability `matters.close`:
+  `platform.retention` is a kernel id the app may not register (TestAppIDsAvoidKernelPrefix).
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (binding and screen), the generated plugin skill.
