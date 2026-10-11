@@ -33,6 +33,8 @@ func main() {
 	addr := flag.String("addr", ":8080", "listen address")
 	dir := flag.String("fixtures", "testdata/ai", "fixture root directory (testdata/ai)")
 	models := flag.String("models", "drafting,fast,embed", "comma-separated logical model names listed by /v1/models")
+	dump := flag.String("dump-bodies", "", "debug only: write request and response bodies of every call into this directory")
+	speed := flag.Float64("speed", 1, "multiplier for fixture latency_ms and chunk_delay_ms; 0 zeroes all delays")
 	health := flag.Bool("healthcheck", false, "probe /healthz on -addr, exit 0 when healthy (container healthcheck)")
 	flag.Parse()
 
@@ -47,7 +49,9 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := serve(ctx, *addr, newServer(os.DirFS(*dir), splitList(*models))); err != nil {
+	s := newServer(os.DirFS(*dir), splitList(*models))
+	s.journal.dumpDir, s.speed = *dump, *speed
+	if err := serve(ctx, *addr, s); err != nil {
 		slog.Error("llm fake stopped", "err", err)
 		os.Exit(1)
 	}
@@ -111,18 +115,24 @@ type server struct {
 
 	mu    sync.Mutex
 	calls map[string]int // fixture path + run id -> calls answered
+
+	speed   float64 // delay multiplier; 0 zeroes latency_ms and chunk_delay_ms
+	faults  *faultState
+	journal *journal
 }
 
 func newServer(fsys fs.FS, models []string) *server {
-	return &server{fsys: fsys, models: models, calls: map[string]int{}}
+	return &server{fsys: fsys, models: models, calls: map[string]int{}, speed: 1, faults: &faultState{}, journal: &journal{}}
 }
 
 func (s *server) handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.healthz)
 	mux.HandleFunc("GET /v1/models", s.listModels)
-	mux.HandleFunc("POST /v1/messages", s.messages)
+	mux.HandleFunc("POST /v1/messages", s.instrument("messages", decodeMessagesCall, writeMessagesError, s.messages))
 	mux.HandleFunc("POST /v1/messages/count_tokens", s.countTokens)
+	mux.HandleFunc("GET /_journal", s.journalList)
+	mux.HandleFunc("POST /_reset", s.reset)
 	return mux
 }
 
@@ -265,8 +275,8 @@ func (s *server) route(c call) (fixture.Fixture, fixture.Turn, int, *apiError) {
 		return fixture.Fixture{}, fixture.Turn{}, 0, miss(fmt.Sprintf("no fixture for feature %s and prompt hash %s", c.feature, hash), nearest)
 	}
 	if fx.Fault != fixture.FaultNone {
-		// Faults are rendered by the fault layer (AI-006); until then a fault fixture is refused
-		// loudly rather than answered as if it were a happy path.
+		// The fault layer (faults.go) serves fault fixtures before routing; a fault fixture that
+		// reaches here (its X-Fake-Fault-Once fault already fired) has no reply to give.
 		return fixture.Fixture{}, fixture.Turn{}, 0, &apiError{status: http.StatusNotImplemented, typ: "fault_unsupported",
 			message: fmt.Sprintf("fixture %s scripts fault %s, not served by this build", fx.Path, fx.Fault)}
 	}

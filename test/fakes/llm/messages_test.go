@@ -351,16 +351,6 @@ func TestMessagesTurnSequence(t *testing.T) {
 	}
 }
 
-func TestFaultFixtureRefused(t *testing.T) {
-	// The README fault example (F-TST-01, fault: timeout) is not served as a happy path.
-	fsys := fstest.MapFS{"f-tst-03/slow/timeout.yaml": &fstest.MapFile{Data: []byte("synthetic: true\nfeature: F-TST-03\nfault: timeout\n")}}
-	rec := post(t, newServer(fsys, nil).handler(), "/v1/messages", map[string]string{"X-Counsel-Feature": "F-TST-03"},
-		map[string]any{"messages": []any{map[string]any{"role": "user", "content": "x"}}})
-	if rec.Code != http.StatusNotImplemented || !strings.Contains(rec.Body.String(), "fault_unsupported") {
-		t.Fatalf("status %d: %s", rec.Code, rec.Body)
-	}
-}
-
 func TestHealthModelsCountTokens(t *testing.T) {
 	h := newServer(fstest.MapFS{}, []string{"drafting", "fast"}).handler()
 	cases := []struct {
