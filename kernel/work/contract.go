@@ -47,10 +47,13 @@ type Subject = registry.Subject
 
 // Item is one work item. Type is a registered item type (for example "task" or "review").
 type Item struct {
-	ID              ItemID
-	Key             string
-	Type            string
-	Title           string
+	ID    ItemID
+	Key   string
+	Type  string
+	Title string
+	// Description is the item's Markdown body, or nil for none (work_item.description,
+	// nullable). Additive; see docs/QUESTIONS.md TOOL16-DESC.
+	Description     *string
 	WorkflowID      string
 	StatusID        string
 	Subject         Subject

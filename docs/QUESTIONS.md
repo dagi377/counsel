@@ -1851,3 +1851,13 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## TOOL16-DESC: work item description
+
+- Additive in `kernel/work/contract.go`: `Item.Description *string` (Markdown, nil for none),
+  answering the FEAT-TOOL-16 note above. `PrepareItem` refuses one longer than
+  `MaxDescriptionLen` (10000, the create_task schema maximum) and turns a blank one into nil.
+  `create_task` now stores `description_markdown` on the proposed item.
+- `work.work_item.description` already exists as a nullable column in 0001_init.sql, so the
+  migration (1003, validated in 1004) adds only the matching length/non-blank check, NOT VALID.
+  There is no Postgres `work.Service` yet; when one is written it reads and writes the column.
