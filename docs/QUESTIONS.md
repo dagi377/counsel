@@ -3275,3 +3275,17 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - work.workflow_publish is a tool-gap kind: the run drafts the template with draft_document on
   the first selected matter and opens G-W3 on that draft. Open: carry a workflow template id
   in the G-W3 payload once workflow templates are stored.
+
+## Q-FEAT-WRK-09 F-WRK-03 triage event and the work-list screen
+
+- Task: FEAT-WRK-09 (F-WRK-03 Triage new items). Based on `task/FEAT-WRK-08` (wrk, wrkb and
+  wrkc test helpers).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test,
+  `app/legal/boot/agent.go` (the job binding and the `work-list` screen) and
+  `app/legal/work/ai_wrkc_helpers_test.go`.
+- No "item created untriaged" event exists. TriageBinding binds the a2 event
+  `work_item.created` (reusing `docs.EventWorkItemCreated`), and the prompt tells the run to
+  leave triaged items alone. Open: a dedicated untriaged event, or a filter in the job, and
+  the client portal request publishing `work_item.created`.
+- `work-list` selects subject kind `matter` with `work.view`. F-WRK-03 is an embedding
+  feature, so no plugin skill is generated for it.

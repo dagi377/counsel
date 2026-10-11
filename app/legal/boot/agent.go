@@ -317,6 +317,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		work.WorkflowLintDef().ID:                   work.WorkflowLintBinding,
+		work.TriageDef().ID:                         work.TriageBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
@@ -431,6 +432,8 @@ var actionScreens = map[string]trigger.Screen{
 	// workflow-templates is firm-level too; it selects the completed matters to mine
 	// (Q-FEAT-WRK-08).
 	"workflow-templates": {SubjectKind: "matter", Capability: "work.workflows"},
+	// work-list triage selects the matter whose untriaged items get suggestions.
+	"work-list": {SubjectKind: "matter", Capability: "work.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

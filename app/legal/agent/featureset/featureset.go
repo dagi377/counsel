@@ -121,5 +121,6 @@ func appDefs() []feature.Def {
 		work.CreateFromNoteDef(),
 		work.WorkflowLintDef(),
 		work.DraftTemplateDef(),
+		work.TriageDef(),
 	}
 }
