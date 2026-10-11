@@ -4283,3 +4283,28 @@ declined or sealed one. The first move into awaiting info publishes
 routes: `EventStores.LeadStatuses` is an `intake.Leads` on `intake.PGLeads`, publishing
 through the own-transaction emitter, as lead submission does. Open: moving back to `open`
 has no route yet.
+
+## Q-EVENTS-7 Publishers for ten feature trigger events
+
+Done; each event is appended to the `spec/eng/a2-interfaces.json` events catalogue (additive)
+and has a one-outbox-event test.
+
+- Natural write point: `consultation.booked` is published by `intake.Consultations.Book`
+  (new `Events` emitter field, nil tx like the lead events). Boot does not build
+  Consultations yet; set `Events` to the own-transaction emitter when it does.
+- Minimal publishers (main has no write point yet; the owning task calls them when it adds
+  one): `timekeeping.PublishBillDraftRequested`, `PublishTimesheetWeekSubmitted`,
+  `PublishEngagementLetterSigned`, `PublishRateChangeDrafted`; `work.PublishAutomationRun`
+  (failed and skipped) and `work.PublishAbsenceRequested`; `batch.PublishCycleRequested`
+  (`billing.cycle_requested`); `payment.PublishBankFeedLineImported`
+  (`bank_feed.line_imported`). Bodies carry ids, days, cents and reason codes only, plus
+  `user_id` where the run acts for that user (trigger.PayloadActor).
+- `engagement_letter.signed` stays in timekeeping, where F-TIM-05 declares it, though the
+  catalogue lists module docs (the documents module owns the letter).
+- `bank_feed.line_imported` is the operating bank feed (F-BIL-04 payment matching). The trust
+  statement import (`POST /trust/bank-lines/imports`) does not publish it: trust lines are not
+  payments to match against bills.
+- Unmerged task/FEAT-BIL-01 and task/FEAT-BIL-04 declare `billing.EventBillingCycleRequested`
+  and `billing.EventBankFeedLineAdded` in package billing. These publishers live in packages
+  batch and payment, so nothing clashes; when those branches merge, point their constants at
+  `batch.EventCycleRequested` and `payment.EventBankFeedLineImported`.

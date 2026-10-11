@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/dagi377/counsel/kernel/outbox"
 )
 
 // LeadReader reads one lead.
@@ -29,6 +31,21 @@ type ConsultationStore interface {
 type Consultations struct {
 	leads    LeadReader
 	consults ConsultationStore
+	// Events receives EventConsultationBooked for each booking. Boot sets it; nil publishes
+	// nothing.
+	Events outbox.Emitter
+}
+
+// SubjectConsultation is the outbox subject kind of a consultation.
+const SubjectConsultation = "intake.consultation"
+
+// ConsultationBooked is the body of EventConsultationBooked: ids and the start time only.
+// UserID is the lawyer the consultation is with, whom F-INT-05 briefs.
+type ConsultationBooked struct {
+	ConsultationID string    `json:"consultation_id"`
+	LeadID         string    `json:"lead_id"`
+	UserID         string    `json:"user_id"`
+	StartsAt       time.Time `json:"starts_at"`
 }
 
 // NewConsultations returns a Consultations over the given stores.
@@ -47,6 +64,15 @@ func (s *Consultations) Book(ctx context.Context, leadID, with string, startsAt 
 	c, err := s.consults.InsertConsultation(ctx, Consultation{LeadID: leadID, StartsAt: startsAt, With: with})
 	if err != nil {
 		return Consultation{}, fmt.Errorf("book: insert consultation: %w", err)
+	}
+	if s.Events != nil {
+		// rule: ARC-I-030
+		// The store owns its transaction, so the emitter gets a nil tx (boot wires one that
+		// opens its own), as lead events do.
+		body := ConsultationBooked{ConsultationID: c.ID, LeadID: c.LeadID, UserID: c.With, StartsAt: c.StartsAt}
+		if err := s.Events.Emit(ctx, nil, outbox.Subject{Kind: SubjectConsultation, ID: c.ID}, EventConsultationBooked, body); err != nil {
+			return Consultation{}, fmt.Errorf("book: publish %s: %w", EventConsultationBooked, err)
+		}
 	}
 	return c, nil
 }
