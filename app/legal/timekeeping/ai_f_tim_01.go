@@ -49,8 +49,10 @@ func RebuildDayDef() feature.Def {
 	}
 }
 
-// RebuildDayBinding binds F-TIM-01 to its end-of-day run. The scheduled run has no event
-// user, so boot names the user it acts for; empty is trigger.ErrBadBinding.
-func RebuildDayBinding(actingFor string) (trigger.Binding, error) {
-	return trigger.Bind(RebuildDayDef(), actingFor)
+// RebuildDayBinding binds F-TIM-01 to its end-of-day run, per user: each business day's slot
+// enqueues one run per active timekeeper, each acting for that timekeeper only, so no run
+// proposes time on another user's behalf (trigger.BindPerUser).
+func RebuildDayBinding() (trigger.Binding, error) {
+	// rule: LSO-3.6
+	return trigger.BindPerUser(RebuildDayDef())
 }

@@ -3224,3 +3224,24 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   reads its minutes from quoted transcript text, so it would need a structured source first.
 - `app/legal/agent` imports `app/legal/timekeeping`, so the Def spells out its tool names and
   the gate kind (`agent.GateTimeAccept`) as strings.
+
+## TIME-FIX Sourced time entries in production and per-user end-of-day runs
+
+Done (decision TIME-FIX; LSO RPC 3.6-1: fees fair and accurate). Resolves the two open items
+of FEAT-TIM-01 above.
+
+- `buildProposeTimeEntries` now wraps the tool in `Provenance.SourcedWrite("/entries/*/work_date",
+  "/entries/*/minutes")`; it reads `*agenttools.Provenance` from Deps. `Provenance.Observe`
+  also records the dates and numbers written in the "text" strings of an untrusted envelope
+  (a Quoted value, a read_document page line), so F-MAT-07 minutes from transcript quotes
+  stay sourced. Values only are kept, never the text.
+- `boot.AgentTools` wraps every handler read tool with the shared `Provenance.ReadTool`, so
+  production read results record their values (before, only get_bill and the trust balance
+  tool did).
+- `trigger.BindPerUser` and `Bindings.WithUsers(ActiveUsers)`: each slot enqueues one run per
+  active user, acting for that user, unique by `RunArgs.ForUser` (new, additive). A run whose
+  ForUser differs from ActingFor is refused (`ErrCrossUser`). F-TIM-01 uses it instead of the
+  rule admin. With no user source the binding is unready (`no_user_source`).
+- Open: wire `AgentWiring.Timekeepers` to a store query of active timekeepers (users holding
+  `time.record`, not disabled); until then F-TIM-01's end-of-day run does not start and the
+  screen actions cover on-request runs.

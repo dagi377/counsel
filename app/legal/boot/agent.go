@@ -180,6 +180,15 @@ func AgentTools(p AgentPorts) ([]registry.Tool, error) {
 			errs = append(errs, fmt.Errorf("agent tool %s: %w", name, err))
 			continue
 		}
+		if t.Kind == registry.ToolRead {
+			// rule: ARC-U-027
+			// Every read result records its dates and numbers, quoted text included, so a
+			// sourced write (propose_time_entries, propose_deadline) can carry them.
+			if t, err = p.Provenance.ReadTool(t); err != nil {
+				errs = append(errs, fmt.Errorf("agent tool %s: %w", name, err))
+				continue
+			}
+		}
 		tools = append(tools, t)
 	}
 	if err := errors.Join(errs...); err != nil {
@@ -316,10 +325,9 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 			// (Q-INTEG-16-SCREENS); the screen action covers on-request runs.
 			return trigger.Bind(matter.ChronologyDef(), "", matter.EventDocumentUploaded, matter.EventEmailFiled)
 		},
-		// F-TIM-01 runs at the end of each business day. One binding acts for one user, so
-		// it takes the rule admin until a per-user schedule exists (FEAT-TIM-01 in
-		// docs/QUESTIONS.md); the screen actions cover each user's on-request runs.
-		tk.RebuildDayDef().ID: scheduled(tk.RebuildDayBinding),
+		// F-TIM-01 runs at the end of each business day once per active timekeeper, each
+		// run acting for that timekeeper (TIME-FIX); the screen actions cover on-request runs.
+		tk.RebuildDayDef().ID: tk.RebuildDayBinding,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -477,6 +485,9 @@ type AgentWiring struct {
 	RuleAdmin string
 	// Bindings receives the job-feature bindings; nil skips triggers and the tick job.
 	Bindings *trigger.Bindings
+	// Timekeepers lists the users a per-user scheduled feature (F-TIM-01) runs for on each
+	// tick. Nil leaves those features unready (trigger.ReasonNoUserSource).
+	Timekeepers trigger.ActiveUsers
 	// Actions, when set, is mounted as the screen-action route. Boot sets its Features,
 	// Screens and Queue.
 	Actions *trigger.Actions
@@ -517,6 +528,9 @@ func registerAgent(w *AgentWiring) hook {
 			k.Registry.Tool(t)
 		}
 		if w.Bindings != nil {
+			if w.Timekeepers != nil {
+				w.Bindings.WithUsers(w.Timekeepers)
+			}
 			if err := JobBindings(features, w.Bindings, w.RuleAdmin); err != nil {
 				return err
 			}

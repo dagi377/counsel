@@ -60,12 +60,11 @@ func (m *timMatterTime) MatterTime(_ context.Context, matterID string) ([]agent.
 
 // timEnv is what the real handlers read through beyond the agenttest Seed: the priced time
 // list_unbilled reads, the entry store propose_time_entries suggests into, and the run's
-// provenance.
+// provenance (propose_time_entries declares its own sourced fields).
 type timEnv struct {
 	time       *timMatterTime
 	entries    tk.Entries
 	provenance *agenttools.Provenance
-	sourced    map[string][]string // write tool -> JSON pointers its values must come from
 }
 
 // timDepOf appends d's value of type T to vals, when d has one.
@@ -77,8 +76,7 @@ func timDepOf[T any](vals []any, d agent.Deps) []any {
 }
 
 // handlers is agent.Handlers() with each Build given the env's ports ahead of the Seed's.
-// Each read tool records the values it returns into the run's provenance, and each write
-// tool in e.sourced takes its declared values only from that set (ErrUnsourcedValue).
+// Each read tool records the values it returns into the run's provenance, as boot does.
 func (e *timEnv) handlers(t *testing.T) agent.HandlerSet {
 	t.Helper()
 	app := agent.Handlers()
@@ -99,16 +97,10 @@ func (e *timEnv) handlers(t *testing.T) agent.HandlerSet {
 			vals = timDepOf[agent.ContactSearch](vals, d)
 			vals = timDepOf[*agenttest.SeedStore](vals, d)
 			tool, err := build(agent.NewDeps(vals...))
-			switch {
-			case err != nil:
+			if err != nil || tool.Kind != registry.ToolRead {
 				return tool, err
-			case tool.Kind == registry.ToolRead:
-				return e.provenance.ReadTool(tool)
-			case len(e.sourced[name]) > 0:
-				// rule: ARC-U-027
-				return e.provenance.SourcedWrite(tool, e.sourced[name]...)
 			}
-			return tool, nil
+			return e.provenance.ReadTool(tool)
 		}})
 	}
 	set, err := agent.NewHandlerSet(hs...)
