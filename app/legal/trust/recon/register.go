@@ -24,3 +24,13 @@ func Register(r registry.Registry) error {
 	}
 	return nil
 }
+
+func init() { add(registerWriteRoutes) }
+
+// registerWriteRoutes mounts POST /trust/bank-lines/imports, POST /trust/reconciliations and
+// POST /trust/reconciliations/{reconciliation_id}/submit through Registry.Routes. Boot wiring
+// supplies the dependencies; until it does, the routes answer 503.
+func registerWriteRoutes(r registry.Registry) error {
+	r.Routes((&WriteHTTP{}).Routes)
+	return nil
+}
