@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -61,6 +62,16 @@ func (f *Fake) Register(k gate.GateKind) error {
 	f.kinds[k.Slug] = k
 	return nil
 }
+
+// RegisterCore adds a kernel-owned core.* gate kind (gate.CoreRegistrar).
+func (f *Fake) RegisterCore(k gate.GateKind) error {
+	if !strings.HasPrefix(k.Slug, gate.CorePrefix) {
+		return fmt.Errorf("register core %q: %w", k.Slug, gate.ErrInvalidKind)
+	}
+	return f.Register(k)
+}
+
+var _ gate.CoreRegistrar = (*Fake)(nil)
 
 // SetSelfApprovalPolicy installs the self-approval policy.
 func (f *Fake) SetSelfApprovalPolicy(p gate.SelfApprovalPolicy) {

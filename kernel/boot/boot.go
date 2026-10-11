@@ -134,6 +134,8 @@ type Kernel struct {
 	Admin      identity.AdminGates
 
 	sealed bool // Registry.Seal passed; apply runs only then
+	// coreKinds are the core.* gate kinds apps handed to CoreGateKind (KERNEL-CORE).
+	coreKinds []registry.GateKind
 }
 
 // App is one application that registers with the kernel at boot.

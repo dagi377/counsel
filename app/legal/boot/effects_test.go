@@ -301,9 +301,9 @@ func TestBootSealsWithGateEffects(t *testing.T) {
 		gates     *GatePorts
 		wantKinds int // registered app gate kinds
 	}{
-		{name: "no flags, no gate ports", wantKinds: len(ApprovalKinds)},
-		{name: "no flags, gate ports", gates: testGatePorts(), wantKinds: 7 + len(ApprovalKinds)},
-		{name: "every legal flag, gate ports", on: all, gates: testGatePorts(), wantKinds: 7 + len(ApprovalKinds)},
+		{name: "no flags, no gate ports", wantKinds: len(ApprovalKinds) + appOpsKinds()},
+		{name: "no flags, gate ports", gates: testGatePorts(), wantKinds: 7 + len(ApprovalKinds) + appOpsKinds()},
+		{name: "every legal flag, gate ports", on: all, gates: testGatePorts(), wantKinds: 7 + len(ApprovalKinds) + appOpsKinds()},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

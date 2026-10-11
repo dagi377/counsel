@@ -37,7 +37,8 @@ func apply(k *Kernel) error {
 			return fmt.Errorf("apply registration %d (%s): %w", i, c.Method, err)
 		}
 	}
-	return nil
+	// KERNEL-CORE: the kernel registers the core.* kinds apps supplied effects for.
+	return applyCoreKinds(k)
 }
 
 // applyCall hands one call to its engine. Methods no engine consumes yet are skipped.

@@ -36,6 +36,13 @@ func (e *PG) Register(k GateKind) error {
 	return e.kinds.Register(Module(k.Slug), k)
 }
 
+// RegisterCore adds a kernel-owned core.* kind (CoreRegistrar).
+func (e *PG) RegisterCore(k GateKind) error {
+	return e.kinds.RegisterCore(k)
+}
+
+var _ CoreRegistrar = (*PG)(nil)
+
 // SetSelfApprovalPolicy installs the one optional self-approval policy.
 func (e *PG) SetSelfApprovalPolicy(p SelfApprovalPolicy) {
 	e.mu.Lock()

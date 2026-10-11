@@ -93,8 +93,8 @@ func TestRegisterNoFlagsRecordsOnlyAlwaysSet(t *testing.T) {
 					kinds = append(kinds, m)
 				}
 			}
-			if n := len(got) - len(kinds); n != len(ApprovalKinds) {
-				t.Errorf("registered %d gate kinds, want %d", n, len(ApprovalKinds))
+			if n := len(got) - len(kinds); n != len(ApprovalKinds)+appOpsKinds() {
+				t.Errorf("registered %d gate kinds, want %d", n, len(ApprovalKinds)+appOpsKinds())
 			}
 			got = kinds
 			if !reflect.DeepEqual(got, methods(want.Calls())) {

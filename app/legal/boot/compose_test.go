@@ -83,6 +83,12 @@ func compose(t *testing.T, on []string, opts Options) composed {
 			t.Fatalf("apply registration %d (%s): %v", i, call.Method, err)
 		}
 	}
+	// KERNEL-CORE: kernel boot's apply also registers the core kinds the app handed it.
+	for _, g := range k.CoreGateKinds() {
+		if err := c.gates.RegisterCore(g); err != nil {
+			t.Fatalf("register core kind %s: %v", g.Slug, err)
+		}
+	}
 	return c
 }
 
@@ -100,7 +106,11 @@ func applyCall(k *kboot.Kernel, c registry.Call) error {
 }
 
 // wantWiredGates is the gate kinds with an effect over testGatePorts.
-const wantWiredGates = 9 + 74 // + ApprovalKinds (GATE-EFFECTS)
+const wantWiredGates = 9 + 74 // + ApprovalKinds (GATE-EFFECTS) and the GE2 app ops kinds
+
+// wantProductionGates adds the receipt classification and refund effects Production wires
+// (KERNEL-CORE).
+const wantProductionGates = wantWiredGates + 2
 
 func TestComposeOverFakes(t *testing.T) {
 	all := legalFlagNames(t)
@@ -157,8 +167,8 @@ func TestProductionRoutesHaveTheirPorts(t *testing.T) {
 		}
 		wired++
 	}
-	if wired != wantWiredGates {
-		t.Fatalf("production wired %d gate kinds, want %d", wired, wantWiredGates)
+	if wired != wantProductionGates {
+		t.Fatalf("production wired %d gate kinds, want %d", wired, wantProductionGates)
 	}
 	h := c.server.Handler()
 	param := regexp.MustCompile(`\{[^}]+\}`)
