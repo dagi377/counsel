@@ -119,5 +119,6 @@ func appDefs() []feature.Def {
 		// trust
 		trust.AnnualReportPrepDef(),
 		trust.RetainerCoverageScanDef(),
+		trust.SpotAuditPackDef(),
 	}
 }

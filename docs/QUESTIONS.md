@@ -3243,3 +3243,11 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   returned, never a worked-out shortfall: trust.SourcedDraft refuses any cents figure the run
   did not read. Open: a sourced "agreed retainer floor" read (engagement terms) would let the
   request name the floor too; get_matter does not return it today.
+
+## Q-FEAT-TRU-09 F-TRU-09 screen subject and gate path
+
+- trust-audit-trail is a firm-level screen; with no boot.FirmSubject on main it selects the
+  matters the pack covers (SubjectKind matter, capability trust.view).
+- draft_document opens no gate itself, so the pack's docs.outgoing (G-REL) gate opens through
+  submit_for_approval on the draft, and submit_for_approval refuses any other kind
+  (ErrGateKindNotAllowed). Amounts are checked by trust.SourcedDraft (Q-FEAT-TRU-06).

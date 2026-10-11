@@ -427,6 +427,7 @@ var actionScreens = map[string]trigger.Screen{
 	// A client trust ledger is one matter's (Q-FEAT-TRU-07).
 	"client-trust-ledger": {SubjectKind: "matter", Capability: "trust.view"},
 	"retainer-coverage":   {SubjectKind: "matter", Capability: "trust.view"},
+	"trust-audit-trail":   {SubjectKind: "matter", Capability: "trust.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
