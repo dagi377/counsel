@@ -34,8 +34,7 @@ type TrustPorts struct {
 	Firm withdraw.FirmPolicy
 	// Audit records withdrawal audit actions.
 	Audit withdraw.Auditor
-	// FeeBills reads the bill a fee withdrawal pays (WD-BILL). Nil is allowed at boot, but
-	// then the withdrawal effect refuses every fee withdrawal (it fails closed).
+	// FeeBills reads the bill a fee withdrawal pays (WD-BILL). Nil uses PGFeeBills.
 	FeeBills withdraw.FeeBills
 }
 
@@ -83,8 +82,17 @@ func trustServices(k *kboot.Kernel, p TrustPorts) (trustSvcs, error) {
 			Signers: p.Signers,
 			Firm:    p.Firm,
 			Audit:   p.Audit,
-			Bills:   p.FeeBills,
+			Bills:   feeBills(p.FeeBills),
 			Now:     k.Clock.Now,
 		},
 	}, nil
+}
+
+// feeBills is b, or the Postgres bill reader when b is nil, so a fee withdrawal on a
+// delivered bill can be authorised.
+func feeBills(b withdraw.FeeBills) withdraw.FeeBills {
+	if b == nil {
+		return PGFeeBills{}
+	}
+	return b
 }

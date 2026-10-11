@@ -54,8 +54,8 @@ type ReceiptPorts struct {
 	Poster trust.ReceiptPoster
 }
 
-// RefundPorts are the refund effect's dependencies. No Postgres RefundStore or TrustRefunds
-// exists yet, so the composition root takes them from its caller.
+// RefundPorts are the refund effect's dependencies. A nil Store uses payment.PGRefunds and a
+// nil Trust uses payment.PGTrustRefunds on the kernel DB, clock and gate engine.
 type RefundPorts struct {
 	Store  payment.RefundStore
 	Trust  payment.TrustRefunds
@@ -135,6 +135,14 @@ func restEffects(k *kboot.Kernel, p *RestPorts) (map[string]registry.EffectFunc,
 		out[trust.GateReceiptClassification] = fx[trust.GateReceiptClassification]
 	}
 	if p.Refunds != nil {
+		if p.Refunds.Store == nil {
+			p.Refunds.Store = payment.PGRefunds{}
+		}
+		if g, ok := k.Gates.(payment.WithdrawalGates); ok && p.Refunds.Trust == nil && k.DB != nil && k.Clock != nil {
+			// rule: BIL-L-037
+			// A trust refund becomes a trust withdrawal under the withdrawal rules and gate.
+			p.Refunds.Trust = payment.PGTrustRefunds{Ledgers: trust.NewLedgerStore(k.DB, nil, nil, k.Clock), Gates: g}
+		}
 		if err := requireDeps("refund effect", []dep{
 			{"kernel Clock", k.Clock == nil},
 			{"Store", p.Refunds.Store == nil},

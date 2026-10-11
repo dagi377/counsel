@@ -9,3 +9,4 @@
 /paths/~1hooks~1{provider}/post/responses/422 Q-004
 /paths/~1webhook-endpoints~1{webhook_id}/patch/parameters/1 Q-T-008.2
 /paths/~1bills~1{bill_id}~1submit/post/requestBody Q-HTTP-08b
+/paths/~1credit-notes~1{credit_note_id}~1withdraw Q-BOOT-REST-2a

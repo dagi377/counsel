@@ -34,3 +34,12 @@ func registerRoutes(r registry.Registry) error {
 	r.Routes((&HTTP{}).Routes)
 	return nil
 }
+
+func init() { add(registerWithdrawRoute) }
+
+// registerWithdrawRoute mounts POST /credit-notes/{credit_note_id}/withdraw through
+// Registry.Routes. Boot wiring supplies the dependencies; until it does, the route answers 503.
+func registerWithdrawRoute(r registry.Registry) error {
+	r.Routes((&WithdrawHTTP{}).Routes)
+	return nil
+}

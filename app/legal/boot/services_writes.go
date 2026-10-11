@@ -24,7 +24,12 @@ func (p HTTPPorts) withWrites(k *kboot.Kernel) HTTPPorts {
 	if p.WithdrawRequests == nil && k.Clock != nil {
 		// Only LockLedger is used, which reads the ledger and its holds as of the business
 		// date: no signatory guard or general ledger is needed.
-		p.WithdrawRequests = withdraw.PGService{DB: k.DB, Ledgers: trust.NewLedgerStore(k.DB, nil, nil, k.Clock)}
+		// Gates opens the withdrawal gate in the request tx, so agent withdrawals are gated too.
+		svc := withdraw.PGService{DB: k.DB, Ledgers: trust.NewLedgerStore(k.DB, nil, nil, k.Clock)}
+		if g, ok := p.Gates.(withdraw.Gates); ok {
+			svc.Gates = g
+		}
+		p.WithdrawRequests = svc
 	}
 	if g, ok := p.Gates.(withdraw.Gates); ok && p.WithdrawGates == nil {
 		p.WithdrawGates = g

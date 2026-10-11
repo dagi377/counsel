@@ -2104,3 +2104,27 @@ Done in PORT-18:
   effect wired (boot/unwired_gates.txt) and execution reads only `trust.withdrawal` approvals.
 - Open: `PGService.Request` opens no gate, so the agent tool's `w.GateID == ""` check refuses every
   agent withdrawal on Postgres until the gate is opened in the service path.
+
+## Q-BOOT-REST-2a payment.Gated, refund stores, WO-FIX close path, fee withdrawals
+
+- Additive (CONTRACT kernel/registry/types.go): `GateKind.OnReject RejectFunc`, `Rejected` and
+  the `RejectHook` interface. The PG engine and gatefake call OnReject in the deciding tx right
+  after a decision rejects a gate; an error rolls the decision back. Nil does nothing. Boot sets
+  it through a registry wrapper (`rejectFilter`), so gates.RegisterWired is unchanged.
+- WO-FIX: billing.credit_note gets `credit.RejectHooks(PGWriteOffs{})`: a rejected write-off
+  gate closes its draft as `rejected`. New route POST /credit-notes/{credit_note_id}/withdraw
+  (additive in api/openapi.yaml, operationId withdrawWriteOff): only the preparer, as a person,
+  withdraws the pending G-B5 gate and the draft closes as `withdrawn`.
+- payment.PGRefunds (RefundStore) and payment.PGTrustRefunds (TrustRefunds) are the RestPorts
+  defaults. A trust refund is a `client_refund` trust.withdrawal_request whose trust.withdrawal
+  gate the G-B6 approver prepares; payment `trust_withdrawal_id` replay is keyed by the gate.
+- payment.Gated is wired when HTTPPorts.Payments and PaymentProposals are set. Open: no Postgres
+  `payment.Proposals` exists, so production boot still needs that port.
+- PG-WRITES-FIX follow-up: boot.PGFeeBills (billing.bill + bill_balance, balance net of reserved
+  fee transfers, bill row locked) is the default withdraw `Effect.Bills`. `withdraw.FeeEffect`
+  handles billing.trust_fee_withdrawal: By-law 9 flag, then Effect.Apply (agent and preparer
+  never approve, signatory check, bill re-check, ledger lock). Execution stays with the
+  execution route: `PGApprovals` now accepts approved payloads of either gate kind, so the
+  executor is still a second person (sole-practice exception audited). `PGService.Gates`, set
+  at boot, opens the gate in the request tx and stores gate_id; the route skips opening when
+  the service already did, so agent withdrawals are gated on Postgres.
