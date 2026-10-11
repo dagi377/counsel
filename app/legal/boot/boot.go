@@ -12,6 +12,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/payment"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/inbound"
+	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -30,6 +31,9 @@ type Options struct {
 	Gates *GatePorts
 	// Clearance, when set, builds conflict Clearance (gate G2) over the gate catalog.
 	Clearance *ClearancePorts
+	// Sender, when set, delivers rendered notifications. Nil keeps the kernel's count-only
+	// sender.
+	Sender notify.Sender
 }
 
 // PaymentHook is the configured payment provider. Webhook.ID is the hook provider name from
@@ -50,7 +54,7 @@ func App(opts Options) kboot.App {
 
 // registerHooks lists the Register steps, in order. Later boot tasks append theirs here.
 func registerHooks(w *wiring) []hook {
-	return []hook{registerModules, w.opts.registerPayment, w.registerGates, w.buildClearance}
+	return []hook{registerModules, w.opts.registerPayment, w.registerGates, w.buildClearance, w.opts.registerNotify}
 }
 
 // startHooks lists the Start steps (seed and start jobs), in order. None exist yet.

@@ -824,3 +824,13 @@ contract declares yet. Not built.
   trust.withdrawal, billing.bill_approval, billing.bill_void (bill.VoidEffects, per the
   integrator decision) and the two write-off kinds. CreditPorts come from the caller
   (no Postgres write-off store yet, Q-BOOT-13-PORTS).
+## Q-BOOT-22 notification templates: Options.Sender and the app template list
+
+- Task: BOOT-22 (app/legal/boot notification templates).
+- Outside the task's files: `app/legal/boot/boot.go` gains `Options.Sender notify.Sender`
+  (additive; the accept line names it) and `opts.registerNotify` in `registerHooks`.
+- No app module defines kernel notification templates yet (the comms message templates are
+  a separate store, seeded by BOOT-23). The app list in `notify.go` holds one template,
+  `sync.subscription_renewal_failed`, for the cliosync renewal alert (ids and times only).
+  Modules that need notifications add theirs to `notifyTemplates`.
+- Answer: (owner)
