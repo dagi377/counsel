@@ -54,6 +54,29 @@ type Supply struct {
 	ClientProvince string    // client's province code from its address
 	ServiceType    string    // decision-table service type, e.g. "general"
 	Date           time.Time // business date of the supply
+
+	// Additive (T-014.2a). Zero values keep the earlier behaviour: a recipient with a
+	// Canadian address is taxed by that address.
+
+	// PropertyProvince is where the real property the service relates to is situated;
+	// empty when the service is not in relation to real property (BIL-T-011).
+	PropertyProvince string
+	// CourtProvince is the province whose court or tribunal has the litigation, set only for
+	// services rendered after the litigation commenced; empty otherwise (BIL-T-012).
+	CourtProvince string
+	// RecipientResident is true when the client is a Canadian resident (ETA s.132).
+	RecipientResident bool
+	// RecipientBusiness is true when the client is a corporation, trust or partnership,
+	// false for an individual (ETA Sch. VI Part V s.23(a) covers individuals only).
+	RecipientBusiness bool
+	// MetInCanada is true when a non-resident individual received the service in Canada.
+	MetInCanada bool
+	// AgentRole is true when the firm acts as the client's agent or procures supplies for it
+	// (ETA Sch. VI Part V s.23(d)).
+	AgentRole bool
+	// RegisteredProvinces are the provinces whose provincial sales tax the firm is
+	// registered to collect (BIL-T-020).
+	RegisteredProvinces []string
 }
 
 // Place is the outcome of the place-of-supply decision: where the supply is made and
@@ -72,6 +95,7 @@ type Line struct {
 	RatePPM      money.PPM
 	Base         money.Cents
 	Amount       money.Cents // money.Rhu(Base*RatePPM, 1e6)
+	Label        string      // name printed on the bill when it differs from Component, e.g. "RST" for MB PST
 }
 
 // Rates looks up the rate in effect for a province and component on a date.

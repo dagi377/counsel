@@ -43,7 +43,17 @@ func (c *Calc) Compute(ctx context.Context, base money.Cents, p Place, on time.T
 		if comp == GST {
 			j = "CA"
 		}
-		lines = append(lines, Line{Component: comp, Jurisdiction: j, RatePPM: rate, Base: base, Amount: amount})
+		lines = append(lines, Line{Component: comp, Jurisdiction: j, RatePPM: rate, Base: base, Amount: amount, Label: labelFor(p.Province, comp)})
 	}
 	return lines, nil
+}
+
+// labelFor is the bill label for a component when it differs from the component name:
+// Manitoba's provincial tax is the retail sales tax (RST), stored as kind PST.
+func labelFor(province string, c Component) string {
+	// rule: BIL-T-020
+	if province == "MB" && c == PST {
+		return "RST"
+	}
+	return ""
 }

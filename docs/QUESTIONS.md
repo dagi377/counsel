@@ -546,3 +546,24 @@ Template:
   unchanged, into `allocate.go` (where the contract header says it lives), so it also touches
   `money.go` (deletion only) and this file. New tests are in `allocate_test.go`; the existing
   `TestAllocate` in `money_test.go` is kept as is.
+## T-014.2: place of supply (additive contract change; decisions to confirm)
+
+- Additive change to the frozen `app/legal/billing/tax` contract: `Supply` gains
+  `PropertyProvince`, `CourtProvince`, `RecipientResident`, `RecipientBusiness`, `MetInCanada`,
+  `AgentRole`, `RegisteredProvinces`; `Line` gains `Label` ("RST" for MB PST). Existing fields
+  and callers are unchanged. `RecipientBusiness` is not in the T-014.2a accept list: s.23(a)
+  zero-rates a non-resident business in Canadian litigation but taxes an individual, so the
+  engine must know which. Its zero value (individual) is the taxed, fail-closed side.
+- T-014.2a sets `Line.Label` in `compute.go` (not in its file list): Compute is the only place a
+  line is built.
+- Order (verify): BIL-T-010 and SOR/2010-117 s.27 (Div. 5 applies despite Divs. 2-3) put
+  litigation before real property, so a court province beats a property province. The
+  T-014.2b accept line lists property first; the engine follows BIL-T-010.
+- Fail closed (verify): non-resident treatment needs `RecipientResident == false` and a
+  non-Canadian `ClientProvince` code (foreign address on file, BIL-T-015 enforcement). A
+  recipient that is not flagged resident but has a Canadian address is taxed by that address;
+  no address at all is `ErrUnknownProvince`. Counsel to confirm.
+- Rows marked (verify) in b2 (BC/MB/SK/QC places, federal courts, agent role) return
+  `ErrUnverified` while `tax.verify_rules` is off.
+- T-014.2c and T-014.2d each replace a fail-closed placeholder in `pos.go` with a call into
+  their own file (pos.go is not in their file lists).
