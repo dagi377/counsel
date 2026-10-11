@@ -14,7 +14,9 @@ import (
 )
 
 // ToolProposeConflictParties adds proposed parties to a conflict check and runs it. The run
-// stays open: clearance is gate conflict.clearance (G2), decided by a lawyer.
+// stays open: clearance is gate conflict.clearance (G2), decided by a lawyer. An agent's run
+// is recorded as a draft of its agent run, so submit_for_approval can open the feature's gate
+// on it in the same run.
 const ToolProposeConflictParties = "propose_conflict_parties"
 
 // ProposedParty is one party an agent proposes for a conflict check.
@@ -191,6 +193,7 @@ func (t proposeConflictParties) handle(ctx context.Context, p registry.Principal
 	if run.Status != conflict.StatusOpen {
 		return registry.ToolResult{}, fmt.Errorf("%s: run %s is %s, want open: %w", ToolProposeConflictParties, run.ID, run.Status, agenttools.ErrBadTool)
 	}
+	recordProposalDraft(ctx, p, run.ID)
 	out, err := json.Marshal(agenttools.WriteOutput{Outcome: agenttools.OutcomeProposal, Ref: run.ID})
 	if err != nil {
 		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolProposeConflictParties, err)

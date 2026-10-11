@@ -2475,6 +2475,46 @@ Done in PORT-18:
 - A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008), not
   the 409 the accept line names; same as the other HTTP routes.
 - openapi has no body schemas for these operations; the views are documented here.
+## EVENTS-2: publishers for the remaining F-DL-03 / F-DL-04 events
+
+- Branch carries origin/task/DL-EVENTS (merged in) because it reuses `PGBook.Events` and
+  `FilingStore.Events`; merge DL-EVENTS first or together.
+- New minimal write points (no schema change), each emitting in the writer's tx and refusing
+  before any write when its emitter is nil (DL-EVENTS pattern):
+  - `deadline.trigger_date_changed`: kernel/deadline `PGBook.ChangeTrigger(ctx, tx, id, date)`
+    updates `cal.deadline.trigger_on` only (due date stays until F-DL-03's proposal is
+    confirmed), subject `cal.deadline`/id, body ids plus old and new trigger. Same date is a
+    no-op. Not on the frozen `Engine` interface.
+  - `claim.issued`: comms `FilingStore.IssueClaim(ctx, filingID, courtFileNo, issuedOn)` sets
+    the court file number on a filed `legal.court_filing` row (ErrNotFound otherwise).
+  - `service.affidavit_received`: comms `FilingStore.RecordAffidavitOfService(ctx, f)` records
+    a filed filing whose document is the affidavit; it emits this event instead of
+    `filing.receipt_received`, so F-DL-04 runs once per record.
+- Open: no handler or route calls these yet (boot/handler task). Whether an affidavit of
+  service received but not filed with the court should also publish (verify).
+## Q-BOOT-WIRE-A agent layer at boot
+
+- `Options.Agent` (`AgentWiring`) registers every `agent.Handlers()` tool, the job bindings
+  and tick job, the action route, the flag digest template and the FlagSink gate map. Boot
+  fails closed: a nil port fails its handler with ErrMissingDep, and `Features()` fails when a
+  feature names a tool with no handler or a gate kind outside spec/gates.json.
+- Event names chosen from a2 for unbound features: F-DL-01 `document.uploaded`; F-DL-02
+  `lead.created` and `matter.updated` (claim facts updated). Checked (BOOT-PORTS-B) against
+  spec/ai/features.json triggers ("document filed to matter"; "intake created or claim facts
+  updated") and the a2 event catalogue: all three are the a2 events for those triggers and
+  stay. a2 had no comms filing event; Q-DRAFT-FIX adds `email.filed`, and F-DL-01 now
+  starts on it too.
+- Action screens: `matter-deadlines` and `limitation-assessment` both map to subject kind
+  `matter`, capability `deadlines.view`. Open: limitation assessment from intake may need a
+  `lead` subject kind.
+- `RiverActionQueue` uses the run id as the job's event id so each request is its own job.
+- Left: Postgres adapters for BillBalances, MatterTrustAccounts, PublishedPacks, MatterTime,
+  SubjectMatters, ProposedTasks, ConflictCheckParties, MatterContacts, DocumentDrafts,
+  EmailDrafts, NoteDrafts (none exist); the caller passes them in `AgentPorts`. Not done: the
+  PlanStore step map (kernel `agenttools.Step` has no step id; needs an additive kernel field).
+  `ForgetRunner` calls Provenance.Forget on run end; it wraps the action route's Runner, and the
+  job-run worker must use it too once it exists.
+
 ## Q-INTEG-15A-SCHEDULED Agent wiring after the pass 14 FEAT merges
 
 - BOOT-WIRE-A was cut before pass 14 landed F-CON-01..03 and F-DL-05, 07..13. Integration
@@ -3614,3 +3654,23 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - POST /trust/reconciliations/{id}/submit answers 422 with problem code `unbalanced`
   (`recon.CodeUnbalanced`) before the three-way check; the sign-off effect (`PGSignOff.Sign`)
   re-reads bank_balance_cents and outstanding_items under FOR UPDATE and returns ErrUnbalanced.
+## PROPOSAL-DRAFT: proposals are drafts of the run (closes Q-FEAT-MAT-13)
+
+- Counsel decision: `create_task` and `propose_conflict_parties` record their proposal (the
+  work item, the conflict run) as a draft of the agent's run scope, so `submit_for_approval`
+  can open the feature's gate on it in the run. The outcome is unchanged (a proposal, or a
+  draft when the scope declares a work-item gate kind). The run's gate-kind check still
+  applies, the gate is prepared by the acting user through the agent, and the agent never
+  decides it. A user principal, or an agent outside its run scope, records nothing.
+- `TestAI_R_003_CreateTaskDraft` now expects an agent's proposal in its own scope to be
+  recorded. The F-MAT-16..18 FromFeature tests submit in the run and check the run's gate
+  (every earlier assertion kept: pending, prepared for the acting user, app 403s, kernel
+  ErrAgentApprover and ErrSelfApproval, still pending).
+- The branch merges origin/task/FEAT-MAT-14 (which carries FEAT-MAT-13 and FEAT-MAT-15) so
+  their tests could be updated; the integrator merges this branch instead of those three.
+  It adds the `matter-open-wizard` (matter, matters.open) and `contact-detail` (contact,
+  contacts.view) action screens that F-MAT-16..18 need (TestActionScreensCoverFeatures).
+- agenttest: `Seed.Deps` resolves conflict runs (`conflict.SubjectRun`) and work items
+  (`agenttest.SubjectWorkItem`) for submit_for_approval. Open (boot): `PGSubjectMatters` knows
+  neither `conflict.run` nor `work_item`, so in production the submit fails closed with
+  ErrSubjectKind until boot maps both to their matter.
