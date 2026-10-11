@@ -3001,3 +3001,17 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-FEAT-TIM-05 F-TIM-05 trigger event, screen subject and value provenance
+
+- No module publishes an engagement-letter-signed event yet; F-TIM-05 binds
+  `engagement_letter.signed` (timekeeping.EventEngagementLetterSigned). The documents module
+  publishes it when a letter reaches status signed.
+- The matter-fee-arrangement screen selects the matter (a fee arrangement belongs to one
+  matter), capability billing.view, in boot actionScreens.
+- draft_document declares no provenance fields on main, so the rates and amounts in the
+  drafted arrangement are not checked against the run's reads (ErrUnsourcedValue does not
+  apply). The prompt forbids invented amounts and a lawyer approves G9e before the
+  arrangement prices any time.
+- The Seed has no time ports: the feature tests add a timekeeping fake and an
+  agent.MatterTime over it (ai_timc_helpers_test.go), so list_unbilled runs its real handler.

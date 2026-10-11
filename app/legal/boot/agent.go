@@ -294,6 +294,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		legaldocs.IngestDocumentDef().ID:            legaldocs.IngestDocumentBinding,
 		legaldocs.EngagementLetterDef().ID:          legaldocs.EngagementLetterBinding,
 		legaldocs.DraftWithCitationsDef().ID:        legaldocs.DraftWithCitationsBinding,
+		tk.EngagementTermsDef().ID:                  tk.EngagementTermsBinding,
 		legaldocs.FeatureTemplateCurrency: func() (trigger.Binding, error) {
 			// F-DOC-06 runs weekly and on a known rule change; no form-change event exists
 			// yet (Q-INTEG-15A-SCHEDULED).
@@ -356,6 +357,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
+	// Time. A fee arrangement is the matter's; the screen selects the matter.
+	"matter-fee-arrangement": {SubjectKind: "matter", Capability: "billing.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
