@@ -2218,7 +2218,7 @@ func docgCheckTrigger(t *testing.T, d feature.Def, screen, button string) {
 			a.Routes(r)
 			rec := httptest.NewRecorder()
 			body := docgJSON(t, map[string]any{"screen": tt.screen, "record_ids": []string{"m-synth-1"}})
-			r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/agent/actions/"+d.ID, bytes.NewBufferString(body)))
+			r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/agent/actions/"+d.ID, bytes.NewBufferString(body)))
 			if rec.Code != tt.wantStatus || !slices.Equal(q.runs, tt.wantQueued) {
 				t.Fatalf("status %d queued %v, want %d %v; body %s", rec.Code, q.runs, tt.wantStatus, tt.wantQueued, rec.Body)
 			}
@@ -3124,7 +3124,7 @@ func doceCheckAction(t *testing.T, d feature.Def, action string) {
 			a.Routes(r)
 			rec := httptest.NewRecorder()
 			body := `{"screen":"` + tt.screen + `","record_ids":["rec-1"]}`
-			r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/agent/actions/"+d.ID, bytes.NewBufferString(body)))
+			r.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/agent/actions/"+d.ID, bytes.NewBufferString(body)))
 			if rec.Code != tt.status || !slices.Equal(q.runs, tt.queued) {
 				t.Fatalf("status = %d, queued %v; want %d, %v (body %s)", rec.Code, q.runs, tt.status, tt.queued, rec.Body)
 			}
