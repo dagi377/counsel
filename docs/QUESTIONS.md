@@ -204,3 +204,13 @@ Template:
   the delay, with notification. Applied: the nine dual-mode trust gates get
   `dual_when: "signatories>=2"`; GA9 and GA11 get `min_approvers: 2` with
   `sole_owner_delay: "24h"`. Done in T-002L.2.
+
+## Q-T032L1 app/legal register test expects modules to register nothing
+
+- Task: T-032L.1
+- `app/legal/register_test.go` `TestRegisterWithNoFeaturesRecordsNothing` asserts that
+  `legal.Register` makes zero registry calls. T-032L.1 must register document kinds and
+  retention classes, so that test fails (16 calls). The file is outside this task's list.
+- Proposed: the integrator replaces the zero-call check with a check that `Register` twice on a
+  `registryfake` and `Seal` reports only `ErrDuplicateID`-free results for one call, or drops
+  it. Every wave 1 task that registers anything hits the same failure.
