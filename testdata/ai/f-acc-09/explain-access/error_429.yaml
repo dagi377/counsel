@@ -4,15 +4,14 @@ match:
   last_user_regex: '\[error_429\]'
 fault: rate_limit
 turns:
-  - expect_tools: [search_matters]
-    reply:
+  - reply:
       tool_calls:
         - name: search_matters
-          input: {user: "usr-synth-viewer", matter: "mat-synth-001"}
+          input: {query: "2026-04", limit: 20}
       stop_reason: tool_use
-      usage: {input_tokens: 520, output_tokens: 32}
+      usage: {input_tokens: 520, output_tokens: 22}
   - expect_tool_results: [search_matters]
     reply:
-      text: "usr-synth-viewer can see mat-synth-001 because they are on the matter team as associate."
+      json: {answer: "usr-synth-viewer can see 2026-0412 because they are on its matter team as associate.", citations: []}
       stop_reason: end_turn
-      usage: {input_tokens: 690, output_tokens: 48}
+      usage: {input_tokens: 640, output_tokens: 60}

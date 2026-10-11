@@ -432,6 +432,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Access administration screens act on the firm.
 	"role-editor": {SubjectKind: FirmSubject, Capability: "admin.roles"},
 	"duty-rules":  {SubjectKind: FirmSubject, Capability: "admin.roles"},
+	"roles-list":  {SubjectKind: FirmSubject, Capability: "admin.roles"},
+	"user-detail": {SubjectKind: FirmSubject, Capability: "admin.users"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

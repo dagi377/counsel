@@ -3746,3 +3746,7 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   The AI-016 test (ai_f_acc_05_test.go) now runs the fixtures through FromFeature with no
   stand-ins; the fixtures use the a2 search_matters input, the injection variant makes no extra
   call, and ok pins match.prompt_hash.
+- F-ACC-08 and F-ACC-09 are screen actions; their spec `on_request` is empty and the button
+  is in `trigger`, so `Def.Actions` holds it (as Q-FEAT-CON-10). roles-list (admin.roles) and
+  user-detail (admin.users) are firm-level screens. The AI-019 and AI-020 tests run the
+  fixtures through FromFeature, and the screen actions through the production route.

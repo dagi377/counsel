@@ -119,5 +119,7 @@ func appDefs() []feature.Def {
 		// access
 		access.DutyScanDef(),
 		access.AnomalyWatchDef(),
+		access.ExplainRoleDef(),
+		access.ExplainAccessDef(),
 	}
 }
