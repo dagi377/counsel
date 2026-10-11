@@ -845,3 +845,101 @@ func TestARC_U_039_Rotation(t *testing.T) {
 		{"cert is the ingress TLS secret", dig(cert, "spec", "secretName"), "counsel-alpha-tls"},
 	})
 }
+
+// migrateJob renders the chart and returns the migration Job, or nil when there is none.
+func migrateJob(t *testing.T, set map[string]any) k8sObj {
+	t.Helper()
+	var job k8sObj
+	for _, o := range mustRender(t, set) {
+		if o.kind() == "Job" && o.label("app.kubernetes.io/component") == "migrate" {
+			if job != nil {
+				t.Fatalf("more than one migration Job")
+			}
+			job = o
+		}
+	}
+	return job
+}
+
+func containerEnv(c map[string]any, name string) any {
+	list, _ := c["env"].([]any)
+	for _, e := range list {
+		if m, ok := e.(map[string]any); ok && m["name"] == name {
+			if v, ok := m["value"]; ok {
+				return v
+			}
+			return m["valueFrom"]
+		}
+	}
+	return nil
+}
+
+// rule: MIG-061
+// rule: ARC-U-018
+func TestMIG_061_MigrationJob(t *testing.T) {
+	job := migrateJob(t, map[string]any{"cell": "alpha"})
+	if job == nil {
+		t.Fatal("no migration Job rendered")
+	}
+	ann, _ := dig(job, "metadata", "annotations").(map[string]any)
+	hooks, _ := ann["helm.sh/hook"].(string)
+	cs := podContainers(job)
+	if len(cs) != 1 {
+		t.Fatalf("migration Job has %d containers, want 1", len(cs))
+	}
+	args, _ := cs[0]["args"].([]any)
+	var argv []string
+	for _, a := range args {
+		argv = append(argv, fmt.Sprint(a))
+	}
+	runChecks(t, []check{
+		{"namespace", job.meta("namespace"), "counsel-alpha"},
+		{"pre-install hook", slices.Contains(strings.Split(hooks, ","), "pre-install"), true},
+		{"pre-upgrade hook", slices.Contains(strings.Split(hooks, ","), "pre-upgrade"), true},
+		{"hook-delete-policy", ann["helm.sh/hook-delete-policy"], "before-hook-creation"},
+		{"backoffLimit >= 3", asInt(dig(job, "spec", "backoffLimit")) >= 3, true},
+		{"restartPolicy", dig(job, "spec", "template", "spec", "restartPolicy"), "Never"},
+		{"runs counsel-migrate", len(argv) > 0 && argv[0] == "counsel-migrate", true},
+		{"expand only", slices.Contains(argv, "-mode=expand"), true},
+		{"no backfill in the hook", strings.Contains(strings.ToLower(strings.Join(argv, " ")), "backfill"), false},
+		{"PGOPTIONS lock_timeout 2s", containerEnv(cs[0], "PGOPTIONS"), "-c lock_timeout=2s"},
+		{"database url from cell secret", dig(containerEnv(cs[0], "COUNSEL_DATABASE_URL"), "secretKeyRef", "name"), "counsel-alpha-pg-app"},
+		{"app priority class", dig(job, "spec", "template", "spec", "priorityClassName"), "counsel-alpha-app"},
+	})
+}
+
+// rule: ARC-U-018
+func TestMIG_061_MigrationJobValues(t *testing.T) {
+	tests := []struct {
+		name    string
+		set     map[string]any
+		wantJob bool
+		wantErr string
+	}{
+		{"default", map[string]any{"cell": "alpha"}, true, ""},
+		{"disabled", map[string]any{"cell": "alpha", "migrate.enabled": false}, false, ""},
+		{"too few retries", map[string]any{"cell": "alpha", "migrate.retries": 2}, false, "at least 3"},
+		{"three retries", map[string]any{"cell": "alpha", "migrate.retries": 3}, true, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			objs, err := renderChart(t, tt.set)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("err = %v, want it to contain %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("render: %v", err)
+			}
+			got := false
+			for _, o := range objs {
+				got = got || (o.kind() == "Job" && o.label("app.kubernetes.io/component") == "migrate")
+			}
+			if got != tt.wantJob {
+				t.Fatalf("migration Job rendered = %v, want %v", got, tt.wantJob)
+			}
+		})
+	}
+}

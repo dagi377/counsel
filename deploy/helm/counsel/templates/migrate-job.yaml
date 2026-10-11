@@ -1,0 +1,64 @@
+{{- $cell := required "cell is required (ARC-U-001)" .Values.cell }}
+{{- $ns := printf "counsel-%s" $cell }}
+{{- $m := .Values.migrate }}
+{{- if $m.enabled }}
+{{- if lt (int $m.retries) 3 }}{{ fail "migrate.retries must be at least 3 (ARC-U-018)" }}{{ end }}
+# rule: ARC-U-018
+# rule: MIG-061
+# Schema migrations run as a separate Job before the rollout: expand only, every lock wait
+# capped by lock_timeout (the strictest value, 2s) and retried by the Job. Backfills never run
+# here; they are batched resumable jobs (kernel/migrate).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: counsel-{{ $cell }}-migrate
+  namespace: {{ $ns }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    helm.sh/hook: {{ range $i, $h := $m.hooks }}{{ if $i }},{{ end }}{{ $h }}{{ end }}
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: {{ int $m.retries }}
+  template:
+    metadata:
+      labels:
+        counsel.io/cell: {{ $cell | quote }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: Never
+      serviceAccountName: counsel-{{ $cell }}
+      # rule: ARC-U-005
+      priorityClassName: counsel-{{ $cell }}-app
+      nodeSelector:
+        counsel.io/pool: {{ .Values.nodePools.app | quote }}
+      tolerations:
+        - key: counsel.io/pool
+          operator: Equal
+          value: {{ .Values.nodePools.app | quote }}
+          effect: NoSchedule
+      containers:
+        - name: migrate
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
+          args: ["counsel-migrate", "-mode=expand"]
+          env:
+            # A migration that waits longer than lock_timeout for a lock fails and the Job
+            # retries it, so it never queues behind (and blocks) live reads.
+            - name: PGOPTIONS
+              value: {{ printf "-c lock_timeout=%s" $m.lockTimeout | quote }}
+            - name: COUNSEL_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: counsel-{{ $cell }}-pg-app
+                  key: uri
+          # rule: ARC-U-041
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu | quote }}
+              memory: {{ .Values.resources.requests.memory | quote }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu | quote }}
+              memory: {{ .Values.resources.limits.memory | quote }}
+{{- end }}
