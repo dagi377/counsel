@@ -39,5 +39,10 @@ func appDefs() []feature.Def {
 		deadlines.ComplianceEvidenceMatcherDef(),
 		deadlines.RuleWatchDef(),
 		deadlines.PostEventFollowUpDef(),
+		deadlines.DigestDef(),
+		deadlines.ProposeMeetingDef(),
+		deadlines.FindTeamTimeDef(),
+		deadlines.ExplainStepDef(),
+		deadlines.DraftAgendaDef(),
 	}
 }
