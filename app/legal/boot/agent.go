@@ -422,6 +422,8 @@ var actionScreens = map[string]trigger.Screen{
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
 	// Billing: a trust-to-fees transfer is requested on the matter whose trust pays the bill.
 	"trust-to-fees": {SubjectKind: "matter", Capability: "trust.request"},
+	// A credit note is drafted on the matter of the selected bill.
+	"credit-notes": {SubjectKind: "matter", Capability: "documents.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

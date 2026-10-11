@@ -3237,3 +3237,20 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   with FEAT-BIL-07 and FEAT-BIL-08. It supplies the bill, trust-balance and priced-time ports
   the Seed lacks, and feeds read figures to the driver's Provenance (the one
   `prepare_trust_withdrawal` checks), which differs from the Seed's.
+
+## Q-FEAT-BIL-08 F-BIL-08 draft credit note: amount provenance on draft_document
+
+- `draft_document` takes free-text markdown, so a credit note's amounts carry no provenance
+  pointer and the app's handler checks none. F-BIL-08 adds `billing.CreditNoteDraftHandler`:
+  `draft_document` with `billing.CheckCreditNote` ahead of it, which refuses
+  (`agenttools.ErrUnsourcedValue`) any money figure in the body that no read tool returned in
+  the run, before a draft row or a gate exists. The end-to-end tests build the run with it.
+- Gap: boot builds one registry from `agent.Handlers()`, so production F-BIL-08 runs still get
+  the plain `draft_document`. Reading A: boot lets a Def name per-feature handler overrides
+  and uses `CreditNoteDraftHandler` for F-BIL-08. Reading B: `draft_document` checks money
+  figures in every agent body against the run's Provenance. Answer: (owner)
+- The agent never computes tax: a partial credit states its pre-tax amount and the billing
+  tax engine applies the place of supply when the note is issued, so an agent-computed tax
+  figure is refused as unsourced.
+- The `credit-notes` screen maps to subject `matter` with capability `documents.edit` (what
+  `draft_document` needs).

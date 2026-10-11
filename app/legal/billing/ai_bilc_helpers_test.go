@@ -420,3 +420,18 @@ func bilcCarries(fd *agenttest.FeatureDriver, gateIDs []string, text string) boo
 	}
 	return false
 }
+
+// bilcToolInputsCarry reports whether text appears in the input of any tool call the model
+// made in the run.
+func bilcToolInputsCarry(run agenttest.Run, text string) bool {
+	for _, req := range run.Requests {
+		for _, m := range req.Messages {
+			for _, b := range m.Content {
+				if b.Type == "tool_use" && strings.Contains(string(b.Input), text) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
