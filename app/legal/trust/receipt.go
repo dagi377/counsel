@@ -368,11 +368,14 @@ func (pgLedgerRepo) sums(ctx context.Context, tx pgx.Tx, id LedgerID, today time
 	return s, nil
 }
 
+// insertTxnSQL writes every Txn field: reverses_id links a reversal to what it negates
+// (DM-055) and replenishes_id links a firm-funds receipt to the NSF receipt it covers (RV1-012).
 const insertTxnSQL = `INSERT INTO trust.trust_transaction
   (account_id, ledger_id, kind, txn_date, method, instrument_no, counterparty, amount_cents, purpose,
-   withdrawal_id, approval_id, cash_exception_code, cleared_on, posted_by)
+   withdrawal_id, approval_id, cash_exception_code, cleared_on, posted_by, reverses_id, replenishes_id)
 VALUES ($1::uuid, $2::uuid, $3, $4::date, $5, NULLIF($6, ''), $7, $8, $9,
-   NULLIF($10, '')::uuid, NULLIF($11, '')::uuid, NULLIF($12, ''), NULLIF($13, '')::date, $14::uuid)
+   NULLIF($10, '')::uuid, NULLIF($11, '')::uuid, NULLIF($12, ''), NULLIF($13, '')::date, $14::uuid,
+   NULLIF($15, '')::uuid, NULLIF($16, '')::uuid)
 RETURNING id::text`
 
 func dateOrEmpty(t time.Time) string {
@@ -386,7 +389,8 @@ func (pgLedgerRepo) insertTxn(ctx context.Context, tx pgx.Tx, t Txn) (TxnID, err
 	var id string
 	if err := tx.QueryRow(ctx, insertTxnSQL, string(t.AccountID), string(t.LedgerID), string(t.Kind),
 		t.TxnDate.Format(time.DateOnly), string(t.Method), t.InstrumentNo, t.Counterparty, t.AmountCents, t.Purpose,
-		t.WithdrawalID, t.ApprovalID, t.CashExceptionCode, dateOrEmpty(t.ClearedOn), t.PostedBy).Scan(&id); err != nil {
+		t.WithdrawalID, t.ApprovalID, t.CashExceptionCode, dateOrEmpty(t.ClearedOn), t.PostedBy,
+		string(t.ReversesID), string(t.ReplenishesID)).Scan(&id); err != nil {
 		var pg *pgconn.PgError
 		if errors.As(err, &pg) && pg.Code == "23514" {
 			// check_violation: the database's own balance guard (DM-052, DM-064).
