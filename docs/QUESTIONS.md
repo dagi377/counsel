@@ -2667,3 +2667,40 @@ Done in PORT-18:
 - FEAT-MAT-06, -10 and -01 share one test helper file, app/legal/matter/ai_mat_helpers_test.go
   (mat prefix), so task/FEAT-MAT-10 is based on task/FEAT-MAT-06 and task/FEAT-MAT-01 on
   task/FEAT-MAT-10.
+## Q-FEAT-MAT-02 F-MAT-03 stage advance watcher
+
+- Besides the listed files, `app/legal/agent/featureset/featureset.go` gains
+  `matter.StageAdvanceDef()` and `go generate` adds its plugin skill
+  (`paploo/counsel-plugin/skills/f-mat-03-stage-advance-watcher`), as every feature does.
+- The spec's "evidence event (signed, filed, paid, deadline passed)" has no event of its own in
+  spec/eng/a2-interfaces.json, so the binding uses the nearest a2 events: `document.released`
+  (signed), `document.uploaded` (filed), `payment.received` (paid) and `deadline.met`
+  (deadline passed). A dedicated e-sign or deadline-passed event can be added to
+  `matter.StageEvidenceEvents` when one exists.
+- `matter.stage_move` is a tool-gap kind: the run drafts the proposal with draft_document and
+  opens G-ST with submit_for_approval on that draft. The feature tests answer
+  `agent.SubjectMatters` from the seed's drafts (agenttest.Seed.Deps has none).
+
+## Q-FEAT-MAT-03 F-MAT-04 party extraction
+
+- Besides the listed files, `app/legal/agent/featureset/featureset.go` gains
+  `matter.PartyExtractionDef()`. It is an extraction Def, so no plugin skill is generated.
+- As in Q-FEAT-CON-01, propose_conflict_parties opens no kernel gate: it runs the matter's
+  conflict check, and the open check run is the pending matter.party_conflict (G2). The tests
+  assert the run is open with the acting user as preparer, an agent decider is 403
+  (`gates.ErrAgentApproves`) and the acting user is refused as preparer
+  (`gates.ErrPreparerApproves` / `conflict.ErrPreparerApproves`, the app's self-approval
+  refusal), not the kernel `gate.ErrSelfApproval`.
+- The spec trigger "new pleading, correspondence or closing document" binds to the a2
+  `document.uploaded` event (`matter.PartyDocumentEvents`); a2 has no email event yet.
+- The branch is based on task/FEAT-MAT-02 for the shared matb test helpers.
+
+## Q-FEAT-MAT-04 F-MAT-05 contact dedupe and enrichment
+
+- Besides the listed files, `app/legal/agent/featureset/featureset.go` gains
+  `matter.ContactDedupeDef()`. It is an embedding Def, so no plugin skill is generated.
+- The daily schedule binds with `trigger.BindDesignated` (Q-JOB-ACTOR): scheduled runs act for
+  the feature's designated lawyer; `contact.created` runs act for the event's user. The branch
+  is based on task/FEAT-MAT-03, which carries task/JOB-ACTOR and the shared matb helpers.
+- `matter.contact_merge` is a tool-gap kind: the run drafts the proposal with draft_document
+  and opens G-CM with submit_for_approval on that draft.

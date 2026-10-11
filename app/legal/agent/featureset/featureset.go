@@ -95,5 +95,8 @@ func appDefs() []feature.Def {
 		matter.BriefRefreshDef(),
 		matter.CallSummaryDef(),
 		matter.ChronologyDef(),
+		matter.StageAdvanceDef(),
+		matter.PartyExtractionDef(),
+		matter.ContactDedupeDef(),
 	}
 }
