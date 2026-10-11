@@ -1,0 +1,18 @@
+[
+  {
+    "id": "ticket.read",
+    "description": "Read tickets"
+  },
+  {
+    "id": "ticket.close",
+    "description": "Close a ticket"
+  },
+  {
+    "id": "ticket.refund_approve",
+    "description": "Approve a refund"
+  },
+  {
+    "id": "ticket.report",
+    "description": "Run ticket reports"
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "ticket.open_by_queue",
+    "capability": "ticket.report",
+    "params": {
+      "type": "object",
+      "properties": {
+        "queue": {
+          "type": "string"
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,18 @@
+# Helpdesk response deadlines: a fixture app with no legal terms.
+pack: helpdesk_sla
+version: 1
+time_zone: America/Toronto
+holidays: ["2026-12-25", "2027-01-01"]
+rules:
+  - id: first_response
+    description: First reply to a new ticket
+    trigger: ticket_opened
+    offset_days: 1
+    day_count: business
+    roll: forward
+  - id: auto_close
+    trigger: customer_silent
+    offset_days: 14
+    day_count: calendar
+    roll: none
+    confirm: true

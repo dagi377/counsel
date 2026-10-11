@@ -1,0 +1,13 @@
+[
+  {
+    "id": "ticket.standard",
+    "min_years": 2,
+    "never_purge": false,
+    "destruction_gate": "ticket.purge"
+  },
+  {
+    "id": "ticket.forever",
+    "min_years": 0,
+    "never_purge": true
+  }
+]

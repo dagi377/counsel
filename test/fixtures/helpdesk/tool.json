@@ -1,0 +1,31 @@
+[
+  {
+    "name": "search_tickets",
+    "kind": "read",
+    "capability": "ticket.read",
+    "input": {
+      "type": "object",
+      "properties": {
+        "q": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  {
+    "name": "propose_refund",
+    "kind": "write",
+    "capability": "ticket.read",
+    "input": {
+      "type": "object",
+      "required": [
+        "ticket_id"
+      ],
+      "properties": {
+        "ticket_id": {
+          "type": "string"
+        }
+      }
+    }
+  }
+]

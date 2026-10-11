@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "CONTRACT: frozen once on main; changes are additive only and need a docs/QUESTIONS.md entry. Source: spec/eng/k1-kernel.html (Registry). Validated at boot; registered data that fails it stops boot.",
+  "title": "GateKind",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "slug",
+    "approver",
+    "risk",
+    "min_approvers",
+    "ttl",
+    "payload_schema"
+  ],
+  "properties": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "module-prefixed id, e.g. <module>.<name>"
+    },
+    "approver": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "module-prefixed id, e.g. <module>.<name>"
+    },
+    "risk": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "irreversible"
+      ]
+    },
+    "min_approvers": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "ttl": {
+      "type": "string",
+      "pattern": "^([0-9]+(ns|us|ms|s|m|h))+$",
+      "description": "Go duration, e.g. 72h"
+    },
+    "cooling_off": {
+      "type": "string",
+      "pattern": "^([0-9]+(ns|us|ms|s|m|h))+$",
+      "description": "Go duration, e.g. 72h"
+    },
+    "payload_schema": {
+      "type": "object",
+      "description": "an embedded JSON Schema document"
+    }
+  },
+  "if": {
+    "properties": {
+      "risk": {
+        "const": "irreversible"
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "min_approvers": {
+        "minimum": 2
+      }
+    }
+  },
+  "$id": "https://counsel.local/spec/kernel/gatekind.schema.json"
+}

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "CONTRACT: frozen once on main; changes are additive only and need a docs/QUESTIONS.md entry. Source: spec/eng/k1-kernel.html (Registry). Validated at boot; registered data that fails it stops boot.",
+  "title": "RulePack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pack",
+    "version",
+    "rules"
+  ],
+  "properties": {
+    "pack": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "time_zone": {
+      "type": "string",
+      "minLength": 1
+    },
+    "holidays": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "date"
+      },
+      "uniqueItems": true
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "trigger",
+          "offset_days",
+          "day_count"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "description": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "offset_days": {
+            "type": "integer"
+          },
+          "day_count": {
+            "enum": [
+              "calendar",
+              "business"
+            ]
+          },
+          "roll": {
+            "enum": [
+              "none",
+              "forward",
+              "backward"
+            ]
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "a human confirms the computed date"
+          }
+        }
+      }
+    }
+  },
+  "$id": "https://counsel.local/spec/kernel/rulepack.schema.json"
+}

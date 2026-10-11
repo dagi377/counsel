@@ -1,0 +1,32 @@
+[
+  {
+    "slug": "ticket.refund",
+    "approver": "ticket.refund_approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "72h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "amount_cents"
+      ],
+      "properties": {
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  {
+    "slug": "ticket.purge",
+    "approver": "ticket.refund_approve",
+    "risk": "irreversible",
+    "min_approvers": 2,
+    "ttl": "168h",
+    "cooling_off": "24h",
+    "payload_schema": {
+      "type": "object"
+    }
+  }
+]
