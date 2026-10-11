@@ -49,16 +49,6 @@ Template:
   `billing.trust_fee_withdrawal`.
 - Answer: (owner)
 
-## Q-T-045.1 Generated API client cannot live in web/src/kernel
-
-- Task: T-045.1
-- Sources: spec/tasks.json T-045.1 files (`web/src/kernel/api/client.ts`); AGENTS.md "Where things go" (generated client in `web/src/kernel`); kernel/boundary_test.go `termRoots` includes `web/src/kernel`; api/openapi.yaml is the legal API (`matter_id`, `/trust/...`, `hst_cents`).
-- Problem: a client generated from api/openapi.yaml carries matter, trust and HST names, so TestKernelHasNoLegalTerms fails; `tools/kernel_allow.txt` may only shrink.
-- Reading A: generate into `web/src/app/api/client.ts` (app layer); `web/src/kernel` keeps only the domain-free runtime (fetch, problem+json, extensible-enum decode, enumLabel).
-- Reading B: keep the path and add `web/src/kernel/api/client.ts` as an exemption in kernel/boundary_test.go (scanner change, not an allowlist line).
-- Proposed: A. A working generator (tools/gen_client.mjs, python3+PyYAML for YAML, no new npm deps) and ARC-I-002 tests are drafted and pass vitest; they ship once the path is decided.
-- Answer: owner (2026-10-11): A. Generate into `web/src/app/api` (the kernel web stays free of legal terms), with a Node YAML parser (`yaml` devDependency), not python3. T-045.1 is requeued.
-
 ## Q-004 POST /hooks/{provider} lacks problem responses ARC-I-051 asks for
 
 - Task: T-009.1
@@ -186,6 +176,17 @@ Template:
   (spec_id G-B5) in spec/gates.json; approver capability `billing.writeoff_second_approve`,
   held only by the owner role. The two approvers are different people, and neither is the
   preparer or an agent.
+
+## Q-T-045.1 Generated API client cannot live in web/src/kernel
+
+- Task: T-045.1
+- Sources: spec/tasks.json T-045.1 files (`web/src/kernel/api/client.ts`); AGENTS.md "Where things go" (generated client in `web/src/kernel`); kernel/boundary_test.go `termRoots` includes `web/src/kernel`; api/openapi.yaml is the legal API (`matter_id`, `/trust/...`, `hst_cents`).
+- Problem: a client generated from api/openapi.yaml carries matter, trust and HST names, so TestKernelHasNoLegalTerms fails; `tools/kernel_allow.txt` may only shrink.
+- Reading A: generate into `web/src/app/api/client.ts` (app layer); `web/src/kernel` keeps only the domain-free runtime (fetch, problem+json, extensible-enum decode, enumLabel).
+- Reading B: keep the path and add `web/src/kernel/api/client.ts` as an exemption in kernel/boundary_test.go (scanner change, not an allowlist line).
+- Proposed: A. A working generator (tools/gen_client.mjs, python3+PyYAML for YAML, no new npm deps) and ARC-I-002 tests are drafted and pass vitest; they ship once the path is decided.
+- Answer: owner (2026-10-11): A. Generate into `web/src/app/api` (the kernel web stays free of legal terms), with a Node YAML parser (`yaml` devDependency), not python3. T-045.1 is requeued.
+- Status: done in T-045.1: `tools/gen_client.mjs` writes `web/src/app/api/client.ts`; `yaml` is a web devDependency.
 
 ## Q-004 POST /hooks/{provider} lacks problem responses ARC-I-051 asks for
 
@@ -625,6 +626,114 @@ integrator did not change the no-rate behaviour (ErrNoAgreedRate stays). It seed
 quarterly CJA prejudgment table (2020 Q1 to 2026 Q4, from ontario.ca, verify) as
 `interest.PrejudgmentRate`, usable as the agreed rate's CJA benchmark. Needed: a lawyer reads
 s.33 as amended and either the rules or the decision change.
+- Answer (lawyer, 2026-10-11): Solicitors Act s.33 ties interest to the CJA s.127 prejudgment
+  rate, so the frozen rule text is incomplete. Rule behaviour stays the default. New flag
+  `interest.cja_default_rate` (verify, default off): when on, a bill with no agreed rate uses
+  `interest.PrejudgmentRate` for the Toronto quarter of delivery (`interest.EffectiveRate`).
+  Answered.
+
+
+## T-020.1c: bill void effect
+
+- Approval entry: the billing.bill_approval effect posts no BIL-J-003 journal entry yet, and
+  kernel/ledger has no lookup by source. `VoidEffect` finds the entry to reverse through the
+  `ApprovalEntries` port, which has no Postgres implementation. Options: (a) the approval
+  effect posts BIL-J-003 and stores its entry id on the bill (additive column), or (b) an
+  additive `ledger.FindBySource(ctx, tx, kind, id)` over the existing source index. The
+  integration test posts the approval entry itself.
+- Extra file: `void_effect_test.go` holds the unit tests and the route-table guard
+  (TestBIL_C_084_OnlyGateVoids), so they run in `make check`; the listed
+  `void_integration_test.go` is integration-only.
+- Integrator: pass `bill.VoidEffects(*VoidEffect)` into the gates.RegisterKinds effects map
+  at boot, as for `bill.Effects`.
+
+## BIL-J-003: bill approval journal entry
+
+- Resolves the T-020.1c approval-entry question with option (b) inside the bill package:
+  `ApproveEffect` now posts BIL-J-003 through `Ledger` (book operating, source `bill`/bill id,
+  dated the bill date) in the gate tx, and `PGStore.ApprovalEntry` finds it by that source
+  for the void. No contract or migration change; `TaxLine` reads `billing.bill.tax_breakdown`.
+- Lines posted: Dr OP-1100 total; Dr OP-4900 discount and negative fee adjustments; Cr OP-4000
+  per fee line; Cr OP-4010 taxable (own-cost) disbursements; Cr OP-1210 agency disbursements at
+  cost (they were debited to OP-1210 when paid, BIL-J-002); Cr OP-2100 (GST/HST) or OP-2110
+  (PST/QST) per tax line. Lines and tax lines must equal the bill's frozen totals or the
+  approval fails.
+- Not yet posted: the WIP relief pair (Dr OP-1290 / Cr OP-1200 at recorded value) and
+  write-downs to OP-4900. Both need the time entries' recorded value, which the bill does not
+  carry. Until then OP-1200/OP-1290 keep billed time; the pair nets to zero, so AR, revenue
+  and tax are right.
+- Integrator: `ApproveEffect` refuses to run without `Journal` (PGStore{}) and `Ledger`
+  (*ledger.PG); `VoidEffect.Entries` is PGStore{}. The chart (books) must be synced into
+  gl.account before the first approval.
+
+
+## fix/trust-auth-race: withdrawal authorisation locks the client ledger
+
+- Effect.Apply read `Balance` in its own transaction without a lock, so two concurrent
+  authorisations could both pass and together overdraw a client ledger (By-law 9). Apply now
+  locks the withdrawal, then the client ledger row FOR UPDATE in the gate's tx (the order
+  Execute/Disburse use), re-checks `trust.AvailableCents` net of authorised holds and records
+  its hold in the same tx.
+- Files outside withdraw/: `withdraw.TrustLedgers` swaps `Balance` for
+  `LockLedger(ctx, tx, id) (Balance, held, error)`, so `trust.LedgerStore` (receipt.go) and
+  `trustfake` gain that method (additive; the frozen `trust.Ledgers` contract is unchanged).
+
+## T-012.5: EFT check wired into the withdrawal effect
+
+- The Form 9A check (eft.go `CheckEFT`) must run before an EFT posts, which happens in
+  `Effect.Execute` (effect.go, not in T-012.5's files). effect.go gains an `EFT EFTRecords`
+  field and one call to `CheckEFT` before `Disburse`. While `EFT` is nil every EFT execution
+  fails closed with `eft_authorization_missing`.
+- Follow-ups: a Postgres `EFTRecords` over `form_9a_doc_id`/docs.document; `problemFor`
+  (execute.go) should map `ErrNoEFTAuthorization` to 409 `eft_authorization_missing`; the
+  trust.transfer gate effect should call `Transfers.Post`; and `sumsSQL` (trust/receipt.go)
+  leaves out authorised `trust_transfer` holds that `trust.available_cents` subtracts.
+
+
+## Q-T-011.4 Trust exception table for NSF reversals
+
+- Task: T-011.4. Sources: b3 BIL-C-065 ("a reversal of a trust deposit always opens a trust
+  exception"), task accept line ("trust exception opened"). 0001 has no table to hold one.
+- Answer: owner (2026-10-11): additive migration `5500_trust_exception.sql` (app/legal/trust,
+  first file in its block): `trust.exception` (kind `nsf`, receipt id, ledger and matter link,
+  amount cents, shortfall cents, opened_at/by, resolved_at/by, resolution), one row per
+  (kind, receipt), no delete. `migrations/migrations_test.go` lists the new file. ReverseNSF
+  opens the row in the reversal's tx; the replenishment's operating leg is
+  Dr OP-1100 / Cr OP-1000 with source kind `nsf_replenishment`. Resolving an exception is a
+  later task.
+
+
+## Q-T-011.5 Ledger balance guard mapping
+
+- Task: T-011.5 (BIL-I-010, DM-052, DM-064).
+- DM-052 is a DEFERRABLE INITIALLY DEFERRED constraint trigger, so it fails at COMMIT, after
+  any insert-level mapping. `ledgerlock.go` adds `LedgerStore.InLedgerTx` and `ledgerCheck`:
+  SQLSTATE 23514 whose message starts with `DM-052:` or `DM-064:` becomes
+  ErrInsufficientFunds (409 insufficient_trust_funds); deadlocks and other CHECK violations
+  pass through unchanged.
+- Follow-up for the integrator (receipt.go is outside T-011.5's file list): `insertTxn` maps
+  every 23514 to ErrInsufficientFunds, so an unrelated CHECK on trust_transaction (cash payout,
+  kind/sign) reads as insufficient funds. Switch it to `ledgerCheck`.
+- The 32-goroutine integration test seeds 32 withdrawals, each authorised under its own
+  approved trust.withdrawal gate. It is vetted with `-tags integration` and not yet run
+  (integration runs are on hold).
+
+
+## Q-T-031L.4 Limitations Act calculator: additive contract
+
+- Task: T-031L.4 (gap task: the real calculator behind app/legal/limitation).
+- Additive to `app/legal/limitation/contract.go`: Assessment fields `DiscoveryPresumed`
+  (s.5(2)), `NoLimit` (s.16/s.17) and `ContributionServedDate` (s.18); sentinels
+  `ErrUnverified` (flag off) and `ErrSuspended` (open-ended suspension); types `NoLimitKind`,
+  `SchedulePeriod` and the `Schedule` lookup hook (s.19, no data yet).
+- For the lawyer (all marked (verify) in `app/legal/limitation/statute.go`):
+  (a) a Feb 29 anniversary falls on Feb 28 (Legislation Act, 2006 s.89, month-end rule);
+  (b) the due date is not moved off a weekend or holiday (conservative; Legislation Act s.88
+  may allow the next business day); (c) undiscovered environmental claims cite s.17;
+  (d) an s.22 agreement suspends both periods; (e) a Schedule period replaces the basic and
+  ultimate periods and ignores suspensions.
+- No Assessor or production wiring exists yet, so nothing used the fake outside tests. The
+  BOOT task set should construct `limitation.NewStatute(schedule)` as the Calculator.
 
 ## Q-BOOT-13-PORTS: trust services need ports no module implements yet
 

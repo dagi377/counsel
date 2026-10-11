@@ -267,6 +267,27 @@ func (s *LedgerStore) Balance(ctx context.Context, id LedgerID) (Balance, error)
 	return out, nil
 }
 
+// LockLedger locks the client ledger row FOR UPDATE in tx, the same lock Disburse takes, and
+// returns its balance and the sum of its authorised-not-executed withdrawal holds as of today.
+// The trust.withdrawal gate effect calls it before recording a hold, so concurrent
+// authorisations on one ledger serialise and each sees the holds committed before it.
+func (s *LedgerStore) LockLedger(ctx context.Context, tx pgx.Tx, id LedgerID) (Balance, int64, error) {
+	// rule: ARC-I-025
+	l, err := s.repo.lockLedger(ctx, tx, id)
+	if err != nil {
+		return Balance{}, 0, fmt.Errorf("lock ledger %s: %w", id, err)
+	}
+	sum, err := s.repo.sums(ctx, tx, l.ID, s.today(ctx), "")
+	if err != nil {
+		return Balance{}, 0, fmt.Errorf("lock ledger %s: %w", id, err)
+	}
+	return Balance{
+		LedgerID: l.ID, PostedCents: sum.PostedCents, ClearedCents: sum.ClearedCents,
+		ProtectedCents: l.ProtectedCents, MinimumCents: l.MinimumBalanceCents,
+		AvailableCents: AvailableCents(sum.ClearedCents, l.ProtectedCents, l.MinimumBalanceCents, sum.HeldCents),
+	}, sum.HeldCents, nil
+}
+
 // Txns implements Ledgers.
 func (s *LedgerStore) Txns(ctx context.Context, id LedgerID) ([]Txn, error) {
 	var out []Txn
@@ -350,13 +371,16 @@ func (pgLedgerRepo) getLedger(ctx context.Context, tx pgx.Tx, id LedgerID) (Ledg
 }
 
 // sumsSQL mirrors trust.available_cents: money out, non-receipts and receipts cleared by today
-// (on the row or by a later clearance) count as cleared.
+// (on the row or by a later clearance) count as cleared. Held money is every authorised
+// withdrawal and every authorised transfer out of the ledger, except the one being executed.
 const sumsSQL = `SELECT
   coalesce(sum(t.amount_cents), 0)::bigint,
   coalesce(sum(t.amount_cents) FILTER (WHERE t.amount_cents < 0 OR t.kind <> 'receipt' OR t.cleared_on <= $2::date
     OR EXISTS (SELECT 1 FROM trust.receipt_clearance c WHERE c.trust_transaction_id = t.id AND c.cleared_on <= $2::date)), 0)::bigint,
   coalesce((SELECT sum(w.amount_cents) FROM trust.withdrawal_request w
     WHERE w.ledger_id = $1::uuid AND w.status = 'authorized' AND w.id::text IS DISTINCT FROM NULLIF($3, '')), 0)::bigint
+  + coalesce((SELECT sum(x.amount_cents) FROM trust.trust_transfer x
+    WHERE x.from_ledger_id = $1::uuid AND x.status = 'authorized' AND x.id::text IS DISTINCT FROM NULLIF($3, '')), 0)::bigint
 FROM trust.trust_transaction t WHERE t.ledger_id = $1::uuid`
 
 func (pgLedgerRepo) sums(ctx context.Context, tx pgx.Tx, id LedgerID, today time.Time, except string) (ledgerSums, error) {
@@ -368,11 +392,14 @@ func (pgLedgerRepo) sums(ctx context.Context, tx pgx.Tx, id LedgerID, today time
 	return s, nil
 }
 
+// insertTxnSQL writes every Txn field: reverses_id links a reversal to what it negates
+// (DM-055) and replenishes_id links a firm-funds receipt to the NSF receipt it covers (RV1-012).
 const insertTxnSQL = `INSERT INTO trust.trust_transaction
   (account_id, ledger_id, kind, txn_date, method, instrument_no, counterparty, amount_cents, purpose,
-   withdrawal_id, approval_id, cash_exception_code, cleared_on, posted_by)
+   withdrawal_id, approval_id, cash_exception_code, cleared_on, posted_by, reverses_id, replenishes_id)
 VALUES ($1::uuid, $2::uuid, $3, $4::date, $5, NULLIF($6, ''), $7, $8, $9,
-   NULLIF($10, '')::uuid, NULLIF($11, '')::uuid, NULLIF($12, ''), NULLIF($13, '')::date, $14::uuid)
+   NULLIF($10, '')::uuid, NULLIF($11, '')::uuid, NULLIF($12, ''), NULLIF($13, '')::date, $14::uuid,
+   NULLIF($15, '')::uuid, NULLIF($16, '')::uuid)
 RETURNING id::text`
 
 func dateOrEmpty(t time.Time) string {
@@ -386,13 +413,10 @@ func (pgLedgerRepo) insertTxn(ctx context.Context, tx pgx.Tx, t Txn) (TxnID, err
 	var id string
 	if err := tx.QueryRow(ctx, insertTxnSQL, string(t.AccountID), string(t.LedgerID), string(t.Kind),
 		t.TxnDate.Format(time.DateOnly), string(t.Method), t.InstrumentNo, t.Counterparty, t.AmountCents, t.Purpose,
-		t.WithdrawalID, t.ApprovalID, t.CashExceptionCode, dateOrEmpty(t.ClearedOn), t.PostedBy).Scan(&id); err != nil {
-		var pg *pgconn.PgError
-		if errors.As(err, &pg) && pg.Code == "23514" {
-			// check_violation: the database's own balance guard (DM-052, DM-064).
-			return "", fmt.Errorf("insert txn: %w", ErrInsufficientFunds)
-		}
-		return "", fmt.Errorf("insert txn: %w", err)
+		t.WithdrawalID, t.ApprovalID, t.CashExceptionCode, dateOrEmpty(t.ClearedOn), t.PostedBy,
+		string(t.ReversesID), string(t.ReplenishesID)).Scan(&id); err != nil {
+		// rule: BIL-I-010
+		return "", fmt.Errorf("insert txn: %w", ledgerCheck(err))
 	}
 	return TxnID(id), nil
 }

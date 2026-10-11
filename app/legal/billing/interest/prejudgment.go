@@ -1,10 +1,13 @@
 package interest
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
+	_ "time/tzdata" // the delivery quarter is a Toronto date on any host
 
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/money"
 )
 
@@ -37,8 +40,9 @@ var prejudgmentRates = map[quarter]money.PPM{
 
 // PrejudgmentRate returns the Courts of Justice Act prejudgment rate for the quarter that
 // contains the business date d (already an America/Toronto date). A firm can use it as the
-// agreed rate's CJA benchmark (BIL-L-010); it is never applied without an agreed rate,
-// because BIL-C-071 and BIL-L-009/010 say the Act supplies no default (see docs/QUESTIONS.md).
+// agreed rate's CJA benchmark (BIL-L-010). It is applied without an agreed rate only while
+// FlagCJADefaultRate is on (Q-INTEREST-CJA); otherwise BIL-C-071 holds and no rate means no
+// interest.
 //
 // rule: BIL-L-010 (verify)
 func PrejudgmentRate(d time.Time) (money.PPM, error) {
@@ -47,6 +51,33 @@ func PrejudgmentRate(d time.Time) (money.PPM, error) {
 	r, ok := prejudgmentRates[q]
 	if !ok {
 		return 0, fmt.Errorf("%d Q%d: %w", q.Year, q.Q, ErrNoPrejudgmentRate)
+	}
+	return r, nil
+}
+
+// EffectiveRate returns the rate interest runs at on b: the agreed rate when one is set.
+// With no agreed rate it returns ErrNoAgreedRate, unless FlagCJADefaultRate is on; then it is
+// the prejudgment rate for the quarter of the Toronto date b was delivered.
+//
+// rule: BIL-L-010 (verify)
+func EffectiveRate(ctx context.Context, b Bill) (money.PPM, error) {
+	if b.RatePPM > 0 {
+		return b.RatePPM, nil
+	}
+	if !legalflags.Enabled(ctx, FlagCJADefaultRate) {
+		return 0, fmt.Errorf("bill %s: %w", b.ID, ErrNoAgreedRate)
+	}
+	if b.DeliveredAt.IsZero() {
+		return 0, fmt.Errorf("bill %s: %w", b.ID, ErrNotDelivered)
+	}
+	loc, err := time.LoadLocation("America/Toronto")
+	if err != nil {
+		return 0, fmt.Errorf("bill %s: business zone: %w", b.ID, err)
+	}
+	y, m, d := b.DeliveredAt.In(loc).Date()
+	r, err := PrejudgmentRate(time.Date(y, m, d, 0, 0, 0, 0, loc))
+	if err != nil {
+		return 0, fmt.Errorf("bill %s: %w", b.ID, err)
 	}
 	return r, nil
 }

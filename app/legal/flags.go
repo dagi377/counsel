@@ -19,6 +19,7 @@ const (
 	FlagReceiptsJournalVerified = legalflags.ReceiptsJournalVerified
 	FlagBillingRecordsVerified  = legalflags.BillingRecordsVerified
 	FlagSolicitorsActVerified   = legalflags.SolicitorsActVerified
+	FlagInterestCJADefaultRate  = legalflags.InterestCJADefaultRate
 	FlagIDVerification          = legalflags.IDVerification
 	FlagDeadlineOntarioPack     = legalflags.DeadlineOntarioPack
 	FlagExportPostCancelWindow  = legalflags.ExportPostCancelWindow
@@ -65,6 +66,8 @@ func Flags() []flags.Def {
 			Doc: "fees book and billing-record retention checks rest on By-Law 9 text not yet confirmed"},
 		{Name: FlagSolicitorsActVerified, Owner: "lawyer/LSO", Expiry: verifyExpiry,
 			Doc: "Solicitors Act periods and bill and assessment-notice wording unconfirmed"},
+		{Name: FlagInterestCJADefaultRate, Owner: "lawyer/LSO", Expiry: verifyExpiry,
+			Doc: "Q-INTEREST-CJA: with no agreed rate, Solicitors Act s.33 interest runs at the CJA s.127 prejudgment rate for the quarter of delivery"},
 		{Name: FlagIDVerification, Owner: "lawyer/LSO", Expiry: verifyExpiry,
 			Doc: "By-Law 7.1 client ID verification exemptions and retention unconfirmed"},
 		{Name: FlagDeadlineOntarioPack, Owner: "lawyer/LSO, owner", Expiry: verifyExpiry,
