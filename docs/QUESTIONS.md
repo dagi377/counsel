@@ -1154,3 +1154,19 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   addNotifyJobs and addWebhookJobs. The legal app schedules
   trust.withdrawal_release_expired every 15 minutes when gate services are built. kernel/idem
   problem bodies carry `type` (urn:counsel:problem:<code>, now api.ProblemTypePrefix).
+
+## Q-PORT-11: signatory change log, migration number and files outside the list
+
+- Task: PORT-11. The task names `migrations/6210_signatory_change.sql`, but 6200-6299 is the
+  app/legal/agent block in `tools/migration_blocks.txt`; trust owns 5500-5599. The file is
+  `migrations/5510_signatory_change.sql` (additive: one new table).
+- `PGService` satisfying `Service` needs the PORT-10 `Propose`/`Approve` stubs (and their
+  `ErrNotImplemented` test) removed from `service_pg.go` and `service_pg_test.go`. Branch is
+  based on `task/PORT-10`, so PORT-10 must merge first.
+- `signatory.Effects` calls `Service` without a tx. `TxEffects(*PGService)` runs the same
+  effect on the gate tx (`PGService.OnTx`) and records the gate id as
+  `trust.signatory.approval_id`; boot should register `TxEffects`, not `Effects`. Outside a
+  gate, `Approve` records the change id as the approval.
+- One change adds or removes exactly one user (the GA6 payload is one user); a bonded
+  non-licensee grant stores bond_cents 0 with no expiry and keeps the evidence on the change
+  (verify: the real bond amount and expiry need their own input).
