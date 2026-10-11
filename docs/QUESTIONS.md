@@ -3001,3 +3001,15 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-FEAT-INT-13 F-INT-19 receptionist criteria: screen subject and shared helpers
+
+- `ai-receptionist` is a firm-level settings screen; with no firm subject kind on main
+  (BOOT-24 adds `boot.FirmSubject`, unmerged), it maps to subject `matter` (the matter the
+  draft is filed on, which `draft_document` needs) with capability `intake.forms` (a kernel
+  `platform.*` capability is refused in app wiring by TestAppIDsAvoidKernelPrefix). Move it to `FirmSubject` when BOOT-24 lands.
+- The firm website text reaches the run only as the quoted request; there is no web-fetch tool
+  in the Def, so the prompt drafts only from what was quoted.
+- `platform.skill_autonomy` is a literal in the Def. The end-to-end tests use
+  `app/legal/intake/ai_inte_helpers_test.go` (prefix `inte`), shared byte-for-byte with
+  FEAT-INT-11 and FEAT-INT-12.
