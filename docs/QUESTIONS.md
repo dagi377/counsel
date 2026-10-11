@@ -1086,3 +1086,16 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
 - List pages use the openapi `{data, next_cursor}` shape. Bills on matters hidden from the
   caller are left out of the list (pages can be short).
 - Line actions are not stored on bill.Line yet; every line reports action "bill".
+
+## HTTP-07: bill draft routes (files outside the task)
+
+- No single-draft entry point exists (billing/draft has Calc+Store, billing/batch builds
+  drafts), so http_draft.go adds the narrow port `bill.Drafts` (Create, Edit) with
+  `DraftRequest`, `DraftEdit`, `LineAction` and the sentinels `ErrNotEditable` (409
+  bill_not_editable) and `ErrNoUnbilledWIP` (422 no_unbilled_wip). Boot wiring must supply a
+  Drafts built on billing/draft; until then the routes answer 503.
+- PATCH edits only stored draft statuses (draft, preflight_failed). A bill in review is 409;
+  there is no stored "returned" status yet.
+- A body carrying status, number or totals is 400 validation_failed (accept line), not the
+  422 read_only_field in the BillPatch description.
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
