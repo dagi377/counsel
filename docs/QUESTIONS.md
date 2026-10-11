@@ -3731,3 +3731,9 @@ of FEAT-TIM-01 above.
 - No event exists in spec/eng/a2-interfaces.json or kernel/work for "automation run failed or
   skipped". The Def binds `work.automation_run_failed` and `work.automation_run_skipped`
   publishes automation run events.
+## FEAT-WRK-13 Action screens of the read-only work answers
+
+- F-WRK-15, F-WRK-16 and F-WRK-17 run from work-automations, work-categories and
+  work-reports. Main has no boot.FirmSubject, so the action route's screen map selects a
+  matter on each (work.view). Open: these are firm-level screens (an automation run, the
+  category list, a report figure); switch them to the firm subject once it lands.

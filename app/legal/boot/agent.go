@@ -516,6 +516,10 @@ var actionScreens = map[string]trigger.Screen{
 	// workflow-templates is firm-level too; it selects the completed matters to mine
 	// (Q-FEAT-WRK-08).
 	"workflow-templates": {SubjectKind: "matter", Capability: "work.workflows"},
+	// Work screens of F-WRK-15 to F-WRK-17: no firm subject kind exists yet, so each selects a
+	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
+	"work-categories": {SubjectKind: "matter", Capability: "work.view"},
+	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

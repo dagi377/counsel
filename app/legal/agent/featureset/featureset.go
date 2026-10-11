@@ -165,5 +165,8 @@ func appDefs() []feature.Def {
 		work.DraftTemplateDef(),
 		work.DailyDigestDef(),
 		work.ExplainAutomationRunsDef(),
+		work.ExplainFailedRunDef(),
+		work.SuggestCategoriesDef(),
+		work.ExplainNumberDef(),
 	}
 }
