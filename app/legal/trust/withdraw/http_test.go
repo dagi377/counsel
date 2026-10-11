@@ -282,8 +282,8 @@ func TestWithdrawalListPages(t *testing.T) {
 					t.Fatalf("page %d status = %d (%s)", i, rec.Code, rec.Body)
 				}
 				var page struct {
-					Items []json.RawMessage `json:"items"`
-					Next  string            `json:"next"`
+					Items []json.RawMessage `json:"data"`
+					Next  string            `json:"next_cursor"`
 				}
 				if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
 					t.Fatal(err)
