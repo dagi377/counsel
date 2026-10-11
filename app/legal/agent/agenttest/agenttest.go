@@ -27,6 +27,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/roles/rolesfake"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw/withdrawfake"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/agenttools/agenttoolsfake"
@@ -51,7 +52,19 @@ const (
 	PayeeContact = "00000000-0000-4000-8000-0000000000d4"
 	// WalledPayee is WalledMatter's contact.
 	WalledPayee = "00000000-0000-4000-8000-0000000000d5"
+	// FirmPayee is the firm's general account: a payee only for fees on a delivered bill.
+	FirmPayee = "00000000-0000-4000-8000-0000000000f1"
 )
+
+// errNoBill: the synthetic matters have no bills, so a fee transfer to the firm is refused.
+var errNoBill = errors.New("agenttest: no such bill")
+
+// noFeeBills is the bills port with no bills.
+type noFeeBills struct{}
+
+func (noFeeBills) FeeBill(context.Context, string, string) (withdraw.FeeBill, error) {
+	return withdraw.FeeBill{}, errNoBill
+}
 
 // matterContacts are the synthetic matters' contact ids.
 type matterContacts map[string][]string
@@ -146,6 +159,8 @@ func New(t testing.TB, f Feature) *Driver {
 		Withdrawals:  wd,
 		Provenance:   pv,
 		Contacts:     matterContacts{TrustMatter: {PayeeContact}, WalledMatter: {WalledPayee}},
+		FirmAccount:  func(context.Context) (string, error) { return FirmPayee, nil },
+		Bills:        noFeeBills{},
 	})
 	if err != nil {
 		t.Fatalf("write tools: %v", err)
