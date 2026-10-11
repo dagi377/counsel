@@ -23,10 +23,7 @@ GET /payments/{payment_id}
 POST /payments/{payment_id}/allocations
 POST /payments/{payment_id}/refunds
 GET /roles
-GET /trust/accounts
 POST /trust/bank-lines/imports
-GET /trust/ledgers
-GET /trust/ledgers/{ledger_id}/lines
 POST /trust/receipts
 GET /trust/reconciliations
 POST /trust/reconciliations
