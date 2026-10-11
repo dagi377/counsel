@@ -3013,3 +3013,14 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   its binding to `boot.JobBindings`. The end-to-end tests use
   `app/legal/intake/ai_intg_helpers_test.go` (prefix `intg`), shared with FEAT-INT-17 and
   FEAT-INT-18. F-INT-07 is a chat Def, so it gets no plugin skill.
+
+## Q-FEAT-INT-17 F-INT-09 weekly intake digest: schedule and screen
+
+- "Monday 08:00 America/Toronto" binds the weekly cadence (the first business day of the
+  week; `trigger.ParseCadence` reads "monday"). The tick has no hour of day, so the run starts
+  at the first tick of that day. The run acts for the feature's designated lawyer
+  (`trigger.BindDesignated`, JOB-ACTOR).
+- The `intake-dashboard` screen is added to `actionScreens` with subject `intake.lead` and
+  capability `intake.leads`, the same as the other intake screens. The digest is firm-wide;
+  if firm-level screens move to a firm subject (as decided for conflict-search-settings), this
+  entry moves with them.

@@ -75,5 +75,6 @@ func appDefs() []feature.Def {
 		legaldocs.DraftWithCitationsDef(),
 		// intake
 		intake.PipelineFollowUpsDef(),
+		intake.WeeklyIntakeDigestDef(),
 	}
 }

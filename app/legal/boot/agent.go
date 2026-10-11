@@ -300,7 +300,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 			// yet (Q-INTEG-15A-SCHEDULED).
 			return trigger.Bind(legaldocs.TemplateCurrencyDef(), ruleAdmin, deadlines.EventRulePackPublished)
 		},
-		intake.PipelineFollowUpsDef().ID: intake.PipelineFollowUpsBinding,
+		intake.PipelineFollowUpsDef().ID:  intake.PipelineFollowUpsBinding,
+		intake.WeeklyIntakeDigestDef().ID: intake.WeeklyIntakeDigestBinding,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -358,6 +359,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
+	// Intake screens select the lead ("intake.lead", the outbox subject of a lead).
+	"intake-dashboard": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
