@@ -50,6 +50,10 @@ type Def struct {
 	PromptPath   string          // path of the system prompt in Prompt
 	Fixture      string          // mock fixture dir, "testdata/ai/f-tim-01/..."
 	OutputSchema json.RawMessage // extraction: JSON Schema the final output must satisfy
+	// AnswerMayBeUncited lets a chat answer carry zero citations. Only a read-only feature
+	// whose tools return no document source (search_matters alone) sets it; any citation the
+	// answer does carry is still checked against the run's tool results.
+	AnswerMayBeUncited bool
 }
 
 // Preamble is the first line of every feature's system prompt. The mock LLM routes a call by
@@ -129,6 +133,8 @@ func (d Def) Spec() (run.Spec, error) {
 		Grant:        slices.Clone(d.Grant),
 		GateKinds:    slices.Clone(d.GateKinds),
 		OutputSchema: slices.Clone(d.OutputSchema),
+		// rule: AI-R-005
+		AnswerMayBeUncited: d.AnswerMayBeUncited,
 	}, nil
 }
 

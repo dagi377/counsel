@@ -98,12 +98,15 @@ func TestARC_I_035_SetAddByIDAll(t *testing.T) {
 func TestARC_I_035_Spec(t *testing.T) {
 	schema := json.RawMessage(`{"type":"object"}`)
 	tests := []struct {
-		name     string
-		edit     func(*Def)
-		wantKind ai.CallKind
+		name        string
+		edit        func(*Def)
+		wantKind    ai.CallKind
+		wantUncited bool
 	}{
-		{"default kind is tool-use", func(*Def) {}, ai.KindToolUse},
-		{"extraction keeps kind and schema", func(d *Def) { d.Kind = ai.KindExtraction; d.OutputSchema = schema }, ai.KindExtraction},
+		{"default kind is tool-use", func(*Def) {}, ai.KindToolUse, false},
+		{"extraction keeps kind and schema", func(d *Def) { d.Kind = ai.KindExtraction; d.OutputSchema = schema }, ai.KindExtraction, false},
+		// rule: AI-R-005
+		{"uncited answer carried to the run spec", func(d *Def) { d.AnswerMayBeUncited = true }, ai.KindToolUse, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -113,8 +116,8 @@ func TestARC_I_035_Spec(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if s.FeatureID != d.ID || s.Kind != tt.wantKind {
-				t.Fatalf("spec id/kind = %s/%s", s.FeatureID, s.Kind)
+			if s.FeatureID != d.ID || s.Kind != tt.wantKind || s.AnswerMayBeUncited != tt.wantUncited {
+				t.Fatalf("spec id/kind/uncited = %s/%s/%v", s.FeatureID, s.Kind, s.AnswerMayBeUncited)
 			}
 			// The shared prompt rules come after the preamble and before the feature prompt.
 			want := "feature: F-TIM-01\n" + Rules() + "\nPropose time entries for the day.\n"
