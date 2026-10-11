@@ -2067,3 +2067,13 @@ Done in PORT-18:
   transfer must equal the balance, and the balance less open interest is apportioned over
   fees, disbursements and tax in the bill's issued proportions (BIL-C-205, ETA s.231). The
   transfer itself is never re-split. An apportioned bucket above its outstanding fails closed.
+
+## Q-FEAT-CORE-15 Read and trust withdrawal handlers join the explicit handler set
+
+- `handlerset.go` `Handlers()` lists four more handlers (search_matters, get_matter,
+  read_document, prepare_trust_withdrawal) so the set covers all 25 a2 tools;
+  `handlerset_test.go` lists them too. The handlers live in `handlers.go`.
+- prepare_trust_withdrawal builds from the `*agent.WriteTools` boot passes in Deps, so the
+  run it parks is the one that WriteTools resumes on gate.decided.
+- `agenttest/seed.go`: `SeedStore.Document` implements `agent.DocumentLookup`, so
+  read_document runs its real handler in feature tests instead of a stand-in.
