@@ -43,3 +43,13 @@ func registerDraftRoutes(r registry.Registry) error {
 	r.Routes((&DraftHTTP{}).Routes)
 	return nil
 }
+
+func init() { add(registerActionRoutes) }
+
+// registerActionRoutes mounts POST /bills/{bill_id}/submit, /void and /deliver through
+// Registry.Routes. Boot wiring supplies the dependencies; until it does, the routes answer
+// 503.
+func registerActionRoutes(r registry.Registry) error {
+	r.Routes((&ActionHTTP{}).Routes)
+	return nil
+}

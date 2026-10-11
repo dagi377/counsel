@@ -1488,3 +1488,19 @@ Done in PORT-18:
 - A body carrying status, number or totals is 400 validation_failed (accept line), not the
   422 read_only_field in the BillPatch description.
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+
+## HTTP-08: bill submit, void and deliver routes
+
+- Submit opens billing.bill_approval (202, Gate body) and never approves; void opens
+  billing.bill_void. Neither route changes the bill row: no service method moves a draft to
+  pending_approval yet, so the status stays draft until a submit service exists (follow-up).
+- Submit has no request body in openapi, but the approval payload requires
+  delivery_method. The route accepts an optional `{"delivery_method": email|portal|mail}`
+  body, default email. Please confirm or add the field to openapi (additive).
+- Void requires billing.approve (the requester must hold the approving capability);
+  submit and deliver require billing.draft.
+- Deliver emits one outbox message `billing.bill.delivery_requested` and returns 202 with
+  the bill; delivered_at stays unset until the delivery effect records evidence. The
+  consumer that calls bill.Service.Deliver is a boot follow-up.
+- Gate subject kind for bills is `billing.bill` (bill.SubjectBill).
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
