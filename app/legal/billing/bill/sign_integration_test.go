@@ -54,7 +54,7 @@ func (r signRunner) InTx(ctx context.Context, fn func(context.Context, pgx.Tx) e
 // rule: BIL-L-001
 // On Postgres an approved bill is signed once (signed_by, signed_at, signature_hash together)
 // and every other frozen column stays locked before and after the signature (DM-041,
-// migrations/5620_bill_sign_after_approval.sql).
+// migrations/5622_bill_sign_after_approval.sql).
 func TestBIL_L_001_SignApprovedBillOnPostgres(t *testing.T) {
 	env := seedApproveEnv(t)
 	ctx := context.Background()

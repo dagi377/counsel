@@ -20,6 +20,14 @@ import (
 // matter and client data. Drafting fails closed: it never assumes a province.
 var ErrPlaceUnknown = errors.New("draft: place of supply unknown")
 
+// A zero-rated supply to a non-resident (BIL-T-015) is an export. Its place_of_supply
+// jurisdiction is PlaceExport and its place_of_supply_province is ExportProvince: the column is
+// char(2) and 0001 requires it on an approved bill, so an export carries this marker, never NULL.
+const (
+	PlaceExport    = "export"
+	ExportProvince = "EX"
+)
+
 // WIPItem is one unbilled time entry or expense a draft can bill. Amounts are int64 cents.
 type WIPItem struct {
 	Source        bill.SourceType // SourceTime or SourceExpense
@@ -124,17 +132,25 @@ type supply struct {
 	on    time.Time
 }
 
-// province is the place_of_supply_province column: empty (NULL) for a zero-rated supply.
+// province is the place_of_supply_province column: ExportProvince for a zero-rated supply.
 func (s supply) province() string {
 	if s.place.Province == tax.Zero {
-		return ""
+		return ExportProvince
+	}
+	return s.place.Province
+}
+
+// jurisdiction is the place_of_supply jurisdiction: PlaceExport for a zero-rated supply.
+func (s supply) jurisdiction() string {
+	if s.place.Province == tax.Zero {
+		return PlaceExport
 	}
 	return s.place.Province
 }
 
 // detail is the place_of_supply column: where the supply is made and the rules that decided it.
 func (s supply) detail() (string, error) {
-	b, err := json.Marshal(map[string]string{"jurisdiction": s.place.Province, "rule_applied": strings.Join(s.place.Rules, ",")})
+	b, err := json.Marshal(map[string]string{"jurisdiction": s.jurisdiction(), "rule_applied": strings.Join(s.place.Rules, ",")})
 	return string(b), err
 }
 
@@ -203,6 +219,11 @@ func (d PGDrafts) compute(ctx context.Context, lines []pgLine, discount int64, s
 		return totals{}, fmt.Errorf("draft totals: %w", err)
 	}
 	t.breakdown = []bill.TaxLine{}
+	// rule: BIL-T-015
+	// A zero-rated export keeps one line at a zero rate, so the bill shows why it has no tax.
+	if s.place.Province == tax.Zero {
+		t.breakdown = append(t.breakdown, bill.TaxLine{TaxCode: tax.Zero, Component: tax.Zero, BaseCents: base})
+	}
 	for _, l := range taxLines {
 		t.tax += int64(l.Amount)
 		t.breakdown = append(t.breakdown, bill.TaxLine{TaxCode: taxCode(s.place.Province, l.Component), Component: string(l.Component),

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-const billGuardFile = "5620_bill_sign_after_approval.sql"
+const billGuardFile = "5622_bill_sign_after_approval.sql"
 
 var newColumn = regexp.MustCompile(`NEW\.(\w+)`)
 
