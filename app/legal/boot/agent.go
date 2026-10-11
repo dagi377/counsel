@@ -25,6 +25,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/platform"
+	"github.com/dagi377/counsel/app/legal/readiness"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
@@ -408,34 +409,35 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		intake.WeeklyIntakeDigestDef().ID:           intake.WeeklyIntakeDigestBinding,
 		// F-TIM-01 runs at the end of each business day once per active timekeeper, each
 		// run acting for that timekeeper (TIME-FIX); the screen actions cover on-request runs.
-		tk.RebuildDayDef().ID:               tk.RebuildDayBinding,
-		tk.ReceiptCaptureDef().ID:           tk.ReceiptCaptureBinding,
-		tk.PreBillCheckDef().ID:             tk.PreBillCheckBinding,
-		tk.TimesheetPreReviewDef().ID:       tk.TimesheetPreReviewBinding,
-		tk.EngagementTermsDef().ID:          tk.EngagementTermsBinding,
-		tk.RateChangeImpactDef().ID:         tk.RateChangeImpactBinding,
-		work.PickUpAgentReadyDef().ID:       work.PickUpAgentReadyBinding,
-		work.ProposeMatterPlanDef().ID:      work.ProposeMatterPlanBinding,
-		work.DateShiftDef().ID:              work.DateShiftBinding,
-		work.WorkflowLintDef().ID:           work.WorkflowLintBinding,
-		work.RuleSuggesterDef().ID:          work.RuleSuggesterBinding,
-		work.AbsenceCoverPlannerDef().ID:    work.AbsenceCoverPlannerBinding,
-		work.DailyDigestDef().ID:            work.DailyDigestBinding,
-		work.ExplainAutomationRunsDef().ID:  work.ExplainAutomationRunsBinding,
-		billing.FeaturePaymentMatching:      billing.PaymentMatchingBinding,
-		billing.FeatureBillRender:           billing.BillRenderBinding,
-		billing.FeatureBillingCycleDrafts:   billing.BillingCycleDraftsBinding,
-		trust.AnnualReportPrepDef().ID:      trust.AnnualReportPrepBinding,
-		trust.RetainerCoverageScanDef().ID:  trust.RetainerCoverageScanBinding,
-		trust.FeatureMonthEndReconciliation: trust.MonthEndReconciliationBinding,
-		trust.FeatureRetainerReplenishment:  trust.RetainerReplenishmentBinding,
-		access.LicenceCheckDef().ID:         access.LicenceCheckBinding,
-		access.AccessReviewPreFillDef().ID:  access.AccessReviewPreFillBinding,
-		access.BreakGlassSummaryDef().ID:    access.BreakGlassSummaryBinding,
-		access.FeatureOffboardingPlan:       access.OffboardingPlanBinding,
-		access.FeatureInviteListCheck:       access.InviteListCheckBinding,
-		platform.StaleMatterSweepDef().ID:   platform.StaleMatterSweepBinding,
-		platform.CitationCheckerDef().ID:    platform.CitationCheckerBinding,
+		tk.RebuildDayDef().ID:                 tk.RebuildDayBinding,
+		tk.ReceiptCaptureDef().ID:             tk.ReceiptCaptureBinding,
+		tk.PreBillCheckDef().ID:               tk.PreBillCheckBinding,
+		tk.TimesheetPreReviewDef().ID:         tk.TimesheetPreReviewBinding,
+		tk.EngagementTermsDef().ID:            tk.EngagementTermsBinding,
+		tk.RateChangeImpactDef().ID:           tk.RateChangeImpactBinding,
+		work.PickUpAgentReadyDef().ID:         work.PickUpAgentReadyBinding,
+		work.ProposeMatterPlanDef().ID:        work.ProposeMatterPlanBinding,
+		work.DateShiftDef().ID:                work.DateShiftBinding,
+		work.WorkflowLintDef().ID:             work.WorkflowLintBinding,
+		work.RuleSuggesterDef().ID:            work.RuleSuggesterBinding,
+		work.AbsenceCoverPlannerDef().ID:      work.AbsenceCoverPlannerBinding,
+		work.DailyDigestDef().ID:              work.DailyDigestBinding,
+		work.ExplainAutomationRunsDef().ID:    work.ExplainAutomationRunsBinding,
+		billing.FeaturePaymentMatching:        billing.PaymentMatchingBinding,
+		billing.FeatureBillRender:             billing.BillRenderBinding,
+		billing.FeatureBillingCycleDrafts:     billing.BillingCycleDraftsBinding,
+		trust.AnnualReportPrepDef().ID:        trust.AnnualReportPrepBinding,
+		trust.RetainerCoverageScanDef().ID:    trust.RetainerCoverageScanBinding,
+		trust.FeatureMonthEndReconciliation:   trust.MonthEndReconciliationBinding,
+		trust.FeatureRetainerReplenishment:    trust.RetainerReplenishmentBinding,
+		access.LicenceCheckDef().ID:           access.LicenceCheckBinding,
+		access.AccessReviewPreFillDef().ID:    access.AccessReviewPreFillBinding,
+		access.BreakGlassSummaryDef().ID:      access.BreakGlassSummaryBinding,
+		access.FeatureOffboardingPlan:         access.OffboardingPlanBinding,
+		access.FeatureInviteListCheck:         access.InviteListCheckBinding,
+		platform.StaleMatterSweepDef().ID:     platform.StaleMatterSweepBinding,
+		platform.CitationCheckerDef().ID:      platform.CitationCheckerBinding,
+		readiness.QuestionnaireFillerDef().ID: readiness.QuestionnaireFillerBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -639,6 +641,10 @@ var actionScreens = map[string]trigger.Screen{
 	// research-workspace is a matter screen (/matters/:id/research) over its documents
 	// (F-PLT-12).
 	"research-workspace": {SubjectKind: "matter", Capability: "documents.view"},
+	// Readiness. trust-center is firm-level, but its features search and draft on the
+	// readiness matter that holds the controls list, so it selects that matter
+	// (Q-FEAT-RDY-04).
+	"trust-center": {SubjectKind: "matter", Capability: "documents.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
