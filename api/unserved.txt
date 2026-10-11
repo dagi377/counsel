@@ -23,8 +23,6 @@ POST /trust/reconciliations/{reconciliation_id}/submit
 GET /trust/requests
 POST /trust/requests
 POST /trust/transfers
-POST /trust/withdrawals
-POST /trust/withdrawals/{withdrawal_id}/cancel
 GET /users
 PUT /users/{user_id}/roles
 GET /webhook-endpoints
