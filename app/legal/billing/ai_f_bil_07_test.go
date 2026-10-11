@@ -1,9 +1,10 @@
-package billing
+package billing_test
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"slices"
 	"testing"
 
@@ -26,7 +27,7 @@ const bil07Dir = "f-bil-07/monthly-billing-digest"
 // rule: AI-R-003
 // rule: ARC-I-038
 func TestAI_F_BIL_07_MonthlyBillingDigest(t *testing.T) {
-	agenttest.Variants(t, FeatureMonthlyDigest, bil07Dir)
+	agenttest.Variants(t, billing.FeatureMonthlyDigest, bil07Dir)
 	want := []string{agent.ToolListUnbilled, agent.ToolGetBill, agent.ToolGetTrustBalance}
 	for _, variant := range fixture.RequiredVariants {
 		t.Run(variant, func(t *testing.T) {
@@ -35,7 +36,7 @@ func TestAI_F_BIL_07_MonthlyBillingDigest(t *testing.T) {
 			if variant == fixture.VariantInjection {
 				narrative += ". " + bilcInjected
 			}
-			def := MonthlyDigestDef()
+			def := billing.MonthlyDigestDef()
 			fd := bilcFeature(t, def, narrative)
 			model := agenttest.Model(t, bil07Dir, variant)
 			runID, prompt := "run-ai031-"+variant, "Run the monthly billing digest for 2026-09."

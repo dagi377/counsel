@@ -113,29 +113,24 @@ func CheckCreditNote(pv *agenttools.Provenance, runID string, input json.RawMess
 	return nil
 }
 
-// CreditNoteDraftHandler is draft_document for F-BIL-08 runs: the app's draft_document with
-// CheckCreditNote ahead of it for an agent principal, so an unsourced amount stores no draft
-// and opens no gate. It fails closed: without the run's Provenance it does not build.
-func CreditNoteDraftHandler() agent.Handler {
-	base := agent.DraftDocumentHandler()
-	return agent.Handler{Name: agent.ToolDraftDocument, Build: func(d agent.Deps) (registry.Tool, error) {
-		pv, err := agent.DepOf[*agenttools.Provenance](d)
-		if err != nil {
-			return registry.Tool{}, fmt.Errorf("%s credit note: %w", agent.ToolDraftDocument, err)
-		}
-		t, err := base.Build(d)
-		if err != nil {
-			return registry.Tool{}, err
-		}
-		next := t.Handle
-		t.Handle = func(ctx context.Context, p registry.Principal, in json.RawMessage) (registry.ToolResult, error) {
-			if p.Kind == registry.PrincipalAgent {
-				if err := CheckCreditNote(pv, p.RunID, in); err != nil {
-					return registry.ToolResult{}, fmt.Errorf("%s: %w", agent.ToolDraftDocument, err)
-				}
+// CreditNoteWrap is the agent.ToolWrap boot puts on draft_document for F-BIL-08 runs:
+// CheckCreditNote ahead of the built tool for an agent principal, so an unsourced amount
+// stores no draft and opens no gate. It fails closed: without the run's Provenance in d it
+// does not build (agent.ErrMissingDep).
+func CreditNoteWrap(d agent.Deps, t registry.Tool) (registry.Tool, error) {
+	pv, err := agent.DepOf[*agenttools.Provenance](d)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s credit note: %w", t.Name, err)
+	}
+	next := t.Handle
+	t.Handle = func(ctx context.Context, p registry.Principal, in json.RawMessage) (registry.ToolResult, error) {
+		if p.Kind == registry.PrincipalAgent {
+			// rule: ARC-U-027
+			if err := CheckCreditNote(pv, p.RunID, in); err != nil {
+				return registry.ToolResult{}, fmt.Errorf("%s: %w", t.Name, err)
 			}
-			return next(ctx, p, in)
 		}
-		return t, nil
-	}}
+		return next(ctx, p, in)
+	}
+	return t, nil
 }

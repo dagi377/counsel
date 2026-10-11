@@ -3526,14 +3526,12 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   `bill_id` (`withdraw.RequestGateKind`), so the Def declares that kind (Q-AGENT-002 reading A
   for the tool, B for the gate). `agent.WriteTools` still names `trust.withdrawal` as its spec
   kind; the tests assert the module's kind.
-- By-Law 9: a fee transfer pays the firm's general account. agenttest's write tools have no
-  fee-bills port (`noFeeBills`), so a firm payee is refused there and the fixtures pay the
-  matter contact with `purpose_category: fees` and the bill id. Proposed: give agenttest a
-  `FeeBills` over the Seed's bills so the fixtures can use `agenttest.FirmPayee`.
+- By-Law 9: a fee transfer pays the firm's general account. Decided in BIL-FIX: the fixtures
+  pay `agenttest.FirmPayee` and the Seed has a fee-bills port (`Seed.FeeBills`).
 - The end-to-end tests use `app/legal/billing/ai_bilc_helpers_test.go` (prefix `bilc`), shared
   with FEAT-BIL-07 and FEAT-BIL-08. It supplies the bill, trust-balance and priced-time ports
-  the Seed lacks, and feeds read figures to the driver's Provenance (the one
-  `prepare_trust_withdrawal` checks), which differs from the Seed's.
+  the Seed lacks; since BIL-FIX it builds over boot.AgentHandlers() and the driver and Seed
+  share one Provenance.
 
 ## Q-FEAT-BIL-08 F-BIL-08 draft credit note: amount provenance on draft_document
 
@@ -3541,11 +3539,10 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   pointer and the app's handler checks none. F-BIL-08 adds `billing.CreditNoteDraftHandler`:
   `draft_document` with `billing.CheckCreditNote` ahead of it, which refuses
   (`agenttools.ErrUnsourcedValue`) any money figure in the body that no read tool returned in
-  the run, before a draft row or a gate exists. The end-to-end tests build the run with it.
-- Gap: boot builds one registry from `agent.Handlers()`, so production F-BIL-08 runs still get
-  the plain `draft_document`. Reading A: boot lets a Def name per-feature handler overrides
-  and uses `CreditNoteDraftHandler` for F-BIL-08. Reading B: `draft_document` checks money
-  figures in every agent body against the run's Provenance. Answer: (owner)
+  the run, before a draft row or a gate exists.
+- Decided in BIL-FIX: boot.AgentHandlers wraps F-BIL-08's `draft_document` with
+  `billing.CreditNoteWrap` (TRUST-DRAFT-WRAP's per-feature mechanism), replacing
+  `CreditNoteDraftHandler`; the boot guard test covers it.
 - The agent never computes tax: a partial credit states its pre-tax amount and the billing
   tax engine applies the place of supply when the note is issued, so an agent-computed tax
   figure is refused as unsourced.
@@ -3554,16 +3551,32 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 ## Q-FEAT-BIL-07 F-BIL-07 monthly billing digest: acting user and list_unbilled provenance
 
-- The monthly run has no designated lawyer, so boot binds it for `ruleAdmin` like the other
-  scheduled features (Q-INTEG-15A-SCHEDULED).
+- Decided in BIL-FIX: the monthly run acts for the firm's designated lawyer
+  (`trigger.BindDesignated`, JOB-ACTOR), never for a rule admin.
 - The digest answers as `{answer, citations}` and passes `run.CheckAnswer`: it cites bill
   lines (`agent.BillLineCitation`) the run's get_bill returned. Its money figures are checked
   against the run's figures in the tests.
 - Gap: `list_unbilled` is not wrapped with `Provenance.ReadTool` (get_bill and
   get_trust_balance are), so its amounts never enter a run's Provenance in production and a
-  write citing an unbilled amount is refused as unsourced. The bilc test helpers record every
-  read tool's figures in the driver's Provenance. Proposed: wrap `list_unbilled` like
-  get_bill.
+  write citing an unbilled amount is refused as unsourced. Covered by PROV-UNBILLED and, since
+  BIL-FIX, by boot.AgentHandlers, which records every read tool.
+
+## BIL-FIX fee-transfer payee, credit-note wrap, digest actor, production handlers (decided)
+
+- Decided as counsel. `prepare_trust_withdrawal` refuses a fee transfer for a bill
+  (`purpose_category: fees` with a `bill_id`) to any payee but the firm's general account
+  (`agent.ErrFeesNeedFirmPayee`, By-Law 9 s.9(1)). The F-TRU-02 fixtures had paid the matter
+  contact for a bill and now pay `agenttest.FirmPayee`; their driver reads one delivered bill
+  (`Driver.FeeBills`). F-BIL-03 shows the firm payee passing and a contact payee refused.
+- boot.AgentHandlers now records every read tool into the run's Provenance itself
+  (`recordedReads`), so a test over the production set sees what production does; the
+  TRU-05 and bilc helpers no longer record reads themselves. AgentTools keeps that behaviour.
+- agenttest: a FeatureDriver's Seed shares the driver's Provenance (production builds read
+  and write tools over one), and the billing feature tests move to package billing_test so
+  they can import boot.
+- Files outside a task list: app/legal/agent/tools_write.go, agent/agenttest,
+  boot/agent.go, trust/ai_f_tru_02_test.go and testdata/ai/f-tru-02, testdata/ai/f-bil-08
+  (prompt hash after main's tool schema change).
 ## Q-FEAT-INT-02 F-INT-01 triage new lead: write path and trigger
 
 - The trigger stays as FEAT-INT-01 bound it: `lead.created` only, since a received submission
@@ -3888,8 +3901,8 @@ of FEAT-TIM-01 above.
 - No bill-draft-requested event exists on main. F-TIM-03 names `bill.draft_requested`
   (`timekeeping.EventBillDraftRequested`); billing must publish it when a user asks for a
   draft bill, or the event half never fires. The monthly half runs today.
-- The monthly run has no designated lawyer, so boot binds it for `ruleAdmin` like the other
-  scheduled features (Q-INTEG-15A-SCHEDULED).
+- Decided in BIL-FIX: the monthly run acts for the firm's designated lawyer
+  (`trigger.BindDesignated`, JOB-ACTOR), never for a rule admin.
 - `matter-wip` and `write-downs` map to subject `matter` with capability `billing.view`
   (what `list_unbilled` needs).
 

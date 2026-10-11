@@ -1,7 +1,7 @@
 synthetic: true
 feature: F-BIL-08
 match:
-  prompt_hash: "604ebc161f08f52d68a1e0488165425a255603640191bbff17ed0325e0b78ebb"
+  prompt_hash: "aacfb95c0f383479a003afb6bcd47c7b7df0a39ff3b5c1cecf08982fa058c795"
   last_user_regex: '\[ok\]'
 latency_ms: 40
 chunk_delay_ms: 5

@@ -1,9 +1,10 @@
-package billing
+package billing_test
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,11 +18,12 @@ import (
 	"github.com/dagi377/counsel/kernel/agenttools"
 )
 
-// bil03Withdraw is the prepare_trust_withdrawal call of an F-BIL-03 script for amount cents.
-func bil03Withdraw(cents int64) bilcCall {
+// bil03Withdraw is the prepare_trust_withdrawal call of an F-BIL-03 script for amount cents
+// paid to payee.
+func bil03Withdraw(cents int64, payee string) bilcCall {
 	return bilcCall{name: agent.ToolPrepareTrustWithdrawal, input: `{"matter_id":"` + agenttest.TrustMatter +
 		`","bill_id":"` + bilcBill + `","amount_cents":` + strconv.FormatInt(cents, 10) +
-		`,"purpose_category":"fees","payee":"` + agenttest.PayeeContact + `"}`}
+		`,"purpose_category":"fees","payee":"` + payee + `"}`}
 }
 
 // rule: ARC-I-035
@@ -29,16 +31,22 @@ func bil03Withdraw(cents int64) bilcCall {
 // rule: ARC-U-027
 // rule: AI-R-003
 func TestFBIL03_FromFeature(t *testing.T) {
-	calls := func(cents int64) []bilcCall {
-		return append([]bilcCall{bilcPlan("bill", "balance", "propose")}, append(slices.Clone(bilcReads), bil03Withdraw(cents))...)
+	calls := func(cents int64, payee string) []bilcCall {
+		return append([]bilcCall{bilcPlan("bill", "balance", "propose")}, append(slices.Clone(bilcReads), bil03Withdraw(cents, payee))...)
 	}
 	cases := []struct {
 		name      string
 		narrative string
 		cents     int64
-		wantErr   error // the refusal of prepare_trust_withdrawal; nil: one pending proposal
+		payee     string // empty: the firm's general account (agenttest.FirmPayee)
+		wantErr   error  // the refusal of prepare_trust_withdrawal; nil: one pending proposal
 	}{
+		// rule: BIL-L-037
+		// A fee transfer pays the firm's general account for a delivered bill (By-Law 9).
 		{name: "ok", narrative: "Settlement review and report to client", cents: bilcTrust},
+		// rule: BIL-L-037
+		// A fee transfer for a bill never pays a matter contact.
+		{name: "contact payee for fees", narrative: "Settlement review", cents: bilcTrust, payee: agenttest.PayeeContact, wantErr: agent.ErrFeesNeedFirmPayee},
 		// rule: ARC-U-027
 		// A model-invented amount is refused before any withdrawal row exists.
 		{name: "model-invented amount", narrative: "Settlement review", cents: bilcTrust - 100, wantErr: agenttools.ErrUnsourcedValue},
@@ -51,9 +59,13 @@ func TestFBIL03_FromFeature(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
-			def := TrustApplicationDef()
+			def := billing.TrustApplicationDef()
 			fd := bilcFeature(t, def, c.narrative)
-			script := calls(c.cents)
+			payee := c.payee
+			if payee == "" {
+				payee = agenttest.FirmPayee
+			}
+			script := calls(c.cents, payee)
 			run := fd.Fire(ctx, bilcScript(t, def.ID, script, "Prepared the trust-to-fees transfer for approval."),
 				"run-fbil03-"+strings.ReplaceAll(c.name, " ", "-"), "Bill "+bilcBill+" delivered; propose a transfer from trust.")
 			if run.Err != nil {
@@ -124,18 +136,20 @@ func bil03Proposal(t *testing.T, fd *agenttest.FeatureDriver, run agenttest.Run)
 	r := w.Request
 	// rule: ARC-U-027
 	if out.Status != "proposed" || w.Status != withdraw.StatusRequested || w.GateID != p.GateID || r.AmountCents != bilcTrust ||
-		r.BillID != bilcBill || r.MatterID != agenttest.TrustMatter || r.PreparedBy != agenttest.FeatureActingFor {
-		t.Fatalf("withdrawal = %+v (%s), want requested %d for bill %s prepared by the acting user", w, out.Status, bilcTrust, bilcBill)
+		r.BillID != bilcBill || r.MatterID != agenttest.TrustMatter || r.PreparedBy != agenttest.FeatureActingFor ||
+		// rule: BIL-L-037
+		r.Payee != agenttest.FirmPayee {
+		t.Fatalf("withdrawal = %+v (%s), want requested %d for bill %s to the firm, prepared by the acting user", w, out.Status, bilcTrust, bilcBill)
 	}
 	// rule: BIL-L-035
 	// A withdrawal that pays a bill opens the Def's gate kind (G-B4) in the trust module.
-	if got := withdraw.RequestGateKind(r); got != GateTrustFeeWithdrawal || !slices.Contains(TrustApplicationDef().GateKinds, got) {
-		t.Fatalf("gate kind = %s, want %s", got, GateTrustFeeWithdrawal)
+	if got := withdraw.RequestGateKind(r); got != billing.GateTrustFeeWithdrawal || !slices.Contains(billing.TrustApplicationDef().GateKinds, got) {
+		t.Fatalf("gate kind = %s, want %s", got, billing.GateTrustFeeWithdrawal)
 	}
 	if n, err := fd.Withdrawals.Available(ctx, agenttest.TrustAccount, agenttest.TrustMatter); err != nil || n != bilcTrust {
 		t.Fatalf("trust after the proposal = %d (%v), want %d untouched", n, err, bilcTrust)
 	}
-	bilcDeciders(t, gates.Kind{Code: GateTrustFeeWithdrawal, SpecGate: "G-B4", Approver: "trust.authorize"}, agenttest.FeatureActingFor, p.GateID)
+	bilcDeciders(t, gates.Kind{Code: billing.GateTrustFeeWithdrawal, SpecGate: "G-B4", Approver: "trust.authorize"}, agenttest.FeatureActingFor, p.GateID)
 	if _, err := fd.Decided(ctx, agent.GateDecided{GateID: p.GateID, Decision: agent.Approved, By: agenttest.FeatureActingFor}); !errors.Is(err, agent.ErrSelfApproval) {
 		t.Fatalf("acting user decided own gate: err %v, want ErrSelfApproval", err)
 	}
@@ -152,9 +166,9 @@ func TestFBIL03_PrepareOnly(t *testing.T) {
 
 // rule: AI-R-002
 func TestFBIL03_Def(t *testing.T) {
-	def := TrustApplicationDef()
+	def := billing.TrustApplicationDef()
 	bilcPromptLint(t, def, "Trust application proposal", "transfer proposal for G-B4")
-	b, err := TrustApplicationBinding()
+	b, err := billing.TrustApplicationBinding()
 	if err != nil {
 		t.Fatalf("Binding: %v", err)
 	}
@@ -163,7 +177,7 @@ func TestFBIL03_Def(t *testing.T) {
 		got, want string
 	}{
 		{"feature", b.FeatureID, "F-BIL-03"},
-		{"events", strings.Join(b.Events, ","), EventBillDelivered},
+		{"events", strings.Join(b.Events, ","), billing.EventBillDelivered},
 		{"cadence", string(b.Cadence), string(trigger.CadenceNone)},
 		{"acting for", b.ActingFor, ""},
 		{"trigger", def.Trigger, "event: bill delivered and retainer permits"},

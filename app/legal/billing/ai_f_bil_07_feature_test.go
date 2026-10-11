@@ -1,9 +1,10 @@
-package billing
+package billing_test
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"slices"
 	"strconv"
 	"strings"
@@ -62,7 +63,7 @@ func TestFBIL07_FromFeature(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			def := MonthlyDigestDef()
+			def := billing.MonthlyDigestDef()
 			fd := bilcFeature(t, def, c.narrative)
 			runID := "run-fbil07-" + strings.ReplaceAll(c.name, " ", "-")
 			r := fd.Fire(context.Background(), bilcScript(t, def.ID, bil07Reads, bil07Answer(t, c.answer, c.line)), runID, "Run the monthly billing digest for 2026-09.")
@@ -104,7 +105,7 @@ func TestFBIL07_FromFeature(t *testing.T) {
 			}
 			// The agent never approves: whatever gate a lawyer later opens from the digest,
 			// an agent principal deciding it is 403.
-			bilcDeciders(t, gates.Kind{Code: GateCreditNote, SpecGate: "G-B5", Approver: "billing.credit"}, agenttest.FeatureActingFor, "g-bil07-any")
+			bilcDeciders(t, gates.Kind{Code: billing.GateCreditNote, SpecGate: "G-B5", Approver: "billing.credit"}, agenttest.FeatureActingFor, "g-bil07-any")
 		})
 	}
 }
@@ -112,7 +113,7 @@ func TestFBIL07_FromFeature(t *testing.T) {
 // rule: AI-R-002
 // rule: ARC-I-035
 func TestFBIL07_Def(t *testing.T) {
-	def := MonthlyDigestDef()
+	def := billing.MonthlyDigestDef()
 	bilcPromptLint(t, def, "Monthly billing digest", "report for lawyers (internal, no gate)")
 	for _, name := range def.Tools {
 		d, err := schemas.ByName(name)
@@ -123,7 +124,7 @@ func TestFBIL07_Def(t *testing.T) {
 			t.Fatalf("digest Def has write tool %s", name)
 		}
 	}
-	b, err := MonthlyDigestBinding()
+	b, err := billing.MonthlyDigestBinding()
 	if err != nil {
 		t.Fatalf("Binding: %v", err)
 	}

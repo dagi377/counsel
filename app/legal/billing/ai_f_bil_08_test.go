@@ -1,8 +1,9 @@
-package billing
+package billing_test
 
 import (
 	"context"
 	"errors"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"slices"
 	"testing"
 
@@ -24,7 +25,7 @@ const bil08Dir = "f-bil-08/draft-credit-note"
 // rule: AI-R-003
 // rule: ARC-I-038
 func TestAI_R_002_BIL08_DraftCreditNote(t *testing.T) {
-	agenttest.Variants(t, FeatureDraftCreditNote, bil08Dir)
+	agenttest.Variants(t, billing.FeatureDraftCreditNote, bil08Dir)
 	want := []string{agent.ToolReportPlan, agent.ToolGetBill, agent.ToolDraftDocument, agent.ToolSubmitForApproval}
 	for _, variant := range fixture.RequiredVariants {
 		t.Run(variant, func(t *testing.T) {
@@ -33,9 +34,9 @@ func TestAI_R_002_BIL08_DraftCreditNote(t *testing.T) {
 			if variant == fixture.VariantInjection {
 				narrative += ". " + bilcInjected
 			}
-			fd := bilcFeature(t, DraftCreditNoteDef(), narrative, CreditNoteDraftHandler())
+			fd := bilcFeature(t, billing.DraftCreditNoteDef(), narrative)
 			model := agenttest.Model(t, bil08Dir, variant)
-			runID, prompt := "run-ai032-"+variant, ActionDraftCreditNote+": bill "+bilcBill+" ["+variant+"]"
+			runID, prompt := "run-ai032-"+variant, billing.ActionDraftCreditNote+": bill "+bilcBill+" ["+variant+"]"
 			run := fd.Fire(ctx, model, runID, prompt)
 			// rule: AI-R-003
 			// A failed or rate-limited call leaves no partial write.

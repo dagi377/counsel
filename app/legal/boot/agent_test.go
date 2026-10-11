@@ -11,6 +11,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/billing/batch"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
@@ -283,8 +284,9 @@ func mustWriteTools() *agent.WriteTools {
 }
 
 // TestTrustDraftsWrapped is the guard: every trust feature (F-TRU-*) whose tools include
-// draft_document or draft_email must have that tool wrapped in the production handler set,
-// and a non-trust feature's drafts must not be.
+// draft_document or draft_email must have that tool wrapped in the production handler set, as
+// must F-BIL-08's draft_document (a credit note changes what a client owes); any other
+// feature's drafts must not be.
 //
 // rule: ARC-U-027
 func TestTrustDraftsWrapped(t *testing.T) {
@@ -296,24 +298,28 @@ func TestTrustDraftsWrapped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var trustDrafts int
+	var trustDrafts, creditNotes int
 	for _, d := range features.All() {
 		isTrust := strings.HasPrefix(d.ID, "F-TRU-") || d.Area == "trust"
 		for _, tool := range d.Tools {
 			if tool != agent.ToolDraftDocument && tool != agent.ToolDraftEmail {
 				continue
 			}
-			got := set.Wrapped(d.ID, tool)
+			isCreditNote := d.ID == billing.FeatureDraftCreditNote && tool == agent.ToolDraftDocument
+			want := isTrust || isCreditNote
 			if isTrust {
 				trustDrafts++
 			}
-			if got != isTrust {
-				t.Errorf("feature %s tool %s: wrapped = %v, want %v (trust features' drafts go through trust.SourcedCents)", d.ID, tool, got, isTrust)
+			if isCreditNote {
+				creditNotes++
+			}
+			if got := set.Wrapped(d.ID, tool); got != want {
+				t.Errorf("feature %s tool %s: wrapped = %v, want %v (trust drafts go through trust.SourcedCents, F-BIL-08 through billing.CheckCreditNote)", d.ID, tool, got, want)
 			}
 		}
 	}
-	if trustDrafts == 0 {
-		t.Fatal("no trust feature drafts: the guard checks nothing")
+	if trustDrafts == 0 || creditNotes != 1 {
+		t.Fatalf("trust drafts %d, credit-note drafts %d: the guard checks nothing", trustDrafts, creditNotes)
 	}
 }
 

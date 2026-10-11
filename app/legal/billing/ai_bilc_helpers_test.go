@@ -1,10 +1,11 @@
-package billing
+package billing_test
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -20,6 +21,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/agenttest"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/billing/bill"
+	"github.com/dagi377/counsel/app/legal/boot"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/gates/gatesfake"
 	"github.com/dagi377/counsel/app/legal/matter"
@@ -119,23 +121,21 @@ func bilcDep[T any](vals []any, d agent.Deps) []any {
 	return vals
 }
 
-// bilcHandlers is the app's handler set for def's tools (or the override of a tool, when
-// given), each Build given ports ahead of the Seed's ports. A read tool also records its
-// figures in the driver's Provenance, the one the real prepare_trust_withdrawal checks; the
-// Seed's Provenance gets them from the real tool itself.
-func bilcHandlers(t *testing.T, def feature.Def, ports *bilcPorts, overrides ...agent.Handler) agent.HandlerSet {
+// bilcHandlers is the production handler set, boot.AgentHandlers(), with each Build given
+// ports ahead of the Seed's ports. Every read tool records its figures in the run's
+// Provenance and F-BIL-08's draft_document runs behind billing.CheckCreditNote because boot's
+// set does both, not because this helper does.
+func bilcHandlers(t *testing.T, ports *bilcPorts) agent.HandlerSet {
 	t.Helper()
+	app, err := boot.AgentHandlers()
+	if err != nil {
+		t.Fatalf("production handler set: %v", err)
+	}
 	var hs []agent.Handler
-	for _, name := range def.Tools {
-		h, ok := agent.HandlerFor(name)
-		for _, o := range overrides {
-			if o.Name == name {
-				h, ok = o, true
-			}
-		}
-		if !ok {
-			continue
-		}
+	for _, name := range app.Names() {
+		// For is the production per-(feature, tool) resolution.
+		h, _ := app.For(name)
+		build := h.Build
 		hs = append(hs, agent.Handler{Name: name, Build: func(d agent.Deps) (registry.Tool, error) {
 			vals := []any{ports}
 			vals = bilcDep[agent.CapabilityCheck](vals, d)
@@ -146,19 +146,7 @@ func bilcHandlers(t *testing.T, def feature.Def, ports *bilcPorts, overrides ...
 			vals = bilcDep[matter.Query](vals, d)
 			vals = bilcDep[*agenttools.Provenance](vals, d)
 			vals = bilcDep[*agenttest.SeedStore](vals, d)
-			tool, err := h.Build(agent.NewDeps(vals...))
-			if err != nil || tool.Kind != registry.ToolRead {
-				return tool, err
-			}
-			read := tool.Handle
-			tool.Handle = func(ctx context.Context, p registry.Principal, in json.RawMessage) (registry.ToolResult, error) {
-				res, err := read(ctx, p, in)
-				if err == nil && p.Kind == registry.PrincipalAgent {
-					ports.fd.Provenance.Observe(p.RunID, res.Output)
-				}
-				return res, err
-			}
-			return tool, nil
+			return build(agent.NewDeps(vals...))
 		}})
 	}
 	set, err := agent.NewHandlerSet(hs...)
@@ -173,11 +161,11 @@ func bilcHandlers(t *testing.T, def feature.Def, ports *bilcPorts, overrides ...
 // capability, is what stops the acting user. It seeds the delivered bill bilcBill on
 // agenttest.TrustMatter (its line narrative is narrative), one approved unbilled time entry
 // there and a trust balance of bilcTrust.
-func bilcFeature(t *testing.T, def feature.Def, narrative string, overrides ...agent.Handler) *agenttest.FeatureDriver {
+func bilcFeature(t *testing.T, def feature.Def, narrative string) *agenttest.FeatureDriver {
 	t.Helper()
 	ctx := context.Background()
 	ports := &bilcPorts{}
-	fd := agenttest.FromFeatureWith(t, def, bilcHandlers(t, def, ports, overrides...))
+	fd := agenttest.FromFeatureWith(t, def, bilcHandlers(t, ports))
 	ports.fd = fd
 	if len(fd.StandIns) != 0 {
 		t.Fatalf("stand-ins = %v, want none", fd.StandIns)
@@ -472,10 +460,10 @@ func bilcQuoteSources(v any, out *[]agenttools.Citation) {
 }
 
 // bilcSourcedAmounts returns agenttools.ErrUnsourcedValue unless every money figure in text
-// is one a read tool returned in run runID. The driver's Provenance holds them: bilcHandlers
-// records every read tool's figures there, list_unbilled's included.
+// is one a read tool returned in run runID. The driver's Provenance holds them: boot's handler
+// set records every read tool's figures there, list_unbilled's included.
 func bilcSourcedAmounts(fd *agenttest.FeatureDriver, runID, text string) error {
-	cents, err := CreditNoteCents(text)
+	cents, err := billing.CreditNoteCents(text)
 	if err != nil {
 		return err
 	}

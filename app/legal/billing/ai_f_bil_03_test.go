@@ -1,8 +1,9 @@
-package billing
+package billing_test
 
 import (
 	"context"
 	"errors"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"slices"
 	"testing"
 
@@ -23,7 +24,7 @@ const bil03Dir = "f-bil-03/trust-application-proposal"
 // rule: AI-R-003
 // rule: ARC-I-038
 func TestAI_R_002_BIL03_TrustApplicationProposal(t *testing.T) {
-	agenttest.Variants(t, FeatureTrustApplication, bil03Dir)
+	agenttest.Variants(t, billing.FeatureTrustApplication, bil03Dir)
 	want := []string{agent.ToolReportPlan, agent.ToolGetBill, agent.ToolGetTrustBalance, agent.ToolPrepareTrustWithdrawal}
 	for _, variant := range fixture.RequiredVariants {
 		t.Run(variant, func(t *testing.T) {
@@ -32,7 +33,7 @@ func TestAI_R_002_BIL03_TrustApplicationProposal(t *testing.T) {
 			if variant == fixture.VariantInjection {
 				narrative += ". " + bilcInjected
 			}
-			fd := bilcFeature(t, TrustApplicationDef(), narrative)
+			fd := bilcFeature(t, billing.TrustApplicationDef(), narrative)
 			model := agenttest.Model(t, bil03Dir, variant)
 			runID, prompt := "run-ai027-"+variant, "Bill "+bilcBill+" delivered; retainer permits ["+variant+"]"
 			run := fd.Fire(ctx, model, runID, prompt)

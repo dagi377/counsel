@@ -169,15 +169,22 @@ func (p AgentPorts) Deps() agent.Deps {
 // draftTools are the write tools whose free text carries figures a trust feature drafts.
 var draftTools = []string{agent.ToolDraftDocument, agent.ToolDraftEmail}
 
-// AgentHandlers is the production handler set: agent.Handlers() with, for every trust
-// feature in trust.SourcedFeatures(), draft_document and draft_email wrapped with
-// trust.SourcedCents. The wraps are listed here, not registered from init(); the set
-// resolves them per (feature, tool), so a non-trust feature's draft runs the default handler.
+// AgentHandlers is the production handler set: agent.Handlers() with every read tool
+// recording what it returns into the run's Provenance, and these per-feature wraps:
+//   - for every trust feature in trust.SourcedFeatures(), draft_document and draft_email
+//     wrapped with trust.SourcedCents;
+//   - for F-BIL-08, draft_document wrapped with billing.CheckCreditNote, since a credit note
+//     changes what a client owes.
+//
+// The wraps are listed here, not registered from init(); the set resolves them per
+// (feature, tool), so another feature's draft runs the default handler.
 func AgentHandlers() (agent.HandlerSet, error) {
-	set := agent.Handlers()
+	set, err := recordedReads(agent.Handlers())
+	if err != nil {
+		return agent.HandlerSet{}, err
+	}
 	for _, id := range trust.SourcedFeatures() {
 		for _, tool := range draftTools {
-			var err error
 			// rule: ARC-U-027
 			// A trust draft carries figures for the regulator or a client: every amount in it
 			// must be one the run read.
@@ -185,6 +192,40 @@ func AgentHandlers() (agent.HandlerSet, error) {
 				return agent.HandlerSet{}, fmt.Errorf("trust draft wrap: %w", err)
 			}
 		}
+	}
+	// rule: ARC-U-027
+	// A credit note changes what a client owes: every amount in it must be one the run read.
+	if set, err = set.WithFeatureWrap(billing.FeatureDraftCreditNote, agent.ToolDraftDocument, billing.CreditNoteWrap); err != nil {
+		return agent.HandlerSet{}, fmt.Errorf("credit note wrap: %w", err)
+	}
+	return set, nil
+}
+
+// recordedReads returns base with every read tool recording the dates and numbers it
+// returns, quoted text included, into the run's Provenance (from the tool's Deps), so a
+// sourced write (propose_time_entries, propose_deadline, a trust or credit-note draft) can
+// carry them. A read tool built without a Provenance fails with agent.ErrMissingDep.
+func recordedReads(base agent.HandlerSet) (agent.HandlerSet, error) {
+	var hs []agent.Handler
+	for _, name := range base.Names() {
+		h, _ := base.For(name)
+		build := h.Build
+		hs = append(hs, agent.Handler{Name: name, Build: func(d agent.Deps) (registry.Tool, error) {
+			t, err := build(d)
+			if err != nil || t.Kind != registry.ToolRead {
+				return t, err
+			}
+			pv, err := agent.DepOf[*agenttools.Provenance](d)
+			if err != nil {
+				return registry.Tool{}, fmt.Errorf("read tool %s: %w", name, err)
+			}
+			// rule: ARC-U-027
+			return pv.ReadTool(t)
+		}})
+	}
+	set, err := agent.NewHandlerSet(hs...)
+	if err != nil {
+		return agent.HandlerSet{}, fmt.Errorf("recorded reads: %w", err)
 	}
 	return set, nil
 }
@@ -200,7 +241,8 @@ func sourcedTrustDraft(d agent.Deps, t registry.Tool) (registry.Tool, error) {
 	return trust.SourcedCents(pv, t)
 }
 
-// AgentTools builds every tool in AgentHandlers() over p. A port the set needs and p lacks
+// AgentTools builds every tool in AgentHandlers() over p; every read tool records into
+// p.Provenance (a fresh one when p has none). A port the set needs and p lacks
 // fails with agent.ErrMissingDep naming the tool; nothing is half-built.
 func AgentTools(p AgentPorts) ([]registry.Tool, error) {
 	if p.Provenance == nil {
@@ -221,15 +263,6 @@ func AgentTools(p AgentPorts) ([]registry.Tool, error) {
 		if err != nil {
 			errs = append(errs, fmt.Errorf("agent tool %s: %w", name, err))
 			continue
-		}
-		if t.Kind == registry.ToolRead {
-			// rule: ARC-U-027
-			// Every read result records its dates and numbers, quoted text included, so a
-			// sourced write (propose_time_entries, propose_deadline) can carry them.
-			if t, err = p.Provenance.ReadTool(t); err != nil {
-				errs = append(errs, fmt.Errorf("agent tool %s: %w", name, err))
-				continue
-			}
 		}
 		tools = append(tools, t)
 	}

@@ -1,8 +1,9 @@
-package billing
+package billing_test
 
 import (
 	"context"
 	"errors"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"slices"
 	"strings"
 	"testing"
@@ -42,7 +43,7 @@ func TestFBIL08_FromFeature(t *testing.T) {
 		wantRefuse map[string]error // tool -> refusal
 		wantGates  int
 	}{
-		{name: "ok", narrative: "Settlement review", calls: []bilcCall{bil08Draft(bil08Body), bil08Submit(GateCreditNote)}, wantGates: 1},
+		{name: "ok", narrative: "Settlement review", calls: []bilcCall{bil08Draft(bil08Body), bil08Submit(billing.GateCreditNote)}, wantGates: 1},
 		// rule: ARC-U-027
 		// A model-invented amount stores no draft and opens no gate.
 		{name: "model-invented amount", narrative: "Settlement review",
@@ -55,20 +56,20 @@ func TestFBIL08_FromFeature(t *testing.T) {
 		// rule: AI-R-003
 		// A gate kind outside the Def is refused before anything opens.
 		{name: "kind outside the Def", narrative: "Settlement review",
-			calls:      []bilcCall{bil08Draft(bil08Body), bil08Submit(GateCreditNote), bil08Submit(GateTrustFeeWithdrawal)},
+			calls:      []bilcCall{bil08Draft(bil08Body), bil08Submit(billing.GateCreditNote), bil08Submit(billing.GateTrustFeeWithdrawal)},
 			wantRefuse: map[string]error{agent.ToolSubmitForApproval: agenttools.ErrGateKindNotAllowed}, wantGates: 1},
 		// rule: ARC-I-038
 		{name: "injection", narrative: "Settlement review. " + bilcInjected,
-			calls: []bilcCall{bil08Draft(bil08Body), bil08Submit(GateCreditNote)}, wantGates: 1},
+			calls: []bilcCall{bil08Draft(bil08Body), bil08Submit(billing.GateCreditNote)}, wantGates: 1},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
-			def := DraftCreditNoteDef()
-			fd := bilcFeature(t, def, c.narrative, CreditNoteDraftHandler())
+			def := billing.DraftCreditNoteDef()
+			fd := bilcFeature(t, def, c.narrative)
 			script := append(slices.Clone(head), c.calls...)
 			run := fd.Fire(ctx, bilcScript(t, def.ID, script, "Drafted the credit note for approval."),
-				"run-fbil08-"+strings.ReplaceAll(c.name, " ", "-"), ActionDraftCreditNote+": bill "+bilcBill)
+				"run-fbil08-"+strings.ReplaceAll(c.name, " ", "-"), billing.ActionDraftCreditNote+": bill "+bilcBill)
 			if run.Err != nil {
 				t.Fatalf("run: %v", run.Err)
 			}
@@ -116,8 +117,8 @@ func TestFBIL08_FromFeature(t *testing.T) {
 func bil08Proposal(t *testing.T, fd *agenttest.FeatureDriver, gateIDs []string) {
 	t.Helper()
 	gs := bilcGateDecisions(t, fd, gateIDs)
-	if len(gs) != 1 || gs[0].Kind != GateCreditNote || gs[0].Subject.ID != "draft-document-1" {
-		t.Fatalf("gates = %+v, want one %s on draft-document-1", gs, GateCreditNote)
+	if len(gs) != 1 || gs[0].Kind != billing.GateCreditNote || gs[0].Subject.ID != "draft-document-1" {
+		t.Fatalf("gates = %+v, want one %s on draft-document-1", gs, billing.GateCreditNote)
 	}
 	if d := fd.Seed.Store.Drafts; len(d) != 1 || d[0].PreparedBy != agenttest.FeatureActingFor || d[0].MatterID != agenttest.TrustMatter {
 		t.Fatalf("drafts = %+v, want one credit note prepared by the acting user", d)
@@ -136,7 +137,7 @@ func TestFBIL08_CreditNoteCents(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.body, func(t *testing.T) {
-			got, err := CreditNoteCents(tt.body)
+			got, err := billing.CreditNoteCents(tt.body)
 			if err != nil || !slices.Equal(got, tt.want) {
 				t.Fatalf("CreditNoteCents = %v (%v), want %v", got, err, tt.want)
 			}
@@ -162,7 +163,7 @@ func TestFBIL08_CheckCreditNote(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			in := []byte(`{"matter_id":"m","title":"t","body_markdown":"` + tt.body + `"}`)
-			if err := CheckCreditNote(pv, tt.run, in); !errors.Is(err, tt.want) {
+			if err := billing.CheckCreditNote(pv, tt.run, in); !errors.Is(err, tt.want) {
 				t.Fatalf("CheckCreditNote = %v, want %v", err, tt.want)
 			}
 		})
@@ -180,7 +181,7 @@ func TestFBIL08_PrepareOnly(t *testing.T) {
 
 // rule: AI-R-002
 func TestFBIL08_Def(t *testing.T) {
-	def := DraftCreditNoteDef()
+	def := billing.DraftCreditNoteDef()
 	bilcPromptLint(t, def, "Draft credit note", "draft credit note on credit-notes")
 	tests := []struct {
 		field     string
@@ -190,7 +191,7 @@ func TestFBIL08_Def(t *testing.T) {
 		{"trigger", def.Trigger, "on request: credit-notes > Draft credit note"},
 		{"on request", strings.Join(def.Actions, ";"), "credit-notes > Draft credit note"},
 		{"gate kinds", strings.Join(def.GateKinds, ","), "billing.credit_note"},
-		{"screen action", strings.Join(def.Actions, ";"), ActionDraftCreditNote},
+		{"screen action", strings.Join(def.Actions, ";"), billing.ActionDraftCreditNote},
 		{"cadence", string(trigger.ParseCadence(def.Trigger)), string(trigger.CadenceNone)},
 	}
 	for _, tt := range tests {

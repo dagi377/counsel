@@ -21,7 +21,7 @@ turns:
     reply:
       tool_calls:
         - name: prepare_trust_withdrawal
-          input: {matter_id: "00000000-0000-4000-8000-0000000000a1", amount_cents: 125000, purpose_category: fees, payee: "00000000-0000-4000-8000-0000000000d4", method: cheque, bill_id: "00000000-0000-4000-8000-0000000000c3"}
+          input: {matter_id: "00000000-0000-4000-8000-0000000000a1", amount_cents: 125000, purpose_category: fees, payee: "00000000-0000-4000-8000-0000000000f1", method: cheque, bill_id: "00000000-0000-4000-8000-0000000000c3"}
       stop_reason: tool_use
       usage: {input_tokens: 880, output_tokens: 96}
   - expect_tool_results: [prepare_trust_withdrawal]
