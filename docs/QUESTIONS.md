@@ -1212,3 +1212,11 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   `MatterContacts` (`MatterContactIDs`: client and parties of the matter); boot wires both.
   submit=true opens `platform.outgoing_email` through `agenttools.GateOpener` with subject
   kind `email_draft`; the caller is the preparer.
+
+## FEAT-TOOL-13 draft_note
+
+- No init(): `DraftNoteHandler()` returns the Handler and boot adds it to the explicit
+  HandlerSet (owner decision); agenttest.FromFeature keeps its stand-in until boot does.
+- No note-draft API exists yet. The handler writes through `NoteDrafts` (`CreateNoteDraft`)
+  and opens `matter.agent_note` through `agenttools.GateOpener` with subject kind
+  `agent_note`; the caller is the preparer (an agent's acting-for user).
