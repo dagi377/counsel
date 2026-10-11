@@ -255,3 +255,22 @@ func trudDeciders(t *testing.T, kind, gateID string) {
 		})
 	}
 }
+
+// trudAbsent fails t when text is in any prepare_trust_withdrawal input of run or in the
+// withdrawal w it recorded (the proposal the gate's payload is built from).
+func trudAbsent(t *testing.T, run agenttest.Run, w withdraw.Withdrawal, text string) {
+	t.Helper()
+	for _, req := range run.Requests {
+		for _, m := range req.Messages {
+			for _, b := range m.Content {
+				if b.Type == "tool_use" && b.ToolName == agent.ToolPrepareTrustWithdrawal && strings.Contains(string(b.Input), text) {
+					t.Fatalf("%s input carries the injected text", b.ToolName)
+				}
+			}
+		}
+	}
+	r := w.Request
+	if strings.Contains(strings.Join([]string{r.MatterID, r.Payee, r.Reason, r.BillID, r.EFTAuthorizationID}, "\n"), text) {
+		t.Fatalf("withdrawal %s carries the injected text", w.ID)
+	}
+}

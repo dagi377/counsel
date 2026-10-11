@@ -440,6 +440,9 @@ var actionScreens = map[string]trigger.Screen{
 	// A transfer moves money between client ledgers, so the screen selects the matters
 	// (docs/QUESTIONS.md Q-FEAT-TRU-08).
 	"trust-transfers": {SubjectKind: "matter", Capability: "trust.request"},
+	// The clearance screen lists matters that still hold trust money; it selects the matter
+	// (docs/QUESTIONS.md Q-FEAT-TRU-10).
+	"trust-balance-clearance": {SubjectKind: "matter", Capability: "trust.request"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

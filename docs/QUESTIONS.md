@@ -3789,3 +3789,18 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   `agent.PrepareTrustWithdrawalHandler` (agenttest's driver registers its own unchecked
   wrapper of `WriteTools`, which skips the handler's gate-kind check). Helpers:
   `app/legal/trust/ai_trud_helpers_test.go` (prefix trud), shared with F-TRU-10.
+
+## Q-FEAT-TRU-10 F-TRU-10 Propose disposition
+
+- The run proposes one withdrawal of a residual balance through the production
+  `prepare_trust_withdrawal` (refund to a matter contact, or fees for a delivered bill) and
+  opens `trust.withdrawal` (G11). The tests also refuse an invented or unsigned amount
+  (`ErrUnsourcedValue` via `trust.SourcedCents`), an overdraw (`withdraw.ErrTrustOverdraw`)
+  and a payee that is not a matter contact, each before any withdrawal row exists.
+- The `trust-balance-clearance` screen selects matters (subject `matter`, capability
+  `trust.request`).
+- Gap seen while testing: the production handler checks the run scope for
+  `trust.withdrawal` before calling the trust module, but with a `bill_id` the module opens
+  `billing.trust_fee_withdrawal` (`withdraw.RequestGateKind`). A fees disposition from
+  F-TRU-10 would therefore open a kind outside the Def's scope. Proposed: the handler checks
+  `withdraw.RequestGateKind` of the request it is about to make, not the fixed kind.

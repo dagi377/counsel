@@ -121,5 +121,6 @@ func appDefs() []feature.Def {
 		trust.MonthEndReconciliationDef(),
 		trust.RetainerReplenishmentDef(),
 		trust.DraftTransferDef(),
+		trust.ProposeDispositionDef(),
 	}
 }
