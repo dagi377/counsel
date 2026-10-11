@@ -4255,3 +4255,18 @@ of FEAT-TIM-01 above.
   draft_document schema FORM-SUBJECT changed. list_unbilled now records provenance itself
   (sourcedRead) and boot also wraps every read tool (TIME-FIX); recording a value twice is
   harmless, but one of the two can go.
+
+## Q-FEAT-PLT-17 F-PLT-19 recommend settings on the firm subject
+
+- Automation settings belong to the firm, so F-PLT-19 drafts its recommendation on the firm
+  subject (`subject_ref` `"firm"`, no `matter_id`) and opens `platform.skill_autonomy` (G-SK,
+  `platform.GateSkillAutonomy`) on that draft with submit_for_approval. The grant names
+  `intake.forms` because draft_document gates firm drafts on it (Q-FORM-SUBJECT). Open: a
+  general firm-draft capability.
+- `automation-settings` maps to `boot.FirmSubject` with capability `documents.edit`: the
+  approver capability `platform.agent_settings` is a kernel id the app may not register
+  (TestAppIDsAvoidKernelPrefix).
+- G-SK's payload schema requires `skill` and `autonomy`; submit_for_approval sends the
+  draft's subject only. Same open point as the intake features that open this kind.
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (screen), the generated plugin skill, ai_pltg_helpers_test.go (shared helpers).

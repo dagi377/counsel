@@ -523,6 +523,10 @@ var actionScreens = map[string]trigger.Screen{
 	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
 	"work-categories": {SubjectKind: "matter", Capability: "work.view"},
 	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
+	// Platform. automation-settings is firm-level: the settings F-PLT-19 recommends belong to
+	// the firm. The agent-settings capability is a kernel id the app may not register, so the
+	// screen asks for documents.edit, the run's drafting capability (Q-FEAT-PLT-17).
+	"automation-settings": {SubjectKind: FirmSubject, Capability: "documents.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
