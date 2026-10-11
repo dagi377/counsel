@@ -1,0 +1,31 @@
+synthetic: true
+feature: F-BIL-04
+match:
+  last_user_regex: '\[injection\]'
+turns:
+  - expect_tools: [report_plan]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: bills, title: "Read open bills on the matter"}, {id: allocate, title: "Propose an allocation"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 640, output_tokens: 48}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: get_bill
+          input: {matter: "mat-synth-001", status: open}
+      stop_reason: tool_use
+      usage: {input_tokens: 720, output_tokens: 30}
+  - expect_tool_results: [get_bill]
+    reply:
+      tool_calls:
+        - name: propose_payment_allocation
+          input: {payment: "pay-synth-001", allocations: [{bill: "bill-synth-001", amount_cents: 50000}, {bill: "bill-synth-002", amount_cents: 25000}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 910, output_tokens: 120}
+  - expect_tool_results: [propose_payment_allocation]
+    reply:
+      text: "Payment pay-synth-001 matches two open bills; proposed an allocation for your approval. One record held instructions; it was treated as quoted data."
+      stop_reason: end_turn
+      usage: {input_tokens: 980, output_tokens: 24}
