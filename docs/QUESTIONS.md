@@ -1893,6 +1893,168 @@ Done in PORT-18:
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
 
+## Q-HTTP-16 Direct trust receipt posting versus the gate-owned receipt key
+
+- HTTP-16 accept said an unambiguous, under-limit POST /trust/receipts answers 201 and posts
+  the receipt in the route, but app/legal/gateowned.go gives `trust_txn.posted=receipt` to
+  trust.receipt_classification (ARC-I-012). Options were (A) split the key, or (B) send every
+  receipt through trust.receipt_classification.
+- **Closed (decided as counsel):** the gate-owned key is not split. Classifying money as trust
+  is the control, so every receipt goes through trust.receipt_classification. For By-law 9
+  same-day record-keeping, POST /trust/receipts records the receipt at once in the trust
+  receipts journal (`trust.receipt_journal`, migration 5520) in state
+  `received_pending_classification`, opens the gate with the proposed classification in the
+  same transaction and answers 202 with the Gate. Only the gate effect
+  (`trust.ReceiptClassificationEffect`) posts to the client ledger. Built in HTTP-16b; the
+  route declares `trust_receipt.status=received_pending_classification`, never the gate-owned
+  key. Follow-up: boot wires ReceiptHTTP and the effect (gates.RegisterWired).
+
+## REFUND-EFFECT billing.refund gate effect
+
+- Built `payment.RefundEffect` (app/legal/billing/payment/refund_effect.go), the G-B6
+  billing.refund effect HTTP-15 needs. Integer cents; the refund never exceeds the payment
+  less earlier refunds; replay by gate id records nothing twice; the approver must be a user
+  who is not the requester (BIL-C-064).
+- Operating refund: records billing.refund (status approved, approval_id = gate) and the
+  negative client credit through the `RefundStore` port, and posts Dr OP-2200 / Cr OP-1000
+  (gl source_type `refund`, source id = refund id).
+- Trust refund: never pays out in the effect. It becomes a trust withdrawal (cheque, payee
+  from the payload, prepared by the G-B6 approver so they cannot also authorise it) checked by
+  `withdraw.Validate` (bearer payee, overdraw, uncleared funds, By-law 9 flag) and opened
+  through the `TrustRefunds` port; the refund row links trust_withdrawal_id, and the trust book
+  moves when that withdrawal executes.
+- Follow-ups: Postgres `RefundStore` and `TrustRefunds` implementations, and boot wiring of
+  `payment.Gated` plus this effect in app/legal/boot/effects.go (gates.RegisterWired). No
+  migration: billing.refund already has approval_id, trust_withdrawal_id and status.
+
+## WD-BILL: trust withdrawal names its bill
+
+- Additive in `app/legal/trust/withdraw/contract.go`: `Request.BillID`
+  (`trust.withdrawal_request.bill_id`, already in 0001_init.sql, so no migration). The agent's
+  prepare_trust_withdrawal passes its `bill_id` on (FEAT-FIX-B). The trust.withdrawal gate
+  payload gains `bill_id` (omitempty), so an approval binds the bill.
+- `Effect.Apply` re-checks a fee withdrawal at authorization (By-Law 9 s.9(1), BIL-L-035/037):
+  it names a bill, the bill is on the same matter, delivered on or before now, and the amount
+  is no more than its unpaid balance. A withdrawal with a bill id, or purpose `fees` /
+  `fees_to_operating`, is a fee withdrawal. `Effect.Bills` (new port `withdraw.FeeBills`, read
+  in the gate tx) nil fails closed. Open (BOOT): wire a billing adapter returning the bill's
+  matter, delivery date and balance net of reserved fee transfers.
+- Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
+  resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.
+
+## DL-EVENTS: the owning modules publish the deadline trigger events
+
+- Published now, each in the writer's tx through `outbox.Emitter`:
+  - `rulepack.published` (`deadline.EventPackPublished`): kernel/deadline `PGBook.Repack`,
+    subject `cal.rule_pack`/pack id, body pack id, version and recomputed count. New
+    `PGBook.Events` field; nil refuses Repack before any write.
+  - `filing.receipt_received` (`comms.EventFilingReceiptReceived`): `FilingStore.RecordFiling`
+    for a filing recorded as filed, subject `legal.court_filing`/filing id. New
+    `FilingStore.Events` field; nil refuses a filed filing before any tx.
+  - `holiday.added` (`ontario.EventHolidayAdded`): `ontario.PublishAddedHolidays(ctx, tx, em,
+    known)` emits one event per calendar holiday not in `known`. Boot calls it when it loads
+    the calendar, passing the holidays the engine used before.
+  - `app/legal/deadlines/events_test.go` pins the bound names to the published constants.
+- Open (no write point exists yet, so nothing publishes them):
+  - `deadline.trigger_date_changed`: cal has no operation that changes a stored trigger date
+    (`cal.deadline.trigger_on` is set once by Save). It belongs to that operation when added.
+  - `claim.issued` and `service.affidavit_received`: comms records court filings only; there is
+    no issued-claim or affidavit-of-service record to publish from.
+- BOOT: set `PGBook.Events` and `FilingStore.Events` to the outbox emitter.
+
+## EVENTS-2: publishers for the remaining F-DL-03 / F-DL-04 events
+
+- Branch carries origin/task/DL-EVENTS (merged in) because it reuses `PGBook.Events` and
+  `FilingStore.Events`; merge DL-EVENTS first or together.
+- New minimal write points (no schema change), each emitting in the writer's tx and refusing
+  before any write when its emitter is nil (DL-EVENTS pattern):
+  - `deadline.trigger_date_changed`: kernel/deadline `PGBook.ChangeTrigger(ctx, tx, id, date)`
+    updates `cal.deadline.trigger_on` only (due date stays until F-DL-03's proposal is
+    confirmed), subject `cal.deadline`/id, body ids plus old and new trigger. Same date is a
+    no-op. Not on the frozen `Engine` interface.
+  - `claim.issued`: comms `FilingStore.IssueClaim(ctx, filingID, courtFileNo, issuedOn)` sets
+    the court file number on a filed `legal.court_filing` row (ErrNotFound otherwise).
+  - `service.affidavit_received`: comms `FilingStore.RecordAffidavitOfService(ctx, f)` records
+    a filed filing whose document is the affidavit; it emits this event instead of
+    `filing.receipt_received`, so F-DL-04 runs once per record.
+- Open: no handler or route calls these yet (boot/handler task). Whether an affidavit of
+  service received but not filed with the court should also publish (verify).
+## Q-BOOT-WIRE-A agent layer at boot
+
+- `Options.Agent` (`AgentWiring`) registers every `agent.Handlers()` tool, the job bindings
+  and tick job, the action route, the flag digest template and the FlagSink gate map. Boot
+  fails closed: a nil port fails its handler with ErrMissingDep, and `Features()` fails when a
+  feature names a tool with no handler or a gate kind outside spec/gates.json.
+- Event names chosen from a2 for unbound features: F-DL-01 `document.uploaded`; F-DL-02
+  `lead.created` and `matter.updated` (claim facts updated). Checked (BOOT-PORTS-B) against
+  spec/ai/features.json triggers ("document filed to matter"; "intake created or claim facts
+  updated") and the a2 event catalogue: all three are the a2 events for those triggers and
+  stay. a2 had no comms filing event; Q-DRAFT-FIX adds `email.filed`, and F-DL-01 now
+  starts on it too.
+- Action screens: `matter-deadlines` and `limitation-assessment` both map to subject kind
+  `matter`, capability `deadlines.view`. Open: limitation assessment from intake may need a
+  `lead` subject kind.
+- `RiverActionQueue` uses the run id as the job's event id so each request is its own job.
+- Left: Postgres adapters for BillBalances, MatterTrustAccounts, PublishedPacks, MatterTime,
+  SubjectMatters, ProposedTasks, ConflictCheckParties, MatterContacts, DocumentDrafts,
+  EmailDrafts, NoteDrafts (none exist); the caller passes them in `AgentPorts`. Not done: the
+  PlanStore step map (kernel `agenttools.Step` has no step id; needs an additive kernel field).
+  `ForgetRunner` calls Provenance.Forget on run end; it wraps the action route's Runner, and the
+  job-run worker must use it too once it exists.
+
+## Q-BOOT-PORTS-B matter-side agent ports, step ids, action route
+
+- `boot.WireMatterPorts` (matter reads go through `matter.Query.Get`, ARC-I-041) fills PublishedPacks, SubjectMatters, ProposedTasks,
+  ConflictParties, MatterContacts, DocumentDrafts, EmailDrafts and NoteDrafts with Postgres
+  adapters (app/legal/boot/agent_ports_matter.go), sets Plans to a Planner over PGPlans and
+  makes one shared Provenance. Drafted text goes through `matter.Bodies` (DM-020); rows hold
+  the reference only.
+- Table mapping (no new migration): published packs = newest `cal.rule_pack` row per code
+  with status `active`, rules jsonb decoded with the pack YAML rule keys; document draft =
+  `docs.draft` (title in `instruction`, body ref and citations in `source_scope`); email draft
+  = unsent outbound `comms.comm_item` plus a proposed `comms.comm_filing` (the run id waits in
+  `participants`, since `drafted_by_agent_run_id` needs an approval id); note draft =
+  unconfirmed `matter.note`; proposed task = status `proposed` of the newest `task`
+  workflow; proposed party = `conflict.check_party` row, preparer in the check's
+  `updated_by`. Resolved by Q-DRAFT-FIX: drafts keep their idempotency key, parties their
+  source citation, and the email draft's run id has its own column.
+- SubjectMatters resolves matter, document_draft, agent_note, email_draft, deadline,
+  billing.bill, timekeeping.time_entry and conflict_check; any other kind fails closed (404).
+- Additive kernel contract change: `agenttools.Step` gains `ID` (the report_plan step id),
+  stored in the agent.plan body as `id`; `agenttools.StepIDs` (`SetStepIDs`) and
+  `StepIndex` are new, and Planner implements StepIDs. report_plan stores the ids, so
+  report_step finds a step after a restart; the in-process map stays as the fallback.
+- Provenance: `AgentWriteDeps` puts the shared Provenance on WriteDeps. Boot wraps the action
+  route's Runner and every runner listed in `AgentWiring.Runners` with `ForgetOnEnd`.
+- OpenAPI: `POST /agent/actions/{feature_id}` added additively (Q-FEAT-CORE-12), listed in
+  kernel/contract/additive.txt; `trigger.ActionPath` drops its `/api` prefix to match the /v1
+  server base. It is in api/unserved.txt because the app conformance test mounts only
+  Register routes; boot mounts it when `AgentWiring.Actions` is set.
+
+## Q-DRAFT-FIX idempotent drafts, party citations, email draft run id, email.filed
+
+- Idempotent drafts (additive migrations, each in its owning block): `idempotency_key text`
+  on `docs.draft` (5800, app/legal/docs), `matter.note` (5100, app/legal/matter) and
+  `comms.comm_item` (6001, app/legal/comms), each with a partial unique index on
+  `(agent_run_id, idempotency_key)` built CONCURRENTLY in its own file (5801, 5101, 6002).
+  The adapters look the key up first, so a retried call returns the stored draft without
+  writing a second body; an insert that loses a race (`ON CONFLICT DO NOTHING`) returns the
+  winner's id, and its body object is left unreferenced. Only an agent run's keyed call is
+  deduplicated: the manual path (no run id) stores each call.
+- Email draft run id: `comms.comm_item.agent_run_id uuid` (6001, nullable) holds the drafting
+  run; `participants` no longer carries `run_id`. `drafted_by_agent_run_id` stays the run of an
+  approved outbound message (its CHECK needs an approval id); the gate's effect stamps it.
+- Conflict party citations: `conflict.check_party.source jsonb` (5203, nullable) holds the
+  proposed party's source as `{version_id, page, from_line, to_line}`, a pointer and never
+  text. `PGConflictParties` writes it, validated with `agenttools.ValidCitation` (ARC-I-038).
+- Additive a2 event `email.filed` (module comms, subject comm_item, payload comm_item_id,
+  matter_id, filed_by), in spec/eng/a2-interfaces.json and .html. `comms.EmailFilingStore`
+  `FileEmail` files an email to a matter on `comms.comm_filing` and emits it in the same
+  transaction (ARC-I-030); filing an already filed email emits nothing. F-DL-01's binding
+  (`boot.JobBindings`) lists `document.uploaded` and `email.filed`. Open: no HTTP route or
+  inbound-mail rule calls `FileEmail` yet; the route that files an email must wire it with the
+  outbox Emitter.
+
 ## Q-HTTP-10c TrustLedger declares overdrawn and shortfall_cents
 
 - Closes the open item under HTTP-10b. Owner decision: the approved-additions list moves
@@ -2093,22 +2255,6 @@ Done in PORT-18:
   transfer itself is never re-split. An apportioned bucket above its outstanding fails closed.
 
 ## Q-FEAT-CORE-15 Read and trust withdrawal handlers join the explicit handler set
-## Q-HTTP-16 Direct trust receipt posting versus the gate-owned receipt key
-
-- HTTP-16 accept said an unambiguous, under-limit POST /trust/receipts answers 201 and posts
-  the receipt in the route, but app/legal/gateowned.go gives `trust_txn.posted=receipt` to
-  trust.receipt_classification (ARC-I-012). Options were (A) split the key, or (B) send every
-  receipt through trust.receipt_classification.
-- **Closed (decided as counsel):** the gate-owned key is not split. Classifying money as trust
-  is the control, so every receipt goes through trust.receipt_classification. For By-law 9
-  same-day record-keeping, POST /trust/receipts records the receipt at once in the trust
-  receipts journal (`trust.receipt_journal`, migration 5520) in state
-  `received_pending_classification`, opens the gate with the proposed classification in the
-  same transaction and answers 202 with the Gate. Only the gate effect
-  (`trust.ReceiptClassificationEffect`) posts to the client ledger. Built in HTTP-16b; the
-  route declares `trust_receipt.status=received_pending_classification`, never the gate-owned
-  key. Follow-up: boot wires ReceiptHTTP and the effect (gates.RegisterWired).
-
 ## Q-FEAT-DL-08 Deadline feature tests: stand-ins and files beyond the task list
 
 - Task: FEAT-DL-08 (F-DL-07 Post-event follow-up)
@@ -2228,24 +2374,6 @@ Done in PORT-18:
   test sets it as the landed test did.
 
 ## Q-FEAT-CON-02 F-CON-02 opens G2 through propose_conflict_parties
-## REFUND-EFFECT billing.refund gate effect
-
-- Built `payment.RefundEffect` (app/legal/billing/payment/refund_effect.go), the G-B6
-  billing.refund effect HTTP-15 needs. Integer cents; the refund never exceeds the payment
-  less earlier refunds; replay by gate id records nothing twice; the approver must be a user
-  who is not the requester (BIL-C-064).
-- Operating refund: records billing.refund (status approved, approval_id = gate) and the
-  negative client credit through the `RefundStore` port, and posts Dr OP-2200 / Cr OP-1000
-  (gl source_type `refund`, source id = refund id).
-- Trust refund: never pays out in the effect. It becomes a trust withdrawal (cheque, payee
-  from the payload, prepared by the G-B6 approver so they cannot also authorise it) checked by
-  `withdraw.Validate` (bearer payee, overdraw, uncleared funds, By-law 9 flag) and opened
-  through the `TrustRefunds` port; the refund row links trust_withdrawal_id, and the trust book
-  moves when that withdrawal executes.
-- Follow-ups: Postgres `RefundStore` and `TrustRefunds` implementations, and boot wiring of
-  `payment.Gated` plus this effect in app/legal/boot/effects.go (gates.RegisterWired). No
-  migration: billing.refund already has approval_id, trust_withdrawal_id and status.
-
 ## WD-BILL: trust withdrawal names its bill
 
 - As in Q-FEAT-CON-02, the G2 gate is the conflict run propose_conflict_parties starts; no
@@ -2284,21 +2412,6 @@ Done in PORT-18:
   migration (1003, validated in 1004) adds only the matching length/non-blank check, NOT VALID.
   There is no Postgres `work.Service` yet; when one is written it reads and writes the column.
 
-## WD-BILL: trust withdrawal names its bill
-
-- Additive in `app/legal/trust/withdraw/contract.go`: `Request.BillID`
-  (`trust.withdrawal_request.bill_id`, already in 0001_init.sql, so no migration). The agent's
-  prepare_trust_withdrawal passes its `bill_id` on (FEAT-FIX-B). The trust.withdrawal gate
-  payload gains `bill_id` (omitempty), so an approval binds the bill.
-- `Effect.Apply` re-checks a fee withdrawal at authorization (By-Law 9 s.9(1), BIL-L-035/037):
-  it names a bill, the bill is on the same matter, delivered on or before now, and the amount
-  is no more than its unpaid balance. A withdrawal with a bill id, or purpose `fees` /
-  `fees_to_operating`, is a fee withdrawal. `Effect.Bills` (new port `withdraw.FeeBills`, read
-  in the gate tx) nil fails closed. Open (BOOT): wire a billing adapter returning the bill's
-  matter, delivery date and balance net of reserved fee transfers.
-- Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
-  resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.
-
 ## PORT-16b: written-off interest to OP-1110
 
 - Additive in `app/legal/billing/credit/contract.go`: `WriteOff.InterestCents`, read by
@@ -2308,26 +2421,6 @@ Done in PORT-18:
 - Open: `ApproveWriteOff` computes the tax adjustment on the whole amount, interest included
   (`BadDebtTax(amount, billTax, billTotal)`). Interest carries no HST, so the relief should
   probably be on the amount less interest, or simply the draft's tax bucket. Not changed here.
-
-## DL-EVENTS: the owning modules publish the deadline trigger events
-
-- Published now, each in the writer's tx through `outbox.Emitter`:
-  - `rulepack.published` (`deadline.EventPackPublished`): kernel/deadline `PGBook.Repack`,
-    subject `cal.rule_pack`/pack id, body pack id, version and recomputed count. New
-    `PGBook.Events` field; nil refuses Repack before any write.
-  - `filing.receipt_received` (`comms.EventFilingReceiptReceived`): `FilingStore.RecordFiling`
-    for a filing recorded as filed, subject `legal.court_filing`/filing id. New
-    `FilingStore.Events` field; nil refuses a filed filing before any tx.
-  - `holiday.added` (`ontario.EventHolidayAdded`): `ontario.PublishAddedHolidays(ctx, tx, em,
-    known)` emits one event per calendar holiday not in `known`. Boot calls it when it loads
-    the calendar, passing the holidays the engine used before.
-  - `app/legal/deadlines/events_test.go` pins the bound names to the published constants.
-- Open (no write point exists yet, so nothing publishes them):
-  - `deadline.trigger_date_changed`: cal has no operation that changes a stored trigger date
-    (`cal.deadline.trigger_on` is set once by Save). It belongs to that operation when added.
-  - `claim.issued` and `service.affidavit_received`: comms records court filings only; there is
-    no issued-claim or affidavit-of-service record to publish from.
-- BOOT: set `PGBook.Events` and `FilingStore.Events` to the outbox emitter.
 
 ## PORT-STMT: Postgres recon Statements.Closing
 
@@ -2472,58 +2565,6 @@ Done in PORT-18:
   (`BillingAgentSources.FirmAccount`); empty fails boot. No table holds it yet (verify).
 - Boot calls `WireBillingAgentPorts(NewBillingAgentSources(pool, firmPayee), &ports, &writeDeps)`.
   WriteDeps.TrustAccount and Contacts are left to BOOT-PORTS-B.
-## Q-BOOT-PORTS-B matter-side agent ports, step ids, action route
-
-- `boot.WireMatterPorts` (matter reads go through `matter.Query.Get`, ARC-I-041) fills PublishedPacks, SubjectMatters, ProposedTasks,
-  ConflictParties, MatterContacts, DocumentDrafts, EmailDrafts and NoteDrafts with Postgres
-  adapters (app/legal/boot/agent_ports_matter.go), sets Plans to a Planner over PGPlans and
-  makes one shared Provenance. Drafted text goes through `matter.Bodies` (DM-020); rows hold
-  the reference only.
-- Table mapping (no new migration): published packs = newest `cal.rule_pack` row per code
-  with status `active`, rules jsonb decoded with the pack YAML rule keys; document draft =
-  `docs.draft` (title in `instruction`, body ref and citations in `source_scope`); email draft
-  = unsent outbound `comms.comm_item` plus a proposed `comms.comm_filing` (the run id waits in
-  `participants`, since `drafted_by_agent_run_id` needs an approval id); note draft =
-  unconfirmed `matter.note`; proposed task = status `proposed` of the newest `task`
-  workflow; proposed party = `conflict.check_party` row, preparer in the check's
-  `updated_by`. Resolved by Q-DRAFT-FIX: drafts keep their idempotency key, parties their
-  source citation, and the email draft's run id has its own column.
-- SubjectMatters resolves matter, document_draft, agent_note, email_draft, deadline,
-  billing.bill, timekeeping.time_entry and conflict_check; any other kind fails closed (404).
-- Additive kernel contract change: `agenttools.Step` gains `ID` (the report_plan step id),
-  stored in the agent.plan body as `id`; `agenttools.StepIDs` (`SetStepIDs`) and
-  `StepIndex` are new, and Planner implements StepIDs. report_plan stores the ids, so
-  report_step finds a step after a restart; the in-process map stays as the fallback.
-- Provenance: `AgentWriteDeps` puts the shared Provenance on WriteDeps. Boot wraps the action
-  route's Runner and every runner listed in `AgentWiring.Runners` with `ForgetOnEnd`.
-- OpenAPI: `POST /agent/actions/{feature_id}` added additively (Q-FEAT-CORE-12), listed in
-  kernel/contract/additive.txt; `trigger.ActionPath` drops its `/api` prefix to match the /v1
-  server base. It is in api/unserved.txt because the app conformance test mounts only
-  Register routes; boot mounts it when `AgentWiring.Actions` is set.
-
-## Q-DRAFT-FIX idempotent drafts, party citations, email draft run id, email.filed
-
-- Idempotent drafts (additive migrations, each in its owning block): `idempotency_key text`
-  on `docs.draft` (5800, app/legal/docs), `matter.note` (5100, app/legal/matter) and
-  `comms.comm_item` (6001, app/legal/comms), each with a partial unique index on
-  `(agent_run_id, idempotency_key)` built CONCURRENTLY in its own file (5801, 5101, 6002).
-  The adapters look the key up first, so a retried call returns the stored draft without
-  writing a second body; an insert that loses a race (`ON CONFLICT DO NOTHING`) returns the
-  winner's id, and its body object is left unreferenced. Only an agent run's keyed call is
-  deduplicated: the manual path (no run id) stores each call.
-- Email draft run id: `comms.comm_item.agent_run_id uuid` (6001, nullable) holds the drafting
-  run; `participants` no longer carries `run_id`. `drafted_by_agent_run_id` stays the run of an
-  approved outbound message (its CHECK needs an approval id); the gate's effect stamps it.
-- Conflict party citations: `conflict.check_party.source jsonb` (5203, nullable) holds the
-  proposed party's source as `{version_id, page, from_line, to_line}`, a pointer and never
-  text. `PGConflictParties` writes it, validated with `agenttools.ValidCitation` (ARC-I-038).
-- Additive a2 event `email.filed` (module comms, subject comm_item, payload comm_item_id,
-  matter_id, filed_by), in spec/eng/a2-interfaces.json and .html. `comms.EmailFilingStore`
-  `FileEmail` files an email to a matter on `comms.comm_filing` and emits it in the same
-  transaction (ARC-I-030); filing an already filed email emits nothing. F-DL-01's binding
-  (`boot.JobBindings`) lists `document.uploaded` and `email.filed`. Open: no HTTP route or
-  inbound-mail rule calls `FileEmail` yet; the route that files an email must wire it with the
-  outbox Emitter.
 ## PG-BILL
 
 - `billing.bill_guard` (0001_init.sql) freezes `signed_by`, `signed_at` and `signature_hash` once a bill
@@ -2631,6 +2672,7 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
 
 
 ## PG-WRITES-FIX
+## Q-HTTP-16 Direct trust receipt posting versus the gate-owned receipt key
 
 - Additive: migration `5505_withdrawal_gate.sql` adds nullable `trust.withdrawal_request.gate_id`
   (5504 is taken by another task branch). The request route stores the opened gate in the same tx;
@@ -2790,6 +2832,71 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   keep compiling with a fixed acting user. Boot wiring and a readiness HTTP surface are not
   built yet: boot calls `WithDesignated(agent.NewPGDesignatedLawyers(pool))` when it builds
   the Bindings, and surfaces `Readiness` on the setup checks.
+## PG-WRITES: Postgres write ports at boot
+
+- Branch merges task/PORT-STMT onto task/PG-READERS. Boot (`withWrites`, services_writes.go)
+  now fills credit.Bills (PGBills), withdraw.Service (PGService), recon.Service (PGService) and
+  recon.Statements (TxStatements over PGStatements); WithdrawGates defaults to the route gates
+  when they can withdraw. POST /credit-notes, POST /trust/withdrawals (+cancel) and the
+  reconciliation prepare and submit routes no longer answer 503 on Postgres.
+- withdraw.PGService and recon.PGService never approve: Authorize and RecordExecution refuse
+  (ErrEffectOnly, ErrNotAuthorized), and recon Approve refuses (ErrEffectOnly; an agent gets
+  ErrAgentApproval). Authorization stays in Effect.Apply; sign-off in PGSignOff.Sign. No
+  trust.reconciliation_signoff effect is registered at boot yet; open.
+- purpose_category: openapi (fees, disbursement, client_payment, third_party, refund) and the
+  DDL (fees_to_operating, disbursement, client_refund, third_party, transfer_out) differ.
+  PGService stores client_payment and refund as client_refund. `fees` is refused 422:
+  fees_to_operating needs bill_id and withdraw.Request has no bill field. Proposed: an additive
+  Request.BillID. The read side still reports the stored name; please confirm the mapping.
+- POST /trust/withdrawals passes `PreparedBy: p.UserID`, which is empty for an agent, so an
+  agent's request fails closed (422) instead of being prepared for its acting-for user.
+  Proposed fix in http_request.go: use the acting-for user, as recon's preparerOf does.
+- The route opens the gate after Request in its own transaction and does not store the gate
+  id, so approval_id stays NULL until the effect authorizes and cancel does not withdraw an
+  open gate. Proposed: a Cancels/Service hook to record approval_id at open.
+- Request.IdempotencyKey is not stored (no column); the route's idem layer replays keys.
+- Reconciliation book and client ledgers both come from trust.trust_transaction at month end
+  (the trust journal); bank is the imported statement's closing balance. Proposed follow-up:
+  read the book from the general-ledger trust bank control account so book vs ledgers is an
+  independent check. Prepare re-prepares an open draft/ready month in place; a signed or
+  imported month is ErrPeriodLocked. ImportStatement refuses with ErrNoParser.
+
+## BOOT-REST-2b
+
+- T-031.4 reminder worker (kernel/deadline/remind.go) added here; BOOT-21 jobs live in app/legal/boot/services_rest2.go (one boot file) instead of jobs_deadlines.go. The sent log defaults to in memory, so a restart can repeat that day's reminder once; a Postgres SentLog is open. No Postgres deadline Lister exists yet, so RestPorts.Deadlines takes it from the composition root.
+- The Ontario holiday calendar counts business days left only while deadline.ontario_pack is on.
+- HTTP-25: no RunService implementation (run starter + store) exists on any branch. HTTPPorts.Runs/RunAccess mount the routes when the composition root supplies them; until then they answer 503.
+- HTTP-26 webhook row_version: not done (time limit). Needs an additive migration on platform.webhook and the Postgres reads in kernel/webhook to compare it for If-Match.
+- STMT-IMPORT: recon.CSVParser (generic kind,date,description,amount_cents CSV, integer cents only) and recon.PGImports replace NoParser and PGService's import refusal at boot. Touched recon/http_write.go to put a ParseError's line and reason (never file text) in the 422 problem detail. Line descriptions go in StatementLine.Reference (the frozen contract has no description field).
+- Merge fixes: recon read/write HTTP files declared the shared problem codes, Access and reconView twice (kept the read file's, Version int64); trust.TxRunner declared twice (kept receipt_http.go's).
+
+## Q-HTTP-15 Gated payment routes: proposed allocations and refund gate
+
+- POST /payments/{payment_id}/allocations: the sum must equal the payment (422
+  allocation_sum_mismatch, ARC-I-029). A set of operating bills only, each named once, is
+  proposed directly (200, allocation state `proposed`) through a new `payment.Proposals`
+  port; the route declares `payment.allocation=proposed` and never
+  `payment.allocation=applied`. Unapplied money (client credit) or a trust_ledger row opens
+  billing.payment_allocation (202). The payment version is 1, as GET reports it.
+- POST /payments/{payment_id}/refunds opens billing.refund (202) with payee = the payment's
+  payer of record and reason = reason_code; an amount above the payment answers 409
+  refund_exceeds_payment. The billing.refund effect (provider call keyed <gate_id>:<version>)
+  and its registration are not built yet: an approved refund pays nothing until they are.
+- Boot must wire `payment.Gated` (DB, Gates, Proposals and the HTTP dependencies); until it
+  does, both routes answer 503.
+
+## PG-WRITES-FIX
+
+- Additive: migration `5505_withdrawal_gate.sql` adds nullable `trust.withdrawal_request.gate_id`
+  (5504 is taken by another task branch). The request route stores the opened gate in the same tx;
+  cancel withdraws that gate; only the preparer (the user, or the user an agent acts for) may cancel.
+- Additive: `withdraw.Cancels` gains `RecordGate`, and `withdraw.Row` gains `GateID` (not contract files).
+- Open: no Postgres `withdraw.FeeBills` adapter exists yet (billing owns the bill balance), so
+  `Effect.Bills` is unwired at boot and every fee withdrawal fails closed at authorization.
+- Open: the route opens `billing.trust_fee_withdrawal` for a bill withdrawal, but that kind has no
+  effect wired (boot/unwired_gates.txt) and execution reads only `trust.withdrawal` approvals.
+- Open: `PGService.Request` opens no gate, so the agent tool's `w.GateID == ""` check refuses every
+  agent withdrawal on Postgres until the gate is opened in the service path.
 
 ## Q-BOOT-REST-2a payment.Gated, refund stores, WO-FIX close path, fee withdrawals
 
@@ -2843,6 +2950,59 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   `identity.portal_submission` (no portal identity-evidence write point exists) and
   `party.organization_client_created` (no write point turns an organization into a client;
   `party.ClientOfLead` only reads); draft_document `subject_ref`.
+
+## Q-EVENTS-WIRE-2 Routes for the evidence write points, draft subject_ref, wall and intake/party publishers
+
+- Additive openapi paths (kernel/contract/additive.txt): `POST /deadlines/{deadline_id}/trigger`
+  (PGBook.ChangeTrigger, `deadlines.edit`), `POST /filings/{filing_id}/issue` (IssueClaim),
+  `POST /filings/affidavits-of-service` (RecordAffidavitOfService) and
+  `POST /emails/{comm_item_id}/filings` (FileEmail), the last three on `documents.edit`. Each
+  POST needs Idempotency-Key and answers problem+json. Module placeholders answer 503
+  (`deadlines.Register` joins app/legal/modules.go; comms adds `registerFilingRoutes`); boot
+  mounts the wired handlers from `HTTPPorts.Events`, built on the kernel DB and emitter.
+  The trigger and issue routes check the capability firm-wide: the matter is only known after
+  the store reads the row. The affidavit and email routes also check the body's matter, so a
+  walled matter is 404.
+- `draft_document` gains optional `subject_ref` (string, max 200) in spec/eng/a2-interfaces.json
+  and agent/schemas/tools.json; it is kept in the draft's scope JSON. The F-CON-03 prompt sets it
+  to the conflict run ref.
+- `matter.PGWallStore` implements roles.WallStore and roles.WalledStore on matter.ethical_wall*;
+  boot builds `roles.NewWallResolver(...).WithEvents(...)` (RestServices.Walls). The kernel
+  emitter needs a tx and the wall check has none, so boot wraps it in `ownTxEmitter`, which
+  opens its own tx when given nil.
+- `party.organization_client_created`: party.Store.Create publishes it in the insert tx when
+  the contact is an organization client (Store.Events, set at boot). `identity.portal_submission`:
+  intake.Leads.Submit publishes it once per new lead (Leads.Events; a repeated key publishes
+  nothing). Leads has no tx, so boot hands it the own-tx emitter (RestServices.LeadEvents); boot
+  does not build Leads yet (no Postgres FormStore/LeadStore).
+- Outside the listed files: app/legal/register_test.go (module count 36 -> 37 for deadlines),
+  the F-CON-03 ok fixture prompt_hash and the regenerated plugin skill (prompt change).
+
+## Q-EVENTS-WIRE-3 Matter-level checks on the evidence routes, intake leads at boot, matter publishers
+
+- Matter-level access: `POST /deadlines/{deadline_id}/trigger` reads the deadline
+  (`TriggerChanger.Get`, PGBook.Get) and checks `deadlines.edit` on its subject;
+  `POST /filings/{filing_id}/issue` reads the filing's matter (`FilingWrites.MatterOfFiling`,
+  new `FilingStore.MatterOfFiling`) and checks `documents.edit` on it. A walled matter answers
+  404, a missing capability 403, as the affidavit and email routes already did. Table tests
+  cover a walled user, a user without the capability and an allowed user on all four routes.
+  The interface additions are additive (one new method each).
+- Intake leads: `RestPorts.Leads` (`LeadPorts{Forms, Leads}`) makes boot build `intake.Leads`
+  on the event-emitting contact store, publishing identity.portal_submission through
+  `RestServices.LeadEvents` (`RestServices.Leads`). No Postgres FormStore/LeadStore exists and
+  intake.lead has no idempotency key column, so the stores come from the caller (as
+  RefundPorts does). Open: a Postgres LeadStore needs an additive migration for the key.
+- matter.opened / matter.stage_changed: no Postgres write point opened a matter or changed its
+  stage (Lifecycle.Transition and StageList.Move only compute). Added minimal ones:
+  `matter.Store.Open` (pending -> open, open_date) and `matter.Store.ChangeStage` (moves
+  stage_id and appends matter.stage_change in one statement), each emitting in its tx through
+  `Store.Events`. Nothing calls them yet: the matter.opening gate effect and a stage route
+  should; boot does not yet set `Store.Events`.
+- Not done (time): document.revision_requested (docs has no revision request write point),
+  court_form.changed (no court form store in app/legal or kernel) and email.received (comms
+  has no inbound write point). None of the three is in spec/eng/a2-interfaces.json; each
+  needs its write point and catalog entry decided first.
+
 ## Q-TAX-API (task MATTER-TAX-API) Matter court and property provinces and firm tax registrations over the API
 
 Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive only:
@@ -2908,16 +3068,6 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   and the acting user (`conflict.ErrPreparerApproves`, the G2 self-approval refusal; kernel
   `gate.ErrSelfApproval` does not apply) are refused with 403. `submit_for_approval` cannot open
   conflict.clearance on a run: the run scope only records drafts, not proposals.
-
-## Q-FEAT-CORE-15 Read and trust withdrawal handlers join the explicit handler set
-
-- `handlerset.go` `Handlers()` lists four more handlers (search_matters, get_matter,
-  read_document, prepare_trust_withdrawal) so the set covers all 25 a2 tools;
-  `handlerset_test.go` lists them too. The handlers live in `handlers.go`.
-- prepare_trust_withdrawal builds from the `*agent.WriteTools` boot passes in Deps, so the
-  run it parks is the one that WriteTools resumes on gate.decided.
-- `agenttest/seed.go`: `SeedStore.Document` implements `agent.DocumentLookup`, so
-  read_document runs its real handler in feature tests instead of a stand-in.
 
 ## Q-FEAT-CON-07 Conflict features F-CON-07 to F-CON-09 on top of FEAT-CORE-15
 
@@ -2986,6 +3136,59 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   `agenttest/quoted_test.go` covers both shapes and the refusals.
 - F-DOC-02 binds both `conflict.cleared` and `lead.converted` (the spec trigger names G2 and
   G1); the prompt has the agent draft only when the matter shows both done.
+
+## Q-EVENTS-WIRE-4 Intake Postgres stores, matter opening effect, five new events
+
+- Merge of origin/main: boot gained the `DeadlineGet` agent port (propose_deadline needs
+  `agent.DeadlineGetter`), `JobBindings` binds every job feature merged from main, and
+  `actionScreens` lists their screens. F-DOC-06 binds weekly plus `court_form.changed`.
+- Intake: `intake.PGForms` and `intake.PGLeads` (additive migrations 5300/5301: nullable
+  `intake.lead.idempotency_key`, unique on (form_id, key) built concurrently). Boot always
+  builds `intake.Leads` on them; `RestPorts.Leads` only overrides the stores.
+- matter.opened: `matter.Store.OpeningEffect` applies a `matter.opening` gate whose payload is
+  the PATCH status=open shape (pending -> open in the gate tx); boot wires it with the rest
+  effects on a `matter.Store` whose `Events` is the kernel emitter (`EventStores.Matters`). The
+  POST /matters create shape is refused by the effect (no create-and-open write point yet), so
+  `matter.opening` stays in unwired_gates.txt for the base effect set. matter.stage_changed:
+  `Store.ChangeStage` is the write point; no stage route exists yet to call it.
+- New a2 events, added additively to spec/eng/a2-interfaces.json, each with a write point
+  that emits in its own tx: `document.revision_requested` (`docs.Revisions.Request`, document
+  back to draft), `court_form.changed` (`docs.CourtForms.Record`, new docs.court_form version),
+  `email.received` (`comms.Inbound.Receive`, inbound comm_item, redelivery publishes nothing),
+  `matter.note_added` (`matter.Store.AddNote`, matter.note row), `calendar_event.added`
+  (`deadlines.CalendarEvents.Add`). Payloads carry ids only, never text. Boot builds each on the
+  kernel emitter (`EventStores`). Open: no HTTP route calls them yet.
+- F-CON-04 ok fixture rehashed: the merged branch tool schemas change its prompt hash; prompt text unchanged.
+
+## Q-EVENTS-WIRE-5 Routes for the EVENTS-WIRE-4 write points, matter.opening creates and opens
+
+- Additive openapi paths (api/contract-additive.txt), each POST with Idempotency-Key and
+  problem+json, placeholder 503 until boot wires it (`HTTPPorts.Events`):
+  `POST /matters/{matter_id}/stage` (`matter.Store.ChangeStage`, matter.stage_changed),
+  `POST /matters/{matter_id}/notes` (`AddNote`, matter.note_added; the body is a `body_ref`,
+  never text), both on `matters.edit`; `POST /documents/{document_id}/revision-requests`
+  (`docs.Revisions.Request`, `documents.edit`); `POST /court-forms` (`docs.CourtForms.Record`,
+  `documents.templates`, firm-wide); `POST /emails/inbound` (`comms.Inbound.Receive`,
+  `comms.comm_item`, firm-wide: an inbound email has no matter until filed);
+  `POST /calendar-events` (`deadlines.CalendarEvents.Add`, `deadlines.edit`).
+- Matter-scoped routes (stage, notes, revision on a matter document, calendar event with a
+  matter_id) check the capability firm-wide and then on the matter, as the EVENTS-WIRE-3 routes
+  do: a walled matter answers 404, a missing capability 403. The shared flow is the new
+  `app/legal/eventroute` package; the revision route reads the document's matter through the new
+  `docs.Revisions.MatterOf`.
+- The stage route is a person's direct move (approved_by is the acting user; an agent run is
+  403). It does not open `matter.stage_move`; that gate's effect stays unwired. Open: whether a
+  direct move should instead always go through `matter.stage_move`.
+- matter.opening: POST /matters now requires `number`, chooses the new matter's id and puts
+  `matter_id` and `practice_area` on the gate payload (the spec gate schema requires them, with
+  `responsible_lawyer_id`); PATCH status=open adds `responsible_lawyer_id` and `practice_area`.
+  `OpeningEffect` applies either shape in the gate tx: a status change opens the pending matter,
+  the create shape inserts the matter already open. Both publish matter.opened. The effect
+  refuses a gate with no approver, an agent approver, or an approver who is the preparer (or the
+  user an agent run prepared it for). `matter.opening` leaves unwired_gates.txt; its effect is
+  registered whenever boot has the kernel DB, emitter and clock (the unwired test kernel now has
+  an emitter).
+
 ## Q-FEAT-DOC-02 F-DOC-01 drafts its filing review: draft_document added to the Def and spec
 
 - FEAT-DOC-02 asks that the tool-gap kind docs.filing_privilege (G-D1) be opened "via
@@ -3361,3 +3564,837 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   write citing an unbilled amount is refused as unsourced. The bilc test helpers record every
   read tool's figures in the driver's Provenance. Proposed: wrap `list_unbilled` like
   get_bill.
+## Q-FEAT-INT-02 F-INT-01 triage new lead: write path and trigger
+
+- The trigger stays as FEAT-INT-01 bound it: `lead.created` only, since a received submission
+  creates its lead. Note that intake does not publish `lead.created` yet; a portal submission
+  publishes `identity.portal_submission` (EVENTS-WIRE-2/3), which starts F-CON-07. The
+  EVENTS-WIRE follow-up should publish `lead.created` for every new lead, or F-INT-01 never
+  starts.
+- Lead passages are not filed documents, so the triage card keeps its citations (version,
+  page, lines) in the draft body rather than in draft_document's `citations`, whose a2 schema
+  needs a document uuid and a quote hash.
+- The end-to-end tests use `app/legal/intake/ai_intb_helpers_test.go` (prefix `intb`), shared
+  byte-for-byte with FEAT-INT-03 and FEAT-INT-04.
+
+## Q-FEAT-INT-03 F-INT-02 intake mailbox watcher: event, gate kind and boot wiring
+
+- "mail.received on the intake address" binds `email.received` (`intake.EventEmailReceived`),
+  the same event F-DOC-08 proposes (`docs.EventEmailReceived`, Q-FEAT-DOC-09). No mailbox
+  connector publishes it yet, and the event carries no recipient address, so the prompt tells
+  the run to draft nothing for mail not sent to the intake address.
+- The Def names `intake.lead_decision` as a literal: FEAT-INT-01 (in flight) owns the F-INT-01
+  gate constant, and a second exported constant would clash at merge.
+- Registering the Def in featureset makes boot's TestJobBindings and
+  TestActionScreensCoverFeatures need it, so this task also adds its binding to
+  `boot.JobBindings` and the `phone-and-email-capture` screen (subject `intake.lead`,
+  capability `intake.leads`) to `actionScreens`.
+  byte-for-byte with FEAT-INT-02 and FEAT-INT-04. F-INT-02 is an extraction Def, so it gets no
+  plugin skill.
+
+## Q-FEAT-INT-04 F-INT-03 missing-info chaser: event, gate kind and boot wiring
+
+- "lead awaiting info" binds `intake.lead_awaiting_info` (`intake.EventLeadAwaitingInfo`,
+  proposed; named like `intake.lead_ready_to_open`). a2 lists no such event and intake does
+  not publish it yet (EVENTS-WIRE follow-up: publish it when a lead is set to wait on the
+  prospective client). "schedule" is daily, bound with trigger.BindDesignated, so scheduled
+  runs act for the designated lawyer in firm settings.
+- The Def names `platform.skill_autonomy` as a literal; no Go constant for it exists yet.
+  `boot.JobBindings` and the `lead-detail` screen (subject `intake.lead`, capability
+  `intake.leads`) to `actionScreens`.
+  byte-for-byte with FEAT-INT-02 and FEAT-INT-03.
+
+## Q-FEAT-INT-06 F-INT-06 drafts its consult note: draft_document added to the Def and spec
+
+- FEAT-INT-06 asks for gate intake.consult_outcome (G3) pending after a run whose first write
+  is draft_note. draft_note always opens matter.agent_note (G-NT) on its own note, and that
+  note is not a run draft, so submit_for_approval cannot open G3 on it. A consultation is on a
+  lead, not yet a matter, so G-NT is not the outcome gate either.
+- As decided for F-DL-02 (Q-FEAT-DL-04) and F-DOC-01 (Q-FEAT-DOC-02), draft_document is added
+  to F-INT-06 in spec/ai/features.json and in ConsultNoteDef, and intake.consult_outcome is
+  listed as a tool-gap kind (F-INT-06 tool_gap and tool_gaps.kinds; the kind count in
+  kernel/agenttools/scope_test.go goes from 38 to 39). The run drafts the note
+  with draft_document and opens G3 with submit_for_approval. draft_note stays in the Def as
+  the spec lists it; the prompt tells the model not to use it. F-INT-15 has the same shape.
+- Open: draft_note opens matter.agent_note through the plain GateOpener, not
+  agenttools.ScopedOpener, so an agent run whose feature does not declare matter.agent_note
+  (F-INT-06, F-INT-15, F-PLT-04) can still open it (ARC-I-035). Wrapping it in ScopedOpener
+  is a one-line change to app/legal/agent/tools_draft_note.go, left to its owner.
+- Events: consultation.ended and consultation.dictation_uploaded. The consult-outcome screen
+  selects the consultation and needs intake.convert, the G3 approver capability.
+
+## Q-FEAT-INT-08 F-INT-10 AI receptionist: event, gate kind const and boot wiring
+
+- No event for an inbound call or chat exists on main or a pushed branch. F-INT-10 binds
+  `receptionist_conversation.started`, named after a2's `intake.receptionist_conversation`
+  row it starts with (intake.EventReceptionistConversationStarted).
+- `intake.lead_decision` is written as a literal in the Def: FEAT-INT-01 and FEAT-INT-05 both
+  add `intake.GateLeadDecision` on unmerged branches, so a third copy is not declared here.
+  Once one lands, the Def can use it.
+- Boot must bind every job feature and map every action screen (TestJobBindings,
+  TestActionScreensCoverFeatures), so `app/legal/boot/agent.go` gains the F-INT-10 binding and
+  the `ai-receptionist` screen (subject `intake.lead`, capability `intake.leads`, as the other
+  intake screens).
+
+## Q-FEAT-INT-09 F-INT-12 draft form from description: screen and draft target
+
+- Boot maps every action screen (TestActionScreensCoverFeatures), so `app/legal/boot/agent.go`
+  gains `intake-form-builder` (subject `intake.intake_form`, capability `intake.forms`).
+- draft_document needs a matter_id and a form has none; the prompt has the agent draft on the
+  matter the screen context names. A form-draft tool would remove that indirection.
+- `intake.GatePublicWording` is new: no branch on main or pushed declares `intake.public_wording`.
+
+
+## Q-EVENTS-WIRE-2 Routes for the evidence write points, draft subject_ref, wall and intake/party publishers
+
+- Additive openapi paths (kernel/contract/additive.txt): `POST /deadlines/{deadline_id}/trigger`
+  (PGBook.ChangeTrigger, `deadlines.edit`), `POST /filings/{filing_id}/issue` (IssueClaim),
+  `POST /filings/affidavits-of-service` (RecordAffidavitOfService) and
+  `POST /emails/{comm_item_id}/filings` (FileEmail), the last three on `documents.edit`. Each
+  POST needs Idempotency-Key and answers problem+json. Module placeholders answer 503
+  (`deadlines.Register` joins app/legal/modules.go; comms adds `registerFilingRoutes`); boot
+  mounts the wired handlers from `HTTPPorts.Events`, built on the kernel DB and emitter.
+  The trigger and issue routes check the capability firm-wide: the matter is only known after
+  the store reads the row. The affidavit and email routes also check the body's matter, so a
+  walled matter is 404.
+- `draft_document` gains optional `subject_ref` (string, max 200) in spec/eng/a2-interfaces.json
+  and agent/schemas/tools.json; it is kept in the draft's scope JSON. The F-CON-03 prompt sets it
+  to the conflict run ref.
+- `matter.PGWallStore` implements roles.WallStore and roles.WalledStore on matter.ethical_wall*;
+  boot builds `roles.NewWallResolver(...).WithEvents(...)` (RestServices.Walls). The kernel
+  emitter needs a tx and the wall check has none, so boot wraps it in `ownTxEmitter`, which
+  opens its own tx when given nil.
+- `party.organization_client_created`: party.Store.Create publishes it in the insert tx when
+  the contact is an organization client (Store.Events, set at boot). `identity.portal_submission`:
+  intake.Leads.Submit publishes it once per new lead (Leads.Events; a repeated key publishes
+  nothing). Leads has no tx, so boot hands it the own-tx emitter (RestServices.LeadEvents); boot
+  does not build Leads yet (no Postgres FormStore/LeadStore).
+- Outside the listed files: app/legal/register_test.go (module count 36 -> 37 for deadlines),
+  the F-CON-03 ok fixture prompt_hash and the regenerated plugin skill (prompt change).
+
+## Q-FORM-SUBJECT F-INT-12 drafts public form wording on the firm subject
+
+Decided as counsel: an intake form is firm-level, so F-INT-12 must not borrow a matter.
+- draft_document accepts a firm draft: no `matter_id` and `subject_ref` `"firm"`
+  (`agent.SubjectFirm`). It is stored only when the acting user holds `intake.forms`
+  (`agent.CapIntakeForms`) and, for an agent run, the run's grant names it; else
+  `ErrForbidden`. A firm subject with a matter, or no matter without the firm subject, is
+  `ErrInvalidInput`. F-INT-12's Def grant gains `intake.forms`.
+- Contract change, loosening only: `matter_id` is no longer in draft_document's `required`
+  (`spec/eng/a2-interfaces.json`, `app/legal/agent/schemas/tools.json`); the handler still
+  requires it for every draft that is not a firm draft.
+- Migration `5802_draft_firm_subject.sql` drops NOT NULL on `docs.draft.matter_id`.
+  `PGDocumentDrafts` stores a firm draft with a null matter, and the submit lookup returns
+  `""` for it, so submit_for_approval checks no wall.
+- Merged `task/EVENTS-WIRE-2` (the subject_ref field) into this branch, which is based on
+  `task/FEAT-INT-09`. The register module count is 39 after the merge.
+- Loosening the draft_document schema changes the prompt hash of every tool-use Def that
+  offers it; the pinned `ok.yaml` prompt hashes of F-CON-03 and F-CON-04 are rehashed.
+
+## Q-FEAT-INT-10 F-INT-14 engagement letter draft: gate kind and screen
+
+- F-INT-14 reuses `docs.GateEngagementLetter` (G5, F-DOC-02): intake hands the letter to the
+  engagement area, which owns the kind.
+  gains `consult-outcome` (subject `intake.lead`, capability `intake.convert`).
+
+## Q-INTEG-17B-INTAKE pass 17b intake integration choices
+
+- One gate const per kind: `intake.GateLeadDecision` lives in ai_f_int_01.go; the copies
+  FEAT-INT-05 (F-INT-04) and later branches brought are removed.
+- Intake screens select the lead, `intake.SubjectLead` ("intake.lead"). FEAT-INT-05/06/07
+  mapped `lead-conversion` to "lead" and `consult-outcome` to "consultation", neither a
+  registered subject; both now use "intake.lead" like the other intake screens. Open: if
+  the consult module gains its own subject, `consult-outcome` should move to it.
+- Screen keys added by two branches (`consult-outcome`, `ai-receptionist`,
+  `intake-automations`) keep one entry.
+## Q-FEAT-INT-11 F-INT-15 non-engagement letter: draft_note cannot open intake.consult_outcome (decided)
+
+The spec has F-INT-15 (and F-INT-06) open `intake.consult_outcome` (G3) through `draft_note`,
+with no tool gap. The real `draft_note` handler cannot do that:
+
+- It always opens `matter.agent_note` (`agent.GateAgentNote`), whatever the feature declares.
+- It opens through the raw `GateOpener`, not `agenttools.ScopedOpener`, so an agent run opens
+  `matter.agent_note` even when its run scope does not declare it (every other gate-opening
+  write tool is scoped; ARC-I-035). In the F-INT-15 run the note draft is also stored before
+  the gate open fails.
+- `draft_note` returns a gate, not a draft, so `submit_for_approval` cannot open G3 on it.
+- The G3 payload schema is a lead decision (`lead_id`, `outcome`, optional `limitation_date`),
+  not a note (`matter_id`, `body_markdown`), so opening G3 with the note payload would fail the
+  real gate kind.
+
+Proposal: (a) wrap `draft_note`'s opener in `ScopedOpener` (a fix, independent of F-INT-15);
+(b) decide how a consult letter reaches G3: either draft_note returns a draft (outcome
+`draft`) when the run scope does not declare `matter.agent_note`, so `submit_for_approval`
+opens G3 with a lead-decision payload, or add `intake.consult_outcome` to `tool_gaps` and give
+F-INT-06/15 `draft_document`. Until then this branch ships the Def, prompt and the spec, prompt
+and screen-action tests; the FromFeature and injection tests are written in full and skip on
+this question. The Def is not added to featureset or the boot screen map, so no live route
+runs a feature that cannot finish; add `intake.NonEngagementLetterDef()` there and the
+`consult-outcome` screen (subject `intake.lead`, capability `intake.leads`) once answered.
+
+Decided (INT-11-FIX): a non-engagement letter is a risk-management record, so it goes to G3
+the same way as F-INT-06 (Q-FEAT-INT-06) and F-DL-02 (Q-FEAT-DL-04):
+
+- draft_document is added to F-INT-15 in spec/ai/features.json and in
+  NonEngagementLetterDef (Grant `documents.edit`), and F-INT-15 lists `intake.consult_outcome`
+  as its tool gap (the kind is already in tool_gaps.kinds from Q-FEAT-INT-06). The run drafts
+  the letter with draft_document and opens G3 with submit_for_approval; draft_note stays in the
+  Def as the spec lists it and the prompt tells the model not to use it.
+- The G3 payload schema (app/legal/gates/kinds.json and spec/gates.json) gains an optional
+  `draft_id` (uuid), additively: the payload is `{lead_id, outcome, draft_id}`, where
+  `draft_id` names the drafted letter or note the lawyer approves. Existing payloads stay valid.
+- The FromFeature and injection tests run unskipped. The Def is in featureset; the
+  consult-outcome screen is the one F-INT-06 registered in boot.
+- The draft_note scoped-opener fix is SCOPE-FIX's.
+
+## Q-FEAT-INT-12 F-INT-17 draft sequence: screen subject and shared helpers
+
+- `intake-automations` is a firm-level settings screen; with no firm subject kind on main
+  (BOOT-24 adds `boot.FirmSubject`, unmerged), it maps to subject `matter` (the matter the
+  draft is filed on, which `draft_document` needs) with capability `intake.forms`. Move it to
+  `FirmSubject` when BOOT-24 lands.
+- `platform.skill_autonomy` is a literal in the Def: no exported constant exists on main or the
+  pushed branches. The end-to-end tests use `app/legal/intake/ai_inte_helpers_test.go` (prefix
+  `inte`), shared byte-for-byte with FEAT-INT-11 and FEAT-INT-13.
+
+## Q-FEAT-INT-13 F-INT-19 receptionist criteria: screen subject and shared helpers
+
+- `ai-receptionist` is a firm-level settings screen; with no firm subject kind on main
+  draft is filed on, which `draft_document` needs) with capability `intake.forms` (a kernel
+  `platform.*` capability is refused in app wiring by TestAppIDsAvoidKernelPrefix). Move it to `FirmSubject` when BOOT-24 lands.
+- The firm website text reaches the run only as the quoted request; there is no web-fetch tool
+  in the Def, so the prompt drafts only from what was quoted.
+- `platform.skill_autonomy` is a literal in the Def. The end-to-end tests use
+  `app/legal/intake/ai_inte_helpers_test.go` (prefix `inte`), shared byte-for-byte with
+  FEAT-INT-11 and FEAT-INT-12.
+
+## Q-FEAT-INT-16 F-INT-07 pipeline follow-ups: acting user and boot wiring
+
+- The hourly run acts for the feature's designated lawyer (`trigger.BindDesignated`,
+  JOB-ACTOR), never RuleAdmin; with no lawyer named it does not start.
+- search_contacts and search_matters return no document citations, so the digest cites the
+  contact records search_contacts returned (`contact:<id>`, page 1, line 1), which
+  `run.CheckAnswer` accepts as citations of this run.
+- Registering the Def in featureset makes boot's TestJobBindings need it, so this task adds
+  its binding to `boot.JobBindings`. The end-to-end tests use
+  `app/legal/intake/ai_intg_helpers_test.go` (prefix `intg`), shared with FEAT-INT-17 and
+  FEAT-INT-18. F-INT-07 is a chat Def, so it gets no plugin skill.
+
+## Q-FEAT-INT-17 F-INT-09 weekly intake digest: schedule and screen
+
+- "Monday 08:00 America/Toronto" binds the weekly cadence (the first business day of the
+  week; `trigger.ParseCadence` reads "monday"). The tick has no hour of day, so the run starts
+  at the first tick of that day. The run acts for the feature's designated lawyer
+  (`trigger.BindDesignated`, JOB-ACTOR).
+- The `intake-dashboard` screen is added to `actionScreens` with subject `intake.lead` and
+  capability `intake.leads`, the same as the other intake screens. The digest is firm-wide;
+  if firm-level screens move to a firm subject (as decided for conflict-search-settings), this
+  entry moves with them.
+
+## Q-FEAT-INT-18 F-INT-20 map answers to lead: output shape
+
+- F-INT-20 is an extraction Def with no OutputSchema: the screen-action route runs a
+  non-tool-use feature inline and checks its answer against `run.AnswerSchema` with
+  `run.CheckAnswer`, so the ranked rows and flag rows travel as the answer text, each row
+  cited to a contact record the run's search_contacts returned. A per-row extraction schema
+  would need the route to accept it (`run.Extract`); not done here.
+- The `intake-questionnaire-send` screen is added to `actionScreens` with subject
+  `intake.lead` and capability `intake.leads`. F-INT-20 is an extraction Def, so it gets no
+  rule admin; open: switch CourtFormCurrencyBinding to BindDesignated. F-MAT-12 had no
+  binding; boot binds it to document.uploaded and email.filed for the event's user.
+
+## Q-FEAT-WRK-01 F-WRK-01 events, the work-item screen and create_task's due date
+
+- Task: FEAT-WRK-01 (F-WRK-01 Pick up agent-ready items).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs), `app/legal/boot/agent.go` (the job binding and the `work-item` screen),
+  `app/legal/work/ai_wrk_helpers_test.go` (shared wrk test helpers) and the generated skill
+  `paploo/counsel-plugin/skills/f-wrk-01-pick-up-agent-ready-items/SKILL.md`.
+- No work event exists in spec/eng/a2-interfaces.json for "item enters Agent-ready" or
+  "assigned to agent". The Def binds `work.item_agent_ready` and `work.item_assigned_to_agent`
+  (consts in app/legal/work); nothing publishes them yet. Confirm the names when kernel/work
+  publishes item events.
+- The `work-item` action screen selects subject kind `work_item` with `work.edit`; no
+  registry constant names that kind yet.
+- `create_task`'s `due_on` is not held to the run's provenance in production (only
+  propose_deadline, draft_bill and payment allocation use `SourcedWrite`). The wrk tests wrap
+  create_task with `SourcedWrite("/due_on")` and check an unread date is refused with
+  `ErrUnsourcedValue`. Proposed: wrap create_task the same way in
+  `app/legal/agent/tools_task.go`. Note that none of the F-WRK tools returns a bare
+  `YYYY-MM-DD` value (list_work_items gives RFC 3339 `due_at`), so once wrapped an agent can
+  write no due date until a read tool returns one.
+
+## Q-FEAT-WRK-07 F-WRK-11 base branch, the work-item-create screen and its skill
+
+- Task: FEAT-WRK-07 (F-WRK-11 Create from email / call note).
+- Based on `task/FEAT-WRK-01` (not yet on main) to reuse `work.GateWorkOutput` and the wrk
+  test helpers; `origin/main` is merged in.
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs), `app/legal/boot/agent.go` (the `work-item-create` action screen) and
+  `app/legal/work/ai_wrkc_helpers_test.go` (shared wrkc test helpers).
+- `work-item-create` selects subject kind `matter` with `work.edit`: the drafted items go on
+  that matter. F-WRK-11 is an extraction feature, so no plugin skill is generated for it.
+
+## FEAT-TIM-01 Rebuild day: per-user end-of-day run and sourced time entries
+
+- F-TIM-01 runs "end of day per user", but a `trigger.Binding` acts for one user. Boot binds
+  the end-of-day run to the rule admin (`scheduled(tk.RebuildDayBinding)`) and the my-time,
+  suggested-entries and activity-ledger actions (matter subject, `time.record`) cover each
+  user's own runs. Open: a per-user schedule (one slot per timekeeper) in agent/trigger.
+- `propose_time_entries` is not a `Provenance.SourcedWrite` in production, so an invented
+  work date or minute count is not refused at boot. The F-TIM-01 feature test wraps it with
+  `SourcedWrite("/entries/*/work_date", "/entries/*/minutes")` and checks ErrUnsourcedValue.
+  Proposed (FEAT-TOOL-14 owner): declare those pointers in `buildProposeTimeEntries`; F-MAT-07
+  reads its minutes from quoted transcript text, so it would need a structured source first.
+- `app/legal/agent` imports `app/legal/timekeeping`, so the Def spells out its tool names and
+  the gate kind (`agent.GateTimeAccept`) as strings.
+
+## TIME-FIX Sourced time entries in production and per-user end-of-day runs
+
+Done (decision TIME-FIX; LSO RPC 3.6-1: fees fair and accurate). Resolves the two open items
+of FEAT-TIM-01 above.
+
+- `buildProposeTimeEntries` now wraps the tool in `Provenance.SourcedWrite("/entries/*/work_date",
+  "/entries/*/minutes")`; it reads `*agenttools.Provenance` from Deps. `Provenance.Observe`
+  also records the dates and numbers written in the "text" strings of an untrusted envelope
+  (a Quoted value, a read_document page line), so F-MAT-07 minutes from transcript quotes
+  stay sourced. Values only are kept, never the text.
+- `boot.AgentTools` wraps every handler read tool with the shared `Provenance.ReadTool`, so
+  production read results record their values (before, only get_bill and the trust balance
+  tool did).
+- `trigger.BindPerUser` and `Bindings.WithUsers(ActiveUsers)`: each slot enqueues one run per
+  active user, acting for that user, unique by `RunArgs.ForUser` (new, additive). A run whose
+  ForUser differs from ActingFor is refused (`ErrCrossUser`). F-TIM-01 uses it instead of the
+  rule admin. With no user source the binding is unready (`no_user_source`).
+- Open: wire `AgentWiring.Timekeepers` to a store query of active timekeepers (users holding
+  `time.record`, not disabled); until then F-TIM-01's end-of-day run does not start and the
+  screen actions cover on-request runs.
+
+## Q-FEAT-TIM-02 F-TIM-02 receipt capture: trigger events and shared helpers
+
+- No receipt event exists. "receipt email or upload" binds the existing `document.uploaded`
+  and `email.filed` events (the strings the documents and comms modules publish); the prompt
+  has the agent draft nothing unless the file is a receipt. A dedicated receipt event, if one
+  is added, replaces them.
+- The `expenses` screen maps to subject `matter` with capability `time.record`.
+- `draft_document` takes free-text markdown, so the expense amounts carry no provenance
+  pointer; the prompt has the agent copy only values on the receipt or in a tool result.
+- The end-to-end tests use `app/legal/timekeeping/ai_timb_helpers_test.go` (prefix `timb`),
+  shared with FEAT-TIM-03 and FEAT-TIM-04. It prices the Seed's time entries for
+  `list_unbilled` (the Seed has no `agent.MatterTime`).
+
+## Q-FEAT-TIM-03 F-TIM-03 pre-bill check: trigger event and acting user
+
+- No bill-draft-requested event exists on main. F-TIM-03 names `bill.draft_requested`
+  (`timekeeping.EventBillDraftRequested`); billing must publish it when a user asks for a
+  draft bill, or the event half never fires. The monthly half runs today.
+- The monthly run has no designated lawyer, so boot binds it for `ruleAdmin` like the other
+  scheduled features (Q-INTEG-15A-SCHEDULED).
+- `matter-wip` and `write-downs` map to subject `matter` with capability `billing.view`
+  (what `list_unbilled` needs).
+
+## Q-FEAT-TIM-04 F-TIM-04 timesheet pre-review: trigger event
+
+- No week-submitted event exists on main. F-TIM-04 names `timesheet.week_submitted`
+  (`timekeeping.EventTimesheetWeekSubmitted`); timekeeping must publish it when a week is
+  submitted for G9c, or the feature never fires. It has no screen action (spec `on_request`
+  is empty).
+- F-TIM-03's monthly run and F-DOC-09's daily run bind with `trigger.BindDesignated`: they act
+  for the feature's designated lawyer in firm settings, never the rule admin. Their Binding
+  funcs take no acting user; with no designated lawyer the feature is unready.
+
+## Q-FEAT-TIM-05 F-TIM-05 trigger event, screen subject and value provenance
+
+- No module publishes an engagement-letter-signed event yet; F-TIM-05 binds
+  `engagement_letter.signed` (timekeeping.EventEngagementLetterSigned). The documents module
+  publishes it when a letter reaches status signed.
+- The matter-fee-arrangement screen selects the matter (a fee arrangement belongs to one
+  matter), capability billing.view, in boot actionScreens.
+- draft_document declares no provenance fields on main, so the rates and amounts in the
+  drafted arrangement are not checked against the run's reads (ErrUnsourcedValue does not
+  apply). The prompt forbids invented amounts and a lawyer approves G9e before the
+  arrangement prices any time.
+- The Seed has no time ports: the feature tests add a timekeeping fake and an
+  agent.MatterTime over it (ai_timc_helpers_test.go), so list_unbilled runs its real handler.
+
+## Q-FEAT-TIM-06 F-TIM-06 trigger event
+
+- No module publishes a rate-change-drafted event yet; F-TIM-06 binds `rate_change.drafted`
+  (timekeeping.EventRateChangeDrafted). The rates module publishes it when a rate change is
+  drafted, before its effective date.
+- The letters go through docs.outgoing (G8), reusing docs.GateOutgoing. draft_document checks
+  no provenance on main, so the rates in a letter are not checked against the run's reads; the
+  prompt forbids invented values and a lawyer approves each letter before it is sent.
+
+## Q-FEAT-TIM-07 F-TIM-07 screen subject and value provenance
+
+- The time-entry-detail screen maps to subject kind matter with time.record in boot
+  actionScreens: no time-entry subject kind is registered, and the timekeeping HTTP routes
+  check access on the entry's matter as well.
+- propose_time_entries declares no provenance fields on main. F-TIM-07's prompt keeps the
+  selected entry's work date and minutes, and the feature test checks the suggestion carries
+  exactly the values list_unbilled returned. Wrapping the tool with
+  Provenance.SourcedWrite("/entries/*/minutes", "/entries/*/work_date") would break F-TIM-01,
+  whose proposals come from activity signals, so it is left to a tool-level decision.
+- The gate kind is spelled "timekeeping.accept" in the Def (as in F-TIM-01) because
+  app/legal/agent, which owns GateTimeAccept, imports this package.
+
+## Q-FEAT-TIM-08-SCREENS Timekeeping screen actions select matters
+
+- main has no `boot.FirmSubject`, so the timekeeping screens that are not about one matter
+  (activity-list, and for FEAT-TIM-09/10 utilization, activity-categories and
+  timekeeper-targets) select the matters of the rows on screen: `SubjectKind: "matter"` in
+  `app/legal/boot/agent.go` actionScreens. matter-fee-arrangement is a matter screen.
+- Capabilities: activity-list `time.record`, matter-fee-arrangement `billing.view`,
+  utilization and timekeeper-targets `reports.firm`, activity-categories `time.view_all`.
+  Switch the firm-level ones to the firm subject once boot has one.
+- The features' end-to-end tests give list_unbilled a test MatterTime port over the Seed's
+  time entries (the Seed has no MatterTime); the handler itself is the app's.
+
+## Q-FEAT-WRK-01 F-WRK-01 events, the work-item screen and create_task's due date
+
+- Task: FEAT-WRK-01 (F-WRK-01 Pick up agent-ready items).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs), `app/legal/boot/agent.go` (the job binding and the `work-item` screen),
+  `app/legal/work/ai_wrk_helpers_test.go` (shared wrk test helpers) and the generated skill
+  `paploo/counsel-plugin/skills/f-wrk-01-pick-up-agent-ready-items/SKILL.md`.
+- No work event exists in spec/eng/a2-interfaces.json for "item enters Agent-ready" or
+  "assigned to agent". The Def binds `work.item_agent_ready` and `work.item_assigned_to_agent`
+  (consts in app/legal/work); nothing publishes them yet. Confirm the names when kernel/work
+  publishes item events.
+- The `work-item` action screen selects subject kind `work_item` with `work.edit`; no
+  registry constant names that kind yet.
+- `create_task`'s `due_on` is not held to the run's provenance in production (only
+  propose_deadline, draft_bill and payment allocation use `SourcedWrite`). The wrk tests wrap
+  create_task with `SourcedWrite("/due_on")` and check an unread date is refused with
+  `ErrUnsourcedValue`. Proposed: wrap create_task the same way in
+  `app/legal/agent/tools_task.go`. Note that none of the F-WRK tools returns a bare
+  `YYYY-MM-DD` value (list_work_items gives RFC 3339 `due_at`), so once wrapped an agent can
+  write no due date until a read tool returns one.
+
+## Q-FEAT-WRK-02 create_task returns a proposal, so F-WRK-02 cannot open work.plan in the run
+
+- Task: FEAT-WRK-02 (F-WRK-02 Propose matter plan). Same gap as Q-FEAT-MAT-13 for work.plan.
+- `agent.WorkItemGateKinds` holds `work.absence` and `work.output` only, so under F-WRK-02's
+  scope (work.plan) `create_task` returns `OutcomeProposal`, the run records no draft and the
+  in-run `submit_for_approval` for `work.plan` is refused with `ErrNotFound`: the run fails
+  closed (tasks proposed, no gate). `TestFWRK02_FromFeature` pins that, then opens work.plan
+  on the proposed plan as the acting user and checks pending, the agent principal 403 and
+  `ErrSelfApproval` for the acting user.
+- work.plan's payload schema is `{matter_id, template_id}` (a matter's plan, not one item), so
+  adding it to `WorkItemGateKinds` does not fit. Proposed: let `submit_for_approval` open
+  work.plan on the matter (`subject_type: matter`) when the run created proposals on it, and
+  pass the template id the trigger carries (FEAT-TOOL-16 follow-up in
+  `app/legal/agent/tools_task.go` / `tools_submit.go`).
+- `matter.template_applied` is not in spec/eng/a2-interfaces.json; nothing publishes it yet.
+  `matter.opened` is the a2 event.
+- Files beyond the list: featureset.go and its test, boot/agent.go (the job binding), the
+  shared `ai_wrk_helpers_test.go` and the generated skill
+  `paploo/counsel-plugin/skills/f-wrk-02-propose-matter-plan/SKILL.md`.
+
+## Q-FEAT-WRK-03 F-WRK-04 date shift: work.plan in the run, and no sourced shifted date
+
+- Task: FEAT-WRK-03 (F-WRK-04 Date-shift on key date change).
+- Same work.plan gap as Q-FEAT-WRK-02: the change tasks are proposals and the in-run
+  `submit_for_approval` fails closed with `ErrNotFound`; `TestFWRK04_FromFeature` opens
+  work.plan on the change as the acting user and checks pending, 403 and `ErrSelfApproval`.
+- The Def's tools return no bare `YYYY-MM-DD` date (list_work_items gives RFC 3339 `due_at`)
+  and there is no date-shift tool, so the agent cannot source a shifted due date. The prompt
+  has it leave `due_on` out and let the lawyer set it; the tests check an invented shifted
+  date is refused with `ErrUnsourcedValue` (with create_task wrapped as in Q-FEAT-WRK-01).
+  Proposed: a read tool that returns each dependent item's shifted date (offset from the key
+  date, in America/Toronto business days where the template says so), so a date-shift
+  proposal can carry dates.
+- `matter.key_date_changed` is not in spec/eng/a2-interfaces.json; nothing publishes it yet.
+- Files beyond the list: featureset.go and its test, boot/agent.go (the job binding) and the
+  generated skill `paploo/counsel-plugin/skills/f-wrk-04-date-shift-on-key-date-change/SKILL.md`.
+## Q-FEAT-WRK-04 F-WRK-06 workflow lint: event, screen subject and G-W3 subject
+
+- Task: FEAT-WRK-04 (F-WRK-06). New event `work.workflow_draft_saved` (work.EventWorkflowDraftSaved)
+  has no publisher yet; add it to the next events task with the workflow editor's save.
+- boot.FirmSubject is not on main, so the firm-level `workflow-editor` screen maps to the matter
+  subject (capability work.workflows) until BOOT-24 merges; then switch it to FirmSubject.
+- work.workflow_publish is a tool-gap kind: the run drafts the lint report with draft_document
+  and opens G-W3 on that draft. The G-W3 payload schema names {workflow_id, version}; the gate
+  payload is the draft. Open: carry workflow_id/version once the workflow editor exists.
+
+## Q-FEAT-WRK-05 F-WRK-07 rule suggester: draft rule subject and PROPOSAL-DRAFT
+
+- Task: FEAT-WRK-05 (F-WRK-07). work.automation is not a work-item gate kind
+  (agent.WorkItemGateKinds), so create_task returns a proposal. The branch carries the
+  PROPOSAL-DRAFT change to app/legal/agent/tools_task.go and its test (db1212d, byte-identical),
+  which records a proposal as a run draft, so the run submits the proposed rule task for
+  work.automation in the run. Merge after (or with) task/PROPOSAL-DRAFT; the files merge clean.
+- The G-AR payload schema names {rule_id}; until work.automation_rule has a store the draft rule
+  is a proposed work item. Open: create an automation_rule draft once the work-automations
+  service exists.
+- The weekly run acts for the designated lawyer (BindDesignated, JOB-ACTOR); the firm-level
+  work-automations screen maps to matter until boot.FirmSubject lands (see Q-FEAT-WRK-04).
+
+## Q-FEAT-WRK-06 F-WRK-09 absence cover planner: absence events and screens
+
+- Task: FEAT-WRK-06 (F-WRK-09). New event `work.absence_requested` (work.EventAbsenceRequested)
+  has no publisher yet; the approved event reuses deadlines.EventAbsenceApproved
+  (`work.absence_approved`, F-DL-09). Add both publishers to the next events task with the
+  team-availability service.
+- The daily run and both events act for the designated lawyer (BindDesignated, JOB-ACTOR) and
+  fail closed with none set.
+- workload and team-availability are firm-level screens (capability work.edit); they map to
+  matter until boot.FirmSubject lands (see Q-FEAT-WRK-04).
+- FEAT-WRK-06 carries PROPOSAL-DRAFT's tools_task.go: create_task now records each agent
+  proposal as a run draft, so F-WRK-02 and F-WRK-04's in-run submit_for_approval opens the
+  work.plan gate instead of failing closed (Q-FEAT-WRK-02). Their tests now assert the one
+  in-run gate on a proposed item, pending, prepared for the acting user, decided only by
+  another lawyer.
+## Q-FEAT-WRK-08 F-WRK-14 base branch and the workflow-templates screen
+
+- Task: FEAT-WRK-08 (F-WRK-14 Draft template from past matters).
+- Based on `task/FEAT-WRK-07` with `task/FEAT-WRK-04` merged in, to reuse
+  `work.GateWorkflowPublish` and the wrkb draft_document test helpers (neither is on main yet).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs), `app/legal/boot/agent.go` (the `workflow-templates` action screen) and the
+  generated skill `paploo/counsel-plugin/skills/f-wrk-14-draft-template-from-past-matters/SKILL.md`.
+- boot.FirmSubject is not on main, so the firm-level `workflow-templates` screen selects the
+  completed matters to mine (subject `matter`, capability `work.workflows`); switch it to
+  FirmSubject with `workflow-editor` once BOOT-24 merges.
+- work.workflow_publish is a tool-gap kind: the run drafts the template with draft_document on
+  the first selected matter and opens G-W3 on that draft. Open: carry a workflow template id
+  in the G-W3 payload once workflow templates are stored.
+## Q-FEAT-WRK-10 F-WRK-05 registration outside the task's files
+
+- Task: FEAT-WRK-10 (F-WRK-05 Daily work digest).
+  appDefs), `app/legal/boot/agent.go` (the job binding) and
+  `app/legal/work/ai_wrkd_helpers_test.go` (the shared test helpers of the read-only work
+  features).
+- F-WRK-05 is scheduled, so it binds with `trigger.BindDesignated` and runs for the designated
+  lawyer in firm settings; with none named readiness flags it (JOB-ACTOR).
+
+## Q-FEAT-WRK-11 F-WRK-08 automation run events
+
+- Task: FEAT-WRK-11 (F-WRK-08 Explain automation runs).
+  appDefs) and `app/legal/boot/agent.go` (the job binding). Built on task/FEAT-WRK-10 for the
+  shared read tools and `ai_wrkd_helpers_test.go`.
+- No event exists in spec/eng/a2-interfaces.json or kernel/work for "automation run failed or
+  skipped". The Def binds `work.automation_run_failed` and `work.automation_run_skipped`
+  publishes automation run events.
+## FEAT-WRK-13 Action screens of the read-only work answers
+
+- F-WRK-15, F-WRK-16 and F-WRK-17 run from work-automations, work-categories and
+  work-reports. Main has no boot.FirmSubject, so the action route's screen map selects a
+  matter on each (work.view). Open: these are firm-level screens (an automation run, the
+  category list, a report figure); switch them to the firm subject once it lands.
+- Test helpers are one file per package: app/legal/intake/ai_int_helpers_test.go,
+  app/legal/timekeeping/ai_tim_helpers_test.go and app/legal/work/ai_wrk_helpers_test.go
+  hold every branch's helpers (prefixes int..inth, tim..timd, wrk..wrke kept, so names stay
+  unique). Earlier entries naming ai_int<x>/ai_tim<x>/ai_wrk<x>_helpers_test.go refer to them.
+  The timc helpers wrap read tools with the run's Provenance, as boot does since TIME-FIX.
+- `work-automations` keeps FEAT-WRK-11's capability `work.workflows`; FEAT-WRK-13's read-only
+  answers asked for `work.view` on the same key. Open: whether the read-only answers need a
+  separate screen key.
+- `ai-receptionist` keeps FEAT-INT-08's subject `intake.lead` / `intake.leads`; FEAT-INT-13
+  (F-INT-19, firm settings) asked for `matter` / `intake.forms`. Open until a firm subject
+  exists (BOOT-24).
+## BOOT-24 / BOOT-25 (composition root)
+
+- Files beyond the task list: `app/legal/boot/production.go` (new `Options.Production`: the
+  Postgres graph is built at Register on `k.DB`, because kernel boot opens the pool inside
+  `boot.Run`), `boot.go`, `routes.go` (matter reads, contacts and `/firm/tax-registrations`
+  mounted), `agent.go` (every scheduled feature binds with `trigger.BindDesignated`; the
+  `RuleAdmin` field is replaced by `Designated`, default `agent.PGDesignatedLawyers`;
+  `conflict-search-settings` and `compliance-audit-log` use subject kind `firm`).
+- Not wired yet, so `testdata/unwired_routes.golden` lists the routes that still answer 503:
+  no request authentication exists (Production.Principal defaults to "nobody", so served
+  routes answer 401); no Postgres `matter.Updater`, docs, work, time-entry, deadline lister,
+  access directory or trust-request wiring; GatePorts (GL, Sealer, withdraw.Auditor, credit
+  second approval) and AgentPorts have no Postgres composition. `HTTPPorts.AgentModel` and the
+  HandlerSet are on `task/PG-RUNS-WEBHOOK`, which this branch could not merge.
+
+## AUTH-WIRE: member sign-in at boot
+
+- **Choice logged (spec default):** a2 ARC-I-017/-036 and the openapi `session` scheme name an
+  OIDC session cookie (`counsel_session`); `core.sign_in_policy.idp_protocol` also allows
+  `saml`. Implemented OIDC only (authorization code + PKCE, RS256 ID tokens) in
+  `kernel/identity/login`, on the standard library because no OIDC module is on the AGENTS.md
+  allow list. SAML, ES256 ID tokens and reading lifetime/idle/lockout from
+  `core.sign_in_policy` at request time are not done; the DDL defaults (720/30 min) are used.
+- **Session handle:** `core.user_session` has no token-hash column, so the cookie is an
+  HMAC-signed `(session id, mfa time)` keyed by `$COUNSEL_SESSION_KEY` (>= 32 bytes, required
+  outside dev). Every request re-reads the row, so logout, idle, expiry, revocation and
+  offboarding end the session. No migration was added.
+- **Step-up:** `GET /auth/login?step_up=1` asks the IdP for fresh auth (`max_age=0`,
+  `prompt=login`, optional `acr_values`) and needs a second-factor `amr`. Production sets the
+  new `HTTPPorts.StepUp func(*http.Request) time.Time` from `login.Service.StepUp` (zero = no
+  MFA or no live session), which is exactly `gates.DecideHTTP.StepUp`. Mounting `DecideHTTP`
+  still needs `Gates gates.Engine` (Decide/Withdraw/Get over the kernel engine), `Kinds
+  *gates.Catalog` and `Now`; that mount is left to the gate-routes task.
+- **Files outside a task list:** `kernel/server/routes.go` gains `(*Mux).MountRoot` so the
+  browser redirects `/auth/*` live outside `/v1` and outside openapi conformance (not on the
+  frozen `Server` interface); `app/legal/boot/production.go` gains `Production.Login`;
+  `cmd/counseld/main.go` gains sign-in flags (secrets from env only) and `-env`/`-dev-login`.
+- **Open:** sessions authenticate, but production `Roles`/`Assignments` are still empty
+  (no Postgres `RoleAssignments`), so a signed-in member gets 403 on capability-checked
+  routes until that port lands.
+
+## PG-MATTER-UPDATER / PG-GATE-PORTS
+
+- `matter.PGUpdater` writes the plain fields (short name, practice area, court and property
+  province) at the If-Match version inside a tx bound to the principal (RLS walls apply);
+  it also refuses a user screened by an active wall (404) and a stale version (412).
+  `matter.PGWalls` reads active walls for the Lifecycle dry run; `AddWall` is refused
+  (walls are gate-owned). Boot mounts `matter.Writes` (POST and PATCH /matters).
+- `boot.gatePortsPG` composes the GatePorts from Postgres: `PGGL` (ledger.PG with posted_by
+  read in the gate tx: the latest approver, else the session user), `trust.AESSealer`,
+  `withdraw.AuditLog` on the kernel audit log, the signatory/signer/firm ports, the bill
+  effects and the write-off ports; the managing lawyer's second approval holds
+  `billing.writeoff_second_approve`. Gates with min_approvers >= 2 keep their quorum in the
+  kernel engine.
+- Open: `Production.SealKey` (and `BillPrefix`, default `INV`) has no config source yet:
+  `cmd/counseld` passes `Production{}`, so production registers no money gate effects until
+  the binary reads the seal key (env or mounted file). Files beyond the task list:
+  `app/legal/boot/production.go`, `routes.go`, `compose_test.go`.
+- Still unwired: `POST /gates/{gate_id}/decisions` and `/withdraw` need a step-up source
+  (`gates.DecideHTTP.StepUp`), which waits on request authentication.
+
+## BOOT-CONFIG: a signed-in member can use Counsel
+
+- **Roles were never registered.** `roles.Register` had no registrar, so the production
+  catalog was empty and every capability check failed (403, or 500 on unknown capability).
+  `app/legal/roles` now embeds a byte-for-byte copy of `spec/legal/access.json`
+  (`TestAccessDataMatchesSpec`) and registers it. Production fills its checker's catalog from
+  the sealed registrations (`identity.Roles.Load`) and reads each member's role per check
+  from `core.app_user.role_id` -> `core.role.key` (`identity.PGAssignments`; active user and
+  active role only).
+- **Choice logged (needs a spec answer):** the kernel checker is boolean, but access.json has
+  levels, and many gate approver capabilities are also plain work capabilities
+  (`matters.edit`, `admin.users`, `billing.payments`, ...). To keep ARC-I-018 (admin and agent
+  never approve; viewing is not approving), a role holds a gate approver capability only at
+  level `all` or `approve`, and admin and agent never hold one. Fail-closed side effects:
+  associate/paralegal `own` on `matters.edit`, admin `all` on `admin.users`/`admin.roles`,
+  auditor `view` on approver capabilities are not granted. Custom roles (`core.role_grant`,
+  `based_on_id`) are not loaded: a member on a custom role gets 403.
+- **Gate decisions:** `POST /gates/{gate_id}/decisions` and `/withdraw` are mounted on the
+  kernel gate engine (it is the `gates.Engine` port as is; `HTTPPorts.Decisions` overrides
+  it), the spec catalog and the kernel clock. Without a sign-in service, StepUp is "never",
+  so every decision answers 401 step_up_required.
+- **Seal key:** `counseld` and `counsel-worker` read `$COUNSEL_SEAL_KEY` (base64, 32 bytes)
+  or `-seal-key-file`/`$COUNSEL_SEAL_KEY_FILE`; `-env`/`$COUNSEL_ENV` (worker gained `-env`).
+  Outside dev, boot refuses to start without one (`ErrSealKeyMissing`); dev uses a random
+  per-process key and warns without showing it. `boot.Secret` redacts in fmt and slog. The
+  Helm chart does not mount the secret yet.
+- **Session limits:** the session read joins `core.sign_in_policy` (singleton); its
+  lifetime and idle limits win, and the config/DDL defaults apply only with no policy row.
+  The cookie Max-Age still uses the config lifetime.
+## Q-TRUST-SCOPE prepare_trust_withdrawal checks the run's gate kinds; boot wires its write deps
+
+- `agent/handlers.go`: the handler calls `agenttools.CheckGateKind(trust.withdrawal)` before
+  `WriteTools.Call`, so an undeclared kind is refused (ErrGateKindNotAllowed) before the trust
+  module records anything (ARC-I-035). `gate_scope_test.go` adds it to the table test and a
+  second AST guard: every `*WriteTools` `.Call` must follow a `CheckGateKind` call.
+- `agent/tools_write.go`: `Call` also refuses (ErrMissingDep) when Can, Walls, TrustAccount or
+  Withdrawals is nil, instead of panicking.
+- `boot/agent.go` (additive): `AgentWiring.Write` and `AgentWriteTools` build the write tools when
+  `Ports.WriteTools` is nil: Can, Walls, Provenance, MatterContacts and TrustAccounts from the
+  ports; Withdrawals (wrapped to Request and Available only), FirmAccount and Bills from
+  `Write`. Any nil port fails boot with agent.ErrMissingDep. A matter with zero or several
+  trust ledgers gets no trust account (fail closed).
+- Open: `Production` still does not build `AgentWiring`; the caller supplies `Write.Withdrawals`.
+
+## Q-INTEG-17A-PARTY-SCOPE propose_conflict_parties accepts either G2 kind
+
+- SCOPE-FIX made `propose_conflict_parties` check only `conflict.clearance`, but F-MAT-04,
+  F-MAT-16 and F-MAT-18 (spec/ai/features.json) declare `matter.party_conflict`, the matters
+  G2 their proposed parties wait on. The tool now accepts a run that declares either kind and
+  still refuses one that declares neither (ErrGateKindNotAllowed, nothing recorded).
+- `matterkind.GatePartyConflict` (additive) names the kind so the agent package need not
+  import matter; `matter.GatePartyConflict` is that constant. `gate_scope_test.go` adds a row
+  for the matter kind.
+
+## BOOT-REST-3
+
+- Merged task/BOOT-REST-2a; kept receipt_http.go's trust.TxRunner (2a had dropped it).
+- Deadline reminders: `PGBook.List` is the Postgres `deadline.Lister`; `Reminders` skips
+  met, released and superseded deadlines. `deadline.SentLog` now takes a typed `SentKey`
+  (kind, deadline, user, day); `PGSentLog` stores it in `cal.deadline_reminder_sent`
+  (1102, unique NULLS NOT DISTINCT), so a restart never resends a reminder that day. Boot
+  (services_rest3.go) defaults Deadlines to the rest book, Sent to PGSentLog and, with
+  `DeadlinePorts.Recipient`, Primary to the kernel notification service (templates
+  deadline.reminder / deadline.digest, ids and dates only). The fallback notifier stays
+  caller-supplied; reminders carry no per-user recipient yet (UserID empty).
+- Webhooks: 1404 adds `platform.webhook.row_version` (default 1) and PGExpiry.SetExpiry bumps
+  it. Open: no Postgres `webhook.EndpointReads` exists and register.go mounts `webhook.HTTP{}`
+  without ports, so the routes still answer 503; the read must select row_version as
+  EndpointInfo.Version and the renew must be conditional on it (412 on mismatch).
+- Open: HTTP-25 RunService. PORT-18's PGRuns is the conflict-check run store
+  (conflict.check_run), not agent.agent_run, so it cannot back agent runs; an agent run store
+  is needed first. Routes still answer 503.
+- Open: Postgres payment.Proposals (HTTP-15). billing.payment_allocation has no proposed
+  state and no Postgres payment.Service exists, so the gated payment routes still need both
+  (a proposal table in the billing block, and a Postgres Service for Get) before they leave 503.
+
+### PG-PAYMENT
+
+- Resolves the open HTTP-15 item above. 5630 (billing block) adds three tables, additive only:
+  `billing.payment_allocation_proposal` (proposed sets; superseded, never deleted; a deferred
+  trigger keeps the proposed total within the payment), and, because the frozen
+  `billing.payment` has no column for them, `billing.payment_capture_key` (a manual capture's
+  idempotency key) and `billing.payment_reversal` (the reversal reason).
+- Question: `billing.payment.payer_name` is NOT NULL but Capture carries no name and billing may
+  not read party tables (ARC-I-041), so PGService writes ''. The payer is `payer_contact_id`.
+- Question: Reverse has no actor, so its -1 x rows carry the original `allocated_by`.
+
+### PAYMENT-FIX
+
+- Answers both PG-PAYMENT questions (decided as counsel).
+- Contract change (payment/contract.go): `Service.Reverse` gains `by Actor`
+  (`Actor{UserID, Agent}`), and `Payment` gains `ReversedBy`, with `ErrAgentReverse`. A
+  reversal must record who reversed it for the books' audit trail. The only implementations are
+  PGService and paymentfake, and nothing in production calls Reverse yet. PGService refuses
+  an agent: either the Actor says Agent, or the user's `core.app_user.principal_kind` is not
+  'human'. 5630 `billing.payment_reversal` gains `reversed_by` (NOT NULL, FK app_user). The
+  -1 x allocation rows also carry the reverser as `allocated_by`, never the original allocator.
+- payer_name: PGService gains `Payers PayerNames`, a port that billing defines. Boot wires it to
+  the party module API (`boot.PartyPayers` over `party.Contacts.Get`, which gives the legal name). Billing
+  never reads party tables. While the port is nil, or the payer has no name, Capture fails closed
+  (`ErrNoPayerNames` / ErrInvalid) and nothing is written.
+- Unapplied money (overpayment) is not a payment_allocation row; Allocations derives it as
+  amount minus applied, as paymentfake does. Turning it into client credit stays G-B3's.
+## PG-RUNS-WEBHOOK
+
+- Webhooks: `webhook.PGEndpointReads` reads platform.webhook with `row_version` as
+  EndpointInfo.Version (never secret_ref). PATCH keeps 428 (no If-Match) and 412 (stale), and
+  with `PGExpiry.SetExpiryAt` (new `VersionedExpiry`) the renew is guarded by the version read,
+  so a write between the check and the renew is 412 (`ErrStaleVersion`). Boot mounts the
+  routes over the kernel DB (services_agent.go); `HTTPPorts.WebhookEndpoints` overrides the reads.
+- Agent runs: agent.agent_run (0001) needs `goal text NOT NULL`, a uuid skill FK and other
+  states, so 1901 adds `agent.run_record` (ids, feature, skill, acting-for, grant, subject,
+  state, error code, timestamps, tokens, cost in micro-cents; no conversation column).
+  `run.PGRecords` stores it; `agent.RunStarter` is the HTTP-25 RunService: a skill is a
+  feature id in lower case, the run is driven in the background by the kernel run loop as the
+  AgentPrincipal with the narrowed grant (the loop otherwise uses the feature's full grant).
+  The outcome text is dropped. Boot builds it when `HTTPPorts.AgentModel` and `AgentTools`
+  are set; RunAccess defaults to Access when it builds agent principals.
+- Open: no composition root sets AgentModel/AgentTools yet, so a live server still needs
+  them passed in; failed runs are not retried (agent_run_retry is not wired to run_record).
+
+## Q-EVENTS-WIRE-6 lead.created, intake.lead_awaiting_info and email.received recipients
+
+- **lead.created:** `intake.Leads.Submit` now publishes `lead.created` (`lead_id`) for every new
+  lead, next to `identity.portal_submission`, so F-INT-01, F-CON-01 and F-DL-02 start. A repeat
+  with the same idempotency key publishes nothing. Portal submission is the only lead-creating
+  path today; any new one must call the same publisher.
+- **intake.lead_awaiting_info (additive to spec/eng/a2-interfaces.json):** intake.json lists
+  "awaiting info" as a lead state and the missing-info chaser triggers on it, but no event or
+  status existed. Added `intake.LeadAwaitingInfo` (contract.go, additive constant), the
+  `LeadStatuses` port with `PGLeads.SetStatus`, `Leads.SetStatus` and migration
+  `5302_lead_status.sql` (additive `intake.lead.status`, default `open`). Moving into
+  `awaiting_info` from another status publishes one `intake.lead_awaiting_info` (`lead_id`);
+  staying there publishes nothing. Open: no HTTP route sets the status yet (a contract change
+  to api/openapi.yaml); the emitter opens its own tx, as identity.portal_submission does.
+- **email.received `to` (additive payload field):** the payload carries `to`, the
+  lower-cased, de-duplicated to/cc/bcc addresses read from the participants array (entries with
+  `role` to, cc or bcc and an `address` or `email`), never nil. This relaxes the earlier
+  "never addresses" note for recipients only (the firm's own mailboxes in practice), so F-INT-02
+  can ignore mail not sent to the intake address. The sender, subject and body stay out.
+
+## ROLE-LEVELS (supersedes the BOOT-CONFIG role-level choice above)
+
+- **Level model:** capability levels are the access.json names, ordered
+  none < view < own < all < approve. `kernel/identity` gains additive `Roles.LevelOrder`,
+  `Roles.DecideLevel`, `Roles.Grant` and `Checker.CanAt(ctx, p, capability, level, s)`; `Can`
+  is `CanAt` at the weakest holding level. Boot loads the spec levels with
+  `roles.ApplyLevels` after the registrations; every role registers each capability it holds
+  above none (associate/paralegal edit matters, admin manages users, auditor views).
+- **Deciding:** a check at `roles.DecideLevel` (all) or above on a gate approver capability
+  is a decision. The gate decision route uses `CanAt(..., "all")` (`gates.LevelAccess`); the
+  agent and admin never pass it; preparer != approver stays in the gate engine. Caveat: a
+  future non-decision route that needs `all` scope on an approver capability would be read
+  as a decision; such a route should check `own` and rely on the subject resolver.
+- **Custom roles:** a role key the app did not register is read per check from
+  `core.role_grant` (`PGAssignments.GrantsOf`, active roles only), capped at the strongest
+  built-in level per capability. An unknown role holds nothing (403).
+- **Helm:** the chart syncs `counsel-<cell>-seal-key` from the cell secret store, mounts it
+  read-only and passes `-seal-key-file`. **Cookie:** Max-Age is what is left of the
+  sign-in policy lifetime (config lifetime with no policy row).
+
+## RECON-REFUSE: a stored reconciliation that disagrees with its items
+
+- Answers the PG-WRITES-FIX open question (counsel decision): a stored row whose
+  adjusted_bank_cents is not bank_balance_cents + the signed sum of its items is refused for
+  sign-off and reported as `unbalanced`, never as stored (rule BIL-I-009, By-law 9 s.18(8)).
+- Additive contract change in `app/legal/trust/recon/contract.go`: `ThreeWay.ItemsAgree()`.
+  `Balanced()` now also requires it, so the read and write views report such a row as
+  `balanced: false`. A computed comparison always agrees, so no live path changes.
+- POST /trust/reconciliations/{id}/submit answers 422 with problem code `unbalanced`
+  (`recon.CodeUnbalanced`) before the three-way check; the sign-off effect (`PGSignOff.Sign`)
+  re-reads bank_balance_cents and outstanding_items under FOR UPDATE and returns ErrUnbalanced.
+## PROPOSAL-DRAFT: proposals are drafts of the run (closes Q-FEAT-MAT-13)
+
+- Counsel decision: `create_task` and `propose_conflict_parties` record their proposal (the
+  work item, the conflict run) as a draft of the agent's run scope, so `submit_for_approval`
+  can open the feature's gate on it in the run. The outcome is unchanged (a proposal, or a
+  draft when the scope declares a work-item gate kind). The run's gate-kind check still
+  applies, the gate is prepared by the acting user through the agent, and the agent never
+  decides it. A user principal, or an agent outside its run scope, records nothing.
+- `TestAI_R_003_CreateTaskDraft` now expects an agent's proposal in its own scope to be
+  recorded. The F-MAT-16..18 FromFeature tests submit in the run and check the run's gate
+  (every earlier assertion kept: pending, prepared for the acting user, app 403s, kernel
+  ErrAgentApprover and ErrSelfApproval, still pending).
+- The branch merges origin/task/FEAT-MAT-14 (which carries FEAT-MAT-13 and FEAT-MAT-15) so
+  their tests could be updated; the integrator merges this branch instead of those three.
+  It adds the `matter-open-wizard` (matter, matters.open) and `contact-detail` (contact,
+  contacts.view) action screens that F-MAT-16..18 need (TestActionScreensCoverFeatures).
+- agenttest: `Seed.Deps` resolves conflict runs (`conflict.SubjectRun`) and work items
+  (`agenttest.SubjectWorkItem`) for submit_for_approval. Open (boot): `PGSubjectMatters` knows
+  neither `conflict.run` nor `work_item`, so in production the submit fails closed with
+  ErrSubjectKind until boot maps both to their matter.
+
+## Q-PARTY-ADDED matter.party_added (additive a2 event)
+
+- Counsel decision: a party added to a matter gets its own event, `matter.party_added`; it is
+  not mapped onto `matter.updated`. Additive to `spec/eng/a2-interfaces.json` (module matter,
+  subject matter, payload `matter_id`, `conflict_check_id`, `check_party_ids[]`, `added_by`;
+  ids only, never a party's name). Constant `matter.EventPartyAdded`.
+- Published where parties are added on main: `boot.PGConflictParties.ProposeParties`, when the
+  conflict check belongs to a matter, once per call in the same transaction as the
+  `conflict.check_party` rows (ARC-I-030). A check on a lead only publishes nothing. With no
+  emitter a matter's check is refused (ErrMissingDep), like the other publishers.
+- No other Go write path adds a `matter.party_role` row yet; when the matter module gains one,
+  it publishes the same event.
+- BOOT-24: call `boot.SetMatterPortEvents(&ports, k.Emitter)` after `WireMatterPorts`. F-MAT-10
+  ("event: party added or matter opened") should bind `matter.party_added` and `matter.opened`.
+## Q-TOOL-DATES shift_date added to the a2 tools catalogue; create_task due_on is sourced
+
+- Additive a2 change: new read tool `shift_date` (capability `deadlines.view`, manifest scope
+  `data.read`), appended to `spec/eng/a2-interfaces.json` and `app/legal/agent/schemas/tools.json`
+  (`schemas.Count` 25 -> 26). Input: `date` (YYYY-MM-DD), `days` (integer, may be negative),
+  `unit` (`calendar` | `business`). Output `{from, unit, date}`; the day count is not echoed so
+  a model-chosen number never becomes a sourced value. For an agent the start `date` must
+  itself be a date the run read (ARC-U-027), so shift_date cannot launder an invented date.
+- Business days skip weekends and `rulepacks/ontario.Holidays()` (America/Toronto). That
+  calendar is marked unverified behind `deadline.ontario_pack`; shift_date uses it
+  unconditionally. Open: gate the holiday list on the flag (weekends only when off)?
+- `create_task` `/due_on` is now a SourcedWrite. compute_deadline, list_deadlines,
+  list_unbilled and list_work_items now record their results in the run's Provenance
+  (PROV-DATES); list_work_items adds an additive `due_on` (business-zone day) next to the
+  RFC 3339 `due_at`, which provenance cannot match. A date only inside quoted document text
+  is not sourced: F-MAT-17's placeholder task no longer carries a due_on.
+- `spec/eng/a2-interfaces.html` still lists 25 tools; regenerate it if it is generated.
+
+## Q-INTEG-17A-BOOT pass 17a boot follow-ups
+
+- `PGSubjectMatters` resolves `conflict.run` (the check run's check's matter) and `work_item`
+  (the item's matter_id), the subjects PROPOSAL-DRAFT submits.
+- `registerAgent` calls `SetMatterPortEvents` with the kernel emitter after the ports are
+  built (WireMatterPorts), so PGConflictParties publishes matter.party_added. Open:
+  `Production` still builds no `AgentWiring`, so nothing calls WireMatterPorts in counseld yet
+  (AGENT-PROD).
+- F-MAT-10 binds `matter.party_added` and `matter.opened` (no longer `matter.updated`).
+- JobBindings takes no rule admin: F-CON-09/11/12 and F-DOC-09 now bind to the designated
+  lawyer like every other scheduled feature.
+- Open: PROPOSAL-DRAFT mapped `matter-open-wizard` to `matters.open`; main's pass-16 mapping
+  (`matters.view`, Q-INTEG-16-SCREENS) was kept. Decide which capability the wizard needs.
+- Merging main (pass 17a) into pass 17b: intake's EventLeadCreated and EventLeadAwaitingInfo
+  live once, in app/legal/intake/events.go; F-CON-04's ok fixture is rehashed for the
+  draft_document schema FORM-SUBJECT changed. list_unbilled now records provenance itself
+  (sourcedRead) and boot also wraps every read tool (TIME-FIX); recording a value twice is
+  harmless, but one of the two can go.

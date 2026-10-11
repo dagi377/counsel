@@ -40,8 +40,8 @@ func CourtFormCurrencyDef() feature.Def {
 }
 
 // CourtFormCurrencyBinding binds F-DOC-09 to its daily schedule. A scheduled run has no event
-// user, so boot names the user it acts for (the feature's designated lawyer in firm
-// settings); empty is trigger.ErrBadBinding and the feature does not run.
-func CourtFormCurrencyBinding(actingFor string) (trigger.Binding, error) {
-	return trigger.Bind(CourtFormCurrencyDef(), actingFor)
+// user, so it acts for the feature's designated lawyer in firm settings, read at each tick
+// (trigger.BindDesignated); with none named the feature is unready and does not run.
+func CourtFormCurrencyBinding() (trigger.Binding, error) {
+	return trigger.BindDesignated(CourtFormCurrencyDef())
 }

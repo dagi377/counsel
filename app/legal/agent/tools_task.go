@@ -17,7 +17,8 @@ import (
 // ToolCreateTask proposes a work item. It starts in the task workflow's proposed status and
 // becomes work only when its assignee or approver accepts it. When the agent run's feature
 // declares a gate kind on work items (WorkItemGateKinds), the item is returned as a draft of
-// the run instead, so submit_for_approval can open that gate on it.
+// the run instead. Either way an agent's item is recorded as a draft of its run, so
+// submit_for_approval can open the run's gate on it.
 const ToolCreateTask = "create_task"
 
 // WorkItemGateKinds are the gate kinds whose subject is a work item an agent drafts: the
@@ -43,7 +44,8 @@ func CreateTaskHandler() Handler {
 	return Handler{Name: ToolCreateTask, Build: buildCreateTask}
 }
 
-// buildCreateTask reads Deps: CapabilityCheck, roles.Walls, TaskCreator and ProposedTasks.
+// buildCreateTask reads Deps: CapabilityCheck, roles.Walls, TaskCreator, ProposedTasks and the
+// run's *agenttools.Provenance.
 func buildCreateTask(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)
 	if err != nil {
@@ -61,6 +63,10 @@ func buildCreateTask(d Deps) (registry.Tool, error) {
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
 	}
+	pv, err := DepOf[*agenttools.Provenance](d)
+	if err != nil || pv == nil {
+		return registry.Tool{}, fmt.Errorf("%s: provenance: %w", ToolCreateTask, ErrMissingDep)
+	}
 	loc, err := time.LoadLocation("America/Toronto")
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: zone: %w", ToolCreateTask, err)
@@ -76,6 +82,13 @@ func buildCreateTask(d Deps) (registry.Tool, error) {
 	tool, err := agenttools.WriteTool(registry.Tool{
 		Name: s.Name, Kind: registry.ToolWrite, Capability: s.Capability, Input: s.InputSchema, Handle: t.handle,
 	})
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
+	}
+	// rule: ARC-U-027
+	// The due date must be a date the run read: a date a read tool returned, or a
+	// shift_date result computed from one.
+	tool, err = pv.SourcedWrite(tool, "/due_on")
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
 	}
@@ -159,11 +172,29 @@ func (t createTask) handle(ctx context.Context, p registry.Principal, raw json.R
 		// decided by a person other than the acting user, never by the agent.
 		outcome = agenttools.OutcomeDraft
 	}
+	recordProposalDraft(ctx, p, string(id))
 	out, err := json.Marshal(agenttools.WriteOutput{Outcome: outcome, Ref: string(id)})
 	if err != nil {
 		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
 	}
 	return registry.ToolResult{Output: out}, nil
+}
+
+// recordProposalDraft records ref, a proposal an agent made, as a draft of its run, so the
+// agent may submit it for approval in the same run. A user principal, or an agent outside its
+// run scope, records nothing. Submitting still checks the run's gate kinds, and the gate it
+// opens is prepared by the acting user and decided by someone else.
+func recordProposalDraft(ctx context.Context, p registry.Principal, ref string) {
+	if p.Kind != registry.PrincipalAgent {
+		return
+	}
+	s, ok := agenttools.ScopeOf(ctx)
+	if !ok || s.RunID != p.RunID {
+		return
+	}
+	// rule: AI-R-003
+	// Recording a draft decides nothing: the agent never approves what it proposed.
+	s.AddDraft(ref)
 }
 
 // draftsWorkItems reports whether p is an agent whose run scope declares a gate kind on work

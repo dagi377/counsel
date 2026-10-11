@@ -24,7 +24,8 @@ func ListDeadlinesHandler() Handler {
 	return Handler{Name: ToolListDeadlines, Build: buildListDeadlines}
 }
 
-// buildListDeadlines reads Deps: CapabilityCheck, roles.Walls, deadline.Lister.
+// buildListDeadlines reads Deps: CapabilityCheck, roles.Walls, deadline.Lister and
+// the run's *agenttools.Provenance.
 func buildListDeadlines(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)
 	if err != nil {
@@ -39,7 +40,13 @@ func buildListDeadlines(d Deps) (registry.Tool, error) {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolListDeadlines, err)
 	}
 	l := listDeadlines{walls: walls, list: list}
-	return handlerTool(ToolListDeadlines, Read, can, l.handle)
+	t, err := handlerTool(ToolListDeadlines, Read, can, l.handle)
+	if err != nil {
+		return registry.Tool{}, err
+	}
+	// rule: ARC-U-027
+	// The dates this tool returns are values a later write in the run may carry.
+	return sourcedRead(d, t)
 }
 
 type listDeadlines struct {

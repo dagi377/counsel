@@ -31,7 +31,7 @@ WHERE id::text = $1 AND expires_at = $2
   AND (expiry_noticed_for IS NULL OR expiry_noticed_for < $3)
 RETURNING id::text`
 	// sqlSetExpiry sets a new expiry and resets the notice claim for it.
-	sqlSetExpiry = `UPDATE platform.webhook SET expires_at = $2, expiry_noticed_for = NULL
+	sqlSetExpiry = `UPDATE platform.webhook SET expires_at = $2, expiry_noticed_for = NULL, row_version = row_version + 1
 WHERE id::text = $1`
 )
 
@@ -102,6 +102,29 @@ func (s PGExpiry) SetExpiry(ctx context.Context, id string, expiresAt *time.Time
 		}
 		if tag.RowsAffected() == 0 {
 			return ErrUnknownEndpoint
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("set expiry %s: %w", id, err)
+	}
+	return nil
+}
+
+// sqlSetExpiryAt is sqlSetExpiry guarded by the row version the caller read.
+const sqlSetExpiryAt = `UPDATE platform.webhook SET expires_at = $2, expiry_noticed_for = NULL, row_version = row_version + 1
+WHERE id::text = $1 AND row_version = $3`
+
+// SetExpiryAt is SetExpiry only while the endpoint is still at version: a write since then
+// is ErrStaleVersion, so a renew never overwrites a change the caller did not see.
+func (s PGExpiry) SetExpiryAt(ctx context.Context, id string, expiresAt *time.Time, version int) error {
+	err := s.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, sqlSetExpiryAt, id, expiresAt, version)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrStaleVersion
 		}
 		return nil
 	})

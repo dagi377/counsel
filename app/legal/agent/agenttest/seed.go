@@ -113,11 +113,13 @@ func (s *Seed) Deps(can agent.CapabilityCheck, plans agenttools.Plans) agent.Dep
 	open := agenttools.GateOpener(func(ctx context.Context, kind string, subject registry.Subject, payload json.RawMessage, preparer registry.Principal) (gate.GateID, error) {
 		return s.Gates.Open(ctx, nil, kind, subject, payload, preparer)
 	})
+	// DepOf takes the first value of a type, and Store is a SubjectMatters too, so the
+	// resolver that also knows conflict runs and work items comes first.
 	return agent.NewDeps(
-		can, s.Walls, plans, open, agenttools.RunScopes{},
+		can, s.Walls, plans, open, agenttools.RunScopes{}, agent.SubjectMatters(seedSubjects{s}),
 		agent.ContactSearch(s.Contacts), agent.ClientMatters(s.Matters), agent.WorkList(s.Work),
-		agent.DocumentText(s.Text), agent.DocumentLookup(s.Store), agent.SubjectMatters(s.Store),
-		agent.ConflictCheckParties(s.Store), conflict.Checker(s.Conflicts), agent.PublishedPacks(s.Store),
+		agent.DocumentText(s.Text), agent.DocumentLookup(s.Store),
+		agent.ConflictCheckParties(s.Store), conflict.Checker(seedChecker{s}), agent.PublishedPacks(s.Store),
 		s.Deadlines, s.Provenance, s.Store,
 	)
 }
@@ -268,6 +270,7 @@ type SeedStore struct {
 	contacts map[string][]string               // matter id -> contact ids
 	packs    []deadline.Pack                   // published rule packs
 	checks   map[string]string                 // conflict check id -> matter id
+	runs     map[string]string                 // conflict run id -> matter id
 	// Proposed lists the parties proposed per conflict check, in call order.
 	Proposed map[string][]agent.ProposedParty
 	Drafts   []SeedDraft
@@ -284,7 +287,52 @@ type SeedDraft struct {
 
 func newSeedStore() *SeedStore {
 	return &SeedStore{docs: map[string][]agent.ListedDocument{}, contacts: map[string][]string{},
-		checks: map[string]string{}, Proposed: map[string][]agent.ProposedParty{}}
+		checks: map[string]string{}, runs: map[string]string{}, Proposed: map[string][]agent.ProposedParty{}}
+}
+
+// SubjectWorkItem is the subject type of a work item create_task proposes, as a run submits
+// it for approval. A conflict run propose_conflict_parties starts is conflict.SubjectRun.
+const SubjectWorkItem = "work_item"
+
+// seedSubjects resolves the matter of a submitted subject: a conflict run the run started, a
+// work item in Work, or anything SeedStore.SubjectMatter knows.
+type seedSubjects struct{ s *Seed }
+
+func (r seedSubjects) SubjectMatter(ctx context.Context, subjectType, subjectID string) (string, error) {
+	switch subjectType {
+	case conflict.SubjectRun:
+		r.s.Store.mu.Lock()
+		m, ok := r.s.Store.runs[subjectID]
+		r.s.Store.mu.Unlock()
+		if ok {
+			return m, nil
+		}
+	case SubjectWorkItem:
+		if it, err := r.s.Work.Get(ctx, work.ItemID(subjectID)); err == nil {
+			if it.Subject.Kind == agent.WorkSubjectMatter {
+				return it.Subject.ID, nil
+			}
+			return "", nil
+		}
+	}
+	return r.s.Store.SubjectMatter(ctx, subjectType, subjectID)
+}
+
+// seedChecker runs checks on Conflicts and remembers each run's matter for seedSubjects.
+type seedChecker struct{ s *Seed }
+
+func (c seedChecker) Check(ctx context.Context, req conflict.Request) (conflict.Run, error) {
+	run, err := c.s.Conflicts.Check(ctx, req)
+	if err == nil {
+		c.s.Store.mu.Lock()
+		c.s.Store.runs[run.ID] = run.MatterID
+		c.s.Store.mu.Unlock()
+	}
+	return run, err
+}
+
+func (c seedChecker) Runs(ctx context.Context, matterID string) ([]conflict.Run, error) {
+	return c.s.Conflicts.Runs(ctx, matterID)
 }
 
 func (s *SeedStore) next(prefix string) string {

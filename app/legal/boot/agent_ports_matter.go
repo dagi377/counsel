@@ -10,12 +10,14 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/dagi377/counsel/app/legal/agent"
+	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/deadline"
+	"github.com/dagi377/counsel/kernel/outbox"
 )
 
 // Matter-side agent ports over Postgres (Q-BOOT-PORTS-B). Each adapter reads or writes the
@@ -220,16 +222,25 @@ type PGSubjectMatters struct {
 // subjectMatterSQL maps a subject kind to the query of its matter id. An empty result means
 // the subject is on no matter (a lead's deadline or conflict check).
 var subjectMatterSQL = map[string]string{
-	SubjectDocumentDraft:    `SELECT matter_id::text FROM docs.draft WHERE id = $1`,
+	SubjectDocumentDraft:    `SELECT COALESCE(matter_id::text, '') FROM docs.draft WHERE id = $1`,
 	agent.SubjectAgentNote:  `SELECT matter_id::text FROM matter.note WHERE id = $1`,
 	agent.SubjectEmailDraft: `SELECT matter_id::text FROM comms.comm_filing WHERE comm_item_id = $1 ORDER BY matter_id LIMIT 1`,
 	agent.SubjectDeadline:   `SELECT COALESCE(matter_id::text, '') FROM cal.deadline WHERE id = $1`,
 	agent.SubjectBill:       `SELECT matter_id::text FROM billing.bill WHERE id = $1`,
 	agent.SubjectTimeEntry:  `SELECT matter_id::text FROM timekeeping.time_entry WHERE id = $1`,
 	subjectConflictCheck:    `SELECT COALESCE(matter_id::text, '') FROM conflict.conflict_check WHERE id = $1`,
+	// A proposal the run submits (PROPOSAL-DRAFT): a re-run conflict check is on its check's
+	// matter; a proposed task on the matter it was created for.
+	conflict.SubjectRun: `SELECT COALESCE(c.matter_id::text, '') FROM conflict.check_run r
+JOIN conflict.conflict_check c ON c.id = r.check_id WHERE r.id = $1`,
+	subjectWorkItem: `SELECT COALESCE(matter_id::text, '') FROM work.work_item WHERE id = $1`,
 }
 
-const subjectConflictCheck = "conflict_check"
+const (
+	subjectConflictCheck = "conflict_check"
+	// subjectWorkItem is the subject kind create_task's proposal is submitted on.
+	subjectWorkItem = "work_item"
+)
 
 // SubjectMatter implements agent.SubjectMatters.
 func (s PGSubjectMatters) SubjectMatter(ctx context.Context, subjectType, subjectID string) (string, error) {
@@ -277,17 +288,31 @@ func (s PGProposedTasks) ProposedTaskStatus(ctx context.Context) (string, string
 	return wf, st, nil
 }
 
-// PGConflictParties keeps proposed parties on conflict.check_party.
-type PGConflictParties struct{ DB db.DB }
+// PGConflictParties keeps proposed parties on conflict.check_party. Parties added to a
+// matter's check publish matter.party_added through Events in the same transaction; with no
+// Events such a call is refused, so the event is never lost.
+type PGConflictParties struct {
+	DB     db.DB
+	Events outbox.Emitter
+}
+
+// partyAddedEvent is the matter.party_added payload: ids only.
+type partyAddedEvent struct {
+	MatterID        string   `json:"matter_id"`
+	ConflictCheckID string   `json:"conflict_check_id"`
+	CheckPartyIDs   []string `json:"check_party_ids"`
+	AddedBy         string   `json:"added_by"`
+}
 
 const (
 	sqlCheckMatter = `SELECT COALESCE(matter_id::text, '') FROM conflict.conflict_check WHERE id = $1`
 	// sqlCheckTouch records who prepared the proposal and refuses a closed check.
 	sqlCheckTouch = `UPDATE conflict.conflict_check
 SET updated_by = $2, updated_at = now(), row_version = row_version + 1
-WHERE id = $1 RETURNING status`
-	sqlPartyInsert = `INSERT INTO conflict.check_party (check_id, name, kind, role, source) VALUES ($1, $2, $3, $4, $5)`
-	sqlPartyTerms  = `SELECT t FROM (
+WHERE id = $1 RETURNING status, COALESCE(matter_id::text, '')`
+	sqlPartyInsert = `INSERT INTO conflict.check_party (check_id, name, kind, role, source) VALUES ($1, $2, $3, $4, $5)
+RETURNING id::text`
+	sqlPartyTerms = `SELECT t FROM (
   SELECT name AS t FROM conflict.check_party WHERE check_id = $1
   UNION SELECT unnest(aliases) FROM conflict.check_party WHERE check_id = $1) x ORDER BY t`
 )
@@ -363,16 +388,29 @@ func (s PGConflictParties) ProposeParties(ctx context.Context, checkID string, p
 	}
 	var terms []string
 	err := inTx(ctx, s.DB, func(ctx context.Context, tx pgx.Tx) error {
-		var status string
-		if err := tx.QueryRow(ctx, sqlCheckTouch, checkID, preparedBy).Scan(&status); err != nil {
+		var status, matterID string
+		if err := tx.QueryRow(ctx, sqlCheckTouch, checkID, preparedBy).Scan(&status, &matterID); err != nil {
 			return notFound(err)
 		}
 		if status == "cleared" || status == "declined" {
 			return ErrCheckClosed
 		}
+		if matterID != "" && s.Events == nil {
+			return fmt.Errorf("no event emitter: %w", agent.ErrMissingDep)
+		}
+		ids := make([]string, len(parties))
 		for i, p := range parties {
-			if _, err := tx.Exec(ctx, sqlPartyInsert, checkID, p.Name, kinds[i], p.Role, sources[i]); err != nil {
+			if err := tx.QueryRow(ctx, sqlPartyInsert, checkID, p.Name, kinds[i], p.Role, sources[i]).Scan(&ids[i]); err != nil {
 				return err
+			}
+		}
+		if matterID != "" {
+			// rule: ARC-I-030
+			// One matter.party_added per call, committed with the parties. A check on a lead
+			// only adds no party to a matter and publishes nothing.
+			ev := partyAddedEvent{MatterID: matterID, ConflictCheckID: checkID, CheckPartyIDs: ids, AddedBy: preparedBy}
+			if err := s.Events.Emit(ctx, tx, outbox.Subject{Kind: "matter", ID: matterID}, matter.EventPartyAdded, ev); err != nil {
+				return fmt.Errorf("emit %s: %w", matter.EventPartyAdded, err)
 			}
 		}
 		rows, err := tx.Query(ctx, sqlPartyTerms, checkID)
@@ -450,6 +488,11 @@ func draftRow(kind, matterID, preparedBy, runID string) error {
 	if !isUUID(matterID) {
 		return fmt.Errorf("%s: matter: %w", kind, agenttools.ErrNotFound)
 	}
+	return draftActors(kind, preparedBy, runID)
+}
+
+// draftActors checks a draft row's preparer and run id.
+func draftActors(kind, preparedBy, runID string) error {
 	// The agent never prepares in its own name: the preparer is the acting user.
 	if !isUUID(preparedBy) {
 		return fmt.Errorf("%s: preparer: %w", kind, agent.ErrInvalidInput)
@@ -509,7 +552,7 @@ type PGDocumentDrafts struct {
 const (
 	sqlDocDraft = `INSERT INTO docs.draft
   (matter_id, instruction, doc_kind, source_scope, status, agent_run_id, created_by, idempotency_key)
-VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')::uuid, $7, NULLIF($8, ''))
+VALUES (NULLIF($1, '')::uuid, $2, $3, $4, $5, NULLIF($6, '')::uuid, $7, NULLIF($8, ''))
 ON CONFLICT (agent_run_id, idempotency_key)
   WHERE agent_run_id IS NOT NULL AND idempotency_key IS NOT NULL DO NOTHING
 RETURNING id::text`
@@ -519,6 +562,7 @@ RETURNING id::text`
 type draftScope struct {
 	BodyRef    string          `json:"body_ref"`
 	TemplateID string          `json:"template_id,omitempty"`
+	SubjectRef string          `json:"subject_ref,omitempty"`
 	Citations  []draftCiteJSON `json:"citations,omitempty"`
 }
 
@@ -534,8 +578,13 @@ type draftCiteJSON struct {
 
 // CreateDraft implements agent.DocumentDrafts.
 func (s PGDocumentDrafts) CreateDraft(ctx context.Context, d agent.NewDraftDocument) (string, error) {
-	if err := draftRow("document draft", d.MatterID, d.PreparedBy, d.RunID); err != nil {
-		return "", err
+	check := draftRow("document draft", d.MatterID, d.PreparedBy, d.RunID)
+	if d.MatterID == "" && d.SubjectRef == agent.SubjectFirm {
+		// A firm draft is stored with no matter (Q-FORM-SUBJECT).
+		check = draftActors("document draft", d.PreparedBy, d.RunID)
+	}
+	if check != nil {
+		return "", check
 	}
 	k := draftKey{runID: d.RunID, key: d.IdempotencyKey}
 	if id, err := existingDraft(ctx, s.DB, sqlDocDraftByKey, k); err != nil || id != "" {
@@ -548,7 +597,7 @@ func (s PGDocumentDrafts) CreateDraft(ctx context.Context, d agent.NewDraftDocum
 	if err != nil {
 		return "", fmt.Errorf("document draft: body: %w", err)
 	}
-	scope := draftScope{BodyRef: ref, TemplateID: d.TemplateID}
+	scope := draftScope{BodyRef: ref, TemplateID: d.TemplateID, SubjectRef: d.SubjectRef}
 	for _, c := range d.Citations {
 		scope.Citations = append(scope.Citations, draftCiteJSON{
 			Anchor: c.Anchor, DocID: c.DocID, QuoteHash: c.QuoteHash, VersionID: c.Source.VersionID,

@@ -63,7 +63,7 @@ func readOnlyHandlers(t *testing.T, seed **agenttest.Seed) agent.HandlerSet {
 		if err != nil {
 			return registry.Tool{}, err
 		}
-		return agent.ListDeadlinesHandler().Build(agent.NewDeps(can, walls, deadline.Lister(seedLister{seed})))
+		return agent.ListDeadlinesHandler().Build(agent.NewDeps(can, walls, deadline.Lister(seedLister{seed}), agenttools.NewProvenance()))
 	}}
 	read := agent.Handler{Name: agent.ToolReadDocument, Build: func(d agent.Deps) (registry.Tool, error) {
 		text, err := agent.DepOf[agent.DocumentText](d)

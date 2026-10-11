@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -13,17 +14,25 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/credit"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
+	"github.com/dagi377/counsel/app/legal/comms"
+	"github.com/dagi377/counsel/app/legal/deadlines"
+	legaldocs "github.com/dagi377/counsel/app/legal/docs"
+	"github.com/dagi377/counsel/app/legal/eventroute"
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/trust/recon"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
+	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/api"
 	"github.com/dagi377/counsel/kernel/audit"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/idem"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/kernel/server"
+	"github.com/dagi377/counsel/kernel/webhook"
 )
 
 // Access is identity.Access as the route handlers use it. Every module's Access port has this
@@ -41,11 +50,15 @@ type HTTPPorts struct {
 	Cursors   api.CursorCodec
 	Problems  server.ProblemWriter
 	Principal func(r *http.Request) (registry.Principal, bool)
-	Idem      idem.Store
-	DB        TxRunner
-	Gates     GateOpener
-	Audit     audit.Log
-	Outbox    bill.Emitter
+	// StepUp returns when the request's session last passed multi-factor authentication
+	// (zero: never); it is gates.DecideHTTP.StepUp. Production sets it from the sign-in
+	// service (AUTH-WIRE).
+	StepUp func(r *http.Request) time.Time
+	Idem   idem.Store
+	DB     TxRunner
+	Gates  GateOpener
+	Audit  audit.Log
+	Outbox bill.Emitter
 
 	// Bills serves GET /bills*; with Drafts it also serves POST/PATCH /bills, and with
 	// Outbox and Gates the submit, void and deliver actions.
@@ -63,8 +76,15 @@ type HTTPPorts struct {
 	Reconciliations recon.Lists
 	// GateList serves GET /gates over core.gate under the caller's RLS.
 	GateList gates.Lister
+	// Decisions, with StepUp, serves POST /gates/{gate_id}/decisions and /withdraw. Nil
+	// uses the kernel gate engine (decisionEngine).
+	Decisions gates.Engine
 	// Expenses serves /expenses (HTTP-05). Nil uses the Postgres ExpenseStore on the kernel DB.
 	Expenses timekeeping.Expenses
+	// Events serves the trigger change, claim issue, affidavit of service and email filing
+	// routes (EVENTS-WIRE-2) and the stage, note, revision, court form, inbound email and
+	// calendar routes (EVENTS-WIRE-5). Nil builds them on the kernel DB and emitter.
+	Events *EventStores
 	// WithdrawRequests, with WithdrawLedgers and WithdrawCancels, serves POST
 	// /trust/withdrawals and its cancel action (HTTP-17).
 	WithdrawRequests withdraw.Service
@@ -78,14 +98,22 @@ type HTTPPorts struct {
 	ReconStatements recon.Statements
 	ReconVersions   recon.Versions
 	ReconParser     recon.Parser
-	// Payments and PaymentProposals serve POST /payments/{payment_id}/allocations and
-	// /refunds (HTTP-15); both open their gates on Gates.
-	Payments         payment.Service
-	PaymentProposals payment.Proposals
-	// Runs and RunAccess serve POST /agent/runs and GET /agent/runs/{run_id} (HTTP-25):
-	// the composition root supplies the run starter and store.
+	// Runs and RunAccess serve POST /agent/runs and GET /agent/runs/{run_id} (HTTP-25).
+	// Nil Runs, with AgentModel and AgentTools set and a kernel DB, is agent.RunStarter over the
+	// app features and run.PGRecords; nil RunAccess is Access when it builds agent principals.
 	Runs      agent.RunService
 	RunAccess agent.RunAccess
+	// AgentModel and AgentTools drive the runs Runs starts (mock model in tests).
+	AgentModel ai.ModelClient
+	AgentTools agenttools.Tools
+	// WebhookEndpoints serves the /webhook-endpoints reads (HTTP-26). Nil is
+	// webhook.PGEndpointReads on the kernel DB.
+	WebhookEndpoints webhook.EndpointReads
+	// Payments serves GET and POST /payments and GET /payments/{payment_id} (HTTP-14); with
+	// PaymentProposals it also serves POST /payments/{payment_id}/allocations and /refunds
+	// (HTTP-15), which open their gates on Gates.
+	Payments         payment.Service
+	PaymentProposals payment.Proposals
 }
 
 // TxRunner runs fn in one transaction; kernel/db implements it.
@@ -116,8 +144,15 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	}
 	p = p.withPostgresBilling(k)
 	p = p.withImports(k).withReaders(k).withWrites(k)
+	if p, err = p.withAgentRuns(k); err != nil {
+		return nil, err
+	}
 	if p.Expenses == nil && k.DB != nil && k.Clock != nil {
 		p.Expenses = timekeeping.NewExpenseStore(k.DB, k.Clock.Location())
+	}
+	if p.Events == nil && k.DB != nil && k.Emitter != nil {
+		ev := newEventStores(k.DB, k.Emitter)
+		p.Events = &ev
 	}
 	var out []mount
 	add := func(ok bool, fn mount) {
@@ -154,6 +189,24 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	add(p.Expenses != nil && p.DB != nil && p.Idem != nil, (&timekeeping.ExpenseHTTP{
 		Expenses: p.Expenses, DB: p.DB, Access: p.Access, Cursors: p.Cursors, Idem: p.Idem,
 		Problems: p.Problems, Principal: p.Principal}).Routes)
+	if ev := p.Events; ev != nil && p.Idem != nil {
+		add(ev.Book != nil && p.DB != nil, (&deadlines.TriggerHTTP{Book: ev.Book, DB: p.DB, Access: p.Access,
+			Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
+		add(ev.Filings != nil && ev.Emails != nil, (&comms.FilingHTTP{Filings: ev.Filings, Emails: ev.Emails,
+			Access: p.Access, Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
+		// The stage, note, revision, court form, inbound email and calendar routes
+		// (Q-EVENTS-WIRE-5).
+		rt := eventroute.Route{Access: p.Access, Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}
+		var now func() time.Time
+		if k.Clock != nil {
+			now = k.Clock.Now
+		}
+		add(ev.Matters != nil && now != nil, (&matter.EventHTTP{Route: rt, Writes: ev.Matters, Now: now}).Routes)
+		add(ev.Revisions != nil && ev.CourtForms != nil && now != nil, (&legaldocs.EventHTTP{Route: rt,
+			Revisions: ev.Revisions, CourtForms: ev.CourtForms, Now: now}).Routes)
+		add(ev.Inbound != nil, (&comms.InboundHTTP{Route: rt, Inbound: ev.Inbound}).Routes)
+		add(ev.Calendar != nil, (&deadlines.CalendarHTTP{Route: rt, Calendar: ev.Calendar}).Routes)
+	}
 	add(p.WithdrawRequests != nil && p.WithdrawLedgers != nil && p.WithdrawCancels != nil && p.WithdrawGates != nil &&
 		p.DB != nil && p.Idem != nil, (&withdraw.RequestHTTP{Withdrawals: p.WithdrawRequests,
 		Ledgers: p.WithdrawLedgers, Gates: p.WithdrawGates, Cancels: p.WithdrawCancels, DB: p.DB, Access: p.Access,
@@ -163,17 +216,53 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 		Statements: p.ReconStatements, Versions: p.ReconVersions, Gates: p.Gates, DB: p.DB, Access: p.Access,
 		Idem: p.Idem, Problems: p.Problems, Principal: p.Principal,
 		MinApprovers: approvers[recon.GateSignOff]}).Routes)
+	add(p.Payments != nil && p.Idem != nil, (&payment.HTTP{Payments: p.Payments, Access: p.Access, Cursors: p.Cursors,
+		Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
 	add(p.Payments != nil && p.PaymentProposals != nil && p.DB != nil && p.Gates != nil && p.Idem != nil,
 		(&payment.Gated{HTTP: payment.HTTP{Payments: p.Payments, Access: p.Access, Cursors: p.Cursors, Idem: p.Idem,
 			Problems: p.Problems, Principal: p.Principal}, DB: p.DB, Gates: p.Gates, Proposals: p.PaymentProposals,
 			MinApprovers: approvers}).Routes)
+	if m := webhookMount(k, p, approvers[webhook.GateIntegrationScope]); m != nil {
+		add(true, m)
+	}
 	wg, canWithdraw := p.Gates.(credit.GateWithdrawer)
 	add(canWithdraw && p.DB != nil && p.Idem != nil, (&credit.WithdrawHTTP{Store: credit.PGWriteOffs{}, Gates: wg,
 		DB: p.DB, Access: p.Access, Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
+	if d := decideMount(k, p, cat); d != nil {
+		add(true, d.Routes)
+	}
 	if m := runMount(p, p.Runs, p.RunAccess); m != nil {
 		add(true, m)
 	}
+	out = append(out, moduleMounts(k, p, approvers)...)
 	return out, nil
+}
+
+// decisionEngine is the gates.Engine the decision routes call: p.Decisions, else the kernel
+// gate engine, whose Decide, Withdraw and Get are the route's port as they are (the engine
+// runs an approved gate's effect inside Decide). Nil when neither is set.
+func decisionEngine(k *kboot.Kernel, p HTTPPorts) gates.Engine {
+	if p.Decisions != nil {
+		return p.Decisions
+	}
+	if k != nil && k.Gates != nil {
+		return k.Gates
+	}
+	return nil
+}
+
+// decideMount is POST /gates/{gate_id}/decisions and /withdraw on the gate engine, the spec
+// gate catalog and the kernel clock. Nil when a port is missing: the routes then keep their
+// placeholder (503).
+func decideMount(k *kboot.Kernel, p HTTPPorts, cat *gates.Catalog) *gates.DecideHTTP {
+	e := decisionEngine(k, p)
+	if e == nil || p.StepUp == nil || p.DB == nil || p.Idem == nil || k == nil || k.Clock == nil {
+		return nil
+	}
+	// rule: ARC-I-017
+	// Every decision needs step-up auth from the sign-in service's StepUp.
+	return &gates.DecideHTTP{Gates: e, Kinds: cat, Access: p.Access, DB: p.DB, Idem: p.Idem,
+		Problems: p.Problems, Principal: p.Principal, StepUp: p.StepUp, Now: k.Clock.Now}
 }
 
 // minApprovers maps each spec gate kind to its approver count.

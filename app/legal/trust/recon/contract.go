@@ -95,9 +95,19 @@ func (t ThreeWay) OutstandingItemsCents() int64 {
 	return n
 }
 
-// Balanced reports whether the adjusted bank balance, the book and the client ledgers agree.
+// ItemsAgree reports whether the adjusted bank balance is the bank balance plus the
+// reconciling items. A computed comparison always agrees; a stored row that does not is
+// unbalanced and is never reported or signed as stored.
+func (t ThreeWay) ItemsAgree() bool {
+	// rule: BIL-I-009
+	// By-law 9 s.18(8): bank closing balance + outstanding deposits - outstanding cheques.
+	return t.BankCents+t.OutstandingItemsCents() == t.AdjustedBankCents
+}
+
+// Balanced reports whether the adjusted bank balance agrees with its items, and the adjusted
+// bank balance, the book and the client ledgers agree.
 func (t ThreeWay) Balanced() bool {
-	return t.AdjustedBankCents == t.BookCents && t.BookCents == t.ClientLedgerCents
+	return t.ItemsAgree() && t.AdjustedBankCents == t.BookCents && t.BookCents == t.ClientLedgerCents
 }
 
 // Status is a reconciliation's lifecycle state.

@@ -1,7 +1,7 @@
 synthetic: true
 feature: F-CON-03
 match:
-  prompt_hash: "9e74c880e81dcbd18a41a40f2e44d8f8ef018e232823960a617a8f4fb47be811"
+  prompt_hash: "2f0eb03c5e52f5214c68e6ea83c48f3b56872334a5d715d5eec15427cb8e2c5a"
   last_user_regex: "clearance memo for matter"
 latency_ms: 0
 turns:

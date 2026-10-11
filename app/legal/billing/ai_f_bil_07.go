@@ -35,7 +35,10 @@ func MonthlyDigestDef() feature.Def {
 }
 
 // MonthlyDigestBinding binds F-BIL-07 to the monthly schedule (the first business day of the
-// month). The scheduled run acts for actingFor.
-func MonthlyDigestBinding(actingFor string) (trigger.Binding, error) {
-	return trigger.Bind(MonthlyDigestDef(), actingFor)
+// month). The scheduled run acts for the firm's designated lawyer, read at each tick, never
+// for an administrator (JOB-ACTOR).
+//
+// rule: ARC-I-040
+func MonthlyDigestBinding() (trigger.Binding, error) {
+	return trigger.BindDesignated(MonthlyDigestDef())
 }

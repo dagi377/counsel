@@ -22,6 +22,13 @@ var ErrUnsourcedValue = errors.New("agenttools: unsourced_value")
 // dateValue is a calendar date as read tools return it (YYYY-MM-DD).
 var dateValue = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
+// Inside quoted text: a calendar date, and a number (digits, optional thousands commas and
+// decimals). Dates are taken out before numbers, so 2026-10-05 adds no 2026, 10 or 5.
+var (
+	textDate   = regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}\b`)
+	textNumber = regexp.MustCompile(`\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?`)
+)
+
 // Provenance keeps, per agent run, the numbers and dates read tools returned to the model. It
 // stores values only: no field names, tool names or any other text from the result. A write
 // tool that declares provenance fields may only carry values from its run's set.
@@ -35,8 +42,10 @@ func NewProvenance() *Provenance {
 	return &Provenance{runs: map[string]map[string]struct{}{}}
 }
 
-// Observe records every number and date in a read result's JSON output against runID. An
-// output that is not JSON records nothing.
+// Observe records every number and date in a read result's JSON output against runID,
+// including the dates and numbers written inside the text of an untrusted envelope (a
+// Quoted value, a read_document page line), so a value the run read in a quote counts as read. An output
+// that is not JSON records nothing.
 func (pv *Provenance) Observe(runID string, output json.RawMessage) {
 	if runID == "" || len(bytes.TrimSpace(output)) == 0 {
 		return
@@ -163,18 +172,46 @@ func decodeNumbers(raw json.RawMessage) (any, error) {
 	return v, nil
 }
 
-func collectValues(v any, out *[]string) {
+func collectValues(v any, out *[]string) { collectIn(v, false, out) }
+
+// collectIn records v's numbers and dates. Inside an untrusted envelope (an object with
+// "untrusted": true: a Quoted value, a read_document result) every "text" string is quoted
+// text, and the dates and numbers it states are recorded too.
+func collectIn(v any, quoted bool, out *[]string) {
 	switch x := v.(type) {
 	case map[string]any:
-		for _, c := range x {
-			collectValues(c, out)
+		if u, _ := x["untrusted"].(bool); u {
+			quoted = true
+		}
+		for k, c := range x {
+			if text, ok := c.(string); ok && quoted && k == "text" {
+				collectQuoted(text, out)
+				continue
+			}
+			collectIn(c, quoted, out)
 		}
 	case []any:
 		for _, c := range x {
-			collectValues(c, out)
+			collectIn(c, quoted, out)
 		}
 	default:
 		if k, ok := valueKey(x); ok {
+			*out = append(*out, k)
+		}
+	}
+}
+
+// collectQuoted records the dates and numbers written in quoted text. Only those values are
+// kept, never the text around them.
+func collectQuoted(text string, out *[]string) {
+	// rule: ARC-U-027
+	// A number or date a quoted source states is a value the run read, so a write built
+	// from it is sourced; a figure the quote never states is not.
+	for _, d := range textDate.FindAllString(text, -1) {
+		*out = append(*out, "d:"+d)
+	}
+	for _, n := range textNumber.FindAllString(textDate.ReplaceAllString(text, " "), -1) {
+		if k, ok := valueKey(json.Number(strings.ReplaceAll(n, ",", ""))); ok {
 			*out = append(*out, k)
 		}
 	}

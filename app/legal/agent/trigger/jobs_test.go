@@ -32,7 +32,8 @@ func (q *fakeQueue) Insert(_ context.Context, args river.JobArgs, opts *river.In
 	if opts == nil || !opts.UniqueOpts.ByArgs {
 		return nil, errors.New("run job must be unique by args")
 	}
-	key := a.FeatureID + "|" + a.EventID + "|" + a.Slot
+	// The fields RunArgs marks river:"unique".
+	key := a.FeatureID + "|" + a.EventID + "|" + a.Slot + "|" + a.ForUser
 	if q.seen == nil {
 		q.seen = map[string]bool{}
 	}
@@ -76,6 +77,12 @@ func TestParseCadence(t *testing.T) {
 		{"schedule: Monday 08:00 America/Toronto", CadenceWeekly},
 		{"event: lead awaiting info; schedule", CadenceDaily},
 		{"event: G-B1 closed", CadenceNone},
+		// A sweep is a schedule word.
+		{"event: matter opened without a template; weekly sweep", CadenceWeekly},
+		{"nightly sweep", CadenceDaily},
+		{"sweep", CadenceDaily},
+		{"Sweep (quarterly)", CadenceQuarterly},
+		{"event: matter opened without a template", CadenceNone},
 	}
 	for _, c := range cases {
 		if got := ParseCadence(c.trigger); got != c.want {

@@ -86,11 +86,15 @@ func TestCaptureDedup(t *testing.T) {
 
 func TestReverseRestoresBuckets(t *testing.T) {
 	tests := []struct {
-		name   string
-		reason payment.ReversalReason
+		name    string
+		reason  payment.ReversalReason
+		by      payment.Actor
+		wantErr error
 	}{
-		{name: "nsf", reason: payment.ReasonNSF},
-		{name: "chargeback", reason: payment.ReasonChargeback},
+		{name: "nsf", reason: payment.ReasonNSF, by: payment.Actor{UserID: "u2"}},
+		{name: "chargeback", reason: payment.ReasonChargeback, by: payment.Actor{UserID: "u2"}},
+		{name: "agent", reason: payment.ReasonNSF, by: payment.Actor{UserID: "u2", Agent: true}, wantErr: payment.ErrAgentReverse},
+		{name: "no actor", reason: payment.ReasonNSF, wantErr: payment.ErrInvalid},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -101,14 +105,20 @@ func TestReverseRestoresBuckets(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			got, err := f.Reverse(ctx, p.ID, tt.reason)
-			if err != nil || got.Status != payment.StatusReversed || got.Reason != tt.reason {
+			got, err := f.Reverse(ctx, p.ID, tt.reason, tt.by)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("Reverse err = %v, want %v", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil || got.Status != payment.StatusReversed || got.Reason != tt.reason || got.ReversedBy != tt.by.UserID {
 				t.Fatalf("Reverse = %+v, %v", got, err)
 			}
 			if fee, tax := f.Open("b1"); fee != 80000 || tax != 10400 {
 				t.Fatalf("open = %d/%d, want 80000/10400", fee, tax)
 			}
-			if _, err := f.Reverse(ctx, p.ID, tt.reason); !errors.Is(err, payment.ErrReversed) {
+			if _, err := f.Reverse(ctx, p.ID, tt.reason, tt.by); !errors.Is(err, payment.ErrReversed) {
 				t.Fatalf("second Reverse err = %v, want ErrReversed", err)
 			}
 			if _, err := f.Get(ctx, "nope"); !errors.Is(err, payment.ErrNotFound) {

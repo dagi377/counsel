@@ -2,6 +2,7 @@ package matter
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +23,9 @@ import (
 
 // Gate kinds the matter write routes open. Their effects, not the routes, write the matter.
 const (
+	// EventPartyAdded (a2): parties were added to a matter's conflict check. The payload holds
+	// ids only, never a party's name.
+	EventPartyAdded = "matter.party_added"
 	GateOpening     = "matter.opening"
 	GateWidenAccess = "matter.widen_access"
 	GateClosing     = "platform.closing"
@@ -127,6 +131,24 @@ type openingBody struct {
 	Visibility          string `json:"visibility,omitempty"`
 }
 
+// openingGatePayload is the matter.opening payload POST /matters puts on the gate.
+type openingGatePayload struct {
+	openingBody
+	MatterID     string `json:"matter_id"`
+	PracticeArea string `json:"practice_area"`
+}
+
+// newMatterID returns a random (version 4) uuid for a matter the opening gate will create.
+func newMatterID() (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("matter id: %w", err)
+	}
+	b[6] = b[6]&0x0f | 0x40
+	b[8] = b[8]&0x3f | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16]), nil
+}
+
 func decodeStrict(r *http.Request, v any) error {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
@@ -178,12 +200,19 @@ func (h *Writes) create(w http.ResponseWriter, r *http.Request) {
 
 func (h *Writes) openMatter(w http.ResponseWriter, r *http.Request, p registry.Principal) {
 	var b openingBody
-	if err := decodeStrict(r, &b); err != nil || b.ShortName == "" || !idPattern.MatchString(b.ClientID) ||
+	if err := decodeStrict(r, &b); err != nil || b.Number == "" || b.ShortName == "" || !idPattern.MatchString(b.ClientID) ||
 		b.PracticeAreaID == "" || b.ResponsibleLawyerID == "" || !validVisibility(b.Visibility) {
 		h.fail(w, r, http.StatusBadRequest, server.CodeValidationFailed, "Body is not valid")
 		return
 	}
-	payload, err := json.Marshal(b)
+	// The route picks the new matter's id, so the one approval of matter.opening both
+	// creates and opens that matter (OpeningEffect); practice_area is the gate schema's name.
+	id, err := newMatterID()
+	if err != nil {
+		h.writeErr(w, r, err)
+		return
+	}
+	payload, err := json.Marshal(openingGatePayload{openingBody: b, MatterID: id, PracticeArea: b.PracticeAreaID})
 	if err != nil {
 		h.writeErr(w, r, err)
 		return
@@ -331,6 +360,9 @@ func (h *Writes) gatedUpdate(w http.ResponseWriter, r *http.Request, p registry.
 		kind = GateClosing
 		if to == Open {
 			kind = GateOpening
+			// The matter.opening schema also names the responsible lawyer and practice area.
+			change["responsible_lawyer_id"] = m.ResponsibleLawyerID
+			change["practice_area"] = m.PracticeAreaID
 		}
 		change["status"] = string(to)
 	case b.Restricted != nil:

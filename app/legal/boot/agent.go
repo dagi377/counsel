@@ -20,11 +20,14 @@ import (
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw"
+	"github.com/dagi377/counsel/app/legal/work"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
@@ -219,6 +222,15 @@ func AgentTools(p AgentPorts) ([]registry.Tool, error) {
 			errs = append(errs, fmt.Errorf("agent tool %s: %w", name, err))
 			continue
 		}
+		if t.Kind == registry.ToolRead {
+			// rule: ARC-U-027
+			// Every read result records its dates and numbers, quoted text included, so a
+			// sourced write (propose_time_entries, propose_deadline) can carry them.
+			if t, err = p.Provenance.ReadTool(t); err != nil {
+				errs = append(errs, fmt.Errorf("agent tool %s: %w", name, err))
+				continue
+			}
+		}
 		tools = append(tools, t)
 	}
 	if err := errors.Join(errs...); err != nil {
@@ -295,14 +307,16 @@ func gateKindCodes() ([]string, error) {
 }
 
 // JobBindings binds every job feature of s to the events and schedule that start it.
-// ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-09,
-// F-CON-09, F-CON-11, F-CON-12, F-DOC-09, F-BIL-07; Q-INTEG-15A-SCHEDULED); empty fails with
-// trigger.ErrBadBinding. F-DL-05, F-DL-06, F-CON-05, F-CON-10, F-DOC-06, F-DOC-07, F-MAT-05,
-// F-MAT-09, F-MAT-14 and F-TRU-04 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
-// job feature cannot ship unbound.
-func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
-	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
-		return func() (trigger.Binding, error) { return bind(ruleAdmin) }
+// Every scheduled run (F-DL-05, F-DL-09, F-CON-05, F-CON-09 to 12, F-DOC-06, F-DOC-09,
+// F-TIM-03, F-WRK-05 and the F-DL-06 rule watch) acts for its feature's designated lawyer in
+// firm settings, read at each tick (JOB-ACTOR); F-TIM-01 runs once per active timekeeper. A job feature with no binding listed here fails, so a new job feature
+// cannot ship unbound.
+func JobBindings(s *feature.Set, b *trigger.Bindings) error {
+	// rule: ARC-I-040
+	// A scheduled run acts for the feature's designated lawyer in firm settings, never for
+	// an administrator; with none named the feature does not run (JOB-ACTOR).
+	scheduled := func(d feature.Def, events ...string) func() (trigger.Binding, error) {
+		return func() (trigger.Binding, error) { return trigger.BindDesignated(d, events...) }
 	}
 	byID := map[string]func() (trigger.Binding, error){
 		deadlines.FeatureExtractDeadlines: func() (trigger.Binding, error) {
@@ -317,7 +331,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		deadlines.DigestDef().ID:                    deadlines.DigestBinding,
 		deadlines.PostEventFollowUpDef().ID:         deadlines.PostEventFollowUpBinding,
 		deadlines.AdjournmentWatcherDef().ID:        deadlines.AdjournmentWatcherBinding,
-		deadlines.AbsenceCoverageCheckDef().ID:      scheduled(deadlines.AbsenceCoverageCheckBinding),
+		deadlines.AbsenceCoverageCheckDef().ID:      scheduled(deadlines.AbsenceCoverageCheckDef(), deadlines.EventAbsenceApproved),
 		conflict.FeaturePartyExtraction:             conflict.PartyExtractionBinding,
 		conflict.SearchRankingDef().ID:              conflict.SearchRankingBinding,
 		conflict.ClearanceMemoDef().ID:              conflict.ClearanceMemoBinding,
@@ -326,13 +340,14 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		conflict.IDObligationWatcherDef().ID:        conflict.IDObligationWatcherBinding,
 		conflict.IDEvidenceCheckDef().ID:            conflict.IDEvidenceCheckBinding,
 		conflict.BeneficialOwnershipDef().ID:        conflict.BeneficialOwnershipBinding,
-		conflict.WallMonitorDef().ID:                scheduled(conflict.WallMonitorBinding),
+		conflict.WallMonitorDef().ID:                scheduled(conflict.WallMonitorDef(), conflict.EventWalledMatterAccessed),
 		conflict.ExpiryRetentionDef().ID:            conflict.ExpiryRetentionBinding,
-		conflict.AuditAnomalyDigestDef().ID:         scheduled(conflict.AuditAnomalyDigestBinding),
-		conflict.DuplicateFinderDef().ID:            scheduled(conflict.DuplicateFinderBinding),
+		conflict.AuditAnomalyDigestDef().ID:         scheduled(conflict.AuditAnomalyDigestDef()),
+		conflict.DuplicateFinderDef().ID:            scheduled(conflict.DuplicateFinderDef()),
 		legaldocs.IngestDocumentDef().ID:            legaldocs.IngestDocumentBinding,
 		legaldocs.EngagementLetterDef().ID:          legaldocs.EngagementLetterBinding,
 		legaldocs.DraftWithCitationsDef().ID:        legaldocs.DraftWithCitationsBinding,
+		work.PickUpAgentReadyDef().ID:               work.PickUpAgentReadyBinding,
 		legaldocs.FeatureTemplateCurrency:           legaldocs.TemplateCurrencyBinding,
 		legaldocs.PrecheckOutgoingDef().ID:          legaldocs.PrecheckOutgoingBinding,
 		legaldocs.CitationStalenessDef().ID:         legaldocs.CitationStalenessBinding,
@@ -340,7 +355,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		legaldocs.EmailFilerDef().ID:                legaldocs.EmailFilerBinding,
 		legaldocs.AssemblyOnStageDef().ID:           legaldocs.AssemblyOnStageBinding,
 		legaldocs.TrackedRevisionDef().ID:           legaldocs.TrackedRevisionBinding,
-		legaldocs.CourtFormCurrencyDef().ID:         scheduled(legaldocs.CourtFormCurrencyBinding),
+		legaldocs.CourtFormCurrencyDef().ID:         scheduled(legaldocs.CourtFormCurrencyDef()),
 		matter.BriefRefreshDef().ID:                 matter.BriefRefreshBinding,
 		matter.StageAdvanceDef().ID:                 matter.StageAdvanceBinding,
 		matter.PartyExtractionDef().ID:              matter.PartyExtractionBinding,
@@ -353,13 +368,40 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.MatterDigestDef().ID:                 matter.MatterDigestBinding,
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
+		work.WorkflowLintDef().ID:                   work.WorkflowLintBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		trust.AnnualReportPrepDef().ID:              trust.AnnualReportPrepBinding,
 		trust.RetainerCoverageScanDef().ID:          trust.RetainerCoverageScanBinding,
 		trust.FeatureMonthEndReconciliation:         trust.MonthEndReconciliationBinding,
 		trust.FeatureRetainerReplenishment:          trust.RetainerReplenishmentBinding,
 		billing.FeatureTrustApplication:             billing.TrustApplicationBinding,
-		billing.FeatureMonthlyDigest:                scheduled(billing.MonthlyDigestBinding),
+		billing.FeatureMonthlyDigest:                billing.MonthlyDigestBinding,
+		intake.FeatureTriageNewLead:                 intake.TriageNewLeadBinding,
+		intake.MailboxWatcherDef().ID:               intake.MailboxWatcherBinding,
+		intake.MissingInfoChaserDef().ID:            intake.MissingInfoChaserBinding,
+		intake.DeclineReferLetterDef().ID:           intake.DeclineReferLetterBinding,
+		intake.ConversionPrefillDef().ID:            intake.ConversionPrefillBinding,
+		intake.ConsultNoteDef().ID:                  intake.ConsultNoteBinding,
+		intake.AIReceptionistDef().ID:               intake.AIReceptionistBinding,
+		intake.PreConsultBriefDef().ID:              intake.PreConsultBriefBinding,
+		intake.PipelineFollowUpsDef().ID:            intake.PipelineFollowUpsBinding,
+		intake.WeeklyIntakeDigestDef().ID:           intake.WeeklyIntakeDigestBinding,
+		// F-TIM-01 runs at the end of each business day once per active timekeeper, each
+		// run acting for that timekeeper (TIME-FIX); the screen actions cover on-request runs.
+		tk.RebuildDayDef().ID:              tk.RebuildDayBinding,
+		tk.ReceiptCaptureDef().ID:          tk.ReceiptCaptureBinding,
+		tk.PreBillCheckDef().ID:            tk.PreBillCheckBinding,
+		tk.TimesheetPreReviewDef().ID:      tk.TimesheetPreReviewBinding,
+		tk.EngagementTermsDef().ID:         tk.EngagementTermsBinding,
+		tk.RateChangeImpactDef().ID:        tk.RateChangeImpactBinding,
+		work.PickUpAgentReadyDef().ID:      work.PickUpAgentReadyBinding,
+		work.ProposeMatterPlanDef().ID:     work.ProposeMatterPlanBinding,
+		work.DateShiftDef().ID:             work.DateShiftBinding,
+		work.WorkflowLintDef().ID:          work.WorkflowLintBinding,
+		work.RuleSuggesterDef().ID:         work.RuleSuggesterBinding,
+		work.AbsenceCoverPlannerDef().ID:   work.AbsenceCoverPlannerBinding,
+		work.DailyDigestDef().ID:           work.DailyDigestBinding,
+		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -403,6 +445,10 @@ func AddTickJob(j *kboot.Jobs, b *trigger.Bindings) error {
 	return nil
 }
 
+// FirmSubject is the subject kind of a firm-level screen's records: settings and the audit
+// log belong to the firm, not to one matter.
+const FirmSubject = "firm"
+
 // actionScreens maps each screen that offers a feature action to the records it selects and
 // the capability the acting user needs on each. Every screen named in a feature's Actions
 // must be listed (TestActionScreensCoverFeatures).
@@ -426,8 +472,9 @@ var actionScreens = map[string]trigger.Screen{
 	"party-records-hygiene":       {SubjectKind: party.SubjectKind, Capability: "contacts.edit"},
 	"lateral-hire-intake":         {SubjectKind: party.SubjectKind, Capability: "conflicts.run"},
 	"ethical-walls":               {SubjectKind: "matter", Capability: "conflicts.walls"},
-	"conflict-search-settings":    {SubjectKind: "matter", Capability: "conflicts.run"},
-	"compliance-audit-log":        {SubjectKind: "matter", Capability: "admin.audit_log"},
+	// Firm-level screens act on the firm, not on a matter.
+	"conflict-search-settings": {SubjectKind: FirmSubject, Capability: "conflicts.run"},
+	"compliance-audit-log":     {SubjectKind: FirmSubject, Capability: "admin.audit_log"},
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
@@ -482,6 +529,64 @@ var actionScreens = map[string]trigger.Screen{
 	"trust-to-fees": {SubjectKind: "matter", Capability: "trust.request"},
 	// A credit note is drafted on the matter of the selected bill.
 	"credit-notes": {SubjectKind: "matter", Capability: "documents.edit"},
+	// Intake screens select the lead ("intake.lead", the outbox subject of a lead).
+	"phone-and-email-capture": {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	"lead-detail":             {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	// Intake screens select the lead.
+	"lead-conversion": {SubjectKind: "intake.lead", Capability: "intake.convert"},
+	"ai-receptionist": {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	// Intake screens. The form builder selects the intake form it edits.
+	"intake-form-builder": {SubjectKind: "intake.intake_form", Capability: "intake.forms"},
+	"consult-outcome":     {SubjectKind: "intake.lead", Capability: "intake.convert"},
+	// Intake.
+	"intake-automations": {SubjectKind: "matter", Capability: "intake.forms"},
+	// Intake: the referral sources report selects referrer contacts (F-INT-21).
+	"referral-sources-report":   {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
+	"intake-dashboard":          {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	"intake-questionnaire-send": {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	// Intake screens select the lead ("intake.lead", the outbox subject of a lead); the
+	// settings screen selects the matter it is opened from.
+	"public-intake-form":   {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	"consultation-booking": {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	"intake-settings":      {SubjectKind: "matter", Capability: "intake.forms"},
+	// Time screens act on the matters the acting user records time on (FEAT-TIM-01).
+	"my-time":           {SubjectKind: "matter", Capability: "time.record"},
+	"suggested-entries": {SubjectKind: "matter", Capability: "time.record"},
+	"activity-ledger":   {SubjectKind: "matter", Capability: "time.record"},
+	// Time: an expense is recorded on its matter.
+	"expenses": {SubjectKind: "matter", Capability: "time.record"},
+	// A pre-bill check reviews the matter's unbilled time.
+	"matter-wip":  {SubjectKind: "matter", Capability: agent.CapBillingView},
+	"write-downs": {SubjectKind: "matter", Capability: agent.CapBillingView},
+	// Time. A fee arrangement is the matter's; the screen selects the matter.
+	"matter-fee-arrangement": {SubjectKind: "matter", Capability: "billing.view"},
+	// A time entry is checked on its matter (timekeeping HTTP does the same).
+	"time-entry-detail": {SubjectKind: "matter", Capability: "time.record"},
+	// Time. Firm-level time screens select the matters of the rows on screen until boot has a
+	// firm subject (Q-FEAT-TIM-08-SCREENS).
+	"activity-list":       {SubjectKind: "matter", Capability: "time.record"},
+	"utilization":         {SubjectKind: "matter", Capability: "reports.firm"},
+	"activity-categories": {SubjectKind: "matter", Capability: "time.view_all"},
+	"timekeeper-targets":  {SubjectKind: "matter", Capability: "reports.firm"},
+	// Work: the work-item screen selects the item the agent posts its result on.
+	"work-item": {SubjectKind: "work_item", Capability: "work.edit"},
+	// Work. The workflow editor, work automations, workload and team availability are
+	// firm-level; they map to matter until boot has a firm subject (Q-FEAT-WRK-04).
+	"workflow-editor":   {SubjectKind: "matter", Capability: "work.workflows"},
+	"work-automations":  {SubjectKind: "matter", Capability: "work.workflows"},
+	"workload":          {SubjectKind: "matter", Capability: "work.edit"},
+	"team-availability": {SubjectKind: "matter", Capability: "work.edit"},
+	// work-item-create selects the matter the drafted items go on.
+	"work-item-create": {SubjectKind: "matter", Capability: "work.edit"},
+	// Work. The workflow editor is firm-level; it maps to matter until boot has a firm
+	// subject (Q-FEAT-WRK-04).
+	// workflow-templates is firm-level too; it selects the completed matters to mine
+	// (Q-FEAT-WRK-08).
+	"workflow-templates": {SubjectKind: "matter", Capability: "work.workflows"},
+	// Work screens of F-WRK-15 to F-WRK-17: no firm subject kind exists yet, so each selects a
+	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
+	"work-categories": {SubjectKind: "matter", Capability: "work.view"},
+	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
@@ -553,10 +658,19 @@ func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Pr
 // AgentWiring is what the agent layer needs at boot beyond its ports.
 type AgentWiring struct {
 	Ports AgentPorts
-	// RuleAdmin is the user the scheduled digest and coverage-check runs act for.
-	RuleAdmin string
+	// Write is what prepare_trust_withdrawal proposes through when Ports.WriteTools is nil:
+	// Withdrawals (the trust withdrawal module), and FirmAccount and Bills
+	// (WireBillingAgentPorts). Boot fills Can, Walls, Provenance, Contacts and TrustAccount
+	// from Ports (AgentWriteTools).
+	Write agent.WriteDeps
+	// Designated reads, per scheduled feature, the lawyer its runs act for. Nil uses the
+	// Postgres firm setting on the kernel DB (agent.designated_lawyer).
+	Designated trigger.DesignatedLawyers
 	// Bindings receives the job-feature bindings; nil skips triggers and the tick job.
 	Bindings *trigger.Bindings
+	// Timekeepers lists the users a per-user scheduled feature (F-TIM-01) runs for on each
+	// tick. Nil leaves those features unready (trigger.ReasonNoUserSource).
+	Timekeepers trigger.ActiveUsers
 	// Actions, when set, is mounted as the screen-action route. Boot sets its Features,
 	// Screens and Queue.
 	Actions *trigger.Actions
@@ -589,6 +703,18 @@ func registerAgent(w *AgentWiring) hook {
 		if w.Ports.Provenance == nil {
 			w.Ports.Provenance = agenttools.NewProvenance()
 		}
+		// The ports WireMatterPorts built publish through the kernel emitter (matter.party_added
+		// from PGConflictParties); without one they refuse rather than drop the event.
+		if k.Emitter != nil {
+			SetMatterPortEvents(&w.Ports, k.Emitter)
+		}
+		if w.Ports.WriteTools == nil {
+			wt, err := AgentWriteTools(w.Ports, w.Write)
+			if err != nil {
+				return err
+			}
+			w.Ports.WriteTools = wt
+		}
 		tools, err := AgentTools(w.Ports)
 		if err != nil {
 			return err
@@ -597,7 +723,13 @@ func registerAgent(w *AgentWiring) hook {
 			k.Registry.Tool(t)
 		}
 		if w.Bindings != nil {
-			if err := JobBindings(features, w.Bindings, w.RuleAdmin); err != nil {
+			if d := designatedOrPG(k, w.Designated); d != nil {
+				w.Bindings.WithDesignated(d)
+			}
+			if w.Timekeepers != nil {
+				w.Bindings.WithUsers(w.Timekeepers)
+			}
+			if err := JobBindings(features, w.Bindings); err != nil {
 				return err
 			}
 			if k.Jobs != nil {
@@ -630,5 +762,78 @@ func registerAgent(w *AgentWiring) hook {
 			}
 		}
 		return nil
+	}
+}
+
+// AgentWriteTools builds the write tools prepare_trust_withdrawal runs on: base's
+// Withdrawals, FirmAccount and Bills, with Can, Walls, Provenance, Contacts (MatterContacts)
+// and TrustAccount (TrustAccounts) from p. It fails closed with agent.ErrMissingDep naming
+// every port that is nil, so boot never serves a withdrawal tool that skips a check.
+func AgentWriteTools(p AgentPorts, base agent.WriteDeps) (*agent.WriteTools, error) {
+	var missing []string
+	for _, v := range []struct {
+		name string
+		nil  bool
+	}{
+		{"Can", p.Can == nil},
+		{"Walls", p.Walls == nil},
+		{"Provenance", p.Provenance == nil},
+		{"MatterContacts", p.MatterContacts == nil},
+		{"TrustAccounts", p.TrustAccounts == nil},
+		{"Withdrawals", base.Withdrawals == nil},
+		{"FirmAccount", base.FirmAccount == nil},
+		{"Bills", base.Bills == nil},
+	} {
+		if v.nil {
+			missing = append(missing, v.name)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("agent write tools: %s: %w", strings.Join(missing, ", "), agent.ErrMissingDep)
+	}
+	d := AgentWriteDeps(p, base)
+	d.Can = p.Can
+	d.Walls = p.Walls
+	d.Contacts = p.MatterContacts
+	d.TrustAccount = soleTrustAccount(p.TrustAccounts)
+	// rule: ARC-U-027
+	// The agent reaches the trust module through Request and Available only: the wrapper
+	// hides the concrete service, so no agent code can assert its way to Authorize or
+	// RecordExecution.
+	d.Withdrawals = requestOnly{w: base.Withdrawals}
+	wt, err := agent.NewWriteTools(d)
+	if err != nil {
+		return nil, fmt.Errorf("agent write tools: %w", err)
+	}
+	return wt, nil
+}
+
+// requestOnly exposes only the request half of the trust withdrawal module.
+type requestOnly struct{ w agent.Withdrawals }
+
+// Request implements agent.Withdrawals.
+func (r requestOnly) Request(ctx context.Context, req withdraw.Request) (withdraw.Withdrawal, error) {
+	return r.w.Request(ctx, req)
+}
+
+// Available implements agent.Withdrawals.
+func (r requestOnly) Available(ctx context.Context, trustAccountID, matterID string) (int64, error) {
+	return r.w.Available(ctx, trustAccountID, matterID)
+}
+
+// soleTrustAccount returns the one trust account that holds a matter's ledger. A matter with
+// no ledger, or with ledgers in several accounts, fails closed: the agent never picks the
+// account a withdrawal leaves from (By-Law 9 s.9(2): money leaves only the client's own ledger).
+func soleTrustAccount(src agent.MatterTrustAccounts) func(ctx context.Context, matterID string) (string, error) {
+	return func(ctx context.Context, matterID string) (string, error) {
+		accts, err := src.TrustAccountsOf(ctx, matterID)
+		if err != nil {
+			return "", fmt.Errorf("trust accounts of %s: %w", matterID, err)
+		}
+		// rule: BIL-L-036
+		if len(accts) != 1 {
+			return "", fmt.Errorf("trust accounts of %s: %d ledgers: %w", matterID, len(accts), agent.ErrInvalidInput)
+		}
+		return accts[0], nil
 	}
 }

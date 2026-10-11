@@ -3,16 +3,20 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/dagi377/counsel/app/legal/conflict"
+	"github.com/dagi377/counsel/app/legal/matter/matterkind"
 	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
 // ToolProposeConflictParties adds proposed parties to a conflict check and runs it. The run
-// stays open: clearance is gate conflict.clearance (G2), decided by a lawyer.
+// stays open: clearance is gate conflict.clearance (G2), decided by a lawyer. An agent's run
+// is recorded as a draft of its agent run, so submit_for_approval can open the feature's gate
+// on it in the same run.
 const ToolProposeConflictParties = "propose_conflict_parties"
 
 // ProposedParty is one party an agent proposes for a conflict check.
@@ -159,6 +163,18 @@ func (t proposeConflictParties) handle(ctx context.Context, p registry.Principal
 		proposed = append(proposed, pp)
 	}
 	// rule: ARC-I-035
+	// The proposed parties wait on G2: conflict.clearance on a conflict run, or
+	// matter.party_conflict when a matter feature adds a party to its matter. Refuse a run
+	// whose feature declares neither before any party is recorded.
+	if err := agenttools.CheckGateKind(ctx, p, conflict.GateClearance); err != nil {
+		if !errors.Is(err, agenttools.ErrGateKindNotAllowed) {
+			return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolProposeConflictParties, err)
+		}
+		if agenttools.CheckGateKind(ctx, p, matterkind.GatePartyConflict) != nil {
+			return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolProposeConflictParties, err)
+		}
+	}
+	// rule: ARC-I-035
 	// The parties are recorded as proposed and the check runs; the run stays open until a
 	// lawyer decides conflict.clearance (G2). Nothing here clears it.
 	terms, err := t.parties.ProposeParties(ctx, in.CheckID, proposed, user)
@@ -177,6 +193,7 @@ func (t proposeConflictParties) handle(ctx context.Context, p registry.Principal
 	if run.Status != conflict.StatusOpen {
 		return registry.ToolResult{}, fmt.Errorf("%s: run %s is %s, want open: %w", ToolProposeConflictParties, run.ID, run.Status, agenttools.ErrBadTool)
 	}
+	recordProposalDraft(ctx, p, run.ID)
 	out, err := json.Marshal(agenttools.WriteOutput{Outcome: agenttools.OutcomeProposal, Ref: run.ID})
 	if err != nil {
 		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolProposeConflictParties, err)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/kernel/db"
+	"github.com/dagi377/counsel/kernel/outbox"
 )
 
 // pgUniqueViolation is the Postgres SQLSTATE for a unique constraint violation.
@@ -21,6 +22,9 @@ const pgUniqueViolation = "23505"
 type Store struct {
 	db       db.DB
 	contacts party.Contacts
+	// Events receives matter.opened and matter.stage_changed in the write's tx. Boot sets
+	// it; while nil, Open and ChangeStage refuse (the event would be lost).
+	Events outbox.Emitter
 }
 
 var _ Matters = (*Store)(nil)

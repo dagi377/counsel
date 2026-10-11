@@ -35,7 +35,6 @@ import (
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/gate/gatefake"
 	"github.com/dagi377/counsel/kernel/registry"
-	"github.com/jackc/pgx/v5"
 )
 
 // Shared test helpers of the matter AI features, in one file. Each family keeps its own
@@ -1996,13 +1995,33 @@ func mateAbsentFromWrites(t *testing.T, run agenttest.Run, writes ...string) {
 	}
 }
 
-// mateDecisions checks the gate of kind on subject, prepared by the acting user, the way a
-// person decides it: it is pending; an agent principal deciding is 403; the acting user
-// deciding their own gate is ErrSelfApproval; it stays pending.
-func mateDecisions(t *testing.T, kind string, subject registry.Subject) {
+// mateNow is when the matter features' gates are decided.
+var mateNow = time.Date(2026, 10, 5, 9, 0, 0, 0, time.UTC)
+
+// mateApprovable gives the acting user and an agent principal the approver capability of
+// def's gate kinds, so a refusal is the separation of duties, not a missing capability. Call
+// it before Fire: the run opens its gates in the new engine.
+func mateApprovable(fd *agenttest.FeatureDriver) {
+	caps := gatefake.Caps{}
+	for _, k := range fd.Def.GateKinds {
+		for _, u := range []string{agenttest.FeatureActingFor, "agent"} {
+			caps[u] = append(caps[u], k+".approve")
+		}
+	}
+	fd.Seed.Gates = gatefake.New(func() time.Time { return mateNow }, caps)
+	for _, k := range fd.Def.GateKinds {
+		fd.Seed.GateKind(k)
+	}
+}
+
+// mateDecisions checks gate id, which the run opened with submit_for_approval on subject, the
+// way a person decides it: it is pending, of kind, on subject, prepared for the acting user;
+// an agent principal deciding is 403; the acting user deciding their own gate is
+// ErrSelfApproval; it stays pending.
+func mateDecisions(t *testing.T, fd *agenttest.FeatureDriver, id, kind string, subject registry.Subject) {
 	t.Helper()
 	ctx := context.Background()
-	now := time.Date(2026, 10, 5, 9, 0, 0, 0, time.UTC)
+	now := mateNow
 	approver := kind + ".approve"
 	actor := agenttest.FeatureActingFor
 	// rule: AI-R-003
@@ -2027,22 +2046,16 @@ func mateDecisions(t *testing.T, kind string, subject registry.Subject) {
 		}
 	}
 	// rule: ARC-I-039
-	// The kernel gate engine: pending with the acting user as preparer; the agent cannot
-	// decide it and the acting user deciding their own gate is ErrSelfApproval.
-	eng := gatefake.New(func() time.Time { return now }, gatefake.Caps{actor: {approver}, "agent": {approver}})
-	if err := eng.Register(gate.GateKind{
-		Slug: kind, Approver: approver, Risk: gate.RiskMedium, MinApprovers: 1, TTL: 168 * time.Hour,
-		Effect: func(context.Context, pgx.Tx, gate.Approved) error { return nil },
-	}); err != nil {
-		t.Fatal(err)
-	}
-	id, err := eng.Open(ctx, nil, kind, subject, json.RawMessage(`{"subject":"`+subject.ID+`"}`), registry.Principal{Kind: registry.PrincipalUser, UserID: actor})
-	if err != nil {
-		t.Fatalf("open %s: %v", kind, err)
-	}
-	pending, err := eng.Get(ctx, id)
-	if err != nil || pending.Status != gate.StatusPending || pending.Preparer.UserID != actor {
+	// The kernel gate engine: the run's gate is pending with the acting user as preparer,
+	// through the agent; the agent cannot decide it and the acting user deciding their own
+	// gate is ErrSelfApproval.
+	eng := fd.Seed.Gates
+	pending, err := eng.Get(ctx, gate.GateID(id))
+	if err != nil || pending.Status != gate.StatusPending || pending.Preparer.ActingFor != actor {
 		t.Fatalf("gate = %+v (%v), want pending, prepared by %s", pending, err, actor)
+	}
+	if pending.Kind != kind || pending.Subject.Kind != subject.Kind || pending.Subject.ID != subject.ID {
+		t.Fatalf("gate = %s on %+v, want %s on %+v", pending.Kind, pending.Subject, kind, subject)
 	}
 	d := gate.Decision{Verdict: gate.VerdictApprove, PayloadHash: pending.PayloadHash, MFAVerifiedAt: now}
 	eng2 := []struct {
@@ -2054,11 +2067,11 @@ func mateDecisions(t *testing.T, kind string, subject registry.Subject) {
 		{"acting user", registry.Principal{Kind: registry.PrincipalUser, UserID: actor}, gate.ErrSelfApproval},
 	}
 	for _, c := range eng2 {
-		if err := eng.Decide(ctx, nil, id, pending.Version, d, c.by); !errors.Is(err, c.want) {
+		if err := eng.Decide(ctx, nil, pending.ID, pending.Version, d, c.by); !errors.Is(err, c.want) {
 			t.Fatalf("%s decides: %v, want %v", c.name, err, c.want)
 		}
 	}
-	if after, _ := eng.Get(ctx, id); after.Status != gate.StatusPending {
+	if after, _ := eng.Get(ctx, pending.ID); after.Status != gate.StatusPending {
 		t.Fatalf("gate decided: %s", after.Status)
 	}
 }
@@ -2071,11 +2084,13 @@ func mateScreenPrompt(def feature.Def, records string) string {
 }
 
 // mateConflictRun fires def over the real handlers on a seeded matter with one conflict
-// check and one document holding lines. The script reads the matter and the document, then
-// proposes partyName on the check. It returns the driver, the run, the matter and check ids.
+// check and one document holding lines. The script reads the matter and the document,
+// proposes partyName on the check and submits the re-run check for def's gate in the run. It
+// returns the driver, the run, the matter and check ids.
 func mateConflictRun(t *testing.T, def feature.Def, partyName string, lines ...string) (*agenttest.FeatureDriver, agenttest.FeatureRun, string, string) {
 	t.Helper()
 	fd := agenttest.FromFeature(t, def)
+	mateApprovable(fd)
 	m := fd.Seed.Matter("2026-0316", "Synth v Example")
 	mid := string(m.ID)
 	check := fd.Seed.ConflictCheck(mid)
@@ -2089,6 +2104,7 @@ func mateConflictRun(t *testing.T, def feature.Def, partyName string, lines ...s
 		{agent.ToolProposeConflictParties, map[string]any{"check_id": check, "parties": []map[string]any{
 			{"name": partyName, "role": "related", "kind": "org", "source": mateSource(doc, string(v))},
 		}}},
+		{agent.ToolSubmitForApproval, map[string]any{"subject_type": conflict.SubjectRun, "subject_id": mateConflictRunID, "gate_kind": def.GateKinds[0]}},
 	}
 	model := mateScript(t, def.ID, "Proposed one new party on the conflict check.", calls...)
 	run := fd.Fire(context.Background(), model, "run-"+strings.ToLower(def.ID), mateScreenPrompt(def, "matter:"+mid))
@@ -2098,9 +2114,13 @@ func mateConflictRun(t *testing.T, def feature.Def, partyName string, lines ...s
 	return fd, run, mid, check
 }
 
+// mateConflictRunID is the id of the first conflict run the seed's checker starts.
+const mateConflictRunID = "run-1"
+
 // mateCheckConflictRun runs def's ok and injection cases over propose_conflict_parties: no
 // stand-ins, report_plan before the first write, the re-run check open (G2 pending) with the
-// acting user as preparer, the decision refusals, and injected text quoted only.
+// acting user as preparer, submitted for def's gate in the run, the decision refusals, and
+// injected text quoted only.
 func mateCheckConflictRun(t *testing.T, def feature.Def, partyName, line string) {
 	t.Helper()
 	cases := []struct {
@@ -2124,7 +2144,7 @@ func mateCheckConflictRun(t *testing.T, def feature.Def, partyName, line string)
 			// The script's calls ran in order and the run made no other call.
 			want := []string{
 				agent.ToolReportPlan, agent.ToolGetMatter, agent.ToolSearchDocuments, agent.ToolReadDocument,
-				agent.ToolSearchContacts, agent.ToolProposeConflictParties,
+				agent.ToolSearchContacts, agent.ToolProposeConflictParties, agent.ToolSubmitForApproval,
 			}
 			if !slices.Equal(run.Tools, want) || len(run.Refused) != 0 {
 				t.Fatalf("tools = %v refused %v, want %v and no refusal", run.Tools, run.Refused, want)
@@ -2134,7 +2154,7 @@ func mateCheckConflictRun(t *testing.T, def feature.Def, partyName, line string)
 				t.Fatalf("plan at %d, first write %d; want report_plan before propose_conflict_parties", run.PlanAt, run.FirstWrite)
 			}
 			var out agenttools.WriteOutput
-			if err := json.Unmarshal([]byte(run.ToolResults[run.FirstWrite].Text), &out); err != nil || out.Outcome != agenttools.OutcomeProposal {
+			if err := json.Unmarshal([]byte(run.ToolResults[run.FirstWrite].Text), &out); err != nil || out.Outcome != agenttools.OutcomeProposal || out.Ref != mateConflictRunID {
 				t.Fatalf("propose_conflict_parties result = %s, want a proposal", run.ToolResults[run.FirstWrite].Text)
 			}
 			got := fd.Seed.Store.Proposed[check]
@@ -2153,7 +2173,12 @@ func mateCheckConflictRun(t *testing.T, def feature.Def, partyName, line string)
 			if _, err := fd.Seed.Conflicts.Decide(context.Background(), runs[0].ID, conflict.Actor{UserID: agenttest.FeatureActingFor, IsLawyer: true}, true, ""); !errors.Is(err, conflict.ErrPreparerApproves) {
 				t.Fatalf("acting user decides own check: %v", err)
 			}
-			mateDecisions(t, matter.GatePartyConflict, registry.Subject{Kind: "conflict_run", ID: runs[0].ID})
+			// rule: AI-R-003
+			// The agent submitted the proposed re-run check in the run: one gate of def's kind.
+			if len(run.GateIDs) != 1 {
+				t.Fatalf("gates = %v, want the one submit_for_approval opened", run.GateIDs)
+			}
+			mateDecisions(t, fd, run.GateIDs[0], def.GateKinds[0], registry.Subject{Kind: conflict.SubjectRun, ID: runs[0].ID})
 			if c.inject {
 				mateDocQuotedOnly(t, run.Run, mateInjected)
 				mateAbsentFromWrites(t, run.Run, agent.ToolProposeConflictParties, agent.ToolSubmitForApproval)

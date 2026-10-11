@@ -31,8 +31,8 @@ func ProposeTimeEntriesHandler() Handler {
 	return Handler{Name: ToolProposeTimeEntries, Build: buildProposeTimeEntries}
 }
 
-// buildProposeTimeEntries reads Deps: CapabilityCheck, roles.Walls, timekeeping.Entries and
-// agenttools.GateOpener.
+// buildProposeTimeEntries reads Deps: CapabilityCheck, roles.Walls, timekeeping.Entries,
+// agenttools.GateOpener and *agenttools.Provenance.
 func buildProposeTimeEntries(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)
 	if err != nil {
@@ -47,6 +47,10 @@ func buildProposeTimeEntries(d Deps) (registry.Tool, error) {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolProposeTimeEntries, err)
 	}
 	open, err := DepOf[agenttools.GateOpener](d)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", ToolProposeTimeEntries, err)
+	}
+	pv, err := DepOf[*agenttools.Provenance](d)
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolProposeTimeEntries, err)
 	}
@@ -65,6 +69,15 @@ func buildProposeTimeEntries(d Deps) (registry.Tool, error) {
 	tool, err := agenttools.WriteTool(registry.Tool{
 		Name: s.Name, Kind: registry.ToolWrite, Capability: s.Capability, Input: s.InputSchema, Handle: t.handle,
 	})
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", ToolProposeTimeEntries, err)
+	}
+	// rule: LSO-3.6
+	// rule: ARC-U-027
+	// A suggested entry becomes a client bill, so its work date and minutes must be values
+	// the run read: a structured read result or a date or number a quoted transcript or
+	// document page states. An invented figure is refused before anything is saved.
+	tool, err = pv.SourcedWrite(tool, "/entries/*/work_date", "/entries/*/minutes")
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolProposeTimeEntries, err)
 	}

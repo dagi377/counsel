@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -122,7 +123,7 @@ func TestFBIL07_Def(t *testing.T) {
 			t.Fatalf("digest Def has write tool %s", name)
 		}
 	}
-	b, err := MonthlyDigestBinding("user-synthetic-rule-admin")
+	b, err := MonthlyDigestBinding()
 	if err != nil {
 		t.Fatalf("Binding: %v", err)
 	}
@@ -133,7 +134,9 @@ func TestFBIL07_Def(t *testing.T) {
 		{"feature", b.FeatureID, "F-BIL-07"},
 		{"events", strings.Join(b.Events, ","), ""},
 		{"cadence", string(b.Cadence), string(trigger.CadenceMonthly)},
-		{"acting for", b.ActingFor, "user-synthetic-rule-admin"},
+		// rule: ARC-I-040
+		{"acting for", b.ActingFor, ""},
+		{"designated lawyer", strconv.FormatBool(b.Designated), "true"},
 		{"gate kinds", strings.Join(def.GateKinds, ","), ""},
 		{"kind", string(def.Kind), "chat"},
 		{"source", string(def.Source), "job"},

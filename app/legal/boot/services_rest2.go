@@ -29,13 +29,18 @@ const RemindInterval = time.Hour
 const DigestHour = 7
 
 // DeadlinePorts are the reminder jobs' dependencies. Deadlines lists the stored deadlines;
-// Primary and Fallback deliver the notices (ARC-U-030).
+// Primary and Fallback deliver the notices (ARC-U-030). On Postgres, Deadlines defaults to
+// the rest deadline book, Sent to deadline.PGSentLog, and Primary, when Recipient is set, to
+// the kernel notification service (services_rest3.go).
 type DeadlinePorts struct {
 	Deadlines deadline.Lister
 	Primary   deadline.Notifier
 	Fallback  deadline.Notifier
 	// Sent remembers what went out; nil keeps an in-memory log for the process.
 	Sent deadline.SentLog
+	// Recipient is the user id the kernel notification service sends reminders to when
+	// Primary is nil.
+	Recipient string
 }
 
 type remindArgs struct{}

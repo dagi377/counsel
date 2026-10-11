@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -49,7 +50,7 @@ func mateTaskHandlers(t *testing.T, def feature.Def) agent.HandlerSet {
 				if err != nil {
 					return registry.Tool{}, err
 				}
-				return agent.CreateTaskHandler().Build(agent.NewDeps(can, walls, items, agent.ProposedTasks(mateProposedTasks{})))
+				return agent.CreateTaskHandler().Build(agent.NewDeps(can, walls, items, agent.ProposedTasks(mateProposedTasks{}), agenttools.NewProvenance()))
 			}}
 		}
 		hs = append(hs, h)
@@ -94,6 +95,7 @@ func TestFMAT17_FromFeature(t *testing.T) {
 			ctx := context.Background()
 			def := matter.OpeningPlanDef()
 			fd := agenttest.FromFeatureWith(t, def, mateTaskHandlers(t, def))
+			mateApprovable(fd)
 			if len(fd.StandIns) != 0 {
 				t.Fatalf("stand-ins = %v, want none", fd.StandIns)
 			}
@@ -111,7 +113,12 @@ func TestFMAT17_FromFeature(t *testing.T) {
 				{agent.ToolReadDocument, map[string]any{"doc_id": doc, "version_id": string(v)}},
 				{agent.ToolSearchContacts, map[string]any{"query": "Synth"}},
 				{agent.ToolCreateTask, map[string]any{"matter_id": mid, "title": "Set up the matter folders"}},
-				{agent.ToolCreateTask, map[string]any{"matter_id": mid, "title": "Placeholder: serve the statement of claim (unconfirmed)", "due_on": "2026-11-16"}},
+				// rule: ARC-U-027
+				// The service date is only in quoted document text, not a date a read tool returned, so
+				// the placeholder carries no due_on (create_task would refuse it as unsourced).
+				{agent.ToolCreateTask, map[string]any{"matter_id": mid, "title": "Placeholder: serve the statement of claim (unconfirmed)"}},
+				{agent.ToolSubmitForApproval, map[string]any{"subject_type": agenttest.SubjectWorkItem, "subject_id": "item-1", "gate_kind": matter.GateWorkPlan}},
+				{agent.ToolSubmitForApproval, map[string]any{"subject_type": agenttest.SubjectWorkItem, "subject_id": "item-2", "gate_kind": matter.GateWorkPlan}},
 			}
 			model := mateScript(t, def.ID, "Proposed two opening tasks; the service date stays unconfirmed.", calls...)
 			run := fd.Fire(ctx, model, "run-f-mat-17", mateScreenPrompt(def, "matter:"+mid))
@@ -123,6 +130,7 @@ func TestFMAT17_FromFeature(t *testing.T) {
 			want := []string{
 				agent.ToolReportPlan, agent.ToolGetMatter, agent.ToolSearchDocuments, agent.ToolReadDocument,
 				agent.ToolSearchContacts, agent.ToolCreateTask, agent.ToolCreateTask,
+				agent.ToolSubmitForApproval, agent.ToolSubmitForApproval,
 			}
 			if !slices.Equal(run.Tools, want) || len(run.Refused) != 0 || len(run.StandIns) != 0 {
 				t.Fatalf("tools = %v refused %v stand-ins %v, want %v", run.Tools, run.Refused, run.StandIns, want)
@@ -134,12 +142,20 @@ func TestFMAT17_FromFeature(t *testing.T) {
 			// rule: AI-R-005
 			// Each task is a proposal in the proposed status, reported by the acting user; none
 			// is accepted, and the agent cannot approve it.
-			for _, i := range []int{5, 6} {
+			// rule: AI-R-003
+			// The agent submitted each proposed task in the run: one gate per task.
+			if len(run.GateIDs) != 2 {
+				t.Fatalf("gates = %v, want the two submit_for_approval opened", run.GateIDs)
+			}
+			for n, i := range []int{5, 6} {
 				var out agenttools.WriteOutput
 				if err := json.Unmarshal([]byte(run.ToolResults[i].Text), &out); err != nil || out.Outcome != agenttools.OutcomeProposal {
 					t.Fatalf("create_task result = %s, want a proposal", run.ToolResults[i].Text)
 				}
 				it, err := fd.Seed.Work.Get(ctx, work.ItemID(out.Ref))
+				if want := "item-" + strconv.Itoa(n+1); out.Ref != want {
+					t.Fatalf("create_task ref = %s, want %s", out.Ref, want)
+				}
 				if err != nil || it.StatusID != "proposed" || it.ReporterID != agenttest.FeatureActingFor || it.Subject.ID != mid {
 					t.Fatalf("task = %+v (%v), want proposed on the matter, reported by the acting user", it, err)
 				}
@@ -149,7 +165,7 @@ func TestFMAT17_FromFeature(t *testing.T) {
 				if err := fd.Seed.Work.SetApprover(ctx, nil, it.ID, "agent", true); !errors.Is(err, work.ErrSelfApproval) {
 					t.Fatalf("agent as approver: %v, want ErrSelfApproval", err)
 				}
-				mateDecisions(t, matter.GateWorkPlan, registry.Subject{Kind: "work_item", ID: out.Ref})
+				mateDecisions(t, fd, run.GateIDs[n], matter.GateWorkPlan, registry.Subject{Kind: agenttest.SubjectWorkItem, ID: out.Ref})
 			}
 			if c.inject {
 				mateDocQuotedOnly(t, run.Run, mateInjected)

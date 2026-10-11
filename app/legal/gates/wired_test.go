@@ -12,6 +12,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/credit"
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/trust/signatory"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -164,7 +165,6 @@ var knownUnwired = []string{
 	"matter.party_conflict",
 	"matter.practice_config",
 	"matter.renumber",
-	"matter.stage_move",
 	"matter.widen_access",
 	"platform.access_change",
 	"platform.closing",
@@ -212,6 +212,7 @@ func featureEffects(t *testing.T) map[string]registry.EffectFunc {
 		withdraw.GateKind:             (&withdraw.Effect{}).Apply,
 		credit.GateKindCreditNote:     (&credit.WriteOffEffect{}).Apply,
 		credit.GateKindWriteOffSecond: (&credit.WriteOffSecondEffect{}).Apply,
+		matter.GateStageMove:          (&matter.Store{}).StageMoveEffect(nil),
 	}
 	for _, m := range []map[string]registry.EffectFunc{
 		bill.Effects(&bill.ApproveEffect{}),

@@ -1021,3 +1021,59 @@ func TestMIG_061_MigrationJobValues(t *testing.T) {
 		})
 	}
 }
+
+// TestSealKeyMounted: every app tier mounts the cell's seal-key Secret read-only and passes
+// -seal-key-file to counseld or counsel-worker; the key never appears as an env var.
+func TestSealKeyMounted(t *testing.T) {
+	objs := mustRender(t, map[string]any{"cell": "alpha"})
+	deps := byKind(objs, "Deployment")
+	const arg = "-seal-key-file=/var/run/counsel/seal-key/key"
+	for _, tier := range statelessTiers {
+		t.Run(tier, func(t *testing.T) {
+			d, ok := deps[tier]
+			if !ok {
+				t.Fatalf("no Deployment for tier %s", tier)
+			}
+			vols, _ := dig(d, "spec", "template", "spec", "volumes").([]any)
+			secret := ""
+			for _, v := range vols {
+				if m, ok := v.(map[string]any); ok && m["name"] == "seal-key" {
+					secret, _ = dig(m, "secret", "secretName").(string)
+				}
+			}
+			if secret != "counsel-alpha-seal-key" {
+				t.Fatalf("seal-key volume secret = %q", secret)
+			}
+			c := podContainers(d)[0]
+			args, _ := c["args"].([]any)
+			if !slices.Contains(args, any(arg)) {
+				t.Errorf("args %v lack %s", args, arg)
+			}
+			mounted := false
+			mounts, _ := c["volumeMounts"].([]any)
+			for _, m := range mounts {
+				if mm, ok := m.(map[string]any); ok && mm["name"] == "seal-key" && mm["readOnly"] == true {
+					mounted = true
+				}
+			}
+			if !mounted {
+				t.Errorf("seal-key not mounted read-only: %v", mounts)
+			}
+			env, _ := c["env"].([]any)
+			for _, e := range env {
+				if m, ok := e.(map[string]any); ok && m["name"] == "COUNSEL_SEAL_KEY" {
+					t.Error("seal key passed as an env var")
+				}
+			}
+		})
+	}
+	ext := false
+	for _, o := range objs {
+		if o.kind() == "ExternalSecret" && o.meta("name") == "counsel-alpha-seal-key" {
+			ext = true
+		}
+	}
+	if !ext {
+		t.Error("no ExternalSecret counsel-alpha-seal-key")
+	}
+}

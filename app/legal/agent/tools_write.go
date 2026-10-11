@@ -136,6 +136,12 @@ func (t *WriteTools) Call(ctx context.Context, c Call) (Result, error) {
 	if c.ActingFor == "" {
 		return Result{}, fmt.Errorf("call %s: no acting user: %w", c.Tool, ErrForbidden)
 	}
+	// rule: ARC-U-027
+	// Fail closed: a write tool built without its capability check, walls, trust account
+	// lookup or trust module refuses every call instead of panicking or skipping a check.
+	if t.deps.Can == nil || t.deps.Walls == nil || t.deps.TrustAccount == nil || t.deps.Withdrawals == nil {
+		return Result{}, fmt.Errorf("call %s: write deps: %w", c.Tool, ErrMissingDep)
+	}
 	ok, err := t.deps.Can(ctx, c.ActingFor, CapTrustRequest)
 	if err != nil {
 		return Result{}, fmt.Errorf("call %s: capability: %w", c.Tool, err)

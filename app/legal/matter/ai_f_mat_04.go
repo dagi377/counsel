@@ -5,6 +5,7 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
+	"github.com/dagi377/counsel/app/legal/matter/matterkind"
 	"github.com/dagi377/counsel/kernel/ai"
 )
 
@@ -13,7 +14,7 @@ const FeaturePartyExtraction = "F-MAT-04"
 
 // GatePartyConflict is G2 on a matter: a party joins the matter in its role only once a
 // lawyer clears the conflict check propose_conflict_parties runs on it.
-const GatePartyConflict = "matter.party_conflict"
+const GatePartyConflict = matterkind.GatePartyConflict
 
 // PartyDocumentEvents are the a2 events of a document filed on a matter (a new pleading,
 // correspondence or closing document): document.uploaded. Each starts F-MAT-04.

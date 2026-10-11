@@ -57,11 +57,11 @@ const (
 )
 
 // ParseCadence reads the schedule part of a feature's Trigger ("schedule: weekly", "schedule
-// (daily) and on role change", "schedule: weekdays 07:30"). A trigger with no schedule is
-// CadenceNone.
+// (daily) and on role change", "schedule: weekdays 07:30", "event: ...; weekly sweep"). A
+// sweep is a schedule word, like schedule. A trigger with no schedule is CadenceNone.
 func ParseCadence(trigger string) Cadence {
 	t := strings.ToLower(trigger)
-	if !strings.Contains(t, "schedule") && !strings.Contains(t, "monthly") {
+	if !slices.ContainsFunc(scheduleWords, func(w string) bool { return strings.Contains(t, w) }) {
 		return CadenceNone
 	}
 	for _, c := range []struct {
@@ -84,6 +84,9 @@ func ParseCadence(trigger string) Cadence {
 	return CadenceDaily
 }
 
+// scheduleWords mark a trigger as scheduled; the cadence words below then pick how often.
+var scheduleWords = []string{"schedule", "sweep", "monthly"}
+
 // Binding ties one job feature to the kernel event types and the schedule that start it.
 type Binding struct {
 	FeatureID string
@@ -93,6 +96,9 @@ type Binding struct {
 	// Designated: a scheduled run acts for the feature's designated lawyer, read from firm
 	// settings at each tick, instead of ActingFor. Set by BindDesignated.
 	Designated bool
+	// PerUser: each scheduled slot runs once per active user, each run acting for that
+	// user, instead of once for ActingFor. Set by BindPerUser.
+	PerUser bool
 }
 
 // Bind builds d's binding: the cadence comes from d.Trigger, the event types from events,
@@ -114,7 +120,11 @@ func (b Binding) validate() error {
 		return fmt.Errorf("bind: feature id required: %w", ErrBadBinding)
 	case len(b.Events) == 0 && b.Cadence == CadenceNone:
 		return fmt.Errorf("bind %s: no event and no schedule: %w", b.FeatureID, ErrBadBinding)
-	case b.Cadence != CadenceNone && b.ActingFor == "" && !b.Designated:
+	case b.Designated && b.PerUser:
+		return fmt.Errorf("bind %s: designated and per-user: %w", b.FeatureID, ErrBadBinding)
+	case b.PerUser && b.ActingFor != "":
+		return fmt.Errorf("bind %s: per-user run acts for each user, not %q: %w", b.FeatureID, b.ActingFor, ErrBadBinding)
+	case b.Cadence != CadenceNone && b.ActingFor == "" && !b.Designated && !b.PerUser:
 		return fmt.Errorf("bind %s: scheduled run needs an acting user: %w", b.FeatureID, ErrBadBinding)
 	}
 	for _, e := range b.Events {
@@ -140,6 +150,22 @@ type RunArgs struct {
 	ActingFor string       `json:"acting_for"`
 	EventID   string       `json:"event_id,omitempty" river:"unique"`
 	Slot      string       `json:"slot,omitempty" river:"unique"`
+	// ForUser is set on a per-user run to its acting user, so each user's run in one slot is
+	// its own job. A run whose ForUser differs from ActingFor is refused (CheckOwnUser).
+	ForUser string `json:"for_user,omitempty" river:"unique"`
+}
+
+// ErrCrossUser: a per-user run names one user to act for and another whose time it is for.
+var ErrCrossUser = errors.New("trigger: per-user run acts for another user")
+
+// CheckOwnUser returns ErrCrossUser when a per-user run would act for one user on another
+// user's time. A run that is not per-user (ForUser empty) passes.
+func (a RunArgs) CheckOwnUser() error {
+	// rule: LSO-3.6
+	if a.ForUser != "" && a.ForUser != a.ActingFor {
+		return fmt.Errorf("run %s: %w", a.FeatureID, ErrCrossUser)
+	}
+	return nil
 }
 
 // Kind implements river.JobArgs.
@@ -189,6 +215,7 @@ type Bindings struct {
 	features map[string]bool
 	sched    []Binding
 	lawyers  DesignatedLawyers
+	users    ActiveUsers
 }
 
 // New returns an empty set that enqueues on q, reads time from clk and skips holidays.
@@ -272,6 +299,14 @@ func (s *Bindings) Tick(ctx context.Context) (int, error) {
 		if !ok {
 			continue
 		}
+		if b.PerUser {
+			m, err := s.tickPerUser(ctx, b, slot)
+			n += m
+			if err != nil {
+				return n, err
+			}
+			continue
+		}
 		actingFor, err := s.actingFor(ctx, b)
 		if errors.Is(err, ErrNoDesignatedLawyer) {
 			slog.WarnContext(ctx, "scheduled agent feature not started: no designated lawyer", "feature", b.FeatureID, "slot", slot)
@@ -319,6 +354,9 @@ func (w *TickWorker) Work(ctx context.Context, _ *river.Job[TickArgs]) error {
 }
 
 func (s *Bindings) insert(ctx context.Context, args RunArgs) error {
+	if err := args.CheckOwnUser(); err != nil {
+		return err
+	}
 	opts := args.InsertOpts()
 	res, err := s.q.Insert(ctx, args, &opts)
 	if err != nil {

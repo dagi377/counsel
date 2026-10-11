@@ -23,7 +23,17 @@ var (
 	ErrOtherClient = errors.New("payment: bill belongs to another client")
 	// ErrReversed is returned when a reversed payment is reversed or applied again.
 	ErrReversed = errors.New("payment: already reversed")
+	// ErrAgentReverse is returned when an agent tries to reverse a payment (PAYMENT-FIX,
+	// additive): only a human reverses.
+	ErrAgentReverse = errors.New("payment: an agent never reverses a payment")
 )
+
+// Actor is who acts on a payment: a core.app_user id, and whether that principal is an agent
+// (PAYMENT-FIX, additive).
+type Actor struct {
+	UserID string
+	Agent  bool
+}
 
 // Kind says what a received payment is for.
 type Kind string
@@ -86,6 +96,8 @@ type Payment struct {
 	Capture Capture
 	Status  Status
 	Reason  ReversalReason
+	// ReversedBy is the user who reversed the payment; empty while captured (PAYMENT-FIX).
+	ReversedBy string
 }
 
 // Allocation is the part of a payment applied to one bill, split by bucket. A row with an
@@ -106,8 +118,10 @@ type Service interface {
 	// rhu(amount*open_tax, open_total) and the rest goes to fees; any excess is unapplied.
 	// The same (provider, event_id) or idempotency key returns the first payment.
 	Capture(ctx context.Context, c Capture) (Payment, []Allocation, error)
-	// Reverse undoes a payment, restoring each allocation's bucket split exactly.
-	Reverse(ctx context.Context, paymentID string, reason ReversalReason) (Payment, error)
+	// Reverse undoes a payment, restoring each allocation's bucket split exactly. by is the
+	// human who reverses it and is recorded on the reversal (PAYMENT-FIX, additive); an agent
+	// gets ErrAgentReverse.
+	Reverse(ctx context.Context, paymentID string, reason ReversalReason, by Actor) (Payment, error)
 	// Get returns one payment or ErrNotFound.
 	Get(ctx context.Context, paymentID string) (Payment, error)
 	// Allocations lists a payment's allocations in the order they were made.

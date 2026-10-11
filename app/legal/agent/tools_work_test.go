@@ -49,7 +49,7 @@ func newWorkRegistry(t *testing.T, actorCaps map[string]bool) *agenttools.Regist
 	if !ok {
 		t.Fatal("list_work_items is missing from the handler set")
 	}
-	tool, err := h.Build(agent.NewDeps(can, walls, items))
+	tool, err := h.Build(agent.NewDeps(can, walls, items, agenttools.NewProvenance()))
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}

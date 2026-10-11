@@ -24,6 +24,7 @@
    "core.review_close",
    "core.user_activation",
    "docs.filing_privilege",
+   "intake.consult_outcome",
    "intake.lead_decision",
    "intake.open_matter",
    "intake.public_wording",
@@ -2599,7 +2600,9 @@
    "screens": [
     "consult-outcome"
    ],
-   "tool_gap": [],
+   "tool_gap": [
+    "intake.consult_outcome"
+   ],
    "trigger": "event: consultation ended or dictation uploaded",
    "on_request": [
     "consult-outcome > Draft note from dictation"
@@ -2610,6 +2613,7 @@
     "search_contacts",
     "search_matters",
     "draft_note",
+    "draft_document",
     "report_plan",
     "report_step",
     "submit_for_approval"
@@ -2869,7 +2873,9 @@
    "screens": [
     "consult-outcome"
    ],
-   "tool_gap": [],
+   "tool_gap": [
+    "intake.consult_outcome"
+   ],
    "trigger": "on request: consult-outcome > Generate non-engagement letter",
    "on_request": [],
    "inputs": "screen context of consult-outcome (selected record ids) plus tool reads: search_contacts, search_matters",
@@ -2878,6 +2884,7 @@
     "search_contacts",
     "search_matters",
     "draft_note",
+    "draft_document",
     "report_plan",
     "report_step",
     "submit_for_approval"

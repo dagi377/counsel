@@ -118,6 +118,12 @@ func buildPrepareTrustWithdrawal(d Deps) (registry.Tool, error) {
 	return registry.Tool{
 		Name: s.Name, Kind: registry.ToolWrite, Capability: s.Capability, Input: s.InputSchema,
 		Handle: func(ctx context.Context, p registry.Principal, in json.RawMessage) (registry.ToolResult, error) {
+			// rule: ARC-I-035
+			// The trust module opens trust.withdrawal: refuse a run whose feature does not
+			// declare it before the trust module is reached, so nothing is recorded.
+			if err := agenttools.CheckGateKind(ctx, p, GateTrustWithdrawal); err != nil {
+				return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolPrepareTrustWithdrawal, err)
+			}
 			// The acting user is the preparer; WriteTools checks that user's capability.
 			res, err := w.Call(ctx, Call{RunID: p.RunID, ActingFor: actor(p), Tool: s.Name, Input: in})
 			if err != nil {
