@@ -119,5 +119,6 @@ func appDefs() []feature.Def {
 		// billing
 		billing.TrustApplicationDef(),
 		billing.DraftCreditNoteDef(),
+		billing.MonthlyDigestDef(),
 	}
 }

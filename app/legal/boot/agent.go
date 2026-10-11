@@ -258,7 +258,7 @@ func gateKindCodes() ([]string, error) {
 
 // JobBindings binds every job feature of s to the events and schedule that start it.
 // ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-09,
-// F-CON-09, F-CON-11, F-CON-12, F-DOC-09; Q-INTEG-15A-SCHEDULED); empty fails with
+// F-CON-09, F-CON-11, F-CON-12, F-DOC-09, F-BIL-07; Q-INTEG-15A-SCHEDULED); empty fails with
 // trigger.ErrBadBinding. F-DL-05, F-DL-06, F-CON-05, F-CON-10, F-DOC-06, F-DOC-07, F-MAT-05,
 // F-MAT-09 and F-MAT-14 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
 // job feature cannot ship unbound.
@@ -317,6 +317,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		billing.FeatureTrustApplication:             billing.TrustApplicationBinding,
+		billing.FeatureMonthlyDigest:                scheduled(billing.MonthlyDigestBinding),
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).

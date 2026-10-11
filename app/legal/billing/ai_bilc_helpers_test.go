@@ -26,6 +26,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/agenttools/run"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/gate/gatefake"
@@ -434,4 +435,53 @@ func bilcToolInputsCarry(run agenttest.Run, text string) bool {
 		}
 	}
 	return false
+}
+
+// bilcOutcome is the run.Outcome of a FeatureRun: its final text and every citation a tool
+// result of the run quoted (the source of each untrusted quote).
+func bilcOutcome(r agenttest.FeatureRun) run.Outcome {
+	out := run.Outcome{Text: r.Text, JSON: r.JSON, GateIDs: r.GateIDs}
+	for _, b := range r.ToolResults {
+		var v any
+		if b.IsError || json.Unmarshal([]byte(b.Text), &v) != nil {
+			continue
+		}
+		bilcQuoteSources(v, &out.Citations)
+	}
+	return out
+}
+
+// bilcQuoteSources appends the source of every untrusted quote in v.
+func bilcQuoteSources(v any, out *[]agenttools.Citation) {
+	switch x := v.(type) {
+	case map[string]any:
+		if x["untrusted"] == true {
+			var q agenttools.Quoted
+			if b, err := json.Marshal(x); err == nil && json.Unmarshal(b, &q) == nil && q.Source.Page > 0 {
+				*out = append(*out, q.Source)
+			}
+		}
+		for _, c := range x {
+			bilcQuoteSources(c, out)
+		}
+	case []any:
+		for _, c := range x {
+			bilcQuoteSources(c, out)
+		}
+	}
+}
+
+// bilcSourcedAmounts returns agenttools.ErrUnsourcedValue unless every money figure in text
+// is one a read tool returned in run runID. The driver's Provenance holds them: bilcHandlers
+// records every read tool's figures there, list_unbilled's included.
+func bilcSourcedAmounts(fd *agenttest.FeatureDriver, runID, text string) error {
+	cents, err := CreditNoteCents(text)
+	if err != nil {
+		return err
+	}
+	raw, err := json.Marshal(map[string][]int64{"amounts": cents})
+	if err != nil {
+		return err
+	}
+	return fd.Provenance.Check(runID, []string{"/amounts/*"}, raw)
 }

@@ -73,6 +73,7 @@ func TestAppHoldsEveryListedDef(t *testing.T) {
 		{"F-MAT-23", false},
 		{"F-BIL-03", true},
 		{"F-BIL-08", true},
+		{"F-BIL-07", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.id, func(t *testing.T) {

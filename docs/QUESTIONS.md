@@ -3254,3 +3254,16 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   figure is refused as unsourced.
 - The `credit-notes` screen maps to subject `matter` with capability `documents.edit` (what
   `draft_document` needs).
+
+## Q-FEAT-BIL-07 F-BIL-07 monthly billing digest: acting user and list_unbilled provenance
+
+- The monthly run has no designated lawyer, so boot binds it for `ruleAdmin` like the other
+  scheduled features (Q-INTEG-15A-SCHEDULED).
+- The digest answers as `{answer, citations}` and passes `run.CheckAnswer`: it cites bill
+  lines (`agent.BillLineCitation`) the run's get_bill returned. Its money figures are checked
+  against the run's figures in the tests.
+- Gap: `list_unbilled` is not wrapped with `Provenance.ReadTool` (get_bill and
+  get_trust_balance are), so its amounts never enter a run's Provenance in production and a
+  write citing an unbilled amount is refused as unsourced. The bilc test helpers record every
+  read tool's figures in the driver's Provenance. Proposed: wrap `list_unbilled` like
+  get_bill.
