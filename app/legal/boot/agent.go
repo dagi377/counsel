@@ -316,8 +316,19 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 	}
+	// onRequest lists the job features that only their screen actions start (trigger.Actions
+	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
+	onRequest := map[string]bool{
+		matter.FeatureMatterQuestionAnswering: true,
+	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
+			continue
+		}
+		if onRequest[d.ID] {
+			if len(d.Actions) == 0 {
+				return fmt.Errorf("job feature %s: on request with no screen action: %w", d.ID, trigger.ErrBadBinding)
+			}
 			continue
 		}
 		bind, ok := byID[d.ID]
@@ -395,6 +406,8 @@ var actionScreens = map[string]trigger.Screen{
 	"firm-home":                {SubjectKind: "matter", Capability: "matters.view"},
 	"matter-access":            {SubjectKind: "matter", Capability: "matters.view"},
 	"matter-access-report":     {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-ask":               {SubjectKind: "matter", Capability: "matters.view"},
+	"global-search":            {SubjectKind: "matter", Capability: "matters.view"},
 	"contact-detail":           {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
 	"document-review":          {SubjectKind: "matter", Capability: "documents.view"},
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
