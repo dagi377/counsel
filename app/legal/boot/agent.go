@@ -356,9 +356,12 @@ var actionScreens = map[string]trigger.Screen{
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
-	// Time. The activity list selects the matters of the listed entries
-	// (Q-FEAT-TIM-08-SCREENS).
-	"activity-list": {SubjectKind: "matter", Capability: "time.record"},
+	// Time. Firm-level time screens select the matters of the rows on screen until boot has a
+	// firm subject (Q-FEAT-TIM-08-SCREENS).
+	"activity-list":          {SubjectKind: "matter", Capability: "time.record"},
+	"matter-fee-arrangement": {SubjectKind: "matter", Capability: "billing.view"},
+	"utilization":            {SubjectKind: "matter", Capability: "reports.firm"},
+	"activity-categories":    {SubjectKind: "matter", Capability: "time.view_all"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

@@ -75,5 +75,8 @@ func appDefs() []feature.Def {
 		legaldocs.DraftWithCitationsDef(),
 		// time
 		timekeeping.FindInconsistenciesDef(),
+		timekeeping.FlagOutOfScopeDef(),
+		timekeeping.ExplainTrendDef(),
+		timekeeping.SuggestCategoriesDef(),
 	}
 }
