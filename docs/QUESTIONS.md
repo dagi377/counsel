@@ -1879,3 +1879,19 @@ Done in PORT-18:
   0001_init.sql (`bigint NOT NULL DEFAULT 0`, `CHECK (deposit_to = 'operating' OR
   processor_fee_cents = 0)`), so an additive nullable column would duplicate it. The
   Postgres payment service, when built, writes Capture.ProcessorFeeCents to that column.
+
+## Q-HTTP-16 Direct trust receipt posting versus the gate-owned receipt key
+
+- HTTP-16 accept: an unambiguous, under-limit POST /trust/receipts answers 201 and posts the
+  receipt (Ledgers.Receive) in the route; openapi says the same ("Posts directly when
+  classification is unambiguous and cash is under limit").
+- app/legal/gateowned.go lists `trust_txn.posted=receipt` as owned by
+  trust.receipt_classification (ARC-I-012). The route must declare what it writes, so the
+  201 path would declare that key and TestRoutesConformToOpenAPI's gate-owned-state guard
+  fails. Declaring a different key for the same write would hide the conflict.
+- Options: (A) split the key: `trust_txn.posted=receipt_classified` stays gate-owned and the
+  route declares `trust_txn.posted=receipt_unambiguous` as route-owned, with the
+  unambiguous test written down (ledger found for account+matter, no payment_id, method not
+  cash or cash under the limit); (B) every receipt goes through trust.receipt_classification
+  (always 202), which contradicts the openapi summary and the HTTP-16 accept line.
+  Proposed: A. HTTP-16 is not started until this is answered.
