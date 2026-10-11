@@ -65,6 +65,15 @@ Template:
   `TestFaultFixtureRefused` is replaced by `faults_test.go`. When AI-005 merges, wrap
   `/v1/chat/completions` and `/v1/responses` the same way (a `decodeFunc` each, with
   `writeOpenAIError`).
+## Q-AI-007 /v1/embeddings route registered in main.go
+
+- Task: AI-007
+- Sources: spec/tasks.json AI-007 `files` lists only `test/fakes/llm/embeddings.go`; routes are
+  registered in `server.handler()` in `test/fakes/llm/main.go` (see Q-AI-005).
+- Proposed: one `mux.HandleFunc("POST /v1/embeddings", ...)` line in `main.go`; the
+  configured dimension is an `-embed-dim` flag (default 1024) declared in `embeddings.go`, so
+  the server struct is untouched. When AI-006 merges, wrap the route in `s.instrument` if
+  embeddings calls should be journalled.
 - Answer: (owner)
 
 ## Q-AI-003 Wire the AI fixture lint into make check

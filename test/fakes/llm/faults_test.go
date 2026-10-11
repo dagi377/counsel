@@ -27,6 +27,7 @@ turns:
       text: "one two three four five"
 `)},
 		"f-flt-02/limited/rate.yaml": &fstest.MapFile{Data: []byte("synthetic: true\nfeature: F-FLT-02\nfault: rate_limit\n")},
+		"f-flt-03/slow/timeout.yaml": &fstest.MapFile{Data: []byte("synthetic: true\nfeature: F-FLT-03\nfault: timeout\n")},
 	}
 }
 
@@ -77,6 +78,7 @@ func TestAI_R_001_Faults(t *testing.T) {
 		{name: "disconnect mid-stream", hdr: map[string]string{"X-Fake-Fault": "disconnect_mid_stream"}, stream: true, wantStatus: 200, wantErr: true},
 		{name: "disconnect plain", hdr: map[string]string{"X-Fake-Fault": "disconnect_mid_stream"}, wantStatus: 200, wantErr: true},
 		{name: "timeout holds until the client deadline", hdr: map[string]string{"X-Fake-Fault": "timeout"}, timeout: 150 * time.Millisecond, wantErr: true},
+		{name: "fixture timeout holds until the client deadline", hdr: map[string]string{"X-Counsel-Feature": "F-FLT-03"}, timeout: 150 * time.Millisecond, wantErr: true},
 		{name: "unknown fault", hdr: map[string]string{"X-Fake-Fault": "gremlins"}, wantStatus: 400, wantType: "invalid_request_error"},
 	}
 	for _, tc := range cases {
@@ -248,6 +250,45 @@ func TestAI_R_005_JournalAndReset(t *testing.T) {
 			r := post(t, h, "/v1/messages", hdr, loopTurn1(false))
 			if r.Code != 200 || !strings.Contains(r.Body.String(), `"tool_use"`) {
 				t.Fatalf("after reset run j1 did not restart at turn 1: %d %s", r.Code, r.Body)
+			}
+		})
+	}
+}
+
+// TestAI_R_001_FaultHeaderOnEveryProtocol proves the fault layer and journal wrap the
+// OpenAI-compatible routes too: X-Fake-Fault answers in each protocol's own error shape.
+func TestAI_R_001_FaultHeaderOnEveryProtocol(t *testing.T) {
+	// rule: AI-R-001
+	chat := map[string]any{"model": "fast", "messages": []any{map[string]any{"role": "user", "content": "hello"}}}
+	responses := map[string]any{"model": "fast", "input": "hello"}
+	embeddings := map[string]any{"model": "embed", "input": "hello"}
+	cases := []struct {
+		name, path, protocol string
+		body                 any
+	}{
+		{"chat completions", "/v1/chat/completions", "chat", chat},
+		{"responses", "/v1/responses", "responses", responses},
+		{"embeddings", "/v1/embeddings", "embeddings", embeddings},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newServer(faultFS(), nil).handler()
+			rec := post(t, h, tc.path, map[string]string{"X-Fake-Fault": "rate_limit", "X-Counsel-Feature": "F-FLT-01"}, tc.body)
+			if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") == "" {
+				t.Fatalf("status %d retry-after %q: %s", rec.Code, rec.Header().Get("Retry-After"), rec.Body)
+			}
+			var v map[string]any
+			if err := json.Unmarshal(rec.Body.Bytes(), &v); err != nil || dig(v, "error", "type") != "rate_limit_error" {
+				t.Fatalf("error body %s (%v)", rec.Body, err)
+			}
+			jr := httptest.NewRecorder()
+			h.ServeHTTP(jr, httptest.NewRequest(http.MethodGet, "/_journal", nil))
+			var j struct{ Calls []entry }
+			if err := json.Unmarshal(jr.Body.Bytes(), &j); err != nil || len(j.Calls) != 1 {
+				t.Fatalf("journal %s (%v)", jr.Body, err)
+			}
+			if c := j.Calls[0]; c.Protocol != tc.protocol || c.Fault != "rate_limit" || c.Status != http.StatusTooManyRequests || c.Feature != "F-FLT-01" {
+				t.Fatalf("journal call = %+v", c)
 			}
 		})
 	}

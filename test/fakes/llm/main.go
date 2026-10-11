@@ -131,8 +131,9 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /v1/models", s.listModels)
 	mux.HandleFunc("POST /v1/messages", s.instrument("messages", decodeMessagesCall, writeMessagesError, s.messages))
 	mux.HandleFunc("POST /v1/messages/count_tokens", s.countTokens)
-	mux.HandleFunc("POST /v1/chat/completions", s.chatCompletions)
-	mux.HandleFunc("POST /v1/responses", s.responses)
+	mux.HandleFunc("POST /v1/chat/completions", s.instrument("chat", decodeChatCall, writeOpenAIError, s.chatCompletions))
+	mux.HandleFunc("POST /v1/responses", s.instrument("responses", decodeResponsesCall, writeOpenAIError, s.responses))
+	mux.HandleFunc("POST /v1/embeddings", s.instrument("embeddings", decodeEmbeddingsCall, writeEmbeddingsError, s.embeddings))
 	mux.HandleFunc("GET /_journal", s.journalList)
 	mux.HandleFunc("POST /_reset", s.reset)
 	return mux

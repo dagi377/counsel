@@ -39,6 +39,40 @@ func decodeMessagesCall(body []byte, r *http.Request) (call, bool, error) {
 	return c, q.Stream, err
 }
 
+// decodeChatCall is the decodeFunc of POST /v1/chat/completions.
+func decodeChatCall(body []byte, r *http.Request) (call, bool, error) {
+	var q chatRequest
+	if err := json.Unmarshal(body, &q); err != nil {
+		return call{}, false, fmt.Errorf("decode body: %w", err)
+	}
+	c, err := q.toCall(r)
+	return c, q.Stream, err
+}
+
+// decodeResponsesCall is the decodeFunc of POST /v1/responses.
+func decodeResponsesCall(body []byte, r *http.Request) (call, bool, error) {
+	var q responsesRequest
+	if err := json.Unmarshal(body, &q); err != nil {
+		return call{}, false, fmt.Errorf("decode body: %w", err)
+	}
+	c, err := q.toCall(r)
+	return c, q.Stream, err
+}
+
+// decodeEmbeddingsCall is the decodeFunc of POST /v1/embeddings. An embeddings call has no
+// prompt, so only its feature and run id route it; faults come from X-Fake-Fault.
+func decodeEmbeddingsCall(body []byte, r *http.Request) (call, bool, error) {
+	var q embeddingsRequest
+	if err := json.Unmarshal(body, &q); err != nil {
+		return call{}, false, fmt.Errorf("decode body: %w", err)
+	}
+	c := call{feature: r.Header.Get("X-Counsel-Feature"), runID: r.Header.Get("X-Counsel-Run")}
+	if c.feature == "" {
+		c.feature = featureFromUser(q.User)
+	}
+	return c, false, nil
+}
+
 // faultState remembers which X-Fake-Fault-Once faults already fired.
 type faultState struct {
 	mu    sync.Mutex
