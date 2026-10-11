@@ -1,0 +1,32 @@
+synthetic: true
+feature: F-ACC-06
+match:
+  last_user_regex: '\[error_429\]'
+fault: rate_limit
+turns:
+  - expect_tools: [report_plan]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: search, title: "Find matters held by the leaving user"}, {id: handover, title: "Draft handover"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 640, output_tokens: 48}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: search_matters
+          input: {responsible: "usr-synth-leaver"}
+      stop_reason: tool_use
+      usage: {input_tokens: 720, output_tokens: 30}
+  - expect_tool_results: [search_matters]
+    reply:
+      tool_calls:
+        - name: draft_document
+          input: {template: handover, leaver: "usr-synth-leaver", successor: "usr-synth-successor", matters: ["mat-synth-001", "mat-synth-002"]}
+      stop_reason: tool_use
+      usage: {input_tokens: 910, output_tokens: 120}
+  - expect_tool_results: [draft_document]
+    reply:
+      text: "Drafted a handover of 2 matters for your review."
+      stop_reason: end_turn
+      usage: {input_tokens: 980, output_tokens: 24}

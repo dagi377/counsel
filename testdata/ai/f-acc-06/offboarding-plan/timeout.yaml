@@ -1,0 +1,5 @@
+synthetic: true
+feature: F-ACC-06
+match:
+  last_user_regex: '\[timeout\]'
+fault: timeout
