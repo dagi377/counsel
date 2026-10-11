@@ -88,7 +88,7 @@ Never name a file, package, type or flag after a work stream or a version: name 
 | Tracing and metrics | `go.opentelemetry.io/otel` and its `sdk` and OTLP exporters |
 | YAML | `gopkg.in/yaml.v3` |
 | JSON Schema validation | `github.com/santhosh-tekuri/jsonschema/v5` |
-| Front end | TypeScript, React |
+| Front end | TypeScript, React; Vite (build) and Vitest (unit tests) in `web/` |
 | Everything else | Go standard library |
 
 ## Parallel agents
