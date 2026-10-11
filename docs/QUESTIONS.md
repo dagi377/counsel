@@ -1940,3 +1940,19 @@ Done in PORT-18:
   body or response schema for these operations; the views are documented here until it does.
 - `billing.retainer_request` (0001) is left untouched; reconciling the two is a follow-up.
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008), as in HTTP-05.
+
+## HTTP-20: document list, upload and page text routes
+
+- openapi gives GET/POST /documents no body schema. POST /documents takes JSON
+  `{matter_id, folder_id, kind, filename?, content}` with `content` base64 (32 MiB cap); it
+  answers 201 `{id, matter_id, kind, folder_id, version_id}`. The page route answers
+  `{document_id, version_id, page, lines:[{no, text}]}`.
+- The routes read and write through a `DocumentStore` port in http.go (List, Document,
+  Upload, HasVersion) plus kernel/docs `Store.Lines`; boot implements Upload as
+  kernel/docs `Store.Put` and `Folders.File` in one tx. No contract.go change.
+- A version that belongs to another document answers 404, as does a page out of range
+  (kernel/docs ErrBadRange). An unknown kind answers 422 `docs.unknown_kind` before any
+  service call. Upload checks access on the matter subject (`matter.matter`), so a walled
+  matter answers 404.
+- Routes register from http.go's init through `add`, so register.go is unchanged.
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
