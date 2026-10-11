@@ -185,6 +185,42 @@
     }
   },
   {
+    "slug": "billing.writeoff_second_approval",
+    "spec_id": "G-B5",
+    "label": "G-B5 (managing-lawyer second approval)",
+    "approver": "billing.writeoff_second_approve",
+    "risk": "high",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "write_off_id",
+        "bill_id",
+        "amount_cents",
+        "first_approver"
+      ],
+      "properties": {
+        "write_off_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "bill_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "first_approver": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  },
+  {
     "slug": "billing.refund",
     "spec_id": "G-B6",
     "approver": "billing.credit",
