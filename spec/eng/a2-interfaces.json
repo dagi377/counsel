@@ -3981,6 +3981,17 @@
    "dual_mode_min_approvers": null
   },
   {
+   "kind": "billing.bill_delivery",
+   "spec_gate": "G-B2",
+   "spec_area": "billing",
+   "capability": "billing.approve",
+   "min_approvers": 1,
+   "risk": "medium",
+   "ttl_hours": 168,
+   "effect_handler": "billing.deliver_bill",
+   "dual_mode_min_approvers": null
+  },
+  {
    "kind": "billing.credit_note",
    "spec_gate": "G-B5",
    "spec_area": "billing",

@@ -2,6 +2,7 @@
 # sorted). The list may only shrink: effects_test.go fails when a wired slug is still listed
 # or an unwired slug is missing. Wire a kind's effect in app/legal/boot/effects.go, then
 # delete its line here.
+billing.bill_delivery
 billing.collections_message
 billing.payment_allocation
 billing.payment_plan

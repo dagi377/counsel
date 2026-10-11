@@ -231,7 +231,7 @@ func write(w http.ResponseWriter, resp Response) {
 func writeProblem(w http.ResponseWriter, status int, code, rule, title string) {
 	w.Header().Set("Content-Type", api.ProblemContentType)
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(api.Problem{Title: title, Status: status, Code: code, Rule: rule})
+	_ = json.NewEncoder(w).Encode(api.Problem{Type: api.ProblemTypePrefix + code, Title: title, Status: status, Code: code, Rule: rule})
 }
 
 // recorder buffers a handler's response so it can be stored before it is sent.

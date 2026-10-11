@@ -52,6 +52,10 @@ func problemCode(t *testing.T, w *httptest.ResponseRecorder) string {
 	if err := json.Unmarshal(w.Body.Bytes(), &p); err != nil {
 		t.Fatalf("problem body %q: %v", w.Body.String(), err)
 	}
+	// rule: ARC-I-009
+	if want := api.ProblemTypePrefix + p.Code; p.Type != want {
+		t.Fatalf("problem type = %q, want %q", p.Type, want)
+	}
 	return p.Code
 }
 

@@ -197,4 +197,4 @@ func TestARC_I_012_GateOwnedKindsRegisteredOrPending(t *testing.T) {
 
 // unspecifiedKinds are gate-owned kinds missing from spec/gates.json, each with a
 // docs/QUESTIONS.md entry.
-var unspecifiedKinds = map[string]bool{"billing.bill_delivery": true}
+var unspecifiedKinds = map[string]bool{}

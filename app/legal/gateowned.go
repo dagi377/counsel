@@ -37,7 +37,7 @@ var GateOwned = map[string]string{
 var pendingGateKinds = map[string]bool{
 	"billing.bill_approval":        true,
 	"billing.bill_void":            true,
-	"billing.bill_delivery":        true, // not in spec/gates.json yet (Q-HTTP-00)
+	"billing.bill_delivery":        true,
 	"billing.credit_note":          true,
 	"billing.payment_allocation":   true,
 	"billing.refund":               true,

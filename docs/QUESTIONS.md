@@ -1134,3 +1134,14 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   status=open opens matter.opening; closing/closed/archived open platform.closing (verify);
   team and restricted open matter.widen_access. One gated change per request; mixing plain
   and gated fields is 400.
+- Q-HTTP-00 (answered, wave 4c merge): `billing.bill_delivery` is added to spec/gates.json and
+  the a2 gate_kinds table (additive; G-B2, billing.approve, medium, 168h, effect
+  `billing.deliver_bill`, ARC-I-052). It leaves `unspecifiedKinds`; its delivery effect is not
+  built yet, so it is listed unwired.
+- Wave 4c merge notes: migrations 1401_webhook_expiry_notice and 5501_withdrawal_authority
+  clashed with same-numbered files and are renumbered 1403 and 5502; the withdrawal expiry
+  index moves to 5503_withdrawal_authority_index.sql (CONCURRENTLY, MIG-061). Run wires the
+  outbox relay over the request pool (db.Pool gains plain Exec/Query/QueryRow) and calls
+  addNotifyJobs and addWebhookJobs. The legal app schedules
+  trust.withdrawal_release_expired every 15 minutes when gate services are built. kernel/idem
+  problem bodies carry `type` (urn:counsel:problem:<code>, now api.ProblemTypePrefix).

@@ -13,7 +13,7 @@ ALTER TABLE trust.withdrawal_request
   ADD COLUMN expires_at    timestamptz;
 ALTER TABLE trust.withdrawal_request
   ADD CONSTRAINT withdrawal_request_expiry_ck CHECK (expires_at IS NULL OR expires_at > authorized_at) NOT VALID;
-CREATE INDEX withdrawal_request_expiry_idx ON trust.withdrawal_request (expires_at) WHERE status = 'authorized';
+-- The expiry index is built CONCURRENTLY in 5503_withdrawal_authority_index.sql (MIG-061).
 
 -- The approved gate binds the terms: once a withdrawal is proposed its terms never change, in
 -- any status. A change is a new request (and a new gate). The Form 9A record may be attached

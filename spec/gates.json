@@ -151,6 +151,44 @@
     }
   },
   {
+    "slug": "billing.bill_delivery",
+    "spec_id": "G-B2",
+    "approver": "billing.approve",
+    "risk": "medium",
+    "min_approvers": 1,
+    "ttl": "168h",
+    "payload_schema": {
+      "type": "object",
+      "required": [
+        "bill_id",
+        "channel",
+        "delivered_on",
+        "evidence_ref"
+      ],
+      "properties": {
+        "bill_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "channel": {
+          "enum": [
+            "email",
+            "portal",
+            "print"
+          ]
+        },
+        "delivered_on": {
+          "type": "string",
+          "format": "date"
+        },
+        "evidence_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
     "slug": "billing.credit_note",
     "spec_id": "G-B5",
     "approver": "billing.credit",

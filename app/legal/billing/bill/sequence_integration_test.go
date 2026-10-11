@@ -15,14 +15,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/dagi377/counsel/migrations"
 	"github.com/dagi377/counsel/migrations/migrationstest"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const initDDLPath = "../../../../migrations/0001_init.sql"
-
-// testPool creates a fresh database on the COUNSEL_TEST_DB server, applies 0001_init.sql
-// and returns a pool on it. The database is dropped when the test ends.
+// testPool creates a fresh database on the COUNSEL_TEST_DB server, applies every
+// migration and returns a pool on it. The database is dropped when the test ends.
 func testPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	dsn := os.Getenv("COUNSEL_TEST_DB")
@@ -58,17 +57,13 @@ func testPool(t *testing.T) *pgxpool.Pool {
 	}
 	cfg.ConnConfig.Database = name
 	cfg.MaxConns = 8
-	ddl, err := os.ReadFile(initDDLPath)
-	if err != nil {
-		t.Fatalf("read %s: %v", initDDLPath, err)
-	}
 	conn, err := pgx.ConnectConfig(ctx, cfg.ConnConfig)
 	if err != nil {
 		t.Fatalf("connect %s: %v", name, err)
 	}
 	defer conn.Close(ctx)
-	if _, err := conn.PgConn().Exec(ctx, string(ddl)).ReadAll(); err != nil {
-		t.Fatalf("apply %s: %v", initDDLPath, err)
+	if err := migrations.Apply(ctx, conn, ""); err != nil {
+		t.Fatalf("apply migrations: %v", err)
 	}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
