@@ -59,7 +59,7 @@ func newListDocsRegistry(t *testing.T, actorCaps map[string]bool) *agenttools.Re
 	})
 	h, ok := agent.HandlerFor(agent.ToolListDocuments)
 	if !ok {
-		t.Fatal("list_documents registered no handler from init")
+		t.Fatal("list_documents is missing from the handler set")
 	}
 	tool, err := h.Build(agent.NewDeps(can, walls, fake))
 	if err != nil {
