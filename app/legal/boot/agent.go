@@ -17,8 +17,10 @@ import (
 	"github.com/dagi377/counsel/app/legal/comms"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
+	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/kernel/agenttools"
@@ -69,6 +71,7 @@ type AgentPorts struct {
 	Deadlines       deadline.Lister
 	DeadlineCompute agent.DeadlineCompute
 	DeadlineSaver   agent.DeadlineSaver
+	DeadlineGetter  agent.DeadlineGetter
 	PublishedPacks  agent.PublishedPacks
 
 	Tasks           agent.TaskCreator
@@ -122,6 +125,7 @@ func (p AgentPorts) ports() []port {
 		{"Deadlines", p.Deadlines, p.Deadlines != nil},
 		{"DeadlineCompute", p.DeadlineCompute, p.DeadlineCompute != nil},
 		{"DeadlineSaver", p.DeadlineSaver, p.DeadlineSaver != nil},
+		{"DeadlineGetter", p.DeadlineGetter, p.DeadlineGetter != nil},
 		{"PublishedPacks", p.PublishedPacks, p.PublishedPacks != nil},
 		{"Tasks", p.Tasks, p.Tasks != nil},
 		{"ProposedTasks", p.ProposedTasks, p.ProposedTasks != nil},
@@ -252,10 +256,11 @@ func gateKindCodes() ([]string, error) {
 }
 
 // JobBindings binds every job feature of s to the events and schedule that start it.
-// ruleAdmin is the user the F-DL-05 digest and the F-DL-09 daily coverage check act for
-// (Q-INTEG-15A-SCHEDULED); empty fails with trigger.ErrBadBinding. The F-DL-06 rule watch
-// acts for its designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding
-// listed here fails, so a new job feature cannot ship unbound.
+// ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-05,
+// F-DL-09, F-CON-05, F-CON-09 to 12, F-DOC-06; Q-INTEG-15A-SCHEDULED); empty fails with
+// trigger.ErrBadBinding. The F-DL-06 rule watch acts for its designated lawyer in firm
+// settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
+// job feature cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
 		return func() (trigger.Binding, error) { return bind(ruleAdmin) }
@@ -277,6 +282,23 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		conflict.FeaturePartyExtraction:             conflict.PartyExtractionBinding,
 		conflict.SearchRankingDef().ID:              conflict.SearchRankingBinding,
 		conflict.ClearanceMemoDef().ID:              conflict.ClearanceMemoBinding,
+		conflict.ConsentDraftingDef().ID:            conflict.ConsentDraftingBinding,
+		conflict.ReverseSweepDef().ID:               scheduled(conflict.ReverseSweepBinding),
+		conflict.IDObligationWatcherDef().ID:        conflict.IDObligationWatcherBinding,
+		conflict.IDEvidenceCheckDef().ID:            conflict.IDEvidenceCheckBinding,
+		conflict.BeneficialOwnershipDef().ID:        conflict.BeneficialOwnershipBinding,
+		conflict.WallMonitorDef().ID:                scheduled(conflict.WallMonitorBinding),
+		conflict.ExpiryRetentionDef().ID:            scheduled(conflict.ExpiryRetentionBinding),
+		conflict.AuditAnomalyDigestDef().ID:         scheduled(conflict.AuditAnomalyDigestBinding),
+		conflict.DuplicateFinderDef().ID:            scheduled(conflict.DuplicateFinderBinding),
+		legaldocs.IngestDocumentDef().ID:            legaldocs.IngestDocumentBinding,
+		legaldocs.EngagementLetterDef().ID:          legaldocs.EngagementLetterBinding,
+		legaldocs.DraftWithCitationsDef().ID:        legaldocs.DraftWithCitationsBinding,
+		legaldocs.FeatureTemplateCurrency: func() (trigger.Binding, error) {
+			// F-DOC-06 runs weekly and on a known rule change; no form-change event exists
+			// yet (Q-INTEG-15A-SCHEDULED).
+			return trigger.Bind(legaldocs.TemplateCurrencyDef(), ruleAdmin, deadlines.EventRulePackPublished)
+		},
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -321,6 +343,19 @@ var actionScreens = map[string]trigger.Screen{
 	"event-detail":        {SubjectKind: "matter", Capability: "deadlines.view"},
 	"firm-calendar":       {SubjectKind: "matter", Capability: "deadlines.view"},
 	"rule-trigger-wizard": {SubjectKind: "matter", Capability: "deadlines.view"},
+	// Conflicts and client identification (pass 15b features; Q-INTEG-15A-SCREENS).
+	"consents-waivers":            {SubjectKind: conflict.SubjectRun, Capability: "conflicts.run"},
+	"identity-portal":             {SubjectKind: party.SubjectKind, Capability: "conflicts.identify"},
+	"organization-identification": {SubjectKind: party.SubjectKind, Capability: "conflicts.identify"},
+	"client-identification":       {SubjectKind: "matter", Capability: "conflicts.identify"},
+	"party-records-hygiene":       {SubjectKind: party.SubjectKind, Capability: "contacts.edit"},
+	"lateral-hire-intake":         {SubjectKind: party.SubjectKind, Capability: "conflicts.run"},
+	"ethical-walls":               {SubjectKind: "matter", Capability: "conflicts.walls"},
+	"conflict-search-settings":    {SubjectKind: "matter", Capability: "conflicts.run"},
+	"compliance-audit-log":        {SubjectKind: "matter", Capability: "admin.audit_log"},
+	// Documents.
+	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
+	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

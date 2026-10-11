@@ -55,6 +55,7 @@ type (
 	stubLister       struct{ deadline.Lister }
 	stubCompute      struct{ agent.DeadlineCompute }
 	stubSaver        struct{ agent.DeadlineSaver }
+	stubGetter       struct{ agent.DeadlineGetter }
 	stubPacks        struct{ packs agent.PublishedPacks }
 	stubTasks        struct{ agent.TaskCreator }
 	stubProposed     struct{ agent.ProposedTasks }
@@ -97,6 +98,7 @@ func fullPorts() AgentPorts {
 		Deadlines:       stubLister{},
 		DeadlineCompute: stubCompute{},
 		DeadlineSaver:   stubSaver{},
+		DeadlineGetter:  stubGetter{},
 		PublishedPacks:  stubPacks{},
 		Tasks:           stubTasks{},
 		ProposedTasks:   stubProposed{},

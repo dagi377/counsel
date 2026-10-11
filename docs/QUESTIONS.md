@@ -2443,6 +2443,19 @@ Done in PORT-18:
   firm-calendar and rule-trigger-wizard as matter subjects needing deadlines.view. Open: a
   conflict check before matter opening has no matter yet; confirm whether those screens
   should select a conflict_check subject kind instead.
+- After EVENTS-WIRE, conflict-results and conflict-clearance select a conflict.run subject.
+- After merging pass 15b (F-CON-04..17, F-DOC-01..03, 06): consents-waivers selects a
+  conflict.run (conflicts.run); identity-portal, organization-identification,
+  party-records-hygiene (contacts.edit) and lateral-hire-intake select a party.contact;
+  client-identification (conflicts.identify), ethical-walls (conflicts.walls),
+  engagement-letter-composer and ai-draft-workspace (documents.edit) select a matter.
+  Open, lawyer/product to confirm: conflict-search-settings and compliance-audit-log are
+  firm-level screens with no natural record; they are mapped to matter with conflicts.run
+  and admin.audit_log for now.
+- New job features bind through their package Binding funcs; scheduled ones without a
+  designated lawyer (F-CON-05, F-CON-09..12, F-DOC-06) act for RuleAdmin. F-DOC-06 binds
+  to rulepack.published for "a known rule change"; no form-change event exists yet.
+  AgentPorts gains DeadlineGetter (propose_deadline).
 ## BOOT-PORTS-A billing and trust agent ports
 
 - The base (BOOT-WIRE-A) has no `agent.UnbilledWIP`, `WriteDeps.FirmAccount` or `WriteDeps.Bills`;
