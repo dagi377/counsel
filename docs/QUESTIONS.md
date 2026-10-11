@@ -1851,3 +1851,23 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## Q-FEAT-DL-04 F-DL-02 cannot reach its tool-gap kind cal.second_check
+
+- spec/ai/features.json gives F-DL-02 the tool_gap kind `cal.second_check` (G7b), but its tool
+  list has no drafting tool: `propose_deadline` opens cal.confirm and records no draft, and
+  `submit_for_approval` only submits a draft this run created (404 otherwise). So the production
+  Def can never open G7b. `TestFDL02_FromFeature` pins that (second check without a draft ->
+  ErrNotFound); `TestFDL02_SecondCheckViaDraft` adds `draft_document` and `documents.edit` to the
+  Def and shows draft_document -> submit_for_approval opens G7b pending with the acting user as
+  preparer.
+- Proposal: add `draft_document` to F-DL-02's tools in spec/ai/features.json and to
+  `LimitationAssessmentDef` (Tools and Grant `documents.edit`), then regenerate the skill.
+- Shared: `get_matter`, `read_document` and `search_matters` have no `agent.Handler`
+  (agent.ReadTools only), and `agenttest.Seed.Deps` carries no deadline engine, PublishedPacks,
+  Provenance, DocumentLookup or SubjectMatters, and does not wrap read tools in
+  `Provenance.ReadTool`. The deadline feature tests add these in-test (dlWorld). `agenttest.QuotedOnly`
+  only knows the `agenttools.Quoted` envelope, while read_document returns
+  `{"untrusted": true, pages}`; the tests check that envelope instead (docQuotedOnly).
+- Event names: F-DL-01 binds `document.uploaded`; F-DL-02 binds `lead.created` (intake) and
+  `matter.updated` (claim facts), all a2 events.
