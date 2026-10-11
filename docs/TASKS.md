@@ -70,12 +70,12 @@ Max width 301.
 | [ ] | AI-002 | AI-002 | kernel | kernel/ai/aifake: deterministic in-process ModelClient for unit tests |  | `kernel/ai/aifake/fake.go`<br>`kernel/ai/aifake/fake_test.go` |  |
 | [ ] | AI-003 | AI-003 | kernel | Fixture format, loader, prompt hash and fixture lint |  | `kernel/ai/fixture`<br>`testdata/ai/README.md`<br>`tools/ai_fixture_lint.py` |  |
 | [ ] | AI-004 | AI-004 | kernel | test/fakes/llm: Messages-protocol fake server (non-stream, stream, tools) |  | `test/fakes/llm/main.go`<br>`test/fakes/llm/messages.go`<br>`test/fakes/llm/Dockerfile` |  |
-| [ ] | T-001.1 | T-001 | kernel | go.mod with allowed deps and cmd main stubs |  | `go.mod`<br>`go.sum`<br>`cmd/counseld/main.go`<br>`cmd/counsel-worker/main.go`<br>+2 more |  |
-| [ ] | T-001.2 | T-001 | kernel | Makefile check, rule coverage and layering test |  | `Makefile`<br>`tools/rule_coverage.py`<br>`tools/layering_test.go` |  |
+| [x] | T-001.1 | T-001 | kernel | go.mod with allowed deps and cmd main stubs |  | `go.mod`<br>`go.sum`<br>`cmd/counseld/main.go`<br>`cmd/counsel-worker/main.go`<br>+2 more |  |
+| [x] | T-001.2 | T-001 | kernel | Makefile check, rule coverage and layering test |  | `Makefile`<br>`tools/rule_coverage.py`<br>`tools/layering_test.go` |  |
 | [ ] | T-001.3 | T-001 | kernel | CI workflow and e2e runner with suite auto-discovery |  | `.github/workflows/ci.yaml`<br>`test/e2e/run.sh`<br>`test/e2e/lib.sh` |  |
 | [ ] | T-001.4 | T-001 | kernel | web/ scaffold: Vite, Vitest, React, feature auto-discovery |  | `web/package.json`<br>`web/tsconfig.json`<br>`web/vite.config.ts`<br>`web/vitest.config.ts`<br>+6 more |  |
 | [ ] | T-001.5 | T-001 | app | app/legal registration extension points (per-package register.go) |  | `app/legal/register.go`<br>`app/legal/modules.go`<br>`app/legal/flags.go`<br>`app/legal/register_test.go`<br>+36 more |  |
-| [ ] | T-001.6 | T-001 | kernel | kernel boot, flags and package stubs |  | `kernel/boot/boot.go`<br>`kernel/boot/boot_test.go`<br>`kernel/all/all.go`<br>`kernel/flags/flags.go`<br>+29 more |  |
+| [x] | T-001.6 | T-001 | kernel | kernel boot, flags and package stubs |  | `kernel/boot/boot.go`<br>`kernel/boot/boot_test.go`<br>`kernel/all/all.go`<br>`kernel/flags/flags.go`<br>+29 more |  |
 | [ ] | T-001b.1 | T-001b | kernel | Kernel boundary ratchet tests |  | `kernel/boundary_test.go`<br>`tools/kernel_terms.txt`<br>`tools/kernel_allow.txt`<br>`tools/kernel_bindings.txt` |  |
 | [ ] | T-002.0 | T-002 | kernel | Contract and in-memory fake: kernel/registry |  | `kernel/registry/contract.go`<br>`kernel/registry/registryfake/fake.go`<br>`kernel/registry/registryfake/fake_test.go` |  |
 | [ ] | T-002.1 | T-002 | kernel | Import api/openapi.yaml with contract-diff test |  | `api/openapi.yaml`<br>`kernel/contract/openapi_test.go` |  |
