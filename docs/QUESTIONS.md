@@ -625,3 +625,19 @@ integrator did not change the no-rate behaviour (ErrNoAgreedRate stays). It seed
 quarterly CJA prejudgment table (2020 Q1 to 2026 Q4, from ontario.ca, verify) as
 `interest.PrejudgmentRate`, usable as the agreed rate's CJA benchmark. Needed: a lawyer reads
 s.33 as amended and either the rules or the decision change.
+
+## Q-BOOT-13-PORTS: trust services need ports no module implements yet
+
+- Task: BOOT-13 (app/legal/boot trust services).
+- Gap: on main there is no production `signatory.Service`, `signatory.Directory`,
+  `trust.Sealer`, `withdraw.SignatoryCheck`, `withdraw.FirmPolicy` or `withdraw.Auditor`
+  (only fakes and test types), and `*ledger.PG` has no `Balance`, so it is not a
+  `ledger.Ledger` on its own (`ledger.Balances` has it).
+- Decision taken: `trustServices(k, TrustPorts)` builds `trust.AccountStore`,
+  `trust.LedgerStore` and `*withdraw.Effect` (store `withdraw.PGStore{}`) from the module
+  constructors and takes the missing ports from `TrustPorts`; each nil port fails boot naming
+  it. The AccountStore is the LedgerStore's `SignatoryGuard`.
+- Needed: tasks for the identity directory adapter, the account-number sealer, a Postgres
+  signatory service, the firm-policy reader, the withdrawal auditor and a kernel ledger value
+  that joins `PG` and `Balances`. BOOT-16 fills `TrustPorts` from them.
+- Answer: (owner)
