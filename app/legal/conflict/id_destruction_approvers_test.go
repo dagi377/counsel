@@ -9,7 +9,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/agenttest"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/gates"
@@ -61,8 +60,8 @@ func TestARC_I_019_IDDestructionNeedsTwoApprovers(t *testing.T) {
 	})); err != nil {
 		t.Fatal(err)
 	}
-	fd.SetRead(agent.ToolReadDocument, con10Record)
-	model := aifake.New(conScript("F-CON-10", "expiry-and-retention", con10Calls(conflict.GateIDDestruction), "Drafted the destruction batch for approval."))
+	read := conRead(fd, conMatter, con10Record)
+	model := aifake.New(conScript("F-CON-10", "expiry-and-retention", con10Calls(read, conflict.GateIDDestruction), "Drafted the destruction batch for approval."))
 	run := fd.Fire(context.Background(), model, "run-fcon10-two", "schedule: weekly")
 	if run.Err != nil || len(run.Refused) != 0 || len(run.GateIDs) != 1 {
 		t.Fatalf("run err = %v, refused = %v, gates = %v", run.Err, run.Refused, run.GateIDs)
