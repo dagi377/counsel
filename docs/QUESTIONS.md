@@ -4292,3 +4292,17 @@ of FEAT-TIM-01 above.
 - Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
   (trust-center screen), the generated plugin skill, and the helper file
   `app/legal/readiness/ai_rdyb_helpers_test.go` (shared with FEAT-RDY-05).
+
+## Q-FEAT-RDY-05 F-RDY-05 service credit note from trust-center
+
+- F-RDY-05 is a screen action, `trust-center > Draft service credit note`, on the same
+  trust-center matter screen as F-RDY-04 (built on task/FEAT-RDY-04). No Go constant named
+  `platform.service_credit` (G-SLA, approver `billing.credit`), so
+  `readiness.GateServiceCredit` holds it.
+- The G-SLA payload schema names `amount_cents`, but the tool-gap submit_for_approval
+  payload is `{subject_type, subject_id}` (as Q-FEAT-PLT-12 for platform.closing). The credit
+  amount is in the draft body, provenance-checked against the status page record. Open: fill
+  `amount_cents` from a sourced read when a typed service-credit write exists.
+- No uptime read tool exists; the run reads the month's uptime from the status page record
+  filed on the selected matter with search_documents. When uptime meets target it drafts
+  nothing.
