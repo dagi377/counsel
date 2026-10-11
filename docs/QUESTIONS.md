@@ -19,6 +19,19 @@ Template:
 
 ## Open
 
+## Q-004 POST /hooks/{provider} lacks problem responses ARC-I-051 asks for
+
+- Task: T-009.1
+- Sources: spec/rules/a2.json ARC-I-051 ("every operation ... mutating operations 400, 401, 403,
+  404, 409, 412, 422, 428, 429"); api/openapi.yaml `receiveProviderEvent` documents no 403, 404,
+  409 or 422.
+- Reading A: ARC-I-051 covers the session-less webhook receiver too; the contract needs an
+  additive change adding the four responses.
+- Reading B: the receiver is not a client operation; ARC-I-051 excludes it.
+- Proposed: B for now. `TestARC_I_051_OperationsDocumentProblemResponses` skips only
+  `/hooks/{provider}`; if A, add the responses additively and drop the skip.
+- Answer: (owner)
+
 ## Q-AI-003 Wire the AI fixture lint into make check
 
 - Task: AI-003
