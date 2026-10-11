@@ -102,5 +102,7 @@ func appDefs() []feature.Def {
 		matter.RetainerWatchDef(),
 		matter.ConfigHygieneDef(),
 		matter.TemplateFitDef(),
+		matter.RerunConflictDef(),
+		matter.ProposeRelationshipDef(),
 	}
 }

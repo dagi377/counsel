@@ -11,10 +11,6 @@ import (
 // FeatureOpeningPrefill is the spec id of "Matter opening pre-fill".
 const FeatureOpeningPrefill = "F-MAT-06"
 
-// GateMatterOpening is G-MO: a drafted matter is opened. It has no dedicated write tool, so
-// the run drafts the matter with draft_document and submits it.
-const GateMatterOpening = "matter.opening"
-
 // EventLeadReadyToOpen is the kernel event intake publishes once a lead has both its
 // conflict clearance (G2) and its signed engagement (G5). It starts F-MAT-06.
 const EventLeadReadyToOpen = "intake.lead_ready_to_open"
@@ -43,7 +39,7 @@ func OpeningPrefillDef() feature.Def {
 			"draft_document", "report_plan", "report_step", "submit_for_approval",
 		},
 		// rule: ARC-I-035
-		GateKinds: []string{GateMatterOpening},
+		GateKinds: []string{GateOpening},
 		// The run's agent principal holds the capabilities of its tools and no other.
 		Grant:      []string{"agent.ask", "contacts.view", "documents.edit", "documents.view", "matters.view"},
 		Prompt:     promptFMAT06,

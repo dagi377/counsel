@@ -2716,3 +2716,13 @@ Done in PORT-18:
 - Proposed: ParseCadence also treats "sweep" as a schedule word; the binding then uses the
   Def unchanged. "Without a template" is checked by the run (get_matter), since
   matter.opened carries no template field.
+
+## Q-FEAT-MAT-13 propose_conflict_parties and create_task return proposals, so their gates open outside the run
+
+- Tasks: FEAT-MAT-13 (F-MAT-16), FEAT-MAT-14 (F-MAT-17), FEAT-MAT-15 (F-MAT-18). Same gap as Q-FEAT-DL-10.
+- `propose_conflict_parties` and `create_task` return `OutcomeProposal`, which the run scope does not record as a draft,
+  so an in-run `submit_for_approval` for `matter.party_conflict` or `work.plan` is refused with `ErrNotFound`.
+- The FromFeature tests check the real proposal (the open re-run check, prepared by the acting user, or the proposed task),
+  then open the Def's gate on it as the acting user and check: pending, agent principal 403, acting user `ErrSelfApproval`.
+- Proposed: record a proposal as a run draft when the run scope allows the Def's gate kind (FEAT-TOOL-16/19), so the agent
+  can submit it in the run.
