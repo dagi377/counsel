@@ -86,8 +86,8 @@ func docgCitation(c docgCite, seeded string) map[string]any {
 
 // docgFire seeds a matter with one document holding lines on page 1 and runs def (with grant
 // when not nil) under an inline aifake script: the docgReads calls, then a final reply whose
-// JSON output is out(seeded version).
-func docgFire(t *testing.T, def feature.Def, grant []string, lines []string, out func(version string) map[string]any) docgRun {
+// JSON output is out(seeded matter id, seeded version id).
+func docgFire(t *testing.T, def feature.Def, grant []string, lines []string, out func(matter, version string) map[string]any) docgRun {
 	t.Helper()
 	if grant != nil {
 		def.Grant = grant
@@ -107,7 +107,7 @@ func docgFire(t *testing.T, def feature.Def, grant []string, lines []string, out
 		}})
 	}
 	turns = append(turns, map[string]any{"reply": map[string]any{
-		"text": "Suggestions are ready on the screen.", "json": out(string(v)), "stop_reason": "end_turn",
+		"text": "Suggestions are ready on the screen.", "json": out(string(m.ID), string(v)), "stop_reason": "end_turn",
 	}})
 	script := docgJSON(t, map[string]any{
 		"synthetic": true, "feature": def.ID, "match": map[string]any{"last_user_regex": "."}, "turns": turns,
@@ -400,8 +400,8 @@ func (s *docgSink) SuggestFiling(_ context.Context, _ string, items []docs.Filin
 }
 
 // docgFiling is an Auto-file output of one suggestion citing c.
-func docgFiling(c docgCite, ppm int) func(string) map[string]any {
-	return func(v string) map[string]any {
+func docgFiling(c docgCite, ppm int) func(string, string) map[string]any {
+	return func(_, v string) map[string]any {
 		return map[string]any{"items": []map[string]any{{
 			"name": "Statement of claim, issued", "kind": "court_form", "folder": "Pleadings",
 			"confidence_ppm": ppm, "citation": docgCitation(c, v),
@@ -425,7 +425,7 @@ func TestFDOC13_ScreenActionRun(t *testing.T) {
 		name        string
 		grant       []string
 		lines       []string
-		out         func(string) map[string]any
+		out         func(matter, version string) map[string]any
 		wantRefused error
 		wantErr     error
 		wantReview  bool
