@@ -2395,3 +2395,17 @@ Done in PORT-18:
   keep compiling with a fixed acting user. Boot wiring and a readiness HTTP surface are not
   built yet: boot calls `WithDesignated(agent.NewPGDesignatedLawyers(pool))` when it builds
   the Bindings, and surfaces `Readiness` on the setup checks.
+
+## Q-FEAT-MAT-02 F-MAT-03 stage advance watcher
+
+- Besides the listed files, `app/legal/agent/featureset/featureset.go` gains
+  `matter.StageAdvanceDef()` and `go generate` adds its plugin skill
+  (`paploo/counsel-plugin/skills/f-mat-03-stage-advance-watcher`), as every feature does.
+- The spec's "evidence event (signed, filed, paid, deadline passed)" has no event of its own in
+  spec/eng/a2-interfaces.json, so the binding uses the nearest a2 events: `document.released`
+  (signed), `document.uploaded` (filed), `payment.received` (paid) and `deadline.met`
+  (deadline passed). A dedicated e-sign or deadline-passed event can be added to
+  `matter.StageEvidenceEvents` when one exists.
+- `matter.stage_move` is a tool-gap kind: the run drafts the proposal with draft_document and
+  opens G-ST with submit_for_approval on that draft. The feature tests answer
+  `agent.SubjectMatters` from the seed's drafts (agenttest.Seed.Deps has none).
