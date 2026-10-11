@@ -626,6 +626,11 @@ integrator did not change the no-rate behaviour (ErrNoAgreedRate stays). It seed
 quarterly CJA prejudgment table (2020 Q1 to 2026 Q4, from ontario.ca, verify) as
 `interest.PrejudgmentRate`, usable as the agreed rate's CJA benchmark. Needed: a lawyer reads
 s.33 as amended and either the rules or the decision change.
+- Answer (lawyer, 2026-10-11): Solicitors Act s.33 ties interest to the CJA s.127 prejudgment
+  rate, so the frozen rule text is incomplete. Rule behaviour stays the default. New flag
+  `interest.cja_default_rate` (verify, default off): when on, a bill with no agreed rate uses
+  `interest.PrejudgmentRate` for the Toronto quarter of delivery (`interest.EffectiveRate`).
+  Answered.
 
 
 ## T-020.1c: bill void effect
