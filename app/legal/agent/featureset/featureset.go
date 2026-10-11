@@ -118,5 +118,7 @@ func appDefs() []feature.Def {
 		matter.SummarizeThisWeekDef(),
 		// trust
 		trust.BankFeedSyncDef(),
+		trust.PayeeFraudCheckDef(),
+		trust.WithdrawalDrafterDef(),
 	}
 }

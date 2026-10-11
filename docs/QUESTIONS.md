@@ -3232,3 +3232,37 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   integer cents ("125000 cents") or dollars and cents ("$1,250.00") in the line, else
   agenttools.ErrUnsourcedValue and nothing is written. Its ReceiptProposals sink (opening
   trust.receipt_classification with the acting user as preparer) is wired in FEAT-TRU-02.
+
+## Q-FEAT-TRU-11 payee-fraud-check (F-TRU-03): event, files outside the task list
+
+- Registering F-TRU-03 in featureset.App() makes the boot tests require a job binding, so the
+  task also touches app/legal/agent/featureset and app/legal/boot/agent.go.
+- The a2 event list has no event for a new or changed receiving account. F-TRU-03 binds to
+  `trust.receiving_account_changed` (trust.EventReceivingAccountChanged). Open: add it to
+  spec/eng/a2-interfaces.json events and publish it where a payee's EFT receiving account is
+  added or edited.
+- The result is checked by trust.CheckPayeeFraud, which fails closed: any malformed output, an
+  uncited flag, an amount no read of the run returned (ErrUnsourcedValue) or a missing
+  Provenance is a block. A pass stands only with no flag; trust_overdrawn flags always lead.
+
+## Q-FEAT-TRU-03 withdrawal-drafter (F-TRU-02): binding, screen, agenttest provenance
+
+- Registering F-TRU-02 in featureset.App() makes the boot tests require its binding and the
+  withdrawal-request screen (matter subject, trust.request), so the task also touches
+  app/legal/agent/featureset, app/legal/boot/agent.go and the generated plugin skill.
+- Binding: bill.delivered and matter.closed (a2 events). A client's direction has no event;
+  the withdrawal-request > Draft request action starts it. Open: is "closing" the matter's
+  closing (matter.closed) or a transaction closing that needs its own event?
+- app/legal/agent/agenttest/feature.go (outside the task list): FromFeatureWith gave the Seed a
+  Provenance of its own, so figures the production get_trust_balance and get_bill recorded
+  were not the ones agenttest's real prepare_trust_withdrawal checked, and every sourced
+  amount was refused. The Seed now shares the driver's Provenance, as boot wires one per run.
+- agenttest's write tools read fee bills from noFeeBills, so a fee transfer to the firm's
+  account always fails closed in a FromFeature run; the feature test covers it as a refusal
+  only. Open: a FromFeature seam for a delivered fee bill to test the allowed fee path.
+- Package trust cannot import app/legal/agent or app/legal/trust/withdraw (both reach trust),
+  so trust.GateWithdrawal repeats "trust.withdrawal"; the test pins it to both constants.
+- Gap seen, not changed (FEAT-TOOL-21 code): prepare_trust_withdrawal lets purpose "fees" go to
+  a matter contact with no bill_id. The Postgres trust service refuses fees_to_operating
+  without a bill and the authorization effect re-checks delivery, so it fails closed
+  downstream, but the agent tool could refuse it earlier.

@@ -316,6 +316,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
+		trust.FeaturePayeeFraudCheck:                trust.PayeeFraudCheckBinding,
+		trust.FeatureWithdrawalDrafter:              trust.WithdrawalDrafterBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -426,6 +428,8 @@ var actionScreens = map[string]trigger.Screen{
 	// subject yet they select the matter a deposit is for (docs/QUESTIONS.md Q-FEAT-TRU-01).
 	"trust-receipts-journal": {SubjectKind: "matter", Capability: "trust.view"},
 	"bank-feed-import":       {SubjectKind: "matter", Capability: "trust.view"},
+	// A withdrawal request is one matter's (Q-FEAT-TRU-03).
+	"withdrawal-request": {SubjectKind: "matter", Capability: "trust.request"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
