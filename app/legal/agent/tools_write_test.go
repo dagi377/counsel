@@ -65,10 +65,12 @@ var writeContacts = fakeMatterContacts{matterA: {payeeA}, matterW: {payeeW}}
 type countingWithdrawals struct {
 	*withdrawfake.Fake
 	requests, authorizes, executions int
+	last                             withdraw.Request
 }
 
 func (c *countingWithdrawals) Request(ctx context.Context, r withdraw.Request) (withdraw.Withdrawal, error) {
 	c.requests++
+	c.last = r
 	return c.Fake.Request(ctx, r)
 }
 
@@ -397,6 +399,13 @@ func TestBIL_L_037_FirmPayeeOnlyForDeliveredBillFees(t *testing.T) {
 			}
 			if wd.requests != 1 || res.GateID == "" || wd.authorizes != 0 {
 				t.Fatalf("requests = %d, authorizes = %d, gate %q; want one proposal only", wd.requests, wd.authorizes, res.GateID)
+			}
+			// The bill goes on to the trust module, which re-checks it at authorization.
+			var in struct {
+				BillID string `json:"bill_id"`
+			}
+			if err := json.Unmarshal(tc.call.Input, &in); err != nil || wd.last.BillID != in.BillID {
+				t.Fatalf("request bill = %q, want %q (%v)", wd.last.BillID, in.BillID, err)
 			}
 		})
 	}

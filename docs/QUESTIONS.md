@@ -1884,3 +1884,18 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## WD-BILL: trust withdrawal names its bill
+
+- Additive in `app/legal/trust/withdraw/contract.go`: `Request.BillID`
+  (`trust.withdrawal_request.bill_id`, already in 0001_init.sql, so no migration). The agent's
+  prepare_trust_withdrawal passes its `bill_id` on (FEAT-FIX-B). The trust.withdrawal gate
+  payload gains `bill_id` (omitempty), so an approval binds the bill.
+- `Effect.Apply` re-checks a fee withdrawal at authorization (By-Law 9 s.9(1), BIL-L-035/037):
+  it names a bill, the bill is on the same matter, delivered on or before now, and the amount
+  is no more than its unpaid balance. A withdrawal with a bill id, or purpose `fees` /
+  `fees_to_operating`, is a fee withdrawal. `Effect.Bills` (new port `withdraw.FeeBills`, read
+  in the gate tx) nil fails closed. Open (BOOT): wire a billing adapter returning the bill's
+  matter, delivery date and balance net of reserved fee transfers.
+- Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
+  resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.
