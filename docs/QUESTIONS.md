@@ -1002,3 +1002,17 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
 - Drafts are keyed by the write output ref (the subject id); submit_for_approval on any other
   subject is ErrNotFound (404). The gate payload carries subject ids only; the model's note is
   not stored (AI-R-005).
+
+## FEAT-TOOL-15 propose_deadline
+
+- Built on origin/task/FEAT-CORE-06 (run Scope) with origin/task/FEAT-CORE-07 (provenance)
+  merged in. Registered through the explicit `ProposeDeadlineHandler()`, not init().
+- The frozen kernel/deadline `Proposed` has no title and no pack id, and the a2 input has no
+  pack. The deadline is saved with rule id, trigger and due dates and the matter subject; the
+  title and the source citation travel in the cal.confirm gate payload the confirming person
+  sees. Proposed fix: an additive `Proposed.Title` (and pack id in the a2 input).
+- `due_on` and `trigger_date` go through `Provenance.SourcedWrite`: an agent may only carry a
+  date a read tool returned in the same run (a compute_deadline result, or a date a document
+  read returned with its citation). The manual path is not checked.
+- The gate kind is checked against the run scope before the deadline is saved, so a run whose
+  feature does not declare cal.confirm leaves no proposed deadline behind.
