@@ -1,0 +1,47 @@
+synthetic: true
+feature: F-BIL-01
+match:
+  last_user_regex: '\[ok\]'
+latency_ms: 40
+chunk_delay_ms: 5
+turns:
+  - expect_tools: [report_plan]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: read, title: "Read matter, unbilled work and trust balance"}, {id: draft, title: "Draft pre-bill for review"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 700, output_tokens: 50}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: get_matter
+          input: {matter_id: "mat-synth-001"}
+      stop_reason: tool_use
+      usage: {input_tokens: 760, output_tokens: 24}
+  - expect_tool_results: [get_matter]
+    reply:
+      tool_calls:
+        - name: list_unbilled
+          input: {matter_id: "mat-synth-001"}
+      stop_reason: tool_use
+      usage: {input_tokens: 820, output_tokens: 24}
+  - expect_tool_results: [list_unbilled]
+    reply:
+      tool_calls:
+        - name: get_trust_balance
+          input: {matter_id: "mat-synth-001"}
+      stop_reason: tool_use
+      usage: {input_tokens: 900, output_tokens: 24}
+  - expect_tool_results: [get_trust_balance]
+    reply:
+      tool_calls:
+        - name: draft_bill
+          input: {matter_id: "mat-synth-001", entry_ids: ["te-synth-001", "te-synth-002"], fees_cents: 45000}
+      stop_reason: tool_use
+      usage: {input_tokens: 980, output_tokens: 90}
+  - expect_tool_results: [draft_bill]
+    reply:
+      text: "Drafted pre-bill for mat-synth-001: 2 unbilled entries, 45000 cents in fees, for your review."
+      stop_reason: end_turn
+      usage: {input_tokens: 1040, output_tokens: 30}
