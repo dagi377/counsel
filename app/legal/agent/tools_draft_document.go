@@ -29,9 +29,12 @@ type DraftCitation struct {
 
 // NewDraftDocument is a draft document to store in a matter.
 type NewDraftDocument struct {
-	MatterID       string
-	Title          string
-	TemplateID     string
+	MatterID   string
+	Title      string
+	TemplateID string
+	// SubjectRef links the draft to the record it is about (F-CON-03: the conflict run ref);
+	// optional (Q-EVENTS-WIRE-2).
+	SubjectRef     string
 	BodyMarkdown   string
 	Citations      []DraftCitation
 	PreparedBy     string // the acting user; the agent never prepares in its own name
@@ -110,6 +113,7 @@ type draftDocumentIn struct {
 	MatterID     string `json:"matter_id"`
 	Title        string `json:"title"`
 	TemplateID   string `json:"template_id"`
+	SubjectRef   string `json:"subject_ref"`
 	BodyMarkdown string `json:"body_markdown"`
 	Citations    []struct {
 		Anchor   string `json:"anchor"`
@@ -168,7 +172,7 @@ func (t draftDocument) handle(ctx context.Context, p registry.Principal, raw jso
 	// rule: ARC-I-035
 	// The tool only stores a draft: nothing is filed, sent or released.
 	id, err := t.drafts.CreateDraft(ctx, NewDraftDocument{
-		MatterID: in.MatterID, Title: in.Title, TemplateID: in.TemplateID, BodyMarkdown: in.BodyMarkdown,
+		MatterID: in.MatterID, Title: in.Title, TemplateID: in.TemplateID, SubjectRef: in.SubjectRef, BodyMarkdown: in.BodyMarkdown,
 		Citations: cites, PreparedBy: user, RunID: p.RunID,
 		IdempotencyKey: idempotencyKey(Call{RunID: p.RunID, ActingFor: user, Tool: ToolDraftDocument, Input: raw}),
 	})

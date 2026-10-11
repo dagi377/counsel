@@ -11,6 +11,8 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/comms"
 	"github.com/dagi377/counsel/app/legal/matter/matterkind"
+	"github.com/dagi377/counsel/app/legal/party"
+	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/trust/recon"
 	"github.com/dagi377/counsel/kernel/audit"
@@ -19,6 +21,7 @@ import (
 	"github.com/dagi377/counsel/kernel/deadline"
 	"github.com/dagi377/counsel/kernel/identity"
 	"github.com/dagi377/counsel/kernel/ledger"
+	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/portal"
 	"github.com/dagi377/counsel/kernel/registry"
 )
@@ -76,6 +79,12 @@ type RestServices struct {
 	Filings *comms.FilingStore
 	// Emails files emails to matters and publishes email.filed (DRAFT-FIX).
 	Emails *comms.EmailFilingStore
+	// Contacts creates contacts and publishes party.organization_client_created; Walls is
+	// the wall resolver publishing roles.walled_matter_accessed; LeadEvents is the emitter
+	// intake.Leads publishes identity.portal_submission through (EVENTS-WIRE-2).
+	Contacts   *party.Store
+	Walls      *roles.WallResolver
+	LeadEvents outbox.Emitter
 }
 
 // AuditMasker is the audit masker the legal app stores detail through. It keeps only ids,
@@ -119,6 +128,9 @@ func restServices(k *kboot.Kernel) (RestServices, error) {
 		Book:       ev.Book,
 		Filings:    ev.Filings,
 		Emails:     ev.Emails,
+		Contacts:   ev.Contacts,
+		Walls:      ev.Walls,
+		LeadEvents: ev.OwnTx,
 	}, nil
 }
 

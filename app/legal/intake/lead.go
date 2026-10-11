@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/party"
+	"github.com/dagi377/counsel/kernel/outbox"
 )
 
 // LeadStore keeps leads and their idempotency keys.
@@ -25,6 +26,9 @@ type Leads struct {
 	leads    LeadStore
 	contacts party.Contacts
 	now      func() time.Time
+	// Events receives EventPortalSubmission for each new lead. Boot sets it; nil publishes
+	// nothing.
+	Events outbox.Emitter
 }
 
 // NewLeads returns a Leads that stamps new leads with now().
@@ -68,6 +72,13 @@ func (s *Leads) Submit(ctx context.Context, sub Submission) (Lead, error) {
 	}, sub.IdempotencyKey)
 	if err != nil {
 		return Lead{}, fmt.Errorf("submit: insert lead: %w", err)
+	}
+	// A concurrent submit with the same key returns the first lead, whose contact is not
+	// ours: that submission already published.
+	if l.ContactID == string(c.ID) {
+		if err := s.publishSubmission(ctx, l); err != nil {
+			return Lead{}, err
+		}
 	}
 	return l, nil
 }

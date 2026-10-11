@@ -3009,3 +3009,31 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - draft_document needs a matter_id and a form has none; the prompt has the agent draft on the
   matter the screen context names. A form-draft tool would remove that indirection.
 - `intake.GatePublicWording` is new: no branch on main or pushed declares `intake.public_wording`.
+
+
+## Q-EVENTS-WIRE-2 Routes for the evidence write points, draft subject_ref, wall and intake/party publishers
+
+- Additive openapi paths (kernel/contract/additive.txt): `POST /deadlines/{deadline_id}/trigger`
+  (PGBook.ChangeTrigger, `deadlines.edit`), `POST /filings/{filing_id}/issue` (IssueClaim),
+  `POST /filings/affidavits-of-service` (RecordAffidavitOfService) and
+  `POST /emails/{comm_item_id}/filings` (FileEmail), the last three on `documents.edit`. Each
+  POST needs Idempotency-Key and answers problem+json. Module placeholders answer 503
+  (`deadlines.Register` joins app/legal/modules.go; comms adds `registerFilingRoutes`); boot
+  mounts the wired handlers from `HTTPPorts.Events`, built on the kernel DB and emitter.
+  The trigger and issue routes check the capability firm-wide: the matter is only known after
+  the store reads the row. The affidavit and email routes also check the body's matter, so a
+  walled matter is 404.
+- `draft_document` gains optional `subject_ref` (string, max 200) in spec/eng/a2-interfaces.json
+  and agent/schemas/tools.json; it is kept in the draft's scope JSON. The F-CON-03 prompt sets it
+  to the conflict run ref.
+- `matter.PGWallStore` implements roles.WallStore and roles.WalledStore on matter.ethical_wall*;
+  boot builds `roles.NewWallResolver(...).WithEvents(...)` (RestServices.Walls). The kernel
+  emitter needs a tx and the wall check has none, so boot wraps it in `ownTxEmitter`, which
+  opens its own tx when given nil.
+- `party.organization_client_created`: party.Store.Create publishes it in the insert tx when
+  the contact is an organization client (Store.Events, set at boot). `identity.portal_submission`:
+  intake.Leads.Submit publishes it once per new lead (Leads.Events; a repeated key publishes
+  nothing). Leads has no tx, so boot hands it the own-tx emitter (RestServices.LeadEvents); boot
+  does not build Leads yet (no Postgres FormStore/LeadStore).
+- Outside the listed files: app/legal/register_test.go (module count 36 -> 37 for deadlines),
+  the F-CON-03 ok fixture prompt_hash and the regenerated plugin skill (prompt change).
