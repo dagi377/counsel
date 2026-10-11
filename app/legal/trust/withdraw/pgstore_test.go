@@ -99,7 +99,7 @@ func (t *fakeTx) Exec(_ context.Context, sql string, args ...any) (pgconn.Comman
 // expires (nil for none), read at dbNow.
 func lockRow(status string, authAt, expires any, dbNow time.Time) fakeRow {
 	return fakeRow{vals: []any{"w1", "led-1", "acct-1", "M1", int64(4000), "Vendor Inc", "cheque", "", "disbursement",
-		"prep", status, "gate-1", "lawyer1", "", authAt, expires, dbNow}}
+		"prep", status, "gate-1", "lawyer1", "", authAt, expires, dbNow, ""}}
 }
 
 // rule: ARC-I-012

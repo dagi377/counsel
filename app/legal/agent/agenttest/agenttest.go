@@ -27,6 +27,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/roles/rolesfake"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw/withdrawfake"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/agenttools/agenttoolsfake"
@@ -46,7 +47,31 @@ const (
 	TrustAccount = "acct-synthetic-trust"
 	// BalanceCents is TrustMatter's cleared trust balance.
 	BalanceCents = 500_000
+	// PayeeContact is TrustMatter's contact a withdrawal may pay (prepare_trust_withdrawal's
+	// payee is a matter contact id).
+	PayeeContact = "00000000-0000-4000-8000-0000000000d4"
+	// WalledPayee is WalledMatter's contact.
+	WalledPayee = "00000000-0000-4000-8000-0000000000d5"
+	// FirmPayee is the firm's general account: a payee only for fees on a delivered bill.
+	FirmPayee = "00000000-0000-4000-8000-0000000000f1"
 )
+
+// errNoBill: the synthetic matters have no bills, so a fee transfer to the firm is refused.
+var errNoBill = errors.New("agenttest: no such bill")
+
+// noFeeBills is the bills port with no bills.
+type noFeeBills struct{}
+
+func (noFeeBills) FeeBill(context.Context, string, string) (withdraw.FeeBill, error) {
+	return withdraw.FeeBill{}, errNoBill
+}
+
+// matterContacts are the synthetic matters' contact ids.
+type matterContacts map[string][]string
+
+func (m matterContacts) MatterContactIDs(_ context.Context, matterID string) ([]string, error) {
+	return m[matterID], nil
+}
 
 // maxTurns ends a run that never stops calling tools.
 const maxTurns = 10
@@ -104,6 +129,9 @@ type Driver struct {
 	Plans       *agenttoolsfake.Fake
 	Write       *agent.WriteTools
 	Withdrawals *withdrawfake.Fake
+	// Provenance holds the figures the run's reads returned; the real write tool checks
+	// amounts against it.
+	Provenance *agenttools.Provenance
 
 	mu        sync.Mutex
 	reads     map[string]string
@@ -121,6 +149,7 @@ func New(t testing.TB, f Feature) *Driver {
 	wd.SetBalance(TrustAccount, WalledMatter, BalanceCents, 0)
 	walls := rolesfake.New()
 	walls.Wall(f.ActingFor, WalledMatter)
+	pv := agenttools.NewProvenance()
 	write, err := agent.NewWriteTools(agent.WriteDeps{
 		Can: func(_ context.Context, user, capability string) (bool, error) {
 			return user == f.ActingFor && slices.Contains(f.Grant, capability), nil
@@ -128,12 +157,16 @@ func New(t testing.TB, f Feature) *Driver {
 		Walls:        walls,
 		TrustAccount: func(context.Context, string) (string, error) { return TrustAccount, nil },
 		Withdrawals:  wd,
+		Provenance:   pv,
+		Contacts:     matterContacts{TrustMatter: {PayeeContact}, WalledMatter: {WalledPayee}},
+		FirmAccount:  func(context.Context) (string, error) { return FirmPayee, nil },
+		Bills:        noFeeBills{},
 	})
 	if err != nil {
 		t.Fatalf("write tools: %v", err)
 	}
 	d := &Driver{
-		Feature: f, Registry: agenttools.NewRegistry(plans), Plans: plans, Write: write, Withdrawals: wd,
+		Feature: f, Registry: agenttools.NewRegistry(plans), Plans: plans, Write: write, Withdrawals: wd, Provenance: pv,
 		reads: map[string]string{}, proposals: map[string]Proposal{}, realGates: map[string]bool{},
 	}
 	real := map[string]bool{}
@@ -211,12 +244,18 @@ func (d *Driver) standIn(s agent.ToolSpec) registry.Tool {
 	t := registry.Tool{Name: s.Name, Kind: registry.ToolKind(s.Kind), Capability: s.Capability, Input: []byte(`{"type":"object"}`)}
 	switch s.Kind {
 	case agent.Read:
-		t.Handle = func(_ context.Context, _ registry.Principal, _ json.RawMessage) (registry.ToolResult, error) {
+		t.Handle = func(_ context.Context, p registry.Principal, _ json.RawMessage) (registry.ToolResult, error) {
 			d.mu.Lock()
 			text := d.reads[s.Name]
 			d.mu.Unlock()
 			// Read output goes back as quoted untrusted data (ARC-I-038).
 			out, err := json.Marshal(agenttools.Quoted{Untrusted: true, Source: agenttools.Citation{VersionID: "synthetic:" + s.Name}, Text: text})
+			if err == nil && p.Kind == registry.PrincipalAgent && json.Valid([]byte(text)) {
+				// rule: ARC-U-027
+				// The stand-in's text is the JSON the real read tool returns, so its figures
+				// count as read in this run, as the real tool's would.
+				d.Provenance.Observe(p.RunID, json.RawMessage(text))
+			}
 			return registry.ToolResult{Output: out}, err
 		}
 	case agent.Report:
