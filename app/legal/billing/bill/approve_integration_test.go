@@ -12,7 +12,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/dagi377/counsel/app/legal/books"
 	"github.com/dagi377/counsel/app/legal/matter/mattertest"
+	"github.com/dagi377/counsel/kernel/ledger"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -64,6 +66,13 @@ client_id uuid NOT NULL, matter_id uuid NOT NULL, total_cents bigint NOT NULL, s
 		if err := tx.QueryRow(ctx, `INSERT INTO matter.practice_area(name) VALUES ('Litigation') RETURNING id::text`).Scan(&area); err != nil {
 			return err
 		}
+		for _, a := range []struct{ code, typ string }{
+			{books.AcctARFees, "asset"}, {books.AcctSalesTaxPayable, "liability"}, {books.AcctFeeRevenue, "revenue"},
+		} {
+			if _, err := tx.Exec(ctx, `INSERT INTO gl.account(code, name, type) VALUES ($1, $1, $2) ON CONFLICT (code) DO NOTHING`, a.code, a.typ); err != nil {
+				return err
+			}
+		}
 		var err error
 		env.matter, err = mattertest.Seed(ctx, tx, "2026-0001", "M", env.client, area, env.lawyer)
 		return err
@@ -82,8 +91,13 @@ func (env approveEnv) pendingWithGate(t *testing.T) registry.Approved {
 	var billID, gateID string
 	err := pgx.BeginFunc(ctx, env.pool, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `INSERT INTO billing.bill (matter_id, payer_id, status, fees_cents, tax_cents, total_cents,
-place_of_supply_province, created_by) VALUES ($1::uuid, $2::uuid, 'pending_approval', 100000, 13000, 113000, 'ON', $3::uuid)
+tax_breakdown, place_of_supply_province, created_by) VALUES ($1::uuid, $2::uuid, 'pending_approval', 100000, 13000, 113000,
+'[{"tax_code":"HST-ON","component":"HST","rate_ppm":130000,"base_cents":100000,"tax_cents":13000}]', 'ON', $3::uuid)
 RETURNING id::text`, env.matter, env.client, env.preparer).Scan(&billID); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO billing.bill_line (bill_id, ordinal, source_type, narrative, quantity_milli,
+rate_cents, amount_cents, tax_code) VALUES ($1::uuid, 1, 'flat', 'Flat fee', 1000, 100000, 100000, 'HST-ON')`, billID); err != nil {
 			return err
 		}
 		return tx.QueryRow(ctx, `INSERT INTO gate.approval_request(gate_code, spec_gate, payload_type, payload_id, payload_hash, requested_by, status, expires_at)
@@ -97,6 +111,11 @@ VALUES ('billing.bill_approval', 'G-B2', 'billing.bill', $1::uuid, '\x00'::bytea
 	return registry.Approved{GateID: gateID, Kind: GateBillApproval, Payload: payload,
 		Preparer:  registry.Principal{Kind: registry.PrincipalUser, UserID: env.preparer},
 		Approvers: []registry.Principal{{Kind: registry.PrincipalUser, UserID: env.lawyer}}}
+}
+
+// ledger is the Postgres ledger posting as env.lawyer.
+func (env approveEnv) ledger() *ledger.PG {
+	return &ledger.PG{PostedBy: func(context.Context) (string, error) { return env.lawyer, nil }}
 }
 
 func (env approveEnv) state(t *testing.T, billID string) (status, number string, rows int) {
@@ -117,7 +136,7 @@ var errRollback = errors.New("roll back after the effect")
 func TestBIL_C_120_ApproveViaGateInTx(t *testing.T) {
 	env := seedApproveEnv(t)
 	ctx := context.Background()
-	eff := &ApproveEffect{Store: PGStore{}, FeesBook: pgFeesBook{}, Prefix: "INV",
+	eff := &ApproveEffect{Store: PGStore{}, FeesBook: pgFeesBook{}, Journal: PGStore{}, Ledger: env.ledger(), Prefix: "INV",
 		Now: func() time.Time { return time.Date(2026, 9, 15, 15, 0, 0, 0, time.UTC) }}
 	billOf := func(g registry.Approved) string {
 		var p ApprovalPayload
@@ -155,6 +174,14 @@ func TestBIL_C_120_ApproveViaGateInTx(t *testing.T) {
 			wantRows := 0
 			if tc.wantNumber != "" {
 				wantRows = 1
+			}
+			var entries int
+			if err := env.pool.QueryRow(ctx, `SELECT count(*) FROM gl.journal_entry WHERE source_type = 'bill' AND source_id = $1::uuid`,
+				billOf(g)).Scan(&entries); err != nil {
+				t.Fatal(err)
+			}
+			if entries != wantRows {
+				t.Fatalf("approval entries = %d, want %d", entries, wantRows)
 			}
 			if status != tc.wantStatus || number != tc.wantNumber || rows != wantRows {
 				t.Fatalf("bill = %s %q, fees book rows %d; want %s %q, %d", status, number, rows,

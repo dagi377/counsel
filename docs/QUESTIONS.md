@@ -426,3 +426,22 @@ Template:
   `void_integration_test.go` is integration-only.
 - Integrator: pass `bill.VoidEffects(*VoidEffect)` into the gates.RegisterKinds effects map
   at boot, as for `bill.Effects`.
+
+## BIL-J-003: bill approval journal entry
+
+- Resolves the T-020.1c approval-entry question with option (b) inside the bill package:
+  `ApproveEffect` now posts BIL-J-003 through `Ledger` (book operating, source `bill`/bill id,
+  dated the bill date) in the gate tx, and `PGStore.ApprovalEntry` finds it by that source
+  for the void. No contract or migration change; `TaxLine` reads `billing.bill.tax_breakdown`.
+- Lines posted: Dr OP-1100 total; Dr OP-4900 discount and negative fee adjustments; Cr OP-4000
+  per fee line; Cr OP-4010 taxable (own-cost) disbursements; Cr OP-1210 agency disbursements at
+  cost (they were debited to OP-1210 when paid, BIL-J-002); Cr OP-2100 (GST/HST) or OP-2110
+  (PST/QST) per tax line. Lines and tax lines must equal the bill's frozen totals or the
+  approval fails.
+- Not yet posted: the WIP relief pair (Dr OP-1290 / Cr OP-1200 at recorded value) and
+  write-downs to OP-4900. Both need the time entries' recorded value, which the bill does not
+  carry. Until then OP-1200/OP-1290 keep billed time; the pair nets to zero, so AR, revenue
+  and tax are right.
+- Integrator: `ApproveEffect` refuses to run without `Journal` (PGStore{}) and `Ledger`
+  (*ledger.PG); `VoidEffect.Entries` is PGStore{}. The chart (books) must be synced into
+  gl.account before the first approval.

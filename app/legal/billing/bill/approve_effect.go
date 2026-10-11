@@ -41,11 +41,14 @@ type FeesBookWriter interface {
 }
 
 // ApproveEffect is the billing.bill_approval effect: in the gate's tx it takes the next
-// gapless number, approves the bill and writes its fees book row. Any error rolls the gate
-// tx back, so a failed approval leaves no number and no register row.
+// gapless number, approves the bill, writes its fees book row and posts its accrual entry
+// (BIL-J-003). Any error rolls the gate tx back, so a failed approval leaves no number, no
+// register row and no journal entry.
 type ApproveEffect struct {
 	Store    ApprovalStore
 	FeesBook FeesBookWriter
+	Journal  JournalSource    // the bill's lines and tax breakdown
+	Ledger   Poster           // the GL ledger the approval entry is posted to
 	Prefix   string           // number series prefix, e.g. "INV"
 	Now      func() time.Time // the approval instant
 	// Next issues the number; nil means NextNumber.
@@ -68,6 +71,9 @@ func (e *ApproveEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approve
 	}
 	if len(g.Approvers) == 0 {
 		return fmt.Errorf("bill approval gate %s: no approver: %w", g.GateID, ErrInvalid)
+	}
+	if e.Journal == nil || e.Ledger == nil {
+		return fmt.Errorf("bill approval gate %s: no ledger: %w", g.GateID, ErrInvalid)
 	}
 	// The agent never approves; an agent's acting-for user counts as the preparer.
 	approver := g.Approvers[len(g.Approvers)-1]
@@ -117,6 +123,21 @@ func (e *ApproveEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approve
 	}
 	if err := e.FeesBook.Append(ctx, tx, row); err != nil {
 		return fmt.Errorf("bill approval gate %s: fees book: %w", g.GateID, err)
+	}
+	lines, taxes, err := e.Journal.JournalLines(ctx, tx, approved.ID)
+	if err != nil {
+		return fmt.Errorf("bill approval gate %s: %w", g.GateID, err)
+	}
+	approved.Lines = lines
+	// rule: BIL-J-003
+	// Accrual: the receivable, revenue and tax payable are recognised at approval, in the
+	// same tx, dated the bill date (the tax point).
+	entry, err := ApprovalJournal(approved, taxes)
+	if err != nil {
+		return fmt.Errorf("bill approval gate %s: %w", g.GateID, err)
+	}
+	if _, err := e.Ledger.Post(ctx, tx, entry); err != nil {
+		return fmt.Errorf("bill approval gate %s: journal: %w", g.GateID, err)
 	}
 	return nil
 }
