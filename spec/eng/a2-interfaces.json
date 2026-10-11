@@ -3992,6 +3992,17 @@
    "dual_mode_min_approvers": null
   },
   {
+   "kind": "billing.writeoff_second_approval",
+   "spec_gate": "G-B5",
+   "spec_area": "billing",
+   "capability": "billing.writeoff_second_approve",
+   "min_approvers": 1,
+   "risk": "high",
+   "ttl_hours": 168,
+   "effect_handler": "billing.approve_write_off_second",
+   "dual_mode_min_approvers": null
+  },
+  {
    "kind": "billing.refund",
    "spec_gate": "G-B6",
    "spec_area": "billing",

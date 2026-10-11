@@ -152,6 +152,10 @@
     "description": "Issue credit notes and write-offs"
   },
   {
+    "id": "billing.writeoff_second_approve",
+    "description": "Second-approve a write-off above the firm threshold (managing lawyer)"
+  },
+  {
     "id": "trust.view",
     "description": "View trust ledgers and journals"
   },

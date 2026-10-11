@@ -19,28 +19,6 @@ Template:
 
 ## Open
 
-## Q-T-023.2bb No gate kind for the managing-lawyer write-off approval
-
-- Task: T-023.2bb (blocks T-023.2bc)
-- Sources: spec/eng/b3-billing-engine.json BIL-C-085 ("G-B5 ... owner role above threshold",
-  config writeoff_second_approval_cents 100000); spec/gates.json has only G-B5
-  `billing.credit_note` (approver `billing.credit`, min_approvers 1); spec/legal/access.json
-  has no managing-lawyer capability. `app/legal/gates/kinds_test.go` requires every registered
-  kind to be in spec/gates.json, so the effect cannot open a kind declared only in Go.
-- The task says: if no second-gate kind exists, ask for an additive one and stop.
-- Reading A: add a gate kind to spec/gates.json, e.g. slug `billing.writeoff_second_approval`,
-  spec_id `G-B5`, label "G-B5 (managing-lawyer second approval)", risk high, min_approvers 1,
-  ttl 168h, payload `{write_off_id (uuid), bill_id (uuid), amount_cents (integer >= 0),
-  first_approver (uuid)}`, approver = a new capability `billing.writeoff_second_approve`
-  granted at level approve to the owner role only in access.json. app/legal/gates registers
-  it; T-023.2bb opens it (preparer = the G-B5 approver) and T-023.2bc applies it.
-- Reading B: no new kind; raise G-B5 to two approvers (dual_when amount > threshold) and check
-  the owner role in the G-B5 effect. This needs an amount-conditional dual mode the gate
-  engine does not have (Q-002).
-- Proposed: A. T-023.2ba already ships `NeedsSecondApproval` and
-  `SecondApproval.CheckSecondApprover` (managing lawyer = owner role, resolved by the caller).
-- Answer: (owner)
-
 ## Q-DRAFT-001 Draft rules enforced only in draftfake (gap record)
 
 - Task: T-017.2 (BIL-C-021), T-017.3 (BIL-C-041), T-017.4 (BIL-L-002)
@@ -183,6 +161,31 @@ Template:
 - Answer: (owner)
 
 ## Answered
+
+## Q-T-023.2bb No gate kind for the managing-lawyer write-off approval
+
+- Task: T-023.2bb (blocks T-023.2bc)
+- Sources: spec/eng/b3-billing-engine.json BIL-C-085 ("G-B5 ... owner role above threshold",
+  config writeoff_second_approval_cents 100000); spec/gates.json has only G-B5
+  `billing.credit_note` (approver `billing.credit`, min_approvers 1); spec/legal/access.json
+  has no managing-lawyer capability. `app/legal/gates/kinds_test.go` requires every registered
+  kind to be in spec/gates.json, so the effect cannot open a kind declared only in Go.
+- The task says: if no second-gate kind exists, ask for an additive one and stop.
+- Reading A: add a gate kind to spec/gates.json, e.g. slug `billing.writeoff_second_approval`,
+  spec_id `G-B5`, label "G-B5 (managing-lawyer second approval)", risk high, min_approvers 1,
+  ttl 168h, payload `{write_off_id (uuid), bill_id (uuid), amount_cents (integer >= 0),
+  first_approver (uuid)}`, approver = a new capability `billing.writeoff_second_approve`
+  granted at level approve to the owner role only in access.json. app/legal/gates registers
+  it; T-023.2bb opens it (preparer = the G-B5 approver) and T-023.2bc applies it.
+- Reading B: no new kind; raise G-B5 to two approvers (dual_when amount > threshold) and check
+  the owner role in the G-B5 effect. This needs an amount-conditional dual mode the gate
+  engine does not have (Q-002).
+- Proposed: A. T-023.2ba already ships `NeedsSecondApproval` and
+  `SecondApproval.CheckSecondApprover` (managing lawyer = owner role, resolved by the caller).
+- Answer: owner (2026-10-11): A. Additive gate kind `billing.writeoff_second_approval`
+  (spec_id G-B5) in spec/gates.json; approver capability `billing.writeoff_second_approve`,
+  held only by the owner role. The two approvers are different people, and neither is the
+  preparer or an agent.
 
 ## Q-004 POST /hooks/{provider} lacks problem responses ARC-I-051 asks for
 
