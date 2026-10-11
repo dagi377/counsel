@@ -1074,3 +1074,14 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   is serialised instead.
 - Still open: move the 6100 backfill into a `kernel/migrate` Backfill step run by a worker job
   (needs a durable Checkpoints store and an app hook for the step), and the migrator role secret.
+
+## PORT-03 (kernel/boot: identity-backed report Authorizer)
+
+- Built on task/PORT-02's merge of origin/task/BOOT-09 into main (run.go lives only there).
+- run.go gains an optional `env.identity` (Access + PrincipalResolver from the pool). Production
+  leaves it nil until the identity store is wired (BOOT-20), so reports stay on denyAll there;
+  `reportAuthorizer` switches to `reportAuth` as soon as an Access is supplied.
+- "Firm subject" is the zero identity.Subject (organisation-wide); the kernel names it
+  `orgSubject` so no app term enters kernel code.
+- There is no Postgres RoleAssignments in the kernel yet; the integration test reads
+  core.app_user/core.role through a test-local one.
