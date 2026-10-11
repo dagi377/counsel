@@ -12,6 +12,7 @@ import (
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/kernel/report"
@@ -88,6 +89,14 @@ type Kernel struct {
 	// Outbox delivers pending outbox messages to the registered consumers (kind outbox.relay).
 	// Nil leaves the relay unscheduled.
 	Outbox *outbox.Deliverer
+	// Emitter writes outbox events in a caller's transaction (kernel jobs that emit events).
+	Emitter outbox.Emitter
+	// Notify is the notification service; its delivery worker runs as an outbox consumer.
+	Notify *notify.Service
+	// NotifySender delivers rendered notifications. Nil means a sender that only counts.
+	NotifySender notify.Sender
+	// WebhookExpiry is the outbound endpoint expiry store (kind webhook.endpoint_expiry).
+	WebhookExpiry webhook.ExpiryStore
 
 	sealed bool // Registry.Seal passed; apply runs only then
 }
@@ -114,6 +123,11 @@ type Deps struct {
 	Server   server.Server
 	Events   *webhook.Types
 	Outbox   *outbox.Deliverer
+	Emitter  outbox.Emitter
+	Notify   *notify.Service
+	// NotifySender is optional; nil keeps the count-only sender.
+	NotifySender  notify.Sender
+	WebhookExpiry webhook.ExpiryStore
 }
 
 // Build creates the kernel and calls every app's Register in order.
@@ -128,7 +142,8 @@ func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kerne
 	k := &Kernel{
 		Flags: flags.New(), Registry: deps.Registry, DB: deps.DB, Clock: deps.Clock,
 		Gates: deps.Gates, Reports: deps.Reports, Server: deps.Server, Events: deps.Events,
-		Jobs: NewJobs(), Outbox: deps.Outbox,
+		Jobs: NewJobs(), Outbox: deps.Outbox, Emitter: deps.Emitter, Notify: deps.Notify,
+		NotifySender: deps.NotifySender, WebhookExpiry: deps.WebhookExpiry,
 	}
 	for _, a := range apps {
 		if a.Register == nil {
