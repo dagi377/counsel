@@ -2395,3 +2395,16 @@ Done in PORT-18:
   keep compiling with a fixed acting user. Boot wiring and a readiness HTTP surface are not
   built yet: boot calls `WithDesignated(agent.NewPGDesignatedLawyers(pool))` when it builds
   the Bindings, and surfaces `Readiness` on the setup checks.
+
+## Q-FEAT-MAT-12 F-MAT-14's "weekly sweep" has no "schedule" word
+
+- spec/ai/features.json words F-MAT-14's trigger "event: matter opened without a template;
+  weekly sweep". trigger.ParseCadence finds a schedule only where the trigger says
+  "schedule" (or "monthly"), so it reads this trigger as CadenceNone and BindDesignated
+  refuses it.
+- FEAT-MAT-12 keeps Def.Trigger equal to the spec and has TemplateFitBinding bind a copy of
+  the Def whose trigger reads "schedule: weekly sweep" (weekly, designated lawyer), plus
+  the matter.opened event. app/legal/agent/trigger is not in the task's files.
+- Proposed: ParseCadence also treats "sweep" as a schedule word; the binding then uses the
+  Def unchanged. "Without a template" is checked by the run (get_matter), since
+  matter.opened carries no template field.
