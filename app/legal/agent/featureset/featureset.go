@@ -122,6 +122,7 @@ func appDefs() []feature.Def {
 		intake.MissingInfoChaserDef(),
 		intake.DeclineReferLetterDef(),
 		intake.ConsultNoteDef(),
+		intake.NonEngagementLetterDef(),
 		intake.ConversionPrefillDef(),
 		intake.AIReceptionistDef(),
 		intake.DraftFormFromDescriptionDef(),
