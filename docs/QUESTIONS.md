@@ -47,6 +47,17 @@ Template:
   is not committed by T-001.4 because it is not in the task's file list; versions are pinned exactly.
 - Answer: (owner)
 
+## Q-T-007.1 registry.GateKind has no SpecID field for gate.approval_request.spec_gate
+
+- Task: T-007.1
+- Sources: migrations/0001_init.sql (approval_request.spec_gate NOT NULL); Q-003 added
+  `spec_id` to spec/kernel/gatekind.schema.json only, not to the Go `registry.GateKind`.
+- Reading A: add an optional `SpecID string` to `registry.GateKind` (additive contract change).
+- Reading B: keep the contract; the engine takes the label separately.
+- Done for now: B. `gate.Kinds.Label(slug, specID)` records it, and `Open` refuses a kind
+  with no label (ErrInvalidKind). Proposed: A, so T-007L.1 can pass it through the Registry.
+- Answer: (owner)
+
 ## Answered
 
 ## Q-003 GateKind has no field for the spec gate id
