@@ -254,6 +254,11 @@ func (h *RequestHTTP) request(w http.ResponseWriter, r *http.Request, p registry
 		h.writeErr(w, r, err)
 		return
 	}
+	// A service that opened the gate in its own tx (PGService with Gates) is done.
+	if wd.GateID != "" {
+		writeJSON(w, http.StatusAccepted, viewOf(wd, in.LedgerID, in.BillID, 1, p))
+		return
+	}
 	// rule: BIL-L-035 (verify)
 	// A withdrawal that pays a bill is a fee transfer and opens the fee gate.
 	kind := GateKind

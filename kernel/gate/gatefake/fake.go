@@ -214,6 +214,12 @@ func (f *Fake) Decide(ctx context.Context, tx pgx.Tx, id gate.GateID, version in
 	}
 	switch d.Verdict {
 	case gate.VerdictReject:
+		if k.OnReject != nil {
+			if err := k.OnReject(ctx, tx, gate.Rejected{GateID: string(g.ID), Kind: g.Kind, Version: g.Version,
+				Subject: g.Subject, Payload: g.Payload, Preparer: g.Preparer, RejectedBy: by, Reason: d.Reason}); err != nil {
+				return fmt.Errorf("decide %s: on reject: %w", id, err)
+			}
+		}
 		g.Status = gate.StatusRejected
 		f.gates[id] = g
 		return nil

@@ -12,3 +12,4 @@
 /components/schemas/TrustLedger/properties/overdrawn Q-HTTP-10c
 /components/schemas/TrustLedger/properties/shortfall_cents Q-HTTP-10c
 /paths/~1agent~1actions~1{feature_id} Q-FEAT-CORE-12
+/paths/~1credit-notes~1{credit_note_id}~1withdraw Q-BOOT-REST-2a

@@ -135,6 +135,7 @@ func effects(k *kboot.Kernel, s svcs) (map[string]registry.EffectFunc, error) {
 			signatory.KindSigningAuthority: signatoryEffects(s.trust.Signatories)[signatory.KindSigningAuthority],
 		}},
 		{"withdraw", map[string]registry.EffectFunc{withdraw.GateKind: s.trust.Withdraw.Apply}},
+		{"withdraw fee", map[string]registry.EffectFunc{withdraw.GateFeeKind: withdraw.FeeEffect(s.trust.Withdraw)}},
 		{"bill", bill.Effects(s.billing.Approve)},
 		{"bill void", bill.VoidEffects(s.billing.Void)},
 		{"credit", fx},
@@ -208,7 +209,12 @@ func (w *wiring) registerGates(_ context.Context, k *kboot.Kernel) error {
 	if err != nil {
 		return fmt.Errorf("gate effects: %w", err)
 	}
-	cat, unwired, err := gates.RegisterWired(k.Registry, gates.SpecData(), fx)
+	var reg registry.Registry = k.Registry
+	if w.opts.Gates != nil {
+		// WO-FIX: a rejected G-B5 write-off gate closes its draft as rejected.
+		reg = rejectFilter{Registry: reg, hooks: credit.RejectHooks(credit.PGWriteOffs{})}
+	}
+	cat, unwired, err := gates.RegisterWired(reg, gates.SpecData(), fx)
 	if err != nil {
 		return err
 	}

@@ -543,6 +543,27 @@ paths:
         '404': *id001
         '429': *id001
         default: *id001
+  /credit-notes/{credit_note_id}/withdraw:
+    post:
+      tags: [billing]
+      operationId: withdrawWriteOff
+      summary: The preparer takes back a submitted write-off draft; its billing.credit_note gate is withdrawn and the draft closes as withdrawn.
+      parameters:
+      - name: credit_note_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '200': {description: Withdrawn}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '422': *id001
+        '429': *id001
+        default: *id001
   /trust/accounts:
     get:
       tags: [trust]

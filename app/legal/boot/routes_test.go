@@ -17,6 +17,8 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/bill/billfake"
 	"github.com/dagi377/counsel/app/legal/billing/credit"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
+	"github.com/dagi377/counsel/app/legal/billing/payment"
+	"github.com/dagi377/counsel/app/legal/billing/payment/paymentfake"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
@@ -124,23 +126,33 @@ func testHTTPPorts() *HTTPPorts {
 		Principal: func(*http.Request) (registry.Principal, bool) {
 			return registry.Principal{Kind: registry.PrincipalUser, UserID: "00000000-0000-0000-0000-0000000000a1"}, true
 		},
-		Idem:            idemfake.New(),
-		DB:              nilTx{},
-		Gates:           noGates{},
-		Audit:           auditfake.New(),
-		Outbox:          noEmit{},
-		Bills:           billfake.New(time.Now),
-		Drafts:          noDrafts{},
-		CreditReads:     noCredit{},
-		CreditBills:     noCredit{},
-		TrustLists:      noTrust{},
-		TrustLedgers:    noTrust{},
-		Withdrawals:     noWithdrawals{},
-		Reconciliations: noRecons{},
-		GateList:        noGateList{},
-		Expenses:        noExpenses{},
+		Idem:             idemfake.New(),
+		DB:               nilTx{},
+		Gates:            noGates{},
+		Audit:            auditfake.New(),
+		Outbox:           noEmit{},
+		Bills:            billfake.New(time.Now),
+		Drafts:           noDrafts{},
+		CreditReads:      noCredit{},
+		CreditBills:      noCredit{},
+		TrustLists:       noTrust{},
+		TrustLedgers:     noTrust{},
+		Withdrawals:      noWithdrawals{},
+		Reconciliations:  noRecons{},
+		GateList:         noGateList{},
+		Expenses:         noExpenses{},
+		Payments:         paymentfake.New(),
+		PaymentProposals: noProposals{},
 	}
 }
+
+type noProposals struct{}
+
+func (noProposals) Propose(context.Context, pgx.Tx, string, int, []payment.ProposedAllocation, string) ([]payment.Allocation, error) {
+	return nil, errFake
+}
+
+func (noGates) Withdraw(context.Context, pgx.Tx, gate.GateID, gate.Principal) error { return errFake }
 
 // served mounts every recorded Routes call on one router, the way the kernel server does.
 func served(t *testing.T, calls []registry.Call) (chi.Router, map[string]int) {
@@ -195,6 +207,10 @@ func TestWiredRoutesAreServed(t *testing.T) {
 		{"GET", "/gates/" + id},
 		{"GET", "/expenses"},
 		{"POST", "/expenses"},
+		// HTTP-15 and WO-FIX: boot wires the gated payment routes and the write-off withdraw.
+		{"POST", "/payments/" + id + "/allocations"},
+		{"POST", "/payments/" + id + "/refunds"},
+		{"POST", "/credit-notes/" + id + "/withdraw"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {

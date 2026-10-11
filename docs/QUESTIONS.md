@@ -2735,6 +2735,42 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
 - Follow-ups: Postgres `RefundStore` and `TrustRefunds` implementations, and boot wiring of
   `payment.Gated` plus this effect in app/legal/boot/effects.go (gates.RegisterWired). No
   migration: billing.refund already has approval_id, trust_withdrawal_id and status.
+
+## WD-BILL: trust withdrawal names its bill
+
+- Additive in `app/legal/trust/withdraw/contract.go`: `Request.BillID`
+  (`trust.withdrawal_request.bill_id`, already in 0001_init.sql, so no migration). The agent's
+  prepare_trust_withdrawal passes its `bill_id` on (FEAT-FIX-B). The trust.withdrawal gate
+  payload gains `bill_id` (omitempty), so an approval binds the bill.
+- `Effect.Apply` re-checks a fee withdrawal at authorization (By-Law 9 s.9(1), BIL-L-035/037):
+  it names a bill, the bill is on the same matter, delivered on or before now, and the amount
+  is no more than its unpaid balance. A withdrawal with a bill id, or purpose `fees` /
+  `fees_to_operating`, is a fee withdrawal. `Effect.Bills` (new port `withdraw.FeeBills`, read
+  in the gate tx) nil fails closed. Open (BOOT): wire a billing adapter returning the bill's
+  matter, delivery date and balance net of reserved fee transfers.
+- Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
+  resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.
+
+## DL-EVENTS: the owning modules publish the deadline trigger events
+
+- Published now, each in the writer's tx through `outbox.Emitter`:
+  - `rulepack.published` (`deadline.EventPackPublished`): kernel/deadline `PGBook.Repack`,
+    subject `cal.rule_pack`/pack id, body pack id, version and recomputed count. New
+    `PGBook.Events` field; nil refuses Repack before any write.
+  - `filing.receipt_received` (`comms.EventFilingReceiptReceived`): `FilingStore.RecordFiling`
+    for a filing recorded as filed, subject `legal.court_filing`/filing id. New
+    `FilingStore.Events` field; nil refuses a filed filing before any tx.
+  - `holiday.added` (`ontario.EventHolidayAdded`): `ontario.PublishAddedHolidays(ctx, tx, em,
+    known)` emits one event per calendar holiday not in `known`. Boot calls it when it loads
+    the calendar, passing the holidays the engine used before.
+  - `app/legal/deadlines/events_test.go` pins the bound names to the published constants.
+- Open (no write point exists yet, so nothing publishes them):
+  - `deadline.trigger_date_changed`: cal has no operation that changes a stored trigger date
+    (`cal.deadline.trigger_on` is set once by Save). It belongs to that operation when added.
+  - `claim.issued` and `service.affidavit_received`: comms records court filings only; there is
+    no issued-claim or affidavit-of-service record to publish from.
+- BOOT: set `PGBook.Events` and `FilingStore.Events` to the outbox emitter.
+
 ## WO-FIX: write-off draft outcomes and the split after a trust fee transfer
 
 - Additive in `app/legal/billing/credit/contract.go`: `StatusRejected` and `StatusWithdrawn`.
@@ -2824,3 +2860,55 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   keep compiling with a fixed acting user. Boot wiring and a readiness HTTP surface are not
   built yet: boot calls `WithDesignated(agent.NewPGDesignatedLawyers(pool))` when it builds
   the Bindings, and surfaces `Readiness` on the setup checks.
+
+## Q-HTTP-15 Gated payment routes: proposed allocations and refund gate
+
+- POST /payments/{payment_id}/allocations: the sum must equal the payment (422
+  allocation_sum_mismatch, ARC-I-029). A set of operating bills only, each named once, is
+  proposed directly (200, allocation state `proposed`) through a new `payment.Proposals`
+  port; the route declares `payment.allocation=proposed` and never
+  `payment.allocation=applied`. Unapplied money (client credit) or a trust_ledger row opens
+  billing.payment_allocation (202). The payment version is 1, as GET reports it.
+- POST /payments/{payment_id}/refunds opens billing.refund (202) with payee = the payment's
+  payer of record and reason = reason_code; an amount above the payment answers 409
+  refund_exceeds_payment. The billing.refund effect (provider call keyed <gate_id>:<version>)
+  and its registration are not built yet: an approved refund pays nothing until they are.
+- Boot must wire `payment.Gated` (DB, Gates, Proposals and the HTTP dependencies); until it
+  does, both routes answer 503.
+
+## PG-WRITES-FIX
+
+- Additive: migration `5505_withdrawal_gate.sql` adds nullable `trust.withdrawal_request.gate_id`
+  (5504 is taken by another task branch). The request route stores the opened gate in the same tx;
+  cancel withdraws that gate; only the preparer (the user, or the user an agent acts for) may cancel.
+- Additive: `withdraw.Cancels` gains `RecordGate`, and `withdraw.Row` gains `GateID` (not contract files).
+- Open: no Postgres `withdraw.FeeBills` adapter exists yet (billing owns the bill balance), so
+  `Effect.Bills` is unwired at boot and every fee withdrawal fails closed at authorization.
+- Open: the route opens `billing.trust_fee_withdrawal` for a bill withdrawal, but that kind has no
+  effect wired (boot/unwired_gates.txt) and execution reads only `trust.withdrawal` approvals.
+- Open: `PGService.Request` opens no gate, so the agent tool's `w.GateID == ""` check refuses every
+  agent withdrawal on Postgres until the gate is opened in the service path.
+
+## Q-BOOT-REST-2a payment.Gated, refund stores, WO-FIX close path, fee withdrawals
+
+- Additive (CONTRACT kernel/registry/types.go): `GateKind.OnReject RejectFunc`, `Rejected` and
+  the `RejectHook` interface. The PG engine and gatefake call OnReject in the deciding tx right
+  after a decision rejects a gate; an error rolls the decision back. Nil does nothing. Boot sets
+  it through a registry wrapper (`rejectFilter`), so gates.RegisterWired is unchanged.
+- WO-FIX: billing.credit_note gets `credit.RejectHooks(PGWriteOffs{})`: a rejected write-off
+  gate closes its draft as `rejected`. New route POST /credit-notes/{credit_note_id}/withdraw
+  (additive in api/openapi.yaml, operationId withdrawWriteOff): only the preparer, as a person,
+  withdraws the pending G-B5 gate and the draft closes as `withdrawn`.
+- payment.PGRefunds (RefundStore) and payment.PGTrustRefunds (TrustRefunds) are the RestPorts
+  defaults. A trust refund is a `client_refund` trust.withdrawal_request whose trust.withdrawal
+  gate the G-B6 approver prepares; payment `trust_withdrawal_id` replay is keyed by the gate.
+- payment.Gated is wired when HTTPPorts.Payments and PaymentProposals are set. Open: no Postgres
+  `payment.Proposals` exists, so production boot still needs that port.
+- PG-WRITES-FIX follow-up: boot.PGFeeBills (billing.bill + bill_balance, balance net of reserved
+  fee transfers, bill row locked) is the default withdraw `Effect.Bills`. `withdraw.FeeEffect`
+  handles billing.trust_fee_withdrawal: By-law 9 flag, then Effect.Apply (agent and preparer
+  never approve, signatory check, bill re-check, ledger lock). Execution stays with the
+  execution route: `PGApprovals` now accepts approved payloads of either gate kind, so the
+  executor is still a second person (sole-practice exception audited). `PGService.Gates`, set
+  at boot, opens the gate in the request tx and stores gate_id; the route skips opening when
+  the service already did, so agent withdrawals are gated on Postgres.
