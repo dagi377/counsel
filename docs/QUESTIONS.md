@@ -1154,3 +1154,15 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   addNotifyJobs and addWebhookJobs. The legal app schedules
   trust.withdrawal_release_expired every 15 minutes when gate services are built. kernel/idem
   problem bodies carry `type` (urn:counsel:problem:<code>, now api.ProblemTypePrefix).
+
+## HTTP-12: gate inbox and detail routes
+
+- kernel/gate.Engine has no List; the routes take a `gates.Lister` (ListFilter: after, limit,
+  states, kinds, not-prepared-by). Boot wires a lister over core.gate under the caller's RLS.
+- Reading gates needs at least one kind's approver capability ("any"); GET /gates/{gate_id}
+  then needs that kind's approver capability ("the") or to be the gate's preparer. A walled
+  subject is 404. The kind check runs after the gate is loaded (one Get call).
+- Inbox default (decidable_by_me=true): pending gates of held kinds, minus the caller's own
+  (an agent counts as its acting-for user). A malformed gate_id answers 404.
+- Each detail view appends one `gate.viewed` audit event in its own transaction.
+- `decisions` is always empty: the engine does not expose per-decision records yet.

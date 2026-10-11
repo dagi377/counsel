@@ -29,8 +29,6 @@ GET /documents/{document_id}/versions/{version_id}/pages/{page}
 GET /drafts
 GET /expenses
 POST /expenses
-GET /gates
-GET /gates/{gate_id}
 POST /gates/{gate_id}/decisions
 POST /gates/{gate_id}/withdraw
 GET /payments
