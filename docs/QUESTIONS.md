@@ -1558,3 +1558,11 @@ Done in PORT-18:
   additive `expired_at` column in the kernel/audit block (needs approval). The table holds
   one subject kind in an app-named column, so boot sets `PGGrants.SubjectKind` and
   `SubjectColumn` (the kernel names no legal term); other kinds are refused.
+- PORT-26 expired_at (approved by the owner): additive migration
+  `0200_break_glass_expired_at.sql` (kernel/identity block) adds nullable
+  `audit.break_glass.expired_at`. `PGGrants` now reads expiry from that column and
+  `ExpireDue` sets it, in the caller's transaction, after each grant's expiry audit event; a
+  grant it cannot mark fails the run (`ErrGrantNotMarked`) so the audit event rolls back too.
+  Expiry no longer depends on `audit.audit_event`, so the boot audit masker need not keep
+  `grant_id` for ExpireDue to stay idempotent. Grants expired before this migration have no
+  `expired_at` and are audited once more on the first run after it.
