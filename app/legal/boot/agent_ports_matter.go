@@ -220,7 +220,7 @@ type PGSubjectMatters struct {
 // subjectMatterSQL maps a subject kind to the query of its matter id. An empty result means
 // the subject is on no matter (a lead's deadline or conflict check).
 var subjectMatterSQL = map[string]string{
-	SubjectDocumentDraft:    `SELECT matter_id::text FROM docs.draft WHERE id = $1`,
+	SubjectDocumentDraft:    `SELECT COALESCE(matter_id::text, '') FROM docs.draft WHERE id = $1`,
 	agent.SubjectAgentNote:  `SELECT matter_id::text FROM matter.note WHERE id = $1`,
 	agent.SubjectEmailDraft: `SELECT matter_id::text FROM comms.comm_filing WHERE comm_item_id = $1 ORDER BY matter_id LIMIT 1`,
 	agent.SubjectDeadline:   `SELECT COALESCE(matter_id::text, '') FROM cal.deadline WHERE id = $1`,
@@ -450,6 +450,11 @@ func draftRow(kind, matterID, preparedBy, runID string) error {
 	if !isUUID(matterID) {
 		return fmt.Errorf("%s: matter: %w", kind, agenttools.ErrNotFound)
 	}
+	return draftActors(kind, preparedBy, runID)
+}
+
+// draftActors checks a draft row's preparer and run id.
+func draftActors(kind, preparedBy, runID string) error {
 	// The agent never prepares in its own name: the preparer is the acting user.
 	if !isUUID(preparedBy) {
 		return fmt.Errorf("%s: preparer: %w", kind, agent.ErrInvalidInput)
@@ -509,7 +514,7 @@ type PGDocumentDrafts struct {
 const (
 	sqlDocDraft = `INSERT INTO docs.draft
   (matter_id, instruction, doc_kind, source_scope, status, agent_run_id, created_by, idempotency_key)
-VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')::uuid, $7, NULLIF($8, ''))
+VALUES (NULLIF($1, '')::uuid, $2, $3, $4, $5, NULLIF($6, '')::uuid, $7, NULLIF($8, ''))
 ON CONFLICT (agent_run_id, idempotency_key)
   WHERE agent_run_id IS NOT NULL AND idempotency_key IS NOT NULL DO NOTHING
 RETURNING id::text`
@@ -519,6 +524,7 @@ RETURNING id::text`
 type draftScope struct {
 	BodyRef    string          `json:"body_ref"`
 	TemplateID string          `json:"template_id,omitempty"`
+	SubjectRef string          `json:"subject_ref,omitempty"`
 	Citations  []draftCiteJSON `json:"citations,omitempty"`
 }
 
@@ -534,8 +540,13 @@ type draftCiteJSON struct {
 
 // CreateDraft implements agent.DocumentDrafts.
 func (s PGDocumentDrafts) CreateDraft(ctx context.Context, d agent.NewDraftDocument) (string, error) {
-	if err := draftRow("document draft", d.MatterID, d.PreparedBy, d.RunID); err != nil {
-		return "", err
+	check := draftRow("document draft", d.MatterID, d.PreparedBy, d.RunID)
+	if d.MatterID == "" && d.SubjectRef == agent.SubjectFirm {
+		// A firm draft is stored with no matter (Q-FORM-SUBJECT).
+		check = draftActors("document draft", d.PreparedBy, d.RunID)
+	}
+	if check != nil {
+		return "", check
 	}
 	k := draftKey{runID: d.RunID, key: d.IdempotencyKey}
 	if id, err := existingDraft(ctx, s.DB, sqlDocDraftByKey, k); err != nil || id != "" {
@@ -548,7 +559,7 @@ func (s PGDocumentDrafts) CreateDraft(ctx context.Context, d agent.NewDraftDocum
 	if err != nil {
 		return "", fmt.Errorf("document draft: body: %w", err)
 	}
-	scope := draftScope{BodyRef: ref, TemplateID: d.TemplateID}
+	scope := draftScope{BodyRef: ref, TemplateID: d.TemplateID, SubjectRef: d.SubjectRef}
 	for _, c := range d.Citations {
 		scope.Citations = append(scope.Citations, draftCiteJSON{
 			Anchor: c.Anchor, DocID: c.DocID, QuoteHash: c.QuoteHash, VersionID: c.Source.VersionID,

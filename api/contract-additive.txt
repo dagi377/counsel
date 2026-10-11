@@ -17,3 +17,7 @@
 /components/schemas/ProvinceCode Q-TAX-API
 /components/schemas/PlaceOfSupplyPatch Q-TAX-API
 /components/schemas/FirmTaxRegistrations Q-TAX-API
+/paths/~1deadlines~1{deadline_id}~1trigger Q-EVENTS-WIRE-2
+/paths/~1filings~1{filing_id}~1issue Q-EVENTS-WIRE-2
+/paths/~1filings~1affidavits-of-service Q-EVENTS-WIRE-2
+/paths/~1emails~1{comm_item_id}~1filings Q-EVENTS-WIRE-2

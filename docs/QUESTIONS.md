@@ -3289,3 +3289,58 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   TestActionScreensCoverFeatures), so `app/legal/boot/agent.go` gains the F-INT-10 binding and
   the `ai-receptionist` screen (subject `intake.lead`, capability `intake.leads`, as the other
   intake screens).
+
+## Q-FEAT-INT-09 F-INT-12 draft form from description: screen and draft target
+
+- Boot maps every action screen (TestActionScreensCoverFeatures), so `app/legal/boot/agent.go`
+  gains `intake-form-builder` (subject `intake.intake_form`, capability `intake.forms`).
+- draft_document needs a matter_id and a form has none; the prompt has the agent draft on the
+  matter the screen context names. A form-draft tool would remove that indirection.
+- `intake.GatePublicWording` is new: no branch on main or pushed declares `intake.public_wording`.
+
+
+## Q-EVENTS-WIRE-2 Routes for the evidence write points, draft subject_ref, wall and intake/party publishers
+
+- Additive openapi paths (kernel/contract/additive.txt): `POST /deadlines/{deadline_id}/trigger`
+  (PGBook.ChangeTrigger, `deadlines.edit`), `POST /filings/{filing_id}/issue` (IssueClaim),
+  `POST /filings/affidavits-of-service` (RecordAffidavitOfService) and
+  `POST /emails/{comm_item_id}/filings` (FileEmail), the last three on `documents.edit`. Each
+  POST needs Idempotency-Key and answers problem+json. Module placeholders answer 503
+  (`deadlines.Register` joins app/legal/modules.go; comms adds `registerFilingRoutes`); boot
+  mounts the wired handlers from `HTTPPorts.Events`, built on the kernel DB and emitter.
+  The trigger and issue routes check the capability firm-wide: the matter is only known after
+  the store reads the row. The affidavit and email routes also check the body's matter, so a
+  walled matter is 404.
+- `draft_document` gains optional `subject_ref` (string, max 200) in spec/eng/a2-interfaces.json
+  and agent/schemas/tools.json; it is kept in the draft's scope JSON. The F-CON-03 prompt sets it
+  to the conflict run ref.
+- `matter.PGWallStore` implements roles.WallStore and roles.WalledStore on matter.ethical_wall*;
+  boot builds `roles.NewWallResolver(...).WithEvents(...)` (RestServices.Walls). The kernel
+  emitter needs a tx and the wall check has none, so boot wraps it in `ownTxEmitter`, which
+  opens its own tx when given nil.
+- `party.organization_client_created`: party.Store.Create publishes it in the insert tx when
+  the contact is an organization client (Store.Events, set at boot). `identity.portal_submission`:
+  intake.Leads.Submit publishes it once per new lead (Leads.Events; a repeated key publishes
+  nothing). Leads has no tx, so boot hands it the own-tx emitter (RestServices.LeadEvents); boot
+  does not build Leads yet (no Postgres FormStore/LeadStore).
+- Outside the listed files: app/legal/register_test.go (module count 36 -> 37 for deadlines),
+  the F-CON-03 ok fixture prompt_hash and the regenerated plugin skill (prompt change).
+
+## Q-FORM-SUBJECT F-INT-12 drafts public form wording on the firm subject
+
+Decided as counsel: an intake form is firm-level, so F-INT-12 must not borrow a matter.
+- draft_document accepts a firm draft: no `matter_id` and `subject_ref` `"firm"`
+  (`agent.SubjectFirm`). It is stored only when the acting user holds `intake.forms`
+  (`agent.CapIntakeForms`) and, for an agent run, the run's grant names it; else
+  `ErrForbidden`. A firm subject with a matter, or no matter without the firm subject, is
+  `ErrInvalidInput`. F-INT-12's Def grant gains `intake.forms`.
+- Contract change, loosening only: `matter_id` is no longer in draft_document's `required`
+  (`spec/eng/a2-interfaces.json`, `app/legal/agent/schemas/tools.json`); the handler still
+  requires it for every draft that is not a firm draft.
+- Migration `5802_draft_firm_subject.sql` drops NOT NULL on `docs.draft.matter_id`.
+  `PGDocumentDrafts` stores a firm draft with a null matter, and the submit lookup returns
+  `""` for it, so submit_for_approval checks no wall.
+- Merged `task/EVENTS-WIRE-2` (the subject_ref field) into this branch, which is based on
+  `task/FEAT-INT-09`. The register module count is 39 after the merge.
+- Loosening the draft_document schema changes the prompt hash of every tool-use Def that
+  offers it; the pinned `ok.yaml` prompt hashes of F-CON-03 and F-CON-04 are rehashed.

@@ -223,3 +223,70 @@ func TestARC_I_036_DraftDocumentBuildNeedsDeps(t *testing.T) {
 		})
 	}
 }
+
+// firmInput is a draft_document input on the firm subject; matterID, when set, is added too.
+func firmInput(matterID, subjectRef string) string {
+	in := `{"title":"Intake form: synthetic","body_markdown":"1. Your name (text, required)."`
+	if matterID != "" {
+		in += `,"matter_id":"` + matterID + `"`
+	}
+	if subjectRef != "" {
+		in += `,"subject_ref":"` + subjectRef + `"`
+	}
+	return in + "}"
+}
+
+// rule: ARC-I-035
+// rule: ARC-I-036
+// A firm-level draft (the public wording of an intake form, F-INT-12) names no matter and
+// borrows none: draft_document stores it only when the run's grant and the acting user both
+// hold intake.forms.
+func TestARC_I_036_DraftDocumentFirmSubject(t *testing.T) {
+	both := map[string]bool{"documents.edit": true, agent.CapIntakeForms: true}
+	editOnly := map[string]bool{"documents.edit": true}
+	firmGrant := []string{"documents.edit", agent.CapIntakeForms}
+	agentP := func(g []string) registry.Principal {
+		return registry.Principal{Kind: registry.PrincipalAgent, RunID: "run-doc", ActingFor: clerk, Grant: g}
+	}
+	user := registry.Principal{Kind: registry.PrincipalUser, UserID: clerk}
+	cases := []struct {
+		name      string
+		p         registry.Principal
+		actorCaps map[string]bool
+		in        string
+		wantErr   error
+	}{
+		{"agent drafts on the firm", agentP(firmGrant), both, firmInput("", agent.SubjectFirm), nil},
+		{"manual firm draft", user, both, firmInput("", agent.SubjectFirm), nil},
+		{"grant lacks intake.forms", agentP([]string{"documents.edit"}), both, firmInput("", agent.SubjectFirm), agent.ErrForbidden},
+		{"acting user lacks intake.forms", agentP(firmGrant), editOnly, firmInput("", agent.SubjectFirm), agent.ErrForbidden},
+		{"manual user lacks intake.forms", user, editOnly, firmInput("", agent.SubjectFirm), agent.ErrForbidden},
+		{"firm subject with a matter", agentP(firmGrant), both, firmInput(draftMatter, agent.SubjectFirm), agent.ErrInvalidInput},
+		{"no matter and no firm subject", agentP(firmGrant), both, firmInput("", ""), agent.ErrInvalidInput},
+		{"no matter and another subject", agentP(firmGrant), both, firmInput("", "conflict.run:synthetic"), agent.ErrInvalidInput},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := newDraftDocWorld(t, tc.actorCaps)
+			res, err := w.reg.Call(context.Background(), tc.p, agent.ToolDraftDocument, json.RawMessage(tc.in))
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tc.wantErr)
+			}
+			if err != nil {
+				if len(w.drafts.drafts) != 0 {
+					t.Errorf("refused call stored %d drafts", len(w.drafts.drafts))
+				}
+				return
+			}
+			if err := agenttools.CheckWriteResult(res); err != nil {
+				t.Fatalf("write result: %v", err)
+			}
+			if len(w.drafts.drafts) != 1 {
+				t.Fatalf("drafts = %d, want 1", len(w.drafts.drafts))
+			}
+			if d := w.drafts.drafts[0]; d.MatterID != "" || d.SubjectRef != agent.SubjectFirm || d.PreparedBy != clerk {
+				t.Fatalf("draft = %+v, want a firm draft with no matter prepared by %s", d, clerk)
+			}
+		})
+	}
+}

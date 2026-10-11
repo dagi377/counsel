@@ -124,5 +124,6 @@ func appDefs() []feature.Def {
 		intake.ConsultNoteDef(),
 		intake.ConversionPrefillDef(),
 		intake.AIReceptionistDef(),
+		intake.DraftFormFromDescriptionDef(),
 	}
 }

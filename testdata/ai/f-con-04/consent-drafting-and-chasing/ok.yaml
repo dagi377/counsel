@@ -1,7 +1,7 @@
 synthetic: true
 feature: F-CON-04
 match:
-  prompt_hash: "a0f068bc0f95386d18d08b2b6af74f37d1e3515377c0495f2a2f2da422dfeb88"
+  prompt_hash: "23f1f66092bf5731a530a1f297c2077e885c45cbf0569a783269fac5abb85a09"
   last_user_regex: "consent letters for matter"
 latency_ms: 0
 turns:
