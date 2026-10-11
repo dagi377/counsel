@@ -81,7 +81,9 @@ func helmFuncs() template.FuncMap {
 			}
 			return v, nil
 		},
-		"fail":       func(msg string) (string, error) { return "", errors.New(msg) },
+		"fail": func(msg string) (string, error) { return "", errors.New(msg) },
+		// int matters: helm reads values as JSON, so 1000000 would print as 1e+06.
+		"int":        func(v any) int { return asInt(v) },
 		"regexMatch": func(re, s string) bool { return regexp.MustCompile(re).MatchString(s) },
 	}
 }
@@ -566,5 +568,105 @@ func TestARC_U_016_RollingUpdate(t *testing.T) {
 		if len(cs) == 0 || dig(cs[0], "readinessProbe", "httpGet", "path") != "/readyz" {
 			t.Errorf("tier %s has no /readyz readiness probe", tier)
 		}
+	}
+}
+
+// byName indexes rendered objects of one kind by metadata.name.
+func byName(objs []k8sObj, kind string) map[string]k8sObj {
+	out := map[string]k8sObj{}
+	for _, o := range objs {
+		if o.kind() == kind {
+			out[o.meta("name")] = o
+		}
+	}
+	return out
+}
+
+// rule: ARC-U-005
+func TestARC_U_005_Isolation(t *testing.T) {
+	objs := mustRender(t, map[string]any{"cell": "alpha"})
+	pcs := byName(objs, "PriorityClass")
+	prio := func(name string) int { return asInt(dig(pcs[name], "value")) }
+	db, app, agent := prio("counsel-alpha-db"), prio("counsel-alpha-app"), prio("counsel-alpha-agent")
+	quotas, limits := byName(objs, "ResourceQuota"), byName(objs, "LimitRange")
+	sched := byName(objs, "ConfigMap")["paploo-alpha-agent-scheduling"]
+	vals := loadValues(t)
+	tests := []struct {
+		name string
+		ok   bool
+	}{
+		{"priority classes rendered", db > 0 && app > 0 && agent > 0},
+		{"DB priority above app", db > app},
+		{"agent priority lowest", agent < app && agent < db},
+		{"agents never preempt", dig(pcs["counsel-alpha-agent"], "preemptionPolicy") == "Never"},
+		{"cell ResourceQuota", quotas["counsel-alpha"] != nil && quotas["counsel-alpha"].meta("namespace") == "counsel-alpha"},
+		{"cell LimitRange", limits["counsel-alpha"] != nil && limits["counsel-alpha"].meta("namespace") == "counsel-alpha"},
+		{"agent ResourceQuota", quotas["paploo-alpha-agents"] != nil && quotas["paploo-alpha-agents"].meta("namespace") == "paploo-alpha-agents"},
+		{"agent LimitRange", limits["paploo-alpha-agents"] != nil},
+		{"agent pool differs from app and DB", dig(vals, "nodePools", "agent") != dig(vals, "nodePools", "app") && dig(vals, "nodePools", "agent") != dig(vals, "nodePools", "db")},
+		{"agent scheduling uses agent pool", dig(sched, "data", "nodeSelector") == fmt.Sprintf("counsel.io/pool=%v", dig(vals, "nodePools", "agent"))},
+		{"agent scheduling tolerates agent taint", dig(sched, "data", "toleration") == fmt.Sprintf("counsel.io/pool=%v:NoSchedule", dig(vals, "nodePools", "agent"))},
+		{"agent scheduling uses lowest priority", dig(sched, "data", "priorityClassName") == "counsel-alpha-agent"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if !tt.ok {
+				t.Fatal("check failed")
+			}
+		})
+	}
+	for tier, d := range byKind(objs, "Deployment") {
+		t.Run(tier+" on app pool with app priority", func(t *testing.T) {
+			ps := dig(d, "spec", "template", "spec")
+			if dig(ps, "priorityClassName") != "counsel-alpha-app" {
+				t.Errorf("priorityClassName = %v", dig(ps, "priorityClassName"))
+			}
+			if dig(ps, "nodeSelector", "counsel.io/pool") != dig(vals, "nodePools", "app") {
+				t.Errorf("nodeSelector = %v", dig(ps, "nodeSelector"))
+			}
+		})
+	}
+}
+
+// rule: ARC-U-041
+func TestARC_U_041_Capacity(t *testing.T) {
+	objs := mustRender(t, map[string]any{"cell": "alpha"})
+	vals := loadValues(t)
+	if m := asInt(dig(vals, "capacity", "loadMultiplier")); m != 3 {
+		t.Errorf("capacity.loadMultiplier = %d, want 3", m)
+	}
+	if p := asInt(dig(vals, "capacity", "dbStorageAlertPercent")); p != 70 {
+		t.Errorf("capacity.dbStorageAlertPercent = %d, want 70", p)
+	}
+	var checked int
+	for _, o := range objs {
+		var pod any
+		switch o.kind() {
+		case "Deployment", "StatefulSet", "DaemonSet", "Job":
+			pod = dig(o, "spec", "template", "spec")
+		case "CronJob":
+			pod = dig(o, "spec", "jobTemplate", "spec", "template", "spec")
+		default:
+			continue
+		}
+		for _, list := range []string{"initContainers", "containers"} {
+			cs, _ := dig(pod, list).([]any)
+			for _, c := range cs {
+				checked++
+				name := o.id() + "/" + fmt.Sprint(dig(c, "name"))
+				t.Run(name, func(t *testing.T) {
+					for _, f := range []string{"requests", "limits"} {
+						for _, r := range []string{"cpu", "memory"} {
+							if v, _ := dig(c, "resources", f, r).(string); v == "" {
+								t.Errorf("missing resources.%s.%s", f, r)
+							}
+						}
+					}
+				})
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no containers rendered")
 	}
 }

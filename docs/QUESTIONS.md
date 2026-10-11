@@ -440,3 +440,11 @@ Template:
   a kernel boot container), and should `kernel/identity` gain an additive per-user capability
   lookup, or should `conflict.Capabilities` be satisfied by an adapter over `Access.Can`?
   Until then `NewClearance` is wired only in tests.
+
+## T-043.1c: app.yaml touched beyond the task file list
+
+- Task: T-043.1c
+- Sources: ARC-U-005, ARC-U-041; T-043.1c lists quota.yaml and values.yaml only.
+- Reading A: the app pods' priority class, node pool and per-container requests/limits live in templates/app.yaml, so the accept lines cannot pass without touching it.
+- Proposed: done. app.yaml Deployments get priorityClassName counsel-<cell>-app, the app pool nodeSelector and toleration, and resources from values. No other change.
+- Answer: (owner)

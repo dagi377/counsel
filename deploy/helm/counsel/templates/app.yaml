@@ -84,6 +84,15 @@ spec:
         app.kubernetes.io/component: {{ .name }}
     spec:
       serviceAccountName: counsel-{{ $cell }}
+      # rule: ARC-U-005
+      priorityClassName: counsel-{{ $cell }}-app
+      nodeSelector:
+        counsel.io/pool: {{ $.Values.nodePools.app | quote }}
+      tolerations:
+        - key: counsel.io/pool
+          operator: Equal
+          value: {{ $.Values.nodePools.app | quote }}
+          effect: NoSchedule
       # rule: ARC-U-003
       topologySpreadConstraints:
         - maxSkew: 1
@@ -121,6 +130,14 @@ spec:
             preStop:
               exec:
                 command: ["sleep", "10"]
+          # rule: ARC-U-041
+          resources:
+            requests:
+              cpu: {{ $.Values.resources.requests.cpu | quote }}
+              memory: {{ $.Values.resources.requests.memory | quote }}
+            limits:
+              cpu: {{ $.Values.resources.limits.cpu | quote }}
+              memory: {{ $.Values.resources.limits.memory | quote }}
           envFrom:
             - configMapRef:
                 name: counsel-{{ $cell }}-config

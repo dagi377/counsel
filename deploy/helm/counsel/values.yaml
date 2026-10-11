@@ -31,3 +31,31 @@ components:
     args: [counsel-worker]
   - name: outbox
     args: [counsel-worker]
+
+# rule: ARC-U-005
+# Scheduling isolation. Database pods run on a dedicated pool with the highest priority;
+# agent containers run on their own pool with the lowest priority and never preempt, so
+# they can never evict cell app or DB pods. Pools are tainted with counsel.io/pool.
+priority:
+  db: 1000000
+  app: 100000
+  agent: 1000
+nodePools:
+  db: db
+  app: app
+  agent: agents
+quota:
+  cell: {cpu: "24", memory: 96Gi, pods: "80"}
+  agents: {cpu: "64", memory: 128Gi, pods: "200"}
+
+# rule: ARC-U-041
+# Requests are sized for 3x the firm's p95 load; the DB storage alert fires at 70%.
+capacity:
+  loadMultiplier: 3
+  dbStorageAlertPercent: 70
+resources:
+  requests: {cpu: 500m, memory: 512Mi}
+  limits: {cpu: "2", memory: 1Gi}
+agentResources:
+  requests: {cpu: 500m, memory: 1Gi}
+  limits: {cpu: "2", memory: 4Gi}
