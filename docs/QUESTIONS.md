@@ -1861,3 +1861,17 @@ Done in PORT-18:
   run it parks is the one that WriteTools resumes on gate.decided.
 - `agenttest/seed.go`: `SeedStore.Document` implements `agent.DocumentLookup`, so
   read_document runs its real handler in feature tests instead of a stand-in.
+
+## Q-FEAT-CON-02 F-CON-02 opens G2 through propose_conflict_parties
+
+- No F-CON tool drafts, so the run scope never holds a draft and an agent's
+  submit_for_approval is refused (404). The run's G2 gate is the conflict run that
+  propose_conflict_parties starts: conflict.Clearance decides it with gate kind
+  conflict.clearance, and the run's preparer is the acting user. The feature test checks that
+  run is open, that an agent principal deciding is 403 (ErrAgentApproves) and that the
+  acting user deciding is 403 (conflict.ErrPreparerApproves, the conflict module's
+  self-approval refusal).
+- The Def starts from the a2 event `conflict.check_completed` ("event: check run").
+- No F-CON-02 write carries an amount or a date, so ErrUnsourcedValue (ARC-U-027) has no
+  case here. propose_conflict_parties checks a party source's shape but not that the run
+  read it (Scope.Cites); that is a handler follow-up.
