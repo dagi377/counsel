@@ -1,37 +1,38 @@
 synthetic: true
 feature: F-CON-03
 match:
-  prompt_hash: ""
+  prompt_hash: "f0d7f79fd74221487d826ace0db3988bd109138cbcf7a5042671dcfadc034ba7"
   last_user_regex: "clearance memo for matter"
 latency_ms: 0
 turns:
   - reply:
       tool_calls:
-        - name: search_contacts
-          input: {query: "M-2026-0042 parties", limit: 20}
-      stop_reason: tool_use
-      usage: {input_tokens: 640, output_tokens: 32}
-  - expect_tool_results: [search_contacts]
-    reply:
-      tool_calls:
         - name: report_plan
-          input: {steps: [{id: draft-memo, title: "Draft clearance memo for M-2026-0042"}]}
+          input: {steps: [{step_id: search, title: "Search contacts and matters"}, {step_id: confirm, title: "Confirm the check parties"}, {step_id: draft-memo, title: "Draft the clearance memo"}]}
       stop_reason: tool_use
-      usage: {input_tokens: 720, output_tokens: 28}
+      usage: {input_tokens: 640, output_tokens: 40}
   - expect_tool_results: [report_plan]
     reply:
       tool_calls:
-        - name: submit_for_approval
-          input:
-            kind: conflict.clearance
-            matter: "M-2026-0042"
-            memo:
-              - {party: "Northwind Ltd", hit: "M-2025-0107", disposition: "no conflict", reason: "former matter closed, unrelated subject"}
-              - {party: "J. Rivera", hit: "M-2024-0311", disposition: "no conflict", reason: "witness only"}
+        - name: search_contacts
+          input: {query: "Northwind", limit: 20}
+        - name: search_matters
+          input: {query: "Northwind", limit: 20}
       stop_reason: tool_use
-      usage: {input_tokens: 810, output_tokens: 96}
-  - expect_tool_results: [submit_for_approval]
+      usage: {input_tokens: 720, output_tokens: 36}
+  - expect_tool_results: [search_contacts, search_matters]
     reply:
-      text: "Drafted the clearance memo for your review."
+      tool_calls:
+        - name: propose_conflict_parties
+          input:
+            check_id: "00000000-0000-4000-8000-0000000000c1"
+            parties:
+              - {name: "Northwind Ltd", role: "former client", kind: org}
+              - {name: "J. Rivera", role: "witness", kind: person}
+      stop_reason: tool_use
+      usage: {input_tokens: 810, output_tokens: 72}
+  - expect_tool_results: [propose_conflict_parties]
+    reply:
+      text: "Clearance memo for G2. Northwind Ltd: hit on a closed former matter, no conflict, unrelated subject. J. Rivera: witness only, no conflict. No consent or wall needed."
       stop_reason: end_turn
-      usage: {input_tokens: 860, output_tokens: 12}
+      usage: {input_tokens: 860, output_tokens: 48}

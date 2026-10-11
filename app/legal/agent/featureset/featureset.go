@@ -51,5 +51,6 @@ func appDefs() []feature.Def {
 		conflict.PartyExtractionDef(),
 		// conflicts
 		conflict.SearchRankingDef(),
+		conflict.ClearanceMemoDef(),
 	}
 }
