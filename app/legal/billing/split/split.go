@@ -3,13 +3,19 @@
 package split
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
 	"sort"
 
+	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/money"
 )
+
+// FlagJointRetainerVerified gates per-payer billing of a joint retainer (BIL-L-029). It
+// mirrors legal.FlagJointRetainerVerified, which this package cannot import. Off by default.
+const FlagJointRetainerVerified = "billing.joint_retainer_verified"
 
 // Sentinel errors. Each maps to the problem+json code in its comment.
 var (
@@ -29,6 +35,8 @@ var (
 	ErrCrossMatterTrust = errors.New("split: trust belongs to another matter")
 	// ErrInvariant means the computed portions break BIL-I-018; it signals a bug.
 	ErrInvariant = errors.New("split: portions do not add up")
+	// ErrUnverified means a valid split was refused because FlagJointRetainerVerified is off.
+	ErrUnverified = errors.New("split: joint retainer rule not verified")
 )
 
 // AppliesTo selects the lines a split covers.
@@ -86,8 +94,9 @@ type PayerBill struct {
 	Total    money.Cents
 }
 
-// Validate checks the payer shares.
-func Validate(payers []Payer) error {
+// Validate checks the payer shares. Shares that break BIL-C-090 are always refused; valid
+// shares return ErrUnverified while FlagJointRetainerVerified is off.
+func Validate(ctx context.Context, payers []Payer) error {
 	if len(payers) == 0 {
 		return ErrNoPayers
 	}
@@ -102,6 +111,10 @@ func Validate(payers []Payer) error {
 	// rule: BIL-L-029 (verify)
 	if sum != money.PPMScale {
 		return fmt.Errorf("sum %d ppm: %w", sum, ErrSplitNot100)
+	}
+	// rule: BIL-L-029 (verify)
+	if !flags.Enabled(ctx, FlagJointRetainerVerified) {
+		return fmt.Errorf("validate split: %w", ErrUnverified)
 	}
 	return nil
 }
@@ -159,9 +172,11 @@ func Shares(shares []money.PPM, amounts []money.Cents) ([][]money.Cents, error) 
 	return out, nil
 }
 
-// Apply splits lines into one independent bill per payer, in payer order.
-func Apply(s Split, lines []Line) ([]PayerBill, error) {
-	if err := Validate(s.Payers); err != nil {
+// Apply splits lines into one independent bill per payer, in payer order. It returns
+// ErrUnverified while FlagJointRetainerVerified is off (see Validate).
+func Apply(ctx context.Context, s Split, lines []Line) ([]PayerBill, error) {
+	// rule: BIL-L-029 (verify)
+	if err := Validate(ctx, s.Payers); err != nil {
 		return nil, err
 	}
 	payers := append([]Payer(nil), s.Payers...)

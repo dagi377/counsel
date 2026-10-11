@@ -67,16 +67,18 @@ func TestKinds(t *testing.T) {
 
 func TestSelfApproval(t *testing.T) {
 	f := newFake(t)
-	human := gates.Principal{UserID: "u1"}
+	human := gates.Principal{UserID: "u1", Capabilities: []string{"bill.approve"}}
+	g := gates.Gate{ID: "g1", Code: "billing.bill_approval", Preparer: gates.Principal{UserID: "u1"}}
 	tests := []struct {
 		name string
 		in   gates.SelfApprovalInput
 		want bool
 	}{
-		{name: "sole and on", in: gates.SelfApprovalInput{By: human, ActiveLicensees: 1, SettingEnabled: true}, want: true},
-		{name: "setting off", in: gates.SelfApprovalInput{By: human, ActiveLicensees: 1}, want: false},
-		{name: "two licensees", in: gates.SelfApprovalInput{By: human, ActiveLicensees: 2, SettingEnabled: true}, want: false},
-		{name: "agent", in: gates.SelfApprovalInput{By: gates.Principal{UserID: "a", Agent: true}, ActiveLicensees: 1, SettingEnabled: true}, want: false},
+		{name: "sole and on", in: gates.SelfApprovalInput{Gate: g, By: human, ActiveLicensees: 1, SettingEnabled: true}, want: true},
+		{name: "setting off", in: gates.SelfApprovalInput{Gate: g, By: human, ActiveLicensees: 1}, want: false},
+		{name: "two licensees", in: gates.SelfApprovalInput{Gate: g, By: human, ActiveLicensees: 2, SettingEnabled: true}, want: false},
+		{name: "agent", in: gates.SelfApprovalInput{Gate: g, By: gates.Principal{UserID: "a", Agent: true, Capabilities: human.Capabilities}, ActiveLicensees: 1, SettingEnabled: true}, want: false},
+		{name: "missing capability", in: gates.SelfApprovalInput{Gate: g, By: gates.Principal{UserID: "u1"}, ActiveLicensees: 1, SettingEnabled: true}, want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -1,12 +1,28 @@
 package tax
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/dagi377/counsel/kernel/flags"
 )
 
-// rule: BIL-T-061
+func bnFlags(t *testing.T, on bool) *flags.Set {
+	t.Helper()
+	s := flags.New()
+	if err := s.Define(flags.Def{Name: FlagBNCheckVerified, Owner: "test", Expiry: time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set(FlagBNCheckVerified, on); err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+// rule: BIL-T-061 (verify)
 func TestBIL_T_061_BusinessNumberCheckDigit(t *testing.T) {
 	tests := []struct {
 		name string
@@ -24,7 +40,7 @@ func TestBIL_T_061_BusinessNumberCheckDigit(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := BN{}.CheckBN(tt.bn)
+			err := BN{Flags: bnFlags(t, true)}.CheckBN(tt.bn)
 			if !errors.Is(err, tt.want) || (tt.want == nil && err != nil) {
 				t.Fatalf("CheckBN(%q) = %v, want %v", tt.bn, err, tt.want)
 			}
@@ -50,10 +66,40 @@ func TestBIL_C_201_ApprovalRefusedForBadRegistration(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := CheckApproval(tt.reg, tt.confirmed)
+			err := CheckApproval(flags.WithSet(context.Background(), bnFlags(t, true)), tt.reg, tt.confirmed)
 			if !errors.Is(err, tt.want) || (tt.want == nil && err != nil) {
 				t.Fatalf("CheckApproval(%q, %v) = %v, want %v", tt.reg, tt.confirmed, err, tt.want)
 			}
 		})
+	}
+}
+
+// rule: BIL-T-061 (verify)
+func TestBIL_T_061_FlagOffRefusesValidNumber(t *testing.T) {
+	tests := []struct {
+		name string
+		bn   string
+		want error
+	}{
+		{"valid number unverified", "123456782RT0001", ErrUnverified},
+		{"bad check digit still bad", "123456789RT0001", ErrBadBN},
+		{"bad format still bad", "12345678RT0001", ErrBadBN},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for name, err := range map[string]error{
+				"BN off":       BN{Flags: bnFlags(t, false)}.CheckBN(tt.bn),
+				"BN nil flags": BN{}.CheckBN(tt.bn),
+				"CheckBN ctx":  CheckBN(flags.WithSet(context.Background(), bnFlags(t, false)), tt.bn),
+				"CheckBN none": CheckBN(context.Background(), tt.bn),
+			} {
+				if !errors.Is(err, tt.want) {
+					t.Fatalf("%s: err = %v, want %v", name, err, tt.want)
+				}
+			}
+		})
+	}
+	if err := CheckApproval(context.Background(), "123456782RT0001", true); !errors.Is(err, ErrUnverified) {
+		t.Fatalf("CheckApproval with flag off = %v, want ErrUnverified", err)
 	}
 }

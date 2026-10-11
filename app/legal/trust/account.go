@@ -241,11 +241,17 @@ func (s *AccountStore) Account(ctx context.Context, id AccountID) (Account, erro
 	return out, nil
 }
 
+// ErrUnverified is returned by a By-Law 9 check while FlagBylaw9Verified is off. The check
+// fails closed: an unconfirmed rule never lets money move unchecked.
+var ErrUnverified = errors.New("trust: by-law 9 rules not verified")
+
 // CheckDepositTarget refuses money received in trust for a client unless it goes to a trust
-// account. Behind FlagBylaw9Verified; off, it allows everything.
+// account. Behind FlagBylaw9Verified; off, it refuses every deposit with ErrUnverified, the
+// same as withdraw.Validate.
 func (s *AccountStore) CheckDepositTarget(fundsInTrust, toTrustAccount bool) error {
+	// rule: BIL-L-034 (verify)
 	if !s.flags.Enabled(FlagBylaw9Verified) {
-		return nil
+		return fmt.Errorf("deposit target: %w", ErrUnverified)
 	}
 	// rule: BIL-L-034 (verify)
 	if fundsInTrust && !toTrustAccount {

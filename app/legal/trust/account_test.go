@@ -195,7 +195,9 @@ func TestBIL_L_034_FundsInTrustGoToTrust(t *testing.T) {
 		on, inTrust, toTrA bool
 		err                error
 	}{
-		{name: "flag off allows", inTrust: true},
+		{name: "flag off refuses deposit to operating", inTrust: true, err: ErrUnverified},
+		{name: "flag off refuses deposit to trust", inTrust: true, toTrA: true, err: ErrUnverified},
+		{name: "flag off refuses earned fee", err: ErrUnverified},
 		{name: "to operating refused", on: true, inTrust: true, err: ErrInvalid},
 		{name: "to trust allowed", on: true, inTrust: true, toTrA: true},
 		{name: "earned fee to operating", on: true},
@@ -204,6 +206,25 @@ func TestBIL_L_034_FundsInTrustGoToTrust(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := newStore(tt.on).CheckDepositTarget(tt.inTrust, tt.toTrA); !errors.Is(err, tt.err) {
 				t.Fatalf("err = %v, want %v", err, tt.err)
+			}
+		})
+	}
+}
+
+func TestBIL_L_034_FlagOffDoesNotAllowOperatingDeposit(t *testing.T) {
+	tests := []struct {
+		name           string
+		inTrust, toTrA bool
+	}{
+		{name: "funds in trust to operating", inTrust: true},
+		{name: "funds in trust to trust", inTrust: true, toTrA: true},
+		{name: "earned fee to operating"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := newStore(false).CheckDepositTarget(tt.inTrust, tt.toTrA)
+			if err == nil || !errors.Is(err, ErrUnverified) {
+				t.Fatalf("err = %v, want ErrUnverified", err)
 			}
 		})
 	}

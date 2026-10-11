@@ -1,9 +1,17 @@
 package tax
 
 import (
+	"context"
 	"errors"
 	"fmt"
+
+	"github.com/dagi377/counsel/kernel/flags"
 )
+
+// FlagBNCheckVerified gates acceptance of a GST/HST registration number under BIL-T-061. It
+// mirrors legal.FlagTaxBNCheckVerified, which this package cannot import. Off by default:
+// a malformed number is always refused, a well-formed one returns ErrUnverified.
+const FlagBNCheckVerified = "tax.bn_check_verified"
 
 // Sentinel errors for the tax approval preconditions (BIL-C-201).
 var (
@@ -14,21 +22,43 @@ var (
 	ErrPlaceUnconfirmed = errors.New("tax: place of supply not confirmed")
 )
 
-// BN checks GST/HST registration numbers. It implements BNChecker.
-type BN struct{}
+// BN checks GST/HST registration numbers. It implements BNChecker. BNChecker takes no
+// context, so BN reads FlagBNCheckVerified from Flags; a nil Flags is off.
+type BN struct {
+	Flags interface{ Enabled(name string) bool }
+}
 
 var _ BNChecker = BN{}
 
 // CheckBN validates bn as 9 digits, "RT" and a 4-digit account, with the 9-digit business
 // number passing the Luhn check digit. The error never contains bn.
-func (BN) CheckBN(bn string) error {
-	return CheckBN(bn)
+func (b BN) CheckBN(bn string) error {
+	if err := checkBN(bn); err != nil {
+		return err
+	}
+	// rule: BIL-T-061 (verify)
+	if b.Flags == nil || !b.Flags.Enabled(FlagBNCheckVerified) {
+		return fmt.Errorf("check bn: %w", ErrUnverified)
+	}
+	return nil
 }
 
-// CheckBN validates a GST/HST registration number such as "123456782RT0001".
+// CheckBN validates a GST/HST registration number such as "123456782RT0001". A malformed
+// number returns ErrBadBN; a valid one returns ErrUnverified while FlagBNCheckVerified is off.
 //
 // rule: BIL-T-061 (verify)
-func CheckBN(bn string) error {
+func CheckBN(ctx context.Context, bn string) error {
+	if err := checkBN(bn); err != nil {
+		return err
+	}
+	// rule: BIL-T-061 (verify)
+	if !flags.Enabled(ctx, FlagBNCheckVerified) {
+		return fmt.Errorf("check bn: %w", ErrUnverified)
+	}
+	return nil
+}
+
+func checkBN(bn string) error {
 	// rule: BIL-T-061
 	if len(bn) != 15 || bn[9:11] != "RT" || !digits(bn[:9]) || !digits(bn[11:]) {
 		return fmt.Errorf("check bn format: %w", ErrBadBN)
@@ -42,13 +72,13 @@ func CheckBN(bn string) error {
 
 // CheckApproval is the tax precondition for approving a bill: the firm registration number
 // is present and valid, and the lawyer confirmed the place of supply.
-func CheckApproval(registration string, placeConfirmed bool) error {
+func CheckApproval(ctx context.Context, registration string, placeConfirmed bool) error {
 	// rule: BIL-C-201
 	if registration == "" {
 		return fmt.Errorf("approval: %w", ErrRegistrationMissing)
 	}
 	// rule: BIL-C-201
-	if err := CheckBN(registration); err != nil {
+	if err := CheckBN(ctx, registration); err != nil {
 		return fmt.Errorf("approval: %w", err)
 	}
 	// rule: BIL-C-201

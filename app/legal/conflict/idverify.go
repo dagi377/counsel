@@ -52,16 +52,22 @@ type IDDecision struct {
 // ErrUnknownFunds is returned for a movement with an unknown kind or exemption, or no client.
 var ErrUnknownFunds = errors.New("conflict: unknown funds movement")
 
+// ErrUnverified is returned by CheckFunds while the conflict.id_verification flag is off.
+// The check fails closed: until the rule is confirmed no trust movement passes unchecked.
+var ErrUnverified = errors.New("conflict: id verification rules not verified")
+
 // CheckFunds applies the client ID verification duty to a trust movement. With the
-// conflict.id_verification flag off it allows everything without a warning.
+// conflict.id_verification flag off it refuses every movement with ErrUnverified, the same
+// as withdraw.Validate; the exemptions are the unconfirmed detail and apply only when on.
 //
 // rule: BIL-L-043 (verify)
 func CheckFunds(ctx context.Context, v IDVerifier, f Funds) (IDDecision, error) {
 	if f.ClientID == "" || !knownKind(f.Kind) || !knownExemption(f.Exemption) {
 		return IDDecision{}, ErrUnknownFunds
 	}
+	// rule: BIL-L-043 (verify)
 	if !flags.Enabled(ctx, FlagIDVerification) {
-		return IDDecision{}, nil
+		return IDDecision{Rule: "BIL-L-043"}, fmt.Errorf("conflict: %s: %w", CodeIDVerificationRequired, ErrUnverified)
 	}
 	// rule: BIL-L-043 (verify)
 	if f.Kind == FundsFeeTransfer || f.Exemption != ExemptNone {

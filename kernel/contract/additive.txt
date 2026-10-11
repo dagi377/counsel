@@ -1,0 +1,9 @@
+# Approved additive changes of api/openapi.yaml over its baseline
+# spec/eng/a2-interfaces.openapi.yaml. One addition per line: the RFC 6901 JSON pointer of
+# the added key or list item, then the docs/QUESTIONS.md id that approved it.
+# kernel/contract/openapi_test.go fails on any addition not listed here, and on any line
+# here that is no longer an addition.
+/paths/~1hooks~1{provider}/post/responses/403 Q-004
+/paths/~1hooks~1{provider}/post/responses/404 Q-004
+/paths/~1hooks~1{provider}/post/responses/409 Q-004
+/paths/~1hooks~1{provider}/post/responses/422 Q-004

@@ -43,7 +43,11 @@ func TestBIL_L_043_IDVerificationBeforeTrustMovement(t *testing.T) {
 		wantBlock bool
 		wantErr   error
 	}{
-		{"flag off allows unverified payout", false, conflict.Funds{ClientID: "c-new", Kind: conflict.FundsThirdPartyPayout}, false, false, nil},
+		{"flag off blocks unverified payout", false, conflict.Funds{ClientID: "c-new", Kind: conflict.FundsThirdPartyPayout}, false, true, conflict.ErrUnverified},
+		{"flag off blocks verified payout", false, conflict.Funds{ClientID: "c-ok", Kind: conflict.FundsThirdPartyPayout}, false, true, conflict.ErrUnverified},
+		{"flag off blocks receipt", false, conflict.Funds{ClientID: "c-new", Kind: conflict.FundsReceipt}, false, true, conflict.ErrUnverified},
+		{"flag off blocks exempt fee transfer", false, conflict.Funds{ClientID: "c-new", Kind: conflict.FundsFeeTransfer}, false, true, conflict.ErrUnverified},
+		{"flag off blocks exempt payout", false, conflict.Funds{ClientID: "c-new", Kind: conflict.FundsThirdPartyPayout, Exemption: conflict.ExemptBail}, false, true, conflict.ErrUnverified},
 		{"unverified receipt is flagged", true, conflict.Funds{ClientID: "c-new", Kind: conflict.FundsReceipt}, true, false, nil},
 		{"unverified payout to vendor blocked", true, conflict.Funds{ClientID: "c-new", Kind: conflict.FundsThirdPartyPayout}, false, true, conflict.ErrIDNotVerified},
 		{"fee transfer to operating exempt", true, conflict.Funds{ClientID: "c-new", Kind: conflict.FundsFeeTransfer}, false, false, nil},
@@ -84,7 +88,19 @@ func TestBIL_L_043_FlagOffByDefault(t *testing.T) {
 		t.Fatal("conflict.id_verification is on by default")
 	}
 	d, err := conflict.CheckFunds(context.Background(), conflictfake.New(), conflict.Funds{ClientID: "c", Kind: conflict.FundsThirdPartyPayout})
-	if err != nil || d.Warn {
-		t.Fatalf("no flag set: got %+v, %v; want allowed", d, err)
+	if !errors.Is(err, conflict.ErrUnverified) || d.Rule != "BIL-L-043" {
+		t.Fatalf("no flag set: got %+v, %v; want ErrUnverified", d, err)
+	}
+}
+
+// rule: BIL-L-043 (verify)
+func TestBIL_L_043_FlagOffDoesNotAllowPayout(t *testing.T) {
+	for _, kind := range []conflict.FundsKind{conflict.FundsReceipt, conflict.FundsThirdPartyPayout, conflict.FundsFeeTransfer} {
+		t.Run(string(kind), func(t *testing.T) {
+			_, err := conflict.CheckFunds(flagCtx(t, false), conflictfake.New(), conflict.Funds{ClientID: "c", Kind: kind})
+			if err == nil || !errors.Is(err, conflict.ErrUnverified) {
+				t.Fatalf("err = %v, want ErrUnverified", err)
+			}
+		})
 	}
 }
