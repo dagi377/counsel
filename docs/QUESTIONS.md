@@ -4294,3 +4294,20 @@ of FEAT-TIM-01 above.
   screens, like `client-sharing`.
 - Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (screen), the
   generated plugin skill, `app/legal/platform/ai_pltf_helpers_test.go`.
+
+## Q-FEAT-PLT-07 F-PLT-06 closing starter: pipeline
+
+- The tool-use pipeline (`ClosingStarterPipeline`) returns at most one draft per gate: the
+  final account (G-B2 `bill.GateBillApproval`), the trust refund (G11
+  `agent.GateTrustWithdrawal`) and the closing checklist (G13 `matter.GateClosing`), each
+  citing a quoted passage or a tool result of the run. A refund needs an amount, and every
+  amount (integer cents) must be one the quoted file or a read of the run stated
+  (`agenttools.Provenance`); anything else writes nothing.
+- The passages' figures are recorded with the kernel's own quoted-text rule
+  (`Provenance.Observe` on an untrusted envelope), so "2026-0306" or "1,800.00" read the same
+  way a read_document line does. (F-PLT-04's `observeStated` marshals `\d+` matches as
+  `json.Number`, so a match with a leading zero, e.g. "0306", fails the marshal and records
+  nothing for that passage; open for that branch.)
+- The Def joins `featureset.App()` in FEAT-PLT-08 together with its trigger binding: boot's
+  JobBindings refuses a job feature with no binding.
+- Outside the listed files: the shared test helpers `app/legal/platform/ai_pltk_helpers_test.go`.
