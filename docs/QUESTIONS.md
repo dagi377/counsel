@@ -1886,3 +1886,21 @@ Done in PORT-18:
   run it parks is the one that WriteTools resumes on gate.decided.
 - `agenttest/seed.go`: `SeedStore.Document` implements `agent.DocumentLookup`, so
   read_document runs its real handler in feature tests instead of a stand-in.
+
+## Q-FEAT-CON-07 Conflict features F-CON-07 to F-CON-09 on top of FEAT-CORE-15
+
+- Tasks: FEAT-CON-07, FEAT-CON-08, FEAT-CON-09. Same layout as Q-FEAT-CON-04: each Def joins
+  `featureset.appDefs` and its test; tool-use Defs get their generated plugin skill.
+- The branches merge `task/FEAT-CORE-15`, which gives `read_document` and `search_matters` real
+  handlers. The conflict scripts and the F-CON-04 fixtures read a fixed doc id without
+  `version_id` through `SetRead`, so `conHandlers` (in `ai_f_con_04_feature_test.go`) now leaves
+  both tools out of the handler set and they stay stand-ins. Proposed follow-up: seed the
+  documents with `agenttest.Seed.Document`, pass `version_id`, and check the injection with a
+  helper that accepts read_document's `{"untrusted": true}` envelope (F-CON-02 has one,
+  `conQuotedOnly`).
+- `task/FEAT-CON-02`/`03` and `task/FEAT-CON-04`..`06` both declare `conFeature`, `conScript`,
+  `conCall` and others in package `conflict_test` with different signatures; merging both
+  chains will not compile until one set is renamed.
+- F-CON-07's model call is extraction (spec): its Def sets `Kind: ai.KindExtraction`, so it
+  exports no plugin skill.
+- Event types with no publisher yet: `identity.portal_submission` (F-CON-07).
