@@ -4529,3 +4529,34 @@ and has a one-outbox-event test.
   trust_test); its two checks of trust.SourcedCents moved to `ai_sourced_test.go`.
 - JobBindings keeps main's designated-lawyer form (no ruleAdmin); the trust bindings plug in
   unchanged. `TRU-09` was already inside TRUST-DRAFT-WRAP's chain.
+
+## Q-FEAT-ACC-01 Access features F-ACC-02 to F-ACC-04: shared layout
+
+- Tasks: FEAT-ACC-01, FEAT-ACC-02, FEAT-ACC-03. Each Def joins `featureset.appDefs`, its
+  featureset test row and `boot.JobBindings`; the generated plugin skill is checked in. The
+  branches stack (`task/FEAT-ACC-02` on `task/FEAT-ACC-01`, `task/FEAT-ACC-03` on
+  `task/FEAT-ACC-02`) so the one helper file, `app/legal/access/ai_acc_helpers_test.go`, is
+  shared rather than copied.
+- Firm subject: main has no `boot.FirmSubject`, and `draft_document` takes a `matter_id`
+  (a2 schema). The access drafts are firm-level (licence, access review, break-glass), so the
+  tests draft on a synthetic matter. Proposed follow-up: once a firm subject lands
+  (`task/FORM-SUBJECT`), draft these on it.
+- F-ACC-02 reuses `identity.KindUserActivation` for `core.user_activation`. Its monthly run
+  binds with `trigger.BindDesignated` (fails closed without a designated lawyer); an invite run
+  acts for the inviting user.
+- Provenance: the access drafts carry no amount fields, and `draft_document` declares no
+  provenance pointer. The tests check every date in a draft against the run's reads with
+  `agenttools.Provenance` (`accSourcedDates`) and pin `ErrUnsourcedValue` for a date never read.
+- F-ACC-03 declares `access.GateReviewClose` (`core.review_close`, GA8); no constant existed.
+  Its quarterly run binds with `trigger.BindDesignated`. The `access-review` screen joins
+  `boot.actionScreens` with subject kind `matter` (no firm subject on main) and capability
+  `admin.access_review`.
+- AI-014 (`ai_f_acc_03_test.go`) moved to `package access_test` and `agenttest.FromFeature`;
+  its fixtures now draft with `draft_document` and submit the draft with the a2
+  `submit_for_approval` input, and the ok fixture pins `match.prompt_hash`.
+- F-ACC-04 declares `access.GateBreakGlassReview` (`core.break_glass_review`, GA7) and binds
+  to the session end event; the run acts for the event's user, so the session's own user can
+  prepare the summary but never decide it (ErrSelfApproval). AI-015 (`ai_f_acc_04_test.go`)
+  moved the same way as AI-014.
+- Event types with no publisher yet: `user.invited` (F-ACC-02), `break_glass.ended` (F-ACC-04;
+  identity writes only the `core.break_glass_expire` audit action today).

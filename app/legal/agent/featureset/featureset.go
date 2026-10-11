@@ -13,6 +13,7 @@ package featureset
 //go:generate go test -run TestExportSkillsCheckedIn -update-skills .
 
 import (
+	"github.com/dagi377/counsel/app/legal/access"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/conflict"
@@ -188,5 +189,9 @@ func appDefs() []feature.Def {
 		trust.BankFeedSyncDef(),
 		trust.MonthEndReconciliationDef(),
 		trust.RetainerReplenishmentDef(),
+		// access
+		access.LicenceCheckDef(),
+		access.AccessReviewPreFillDef(),
+		access.BreakGlassSummaryDef(),
 	}
 }

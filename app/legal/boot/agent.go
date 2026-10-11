@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/dagi377/counsel/app/legal/access"
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/featureset"
@@ -427,6 +428,9 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		trust.RetainerCoverageScanDef().ID:  trust.RetainerCoverageScanBinding,
 		trust.FeatureMonthEndReconciliation: trust.MonthEndReconciliationBinding,
 		trust.FeatureRetainerReplenishment:  trust.RetainerReplenishmentBinding,
+		access.LicenceCheckDef().ID:         access.LicenceCheckBinding,
+		access.AccessReviewPreFillDef().ID:  access.AccessReviewPreFillBinding,
+		access.BreakGlassSummaryDef().ID:    access.BreakGlassSummaryBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -615,6 +619,9 @@ var actionScreens = map[string]trigger.Screen{
 	"trust-receipts-journal": {SubjectKind: "matter", Capability: "trust.view"},
 	"bank-feed-import":       {SubjectKind: "matter", Capability: "trust.view"},
 	"monthly-reconciliation": {SubjectKind: "matter", Capability: "trust.view"},
+	// Access administration. The firm has no firm-level subject yet, so the screen selects a
+	// matter (Q-FEAT-ACC-01).
+	"access-review": {SubjectKind: "matter", Capability: "admin.access_review"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

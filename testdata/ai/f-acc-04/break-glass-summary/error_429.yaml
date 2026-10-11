@@ -10,13 +10,14 @@ turns:
   - reply:
       tool_calls:
         - name: report_plan
-          input: {steps: [{id: summarise-session, title: "Summarise break-glass session bg-0042"}]}
+          input: {steps: [{step_id: summarise-session, title: "Summarise break-glass session bg-0042"}]}
+  - reply:
+      tool_calls:
+        - name: draft_document
+          input: {matter_id: "00000000-0000-4000-8000-0000000000ac", title: "Break-glass session bg-0042: summary", body_markdown: "Session bg-0042 on 2026-10-09 opened matter 2026-0042 for 18 minutes; 3 documents viewed; no edits."}
   - reply:
       tool_calls:
         - name: submit_for_approval
-          input:
-            kind: core.break_glass_review
-            session: "bg-0042"
-            summary: "Opened M-2026-0007 under break-glass for 18 minutes; viewed 3 documents; no edits."
+          input: {subject_type: document, subject_id: "00000000-0000-4000-8000-00000000a001", gate_kind: core.break_glass_review}
   - reply:
       text: "Drafted the break-glass summary for your review."
