@@ -48,8 +48,9 @@ type Line struct {
 	Text string
 }
 
-// Citation points at lines of one version. QuoteHash is the hex sha256 of the cited
-// lines' NFC text joined by "\n"; it is re-checked when the citation is rendered.
+// Citation points at lines of one version. QuoteHash is "sha256:" + hex SHA-256 of the cited
+// lines joined by "\n" and normalised per ARC-I-037 (NFC, whitespace runs collapsed to one
+// space, trimmed; see QuoteHash); it is re-checked when the citation is rendered.
 type Citation struct {
 	VersionID VersionID
 	Page      int

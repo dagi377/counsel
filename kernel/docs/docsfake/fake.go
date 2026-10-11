@@ -5,8 +5,6 @@ package docsfake
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"strconv"
@@ -128,8 +126,8 @@ func (f *Fake) hash(v docs.VersionID, page, l0, l1 int) (string, error) {
 	if l0 < 1 || l1 < l0 || l1 > len(p) {
 		return "", fmt.Errorf("version %s lines %d-%d: %w", v, l0, l1, docs.ErrBadRange)
 	}
-	sum := sha256.Sum256([]byte(strings.Join(p[l0-1:l1], "\n")))
-	return hex.EncodeToString(sum[:]), nil
+	// rule: ARC-I-037
+	return docs.QuoteHash(strings.Join(p[l0-1:l1], "\n")), nil
 }
 
 // Cite implements docs.Store.

@@ -104,7 +104,8 @@ func TestCiteAndVerify(t *testing.T) {
 			if err != nil {
 				return
 			}
-			if len(c.QuoteHash) != 64 {
+			// ARC-I-037: "sha256:" + 64 hex digits.
+			if !strings.HasPrefix(c.QuoteHash, docs.QuotePrefix) || len(c.QuoteHash) != len(docs.QuotePrefix)+64 {
 				t.Fatalf("QuoteHash = %q", c.QuoteHash)
 			}
 			if tt.change {

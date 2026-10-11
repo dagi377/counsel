@@ -384,3 +384,10 @@ Template:
 - Done: `interest.Start` follows the contract and accept line, tagged (verify), behind
   `billing.solicitors_act_verified`. Counsel must confirm which day is correct.
 - Integrator: add `interest.FlagSolicitorsActVerified` to `TestFlagMirrorsMatchCanonicalNames`.
+
+## Wave 2a integration: additive contract changes (decided)
+
+- app/legal/billing/draft contract: new sentinel `ErrInvalidReduction`. A reduction must be >= 0;
+  a write-up is its own explicit action (T-017.5 decision). Additive.
+- kernel/docs contract: the `Citation.QuoteHash` comment now states the ARC-I-037 form
+  ("sha256:" + hex SHA-256 of the normalised quote). docsfake hashes the same way. Comment only.
