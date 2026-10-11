@@ -45,7 +45,7 @@ func computeWorld(t *testing.T, actorCaps map[string]bool) (*agenttools.Registry
 	can := agent.CapabilityCheck(func(_ context.Context, user, capability string) (bool, error) {
 		return user == clerk && actorCaps[capability], nil
 	})
-	tool, err := agent.ComputeDeadlineHandler().Build(agent.NewDeps(can, publishedPacks{civil, family, drift}, engine))
+	tool, err := agent.ComputeDeadlineHandler().Build(agent.NewDeps(can, publishedPacks{civil, family, drift}, engine, agenttools.NewProvenance()))
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}

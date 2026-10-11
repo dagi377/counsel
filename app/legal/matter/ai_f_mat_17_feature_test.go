@@ -50,7 +50,7 @@ func mateTaskHandlers(t *testing.T, def feature.Def) agent.HandlerSet {
 				if err != nil {
 					return registry.Tool{}, err
 				}
-				return agent.CreateTaskHandler().Build(agent.NewDeps(can, walls, items, agent.ProposedTasks(mateProposedTasks{})))
+				return agent.CreateTaskHandler().Build(agent.NewDeps(can, walls, items, agent.ProposedTasks(mateProposedTasks{}), agenttools.NewProvenance()))
 			}}
 		}
 		hs = append(hs, h)
@@ -113,7 +113,10 @@ func TestFMAT17_FromFeature(t *testing.T) {
 				{agent.ToolReadDocument, map[string]any{"doc_id": doc, "version_id": string(v)}},
 				{agent.ToolSearchContacts, map[string]any{"query": "Synth"}},
 				{agent.ToolCreateTask, map[string]any{"matter_id": mid, "title": "Set up the matter folders"}},
-				{agent.ToolCreateTask, map[string]any{"matter_id": mid, "title": "Placeholder: serve the statement of claim (unconfirmed)", "due_on": "2026-11-16"}},
+				// rule: ARC-U-027
+				// The service date is only in quoted document text, not a date a read tool returned, so
+				// the placeholder carries no due_on (create_task would refuse it as unsourced).
+				{agent.ToolCreateTask, map[string]any{"matter_id": mid, "title": "Placeholder: serve the statement of claim (unconfirmed)"}},
 				{agent.ToolSubmitForApproval, map[string]any{"subject_type": agenttest.SubjectWorkItem, "subject_id": "item-1", "gate_kind": matter.GateWorkPlan}},
 				{agent.ToolSubmitForApproval, map[string]any{"subject_type": agenttest.SubjectWorkItem, "subject_id": "item-2", "gate_kind": matter.GateWorkPlan}},
 			}

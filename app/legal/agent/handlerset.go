@@ -10,6 +10,7 @@ import (
 
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/roles"
+	"github.com/dagi377/counsel/kernel/agenttools"
 	kdocs "github.com/dagi377/counsel/kernel/docs"
 	"github.com/dagi377/counsel/kernel/registry"
 )
@@ -104,6 +105,7 @@ func Handlers() HandlerSet {
 		DraftNoteHandler(),
 		ListDeadlinesHandler(),
 		ComputeDeadlineHandler(),
+		ShiftDateHandler(),
 		ListUnbilledHandler(),
 		GetBillHandler(),
 		GetTrustBalanceHandler(),
@@ -175,6 +177,22 @@ func handlerTool(name string, kind ToolKind, can CapabilityCheck, handle func(ct
 			return handle(ctx, user, in)
 		},
 	}, nil
+}
+
+// sourcedRead wraps read tool t so an agent run's provenance records the numbers and
+// YYYY-MM-DD dates it returns, so a later write in the run may carry them. It reads the
+// run's *agenttools.Provenance from d.
+func sourcedRead(d Deps, t registry.Tool) (registry.Tool, error) {
+	pv, err := DepOf[*agenttools.Provenance](d)
+	if err != nil || pv == nil {
+		return registry.Tool{}, fmt.Errorf("%s: provenance: %w", t.Name, ErrMissingDep)
+	}
+	// rule: ARC-U-027
+	t, err = pv.ReadTool(t)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", t.Name, err)
+	}
+	return t, nil
 }
 
 // pageWindow reads the cursor and limit of a list input: the cursor is the offset of the next

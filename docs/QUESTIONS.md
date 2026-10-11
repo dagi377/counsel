@@ -3689,3 +3689,20 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   it publishes the same event.
 - BOOT-24: call `boot.SetMatterPortEvents(&ports, k.Emitter)` after `WireMatterPorts`. F-MAT-10
   ("event: party added or matter opened") should bind `matter.party_added` and `matter.opened`.
+## Q-TOOL-DATES shift_date added to the a2 tools catalogue; create_task due_on is sourced
+
+- Additive a2 change: new read tool `shift_date` (capability `deadlines.view`, manifest scope
+  `data.read`), appended to `spec/eng/a2-interfaces.json` and `app/legal/agent/schemas/tools.json`
+  (`schemas.Count` 25 -> 26). Input: `date` (YYYY-MM-DD), `days` (integer, may be negative),
+  `unit` (`calendar` | `business`). Output `{from, unit, date}`; the day count is not echoed so
+  a model-chosen number never becomes a sourced value. For an agent the start `date` must
+  itself be a date the run read (ARC-U-027), so shift_date cannot launder an invented date.
+- Business days skip weekends and `rulepacks/ontario.Holidays()` (America/Toronto). That
+  calendar is marked unverified behind `deadline.ontario_pack`; shift_date uses it
+  unconditionally. Open: gate the holiday list on the flag (weekends only when off)?
+- `create_task` `/due_on` is now a SourcedWrite. compute_deadline, list_deadlines,
+  list_unbilled and list_work_items now record their results in the run's Provenance
+  (PROV-DATES); list_work_items adds an additive `due_on` (business-zone day) next to the
+  RFC 3339 `due_at`, which provenance cannot match. A date only inside quoted document text
+  is not sourced: F-MAT-17's placeholder task no longer carries a due_on.
+- `spec/eng/a2-interfaces.html` still lists 25 tools; regenerate it if it is generated.
