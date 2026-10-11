@@ -431,6 +431,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		access.LicenceCheckDef().ID:         access.LicenceCheckBinding,
 		access.AccessReviewPreFillDef().ID:  access.AccessReviewPreFillBinding,
 		access.BreakGlassSummaryDef().ID:    access.BreakGlassSummaryBinding,
+		access.FeatureOffboardingPlan:       access.OffboardingPlanBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -622,6 +623,9 @@ var actionScreens = map[string]trigger.Screen{
 	// Access administration. The firm has no firm-level subject yet, so the screen selects a
 	// matter (Q-FEAT-ACC-01).
 	"access-review": {SubjectKind: "matter", Capability: "admin.access_review"},
+	// Access. main has no firm subject yet, so a firm-level admin screen selects a matter
+	// (Q-FEAT-ACC-04).
+	"offboard-user": {SubjectKind: "matter", Capability: "admin.offboard"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
