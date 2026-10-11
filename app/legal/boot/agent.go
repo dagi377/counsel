@@ -19,6 +19,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
@@ -311,6 +312,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.RetainerWatchDef().ID:                matter.RetainerWatchBinding,
 		matter.ConfigHygieneDef().ID:                matter.ConfigHygieneBinding,
 		matter.TemplateFitDef().ID:                  matter.TemplateFitBinding,
+		intake.PreConsultBriefDef().ID:              intake.PreConsultBriefBinding,
 		matter.FeatureChronology: func() (trigger.Binding, error) {
 			// F-MAT-12 refreshes on a new document or email on the matter, for the event's user
 			// (Q-INTEG-16-SCREENS); the screen action covers on-request runs.
