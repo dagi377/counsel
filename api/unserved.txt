@@ -8,8 +8,6 @@ GET /audit-events
 GET /deadlines
 POST /deadlines
 GET /deadlines/{deadline_id}
-POST /documents/{document_id}/release
-GET /drafts
 POST /payments/{payment_id}/allocations
 POST /payments/{payment_id}/refunds
 GET /roles
