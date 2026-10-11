@@ -1861,3 +1861,9 @@ Done in PORT-18:
 - Open: `ApproveWriteOff` computes the tax adjustment on the whole amount, interest included
   (`BadDebtTax(amount, billTax, billTotal)`). Interest carries no HST, so the relief should
   probably be on the amount less interest, or simply the draft's tax bucket. Not changed here.
+
+## PORT-16c: bad-debt relief excludes interest
+
+- Resolves the PORT-16b open point (decided as counsel): `ApproveWriteOff` computes the ETA
+  s.231 relief as `BadDebtTax(amount - interest, billTax, billTotal)`. A write-off that is all
+  interest gets no relief; interest above the amount fails with `ErrInvalidAmount`.

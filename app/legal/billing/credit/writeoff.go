@@ -49,18 +49,25 @@ func (c Calc) ApproveWriteOff(w WriteOff, b Bill, billTax, billTotal int64, by A
 	if err := CheckWriteOffApprover(w, b, by); err != nil {
 		return WriteOff{}, BadDebtAdjustment{}, err
 	}
-	if w.AmountCents <= 0 || on.IsZero() {
+	if w.AmountCents <= 0 || w.InterestCents < 0 || w.InterestCents > w.AmountCents || on.IsZero() {
 		return WriteOff{}, BadDebtAdjustment{}, fmt.Errorf("approve write-off %s: %w", w.ID, ErrInvalidAmount)
 	}
 	if w.AmountCents > b.OpenCents {
 		return WriteOff{}, BadDebtAdjustment{}, fmt.Errorf("approve write-off %s: %w", w.ID, ErrExceedsBalance)
 	}
 	// rule: BIL-C-205
-	// The adjustment is the bill's open tax on the written-off amount,
-	// rhu(bill_tax * written_off, bill_total), posted in the period of the write-off.
-	tax, err := c.BadDebtTax(w.AmountCents, billTax, billTotal)
-	if err != nil {
-		return WriteOff{}, BadDebtAdjustment{}, fmt.Errorf("approve write-off %s: %w", w.ID, err)
+	// rule: BIL-T-080
+	// The adjustment is the bill's open tax on the written-off consideration,
+	// rhu(bill_tax * (written_off - interest), bill_total), posted in the period of the
+	// write-off. ETA s.231 relieves only the tax fraction of the consideration for the
+	// taxable supply; interest is not that consideration, so it carries no relief.
+	var tax int64
+	if taxable := w.AmountCents - w.InterestCents; taxable > 0 {
+		t, err := c.BadDebtTax(taxable, billTax, billTotal)
+		if err != nil {
+			return WriteOff{}, BadDebtAdjustment{}, fmt.Errorf("approve write-off %s: %w", w.ID, err)
+		}
+		tax = t
 	}
 	w.Status = StatusApproved
 	w.ApprovedBy = by.UserID

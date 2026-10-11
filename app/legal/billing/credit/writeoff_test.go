@@ -50,3 +50,39 @@ func TestBIL_C_205_WriteOffBadDebtAdjustment(t *testing.T) {
 		})
 	}
 }
+
+// rule: BIL-C-205
+// rule: BIL-T-080
+// ETA s.231 relief is on the written-off amount less its interest: interest is not
+// consideration for the taxable supply.
+func TestBIL_T_080_BadDebtReliefExcludesInterest(t *testing.T) {
+	c := Calc{M: moneyfake.New()}
+	on := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	bill := Bill{ID: "b1", Delivered: true, OpenCents: 60000, ResponsibleUser: "lawyer"}
+	lawyer := Approver{UserID: "lawyer"}
+	tests := []struct {
+		name     string
+		amount   int64
+		interest int64
+		wantTax  int64
+		wantErr  error
+	}{
+		{"no interest: relief on the whole amount", 56500, 0, 6500, nil},
+		{"some interest: relief on amount less interest", 60000, 3500, 6500, nil},
+		{"all interest: no relief", 3500, 3500, 0, nil},
+		{"interest above the amount", 3500, 3501, 0, ErrInvalidAmount},
+		{"negative interest", 3500, -1, 0, ErrInvalidAmount},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := WriteOff{ID: "w1", BillID: "b1", AmountCents: tt.amount, InterestCents: tt.interest, Reason: "uncollectible", Status: StatusDraft, PreparedBy: "clerk"}
+			_, adj, err := c.ApproveWriteOff(w, bill, 13000, 113000, lawyer, on)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr == nil && adj.TaxCents != tt.wantTax {
+				t.Fatalf("tax = %d, want %d", adj.TaxCents, tt.wantTax)
+			}
+		})
+	}
+}
