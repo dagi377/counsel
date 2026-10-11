@@ -4263,3 +4263,11 @@ of FEAT-TIM-01 above.
   closed rather than counting weekends only. Calendar-day shifts are unaffected.
 - `spec/eng/a2-interfaces.html` now lists 26 tools (shift_date row appended, matching the
   JSON order). The HTML row also notes the flag; the JSON description is unchanged.
+
+## TIMEKEEPERS Active timekeepers for per-user runs
+
+Done; resolves the TIME-FIX open item. `timekeeping.PGTimekeepers` lists active human users
+(not archived, not expired in America/Toronto) whose active role grants `time.record` at any
+level but `none`. `registerAgent` uses it when `AgentWiring.Timekeepers` is nil and the
+kernel has a database, so F-TIM-01's end-of-day run starts per timekeeper. Unit tests stub
+the query; a Postgres integration test is still to write (integration runs are on hold).
