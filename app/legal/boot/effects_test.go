@@ -301,11 +301,11 @@ func TestBootSealsWithGateEffects(t *testing.T) {
 		gates     *GatePorts
 		wantKinds int // registered app gate kinds
 	}{
-		// GE2: cash over limit, bill delivery and reconciliation sign-off always; trust.transfer
-		// only with the gate ports.
-		{name: "no flags, no gate ports", wantKinds: 3 + len(ApprovalKinds)},
-		{name: "no flags, gate ports", gates: testGatePorts(), wantKinds: 7 + 4 + len(ApprovalKinds)},
-		{name: "every legal flag, gate ports", on: all, gates: testGatePorts(), wantKinds: 7 + 4 + len(ApprovalKinds)},
+		// GE2/GE3: eight money kinds always; trust.transfer and billing.payment_allocation only
+		// with the gate ports.
+		{name: "no flags, no gate ports", wantKinds: 8 + len(ApprovalKinds)},
+		{name: "no flags, gate ports", gates: testGatePorts(), wantKinds: 7 + 10 + len(ApprovalKinds)},
+		{name: "every legal flag, gate ports", on: all, gates: testGatePorts(), wantKinds: 7 + 10 + len(ApprovalKinds)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

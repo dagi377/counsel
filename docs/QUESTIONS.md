@@ -4310,3 +4310,30 @@ of FEAT-TIM-01 above.
     recipient).
   - billing.collections_message: already moved by ApprovalEffect (email draft stamped and queued);
     no change.
+
+## Q-GE3-MONEY the money kinds GE2 left on ApprovalEffect
+
+Each now has a dedicated effect in app/legal/boot/effects_money.go. All re-check the deciders
+through app/legal/gates/decider (no agent, no preparer) and are idempotent per gate.
+- billing.payment_allocation (payment.AllocationEffect, with the gate ports' Billing.GL): applies
+  the gate's `allocations` ({target_type, target_id, amount_cents}) to an operating payment.
+  Bill rows are split fee/tax as Capture splits them, never over what is open on the bill;
+  `unapplied` becomes a client_credit row; `trust_ledger` rows and trust deposits are refused
+  (By-law 9). Bills move to partially_paid/paid. Each row posts Dr OP-1000 / Cr OP-1100 (Cr
+  OP-2200 for unapplied), source payment_allocation. Owner to confirm the bank debit: Capture
+  posts nothing, so the allocation is where operating cash reaches the GL.
+- billing.payment_plan (payment.PlanEffect): activates a proposed billing.payment_plan named by
+  the payload's optional `plan_id` or a billing.payment_plan subject. amount_cents is read as the
+  plan total; instalments must start on start_on and step by the schedule.
+- billing.prebill_review (bill.PrebillEffect): writes billing.prebill_review (5631), status
+  prebill_approved. The bill keeps status draft so the frozen bill status check and bill_guard
+  are unchanged; owner to confirm this over a new billing.bill status value.
+- billing.settings_change (settings.Effect): billing.setting and billing.setting_change (5632).
+  Only the settings in settings.Known are accepted (integer days, cents, ppm, or a boolean);
+  owner to name any others.
+- gl.operating_reconciliation (books.OpReconEffect): gl.operating_reconciliation (5700) signed
+  when the approved bank and book figures match the row and the adjusted bank balance equals
+  the book balance; the row's preparer never signs.
+- trust.regulatory_release (trust.ReleaseEffect): trust.regulatory_report (5531) moves ready ->
+  released to the approved recipient, audited (trust.regulatory_release) in the gate tx; fails
+  closed without an audit log. No route prepares reports or reconciliations yet.
