@@ -57,5 +57,6 @@ func appDefs() []feature.Def {
 		conflict.IDEvidenceCheckDef(),
 		conflict.BeneficialOwnershipDef(),
 		conflict.WallMonitorDef(),
+		conflict.ExpiryRetentionDef(),
 	}
 }
