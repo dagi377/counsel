@@ -210,6 +210,12 @@ func TestARC_I_035_ProposeConflictParties(t *testing.T) {
 			if len(w.parties.by) != 1 || w.parties.by[0] != clerk {
 				t.Errorf("proposed by %v, want %s", w.parties.by, clerk)
 			}
+			// rule: AI-R-003
+			// An agent's proposed run is a draft of its agent run, so it may submit it for
+			// approval in the run; the manual path records nothing.
+			if got, want := scope.HasDraft(out.Ref), tc.p.Kind == registry.PrincipalAgent; got != want {
+				t.Errorf("draft recorded = %v, want %v", got, want)
+			}
 		})
 	}
 }

@@ -356,6 +356,10 @@ var actionScreens = map[string]trigger.Screen{
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
+	// Matters (F-MAT-16 to F-MAT-18): the wizard acts on the matter being opened, the contact
+	// screen on the contact.
+	"matter-open-wizard": {SubjectKind: "matter", Capability: "matters.open"},
+	"contact-detail":     {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

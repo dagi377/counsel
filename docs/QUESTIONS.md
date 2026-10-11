@@ -3011,3 +3011,24 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   then open the Def's gate on it as the acting user and check: pending, agent principal 403, acting user `ErrSelfApproval`.
 - Proposed: record a proposal as a run draft when the run scope allows the Def's gate kind (FEAT-TOOL-16/19), so the agent
   can submit it in the run.
+
+## PROPOSAL-DRAFT: proposals are drafts of the run (closes Q-FEAT-MAT-13)
+
+- Counsel decision: `create_task` and `propose_conflict_parties` record their proposal (the
+  work item, the conflict run) as a draft of the agent's run scope, so `submit_for_approval`
+  can open the feature's gate on it in the run. The outcome is unchanged (a proposal, or a
+  draft when the scope declares a work-item gate kind). The run's gate-kind check still
+  applies, the gate is prepared by the acting user through the agent, and the agent never
+  decides it. A user principal, or an agent outside its run scope, records nothing.
+- `TestAI_R_003_CreateTaskDraft` now expects an agent's proposal in its own scope to be
+  recorded. The F-MAT-16..18 FromFeature tests submit in the run and check the run's gate
+  (every earlier assertion kept: pending, prepared for the acting user, app 403s, kernel
+  ErrAgentApprover and ErrSelfApproval, still pending).
+- The branch merges origin/task/FEAT-MAT-14 (which carries FEAT-MAT-13 and FEAT-MAT-15) so
+  their tests could be updated; the integrator merges this branch instead of those three.
+  It adds the `matter-open-wizard` (matter, matters.open) and `contact-detail` (contact,
+  contacts.view) action screens that F-MAT-16..18 need (TestActionScreensCoverFeatures).
+- agenttest: `Seed.Deps` resolves conflict runs (`conflict.SubjectRun`) and work items
+  (`agenttest.SubjectWorkItem`) for submit_for_approval. Open (boot): `PGSubjectMatters` knows
+  neither `conflict.run` nor `work_item`, so in production the submit fails closed with
+  ErrSubjectKind until boot maps both to their matter.
