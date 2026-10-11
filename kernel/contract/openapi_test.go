@@ -16,8 +16,10 @@ import (
 )
 
 const (
-	contractPath = "../../api/openapi.yaml"
-	baselinePath = "../../spec/eng/a2-interfaces.openapi.yaml"
+	contractPath  = "../../api/openapi.yaml"
+	baselinePath  = "../../spec/eng/a2-interfaces.openapi.yaml"
+	additivePath  = "additive.txt"
+	questionsPath = "../../docs/QUESTIONS.md"
 )
 
 var methods = []string{"get", "put", "post", "delete", "options", "head", "patch", "trace"}
@@ -52,6 +54,83 @@ func breakingChanges(base, head map[string]any) []string {
 		}
 	}
 	return append(out, diffNode("#", base, head)...)
+}
+
+// additions lists every key or list item in head that base lacks, as RFC 6901 JSON
+// pointers. An added key is reported once; its subtree is not walked.
+func additions(at string, base, head any) []string {
+	var out []string
+	switch h := head.(type) {
+	case map[string]any:
+		b, ok := base.(map[string]any)
+		if !ok {
+			return nil
+		}
+		for _, k := range sortedKeys(h) {
+			p := at + "/" + pointerEscape(k)
+			if bv, ok := b[k]; ok {
+				out = append(out, additions(p, bv, h[k])...)
+			} else {
+				out = append(out, p)
+			}
+		}
+	case []any:
+		b, ok := base.([]any)
+		if !ok {
+			return nil
+		}
+		for i, v := range h {
+			if i < len(b) {
+				out = append(out, additions(fmt.Sprintf("%s/%d", at, i), b[i], v)...)
+			} else {
+				out = append(out, fmt.Sprintf("%s/%d", at, i))
+			}
+		}
+	}
+	return out
+}
+
+func pointerEscape(k string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(k, "~", "~0"), "/", "~1")
+}
+
+// approvedAdditions parses additive.txt: "<pointer> <Q-id>" per line, # comments.
+func approvedAdditions(raw []byte) (map[string]string, error) {
+	out := map[string]string{}
+	for n, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		f := strings.Fields(line)
+		if len(f) != 2 || !strings.HasPrefix(f[0], "/") || !strings.HasPrefix(f[1], "Q-") {
+			return nil, fmt.Errorf("line %d: want \"<json pointer> <Q-id>\", got %q", n+1, line)
+		}
+		if _, dup := out[f[0]]; dup {
+			return nil, fmt.Errorf("line %d: %s listed twice", n+1, f[0])
+		}
+		out[f[0]] = f[1]
+	}
+	return out, nil
+}
+
+// unapprovedChanges compares the additions from base to head with the approved list: an
+// unlisted addition and a listed pointer that is no longer an addition are both findings.
+func unapprovedChanges(base, head map[string]any, approved map[string]string) []string {
+	var out []string
+	found := map[string]bool{}
+	for _, p := range additions("", base, head) {
+		found[p] = true
+		if _, ok := approved[p]; !ok {
+			out = append(out, "addition not listed in "+additivePath+": "+p)
+		}
+	}
+	for _, p := range sortedKeys(approved) {
+		if !found[p] {
+			out = append(out, "listed in "+additivePath+" but not an addition: "+p)
+		}
+	}
+	return out
 }
 
 // diffNode compares two nodes at the same location, recursing through keys and list
@@ -220,13 +299,35 @@ func TestARC_I_001_ContractIsHeaderPlusBaseline(t *testing.T) {
 		header = append(header, string(line))
 		body = rest
 	}
-	// The body is the baseline, or the baseline plus additive changes recorded in
-	// docs/QUESTIONS.md (e.g. Q-004 webhook problem responses).
-	additive := bytes.Equal(body, want)
-	if !additive {
+	// The body is the baseline, or the baseline plus additive changes each listed in
+	// additive.txt with the docs/QUESTIONS.md id that approved it (e.g. Q-004).
+	rawApproved, err := os.ReadFile(additivePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", additivePath, err)
+	}
+	approved, err := approvedAdditions(rawApproved)
+	if err != nil {
+		t.Fatalf("%s: %v", additivePath, err)
+	}
+	var findings []string
+	if !bytes.Equal(body, want) || len(approved) > 0 {
 		var head, base map[string]any
-		additive = yaml.Unmarshal(body, &head) == nil && yaml.Unmarshal(want, &base) == nil &&
-			len(breakingChanges(base, head)) == 0
+		if err := yaml.Unmarshal(body, &head); err != nil {
+			t.Fatalf("parse contract body: %v", err)
+		}
+		if err := yaml.Unmarshal(want, &base); err != nil {
+			t.Fatalf("parse baseline: %v", err)
+		}
+		findings = append(breakingChanges(base, head), unapprovedChanges(base, head, approved)...)
+	}
+	questions, err := os.ReadFile(filepath.FromSlash(questionsPath))
+	if err != nil {
+		t.Fatalf("read %s: %v", questionsPath, err)
+	}
+	for _, p := range sortedKeys(approved) {
+		if !bytes.Contains(questions, []byte("## "+approved[p]+" ")) {
+			findings = append(findings, fmt.Sprintf("%s cites %s, which docs/QUESTIONS.md does not have", p, approved[p]))
+		}
 	}
 	tests := []struct {
 		name string
@@ -234,12 +335,97 @@ func TestARC_I_001_ContractIsHeaderPlusBaseline(t *testing.T) {
 	}{
 		{name: "header present", ok: len(header) > 0},
 		{name: "header says CONTRACT", ok: len(header) > 0 && strings.Contains(header[0], "CONTRACT")},
-		{name: "body equals baseline or extends it additively", ok: additive},
+		{name: "body equals baseline plus approved additions", ok: len(findings) == 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if !tt.ok {
-				t.Fatalf("%s does not hold for %s", tt.name, contractPath)
+				t.Fatalf("%s does not hold for %s:\n%s", tt.name, contractPath, strings.Join(findings, "\n"))
+			}
+		})
+	}
+}
+
+// rule: ARC-I-001
+func TestARC_I_001_UnlistedAdditionsFail(t *testing.T) {
+	base := load(t, baselinePath)
+	hook := "/paths/~1hooks~1{provider}/post/responses/403"
+	tests := []struct {
+		name     string
+		mutate   func(doc map[string]any)
+		approved map[string]string
+		want     []string // findings; nil means approved
+	}{
+		{name: "unchanged", mutate: func(map[string]any) {}},
+		{
+			name: "endpoint added unlisted",
+			mutate: func(d map[string]any) {
+				asMap(d["paths"])["/added"] = map[string]any{"get": map[string]any{"operationId": "added"}}
+			},
+			want: []string{"addition not listed in additive.txt: /paths/~1added"},
+		},
+		{
+			name: "endpoint added and listed",
+			mutate: func(d map[string]any) {
+				asMap(d["paths"])["/added"] = map[string]any{"get": map[string]any{"operationId": "added"}}
+			},
+			approved: map[string]string{"/paths/~1added": "Q-999"},
+		},
+		{
+			name: "response field added unlisted",
+			mutate: func(d map[string]any) {
+				asMap(schema(d, "Bill")["properties"])["foo"] = map[string]any{"type": "integer"}
+			},
+			want: []string{"addition not listed in additive.txt: /components/schemas/Bill/properties/foo"},
+		},
+		{
+			name: "extensible enum value added unlisted",
+			mutate: func(d map[string]any) {
+				s := schema(d, "BillStatus")
+				s["enum"] = append(asList(s["enum"]), "future_state")
+			},
+			want: []string{fmt.Sprintf("addition not listed in additive.txt: /components/schemas/BillStatus/enum/%d", len(asList(schema(base, "BillStatus")["enum"])))},
+		},
+		{
+			name:     "stale listing",
+			mutate:   func(map[string]any) {},
+			approved: map[string]string{hook: "Q-004"},
+			want:     []string{"listed in additive.txt but not an addition: " + hook},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			head := clone(t, base)
+			tt.mutate(head)
+			if got := unapprovedChanges(base, head, tt.approved); !slices.Equal(got, tt.want) {
+				t.Fatalf("findings = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// rule: ARC-I-001
+func TestARC_I_001_ApprovedAdditionsFormat(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    map[string]string
+		wantErr bool
+	}{
+		{name: "comments and blanks", raw: "# x\n\n/paths/~1a Q-004\n", want: map[string]string{"/paths/~1a": "Q-004"}},
+		{name: "missing question id", raw: "/paths/~1a\n", wantErr: true},
+		{name: "not a pointer", raw: "paths/a Q-004\n", wantErr: true},
+		{name: "not a question id", raw: "/paths/~1a T-009\n", wantErr: true},
+		{name: "listed twice", raw: "/paths/~1a Q-004\n/paths/~1a Q-005\n", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := approvedAdditions([]byte(tt.raw))
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && fmt.Sprint(got) != fmt.Sprint(tt.want) {
+				t.Fatalf("got %v, want %v", got, tt.want)
 			}
 		})
 	}

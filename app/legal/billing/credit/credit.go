@@ -1,11 +1,14 @@
 package credit
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
 
 	"github.com/dagi377/counsel/kernel/api"
+	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/money"
 	"github.com/dagi377/counsel/kernel/server"
 )
@@ -130,17 +133,31 @@ type Route struct {
 	ClientCents int64 // left as client credit
 }
 
+// FlagCreditRouteVerified gates routing a credit beyond the bill's open AR (back to trust,
+// then client credit). It mirrors legal.FlagCreditRouteVerified, which this package cannot
+// import. Off by default.
+const FlagCreditRouteVerified = "billing.credit_route_verified"
+
+// ErrUnverified is returned when a credit must be routed past the bill's open AR while
+// FlagCreditRouteVerified is off: the excess is refused, never silently routed.
+var ErrUnverified = errors.New("credit: credit routing rule not verified")
+
 // RouteCredit splits a credit: first the bill's open AR, then back to trust up to the
-// trust-sourced payments, then client credit.
+// trust-sourced payments, then client credit. While FlagCreditRouteVerified is off only a
+// credit that fits within the open AR is routed; any excess returns ErrUnverified.
 //
 // rule: BIL-C-081 (verify)
-func RouteCredit(totalCents, openARCents, trustPaidCents int64) (Route, error) {
+func RouteCredit(ctx context.Context, totalCents, openARCents, trustPaidCents int64) (Route, error) {
 	if totalCents <= 0 || openARCents < 0 || trustPaidCents < 0 {
 		return Route{}, fmt.Errorf("route credit: %w", ErrInvalidAmount)
 	}
 	var r Route
 	r.ARCents = min(totalCents, openARCents)
 	left := totalCents - r.ARCents
+	// rule: BIL-C-081 (verify)
+	if left > 0 && !flags.Enabled(ctx, FlagCreditRouteVerified) {
+		return Route{}, fmt.Errorf("route credit past open AR: %w", ErrUnverified)
+	}
 	r.TrustCents = min(left, trustPaidCents)
 	r.ClientCents = left - r.TrustCents
 	return r, nil

@@ -1,10 +1,13 @@
 package split
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 
+	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/money"
 )
 
@@ -47,7 +50,7 @@ func TestBIL_C_090_SharesSumToMillion(t *testing.T) {
 			for i, s := range tt.shares {
 				ps = append(ps, Payer{ID: string(rune('A' + i)), SharePPM: s, SortOrder: i})
 			}
-			if err := Validate(ps); !errors.Is(err, tt.want) {
+			if err := Validate(flagCtx(t, FlagJointRetainerVerified, true), ps); !errors.Is(err, tt.want) {
 				t.Errorf("Validate = %v, want %v", err, tt.want)
 			}
 		})
@@ -145,7 +148,7 @@ func TestBIL_L_029_JointRetainerApportioned(t *testing.T) {
 				{ID: "A", SharePPM: 600000, SortOrder: 1},
 				{ID: "B", SharePPM: tt.b, SortOrder: 2},
 			}}
-			bills, err := Apply(s, []Line{{ID: "l1", Kind: Fee, Amount: 100000}})
+			bills, err := Apply(flagCtx(t, FlagJointRetainerVerified, true), s, []Line{{ID: "l1", Kind: Fee, Amount: 100000}})
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Apply err = %v, want %v", err, tt.wantErr)
 			}
@@ -170,7 +173,7 @@ func TestBIL_C_092_PayerBillsIndependent(t *testing.T) {
 		{ID: "fee", Kind: Fee, Amount: 100001, SortOrder: 1},
 		{ID: "disb", Kind: Disbursement, Amount: 5000, SortOrder: 2},
 	}
-	bills, err := Apply(s, lines)
+	bills, err := Apply(flagCtx(t, FlagJointRetainerVerified, true), s, lines)
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
@@ -197,7 +200,7 @@ func TestBIL_C_092_PayerBillsIndependent(t *testing.T) {
 			}
 		})
 	}
-	if _, err := Apply(Split{AppliesTo: Fees, ClientPayerID: "nobody", Payers: s.Payers}, lines); !errors.Is(err, ErrNoClientPayer) {
+	if _, err := Apply(flagCtx(t, FlagJointRetainerVerified, true), Split{AppliesTo: Fees, ClientPayerID: "nobody", Payers: s.Payers}, lines); !errors.Is(err, ErrNoClientPayer) {
 		t.Errorf("Apply without client payer = %v, want %v", err, ErrNoClientPayer)
 	}
 }
@@ -229,5 +232,52 @@ func TestBIL_C_111_CombinedBillTrustPerMatter(t *testing.T) {
 				t.Errorf("TrustCap = %d, %v; want %d, %v", got, err, tt.want, tt.wantErr)
 			}
 		})
+	}
+}
+
+// flagCtx returns a context whose flag set has name defined, and turned on when on.
+func flagCtx(t *testing.T, name string, on bool) context.Context {
+	t.Helper()
+	s := flags.New()
+	if err := s.Define(flags.Def{Name: name, Owner: "test", Expiry: time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set(name, on); err != nil {
+		t.Fatal(err)
+	}
+	return flags.WithSet(context.Background(), s)
+}
+
+// rule: BIL-L-029 (verify)
+func TestBIL_L_029_FlagOffRefusesSplit(t *testing.T) {
+	valid := []Payer{{ID: "A", SharePPM: 600000, SortOrder: 1}, {ID: "B", SharePPM: 400000, SortOrder: 2}}
+	tests := []struct {
+		name   string
+		on     bool
+		payers []Payer
+		want   error
+	}{
+		{"off refuses valid split", false, valid, ErrUnverified},
+		{"off still refuses 60/30", false, []Payer{{ID: "A", SharePPM: 600000}, {ID: "B", SharePPM: 300000}}, ErrSplitNot100},
+		{"off still refuses no payers", false, nil, ErrNoPayers},
+		{"on allows valid split", true, valid, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := flagCtx(t, FlagJointRetainerVerified, tt.on)
+			if err := Validate(ctx, tt.payers); !errors.Is(err, tt.want) {
+				t.Fatalf("Validate = %v, want %v", err, tt.want)
+			}
+			bills, err := Apply(ctx, Split{AppliesTo: All, Payers: tt.payers}, []Line{{ID: "l1", Kind: Fee, Amount: 100000}})
+			if !errors.Is(err, tt.want) {
+				t.Fatalf("Apply = %v, want %v", err, tt.want)
+			}
+			if tt.want != nil && bills != nil {
+				t.Fatalf("Apply returned bills %+v with error", bills)
+			}
+		})
+	}
+	if err := Validate(context.Background(), valid); !errors.Is(err, ErrUnverified) {
+		t.Fatalf("no flag set: Validate = %v, want ErrUnverified", err)
 	}
 }

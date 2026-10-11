@@ -1,12 +1,15 @@
 package credit
 
 import (
+	"context"
 	"errors"
 	"math"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/dagi377/counsel/kernel/api"
+	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/money/moneyfake"
 )
 
@@ -114,22 +117,29 @@ func TestBIL_C_080_CreditNoteKinds(t *testing.T) {
 	}
 }
 
-// rule: BIL-C-081
+// rule: BIL-C-081 (verify)
 func TestBIL_C_081_CreditRouting(t *testing.T) {
 	tests := []struct {
 		name               string
+		off                bool
 		total, open, trust int64
 		want               Route
 		wantErr            error
 	}{
-		{"BIL-X-010 paid bill", 395500, 0, 300000, Route{TrustCents: 300000, ClientCents: 95500}, nil},
-		{"AR first", 50000, 30000, 100000, Route{ARCents: 30000, TrustCents: 20000}, nil},
-		{"all AR", 10000, 30000, 0, Route{ARCents: 10000}, nil},
-		{"zero", 0, 0, 0, Route{}, ErrInvalidAmount},
+		{"BIL-X-010 paid bill", false, 395500, 0, 300000, Route{TrustCents: 300000, ClientCents: 95500}, nil},
+		{"AR first", false, 50000, 30000, 100000, Route{ARCents: 30000, TrustCents: 20000}, nil},
+		{"all AR", false, 10000, 30000, 0, Route{ARCents: 10000}, nil},
+		{"zero", false, 0, 0, 0, Route{}, ErrInvalidAmount},
+		{"flag off paid bill refused", true, 395500, 0, 300000, Route{}, ErrUnverified},
+		{"flag off excess over AR refused", true, 50000, 30000, 100000, Route{}, ErrUnverified},
+		{"flag off excess to client refused", true, 50000, 30000, 0, Route{}, ErrUnverified},
+		{"flag off within AR routed", true, 10000, 30000, 0, Route{ARCents: 10000}, nil},
+		{"flag off exactly AR routed", true, 30000, 30000, 5000, Route{ARCents: 30000}, nil},
+		{"flag off zero still invalid", true, 0, 0, 0, Route{}, ErrInvalidAmount},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := RouteCredit(tt.total, tt.open, tt.trust)
+			got, err := RouteCredit(flagCtx(t, FlagCreditRouteVerified, !tt.off), tt.total, tt.open, tt.trust)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tt.wantErr)
 			}
@@ -213,4 +223,17 @@ func TestBIL_T_071_OnlyDeliveredBillsTakeCredits(t *testing.T) {
 			}
 		})
 	}
+}
+
+// flagCtx returns a context whose flag set has name defined, and turned on when on.
+func flagCtx(t *testing.T, name string, on bool) context.Context {
+	t.Helper()
+	s := flags.New()
+	if err := s.Define(flags.Def{Name: name, Owner: "test", Expiry: time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set(name, on); err != nil {
+		t.Fatal(err)
+	}
+	return flags.WithSet(context.Background(), s)
 }

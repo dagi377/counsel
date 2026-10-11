@@ -13,11 +13,14 @@ import (
 const (
 	FlagCardSurcharge          = "billing.card_surcharge"          // V-SURCHARGE
 	FlagContingencyFees        = "billing.contingency_fees"        // V-CFA
+	FlagCreditRouteVerified    = "billing.credit_route_verified"   // V-TRUST
+	FlagJointRetainerVerified  = "billing.joint_retainer_verified" // V-BILL
 	FlagBillingRecordsVerified = "billing.records_verified"        // V-TRUST
 	FlagSolicitorsActVerified  = "billing.solicitors_act_verified" // V-BILL
 	FlagIDVerification         = "conflict.id_verification"        // V-ID
 	FlagDeadlineOntarioPack    = "deadline.ontario_pack"           // V-DEADLINES
 	FlagExportPostCancelWindow = "export.post_cancel_window"       // customer contract
+	FlagTaxBNCheckVerified     = "tax.bn_check_verified"           // V-TAX
 	FlagTaxVerifyRules         = "tax.verify_rules"                // V-TAX
 	FlagTrustBylaw9Verified    = "trust.bylaw9_verified"           // V-TRUST
 )
@@ -41,6 +44,12 @@ func Flags() []flags.Def {
 			Doc: "credit-card surcharge on payments: cap, banned cases and HST treatment unconfirmed"},
 		{Name: FlagContingencyFees, Owner: "lawyer/LSO", Expiry: verifyExpiry,
 			Doc: "contingency fee agreements: cap formula and LSO standard form unconfirmed"},
+		{Name: FlagCreditRouteVerified, Owner: "lawyer/LSO", Expiry: verifyExpiry,
+			Doc: "BIL-C-081: credit beyond open AR repaid to trust first, then client credit; By-Law 9 reading unconfirmed"},
+		{Name: FlagJointRetainerVerified, Owner: "lawyer/LSO", Expiry: verifyExpiry,
+			Doc: "BIL-L-029: joint retainer fees apportioned per payer under r.3.6-4 unconfirmed"},
+		{Name: FlagTaxBNCheckVerified, Owner: "accountant/CRA", Expiry: verifyExpiry,
+			Doc: "BIL-T-061: GST/HST registration number format and CRA check digit unconfirmed"},
 		{Name: FlagBillingRecordsVerified, Owner: "lawyer/LSO", Expiry: verifyExpiry,
 			Doc: "fees book and billing-record retention checks rest on By-Law 9 text not yet confirmed"},
 		{Name: FlagSolicitorsActVerified, Owner: "lawyer/LSO", Expiry: verifyExpiry,

@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/dagi377/counsel/app/legal/billing/assessment"
+	"github.com/dagi377/counsel/app/legal/billing/credit"
+	"github.com/dagi377/counsel/app/legal/billing/split"
 	"github.com/dagi377/counsel/app/legal/billing/tax"
 	"github.com/dagi377/counsel/app/legal/billing/trustapply"
 	"github.com/dagi377/counsel/app/legal/clio"
@@ -25,6 +27,9 @@ func TestFlagMirrorsMatchCanonicalNames(t *testing.T) {
 		{"withdraw", withdraw.FlagBylaw9Verified, FlagTrustBylaw9Verified},
 		{"trustapply", trustapply.FlagBylaw9Verified, FlagTrustBylaw9Verified},
 		{"tax", tax.FlagVerifyRules, FlagTaxVerifyRules},
+		{"tax bn", tax.FlagBNCheckVerified, FlagTaxBNCheckVerified},
+		{"credit", credit.FlagCreditRouteVerified, FlagCreditRouteVerified},
+		{"split", split.FlagJointRetainerVerified, FlagJointRetainerVerified},
 		{"trust", trust.FlagBylaw9Verified, FlagTrustBylaw9Verified},
 		{"clio", clio.FlagBylaw9Verified, FlagTrustBylaw9Verified},
 		{"reports trust listing", reports.FlagBylaw9Verified, FlagTrustBylaw9Verified},
