@@ -784,7 +784,17 @@ s.33 as amended and either the rules or the decision change.
 - Also needed: the Engine contract's Save/Confirm take a tx but Get does not; PGBook.Get
   would run its own InTx. Confirmations/Repack are Book methods, not Engine methods, so
   they would take a tx too (additive, PGBook only).
-- Answer: (owner)
+- Answer (owner, answered): approved. Additive cal.deadline migration with a generic subject
+  (kind, id), pack code and version, rule id and trigger date; an app-block trigger sets
+  matter_id/lead_id from the subject. Done in PORT-20: `migrations/1100_deadline_subject.sql`
+  and `1101_deadline_subject_validate.sql` (kernel/deadline: nullable `subject_kind`,
+  `subject_id`, `pack_code`, `pack_version`, `rule_key`, `trigger_on`; pair CHECKs NOT VALID,
+  validated in the later file), and `5900_deadline_subject_link.sql` (app/legal/deadlines:
+  BEFORE INSERT trigger mapping the pair to matter_id/lead_id and back, `title` from the rule
+  key, `kind` 'other'; batched backfill of the pair). No index on the new columns yet: the
+  lint needs a separate no-transaction CONCURRENTLY file, which `migrations.Apply` (one
+  batch per file) cannot run; add one when Repack volume needs it. `PGBook` takes a tx for
+  Save, Confirm, Confirmations and Repack; Get runs its own transaction.
 
 ## BOOT progress
 
