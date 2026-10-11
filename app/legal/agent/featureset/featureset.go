@@ -56,5 +56,6 @@ func appDefs() []feature.Def {
 		conflict.IDObligationWatcherDef(),
 		conflict.IDEvidenceCheckDef(),
 		conflict.BeneficialOwnershipDef(),
+		conflict.WallMonitorDef(),
 	}
 }
