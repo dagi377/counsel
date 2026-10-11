@@ -55,5 +55,6 @@ func appDefs() []feature.Def {
 		conflict.ClearanceMemoDef(),
 		// matters
 		matter.RequestIDDef(),
+		matter.MatterDigestDef(),
 	}
 }
