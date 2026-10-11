@@ -77,6 +77,12 @@ type Matter struct {
 	RetentionClass      string
 	CreatedAt           time.Time
 	RowVersion          int
+
+	// Additive (Q-TAX-FIELDS): place-of-supply facts, empty when not recorded.
+	// CourtProvince is the province whose court or tribunal has the litigation (BIL-T-012);
+	// PropertyProvince is where the real property the matter relates to is (BIL-T-011).
+	CourtProvince    string
+	PropertyProvince string
 }
 
 // NewMember adds a user to a matter team. GrantedBy never equals UserID.

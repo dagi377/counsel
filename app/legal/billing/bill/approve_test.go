@@ -35,6 +35,10 @@ func TestApplyApproval(t *testing.T) {
 		err    error
 	}{
 		{"pending approves", pendingBill(), approvalAt(at), "INV-2026-0147", "INV-2026-0147", nil},
+		// rule: BIL-T-015
+		// A zero-rated export (draft.ExportProvince, no tax) approves like any other bill.
+		{"zero-rated export approves", with(func(b *Bill) { b.TaxCents, b.TotalCents, b.PlaceOfSupplyProvince = 0, 100000, "EX" }),
+			approvalAt(at), "INV-2026-0147", "INV-2026-0147", nil},
 		{"replay is a no-op", approved, approvalAt(at), "INV-2026-0148", "INV-2026-0147", nil},
 		// The person who prepares an item never approves it.
 		{"preparer may not approve", pendingBill(), withA(func(a *Approval) { a.ApprovedBy = "u1" }), "INV-2026-0147", "", ErrPreparerApproves},

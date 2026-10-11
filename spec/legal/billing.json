@@ -348,6 +348,12 @@
      "note": "13% for Ontario place of supply; rate set by the client's location for out-of-province clients (verify place-of-supply rules)"
     },
     {
+     "name": "Place of supply",
+     "type": "text",
+     "required": true,
+     "note": "CRA rule for services: the place of supply follows the recipient's address obtained in the ordinary course of business, so Counsel uses the client's billing address province (else the first address); a court province for litigation and a real-property province override it, and a non-resident supply is zero-rated and stored as 'export' (verify: ETA Sch. IX Part V, CRA GST/HST Notice 263)"
+    },
+    {
      "name": "HST amount",
      "type": "money",
      "required": true,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -182,6 +183,51 @@ func TestBIL_C_023_LineActions(t *testing.T) {
 			amount, keep, err := applyAction(5000, tt.a)
 			if !errors.Is(err, tt.want) || amount != tt.amount || keep != tt.keep {
 				t.Fatalf("applyAction = %d %v %v, want %d %v %v", amount, keep, err, tt.amount, tt.keep, tt.want)
+			}
+		})
+	}
+}
+
+// rule: BIL-T-015
+// A zero-rated non-resident draft stores the export place and one zero-rate line; its
+// province column is the ExportProvince marker, never NULL, so approval accepts it.
+func TestBIL_T_015_ZeroRatedDraftIsExport(t *testing.T) {
+	d := taxedDrafts(places{
+		"uk-corp": {ClientProvince: "GB", RecipientBusiness: true},
+		"on":      {ClientProvince: "ON", RecipientResident: true},
+	})
+	tests := []struct {
+		name, matter, province, jurisdiction, code string
+		breakdown                                  []bill.TaxLine
+		tax                                        int64
+	}{
+		{"non-resident corporation is an export", "uk-corp", ExportProvince, PlaceExport, tax.Zero,
+			[]bill.TaxLine{{TaxCode: tax.Zero, Component: tax.Zero, RatePPM: 0, BaseCents: 100000, TaxCents: 0}}, 0},
+		{"resident client is not an export", "on", "ON", "ON", "HST-ON",
+			[]bill.TaxLine{{TaxCode: "HST-ON", Component: "HST", RatePPM: 130000, BaseCents: 100000, TaxCents: 13000}}, 13000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sup, err := d.place(context.Background(), nil, tt.matter)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if sup.province() == "" || len(sup.province()) != 2 {
+				t.Fatalf("province %q: an approved bill needs a two-letter place_of_supply_province", sup.province())
+			}
+			detail, err := sup.detail()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if sup.province() != tt.province || sup.lineCode() != tt.code || !strings.Contains(detail, `"jurisdiction":"`+tt.jurisdiction+`"`) {
+				t.Fatalf("place = %s %s %s", sup.province(), sup.lineCode(), detail)
+			}
+			got, err := d.compute(context.Background(), []pgLine{{source: bill.SourceTime, amount: 100000}}, 0, sup)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.tax != tt.tax || !slices.Equal(got.breakdown, tt.breakdown) {
+				t.Fatalf("tax %d breakdown %+v, want %d %+v", got.tax, got.breakdown, tt.tax, tt.breakdown)
 			}
 		})
 	}

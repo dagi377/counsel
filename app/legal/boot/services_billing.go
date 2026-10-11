@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -78,41 +79,72 @@ func billingServices(k *kboot.Kernel, p BillingPorts) (billingSvcs, error) {
 	}, nil
 }
 
-// ClientPlaces is the draft.Places adapter over the matter's client: the place-of-supply
-// facts are the province and country of the client's first address (party.contact.addresses)
-// and whether the client is an organization. A client with no province on file gives an
-// empty ClientProvince, which the decider refuses (draft.ErrPlaceUnknown). Court and property
-// provinces and the firm's provincial registrations are not recorded yet, so they stay empty.
+// ClientPlaces is the draft.Places adapter: the place-of-supply facts of a matter's bill.
+//   - The client's billing address province and country: CRA place of supply for services
+//     uses the recipient's address obtained in the ordinary course (spec/legal billing,
+//     verify), so the address typed "billing" is used, else the client's first address.
+//   - Whether the client is an organization.
+//   - The matter's court and property provinces, read through the matter module (ARC-I-041).
+//   - The firm's provincial tax registrations from core.firm (BIL-T-020).
+//
+// A client with no province on file gives an empty ClientProvince, which the decider refuses
+// (draft.ErrPlaceUnknown).
 type ClientPlaces struct {
 	Matters MatterReader
 }
 
 var _ draft.Places = ClientPlaces{}
 
-const clientPlaceSQL = `
-SELECT coalesce(upper(btrim(addresses->0->>'province')), ''), coalesce(upper(btrim(addresses->0->>'country')), ''),
-       kind = 'organization'
-  FROM party.contact WHERE id = $1::uuid`
+const (
+	clientPlaceSQL = `
+SELECT coalesce(upper(btrim(a.addr->>'province')), ''), coalesce(upper(btrim(a.addr->>'country')), ''),
+       c.kind = 'organization'
+  FROM party.contact c
+  LEFT JOIN LATERAL (
+    SELECT e AS addr FROM jsonb_array_elements(CASE jsonb_typeof(c.addresses) WHEN 'array' THEN c.addresses ELSE '[]'::jsonb END)
+      WITH ORDINALITY AS t(e, n)
+     ORDER BY lower(coalesce(e->>'type', '')) = 'billing' DESC, n
+     LIMIT 1) a ON true
+ WHERE c.id = $1::uuid`
+	firmRegistrationsSQL = `SELECT coalesce(array_to_string(tax_registration_provinces, ','), '') FROM core.firm WHERE singleton`
+)
 
 // Supply implements draft.Places. A Canadian address (country CA or none given) is taxed by
 // its province; a foreign country is passed as the client's code so the non-resident rules
-// apply. The client comes from the matter module's reader (ARC-I-041); a nil reader, an
-// unknown matter or a matter without a client fails closed.
+// apply. A nil reader, an unknown matter or a matter without a client fails closed; a firm
+// with no settings row has no registrations.
 func (p ClientPlaces) Supply(ctx context.Context, tx pgx.Tx, matterID string) (tax.Supply, error) {
-	client, err := MatterPayers(p).Payer(ctx, tx, matterID)
+	if p.Matters == nil {
+		return tax.Supply{}, fmt.Errorf("supply of %s: matter reader: %w", matterID, ErrMissingDependency)
+	}
+	m, err := p.Matters.Get(ctx, matter.ID(matterID))
 	if err != nil {
-		return tax.Supply{}, fmt.Errorf("supply: %w", err)
+		return tax.Supply{}, fmt.Errorf("supply of %s: %w", matterID, err)
+	}
+	if m.ClientID == "" {
+		return tax.Supply{}, fmt.Errorf("supply of %s: no client: %w", matterID, party.ErrNotFound)
 	}
 	var province, country string
 	var business bool
-	err = tx.QueryRow(ctx, clientPlaceSQL, client).Scan(&province, &country, &business)
+	err = tx.QueryRow(ctx, clientPlaceSQL, string(m.ClientID)).Scan(&province, &country, &business)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return tax.Supply{}, fmt.Errorf("supply of %s: client %s: %w", matterID, client, party.ErrNotFound)
+		return tax.Supply{}, fmt.Errorf("supply of %s: client %s: %w", matterID, m.ClientID, party.ErrNotFound)
 	}
 	if err != nil {
 		return tax.Supply{}, fmt.Errorf("supply of %s: %w", matterID, err)
 	}
-	s := tax.Supply{ClientProvince: province, RecipientBusiness: business, ServiceType: "general"}
+	var regs string
+	if err := tx.QueryRow(ctx, firmRegistrationsSQL).Scan(&regs); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return tax.Supply{}, fmt.Errorf("supply of %s: firm registrations: %w", matterID, err)
+	}
+	// rule: BIL-T-010
+	s := tax.Supply{ClientProvince: province, RecipientBusiness: business, ServiceType: "general",
+		CourtProvince: upper(m.CourtProvince), PropertyProvince: upper(m.PropertyProvince)}
+	for _, r := range strings.Split(regs, ",") {
+		if r = upper(r); r != "" {
+			s.RegisteredProvinces = append(s.RegisteredProvinces, r)
+		}
+	}
 	switch country {
 	case "CA":
 		s.RecipientResident = true
@@ -122,6 +154,9 @@ func (p ClientPlaces) Supply(ctx context.Context, tx pgx.Tx, matterID string) (t
 	}
 	return s, nil
 }
+
+// upper is a province code as the tax engine compares it.
+func upper(code string) string { return strings.ToUpper(strings.TrimSpace(code)) }
 
 // draftWIP adapts timekeeping.PGWIP, which owns the time and expense rows, to draft.WIP.
 type draftWIP struct{ wip timekeeping.PGWIP }
