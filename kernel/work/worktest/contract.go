@@ -40,8 +40,9 @@ func Run(t *testing.T, newEnv func(t *testing.T) Env) {
 }
 
 func item(e Env) work.Item {
+	desc := "Draft the **reply**."
 	return work.Item{
-		Type: "task", Title: "Draft", WorkflowID: e.WorkflowID, StatusID: e.Todo,
+		Type: "task", Title: "Draft", Description: &desc, WorkflowID: e.WorkflowID, StatusID: e.Todo,
 		ReporterID: e.Users[0], AssigneeUserID: e.Users[1], Labels: []string{"a", "b"},
 	}
 }
@@ -99,7 +100,8 @@ func testCreate(t *testing.T, newEnv func(t *testing.T) Env) {
 			}
 			if got.Title != it.Title || got.Type != it.Type || got.WorkflowID != it.WorkflowID ||
 				got.StatusID != it.StatusID || got.ReporterID != it.ReporterID ||
-				got.AssigneeUserID != it.AssigneeUserID || !reflect.DeepEqual(got.Labels, it.Labels) {
+				got.AssigneeUserID != it.AssigneeUserID || !reflect.DeepEqual(got.Labels, it.Labels) ||
+				!reflect.DeepEqual(got.Description, it.Description) {
 				t.Fatalf("Get = %+v; fields differ from %+v", got, it)
 			}
 			if _, err := e.Svc.Get(ctx, e.MissingID); !errors.Is(err, work.ErrNotFound) {

@@ -25,13 +25,13 @@ type PG struct {
 // sqlCreate inserts an item. The key is "W-" plus the random tail of the uuidv7 id, and the
 // rank (lexorank) starts as the id, so new items sort in creation order.
 const sqlCreate = `WITH n AS (SELECT core.uuidv7() AS id)
-INSERT INTO work.work_item (id, key, type, title, workflow_id, status_id, subject_kind, subject_id,
+INSERT INTO work.work_item (id, key, type, title, description, workflow_id, status_id, subject_kind, subject_id,
   parent_id, assignee_user_id, assignee_is_agent, reporter_id, priority, due_at, labels, estimate_min, rank)
 SELECT n.id, COALESCE(NULLIF($1, ''), 'W-' || upper(right(replace(n.id::text, '-', ''), 12))),
-  $2, $3, $4::uuid, $5::uuid, $6, $7::uuid, $8::uuid, $9::uuid, $10, $11::uuid, $12, $13, $14, $15, n.id::text
+  $2, $3, $16, $4::uuid, $5::uuid, $6, $7::uuid, $8::uuid, $9::uuid, $10, $11::uuid, $12, $13, $14, $15, n.id::text
 FROM n RETURNING id::text`
 
-const itemColumns = `id::text, key, type, title, workflow_id::text, status_id::text, subject_kind,
+const itemColumns = `id::text, key, type, title, description, workflow_id::text, status_id::text, subject_kind,
   subject_id::text, parent_id::text, assignee_user_id::text, assignee_is_agent, approver_id::text,
   reporter_id::text, priority, due_at, labels, estimate_min, row_version`
 
@@ -94,7 +94,7 @@ func (p *PG) Create(ctx context.Context, tx pgx.Tx, it Item) (ItemID, error) {
 	err = tx.QueryRow(ctx, sqlCreate,
 		it.Key, it.Type, it.Title, it.WorkflowID, it.StatusID, kind, sid,
 		nullable(string(it.ParentID)), nullable(it.AssigneeUserID), it.AssigneeIsAgent, it.ReporterID,
-		it.Priority, it.DueAt, labels, nullableInt(it.EstimateMin),
+		it.Priority, it.DueAt, labels, nullableInt(it.EstimateMin), it.Description,
 	).Scan(&id)
 	if err != nil {
 		return "", fmt.Errorf("create work item: %w", err)
@@ -242,7 +242,7 @@ func scanItem(row pgx.Row) (Item, error) {
 		priority                              int16
 		due                                   *time.Time
 	)
-	err := row.Scan(&id, &it.Key, &it.Type, &it.Title, &it.WorkflowID, &it.StatusID, &kind, &sid,
+	err := row.Scan(&id, &it.Key, &it.Type, &it.Title, &it.Description, &it.WorkflowID, &it.StatusID, &kind, &sid,
 		&parent, &assignee, &it.AssigneeIsAgent, &approver, &it.ReporterID, &priority, &due,
 		&it.Labels, &estimate, &it.Version)
 	if err != nil {

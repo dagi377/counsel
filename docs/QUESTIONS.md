@@ -1862,6 +1862,15 @@ Done in PORT-18:
   merge is clean). PG pages in id order (uuidv7, creation order).
 - Keys: an empty Item.Key becomes `W-` plus the random 12-hex tail of the uuidv7 id; rank
   starts as the id. A readable per-firm series (kernel/numseq) is a later choice.
-- The `description` column already exists in 0001; once TOOL16-DESC adds `Item.Description`,
-  add it to the insert and `itemColumns` in pg.go (no migration needed).
+- Merges task/TOOL16-DESC: work.PG writes and reads `Item.Description` (work_item.description,
+  NULL for none; the 1003 check bounds it).
 - Automations (work.Automations) have no Postgres implementation yet.
+## TOOL16-DESC: work item description
+
+- Additive in `kernel/work/contract.go`: `Item.Description *string` (Markdown, nil for none),
+  answering the FEAT-TOOL-16 note above. `PrepareItem` refuses one longer than
+  `MaxDescriptionLen` (10000, the create_task schema maximum) and turns a blank one into nil.
+  `create_task` now stores `description_markdown` on the proposed item.
+- `work.work_item.description` already exists as a nullable column in 0001_init.sql, so the
+  migration (1003, validated in 1004) adds only the matching length/non-blank check, NOT VALID.
+  There is no Postgres `work.Service` yet; when one is written it reads and writes the column.

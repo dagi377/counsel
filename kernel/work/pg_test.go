@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -104,6 +105,7 @@ func TestPGCreate(t *testing.T) {
 		{name: "parent not a uuid", mutate: func(i *Item) { i.ParentID = "p" }, wantErr: ErrInvalidItem},
 		{name: "agent without user", mutate: func(i *Item) { i.AssigneeUserID, i.AssigneeIsAgent = "", true }, wantErr: ErrInvalidItem},
 		{name: "unregistered subject", mutate: func(i *Item) { i.Subject = Subject{Kind: "other", ID: uParent} }, wantErr: ErrInvalidItem},
+		{name: "blank description stored as none", mutate: func(i *Item) { b := "  "; i.Description = &b }, wantQuery: true},
 		{name: "registered subject", mutate: func(i *Item) { i.Subject = Subject{Kind: "desk.ticket", ID: uParent} }, wantQuery: true},
 	}
 	for _, tt := range tests {
@@ -122,6 +124,9 @@ func TestPGCreate(t *testing.T) {
 				return
 			}
 			args := tx.args[sqlCreate]
+			if d := args[15].(*string); (it.Description == nil || strings.TrimSpace(*it.Description) == "") != (d == nil) {
+				t.Fatalf("description arg = %v for %v", d, it.Description)
+			}
 			if id != uItem || args[11] != DefaultPriority || !reflect.DeepEqual(args[13], []string{}) {
 				t.Fatalf("Create = %s with args %v; want id %s, priority %d, empty labels", id, args, uItem, DefaultPriority)
 			}
@@ -132,7 +137,8 @@ func TestPGCreate(t *testing.T) {
 func TestPGGet(t *testing.T) {
 	ctx := context.Background()
 	asg := uAsg
-	full := row{vals: []any{uItem, "W-1", "task", "Draft", uWF, uTodo, nil, nil, nil, &asg, false, nil, uRep, int16(3), nil, []string{"x"}, nil, 4}}
+	desc := "Body"
+	full := row{vals: []any{uItem, "W-1", "task", "Draft", &desc, uWF, uTodo, nil, nil, nil, &asg, false, nil, uRep, int16(3), nil, []string{"x"}, nil, 4}}
 	tests := []struct {
 		name    string
 		id      ItemID
@@ -141,7 +147,7 @@ func TestPGGet(t *testing.T) {
 		want    Item
 	}{
 		{name: "found", id: uItem, rows: map[string]row{sqlGet: full},
-			want: Item{ID: uItem, Key: "W-1", Type: "task", Title: "Draft", WorkflowID: uWF, StatusID: uTodo, AssigneeUserID: uAsg, ReporterID: uRep, Priority: 3, Labels: []string{"x"}, Version: 4}},
+			want: Item{ID: uItem, Key: "W-1", Type: "task", Title: "Draft", Description: &desc, WorkflowID: uWF, StatusID: uTodo, AssigneeUserID: uAsg, ReporterID: uRep, Priority: 3, Labels: []string{"x"}, Version: 4}},
 		{name: "missing", id: uItem, wantErr: ErrNotFound},
 		{name: "malformed id", id: "nope", wantErr: ErrNotFound},
 	}
