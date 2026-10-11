@@ -4284,3 +4284,17 @@ of FEAT-TIM-01 above.
 - Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
   (binding, and `research-workspace` as a matter screen with `documents.view`). Built on
   task/FEAT-PLT-12 for the shared plte test helpers.
+
+## Q-PLT-FIX F-PLT-11 closing checklist carries a sourced trust balance
+
+- `platform.NewClosingChecklist` fills the `platform.closing` payload's `trust_balance_cents`
+  from a get_trust_balance read in the same run (provenance-checked, else
+  `ErrUnsourcedValue`) and flags `BlockerTrustBalance` for any non-zero balance (By-Law 9).
+  The signed balance is never clamped: an overdrawn ledger stays negative, so the payload then
+  fails the G13 schema (`minimum: 0`) and the gate cannot open. That is fail-closed on purpose.
+- Open: spec/ai/features.json lists no get_trust_balance for F-PLT-11, so the Def's tools are
+  unchanged, and the kernel submit_for_approval payload is `{subject_type, subject_id}` only.
+  Wiring the checklist into the closing submit path (or adding get_trust_balance to the
+  spec's F-PLT-11 tools) needs a spec decision. No closing gate effect exists yet; when one
+  lands it must re-check the ledger at zero (ARC-I-024).
+- No rule id names "close only at $0.00 trust"; the blocker is tagged BIL-L-036.
