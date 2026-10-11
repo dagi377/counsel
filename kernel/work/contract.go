@@ -88,6 +88,9 @@ type Filter struct {
 	AssigneeUserID string
 	StatusID       string
 	Limit          int
+	// After is a page cursor: only items after this one in id order. Empty starts at the
+	// first item. Added for the paged work-item list (docs/QUESTIONS.md HTTP-23).
+	After ItemID
 }
 
 // Expr is an automation condition, stored as JSON.

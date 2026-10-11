@@ -102,7 +102,13 @@ func (f *Fake) List(ctx context.Context, flt work.Filter) ([]work.Item, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var out []work.Item
+	skipping := flt.After != ""
 	for _, id := range f.order {
+		if skipping {
+			// Items are kept in creation order, which is id order for uuidv7 ids.
+			skipping = id != flt.After
+			continue
+		}
 		it := f.items[id]
 		if (flt.Subject.Kind != "" && it.Subject != flt.Subject) ||
 			(flt.AssigneeUserID != "" && it.AssigneeUserID != flt.AssigneeUserID) ||
