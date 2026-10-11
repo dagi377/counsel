@@ -24,7 +24,7 @@ import (
 var toolsJSON []byte
 
 // Count is the number of a2 agent tools.
-const Count = 26
+const Count = 27
 
 // ErrMissingHandler: Register was given no handler for a tool.
 var ErrMissingHandler = errors.New("schemas: no handler for tool")

@@ -69,7 +69,6 @@ timekeeping.writedown
 trust.cash_over_limit
 trust.reconciliation_signoff
 trust.regulatory_release
-trust.transfer
 work.absence
 work.automation
 work.external_sync

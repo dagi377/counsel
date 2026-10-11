@@ -268,9 +268,9 @@ func truDepOf[T any](vals []any, d agent.Deps) []any {
 }
 
 // handlers is the production handler set, boot.AgentHandlers(), with each Build given the
-// env's ports ahead of the Seed's. Read tools record their results in the run's provenance
-// and the trust features' drafts run behind trust.SourcedCents because boot wraps them, not
-// because this helper does.
+// env's ports ahead of the Seed's. Every read tool records the values it returns into the
+// run's provenance and the draft tools run behind trust.SourcedCents because boot's set does
+// both, not because this helper does.
 func (e *truEnv) handlers(t *testing.T) agent.HandlerSet {
 	t.Helper()
 	app, err := boot.AgentHandlers()

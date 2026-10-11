@@ -44,6 +44,9 @@ type trustSvcs struct {
 	Ledgers     *trust.LedgerStore
 	Signatories signatory.Service
 	Withdraw    *withdraw.Effect
+	// Transfer is the trust.transfer effect: it authorizes a transfer row and posts its two
+	// trust lines for a signatory other than the preparer.
+	Transfer *withdraw.TransferEffect
 }
 
 // trustServices builds the trust services from module constructors. The withdrawal effect
@@ -84,6 +87,12 @@ func trustServices(k *kboot.Kernel, p TrustPorts) (trustSvcs, error) {
 			Audit:   p.Audit,
 			Bills:   feeBillsOrPG(p.FeeBills),
 			Now:     k.Clock.Now,
+		},
+		Transfer: &withdraw.TransferEffect{
+			Store:     withdraw.PGTransferStore{},
+			Transfers: &withdraw.Transfers{Store: withdraw.PGTransferStore{}, GL: p.GL, Loc: k.Clock.Location()},
+			Signers:   p.Signers,
+			Now:       k.Clock.Now,
 		},
 	}, nil
 }

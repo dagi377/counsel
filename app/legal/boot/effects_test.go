@@ -91,6 +91,7 @@ func TestEffectsTable(t *testing.T) {
 		signatory.KindSigningAuthority,
 		withdraw.GateKind,
 		withdraw.GateFeeKind,
+		withdraw.TransferGateKind,
 	}
 	slices.Sort(want)
 	var got []string
@@ -302,8 +303,8 @@ func TestBootSealsWithGateEffects(t *testing.T) {
 		wantKinds int // registered app gate kinds
 	}{
 		{name: "no flags, no gate ports", wantKinds: 0},
-		{name: "no flags, gate ports", gates: testGatePorts(), wantKinds: 7},
-		{name: "every legal flag, gate ports", on: all, gates: testGatePorts(), wantKinds: 7},
+		{name: "no flags, gate ports", gates: testGatePorts(), wantKinds: 8},
+		{name: "every legal flag, gate ports", on: all, gates: testGatePorts(), wantKinds: 8},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -63,12 +63,15 @@ type AgentPorts struct {
 	Documents     agent.MatterDocuments
 	Folders       agent.MatterFolders
 
-	Bills          agent.BillReader
-	UnbilledWIP    agent.UnbilledWIP
-	WriteTools     *agent.WriteTools
-	BillBalances   agent.BillBalances
-	Trust          agent.TrustAvailable
-	TrustAccounts  agent.MatterTrustAccounts
+	Bills         agent.BillReader
+	UnbilledWIP   agent.UnbilledWIP
+	WriteTools    *agent.WriteTools
+	BillBalances  agent.BillBalances
+	Trust         agent.TrustAvailable
+	TrustAccounts agent.MatterTrustAccounts
+	// TrustTransfers records a transfer row and opens its trust.transfer gate in one tx
+	// (withdraw.TransferRequests over withdraw.PGTransferStore and the gate engine).
+	TrustTransfers agent.TrustTransfers
 	Entries        tk.Entries
 	MatterTime     agent.MatterTime
 	DraftCalc      draft.Calc
@@ -124,6 +127,7 @@ func (p AgentPorts) ports() []port {
 		{"BillBalances", p.BillBalances, p.BillBalances != nil},
 		{"Trust", p.Trust, p.Trust != nil},
 		{"TrustAccounts", p.TrustAccounts, p.TrustAccounts != nil},
+		{"TrustTransfers", p.TrustTransfers, p.TrustTransfers != nil},
 		{"Entries", p.Entries, p.Entries != nil},
 		{"MatterTime", p.MatterTime, p.MatterTime != nil},
 		{"DraftCalc", p.DraftCalc, p.DraftCalc != nil},
@@ -174,10 +178,14 @@ func (p AgentPorts) Deps() agent.Deps {
 var draftTools = []string{agent.ToolDraftDocument, agent.ToolDraftEmail}
 
 // AgentHandlers is the production handler set: agent.Handlers() with every read tool
-// recording its results in the run's Provenance (recordReads), and, for every trust feature
-// in trust.SourcedFeatures(), draft_document and draft_email wrapped with
-// trust.SourcedCents. The wraps are listed here, not registered from init(); the set
-// resolves them per (feature, tool), so a non-trust feature's draft runs the default handler.
+// recording what it returns into the run's Provenance, and these per-feature wraps:
+//   - for every trust feature in trust.SourcedFeatures(), draft_document and draft_email
+//     wrapped with trust.SourcedCents;
+//   - for F-BIL-08, draft_document wrapped with billing.CheckCreditNote, since a credit note
+//     changes what a client owes.
+//
+// The wraps are listed here, not registered from init(); the set resolves them per
+// (feature, tool), so another feature's draft runs the default handler.
 func AgentHandlers() (agent.HandlerSet, error) {
 	set, err := recordReads(agent.Handlers())
 	if err != nil {
@@ -192,6 +200,11 @@ func AgentHandlers() (agent.HandlerSet, error) {
 				return agent.HandlerSet{}, fmt.Errorf("trust draft wrap: %w", err)
 			}
 		}
+	}
+	// rule: ARC-U-027
+	// A credit note changes what a client owes: every amount in it must be one the run read.
+	if set, err = set.WithFeatureWrap(billing.FeatureDraftCreditNote, agent.ToolDraftDocument, billing.CreditNoteWrap); err != nil {
+		return agent.HandlerSet{}, fmt.Errorf("credit note wrap: %w", err)
 	}
 	return set, nil
 }
@@ -233,7 +246,8 @@ func sourcedTrustDraft(d agent.Deps, t registry.Tool) (registry.Tool, error) {
 	return trust.SourcedCents(pv, t)
 }
 
-// AgentTools builds every tool in AgentHandlers() over p. A port the set needs and p lacks
+// AgentTools builds every tool in AgentHandlers() over p; every read tool records into
+// p.Provenance (a fresh one when p has none). A port the set needs and p lacks
 // fails with agent.ErrMissingDep naming the tool; nothing is half-built.
 func AgentTools(p AgentPorts) ([]registry.Tool, error) {
 	if p.Provenance == nil {
@@ -397,6 +411,11 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		work.WorkflowLintDef().ID:                   work.WorkflowLintBinding,
 		work.TriageDef().ID:                         work.TriageBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
+		trust.FeaturePayeeFraudCheck:                trust.PayeeFraudCheckBinding,
+		trust.FeatureBankFeedSync:                   trust.BankFeedSyncBinding,
+		trust.FeatureWithdrawalDrafter:              trust.WithdrawalDrafterBinding,
+		billing.FeatureTrustApplication:             billing.TrustApplicationBinding,
+		billing.FeatureMonthlyDigest:                billing.MonthlyDigestBinding,
 		intake.FeatureTriageNewLead:                 intake.TriageNewLeadBinding,
 		intake.MailboxWatcherDef().ID:               intake.MailboxWatcherBinding,
 		intake.MissingInfoChaserDef().ID:            intake.MissingInfoChaserBinding,
@@ -443,9 +462,6 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
 	onRequest := map[string]bool{
 		matter.FeatureMatterQuestionAnswering: true,
-		// F-TRU-01's schedule binds with its write path (FEAT-TRU-02); until then its screen
-		// actions start it.
-		trust.FeatureBankFeedSync: true,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -549,6 +565,18 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// A transfer moves money between client ledgers, so the screen selects the matters
+	// (docs/QUESTIONS.md Q-FEAT-TRU-08).
+	"trust-transfers": {SubjectKind: "matter", Capability: "trust.request"},
+	// The clearance screen lists matters that still hold trust money; it selects the matter
+	// (docs/QUESTIONS.md Q-FEAT-TRU-10).
+	"trust-balance-clearance": {SubjectKind: "matter", Capability: "trust.request"},
+	// A withdrawal request is one matter's (Q-FEAT-TRU-03).
+	"withdrawal-request": {SubjectKind: "matter", Capability: "trust.request"},
+	// Billing: a trust-to-fees transfer is requested on the matter whose trust pays the bill.
+	"trust-to-fees": {SubjectKind: "matter", Capability: "trust.request"},
+	// A credit note is drafted on the matter of the selected bill.
+	"credit-notes": {SubjectKind: "matter", Capability: "documents.edit"},
 	// Intake screens select the lead ("intake.lead", the outbox subject of a lead).
 	"phone-and-email-capture": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 	"lead-detail":             {SubjectKind: "intake.lead", Capability: "intake.leads"},

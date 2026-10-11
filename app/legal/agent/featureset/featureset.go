@@ -204,5 +204,13 @@ func appDefs() []feature.Def {
 		readiness.QuestionnaireFillerDef(),
 		readiness.InsurerAnswersDef(),
 		readiness.ServiceCreditDef(),
+		// trust transfers and withdrawals; billing trust application, credit notes, digest
+		trust.DraftTransferDef(),
+		trust.ProposeDispositionDef(),
+		trust.PayeeFraudCheckDef(),
+		trust.WithdrawalDrafterDef(),
+		billing.TrustApplicationDef(),
+		billing.DraftCreditNoteDef(),
+		billing.MonthlyDigestDef(),
 	}
 }
