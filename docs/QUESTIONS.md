@@ -3016,3 +3016,18 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   access directory or trust-request wiring; GatePorts (GL, Sealer, withdraw.Auditor, credit
   second approval) and AgentPorts have no Postgres composition. `HTTPPorts.AgentModel` and the
   HandlerSet are on `task/PG-RUNS-WEBHOOK`, which this branch could not merge.
+
+## Q-TRUST-SCOPE prepare_trust_withdrawal checks the run's gate kinds; boot wires its write deps
+
+- `agent/handlers.go`: the handler calls `agenttools.CheckGateKind(trust.withdrawal)` before
+  `WriteTools.Call`, so an undeclared kind is refused (ErrGateKindNotAllowed) before the trust
+  module records anything (ARC-I-035). `gate_scope_test.go` adds it to the table test and a
+  second AST guard: every `*WriteTools` `.Call` must follow a `CheckGateKind` call.
+- `agent/tools_write.go`: `Call` also refuses (ErrMissingDep) when Can, Walls, TrustAccount or
+  Withdrawals is nil, instead of panicking.
+- `boot/agent.go` (additive): `AgentWiring.Write` and `AgentWriteTools` build the write tools when
+  `Ports.WriteTools` is nil: Can, Walls, Provenance, MatterContacts and TrustAccounts from the
+  ports; Withdrawals (wrapped to Request and Available only), FirmAccount and Bills from
+  `Write`. Any nil port fails boot with agent.ErrMissingDep. A matter with zero or several
+  trust ledgers gets no trust account (fail closed).
+- Open: `Production` still does not build `AgentWiring`; the caller supplies `Write.Withdrawals`.

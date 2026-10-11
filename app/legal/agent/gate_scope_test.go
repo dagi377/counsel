@@ -15,6 +15,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/agenttools/agenttoolsfake"
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/gate/gatefake"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -97,6 +98,15 @@ func TestARC_I_035_GateOpeningToolsScoped(t *testing.T) {
 			_, err := w.reg.Call(scope(sfRun, kinds, sfDraft), agentP(sfRun, agenttools.CapAgentAsk), agent.ToolSubmitForApproval, json.RawMessage(sfInput(sfDraft, sfKind)))
 			return gateCall{err, gatesOpened(w.gates), 0}
 		}},
+		{agent.ToolPrepareTrustWithdrawal, agent.GateTrustWithdrawal, func(t *testing.T, kinds []string) gateCall {
+			reg, wd := newTrustWithdrawalRegistry(t)
+			res, err := reg.Call(scope("run-1", kinds), agentP("run-1", agent.CapTrustRequest), agent.ToolPrepareTrustWithdrawal, json.RawMessage(withdrawalCall("run-1", matterA, 5_000, "").Input))
+			gates := 0
+			if res.GateID != "" {
+				gates = 1
+			}
+			return gateCall{err, gates, wd.requests}
+		}},
 		{agent.ToolProposeConflictParties, conflict.GateClearance, func(t *testing.T, kinds []string) gateCall {
 			w := newConflictWorld(t, map[string]bool{cpCap: true})
 			ctx := scope(cpRun, kinds)
@@ -128,6 +138,26 @@ func TestARC_I_035_GateOpeningToolsScoped(t *testing.T) {
 			})
 		}
 	}
+}
+
+// newTrustWithdrawalRegistry registers prepare_trust_withdrawal, built through its handler over
+// newWriteTools, in a registry where run-1 reported a plan.
+func newTrustWithdrawalRegistry(t *testing.T) (*agenttools.Registry, *countingWithdrawals) {
+	t.Helper()
+	wt, wd := newWriteTools(t)
+	tool, err := agent.PrepareTrustWithdrawalHandler().Build(agent.NewDeps(wt))
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	plans := agenttoolsfake.New()
+	if _, err := plans.ReportPlan(context.Background(), "run-1", []string{"prepare the fee transfer"}); err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	reg := agenttools.NewRegistry(plans)
+	if err := reg.Register(tool); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	return reg, wd
 }
 
 // rule: ARC-I-035
@@ -168,8 +198,56 @@ func TestARC_I_035_NoUnscopedGateOpener(t *testing.T) {
 	}
 }
 
-// openerVars returns the variables assigned from DepOf[agenttools.GateOpener](...) in body.
-func openerVars(body *ast.BlockStmt) []*ast.Object {
+// rule: ARC-I-035
+// Guard: the trust module opens trust.withdrawal, not a GateOpener, so the opener guard cannot
+// see prepare_trust_withdrawal. In this package, every call of a *WriteTools read from Deps
+// must come after an agenttools.CheckGateKind call in the same function literal.
+func TestARC_I_035_WriteToolsCallScoped(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	calls := 0
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, name, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", name, err)
+		}
+		for _, decl := range f.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil {
+				continue
+			}
+			vars := depVars(fn.Body, func(e ast.Expr) bool {
+				star, ok := e.(*ast.StarExpr)
+				if !ok {
+					return false
+				}
+				id, ok := star.X.(*ast.Ident)
+				return ok && id.Name == "WriteTools"
+			})
+			for _, obj := range vars {
+				for _, c := range methodCalls(fn.Body, obj, "Call") {
+					calls++
+					if !checkedBefore(fn.Body, c) {
+						t.Errorf("%s: %s calls %s.Call without agenttools.CheckGateKind first", fset.Position(c.Pos()), fn.Name.Name, obj.Name)
+					}
+				}
+			}
+		}
+	}
+	// prepare_trust_withdrawal's handler calls WriteTools.Call.
+	if calls < 1 {
+		t.Fatalf("found %d WriteTools calls, want at least 1: the guard no longer sees the tool", calls)
+	}
+}
+
+// depVars returns the variables assigned from DepOf[T](...) in body where index(T) holds.
+func depVars(body *ast.BlockStmt, index func(ast.Expr) bool) []*ast.Object {
 	var out []*ast.Object
 	ast.Inspect(body, func(n ast.Node) bool {
 		as, ok := n.(*ast.AssignStmt)
@@ -181,7 +259,7 @@ func openerVars(body *ast.BlockStmt) []*ast.Object {
 			return true
 		}
 		idx, ok := call.Fun.(*ast.IndexExpr)
-		if !ok || !isSelector(idx.Index, "agenttools", "GateOpener") {
+		if !ok || !index(idx.Index) {
 			return true
 		}
 		if id, ok := as.Lhs[0].(*ast.Ident); ok && id.Obj != nil {
@@ -190,6 +268,51 @@ func openerVars(body *ast.BlockStmt) []*ast.Object {
 		return true
 	})
 	return out
+}
+
+// methodCalls returns the calls obj.method(...) in body.
+func methodCalls(body *ast.BlockStmt, obj *ast.Object, method string) []*ast.CallExpr {
+	var out []*ast.CallExpr
+	ast.Inspect(body, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || sel.Sel.Name != method {
+			return true
+		}
+		if id, ok := sel.X.(*ast.Ident); ok && id.Obj == obj {
+			out = append(out, call)
+		}
+		return true
+	})
+	return out
+}
+
+// checkedBefore reports whether the innermost function literal of body that holds c calls
+// agenttools.CheckGateKind before c.
+func checkedBefore(body *ast.BlockStmt, c *ast.CallExpr) bool {
+	var scope ast.Node = body
+	ast.Inspect(body, func(n ast.Node) bool {
+		if lit, ok := n.(*ast.FuncLit); ok && lit.Pos() <= c.Pos() && c.End() <= lit.End() {
+			scope = lit
+		}
+		return true
+	})
+	found := false
+	ast.Inspect(scope, func(n ast.Node) bool {
+		if call, ok := n.(*ast.CallExpr); ok && isSelector(call.Fun, "agenttools", "CheckGateKind") && call.Pos() < c.Pos() {
+			found = true
+		}
+		return true
+	})
+	return found
+}
+
+// openerVars returns the variables assigned from DepOf[agenttools.GateOpener](...) in body.
+func openerVars(body *ast.BlockStmt) []*ast.Object {
+	return depVars(body, func(e ast.Expr) bool { return isSelector(e, "agenttools", "GateOpener") })
 }
 
 // unscopedUses returns the positions where obj is used other than as the sole argument of
