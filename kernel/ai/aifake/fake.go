@@ -99,8 +99,9 @@ type Fake struct {
 	dim    int
 	faults map[string]Fault
 
-	mu    sync.Mutex
-	calls map[string]int // fixture path + run id -> calls answered
+	mu     sync.Mutex
+	calls  map[string]int // fixture path + run id -> calls answered
+	embeds []EmbedCall    // Embed journal (embed.go)
 }
 
 // New returns a Fake reading fixtures from fsys (rooted at testdata/ai).
@@ -392,23 +393,4 @@ func Vector(text string, dim int) []float32 {
 		out[i] = float32(x / norm)
 	}
 	return out
-}
-
-// Embed returns one deterministic unit vector per input.
-func (f *Fake) Embed(ctx context.Context, req ai.EmbedRequest) (ai.EmbedResponse, error) {
-	if err := ctx.Err(); err != nil {
-		return ai.EmbedResponse{}, err
-	}
-	if err := req.Validate(); err != nil {
-		return ai.EmbedResponse{}, err
-	}
-	if fault, ok := f.faults[req.FeatureID]; ok {
-		return ai.EmbedResponse{}, faultError(fault)
-	}
-	resp := ai.EmbedResponse{Vectors: make([][]float32, len(req.Inputs))}
-	for i, in := range req.Inputs {
-		resp.Vectors[i] = Vector(in, f.dim)
-		resp.Usage.InputTokens += (len(in) + 3) / 4
-	}
-	return resp, nil
 }

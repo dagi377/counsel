@@ -7,3 +7,5 @@ kernel/ai/usage_test.go  # embedding vector literal in a stub response
 kernel/ai/fixture/fixture.go  # pinned embedding vectors in AI fixtures
 kernel/ai/aifake/fake.go  # deterministic fake embedding vectors
 kernel/ai/aifake/fake_test.go  # cosine similarity of fake embedding vectors
+kernel/ai/aifake/embed.go  # fixture-pinned and clustered fake embedding vectors (moved from fake.go)
+kernel/ai/aifake/embed_test.go  # cosine similarity of fixture-pinned fake embedding vectors

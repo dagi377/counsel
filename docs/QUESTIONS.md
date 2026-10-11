@@ -602,3 +602,15 @@ Template:
   Any value that passes also meets MIG-061 (<= 3s). The task's accept line says the lint
   accepts <= 3s; that is looser than the owner's rule, so the lint uses 2s.
 - Answer: (owner)
+## AI-034.0a: Embed moved out of aifake/fake.go
+
+The task lists only `kernel/ai/aifake/embed.go`. `Fake.Embed` was defined in `fake.go`, and a
+method cannot be defined twice, so it was deleted there and rewritten in `embed.go`. `Vector`
+stays in `fake.go`; no other change to it.
+`tools/nofloat_allow.txt` gains `embed.go` and `embed_test.go`: embedding vectors are float32
+by the `ai.EmbedResponse` contract, the same reason `fake.go` is listed.
+
+## AI-034.0b: Embed journal field on aifake.Fake
+
+The Embed journal needs a slice on the `Fake` struct (guarded by its existing mutex), which is
+declared in `fake.go`; that one field is the only change outside the task's files.
