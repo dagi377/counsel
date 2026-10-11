@@ -23,6 +23,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
+	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
@@ -315,6 +316,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
+		trust.AnnualReportPrepDef().ID:              trust.AnnualReportPrepBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -418,6 +420,9 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Trust. Main has no firm subject yet, so a firm-level trust screen selects the matters
+	// it covers (Q-FEAT-TRU-06).
+	"lso-annual-report": {SubjectKind: "matter", Capability: "trust.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

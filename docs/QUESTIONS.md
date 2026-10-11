@@ -3217,3 +3217,20 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
   screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
   as served by its screen actions instead of binding it.
+
+## Q-FEAT-TRU-06 F-TRU-06 schedule, screen subject and sourced worksheet amounts
+
+- "schedule (after fiscal year end)" names no cadence, so trigger.ParseCadence checks daily.
+  F-TRU-06 binds with trigger.BindDesignated (the firm's designated lawyer acts) and its
+  prompt writes nothing until the fiscal year has ended. Open: a yearly cadence keyed to the
+  firm's fiscal year end.
+- Main has no boot.FirmSubject, so the firm-level lso-annual-report screen selects matters
+  (SubjectKind matter, capability trust.view) in boot actionScreens.
+- draft_document carries its amounts in body_markdown, which the Provenance field pointers
+  cannot reach. app/legal/trust/ai_sourced.go adds CheckSourcedCents and SourcedDraft: every
+  "N cents" figure in an agent's draft must be one a read returned in the run, and a dollar
+  figure, a fraction of a cent or a missing Provenance fails closed (ErrUnsourcedValue). The
+  feature tests wrap draft_document and draft_email with it. Open: boot registers one
+  draft_document and one draft_email for every feature, so SourcedDraft is not yet applied to
+  live trust runs; proposed: boot wraps the draft tools with trust.SourcedDraft for runs of a
+  trust-area Def (or the draft tools gain an amounts field the Provenance pointers cover).
