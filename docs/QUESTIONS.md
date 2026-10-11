@@ -1597,7 +1597,7 @@ Done in PORT-18:
   true signed figure is that amount minus shortfall_cents. The web must show `overdrawn` as an
   error state. spec/legal names the By-law 9 no-overdraft rule only in prose (billing.json
   "reg"); the code cites BIL-I-010 from spec/eng/b3.
-- Open (needs owner): the two fields are not yet declared on openapi `TrustLedger`. The
+- Closed by Q-HTTP-10c (the fields are now declared). Was open: the two fields were not yet declared on openapi `TrustLedger`. The
   additive change needs a line in kernel/contract/additive.txt, and any pointer under
   `/components/schemas/TrustLedger` puts the legal term "trust" in kernel/, which
   TestKernelHasNoLegalTerms rejects; tools/kernel_allow.txt is a ratchet that may not grow
@@ -1665,3 +1665,19 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## Q-HTTP-10c TrustLedger declares overdrawn and shortfall_cents
+
+- Closes the open item under HTTP-10b. Owner decision: the approved-additions list moves
+  from kernel/contract/additive.txt to api/contract-additive.txt, because it lists openapi
+  pointers and describes the api contract, not kernel code. kernel/contract/openapi_test.go
+  reads it from the new path with the same checks (every addition listed with a
+  QUESTIONS id, no stale lines, no duplicates). TestKernelHasNoLegalTerms and
+  tools/kernel_allow.txt are unchanged; nothing is exempted.
+- api/openapi.yaml: `TrustLedger` gains `overdrawn: {type: boolean}` and
+  `shortfall_cents: {$ref: Cents}` (>= 0), as GET /trust/ledgers already sends (BIL-I-010,
+  By-law 9). Optional response fields are additive under ARC-I-001; listed in
+  api/contract-additive.txt as `/components/schemas/TrustLedger/properties/overdrawn` and
+  `/components/schemas/TrustLedger/properties/shortfall_cents`.
+- The trust ledger list tests validate the whole page against the GET /trust/ledgers 200
+  schema and fail on any ledger field TrustLedger does not declare.
