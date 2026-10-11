@@ -119,5 +119,6 @@ func appDefs() []feature.Def {
 		// access
 		access.ExplainPatternDef(),
 		access.ExplainChangeDef(),
+		access.SummarizeSessionDef(),
 	}
 }

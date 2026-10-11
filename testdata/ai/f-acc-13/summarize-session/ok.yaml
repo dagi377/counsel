@@ -1,18 +1,18 @@
 synthetic: true
 feature: F-ACC-13
 match:
+  prompt_hash: "dab70f2ebd8f0045b689e4649e0286a21f42ec7da8844a2101d3c82370a031b8"
   last_user_regex: '\[ok\]'
-latency_ms: 40
-chunk_delay_ms: 5
+latency_ms: 0
 turns:
   - reply:
       tool_calls:
         - name: search_matters
-          input: {screen: support-access, selected: ["sup-synth-session-01"]}
+          input: {query: "synth", limit: 20}
       stop_reason: tool_use
       usage: {input_tokens: 520, output_tokens: 30}
   - expect_tool_results: [search_matters]
     reply:
-      text: "Support viewed: the users list and the sign-in settings. Support changed: reset the second factor for 1 user."
+      json: {answer: "Support viewed 2 matters you can see: 2026-0711, opened 2026-10-01, and 2026-0712. The search shows no change support made to them.", citations: []}
       stop_reason: end_turn
       usage: {input_tokens: 690, output_tokens: 44}

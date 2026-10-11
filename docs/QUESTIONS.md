@@ -3739,3 +3739,15 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   agenttest.FromFeature with no stand-ins; the fixtures use the a2 search_matters input, answer
   as {answer, citations}, the injection variant makes no extra tool call, and ok pins
   match.prompt_hash. The route test posts through trigger.Actions over a real run.Loop.
+
+## Q-FEAT-ACC-11 Summarize session: answers from search_matters alone
+
+- Built on task/FEAT-ACC-10 for `feature.Def.AnswerMayBeUncited` and the shared accd test
+  helpers (Q-FEAT-ACC-10). F-ACC-13 has the same tool gap: no read tool returns a support
+  session's actions, so the answer covers only the matters search_matters lets the acting user
+  see, and the prompt forbids guessing.
+- Outside the task's files: boot `actionScreens` lists support-access (admin.support_access) as
+  a firm screen; featureset.App() holds the Def.
+- AI-024 (ai_f_acc_13_test.go) now runs through agenttest.FromFeature with no stand-ins; the
+  fixtures use the a2 search_matters input, the injection variant makes no extra tool call,
+  and ok pins match.prompt_hash.

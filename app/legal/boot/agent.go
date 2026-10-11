@@ -391,6 +391,7 @@ var actionScreens = map[string]trigger.Screen{
 	// Access screens act on the firm: the audit log and the sign-in policy are firm records.
 	"access-audit":     {SubjectKind: FirmSubject, Capability: "admin.audit_log"},
 	"sign-in-settings": {SubjectKind: FirmSubject, Capability: "admin.security"},
+	"support-access":   {SubjectKind: FirmSubject, Capability: "admin.support_access"},
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
