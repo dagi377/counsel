@@ -1,0 +1,113 @@
+===== Google's Local Services Ads for Clio https://help.clio.com/hc/en-us/articles/17588487065627-Google-s-Local-Services-Ads-for-Clio updated 2026-04-08T00:47:26Z
+Google's Local Services Ads for Clio is an effective and straightforward tool that you can use to advertise your law firm on Google and receive leads directly from potential clients who search for your legal services on Google. You can sign up for a Local Services Ads account or integrate an existing account, manage your account, set up and run ad campaigns, capture new leads, and measure campaign performance, all within Clio Grow, allowing you to attract more clients and grow your business.  
+Note: Google's Local Services Ads is currently only available for law firms located in the US for the following practice areas: bankruptcy, business law, contract law, criminal law, disability law, DUI, estate law, family law, immigration, IP, labor law, litigation, personal injury, real estate, tax law, traffic law, and malpractice.
+Tip: For answers to common questions, view our guide and FAQ for Google's Local Service Ads.
+Checklist before signing up for a new Local Services Ads account
+If you are an administrator on your firm account, you can set up Local Services Ads by submitting an application with Google directly in Clio Grow. When setting up Local Services Ads, you will need to submit information for your billing details, regions, how much you want to spend per lead, and enable campaign budgets. Before following the steps listed under Set up Local Services Ads as a new user, gather the following information:
+- 
+Firm's business details: Business name, phone number, full business address, founding year, business days and hours, and optionally your firm's website address.
+- 
+Firm owner's details: First and last name, email address, state bar license number, and languages spoken.
+- 
+Practice areas: Law practice areas and sub-practice areas (job types) that you want your services advertised for. 
+- 
+Specific ad details: Consider whether your firm offers free consultations, flat-rate pricing, is woman owned and operated, family owned and operated, locally owned and operated, minority owned and operated, or has evening or weekend appointments by request. 
+- 
+Firm owner's headshots: Prepare five headshots with only your head and shoulders in front of a neutral background with you looking directly at the camera. Learn more about Local Services Ads requirements for headshots here.
+- 
+Eligibility requirements: Google Business Profile with at least one review (at least five reviews are required for personal injury law firms), a Google or Gmail email address, and for some states professional liability insurance. 
+- 
+Service areas: Areas around your firm for which you want your ad shown. You can include or exclude regions by state, city, county, neighborhood, and zip code. 
+- 
+Campaign budget: Determine the maximum amount that you want to spend on your ad in a given timeframe, keeping in mind that you will only be charged when a lead contacts you directly through the ad and that you can dispute a lead if the lead is not within your practice area or geographic area. 
+Set up Local Services Ads as a new user
+If you are an administrator on your firm account, and have viewed the checklist detailed above, you can begin setting up Local Services Ads in Clio Grow. Once your Local Services Ads account is approved and set up, your law firm will appear at the top of Google's search results and you will only pay when a potential lead within your geography and practice area contacts you. Leads will be added directly to your lead inbox in Clio Grow, allowing you to manage the entire client intake process in one place. 
+Important: You will need a Google Business Profile and a minimum of one review for your practice area before you can run Local Services Ads. Personal injury firms are required to have a minimum of five reviews. 
+Note: It can take 7-14 business days for your application to be approved and Local Services Ads to be completely set up.
+Tip: You can save your application and continue at a later time at any point during the application process. To continue completing the application go to Settings > Marketing, select Marketing channels, and then click Access your application.
+Step 1: Submit your application
+Submit your application
+- In Clio Grow, go to Settings > Marketing.
+- Select Marketing channels.
+- Under Local Services Ads, click Get started.- You will be taken to a screen with six sections where you can begin and complete your Local Services Ads application. You can save your progress at any section and continue the application later. 
+- Under Local Services Ads, select that you want to create a new Local Services Ads application.
+- Click Next section to continue to the next section or Save and exit to save your progress and continue the application later. 
+- Under Business details, enter your firm's business details and hours. All fields are required other than your website address. - You will need to add your firm's business name as you want it to appear in your Local Services Ads, your phone number, the firm owner's name, contact information, state bar license number, and languages that the firm owner speaks, the firm's founding year and address, whether clients can visit the firm in person, and your firm's business days and hours.
+- Click Next section to continue to the next section or Save and exit to save your progress and continue the application later. 
+- Under Services, select the practice areas and job types for your ads. Your law firm and legal services will appear within the ad results when clients in your geographical area search for your selected practice areas. - When you turn the toggle to the on position for a practice area, you can then select sub-practice areas or job types for your ads. 
+- Click Next section to continue to the next section or Save and exit to save your progress and continue the application later. 
+- Under Ad details, select up to six attributes for your business' biography. The information you select here will be highlighted in your ads. 
+- Click Next section to continue to the next section or Save and exit to save your progress and continue the application later. 
+- Under Headshots, click Upload headshot to upload headshot photos of the firm owner. 
+- You can upload up to five headshot photos. Uploading multiple headshots can help you ensure your application is approved faster. Learn more about Local Services Ads requirements for headshots here.
+- Headshots should only show your head and shoulders in front of a neutral background with you looking directly at the camera. 
+- Click Next section.
+- Under Eligibility details, complete the eligibility requirements. 
+- Enter your primary Google or Gmail email address.
+- Under Google Business Profile, confirm that you have a Google Business Profile with at least one review. Personal injury firms are required to have at least five reviews. You cannot submit your application without a Google Business Profile with the required minimum number of reviews. 
+- If required, under Professional liability insurance, select the date that your liability insurance expires and upload a photo of your proof of insurance. This is only required for certain states. 
+- Click Submit application.- It can take up to seven business days for your application to be approved. 
+Step 2: Set your Google account's billing details
+Set your Google account's billing details
+Once your Local Services Ads application is approved, you will need to set up your Google account's billing details.
+Note: You will need to sign in to Google using the same email address that you used to sign up for Local Services Ads. 
+- In Clio Grow, go to Settings > Marketing.
+- Select Marketing channels.
+- Under Local Services Ads, click Access billing details.
+- Click Continue to Google. 
+- Follow the prompts in Google to set up your Google account's billing details.
+Step 3: Set your services areas
+Set your services areas
+Once your Local Services Ads application is approved and you have set up your Google account's billing details, you will need to set up your service areas in Google. Your firm's ad will appear to prospective clients looking for services in the specified regions. By default, your service area is the area around your business address, but you can update this to a more specific area.
+Note: You will need to sign in to Google using the same email address that you used to sign up for Local Services Ads. 
+- In Clio Grow, go to Settings > Marketing.
+- Select Marketing channels.
+- Under Local Services Ads, click Update service areas.
+- Click Update on Google. 
+- Follow the prompts in Google to set up your service areas and to include or exclude regions by state, city, county, neighborhood, and zip code. 
+Step 4: Set your campaign budget
+Set your campaign budget
+Once your Local Services Ads application is approved, you have set up your Google account's billing details and your service areas, you will need to set your campaign's budget. Your budget is the maximum amount that you can spend in a given timeframe.
+Note: You will only be charged when a lead contacts you directly through an ad. And if a lead does not match your practice area, you can dispute the lead to receive and receive a credit. Learn more about disputing leads below.
+- In Clio Grow, go to Settings > Marketing.
+- Select Marketing channels.
+- Under Local Services Ads, scroll down to Campaign budget.
+- Enter your budget and the timeframe.
+- Click Set budget.
+Step 5: Launch your campaign
+Launch your campaign
+Once your Local Services Ads application is approved, you have set up your Google account's billing details, your service areas, and your campaign budget, you can launch your campaign. 
+- In Clio Grow, go to Settings > Marketing.
+- Select Marketing channels.
+- Under Local Services Ads, scroll down to Your campaign.
+- Click Launch campaign. - Clio Grow will automatically set other account details for your, but you can make changes or add additional details in your Local Services Ads dashboard. Scroll down to Other campaign details and click Access Google. 
+Set up Local Services Ads as an existing user
+If you are an administrator on your firm account and already have an existing Local Services Ads account, you can integrate that account with Clio Grow. Once integrated, you will only pay when a potential lead within your geography and practice area contacts you. Leads will be added directly to your lead inbox in Clio Grow, allowing you to manage the entire client intake process in one place. You can also update your campaign budget, services areas, and other campaign details, manage and dispute leads, and view performance metrics. 
+- In Clio Grow, go to Settings > Marketing.
+- Select Marketing channels.
+- Under Local Services Ads, click Get started.
+- Under Local Services Ads, select that you want to continue with an existing Local Services Ads account and connect it to Clio Grow and then enter your 10-digit CID.
+Update campaign budget, service areas, and other campaign details
+If you have launched your campaign and are not getting the lead volume or quality that you are looking for, you can make changes to your campaign budget, service areas, and other campaign details at any time.
+- In Clio Grow, go to Settings > Marketing.
+- Select Marketing channels.
+- Under Local Services Ads, click Update budget, Update service areas, or Access Google and then follow the prompts to make your changes in your Local Services Ads dashboard. 
+Mark leads as added
+When you receive a new lead, whether that is through Local Services Ads or another marketing tool, you can add the lead as a new contact or ignore the lead. Learn more about adding and ignoring leads in the Leads tab here. For Local Services Ads, specifically, mark leads as already added to prevent duplicate contacts and matters during intake.
+When should I mark a lead as "Already added" instead of "Ignore"?
+If there is an existing contact or matter for the Local Services Ad lead, mark it as Already added. You may notice a duplicate Local Services Ads lead if a Quick intake is performed on the lead if they call into your firm. Rather than ignoring the lead, mark it as Already added to ensure that your lead qualified rate and overall Local Services Ads conversion metric remain accurate.
+- In Clio Grow, go to Leads and then select Marketing.
+- Select the New leads subtab and find the lead.
+- Click Remove and then select Already added.- 
+This will remove the lead from the table. If you previously added the lead using quick intake, the created contact will not be affected. 
+Important: Google Local Services Ads reviews all leads and will automatically credit invalid or low-quality leads. Credits are applied to your account within 30 days, and the original lead charge will remain on your invoice. You can submit feedback via the Lead Feedback Survey if you believe the lead is poor quality to ensure your leads are suited to your practice area.
+View performance metrics
+Once your Local Services Ads profile is set up and leads start coming in, you can track the performance of your ad profile in your Local Services Ads dashboard in Clio Grow. The dashboard allows you to track key actionable metrics such as the overall conversion rate of leads converted into matters and your firm's responsiveness rate to calls received through the ad. Learn more about this dashboard and how to understand it here. 
+Turn off ad campaign
+If at any point after launching your campaign you want to stop your campaign, you can do so easily from your Clio Grow settings. 
+- In Clio Grow, go to Settings > Marketing.
+- Select Marketing channels.
+- Under Local Services Ads, go to Your campaign.
+- Turn the Your campaign toggle to the off position.  
+
+IMGS: []

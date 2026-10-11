@@ -1,0 +1,2107 @@
+{
+ "id": "o1-tasks",
+ "rule_coverage": {
+  "rules": 322,
+  "on_tasks": 322,
+  "missing": [],
+  "unknown": []
+ },
+ "source_of_truth": [
+  "rule ids (b1,b2,b3,a1,a2,a3)",
+  "a2-interfaces.openapi.yaml",
+  "a4-data-model.sql",
+  "legal-spec screens"
+ ],
+ "layers": {
+  "kernel": 24,
+  "app": 38
+ },
+ "tasks": [
+  {
+   "id": "T-001",
+   "layer": "kernel",
+   "title": "Repo skeleton, Makefile check, CI",
+   "depends_on": [],
+   "files": [
+    "go.mod",
+    "Makefile",
+    "cmd/counseld/main.go",
+    "cmd/counsel-worker/main.go",
+    "cmd/counsel-migrate/main.go",
+    ".github/workflows/ci.yaml",
+    "docs/QUESTIONS.md",
+    "docs/TASKS.md"
+   ],
+   "rule_ids": [
+    "ARC-I-040",
+    "ARC-U-017"
+   ],
+   "accept": [
+    "make check runs gofmt, go vet, go test ./..., spec-lint (python3 -I tools/o2_lint.py --spec spec --strict, exits 1 on any mechanical finding or a judgment count above tools/o2_lint.baseline.json) and openapi lint; all green on empty repo",
+    "Rule-coverage check (tools/rule_coverage.py): every rule id in spec/rules/*.json appears in some task's rule_ids in docs/TASKS.md; one unmapped id fails make check",
+    "CI fails if any file under kernel/ or app/legal/ imports another module's <m>/store package (layering test, like Paploo internal/layering)",
+    "Unit tests run with no network and no Docker; integration tests carry //go:build integration and read COUNSEL_TEST_DB"
+   ],
+   "size": "S",
+   "risk": "low",
+   "blocked_by": []
+  },
+  {
+   "id": "T-001b",
+   "layer": "kernel",
+   "title": "Kernel boundary ratchet tests",
+   "depends_on": [
+    "T-001"
+   ],
+   "files": [
+    "kernel/boundary_test.go",
+    "tools/kernel_terms.txt",
+    "tools/kernel_allow.txt",
+    "tools/kernel_bindings.txt"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "go list -deps ./kernel/... contains no package under app/: a kernel file importing app/legal/matter fails make check",
+    "Legal-term scan over kernel/ (Go identifiers, strings, comments, SQL, YAML, web/src/kernel): every term in tools/kernel_terms.txt (matter, trust, lawyer, licensee, paralegal, solicitor, client ledger, retainer, conflict check, ethical wall, court, docket, HST, GST, QST, LSO, By-Law, Clio, Ontario, bill of costs) fails unless the exact (file, term) is in tools/kernel_allow.txt; test fixture plants 'retainer' in kernel/money and expects failure",
+    "Ratchet: kernel_allow.txt and kernel_bindings.txt line counts may only go down; a commit that adds a line fails CI with 'kernel ratchet grew'",
+    "kernel_bindings.txt lists every kernel-layer table column that FKs into an app schema (e.g. cal.deadline.matter_id); a new such FK not listed fails the test (read from a4 JSON layer tags)",
+    "Gate kind slugs, capability ids, report ids and rule-pack ids registered by app/legal must not use a kernel module prefix (core., gate., platform., audit.); existing core.trust_signatory is the only allowlisted exception (Q-K1)"
+   ],
+   "size": "S",
+   "risk": "medium",
+   "blocked_by": []
+  },
+  {
+   "id": "T-002",
+   "layer": "kernel",
+   "title": "Import frozen contracts and contract tooling",
+   "depends_on": [
+    "T-001"
+   ],
+   "files": [
+    "api/openapi.yaml",
+    "migrations/0001_init.sql",
+    "kernel/contract",
+    "spec/kernel/*.schema.json"
+   ],
+   "rule_ids": [
+    "ARC-I-001",
+    "ARC-I-002"
+   ],
+   "accept": [
+    "openapi.yaml = a2-interfaces.openapi.yaml byte-for-byte with CONTRACT header; contract-diff test fails CI when Bill.number is removed or a required field is added to BillCreate (ARC-I-001 test)",
+    "0001_init.sql applies cleanly to empty Postgres 16 and a4-data-model.smoke.sql passes; its header lists kernel and app schemas exactly as a4-data-model.json layer tags",
+    "spec/kernel/ holds JSON Schemas for the extension data the app registers: gate kind, capability, rule pack, document kind, report definition, portal page, agent tool, retention class; a fixture app (test/fixtures/helpdesk, no legal terms) validates against all of them"
+   ],
+   "size": "M",
+   "risk": "medium",
+   "blocked_by": [
+    "CF-05",
+    "CF-06"
+   ]
+  },
+  {
+   "id": "T-003",
+   "layer": "kernel",
+   "title": "kernel/money: int64 cents, rhu, ppm",
+   "depends_on": [
+    "T-001"
+   ],
+   "files": [
+    "kernel/money/money.go",
+    "kernel/money/money_test.go"
+   ],
+   "rule_ids": [
+    "BIL-C-001",
+    "BIL-C-002",
+    "BIL-I-024",
+    "ARC-I-003",
+    "MIG-005"
+   ],
+   "accept": [
+    "rhu(200000*99750, 1e6) = 19950 (BIL-C-001)",
+    "rhu(-5,10) = -1, rhu(5,10)=1, rhu(4,10)=0 (half away from zero)",
+    "Property test: for random a,b,d (|a*b| < 2^62), rhu(a*b,d) equals big.Rat rounding; overflow returns error, never wraps",
+    "JSON decode of 12.5 or \"1250\" into Cents fails (ARC-I-003); MIG-005 parse '1,234.56' -> 123456 without float",
+    "go vet analyzer/grep test: no float32/float64 in kernel/ or app/ outside display formatting allowlist",
+    "Every rate and percentage type is money.PPM (int64, /1e6); no bp type exists (CF-01)",
+    "Allocate(total, weights) by largest remainder is the only split primitive; app rules choose weights and which line absorbs the remainder"
+   ],
+   "size": "S",
+   "risk": "high",
+   "blocked_by": [
+    "CF-01"
+   ]
+  },
+  {
+   "id": "T-004",
+   "layer": "kernel",
+   "title": "kernel ids, clock, number series",
+   "depends_on": [
+    "T-001"
+   ],
+   "files": [
+    "kernel/ids",
+    "kernel/clock",
+    "kernel/numseq"
+   ],
+   "rule_ids": [
+    "BIL-C-120",
+    "BIL-I-008",
+    "ARC-I-004"
+   ],
+   "accept": [
+    "Go ids.New() is monotonic within one process (1e5 ids in a tight loop strictly increase); ids from SQL core.uuidv7() sort by millisecond only, and no code relies on order within a millisecond",
+    "clock.Today() returns the cell's business date in its configured zone (America/Toronto for Counsel cells): 2026-11-01T03:30Z -> 2026-10-31; DST fall-back day has 25 h",
+    "numseq.Next in the caller's tx under SELECT FOR UPDATE: 50 concurrent approvals produce 2026-0001..2026-0050 with no gap; a rolled-back tx does not consume a number (integration); the series name and format are app data"
+   ],
+   "size": "S",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-005",
+   "layer": "kernel",
+   "title": "kernel/audit: hash-chained append-only log",
+   "depends_on": [
+    "T-002",
+    "T-004"
+   ],
+   "files": [
+    "kernel/audit"
+   ],
+   "rule_ids": [
+    "ARC-I-043",
+    "ARC-I-044",
+    "MIG-066",
+    "BIL-I-003"
+   ],
+   "accept": [
+    "Append 3 events; hash[n] = sha256(prev_hash || canonical(row)); verifier detects a flipped byte in row 2",
+    "UPDATE, DELETE, TRUNCATE on audit.audit_event raise (integration, triggers audit_immutable/audit_no_truncate)",
+    "detail_masked never contains document text, customer names or secrets: fuzz test with seeded secrets asserts redaction (ARC-I-044, ARC-U-040)"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-006",
+   "layer": "kernel",
+   "title": "kernel/identity: users, roles, teams, capabilities, Can(), RLS session",
+   "depends_on": [
+    "T-002"
+   ],
+   "files": [
+    "kernel/identity"
+   ],
+   "rule_ids": [
+    "ARC-I-042",
+    "ARC-I-036",
+    "ARC-I-018"
+   ],
+   "accept": [
+    "Capabilities and roles are registered by the app at boot (Registry.Capability, Registry.Role); Can() with the helpdesk fixture's matrix returns every cell exactly",
+    "Can(principal, capability, subject) calls the app's SubjectResolver for subject visibility (walls are an app resolver); a resolver that denies -> 404 not 403",
+    "Agent principal capabilities = intersection(acting user, skill grant): agent acting for a user without x.approve cannot hold it",
+    "No role, including admin and agent, is ever in a gate approver list by default (o2 check approve-forbidden stays 0)",
+    "Per-request SET LOCAL app.user_id and app.principal_kind; second request on the same pooled connection sees them empty"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-008",
+   "layer": "kernel",
+   "title": "kernel outbox, inbox, idempotency keys",
+   "depends_on": [
+    "T-002",
+    "T-004"
+   ],
+   "files": [
+    "kernel/outbox",
+    "kernel/idem",
+    "kernel/server/middleware"
+   ],
+   "rule_ids": [
+    "ARC-I-047",
+    "ARC-I-007",
+    "ARC-I-008",
+    "ARC-I-030",
+    "ARC-I-031",
+    "ARC-I-032",
+    "ARC-U-021",
+    "ARC-U-022",
+    "ARC-U-023",
+    "ARC-U-025"
+   ],
+   "accept": [
+    "Same Idempotency-Key + same body -> stored response replayed byte-identical; same key + different body -> 422 idempotency_mismatch (ARC-I-008)",
+    "Money POST without Idempotency-Key -> 400: conformance test enumerates every operation with x-money or x-external-effect, asserts each references #/components/parameters/IdempotencyKey, and asserts count(x-money) >= 20 so it cannot pass empty",
+    "Outbox row written in same tx as state change; kill the relay between commit and publish, restart: delivery attempts may be 2, but the consumer applies the effect exactly once (inbox row count 1, effect row count 1)",
+    "subject_seq gap-free per subject under 20 concurrent writers (integration)"
+   ],
+   "size": "M",
+   "risk": "critical",
+   "blocked_by": [
+    "CF-03"
+   ]
+  },
+  {
+   "id": "T-008b",
+   "layer": "kernel",
+   "title": "kernel inbound webhooks inbox",
+   "depends_on": [
+    "T-008"
+   ],
+   "files": [
+    "kernel/inbound"
+   ],
+   "rule_ids": [
+    "BIL-I-020",
+    "ARC-U-033"
+   ],
+   "accept": [
+    "POST /hooks/{provider}: same webhook-id twice -> one platform.inbound_event row and one effect; both calls return 204",
+    "Bad signature or timestamp outside 5 min -> 401 and no row",
+    "Providers and their event handlers are registered by the app (Registry.InboundProvider); dedup key is (provider, event_id) for every event type, not only payments"
+   ],
+   "size": "M",
+   "risk": "critical",
+   "blocked_by": [
+    "CF-03"
+   ]
+  },
+  {
+   "id": "T-007",
+   "layer": "kernel",
+   "title": "kernel/gate: approval engine, decisions, effects",
+   "depends_on": [
+    "T-005",
+    "T-006",
+    "T-008"
+   ],
+   "files": [
+    "kernel/gate"
+   ],
+   "rule_ids": [
+    "ARC-I-013",
+    "ARC-I-014",
+    "ARC-I-015",
+    "ARC-I-016",
+    "ARC-I-017",
+    "ARC-I-019",
+    "ARC-I-020",
+    "ARC-I-022",
+    "ARC-I-023",
+    "ARC-I-024"
+   ],
+   "accept": [
+    "Gate kinds are registered by the app (GateKind{Slug, Risk, MinApprovers, Approver capability, TTL, PayloadSchema, Effect}); an unregistered kind -> 422; slug matches ^[a-z]+\\.[a-z_]+$ and its prefix is the registering module",
+    "payload_hash = sha256 of RFC 8785 JCS; editing payload creates version n+1 and voids approvals on n (ARC-I-015)",
+    "Preparer (creator, editor, agent's acting_for user) deciding -> 403 sod_violation (ARC-I-016); agent principal deciding -> 403 always; decision needs fresh MFA for risk high/irreversible (ARC-I-017)",
+    "risk=irreversible with min_approvers=2: one approval leaves status pending; second distinct human approves -> exactly one effect_executions row; replaying final approval -> no second effect (ARC-I-023)",
+    "Expired gate (opened_at + ttl) never runs effect (ARC-I-022)",
+    "Replay (relay at-least-once) the effect of one approved gate 3 times concurrently -> exactly 1 gate.effect_execution row and 1 effect call (RV2-004)",
+    "Amount above decider authority_limit counts as recommend only (ARC-I-020); effect handlers re-check preconditions at execution (ARC-I-024)",
+    "The engine has one self-approval hook (SelfApprovalPolicy) that defaults to deny; only the app may supply one"
+   ],
+   "size": "L",
+   "risk": "critical",
+   "blocked_by": [
+    "CF-03",
+    "CF-04",
+    "CF-05"
+   ]
+  },
+  {
+   "id": "T-009",
+   "layer": "kernel",
+   "title": "kernel HTTP server, problem+json, ETag, cursor paging, route registration",
+   "depends_on": [
+    "T-006",
+    "T-008"
+   ],
+   "files": [
+    "kernel/server",
+    "kernel/api"
+   ],
+   "rule_ids": [
+    "ARC-I-004",
+    "ARC-I-005",
+    "ARC-I-006",
+    "ARC-I-009",
+    "ARC-I-010",
+    "ARC-I-011",
+    "ARC-I-051"
+   ],
+   "accept": [
+    "PATCH without If-Match -> 428; stale If-Match -> 412 (ARC-I-006)",
+    "Errors are application/problem+json with code; log/error output scanned in test contains no customer name, amount tied to a customer, or token (ARC-I-010)",
+    "OpenAPI conformance: every route registered in chi (kernel routes plus app routes from Registry.Routes) exists in openapi.yaml and vice versa; responses validated against schema in handler tests",
+    "Apps mount routes only through Registry.Routes(r chi.Router); a route that sets state owned by a gate effect is refused by the route-table test unless it is the gate decision endpoint"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-010",
+   "layer": "kernel",
+   "title": "kernel/ledger: double-entry engine, periods, reversals",
+   "depends_on": [
+    "T-005",
+    "T-003"
+   ],
+   "files": [
+    "kernel/ledger"
+   ],
+   "rule_ids": [
+    "BIL-I-001",
+    "BIL-I-003",
+    "BIL-I-019",
+    "BIL-I-025"
+   ],
+   "accept": [
+    "Insert unbalanced entry -> error from deferred trigger journal_balanced (BIL-I-001)",
+    "Reversal mirrors original lines exactly with swapped sides (BIL-I-019); UPDATE/DELETE on journal_line refused",
+    "Posting dated into a closed period -> refused; correction posts in current period (BIL-I-025)",
+    "Property test: after N random valid postings, trial balance sums to 0; Post is idempotent per (source_kind, source_id)",
+    "Accounts, books and posting templates are app data (Registry.ChartOfAccounts); the engine knows no account code"
+   ],
+   "size": "M",
+   "risk": "critical",
+   "blocked_by": [
+    "CF-02"
+   ]
+  },
+  {
+   "id": "T-036",
+   "layer": "kernel",
+   "title": "kernel webhooks out (Standard Webhooks)",
+   "depends_on": [
+    "T-008"
+   ],
+   "files": [
+    "kernel/webhook"
+   ],
+   "rule_ids": [
+    "ARC-I-033",
+    "ARC-I-034"
+   ],
+   "accept": [
+    "Signature header v1,<base64 HMAC> verifies with the Standard Webhooks reference test vector",
+    "Ordered per (endpoint, subject): event 2 not sent until event 1 acked",
+    "Event types are registered by modules with a JSON Schema; an unregistered type cannot be emitted"
+   ],
+   "size": "M",
+   "risk": "medium",
+   "blocked_by": []
+  },
+  {
+   "id": "T-032",
+   "layer": "kernel",
+   "title": "kernel/docs: documents, versions, page/line text, citations, retention engine",
+   "depends_on": [
+    "T-005",
+    "T-006",
+    "T-007"
+   ],
+   "files": [
+    "kernel/docs",
+    "kernel/retention"
+   ],
+   "rule_ids": [
+    "ARC-I-037",
+    "ARC-U-012"
+   ],
+   "accept": [
+    "Document kinds are registered by the app (DocumentKind{ID, Templates, Classification, RetentionClass}); upload of an unregistered kind -> 422",
+    "Text is stored per version as pages and lines; quote_hash = sha256(NFC text of cited lines) verified at render; a citation to a changed version fails verification (ARC-I-037)",
+    "Document text never in logs or audit detail; bytes in the cell bucket only (ARC-U-012)",
+    "Retention engine: classes are app data (min_years, never_purge, destruction_gate); a purge run only proposes a list; nothing is destroyed until the class's destruction gate is approved"
+   ],
+   "size": "L",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-034",
+   "layer": "kernel",
+   "title": "kernel/work: work items, boards, workflows, automation",
+   "depends_on": [
+    "T-006",
+    "T-007"
+   ],
+   "files": [
+    "kernel/work"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "Automation run append-only; automation cannot fire money or external effects without a gate",
+    "Work items attach to any registered subject kind (subject_kind, subject_id); the app registers its subject kinds"
+   ],
+   "size": "M",
+   "risk": "medium",
+   "blocked_by": []
+  },
+  {
+   "id": "T-031",
+   "layer": "kernel",
+   "title": "kernel/deadline: deadline engine with pluggable rule packs",
+   "depends_on": [
+    "T-004",
+    "T-007",
+    "T-034"
+   ],
+   "files": [
+    "kernel/deadline"
+   ],
+   "rule_ids": [
+    "ARC-U-030"
+   ],
+   "accept": [
+    "Rule pack interface: versioned YAML data (trigger events, offsets, day-count mode clear/business/calendar, months_after, holiday calendar, roll-forward rule) validated by spec/kernel/rulepack.schema.json; the helpdesk fixture pack computes its golden dates",
+    "Every computed deadline needs human confirmation (deadline_confirmation append-only); a pack version change re-computes unconfirmed deadlines only",
+    "Reminder worker sends even when the agent is down; no reminder > 24 h late (SLO-04); falls back to the second notifier (ARC-U-030)"
+   ],
+   "size": "L",
+   "risk": "critical",
+   "blocked_by": []
+  },
+  {
+   "id": "T-035",
+   "layer": "kernel",
+   "title": "kernel notifications and external portal shell",
+   "depends_on": [
+    "T-009",
+    "T-032",
+    "T-006"
+   ],
+   "files": [
+    "kernel/notify",
+    "kernel/portal",
+    "web/src/kernel/portal"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "Notifications: channel (in-app, email) per user preference; every notification has a template id registered by a module and carries no document text",
+    "Portal shell: guest identity, magic-link or OIDC sign-in, session; pages are registered by the app (PortalPage{ID, Route, Capability, Loader}); a guest sees only subjects its grant lists"
+   ],
+   "size": "L",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-037",
+   "layer": "kernel",
+   "title": "kernel/agenttools: agent tool interface (drafts, gates, plan/steps, citations)",
+   "depends_on": [
+    "T-007",
+    "T-032"
+   ],
+   "files": [
+    "kernel/agenttools"
+   ],
+   "rule_ids": [
+    "ARC-I-035",
+    "ARC-I-036",
+    "ARC-I-038",
+    "ARC-I-039",
+    "ARC-U-029"
+   ],
+   "accept": [
+    "Tools are registered by modules (Tool{Name, Kind read|report|write, InputSchema, Capability, Handler}); each validates input against its JSON Schema; write tool before report_plan -> 409 plan_required (ARC-I-039)",
+    "Write tools create drafts/proposals or open gates only; agent principal deciding any gate -> 403",
+    "Prompt-injection fixture inside a document is returned as quoted data and does not change tool calls (ARC-I-038)",
+    "Tool results that quote documents carry citations in the kernel citation shape"
+   ],
+   "size": "L",
+   "risk": "critical",
+   "blocked_by": []
+  },
+  {
+   "id": "T-038",
+   "layer": "kernel",
+   "title": "kernel/report: report definitions, runs, schedules, exports",
+   "depends_on": [
+    "T-009",
+    "T-006"
+   ],
+   "files": [
+    "kernel/report"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "Report definitions are registered (ReportDef{ID, Params schema, Capability, Run(ctx, tx, params) -> rows}); a run stores params hash and row count, never row data in audit",
+    "Scheduled runs go through River; CSV and PDF render with a sha256 manifest"
+   ],
+   "size": "M",
+   "risk": "medium",
+   "blocked_by": []
+  },
+  {
+   "id": "T-039",
+   "layer": "kernel",
+   "title": "kernel access admin, break-glass, reviews, offboarding",
+   "depends_on": [
+    "T-006",
+    "T-007"
+   ],
+   "files": [
+    "kernel/identity",
+    "web/src/kernel/access"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "Role change via gate kind core.role_change (GA1), user activation via core.user_activation (GA2)",
+    "Break-glass opens time-boxed grant and audit event; auto-expires",
+    "Access review and offboarding plans list grants from every registered capability, including app ones"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-040",
+   "layer": "kernel",
+   "title": "kernel/importer: import framework (staging, id map, dry run, checkpoints)",
+   "depends_on": [
+    "T-008",
+    "T-007",
+    "T-032"
+   ],
+   "files": [
+    "kernel/importer",
+    "cmd/counsel-import"
+   ],
+   "rule_ids": [
+    "MIG-004",
+    "MIG-006",
+    "MIG-007",
+    "MIG-008",
+    "MIG-012",
+    "MIG-013",
+    "MIG-014",
+    "MIG-015"
+   ],
+   "accept": [
+    "Sources are registered by the app (Source{ID, Resources, Extract, Transform}); extraction checkpoints per resource cursor and resumes after a kill (MIG-004)",
+    "Every imported row has exactly one id_map row; rerun transform on same snapshot -> zero changes (MIG-007, MIG-008); duplicates flagged, never auto-merged (MIG-014)",
+    "Dry run lists unmapped resource types and fields with counts (MIG-012, MIG-013); import cannot start without a zero-error dry run on the same snapshot approved through the import gate (MIG-015)",
+    "Instants stored UTC, date-only fields unshifted (MIG-006)"
+   ],
+   "size": "L",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-043",
+   "layer": "kernel",
+   "title": "Cell deploy, backups, DR, rollout rings",
+   "depends_on": [
+    "T-009"
+   ],
+   "files": [
+    "deploy/helm/counsel",
+    "deploy/cnpg",
+    "docs/runbooks"
+   ],
+   "rule_ids": [
+    "ARC-U-001",
+    "ARC-U-002",
+    "ARC-U-003",
+    "ARC-U-005",
+    "ARC-U-006",
+    "ARC-U-008",
+    "ARC-U-009",
+    "ARC-U-010",
+    "ARC-U-015",
+    "ARC-U-016",
+    "ARC-U-018",
+    "ARC-U-020",
+    "ARC-U-039",
+    "ARC-U-041",
+    "ARC-U-004",
+    "ARC-U-007",
+    "ARC-U-011",
+    "ARC-U-038",
+    "ARC-U-042",
+    "ARC-U-043",
+    "MIG-060",
+    "MIG-061",
+    "MIG-062",
+    "MIG-064",
+    "MIG-065"
+   ],
+   "accept": [
+    "Helm render for 2 cells: no shared resource name, DSN, bucket, KMS ARN or secret (ARC-U-001 guard test)",
+    "Restore drill script restores PITR into a scratch namespace and runs every app-registered restore check (Counsel: trust three-way check); yearly all-cells drill restores 8 cells in parallel within the stated time (ARC-U-043)",
+    "Month-end export object exists in the DR bucket before its DB row commits (ARC-U-042); SLO-05b bucket replication lag alert renders",
+    "Migration job lock_timeout=2s; expand-contract lint rejects DROP/RENAME/NOT NULL without default in release N (ARC-U-017, MIG-060, MIG-061); backfills run in batches of <= 10000 rows with a pause (MIG-062); rollout rehearsed on a snapshot, then cell by cell (MIG-064, MIG-065)",
+    "Two requests on one pooled connection: counsel.user_id is empty at the start of the second (SET LOCAL only); River connects directly, not via PgBouncer (ARC-U-011)",
+    "Shared control plane config contains no customer data (ARC-U-004); WAF rate rule 2000 req/5 min per IP rendered (ARC-U-038); losing both sync standbys needs an operator decision (ARC-U-007)"
+   ],
+   "size": "L",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-044",
+   "layer": "kernel",
+   "title": "Observability, SLOs, degraded modes, status page",
+   "depends_on": [
+    "T-043"
+   ],
+   "files": [
+    "kernel/metrics",
+    "deploy/observability"
+   ],
+   "rule_ids": [
+    "ARC-U-028",
+    "ARC-U-029",
+    "ARC-U-031",
+    "ARC-U-034",
+    "ARC-U-035",
+    "ARC-U-036",
+    "ARC-U-037",
+    "ARC-U-040",
+    "ARC-U-013",
+    "ARC-U-019",
+    "ARC-U-024"
+   ],
+   "accept": [
+    "SLO-01..10 have recording rules + alerts; synthetic check logs in with synthetic user every 60 s",
+    "With Paploo down: every app-registered smoke check passes (Counsel: matters, time, billing, trust, deadlines) (ARC-U-028)",
+    "Feature flag without owner or expiry -> config load fails (ARC-U-019); dead letter older than 1 business day pages; replay is an explicit admin action and idempotent (ARC-U-024)",
+    "Purge jobs refuse every retention class marked never_purge (Counsel: trust, financial, billing) (ARC-U-013)"
+   ],
+   "size": "M",
+   "risk": "medium",
+   "blocked_by": []
+  },
+  {
+   "id": "T-045",
+   "layer": "kernel",
+   "title": "Web shell (kernel)",
+   "depends_on": [
+    "T-009"
+   ],
+   "files": [
+    "web/src/kernel",
+    "web/src/app"
+   ],
+   "rule_ids": [
+    "ARC-I-002"
+   ],
+   "accept": [
+    "Generated client from openapi.yaml; unknown enum renders 'Other' (ARC-I-002)",
+    "Money rendered from cents via one formatter; no float arithmetic in web/src (lint)",
+    "Navigation, routes and screens come from the app's registered feature list; the shell renders with the helpdesk fixture and no app/legal code"
+   ],
+   "size": "M",
+   "risk": "medium",
+   "blocked_by": []
+  },
+  {
+   "id": "T-002L",
+   "layer": "app",
+   "title": "Import legal rule, gate and access data",
+   "depends_on": [
+    "T-002"
+   ],
+   "files": [
+    "spec/rules/*.json",
+    "spec/gates.json",
+    "spec/access.json"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "spec/rules/*.json is the union of b1,b2,b3,a1,a2,a3 rules; a test asserts every rule id is unique and matches ^(BIL-[LTCI]|ARC-[UI]|MIG)-?\\d{3}$",
+    "spec/gates.json and spec/access.json validate against spec/kernel gate-kind and capability schemas"
+   ],
+   "size": "S",
+   "risk": "medium",
+   "blocked_by": [
+    "CF-01",
+    "CF-02",
+    "CF-03",
+    "CF-05",
+    "CF-06"
+   ]
+  },
+  {
+   "id": "T-006L",
+   "layer": "app",
+   "title": "Legal roles, capabilities, walls resolver",
+   "depends_on": [
+    "T-006",
+    "T-002L"
+   ],
+   "files": [
+    "app/legal/roles",
+    "app/legal/register.go"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "Table test generated from legal-spec access.json: for every (role, capability) cell, Can() returns the matrix value (access-matrix test)",
+    "Agent acting for clerk cannot billing.approve; module names are the a4 schemas and gate kinds use them (a2 renamed_gate_kinds)",
+    "Walls SubjectResolver: walled user gets 404 on the matter and its documents, deadlines, work items"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": [
+    "CF-12"
+   ]
+  },
+  {
+   "id": "T-007L",
+   "layer": "app",
+   "title": "Legal gate kinds and self-approval policy",
+   "depends_on": [
+    "T-007",
+    "T-006L"
+   ],
+   "files": [
+    "app/legal/gates"
+   ],
+   "rule_ids": [
+    "ARC-I-021",
+    "BIL-I-021"
+   ],
+   "accept": [
+    "Every gate in spec/gates.json registers as a kind; gate_code is the kind slug (billing.bill_approval) and spec_gate keeps the spec id (G-B2); a code like G-B2 in gate_code is rejected (CF-04)",
+    "Sole-practitioner SelfApprovalPolicy only when exactly 1 active licensee and setting on; self_approval_exception=true recorded (ARC-I-021)",
+    "24 h cooling-off applies to trust.withdrawal, trust.transfer, trust.reconciliation_signoff, trust.regulatory_release",
+    "Every gated legal transition stores a decision by a human with the capability who is not the preparer (BIL-I-021)"
+   ],
+   "size": "M",
+   "risk": "critical",
+   "blocked_by": [
+    "CF-04",
+    "CF-07"
+   ]
+  },
+  {
+   "id": "T-010L",
+   "layer": "app",
+   "title": "Operating books: chart of accounts and posting templates",
+   "depends_on": [
+    "T-010",
+    "T-002L"
+   ],
+   "files": [
+    "app/legal/books"
+   ],
+   "rule_ids": [
+    "BIL-I-002",
+    "BIL-I-013"
+   ],
+   "accept": [
+    "Chart OP-*/TR-* registered with the ledger engine; OP entry with TR-1500 line -> error (BIL-I-002)",
+    "Property test: OP-1100+OP-1110 = sum(open bill balances); OP-2200 = sum(client credit) (BIL-I-013)",
+    "gl.vendor_bill is owned by app/legal/books (app table in a kernel schema, listed in kernel_bindings.txt)"
+   ],
+   "size": "M",
+   "risk": "critical",
+   "blocked_by": [
+    "CF-02"
+   ]
+  },
+  {
+   "id": "T-010b",
+   "layer": "app",
+   "title": "Matter core: matter, matter_member, minimal party (no conflicts UI)",
+   "depends_on": [
+    "T-006L",
+    "T-009"
+   ],
+   "files": [
+    "app/legal/matter",
+    "app/legal/party"
+   ],
+   "rule_ids": [
+    "ARC-I-041"
+   ],
+   "accept": [
+    "matter.matter, matter.matter_member and party.contact rows can be created through the module API so money tasks have FK targets; no conflict check or intake UI yet",
+    "Other modules read matters only through the matter query API or api_matter view (ARC-I-041 layering test)"
+   ],
+   "size": "M",
+   "risk": "medium",
+   "blocked_by": [
+    "CF-05"
+   ]
+  },
+  {
+   "id": "T-011",
+   "layer": "app",
+   "title": "Trust: accounts, signatories, client ledgers, receipts",
+   "depends_on": [
+    "T-007L",
+    "T-010L",
+    "T-010b"
+   ],
+   "files": [
+    "app/legal/trust"
+   ],
+   "rule_ids": [
+    "BIL-L-034",
+    "BIL-L-036",
+    "BIL-L-039",
+    "BIL-I-009",
+    "BIL-I-010",
+    "ARC-I-025",
+    "ARC-I-026",
+    "ARC-U-026",
+    "MIG-035"
+   ],
+   "accept": [
+    "Receipt of 150000 to client A ledger posts trust_transaction and ledger balance = 150000; TR-1500 = sum(TR-2500) per account (BIL-I-009)",
+    "Cash on one client file, trust receipts plus operating cash payments together: 500000 + 249999 = 749999 -> allowed; 500000 + 250000 = 750000 -> 409 cash_limit unless an exception code with evidence (G6c); warning at 600000 (BIL-L-039, $7,500 or more, verify)",
+    "NSF on a receipt already paid out: reversal plus a replenishing receipt from the general account for exactly the shortfall in one tx, ledger ends at 0, trust exception opened; if the ledger still covers it, reversal only",
+    "32 goroutines each withdraw a fixed amount from one ledger: count(committed) * amount <= starting balance, and every rejected call returns 409 insufficient_trust_funds, never 500 or a deadlock error (BIL-I-010, integration)",
+    "No trust receipt accepted on an account without an active signatory (MIG-035)"
+   ],
+   "size": "L",
+   "risk": "critical",
+   "blocked_by": [
+    "CF-02",
+    "CF-07",
+    "CF-15",
+    "V-TRUST"
+   ]
+  },
+  {
+   "id": "T-012",
+   "layer": "app",
+   "title": "Trust withdrawals, transfers, EFT authorization",
+   "depends_on": [
+    "T-011"
+   ],
+   "files": [
+    "app/legal/trust/withdraw"
+   ],
+   "rule_ids": [
+    "ARC-I-012",
+    "BIL-L-035",
+    "BIL-L-037",
+    "BIL-L-038",
+    "ARC-I-019",
+    "ARC-I-024",
+    "ARC-I-027",
+    "BIL-C-053"
+   ],
+   "accept": [
+    "Withdrawal to payee 'cash' or 'bearer' -> 422 (BIL-L-037)",
+    "Withdrawal only via gate effect: approve by signatory -> RecordExecution by different user when 2 people exist (ARC-I-027)",
+    "Effect re-checks ledger balance at execution: ledger 10000, approved withdrawal 12000 -> effect fails, no posting (ARC-I-024)",
+    "The trust transaction posts when execution is recorded (dated executed_on); bank confirmation only matches the bank line. available = cleared posted - protected - minimum - authorized-not-executed: two concurrent authorizations of 300000 on a 500000 ledger -> second 409 trust_overdraw",
+    "Withdrawal against an uncleared receipt -> 409 uncleared_funds (default hard block)",
+    "Replay the withdrawal effect 3 times concurrently -> 1 trust_transaction (trust_txn_once_per_withdrawal) and 1 gate.effect_execution row",
+    "No endpoint sets a withdrawal executed without an approved gate; POST /trust/withdrawals/{id}/execution only records bank confirmation by a user distinct from the authorizer after the withdrawal is authorized and unexpired, else 409 not_authorized (ARC-I-012, ARC-I-027): route table test"
+   ],
+   "size": "L",
+   "risk": "critical",
+   "blocked_by": [
+    "CF-11",
+    "V-TRUST"
+   ]
+  },
+  {
+   "id": "T-013",
+   "layer": "app",
+   "title": "Trust bank import and monthly three-way reconciliation",
+   "depends_on": [
+    "T-011"
+   ],
+   "files": [
+    "app/legal/trust/recon"
+   ],
+   "rule_ids": [
+    "BIL-I-009",
+    "BIL-I-025",
+    "ARC-U-014",
+    "ARC-U-032"
+   ],
+   "accept": [
+    "Bank 1000000, book 1000000, sum client ledgers 1000000 -> reconciled; one 500-cent difference -> unreconciled with reconciling item required",
+    "Signing reconciliation locks the month: later posting dated in month -> refused (BIL-I-025)",
+    "Month-end immutable export (CSV+PDF) written with sha256 manifest (ARC-U-014)"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": [
+    "V-TRUST"
+   ]
+  },
+  {
+   "id": "T-014",
+   "layer": "app",
+   "title": "Tax rates and place-of-supply engine",
+   "depends_on": [
+    "T-003",
+    "T-004"
+   ],
+   "files": [
+    "app/legal/billing/tax"
+   ],
+   "rule_ids": [
+    "BIL-T-001",
+    "BIL-T-002",
+    "BIL-T-010",
+    "BIL-T-011",
+    "BIL-T-013",
+    "BIL-T-014",
+    "BIL-T-015",
+    "BIL-T-016",
+    "BIL-T-012",
+    "BIL-T-017",
+    "BIL-T-020",
+    "BIL-T-021",
+    "BIL-T-022",
+    "BIL-T-023",
+    "BIL-T-024",
+    "BIL-T-025",
+    "BIL-T-061",
+    "BIL-C-201",
+    "BIL-C-206"
+   ],
+   "accept": [
+    "Seeded TaxRate rows match BIL-T-001 (HST ON 130000 ppm; NS 150000 before 2025-04-01, 140000 from); lookup(NS,HST,2025-03-31)=150000",
+    "decision_table rows of b2-sales-tax.json run as table test: every row's inputs give its expected tax lines",
+    "QST on 200000: GST rhu(200000*50000,1e6)=10000 and QST rhu(200000*99750,1e6)=19950, no tax on tax (BIL-T-041/BIL-C-206)",
+    "BN '123456789RT0001' with bad check digit -> approval refused (BIL-T-061, BIL-C-201)",
+    "Litigation place-of-supply (BIL-T-012) and Indian Act s.87 relief (BIL-T-017) run behind flags that are off until V-TAX is confirmed"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": [
+    "CF-01",
+    "V-TAX"
+   ]
+  },
+  {
+   "id": "T-015",
+   "layer": "app",
+   "title": "Rate resolution and time rounding",
+   "depends_on": [
+    "T-003",
+    "T-006L"
+   ],
+   "files": [
+    "app/legal/timekeeping/rates"
+   ],
+   "rule_ids": [
+    "BIL-C-003",
+    "BIL-C-004",
+    "BIL-C-005",
+    "BIL-C-010",
+    "BIL-C-011",
+    "BIL-C-012"
+   ],
+   "accept": [
+    "Resolution chain tiers 1..8 table test: first hit wins in BIL-C-003 order; manual rate without time.rates -> 403",
+    "Rate change effective 2026-10-01 re-prices unbilled entries dated >= 2026-10-01 only (BIL-C-004)",
+    "raw 7 min, increment 6, mode up -> 12; nearest -> 6; amount rhu(12*45000,60)=9000 (BIL-C-010/011)",
+    "Matter move keeps tier-1 manual rate and sets rate_recheck=true (BIL-C-005)"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-016",
+   "layer": "app",
+   "title": "Time entries, timers, suggestions, approvals",
+   "depends_on": [
+    "T-015",
+    "T-007L",
+    "T-010b"
+   ],
+   "files": [
+    "app/legal/timekeeping"
+   ],
+   "rule_ids": [
+    "BIL-C-013",
+    "BIL-C-014",
+    "BIL-I-007",
+    "BIL-L-046"
+   ],
+   "accept": [
+    "State machine TimeEntry from b3 state_machines: suggested->accepted only with G9 by entry owner; agent-suggested entry never auto-accepted",
+    "Write-down row changes bill line amount, never TimeEntry.minutes (BIL-C-013)",
+    "Entry on a non-void bill cannot be edited -> 409",
+    "Paralegal timekeeper on an activity outside the paralegal scope list -> entry flagged and blocked from billing (BIL-L-046)"
+   ],
+   "size": "M",
+   "risk": "medium",
+   "blocked_by": [
+    "CF-08"
+   ]
+  },
+  {
+   "id": "T-017",
+   "layer": "app",
+   "title": "Bill draft builder: lines, reductions, discounts",
+   "depends_on": [
+    "T-014",
+    "T-016"
+   ],
+   "files": [
+    "app/legal/billing/draft"
+   ],
+   "rule_ids": [
+    "BIL-C-020",
+    "BIL-C-021",
+    "BIL-C-022",
+    "BIL-C-023",
+    "BIL-C-030",
+    "BIL-C-031",
+    "BIL-C-040",
+    "BIL-C-041",
+    "BIL-C-043",
+    "BIL-T-030",
+    "BIL-T-031",
+    "BIL-T-032",
+    "BIL-T-033",
+    "BIL-T-042",
+    "BIL-L-002",
+    "BIL-L-028",
+    "BIL-L-048"
+   ],
+   "accept": [
+    "b3 examples[] run verbatim as golden tests (each example's inputs -> exact cents)",
+    "Bill discount 100000 ppm (10%) on fees 100000 + own-cost 20000 + agent 7000: discount 12000 spread by largest remainder on fee/own lines only; agent line untouched (BIL-C-020/022)",
+    "Discount never makes a line negative (BIL-C-021)",
+    "Markup 100000 ppm on own cost 5000 -> 500, taxable; markup on agent disbursement -> 422; agent disbursement carries no HST on rebill (BIL-C-041, BIL-T-033, BIL-L-048)",
+    "Aggregated disbursement without per-item date/description -> delivery blocked (BIL-L-002)"
+   ],
+   "size": "L",
+   "risk": "high",
+   "blocked_by": [
+    "CF-01",
+    "CF-09"
+   ]
+  },
+  {
+   "id": "T-018",
+   "layer": "app",
+   "title": "Bill tax computation and totals",
+   "depends_on": [
+    "T-017"
+   ],
+   "files": [
+    "app/legal/billing/total"
+   ],
+   "rule_ids": [
+    "BIL-C-200",
+    "BIL-T-040",
+    "BIL-T-041",
+    "BIL-T-043",
+    "BIL-T-050",
+    "BIL-I-004",
+    "ARC-I-028"
+   ],
+   "accept": [
+    "Tax once per tax line, not per line: three lines 3333+3333+3334 at 130000 ppm -> rhu(10000*130000,1e6)=1300 (not 433+433+433=1299)",
+    "Property test BIL-I-004: total = sum(line.net)+sum(tax) for random drafts",
+    "Client-sent totals ignored; server recomputes with rate_ppm/1e6 (ARC-I-028)",
+    "Tax point = earlier of paid and due; due = bill date (approval date, Toronto): bill approved 2026-10-31 in an October-filing period reports its tax in October (BIL-T-050)"
+   ],
+   "size": "M",
+   "risk": "critical",
+   "blocked_by": [
+    "CF-01"
+   ]
+  },
+  {
+   "id": "T-019",
+   "layer": "app",
+   "title": "Bill approval, numbering, immutability, signature, delivery",
+   "depends_on": [
+    "T-018",
+    "T-007L",
+    "T-010L",
+    "T-010b"
+   ],
+   "files": [
+    "app/legal/billing/bill"
+   ],
+   "rule_ids": [
+    "BIL-C-024",
+    "BIL-C-120",
+    "BIL-C-121",
+    "BIL-C-122",
+    "BIL-I-006",
+    "BIL-I-008",
+    "BIL-L-001",
+    "BIL-L-003",
+    "BIL-L-007",
+    "BIL-L-009",
+    "BIL-L-040",
+    "BIL-L-047",
+    "BIL-T-060",
+    "BIL-L-027",
+    "BIL-L-044",
+    "BIL-L-045",
+    "ARC-I-052"
+   ],
+   "accept": [
+    "No endpoint sets bill.status=approved except the G-B2 effect (route table test); approve via G-B2 effect only: number assigned in approval tx, prefix-YYYY-NNNN gapless (BIL-C-120)",
+    "UPDATE of any line/amount/tax/number on approved bill -> trigger error bill_guard (BIL-I-006); discount after approval -> 409 use_credit_note",
+    "Deliver without licensee signature or signed cover letter -> 409 SIGNATURE_REQUIRED (BIL-L-001 test)",
+    "Delivered PDF shows interest rate, GST/HST number, assessment notice (BIL-L-007, BIL-L-009, BIL-T-060)",
+    "Approval posts DR OP-1100 / CR OP-4000 + tax liability per b3 journal[]; sums match bill.total; replaying the approval effect 3 times concurrently -> 1 journal entry (journal_once_per_source)",
+    "delivered_at changes only from NULL to a value <= now(), set by the delivery effect on evidence (email accepted 2026-10-03T23:30-04:00 -> business date 2026-10-03; PATCH delivered_at -> 422 read_only_field; bounce leaves it NULL) (ARC-I-052); UPDATE 2026-10-03 -> 2026-09-01 -> bill_guard error; interest_rate_ppm, place_of_supply, due_date, approver and signature frozen after approval",
+    "Paralegal bill shows fees and disbursements separately (BIL-L-044); Solicitors Act features on paralegal bills stay behind a flag until BIL-L-045 is confirmed; every bill line maps to a disclosed fee basis, no hidden charges (BIL-L-027)"
+   ],
+   "size": "L",
+   "risk": "critical",
+   "blocked_by": [
+    "CF-09",
+    "CF-10",
+    "V-BILL"
+   ]
+  },
+  {
+   "id": "T-020",
+   "layer": "app",
+   "title": "Void and place-of-supply change",
+   "depends_on": [
+    "T-019"
+   ],
+   "files": [
+    "app/legal/billing/bill"
+   ],
+   "rule_ids": [
+    "BIL-C-084",
+    "BIL-C-123",
+    "BIL-C-207",
+    "ARC-I-050"
+   ],
+   "accept": [
+    "Void approved-not-delivered bill keeps its number, posts exact reversal, frees its time entries so they can go on a new bill (requires CF-08 fix)",
+    "Void runs only through gate billing.bill_void (G-B2) and creates no credit_note row; void of a delivered bill -> 409 bill_delivered_use_credit_note (BIL-C-084, ARC-I-050, CF-20)",
+    "Place of supply change after delivery -> full credit note + new bill; never returns to draft (BIL-C-207)"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": [
+    "CF-08",
+    "CF-14",
+    "CF-20"
+   ]
+  },
+  {
+   "id": "T-021",
+   "layer": "app",
+   "title": "Payments: capture, allocation, overpayment, refunds, reversals",
+   "depends_on": [
+    "T-019",
+    "T-008",
+    "T-008b"
+   ],
+   "files": [
+    "app/legal/billing/payment"
+   ],
+   "rule_ids": [
+    "BIL-C-060",
+    "BIL-C-061",
+    "BIL-C-062",
+    "BIL-C-063",
+    "BIL-C-064",
+    "BIL-C-065",
+    "BIL-C-066",
+    "BIL-C-202",
+    "BIL-I-005",
+    "BIL-I-012",
+    "BIL-I-017",
+    "BIL-I-020",
+    "ARC-I-029",
+    "BIL-T-082",
+    "BIL-I-016",
+    "BIL-L-042",
+    "BIL-C-067",
+    "BIL-I-026",
+    "BIL-C-068",
+    "ARC-I-048"
+   ],
+   "accept": [
+    "Payment 50000 on bill fees 80000 + tax 10400 (open 90400): tax share rhu(50000*10400,90400)=5752, pre 44248 to fee bucket (BIL-C-202/061)",
+    "Duplicate provider webhook (same provider,event_id) -> one payment (BIL-I-020)",
+    "Overpayment -> unapplied allocation, then client credit OP-2200 on G-B3; credit is short-lived: untouched 6 business days (default N=5) -> exception task 'client money in operating'; resolved by applying to a delivered bill, refund (G-B6) or payment into trust (G6); never to another client (BIL-C-063)",
+    "Payment allocation to a bill is capped at balance minus reserved trust fee transfers; excess goes to unapplied (RV1-002)",
+    "Retainer money received into operating -> refused; general receipts journal records each payment against the bill it pays (BIL-I-016, BIL-L-042)",
+    "NSF reversal restores each allocation's bucket split exactly (BIL-C-065)",
+    "Refund, dispute and chargeback events apply by state precedence: dispute before capture -> payment created then reversed once, capture replayed after refund -> no change (ARC-I-048, BIL-C-068)",
+    "Property: sum(allocations)+refunds+reversals = amount for every payment (BIL-I-012)"
+   ],
+   "size": "L",
+   "risk": "critical",
+   "blocked_by": [
+    "CF-03",
+    "CF-13"
+   ]
+  },
+  {
+   "id": "T-022",
+   "layer": "app",
+   "title": "Trust applied to fees",
+   "depends_on": [
+    "T-012",
+    "T-021"
+   ],
+   "files": [
+    "app/legal/billing/trustapply",
+    "app/legal/trust"
+   ],
+   "rule_ids": [
+    "BIL-C-050",
+    "BIL-C-051",
+    "BIL-C-052",
+    "BIL-C-042",
+    "BIL-C-054",
+    "BIL-C-055",
+    "BIL-I-011",
+    "BIL-L-035",
+    "BIL-T-051"
+   ],
+   "accept": [
+    "Apply trust to undelivered bill -> 409 not_delivered (BIL-L-035)",
+    "Amount > min(bill balance - reserved transfers, available cleared unprotected ledger balance) -> 409",
+    "Disbursement paid from trust needs the trust withdrawal gate G11 and a client-direction record (BIL-C-042)",
+    "auto_apply_trust_on_approval creates proposed transfer only; still needs G-B4/G11 (BIL-C-052)",
+    "Retainer receipt in trust posts no tax; tax arises on application to bill (BIL-T-051)"
+   ],
+   "size": "M",
+   "risk": "critical",
+   "blocked_by": [
+    "CF-11",
+    "V-TRUST"
+   ]
+  },
+  {
+   "id": "T-023",
+   "layer": "app",
+   "title": "Credit notes and write-offs",
+   "depends_on": [
+    "T-021"
+   ],
+   "files": [
+    "app/legal/billing/credit"
+   ],
+   "rule_ids": [
+    "BIL-C-080",
+    "BIL-C-081",
+    "BIL-C-082",
+    "BIL-C-085",
+    "BIL-C-203",
+    "BIL-C-205",
+    "BIL-C-086",
+    "BIL-I-014",
+    "BIL-T-070",
+    "BIL-T-071",
+    "BIL-T-080",
+    "BIL-T-081"
+   ],
+   "accept": [
+    "Credit 20000 pre-tax on bill with tax 13000 on base 100000: tax rhu(20000*13000,100000)=2600 using source bill rate even after rate change (BIL-C-203/BIL-T-070)",
+    "Credit beyond remaining pre-tax per bucket -> 422 (BIL-C-082/BIL-I-014)",
+    "Write-off via G-B5 by lawyer not requester; open tax posts bad-debt adjustment (BIL-C-205)"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-024",
+   "layer": "app",
+   "title": "Interest on overdue accounts",
+   "depends_on": [
+    "T-021"
+   ],
+   "files": [
+    "app/legal/billing/interest"
+   ],
+   "rule_ids": [
+    "BIL-C-070",
+    "BIL-C-071",
+    "BIL-C-072",
+    "BIL-C-073",
+    "BIL-C-204",
+    "BIL-I-023",
+    "BIL-L-008",
+    "BIL-L-009",
+    "BIL-L-010",
+    "BIL-L-012",
+    "BIL-L-049"
+   ],
+   "accept": [
+    "Delivered 2026-01-15: interest 0 for every day through 2026-02-15; accrues from 2026-02-16 (BIL-I-023, BIL-L-008) (verify one-month computation)",
+    "Simple actual/365: principal 100000, rate snapshot 120000 ppm, 31 days -> rhu(100000*120000*31, 1e6*365)=1019",
+    "months_after(local_date,1): 2026-01-31 -> 2026-02-28; 2026-03-31 -> 2026-04-30; 2028-01-30 -> 2028-02-29; delivered 2026-11-01T03:30Z -> local 2026-10-31 -> 2026-11-30 (Toronto date, never UTC)",
+    "Bill without agreed rate -> no interest ever (BIL-L-010)",
+    "Interest line carries no HST (BIL-C-204, BIL-L-049)"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": [
+    "CF-01",
+    "CF-10",
+    "V-BILL"
+   ]
+  },
+  {
+   "id": "T-024b",
+   "layer": "app",
+   "title": "Assessment, collection holds and fee repayment",
+   "depends_on": [
+    "T-023",
+    "T-024"
+   ],
+   "files": [
+    "app/legal/billing/assessment"
+   ],
+   "rule_ids": [
+    "BIL-L-004",
+    "BIL-L-005",
+    "BIL-L-006",
+    "BIL-L-011",
+    "BIL-L-033"
+   ],
+   "accept": [
+    "Collection action (suit referral) disabled until the day after months_after(delivery_local_date,1): delivered 2026-01-28 -> blocked on 2026-02-28, allowed 2026-03-01 (BIL-L-004, verify)",
+    "Assessment requisition recorded within one month of delivery stops reminders and interest posting on that bill; after one month the screen requires the special-circumstances note (BIL-L-005); payment does not close the assessment option (BIL-L-006)",
+    "Assessment result reducing fees -> credit note and refund of overpayment within the firm's repayment window, with interest per the officer's order (BIL-L-011, BIL-L-033)"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": [
+    "V-BILL"
+   ]
+  },
+  {
+   "id": "T-025",
+   "layer": "app",
+   "title": "Split bills, batch billing, combined client bills",
+   "depends_on": [
+    "T-019"
+   ],
+   "files": [
+    "app/legal/billing/split",
+    "app/legal/billing/batch"
+   ],
+   "rule_ids": [
+    "BIL-C-090",
+    "BIL-C-091",
+    "BIL-C-092",
+    "BIL-C-110",
+    "BIL-C-111",
+    "BIL-I-018",
+    "BIL-L-029",
+    "BIL-T-052"
+   ],
+   "accept": [
+    "Line 10001 split 333300/333300/333400 ppm: others floor -> 3333,3333; first payer 3335 (BIL-C-091)",
+    "Batch rerun with same (batch_run_id, matter, period_to) creates no duplicate draft (BIL-C-110)",
+    "WIP report flags approved time unbilled past the matter's billing cycle + 30 days so tax is not deferred by holding bills (BIL-T-052)"
+   ],
+   "size": "M",
+   "risk": "medium",
+   "blocked_by": [
+    "CF-01"
+   ]
+  },
+  {
+   "id": "T-026",
+   "layer": "app",
+   "title": "Card surcharges",
+   "depends_on": [
+    "T-021"
+   ],
+   "files": [
+    "app/legal/billing/surcharge"
+   ],
+   "rule_ids": [
+    "BIL-C-100",
+    "BIL-C-101",
+    "BIL-C-102",
+    "BIL-C-208",
+    "BIL-I-022",
+    "BIL-I-015",
+    "BIL-T-044"
+   ],
+   "accept": [
+    "Debit card or Quebec client -> surcharge 0 (verify)",
+    "BIL-T-044 golden: surcharge_ppm capped at min(24000, cost_ppm); surcharge never posts to trust (BIL-I-015)",
+    "Surcharge 2712 on an HST bill carries HST 353 (taxable, verify); refund of a surcharged payment refunds surcharge and its tax pro rata (CF-18)"
+   ],
+   "size": "S",
+   "risk": "high",
+   "blocked_by": [
+    "V-SURCHARGE"
+   ]
+  },
+  {
+   "id": "T-027",
+   "layer": "app",
+   "title": "Fee agreements: contingency, fee splitting, referral fees",
+   "depends_on": [
+    "T-017"
+   ],
+   "files": [
+    "app/legal/billing/contingency",
+    "app/legal/billing/feeshare"
+   ],
+   "rule_ids": [
+    "BIL-C-032",
+    "BIL-C-033",
+    "BIL-L-013",
+    "BIL-L-014",
+    "BIL-L-015",
+    "BIL-L-016",
+    "BIL-L-017",
+    "BIL-L-018",
+    "BIL-L-019",
+    "BIL-L-020",
+    "BIL-L-021",
+    "BIL-L-022",
+    "BIL-L-023",
+    "BIL-L-024",
+    "BIL-L-025",
+    "BIL-L-026",
+    "BIL-L-030",
+    "BIL-L-031",
+    "BIL-L-032"
+   ],
+   "accept": [
+    "Contingency arrangement on family-law matter -> 422 (BIL-L-016)",
+    "Recovery 1000000, pct 300000 ppm -> fee 300000; fee > recovery base -> approval refused (BIL-C-033)",
+    "Settlement statement: disbursements and taxes reimbursed first, client direction recorded before any payment from the recovery (BIL-L-022, BIL-L-023)",
+    "Fee agreement template with a negligence-release clause -> publish refused (BIL-L-014); court-matter agreement flagged for court approval (BIL-L-013)",
+    "Fee split to an outside licensee needs client consent record; any referral or split payee who is not a licensee -> 422 (BIL-L-030, BIL-L-031, BIL-L-032)"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": [
+    "V-CFA"
+   ]
+  },
+  {
+   "id": "T-028",
+   "layer": "app",
+   "title": "Parties, contacts, relationships (merged entity)",
+   "depends_on": [
+    "T-009"
+   ],
+   "files": [
+    "app/legal/party"
+   ],
+   "rule_ids": [
+    "ARC-I-040"
+   ],
+   "accept": [
+    "intake.Contact and matters.Contact both map to party.contact (a4 merges[]); lead->matter conversion keeps contact id",
+    "Field list = a4 party.contact columns only; no invented columns for o2 entity stubs"
+   ],
+   "size": "M",
+   "risk": "medium",
+   "blocked_by": [
+    "CF-12"
+   ]
+  },
+  {
+   "id": "T-029",
+   "layer": "app",
+   "title": "Conflicts: checks, hits, clearance, walls, ID records",
+   "depends_on": [
+    "T-028",
+    "T-007L",
+    "T-010b"
+   ],
+   "files": [
+    "app/legal/conflict"
+   ],
+   "rule_ids": [
+    "BIL-L-043"
+   ],
+   "accept": [
+    "Check run is append-only; G2 clearance by lawyer other than preparer",
+    "Ethical wall rows feed the T-006L walls resolver: walled user gets 404 on matter and agent search_matters omits it",
+    "ID verification required before trust receipt for the client (BIL-L-043) (verify By-Law 7.1 exemptions)"
+   ],
+   "size": "L",
+   "risk": "high",
+   "blocked_by": [
+    "CF-12",
+    "V-ID"
+   ]
+  },
+  {
+   "id": "T-030",
+   "layer": "app",
+   "title": "Matters: lifecycle, team, stages, notes, RLS",
+   "depends_on": [
+    "T-010b",
+    "T-028",
+    "T-029"
+   ],
+   "files": [
+    "app/legal/matter"
+   ],
+   "rule_ids": [
+    "ARC-I-041",
+    "ARC-I-042"
+   ],
+   "accept": [
+    "RLS policy on matter.matter, matter.note, matter.fact: session var app.user_id walled -> 0 rows (integration)",
+    "Matter cannot open before G2 clearance"
+   ],
+   "size": "L",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-031L",
+   "layer": "app",
+   "title": "Ontario court rule pack and limitation assessment",
+   "depends_on": [
+    "T-031",
+    "T-030"
+   ],
+   "files": [
+    "app/legal/rulepacks/ontario/*.yaml",
+    "app/legal/limitation"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "Holiday calendar Ontario 2026 + Rules of Civil Procedure day counting as rule-pack data; golden dates for every pack entry",
+    "Limitation assessment rows link a matter to its computed limitation deadline; still needs human confirmation"
+   ],
+   "size": "L",
+   "risk": "critical",
+   "blocked_by": [
+    "V-DEADLINES"
+   ]
+  },
+  {
+   "id": "T-032L",
+   "layer": "app",
+   "title": "Legal document kinds, matter folders, retention classes",
+   "depends_on": [
+    "T-032",
+    "T-030",
+    "T-007L"
+   ],
+   "files": [
+    "app/legal/docs"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "Registers court_form, engagement_letter, precedent, research_memo, bundle, analysis_table kinds and RC-* retention classes (RC-FIN, RC-AUDIT never_purge in v1, CF-15)",
+    "Auto-purge proposal for a closed matter needs gate platform.file_destruction (G14) approved by a lawyer (CF-16)"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": [
+    "CF-15",
+    "CF-16"
+   ]
+  },
+  {
+   "id": "T-033",
+   "layer": "app",
+   "title": "Intake: leads, forms, consultations, conversion",
+   "depends_on": [
+    "T-029"
+   ],
+   "files": [
+    "app/legal/intake"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "Convert lead -> matter only after G2; declined lead reduced to sealed_prospect per RC-LEAD (verify)"
+   ],
+   "size": "M",
+   "risk": "medium",
+   "blocked_by": []
+  },
+  {
+   "id": "T-035L",
+   "layer": "app",
+   "title": "Client portal pages and comms",
+   "depends_on": [
+    "T-035",
+    "T-021",
+    "T-030"
+   ],
+   "files": [
+    "app/legal/comms",
+    "web/src/features/portal"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "Portal guest sees only shared documents/bills of own matters (registered PortalPage loaders)",
+    "Court filings (comms.comm_filing) and message templates for legal notices registered by the app"
+   ],
+   "size": "L",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-037L",
+   "layer": "app",
+   "title": "Counsel agent tools on Paploo runtime",
+   "depends_on": [
+    "T-037",
+    "T-030",
+    "T-007L"
+   ],
+   "files": [
+    "app/legal/agent",
+    "paploo/counsel-plugin/"
+   ],
+   "rule_ids": [
+    "ARC-I-045",
+    "ARC-I-046",
+    "ARC-U-027"
+   ],
+   "accept": [
+    "Each of the 25 a2 tools is registered through kernel/agenttools and validates input against its JSON Schema",
+    "Paploo manifest grants no outbound send connector (ARC-I-046)",
+    "Counsel's gate engine is the only authority for Counsel effects: agent proposes a withdrawal -> a Counsel gate.approval_request row exists, Paploo has no gate row, and the run resumes only on Counsel's gate.decided event; no sole-practitioner self-approval on any Paploo path (ARC-I-045, RV2-015)",
+    "Agent run can create withdrawal_request in proposed only; never executed (ARC-U-027)"
+   ],
+   "size": "L",
+   "risk": "critical",
+   "blocked_by": []
+  },
+  {
+   "id": "T-038L",
+   "layer": "app",
+   "title": "Legal reports: AR aging, WIP, trust listing, HST report",
+   "depends_on": [
+    "T-038",
+    "T-023",
+    "T-013"
+   ],
+   "files": [
+    "app/legal/reports"
+   ],
+   "rule_ids": [
+    "BIL-T-090",
+    "BIL-L-040",
+    "BIL-L-041"
+   ],
+   "accept": [
+    "HST report per period equals sum of bill tax lines minus credit note tax lines in that period (BIL-T-090)",
+    "Monthly client trust listing totals equal TR-2500 per account"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": [
+    "V-TRUST"
+   ]
+  },
+  {
+   "id": "T-039L",
+   "layer": "app",
+   "title": "Trust signatory change gate",
+   "depends_on": [
+    "T-039",
+    "T-011"
+   ],
+   "files": [
+    "app/legal/trust/signatory"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "Trust signatory change only via kind core.trust_signatory (GA6, allowlisted kernel prefix, Q-K1); trust.signing_authority routes to it (CF-07)"
+   ],
+   "size": "S",
+   "risk": "high",
+   "blocked_by": [
+    "CF-07"
+   ]
+  },
+  {
+   "id": "T-040L",
+   "layer": "app",
+   "title": "Clio import source",
+   "depends_on": [
+    "T-040",
+    "T-021",
+    "T-012",
+    "T-030",
+    "T-032L"
+   ],
+   "files": [
+    "app/legal/clio"
+   ],
+   "rule_ids": [
+    "MIG-001",
+    "MIG-002",
+    "MIG-003",
+    "MIG-005",
+    "MIG-009",
+    "MIG-010",
+    "MIG-011"
+   ],
+   "accept": [
+    "region=ca -> all requests to https://ca.app.clio.com/api/v4/; staging bucket ca-central (MIG-001); token with any write scope rejected (MIG-002)",
+    "Token bucket 45 req/min at Clio peak (MIG-003); money JSON decoded as decimal strings (MIG-005)",
+    "Document versions import with original numbers; large documents in background (MIG-009, MIG-010, MIG-011)",
+    "Dry run report matches dry_run_report_shape in a3"
+   ],
+   "size": "L",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-040b",
+   "layer": "app",
+   "title": "Clio alongside sync",
+   "depends_on": [
+    "T-040L",
+    "T-008",
+    "T-036"
+   ],
+   "files": [
+    "app/legal/clio/sync"
+   ],
+   "rule_ids": [
+    "MIG-040",
+    "MIG-041",
+    "MIG-042",
+    "MIG-043",
+    "MIG-044",
+    "ARC-I-049"
+   ],
+   "accept": [
+    "Alongside mode never writes to Clio (MIG-040): fake Clio server records zero non-GET calls",
+    "platform.source_subscription rows renewed by the hourly River job subscription.renew when expires_at <= now()+7 days; failure sets last_error and emits source_subscription.renewal_failed; alert when expires_at < now()+72 h (MIG-041, MIG-042, ARC-I-049); fake clock test",
+    "Outbound endpoint with expires_at in 14 days -> one webhook_endpoint.expiring event; PATCH /webhook-endpoints/{id} renews; firm-owned endpoints have expires_at NULL (ARC-I-049)",
+    "Missed webhook window -> polling fallback fills the gap with no duplicate rows (MIG-043, MIG-044)"
+   ],
+   "size": "M",
+   "risk": "medium",
+   "blocked_by": [
+    "CF-03"
+   ]
+  },
+  {
+   "id": "T-041",
+   "layer": "app",
+   "title": "Clio importer: financial cut-over and validation",
+   "depends_on": [
+    "T-040L",
+    "T-013"
+   ],
+   "files": [
+    "app/legal/clio"
+   ],
+   "rule_ids": [
+    "MIG-020",
+    "MIG-021",
+    "MIG-022",
+    "MIG-023",
+    "MIG-030",
+    "MIG-031",
+    "MIG-032",
+    "MIG-033",
+    "MIG-034",
+    "MIG-035",
+    "MIG-036",
+    "MIG-050",
+    "MIG-051",
+    "MIG-052",
+    "MIG-063",
+    "MIG-037",
+    "MIG-038"
+   ],
+   "accept": [
+    "All 18 a3 validation_checks pass on the fixture firm; trust three-way match at cut-over (MIG-030)",
+    "Imported bills keep Clio tax amounts, never recomputed (MIG-023); history read-only (MIG-034)",
+    "Opening balances posted only after G-IMP sign-off (MIG-033)",
+    "Live balances read only trust.trust_transaction; imported historical lines never change a ledger balance (MIG-037)",
+    "Imported Clio reconciliations have status imported; the first Counsel month (live_from) can be signed without them (MIG-038)"
+   ],
+   "size": "L",
+   "risk": "critical",
+   "blocked_by": [
+    "V-TRUST"
+   ]
+  },
+  {
+   "id": "T-042",
+   "layer": "app",
+   "title": "Full firm export",
+   "depends_on": [
+    "T-038L",
+    "T-032L",
+    "T-035L",
+    "T-039L",
+    "T-037L",
+    "T-040L"
+   ],
+   "files": [
+    "app/legal/export"
+   ],
+   "rule_ids": [
+    "MIG-070",
+    "MIG-071",
+    "MIG-072",
+    "MIG-073"
+   ],
+   "accept": [
+    "Export matches a3 export_layout and export_manifest_schema; sha256 per file verifies",
+    "Exported trust balances reconcile to the last signed reconciliation (MIG-073)"
+   ],
+   "size": "M",
+   "risk": "high",
+   "blocked_by": []
+  },
+  {
+   "id": "T-045L",
+   "layer": "app",
+   "title": "Legal feature screens",
+   "depends_on": [
+    "T-045",
+    "T-030"
+   ],
+   "files": [
+    "web/src/features/<area>"
+   ],
+   "rule_ids": [],
+   "accept": [
+    "Every screen in legal-spec has a route guarded by access-map capability",
+    "Screens register through the shell's feature list; none imports another feature folder"
+   ],
+   "size": "L",
+   "risk": "medium",
+   "blocked_by": []
+  }
+ ],
+ "conflicts": [
+  {
+   "id": "CF-01",
+   "severity": "critical",
+   "between": "b3 vs a4 vs a2",
+   "issue": "Percent unit. b3 stores discounts, markup, splits, interest, contingency in basis points (/10000; BIL-C-021, BIL-C-041, BIL-C-091, BIL-C-071 bill.interest_rate_bp). a4 stores them as ppm (bill_split.share_ppm, expense.markup_ppm, payment_profile.interest_ppm, fee_arrangement.contingency_ppm). a2 ARC-I-028 computes HST as rate_bp/10000, which cannot hold QST 9.975% (99750 ppm).",
+   "resolution": "One unit everywhere: every rate and percentage is integer parts per million (/1e6), money is integer cents. b3 restates discounts, markup, splits, interest and contingency in ppm (e.g. bill.interest_rate_ppm); a4 keeps its *_ppm columns; a2 ARC-I-028 uses rate_ppm/1e6. No bp type exists in code.",
+   "status": "resolved",
+   "status_note": "ppm everywhere: b3 converts bp to ppm, a2 ARC-I-028 uses rate_ppm, a4 keeps *_ppm (b3, a2 owners); o1 tasks restated in ppm"
+  },
+  {
+   "id": "CF-02",
+   "severity": "critical",
+   "between": "b3 vs a4",
+   "issue": "Ledger shape. b3 models trust as double-entry TR-1500/TR-2500 lines in one journal with a book per entry (BIL-I-001, BIL-I-002, BIL-I-009). a4 gl.journal_entry has no book column, and trust is a separate single-entry trust.trust_transaction table.",
+   "resolution": "Keep a4 trust.trust_transaction as the By-Law 9 book of record (one row per client-ledger movement); derive TR-1500/TR-2500 balances from it; gl holds operating only. Restate BIL-I-001/002/009 against that shape (I-009: per account, bank control = sum(client ledgers)). Owner to confirm.",
+   "status": "open",
+   "status_note": "owner confirmation; a4 trust.trust_transaction stays the book of record, b3 restates BIL-I-001/002/009 against it"
+  },
+  {
+   "id": "CF-03",
+   "severity": "critical",
+   "between": "a2/a1/b3 vs a4",
+   "issue": "Missing tables. a4 DDL has no outbox, inbox/processed messages, idempotency_keys, effect_executions, gate_versions (ARC-I-008/015/023/030, ARC-U-022), no payment_event (BIL-I-020), interest_charge (BIL-C-072), client_credit (BIL-C-063), trust fee transfer (BIL-C-052), write_off (BIL-C-085), feature flags (ARC-U-019).",
+   "resolution": "a4 adds them in 0001 (still pre-release, so not an expand-contract issue) using the column lists a2/b3 imply. Coders must not invent them: T-007, T-008, T-021 stop until the DDL addendum lands.",
+   "status": "resolving",
+   "status_note": "a4 owns DDL fixes: outbox, inbox, idempotency_key, gate.effect_execution, gate versions, platform.inbound_event, platform.source_subscription, interest_charge, client_credit, fee transfer, write_off, feature_flag added to 0001"
+  },
+  {
+   "id": "CF-04",
+   "severity": "high",
+   "between": "a2 vs a4",
+   "issue": "Gate naming. a2 tables gates/gate_versions/gate_decisions/effect_executions keyed by gate kind <module>.<slug> (ARC-I-013); a4 has gate.approval_request.gate_code + gate.gate_decision. a2 gate_kinds still list 'GA1 (trust)', 'GA2 (trust)' that o2 renamed to G-TSIG/G-TREL.",
+   "resolution": "Use a4 table names. gate.approval_request.gate_code holds the kind slug (CHECK ^[a-z]+\\.[a-z_]+$, e.g. billing.bill_approval) and a new column spec_gate holds the spec id (G-B2, G-TREL); the 24 h cooling-off trigger matches kind slugs (trust.withdrawal, trust.transfer, trust.reconciliation_signoff, trust.regulatory_release). a2 gate_kinds regenerated with the o2 renames (RV2-001).",
+   "status": "resolved",
+   "status_note": "closed with RV2-001: gate_code = kind slug, spec_gate column (a4, a2 owners)"
+  },
+  {
+   "id": "CF-05",
+   "severity": "high",
+   "between": "a2 vs a4",
+   "issue": "Module and table names disagree for 17 of 18 a2 modules: identity vs core, books vs gl, gates vs gate, events/firm vs platform, deadlines vs cal, documents vs docs, conflicts vs conflict, matters vs matter+party, time vs timekeeping, portal vs comms. a2 table names are plural (bills), a4 singular (billing.bill). Ownership differs for break_glass (identity vs audit), availability (work vs core), portal_access (portal vs comms).",
+   "resolution": "DDL schema = Go package = owning module (source order: DDL > screens; a2 module list is not a contract). a2 now uses the a4 names; its module_rename and renamed_gate_kinds keys become docs/MODULES.md; ARC-I-040/041 apply to a4 schemas. Capability ids (documents.release, time.rates) keep their names.",
+   "status": "resolved",
+   "status_note": "a2 applied (f4): 17 modules = a4 schemas, 58 gate kinds renamed (documents.* -> docs.*, deadlines.* -> cal.*, matters.* -> matter.*, conflicts.* -> conflict.*, time.* -> timekeeping.*, access.* -> core.*, readiness.* -> platform.*, books.* -> gl.*); map in a2 module_rename / renamed_gate_kinds, copied to docs/MODULES.md; capability names unchanged"
+  },
+  {
+   "id": "CF-06",
+   "severity": "high",
+   "between": "a2 vs a4",
+   "issue": "Tenancy. a4: database per cell, no firm_id. a2 event envelope has firm_id (ARC-I-031) and idempotency is keyed (firm, principal, key) (ARC-I-008).",
+   "resolution": "firm_id in envelopes and idempotency is the constant cell firm id from core.firm; no firm_id column on domain tables.",
+   "status": "resolved",
+   "status_note": "accepted as written; no firm_id on domain tables"
+  },
+  {
+   "id": "CF-07",
+   "severity": "high",
+   "between": "legal-spec trust vs access",
+   "issue": "Two gates for trust signatory change: trust G-TSIG (approver responsible lawyer) and access GA6 (owner with signing authority + second signatory). o2 open item.",
+   "resolution": "Use GA6 (stricter, two-person). Drop G-TSIG or alias it to GA6. Owner decision; T-039L, T-011 signatory flows wait.",
+   "status": "resolved",
+   "status_note": "GA6 (kind core.trust_signatory) is canonical; trust.signing_authority (G-TSIG) and legal-spec trust.json G-TSIG are aliases that route to it"
+  },
+  {
+   "id": "CF-08",
+   "severity": "critical",
+   "between": "b3 vs a4",
+   "issue": "bill_line has unconditional UNIQUE(time_entry_id) and UNIQUE(expense_id). BIL-I-007 requires uniqueness only among non-void bills, and BIL-C-084 says void unlocks entries for a new bill. With a4 as written, void-and-rebill is impossible.",
+   "resolution": "Replace with a partial unique index on a denormalised bill_line.bill_status <> 'void', or move the lock to time_entry.billed_bill_id. a4 to amend.",
+   "status": "resolving",
+   "status_note": "a4 replaces unconditional UNIQUE with a partial unique index excluding void bills"
+  },
+  {
+   "id": "CF-09",
+   "severity": "high",
+   "between": "b3 vs a4",
+   "issue": "Bill columns. b3 needs bill.interest_rate_bp snapshot (BIL-C-071), confirmed place_of_supply (BIL-C-201/207), signer user id + signature hash (BIL-L-001); a4 billing.bill has only signature_ref and no rate or place-of-supply column. b3 'bill date = approval date' (BIL-C-121) vs a4 issue_date (unspecified).",
+   "resolution": "Add to billing.bill: interest_rate_ppm (NULL = no interest), interest_terms_doc_id, place_of_supply jsonb {jurisdiction, rule_applied, confirmed_by, confirmed_at}, signed_by, signed_at, signature_hash; add billing.interest_charge. bill_guard freezes them plus due_date, approved_by/at, and delivered_at (NULL to a value <= now() only); void requires delivered_at IS NULL (RV1-008, RV1-013). issue_date := approval date (Toronto).",
+   "status": "resolving",
+   "status_note": "a4 adds the bill columns and bill_guard freeze (RV1-008, RV1-013), in ppm"
+  },
+  {
+   "id": "CF-10",
+   "severity": "medium",
+   "between": "b2 internal",
+   "issue": "BIL-T-002 says the tax point is in 'BIL-T-030', which is the disbursement rule; tax point is BIL-T-050. BIL-T-002 also says 'payment applied and bill issue date' while BIL-T-050 says 'paid and due'.",
+   "resolution": "Fix reference to BIL-T-050. Treat 'due' = bill date (approval date, BIL-C-121); a trust retainer is not payment until applied (BIL-T-051).",
+   "status": "resolving",
+   "status_note": "b2 corrects the BIL-T-002 reference to BIL-T-050"
+  },
+  {
+   "id": "CF-11",
+   "severity": "high",
+   "between": "b3/a2 vs legal-spec",
+   "issue": "Trust-to-fees approval: b3 cites both G-B4 and G11 (BIL-C-052) and G11 for disbursements from trust (BIL-C-042); legal-spec trust renamed gates (G-TREL). Which single gate kind authorizes a fee transfer is unclear.",
+   "resolution": "One gate kind billing.trust_fee_withdrawal (spec id G-B4) with min_approvers 1 signatory; trust.withdrawal (G11) stays the generic trust withdrawal.",
+   "status": "resolved",
+   "status_note": "one gate kind billing.trust_fee_withdrawal (spec G-B4), only after delivery, up to min(bill balance less reserved, available trust); legal-spec billing.json aligned"
+  },
+  {
+   "id": "CF-12",
+   "severity": "medium",
+   "between": "legal-spec (o2)",
+   "issue": "12 entity field-list conflicts (Contact, EthicalWall, User, Role, ...) and 29 stub entities with only ['id'].",
+   "resolution": "a4 merges[] is the resolution for its tables; stubs: coders must not invent columns, file a question.",
+   "status": "open",
+   "status_note": "coders file a question for stub entities; o2 lint baseline tracks 12 entity conflicts"
+  },
+  {
+   "id": "CF-13",
+   "severity": "medium",
+   "between": "b3 vs a2",
+   "issue": "ARC-I-029 requires leftover payment to be an explicit 'unapplied' allocation; b3 BIL-C-063 sends excess to ClientCredit (OP-2200) behind G-B3.",
+   "resolution": "Unapplied allocation exists only while G-B3 is pending; on approval it becomes client credit. Both rules hold.",
+   "status": "resolved",
+   "status_note": "unapplied allocation while G-B3 is pending, then client credit; credit is short-lived (5 business days default, verify) per RV1-006; billing.json aligned"
+  },
+  {
+   "id": "CF-14",
+   "severity": "medium",
+   "between": "b3 vs legal-spec billing",
+   "issue": "BIL-C-207 explicitly replaces the spec's 'returns to draft' on place-of-supply change.",
+   "resolution": "b3 wins (rule > screen); update billing.json screen text.",
+   "status": "resolved",
+   "status_note": "billing.json now says approved bills never return to draft: void before delivery, credit note after"
+  },
+  {
+   "id": "CF-15",
+   "severity": "medium",
+   "between": "b1 vs a4",
+   "issue": "Retention: a4 RC-FIN 'min 10 years (By-Law 9, verify)'; b1 BIL-L-041 cites By-Law 9 ss.21-23 with periods unverified. RC-ID uses By-Law 7.1 6 years (verify).",
+   "resolution": "Never delete RC-FIN/RC-AUDIT rows in v1 (no purge job); confirm periods before any purge feature.",
+   "status": "open",
+   "status_note": "no purge of RC-FIN/RC-AUDIT in v1; periods still (verify)"
+  },
+  {
+   "id": "CF-16",
+   "severity": "high",
+   "between": "legal-spec (o2)",
+   "issue": "Agent actions with external effect and gate=none: documents Auto-purge, esign Send reminders, receptionist Warm transfer.",
+   "resolution": "Auto-purge behind G14 (deletion). Reminders and warm transfer allowed only from templates approved earlier; otherwise gate. Owner decision.",
+   "status": "resolved",
+   "status_note": "auto-purge behind G14 (documents.json); e-sign and intake reminders and warm transfer behind G-SK approved templates and lists (platform.json, intake.json); o2 agent-ungated-external = 0"
+  },
+  {
+   "id": "CF-17",
+   "severity": "medium",
+   "between": "a4 vs brief",
+   "issue": "RLS on 10 of 180 tables (matter, note, fact, deadline, document, draft, research_memo, comm_filing, time_entry, work_item); a2 ARC-I-042 relies on app-level Can().",
+   "resolution": "Both layers: Can() is the authority; RLS is defence in depth on walled content. Add RLS to billing.bill, trust.client_ledger, party.contact (wall-relevant) in a4.",
+   "status": "resolving",
+   "status_note": "a4 extends RLS to walled tables (RV2-014)"
+  },
+  {
+   "id": "CF-18",
+   "severity": "high",
+   "between": "b3 vs b2",
+   "issue": "Surcharge cap 2.4% (24000 ppm) and conditions (BIL-C-100/101) are card-network rules, not law cited; Quebec prohibition not stated.",
+   "resolution": "Surcharge is taxable at the paid bill's tax codes, pro rata, and refunds include the surcharge and its tax pro rata (b2 BIL-T-044, verify; b3 BIL-C-204/BIL-J-013/BIL-X-013: 2712 -> HST 353, charged 116065). Ship T-026 behind a flag off by default until CRA guidance and card-network rules are verified (RV1-007).",
+   "status": "resolving",
+   "status_note": "b2 BIL-T-044 added (taxable, verify); b3 updates BIL-C-204/BIL-J-013/BIL-X-013; flag stays off"
+  },
+  {
+   "id": "CF-19",
+   "severity": "high",
+   "between": "a4 vs b3",
+   "issue": "Enums and states disagree: bill status (a4 in_review/issued vs b3 pending_approval/preflight_failed/delivered/credited), time_entry status (a4 lacks suggested/accepted/on_draft_bill/rejected), time_entry.rate_source (a4 4 values vs b3 8 tiers), payment status, credit_note.kind (a4 tax_correction/void/write_off vs b3 billing_error/bad_debt_write_off/refund) and credit_note status 'void', withdrawal_request vs TrustFeeTransfer states (RV1-019).",
+   "resolution": "b3 state_machines are the source. a4 CHECK lists are copied verbatim from b3; credit_note status 'void' is dropped and issued credit notes get an immutability trigger; rate_source = manual, flat_activity, matter_user, matter_role, client_user, client_role, activity, user_default. Withdrawal states: proposed, pending_authorization, authorized, executed (posted), confirmed (RV1-002).",
+   "status": "resolving",
+   "status_note": "a4 copies b3 state lists into CHECKs; b3 renames withdrawal states (RV1-002)"
+  },
+  {
+   "id": "CF-20",
+   "severity": "high",
+   "between": "a2 vs b3",
+   "issue": "a2 voidBill opens a full credit-note gate for any approved bill; b3 BIL-C-084 allows void only before delivery, with an exact reversal and no credit note (RV1-009).",
+   "resolution": "voidBill allowed only when status=approved and delivered_at IS NULL, behind gate kind billing.bill_void (spec G-B2) decided by someone other than the preparer; the effect posts the BIL-J-012 reversal and frees entries. Delivered bill -> 409 bill_delivered_use_credit_note; corrections go through /credit-notes.",
+   "status": "resolving",
+   "status_note": "a2 applied: voidBill, gate billing.bill_void, ARC-I-050 (f4); a4 removes credit_note kind void"
+  }
+ ],
+ "findings_note": "RV1-001 rejected by the b2 owner after reading ETA Sch. VI Part V s.7 and s.23: the litigation exclusion in s.23(a) is individuals-only, so a non-resident corporation in an Ontario action stays zero-rated; no task change.",
+ "verify_blockers": [
+  {
+   "id": "V-TRUST",
+   "confirm": "LSO By-Law 9 text (lso.ca returned 403 to b1): ss.4-6 cash limit and exceptions, s.9 withdrawals, s.10 methods, s.12 EFT authorization and Form 9A, s.18 records, ss.21-23 retention, monthly reconciliation timing.",
+   "blocks": "T-011, T-012, T-013, T-022, T-038L, T-041"
+  },
+  {
+   "id": "V-BILL",
+   "confirm": "Solicitors Act one-month counts (s.2, s.33) as computed calendar months; RPC r.3.6 numbering; assessment notice wording.",
+   "blocks": "T-019, T-024"
+  },
+  {
+   "id": "V-TAX",
+   "confirm": "b2 '(verify)' rules: BIL-T-012 litigation place of supply, BIL-T-017 Indian Act s.87 relief.",
+   "blocks": "T-014"
+  },
+  {
+   "id": "V-CFA",
+   "confirm": "O. Reg. 563/20 cap formula (BIL-C-033) and BIL-L-017 standard form date.",
+   "blocks": "T-027"
+  },
+  {
+   "id": "V-ID",
+   "confirm": "By-Law 7.1 Part III exemptions and 6-year retention.",
+   "blocks": "T-029"
+  },
+  {
+   "id": "V-DEADLINES",
+   "confirm": "Every Ontario rule-pack entry (16 '(verify)' in deadlines.json) checked against Rules of Civil Procedure / Limitations Act text.",
+   "blocks": "T-031L"
+  },
+  {
+   "id": "V-SURCHARGE",
+   "confirm": "Card-network surcharge cap and provincial prohibitions.",
+   "blocks": "T-026"
+  }
+ ]
+}

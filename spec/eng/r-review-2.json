@@ -1,0 +1,411 @@
+{
+ "findings": [
+  {
+   "id": "RV2-001",
+   "severity": "critical",
+   "files": [
+    "a4-data-model.sql",
+    "a2-interfaces.json",
+    "o1-tasks.json"
+   ],
+   "rule_ids": [
+    "ARC-I-013",
+    "CF-04"
+   ],
+   "problem": "gate.approval_request.gate_code CHECK rejects every renamed and every a2-style gate code, so CF-04's resolution cannot be applied and G-B2 (bill approval), G-TSIG, G-TREL, G-IMP gates cannot be inserted at all.",
+   "evidence": "Loaded 0001 into Postgres 15: constraint is CHECK (gate_code ~ '^G[A-Z]?[0-9]+[a-z]?$'). 'G-B2', 'G-IMP', 'billing.bill_approval' all fail. CF-04 says gate_code holds the a2 kind slug (billing.prebill_review). DM-073 hard-codes 'G11','G11t','G12','GA2', so the 24h self-approval cooling-off never fires once kind slugs are stored.",
+   "fix": "In a4 gate.approval_request: replace the CHECK with CHECK (gate_code ~ '^[a-z]+\\.[a-z_]+$') and add column spec_gate text NOT NULL CHECK (spec_gate ~ '^G[A-Z0-9-]+[a-z]?$'). In gate.check_decision() replace r.gate_code IN ('G11','G11t','G12','GA2') with r.gate_code IN ('trust.withdrawal','trust.transfer','trust.reconciliation_signoff','trust.regulatory_release'). Close CF-04 with this text."
+  },
+  {
+   "id": "RV2-002",
+   "severity": "critical",
+   "files": [
+    "a4-data-model.sql"
+   ],
+   "rule_ids": [
+    "ARC-I-015",
+    "ARC-I-023",
+    "BIL-I-021"
+   ],
+   "problem": "Two-approver gates can be approved across different payloads. The count of approvals does not filter by payload hash and nothing stops the app updating approval_request.payload_hash in place, so approver A approves v1, payload is edited, approver B approves v2, status flips to approved with only one approval on v2.",
+   "evidence": "gate.check_decision(): SELECT count(*)+1 FROM gate.gate_decision WHERE approval_id = r.id AND decision='approve' (no payload_hash filter). gate.approval_request has no version column and no UPDATE guard (only no_delete_approval). counsel_app has UPDATE on it.",
+   "fix": "(1) Add to gate.approval_request: version int NOT NULL DEFAULT 1, expires_at timestamptz NOT NULL, row_version int NOT NULL DEFAULT 1. (2) Add trigger gate.approval_request_guard BEFORE UPDATE: RAISE if NEW.payload_hash<>OLD.payload_hash or NEW.version<>OLD.version or NEW.gate_code/payload_type/payload_id/requested_by/required_approvals changed; allow status changes only pending->{approved,rejected,changes_requested,withdrawn,expired,superseded} and only when current_setting('counsel.gate_tx',true)='on' (set by SECURITY DEFINER gate functions). (3) Payload edit = set old request status 'superseded' and INSERT a new request with version+1 (add 'superseded' to the status CHECK; the one_pending partial unique index already allows it). (4) In check_decision count only approvals WHERE payload_hash = r.payload_hash. Accept test: A approves v1, edit, B approves v2 -> status pending on v2, v1 superseded."
+  },
+  {
+   "id": "RV2-003",
+   "severity": "critical",
+   "files": [
+    "a4-data-model.sql",
+    "a2-interfaces.openapi.yaml"
+   ],
+   "rule_ids": [
+    "ARC-I-022",
+    "ARC-I-024"
+   ],
+   "problem": "Gate expiry is not enforced anywhere in the DB and there is no expiry column; a decision arriving after TTL approves the gate and the effect runs.",
+   "evidence": "gate.approval_request has due_at (nullable) but no expires_at; check_decision() never compares now() to any expiry. a2 gate_kinds define ttl_hours (72..336); Problem codes include gate_expired but nothing produces it at DB level.",
+   "fix": "Add expires_at timestamptz NOT NULL (= created_at + ttl_hours from spec/gates.json, set by the gate service). In check_decision add first: IF now() >= r.expires_at THEN UPDATE ... SET status='expired', closed_at=now(); RAISE EXCEPTION 'DM-074: approval % expired' USING ERRCODE='P0001'; END IF (the UPDATE is rolled back with the raise, so also run a River job gate.expire every minute that sets status='expired' WHERE status='pending' AND expires_at<=now()). Effect executor re-checks status='approved' AND approved-at < expires_at."
+  },
+  {
+   "id": "RV2-004",
+   "severity": "critical",
+   "files": [
+    "a4-data-model.sql",
+    "a1-uptime.json",
+    "o1-tasks.json"
+   ],
+   "rule_ids": [
+    "ARC-I-023",
+    "ARC-I-024",
+    "BIL-C-051",
+    "CF-03"
+   ],
+   "problem": "No DB-level once-only guard on money effects. With effect_executions missing (CF-03) and no unique keys, a replayed or retried effect (relay at-least-once, worker crash after commit before ack) double-posts a trust withdrawal, a trust transfer or a bill-approval journal.",
+   "evidence": "trust.trust_transaction has unique only on reverses_id; withdrawal_id, transfer_id, payment_id are not unique. gl.journal_entry(source_type, source_id) not unique. a1 sec.4 relay is at-least-once.",
+   "fix": "In 0001 add: CREATE UNIQUE INDEX trust_txn_once_per_withdrawal ON trust.trust_transaction(withdrawal_id) WHERE kind='disbursement'; CREATE UNIQUE INDEX trust_txn_once_per_transfer_leg ON trust.trust_transaction(transfer_id, ledger_id) WHERE kind IN ('transfer_in','transfer_out'); CREATE UNIQUE INDEX trust_txn_once_per_payment ON trust.trust_transaction(payment_id, ledger_id) WHERE payment_id IS NOT NULL AND kind<>'reversal'; CREATE UNIQUE INDEX journal_once_per_source ON gl.journal_entry(source_type, source_id) WHERE reverses_id IS NULL. Add table gate.effect_execution(approval_id uuid PRIMARY KEY REFERENCES gate.approval_request, handler text NOT NULL, started_at timestamptz NOT NULL DEFAULT now(), finished_at timestamptz, outcome text CHECK (outcome IN ('ok','failed')), error_code text) written in the same tx as the effect. T-007/T-012/T-019 accept: replay the effect 3 times concurrently -> exactly 1 row."
+  },
+  {
+   "id": "RV2-005",
+   "severity": "critical",
+   "files": [
+    "a3-migration.json",
+    "a3-migration.html",
+    "a4-data-model.sql"
+   ],
+   "rule_ids": [
+    "MIG-030",
+    "MIG-033",
+    "VC-TR-1",
+    "VC-TR-4",
+    "BIL-I-010"
+   ],
+   "problem": "Clio trust history import double-counts balances and cannot be inserted. a3 imports every historical line into the trust book AND posts one opening receipt per ledger at cut-over, but a4 has one trust_transaction table and trust.ledger_balance sums all rows, so the live balance = history + opening = 2x.",
+   "evidence": "a3 sec.3: 'Every historical line imported read-only into the historical book (source=clio_history, month_locked=true)' plus 'one opening receipt line per ledger at cut-over (source=opening_balance)'. a4 trust.trust_transaction has no source column; method CHECK has no 'unknown'; kind='disbursement' requires withdrawal_id NOT NULL; transfer kinds require transfer_id; so history rows cannot be inserted without inventing withdrawal_request rows.",
+   "fix": "Add a separate table trust.historical_line(id uuid PK, account_id, ledger_id, txn_date date, kind text, method text, instrument_no text, counterparty text, amount_cents bigint, purpose text, source_ref jsonb NOT NULL, import_job_id uuid NOT NULL REFERENCES platform.import_job, staged_sha256 bytea NOT NULL) append-only (forbid_mutation + REVOKE), excluded from ledger_balance/account_balance views. Live book (trust_transaction) starts with exactly one kind='opening_balance' row per ledger (add 'opening_balance' to kind CHECK, amount_cents>0, require approval_id of the G-IMP gate). VC-TR-4 asserts sum(historical_line per ledger) = opening row amount. Update a3 sec.3 trust rows to name these tables."
+  },
+  {
+   "id": "RV2-006",
+   "severity": "high",
+   "files": [
+    "a3-migration.json",
+    "a4-data-model.sql"
+   ],
+   "rule_ids": [
+    "MIG-031",
+    "DM-057",
+    "VC-TR-5"
+   ],
+   "problem": "First Counsel reconciliation after cut-over is blocked. reconciliation_order requires month M-1 status='signed', but a3 imports Clio months as status='imported', signed_by=external, which the a4 status CHECK and signed_by FK (core.app_user) reject.",
+   "evidence": "trust.reconciliation status CHECK: draft|ready|signed|superseded; signed_by REFERENCES core.app_user; DM-057 checks p.status='signed'. a3: 'Reconciliation (historical, status=imported, signed_by=external)'.",
+   "fix": "Add 'imported' to the status CHECK; add external_signer text and imported_job_id uuid; make the signed CHECK apply only to status='signed'; in reconciliation_order accept p.status IN ('signed','imported') for M-1; set trust_account.opened_on (or new column live_from date) = cut-over month so DM-057 has a base case. Also extend DM-054 month lock to status='imported' months."
+  },
+  {
+   "id": "RV2-007",
+   "severity": "high",
+   "files": [
+    "a4-data-model.sql"
+   ],
+   "rule_ids": [
+    "BIL-I-025",
+    "DM-054",
+    "ARC-I-024"
+   ],
+   "problem": "Race between signing a trust reconciliation and posting into that month. before_txn() checks for a signed reconciliation without locking it; a sign transaction that read balances before a concurrent insert commits leaves a signed month whose figures exclude a posted line.",
+   "evidence": "trust.before_txn locks client_ledger FOR UPDATE only; reconciliation sign path takes no lock on trust_account; READ COMMITTED snapshot.",
+   "fix": "In before_txn add: PERFORM 1 FROM trust.trust_account WHERE id = NEW.account_id FOR SHARE; and require the sign effect (trust.lock_reconciliation) to SELECT ... FROM trust.trust_account WHERE id=$1 FOR UPDATE before recomputing journal_balance_cents and client_listing_total_cents inside the same tx, and to RAISE if recomputed values differ from the stored ones. Test: 20 concurrent receipts dated in month M while signing M -> either receipt refused with DM-054 or included in the signed totals; never neither."
+  },
+  {
+   "id": "RV2-008",
+   "severity": "high",
+   "files": [
+    "a1-uptime.html",
+    "a1-uptime.json"
+   ],
+   "rule_ids": [
+    "ARC-U-006",
+    "ARC-U-007",
+    "SLO-06",
+    "SLO-01"
+   ],
+   "problem": "Single synchronous standby plus 'no silent downgrade to async' makes zone z2 a write SPOF: losing z2 stops all commits until an operator acts, contradicting 'zone loss <= 5 min automatic' and the 99.9% budget (43 min/month) for any off-hours page.",
+   "evidence": "Topology: [primary z1]--sync-->[standby z2], --async-->[standby z3]. ARC-U-007: 'stays writable only after an operator decision (no silent downgrade to async)'.",
+   "fix": "Change topology and ARC-U-006 to quorum sync: CloudNativePG minSyncReplicas: 1, maxSyncReplicas: 2 (synchronous_standby_names = 'ANY 1 (z2, z3)'). Loss of any one zone then keeps RPO 0 and writes continue. Keep ARC-U-007 only for loss of both standbys. Add chaos test: kill z2 standby under 20 req/s writes -> zero failed commits beyond 60 s."
+  },
+  {
+   "id": "RV2-009",
+   "severity": "high",
+   "files": [
+    "a1-uptime.html",
+    "a1-uptime.json"
+   ],
+   "rule_ids": [
+    "ARC-U-008",
+    "ARC-U-012",
+    "SLO-05",
+    "DM-10"
+   ],
+   "problem": "Region-loss RPO <= 5 min is claimed for the cell but only holds for Postgres. Documents depend on async cross-region bucket replication with no lag bound; after DR restore, document rows (and trust reconciliation packages under object lock) can point at objects that never replicated: lost documents.",
+   "evidence": "a1 topology: bucket-a ----> DR region replica (async). SLO-05 measures only WAL archive age. No SLI for bucket replication lag; no rule that a document_version row is only 'committed' after the object exists in DR.",
+   "fix": "Add SLO-05b: 99.9% of objects replicated to DR bucket within 5 min (provider replication-time control or a per-cell replication-lag exporter), page at 15 min. Add rule ARC-U-0xx: after DR restore run a reconciliation job that lists document_version rows created in the last 24 h whose object is missing in DR and marks them status='lost_in_dr' + notifies uploader. State RPO separately: DB <= 5 min, documents <= replication lag bound."
+  },
+  {
+   "id": "RV2-010",
+   "severity": "high",
+   "files": [
+    "a1-uptime.json"
+   ],
+   "rule_ids": [
+    "SLO-06",
+    "RB-03",
+    "DM-10"
+   ],
+   "problem": "RTO 'all cells <= 60 min' after region loss is unsupported: the DR site is an 'IaC-ready small cluster' and tens of cells must each restore a base backup and replay WAL in parallel; no capacity or parallelism figure, and drills are per cell.",
+   "evidence": "SLO-06 target: 'region loss or PITR restore <= 60 min per cell, all cells <= 60 min'; a1 sec.1: 'DR region (ca-west): IaC-ready small cluster'.",
+   "fix": "Either (a) change SLO-06 to 'first cell <= 60 min, all cells <= 4 h, restore order by firm priority' or (b) add sizing: DR node pool autoscaled to N/4 cells in parallel, base backups at most 24 h old so WAL replay <= 15 min per cell, and a yearly all-cells drill (not per cell) whose pass criterion is the stated all-cells time."
+  },
+  {
+   "id": "RV2-011",
+   "severity": "high",
+   "files": [
+    "a2-interfaces.openapi.yaml",
+    "o1-tasks.json"
+   ],
+   "rule_ids": [
+    "ARC-I-007",
+    "ARC-U-025",
+    "T-008"
+   ],
+   "problem": "T-008 and the build guide require a conformance test that enumerates 'every operation tagged x-money', but the OpenAPI has zero x-money (or x-external-effect) extensions, so the test enumerates nothing and passes vacuously.",
+   "evidence": "Parsed a2-interfaces.openapi.yaml (3.1.0, 51 paths, 67 ops, all 37 $refs resolve): only extension present is x-extensible-enum. 28 mutating ops carry required Idempotency-Key; POST /contacts, /documents, /work-items do not.",
+   "fix": "Add x-money: true to: POST /bills, /bills/{id}/submit, /deliver, /void, /payments, /payments/{id}/allocations, /payments/{id}/refunds, /credit-notes, /trust/receipts, /trust/withdrawals, /trust/withdrawals/{id}/execution, /cancel, /trust/transfers, /trust/bank-lines/imports, /trust/reconciliations, /trust/reconciliations/{id}/submit, /trust/requests, /gates/{id}/decisions, /time-entries, /expenses. Add x-external-effect: true to /documents/{id}/release, /webhook-endpoints, /agent/runs. Conformance rule: every op with x-money or x-external-effect must reference #/components/parameters/IdempotencyKey; additionally assert count(x-money) >= 20 so the test cannot pass empty. Add the IdempotencyKey param to POST /documents (upload retry duplicates documents)."
+  },
+  {
+   "id": "RV2-012",
+   "severity": "high",
+   "files": [
+    "a2-interfaces.openapi.yaml",
+    "a4-data-model.sql",
+    "o1-tasks.json"
+   ],
+   "rule_ids": [
+    "BIL-I-020",
+    "ARC-U-025",
+    "CF-03"
+   ],
+   "problem": "No inbound provider webhook surface or dedup table. Payment processor, e-sign and bank-feed callbacks need (provider, event_id) dedup, but the OpenAPI has no /webhooks/{provider} route and a4 has no inbox/provider_event table; billing.payment UNIQUE(provider, provider_ref) dedups payments but not refund/dispute/chargeback events.",
+   "evidence": "OpenAPI paths list contains no inbound webhook route; a4 platform schema has webhook/webhook_delivery (outbound only). Build guide hard rule: 'never process a provider webhook without (provider, event_id) dedup'.",
+   "fix": "Add to OpenAPI: POST /hooks/{provider} (security: none; header webhook-id, webhook-timestamp, webhook-signature; 204 on success and on duplicate; 401 on bad signature). Add to a4: platform.inbound_event(provider text, event_id text, received_at timestamptz DEFAULT now(), payload_sha256 bytea NOT NULL, processed_at timestamptz, PRIMARY KEY(provider, event_id)) and platform.inbox(consumer text, message_id uuid, processed_at timestamptz DEFAULT now(), PRIMARY KEY(consumer, message_id)). Add task T-021b (depends T-008, T-009) 'Inbound provider webhooks' with accept: same event_id twice -> one effect; bad signature -> 401, no row."
+  },
+  {
+   "id": "RV2-013",
+   "severity": "high",
+   "files": [
+    "a4-data-model.sql",
+    "a2-interfaces.openapi.yaml",
+    "a3-migration.json",
+    "o1-tasks.json"
+   ],
+   "rule_ids": [
+    "MIG-041",
+    "MIG-042",
+    "MIG-043"
+   ],
+   "problem": "Webhook renewal has no home. MIG-042 (Clio webhook renewal at <= 7 days) and MIG-040..044 (alongside sync) are in no task; a4 has no table for inbound Clio subscriptions; a4 platform.webhook (outbound, firm-defined) has expires_at NOT NULL but the API has no renew/PATCH route, so outbound integrations silently die at expiry.",
+   "evidence": "Rule coverage over o1-tasks.json: 42 of 275 rules are in no task, incl. MIG-040..044, MIG-060..065, ARC-U-007, ARC-U-011, ARC-U-013, ARC-U-019, ARC-U-024, BIL-T-050, BIL-C-042. OpenAPI /webhook-endpoints has only GET, POST.",
+   "fix": "(1) Add platform.source_subscription(id, source text, remote_id text, events text[], expires_at timestamptz NOT NULL, last_renewed_at, last_error, PRIMARY KEY id, UNIQUE(source, remote_id)) and River job subscription.renew (MIG-042). (2) Make platform.webhook.expires_at nullable (firm-owned endpoints do not expire) or add PATCH /webhook-endpoints/{id} {expires_at} and a 14-day expiry warning event. (3) Add MIG-040..044 to T-040 (or new T-040b 'Clio alongside sync'), MIG-060..065 to T-001/T-043, ARC-U-007/011 to T-043, ARC-U-013/019/024 to T-044, BIL-T-050 to T-018, BIL-C-042 to T-022. (4) Add a CI check: every rule id appears in some task's rule_ids."
+  },
+  {
+   "id": "RV2-014",
+   "severity": "high",
+   "files": [
+    "a4-data-model.sql"
+   ],
+   "rule_ids": [
+    "ARC-I-042",
+    "CF-17"
+   ],
+   "problem": "RLS gaps on walled content are wider than CF-17 lists, and RLS may be inert. 40 tables carry matter_id without RLS, including agent.agent_run (goal text), audit.audit_event, docs.document_share, docs.signature_request, docs.upload, docs.engagement_letter, docs.bundle, cal.calendar_event, timekeeping.expense, comms.internal_thread, billing.bill, trust.client_ledger. No FORCE ROW LEVEL SECURITY, so if the app connects as the table owner (the migrate role) policies are skipped.",
+   "evidence": "pg_tables.rowsecurity = true only for 10 tables. SQL comment says counsel_jobs is 'BYPASSRLS at the cluster level' but the role is created NOLOGIN without BYPASSRLS in 0001.",
+   "fix": "Enable RLS + policy USING (matter.can_see(matter_id)) on every table with a matter_id column except gate.approval_request and gl.journal_line (financial controls need firm-wide visibility; guard those with Can()). Add ALTER TABLE ... FORCE ROW LEVEL SECURITY on all RLS tables. State in 0001 header: tables owned by counsel_owner (migrations only); counsel_app is never owner. Create counsel_jobs WITH BYPASSRLS explicitly. Add test: connect as counsel_app with counsel.user_id = a screened user -> 0 rows from each RLS table for the walled matter."
+  },
+  {
+   "id": "RV2-015",
+   "severity": "high",
+   "files": [
+    "a4-data-model.sql",
+    "a2-interfaces.json",
+    "/Users/dagmfekaduyenealem/Documents/ai/paploo/.claude/worktrees/agent-a3a554c8ad07d8ef4/docs/adr/0014-custom-apps.md"
+   ],
+   "rule_ids": [
+    "ARC-I-013",
+    "ARC-I-016",
+    "ARC-I-021"
+   ],
+   "problem": "Two gate engines with no defined authority. ADR 0014 sec.5 puts gates (SoD, payload hash, expiry 72 h) in paplood, and Counsel has its own gate.approval_request. ADR says decisions come only from a human session, never from an app-API call, so Counsel's server cannot decide a Paploo gate for its user; ADR also forbids the run owner from ever approving, which breaks Counsel's sole-practitioner exception (ARC-I-021, DM-070). TTLs differ (72 h vs 168/336 h), so the agent step fails closed while the Counsel gate is still approvable.",
+   "evidence": "ADR 0014 sec.5 bullets 'the run's owner can never approve' and 'expire (default 72 h)'; sec.9 GET|POST /api/gates/{id} 'human sessions only'. a2 gate_kinds ttl_hours 168/336; a4 check_decision allows self-approval when core.firm.sole_practitioner.",
+   "fix": "Write in ADR 0014 sec.5 and a2: 'For apps with their own system of record, the Paploo gate only parks the agent step; the app's gate is authoritative for the effect.' Concretely: agent tools in Counsel create gate.approval_request rows via app API (status pending) and return; the agent never opens a Paploo gate for Counsel money/trust actions. Counsel emits gate.decided events that Paploo uses only to resume/fail the run. Remove sole-practitioner self-approval from any Paploo-side gate path. Add to T-037 accept: agent proposes withdrawal -> Counsel gate row exists, Paploo has no gate row, run resumes on gate.decided event."
+  },
+  {
+   "id": "RV2-016",
+   "severity": "high",
+   "files": [
+    "o1-tasks.json"
+   ],
+   "rule_ids": [
+    "T-011",
+    "T-016",
+    "T-019",
+    "T-007"
+   ],
+   "problem": "Task order lets money tasks start before the tables they FK into exist in code. client_ledger, time_entry, bill, approval_request all reference matter.matter, but matters (T-030) come after T-011, T-016, T-019 and depend on T-028/T-029. T-007 gate effects need outbox and effect_execution (T-008, CF-03) but T-007 does not depend on T-008 or list CF-03. T-011 signatory needs a signatory gate (CF-07) but does not list CF-07. T-042 export depends only on T-038 though it must export documents, comms, audit and agent data.",
+   "evidence": "o1-tasks.json depends_on: T-011 [T-007,T-010]; T-016 [T-015,T-007]; T-019 [T-018,T-007,T-010]; T-030 [T-028,T-029]; T-007 blocked_by [CF-04,CF-05,CF-07]; T-042 [T-038]. trust.signatory.approval_id is NOT NULL.",
+   "fix": "Insert new T-010b 'Matter core: matter, matter_member, party minimal (no conflicts UI)' depending on T-006, T-009, and add it to depends_on of T-011, T-016, T-019, T-029, T-030. Set T-007 depends_on [T-005,T-006,T-008] and blocked_by add CF-03. Set T-011 blocked_by add CF-07. Set T-042 depends_on [T-038,T-032,T-035,T-039,T-037,T-040]."
+  },
+  {
+   "id": "RV2-017",
+   "severity": "high",
+   "files": [
+    "a4-data-model.sql",
+    "a2-interfaces.json"
+   ],
+   "rule_ids": [
+    "ARC-I-016",
+    "ARC-I-036",
+    "ARC-U-027"
+   ],
+   "problem": "DB cannot tell an agent principal from a human, so 'agent never decides' and 'admin acting as approver' are only app-enforced; a gate decision row can be written for any app_user. a2 risk 'irreversible' (min 2 approvers) is rejected by a4's risk CHECK (low|medium|high).",
+   "evidence": "core.app_user has no principal_kind; gate_decision has decided_by uuid only; approval_request risk CHECK IN ('low','medium','high'); a2 gate_kinds use risk 'irreversible' (deadlines.rule_pack, conflicts.id_destruction).",
+   "fix": "Add core.app_user.principal_kind text NOT NULL DEFAULT 'human' CHECK (principal_kind IN ('human','agent','service')). In check_decision RAISE 'DM-075 agent_cannot_decide' when decider principal_kind<>'human' or is_system_admin. Change risk CHECK to IN ('low','medium','high','irreversible') and add CHECK (risk<>'irreversible' OR required_approvals>=2)."
+  },
+  {
+   "id": "RV2-018",
+   "severity": "medium",
+   "files": [
+    "a4-data-model.sql"
+   ],
+   "rule_ids": [
+    "BIL-L-037",
+    "ARC-I-012",
+    "ARC-I-027"
+   ],
+   "problem": "Withdrawal status is not tied to the gate. withdrawal_request can be UPDATEd to 'authorized'/'executed' by counsel_app with any authorized_by, without an approved approval_request; payee 'cash'/'bearer' is only app-checked.",
+   "evidence": "withdrawal_request CHECKs require authorized_by/executed_by non-null but no trigger checks approval_id -> gate.approval_request.status='approved' with matching payload hash.",
+   "fix": "Add trigger trust.withdrawal_guard BEFORE UPDATE: when NEW.status IN ('authorized','executed','posted') require EXISTS approval_request WHERE id=NEW.approval_id AND status='approved' AND payload_type='trust.withdrawal_request' AND payload_id=NEW.id; forbid changes to amount_cents/payee/ledger_id/method once status<>'draft'. Add CHECK (lower(btrim(payee)) NOT IN ('cash','bearer')). Same pattern for billing.bill status 'approved'."
+  },
+  {
+   "id": "RV2-019",
+   "severity": "medium",
+   "files": [
+    "a1-uptime.html"
+   ],
+   "rule_ids": [
+    "ARC-I-030",
+    "ARC-U-021",
+    "ARC-U-024"
+   ],
+   "problem": "Outbox semantics can lose or reorder money effects: two relays with SKIP LOCKED break per-subject order that ARC-I-032 promises (subject_seq gap-free); messages auto-dead-letter after 24 h or 20 attempts, so a payment/refund call to a provider whose idempotency key TTL is 24 h can be re-sent after key expiry (double charge) or parked silently.",
+   "evidence": "a1 sec.4: relay SELECT ... FOR UPDATE SKIP LOCKED LIMIT 100; 'n >= 20 or age > 24h -> move to dead_letter'. Provider idempotency keys commonly expire after 24 h.",
+   "fix": "Relay claims by subject: SELECT DISTINCT ON (subject) ... ORDER BY subject, subject_seq FOR UPDATE SKIP LOCKED, and do not deliver seq n+1 until n is delivered. For topics marked money_external: stop retrying at 20 h (below provider key TTL), then call the provider's GET by our idempotency key/reference before any further send; dead-letter only after that lookup, and page (not just alert). Consumer inbox insert and effect must share one tx (state this in ARC-I-030)."
+  },
+  {
+   "id": "RV2-020",
+   "severity": "medium",
+   "files": [
+    "a1-uptime.json",
+    "a4-data-model.sql"
+   ],
+   "rule_ids": [
+    "ARC-U-011"
+   ],
+   "problem": "PgBouncer transaction mode conflicts with River (LISTEN/NOTIFY, advisory locks) and with any session-level SET; only SET LOCAL is safe. Not stated for implementers.",
+   "evidence": "ARC-U-011: all connections through PgBouncer transaction mode; a4 relies on current_setting('counsel.user_id') set per tx; River uses LISTEN for job notifications.",
+   "fix": "Amend ARC-U-011: workers' River client connects directly to the Postgres rw service (or a session-mode pool); API code must use SET LOCAL only, enforced by a test that runs two requests on one pooled connection and asserts counsel.user_id is empty at the start of the second."
+  },
+  {
+   "id": "RV2-021",
+   "severity": "medium",
+   "files": [
+    "a4-data-model.sql"
+   ],
+   "rule_ids": [
+    "DM-052",
+    "BIL-L-036"
+   ],
+   "problem": "Protected funds and minimum balance are not enforced by the non-negative trigger; a withdrawal can dip into protected_cents.",
+   "evidence": "trust.check_ledger_non_negative only checks sum < 0; client_ledger has protected_cents, minimum_balance_cents.",
+   "fix": "Change the check to bal < (SELECT protected_cents FROM trust.client_ledger WHERE id=NEW.ledger_id) for kinds disbursement/transfer_out unless the transaction's approval is a protected-release gate; RAISE 'DM-058 protected funds'."
+  },
+  {
+   "id": "RV2-022",
+   "severity": "medium",
+   "files": [
+    "a4-data-model.sql",
+    "a1-uptime.json"
+   ],
+   "rule_ids": [
+    "DM-05",
+    "VC-TR-2"
+   ],
+   "problem": "bank_line dedupe index drops legitimate duplicates: two cheques of the same amount on the same day with null bank_ref and the same description collapse to one, breaking reconciliation.",
+   "evidence": "UNIQUE INDEX bank_line_dedupe ON (coalesce(trust_account_id, gl_account_id), posted_on, amount_cents, coalesce(bank_ref, description)).",
+   "fix": "Add bank_line.source_seq int NOT NULL (row ordinal within the imported statement) and dedupe on (account, bank_import_id-independent natural key: posted_on, amount_cents, coalesce(bank_ref,description), source_seq) where source_seq counts identical tuples within one statement; overlapping imports keep counts, not rows."
+  },
+  {
+   "id": "RV2-023",
+   "severity": "medium",
+   "files": [
+    "o2_lint.py",
+    "o1-build-guide.html",
+    "o1-tasks.json"
+   ],
+   "rule_ids": [
+    "T-001"
+   ],
+   "problem": "Spec lint cannot gate CI: it exits 0 with 27 findings, and defaults to ../legal-spec, which does not exist in the Counsel repo layout (spec/).",
+   "evidence": "Ran python3 -I o2_lint.py: exit=0. Line 10: SPEC defaults to HERE.parent/'legal-spec'. T-001 accept: 'spec-lint ... all green'.",
+   "fix": "Add --strict: exit 1 if any mechanical check > 0 or judgment count exceeds a checked-in baseline (tools/o2_lint.baseline.json). T-001 Makefile: python3 -I tools/o2_lint.py --spec spec --strict."
+  },
+  {
+   "id": "RV2-024",
+   "severity": "medium",
+   "files": [
+    "o1-tasks.json"
+   ],
+   "rule_ids": [
+    "T-004",
+    "T-008",
+    "T-011"
+   ],
+   "problem": "Several Accept items are not testable as written: 'UUIDv7 monotonic within a process' (core.uuidv7() in SQL is per-ms random, not monotonic); 'killing relay between commit and publish -> delivered once' (at-least-once relay can only promise once-effect at consumer); '32 concurrent goroutines never leave ledger < 0' asserts the absence of a state the deferred trigger already rejects, so it passes even if the lock is removed.",
+   "evidence": "a4 core.uuidv7 builds from gen_random_uuid + ms; a1 relay marks delivered after 2xx; trust_ledger_non_negative is deferred.",
+   "fix": "Reword: T-004 'Go ids.New() monotonic within process; DB ids sortable by ms only'. T-008 'consumer applies effect exactly once (inbox row count 1, effect row count 1) after relay kill; delivery attempts may be 2'. T-011 'with 32 goroutines, count(committed withdrawals) * amount <= starting balance and every rejected one returns 409 insufficient_trust_funds (not 500 / deadlock)'."
+  },
+  {
+   "id": "RV2-025",
+   "severity": "low",
+   "files": [
+    "a2-interfaces.openapi.yaml"
+   ],
+   "rule_ids": [
+    "ARC-I-010"
+   ],
+   "problem": "Every operation has only 'default' as error response; conformance tests cannot check that 409/412/422/428 are documented, and generated clients cannot branch on them.",
+   "evidence": "All 67 ops list responses [2xx, 'default']; components.responses has only Problem.",
+   "fix": "Add explicit 400, 403, 404, 409, 412, 422, 428 responses ($ref: '#/components/responses/Problem') to every mutating op and 403/404 to reads; keep default for 5xx."
+  },
+  {
+   "id": "RV2-026",
+   "severity": "low",
+   "files": [
+    "o1-build-guide.html",
+    "a2-interfaces.openapi.yaml"
+   ],
+   "rule_ids": [
+    "ARC-I-012"
+   ],
+   "problem": "T-009 accept 'No endpoint can set trust withdrawal=executed directly' collides with POST /trust/withdrawals/{id}/execution, which records execution (ARC-I-027). A coding agent may delete the route or fail the test.",
+   "evidence": "OpenAPI path /trust/withdrawals/{withdrawal_id}/execution exists; T-009 accept text.",
+   "fix": "Reword T-009: 'No endpoint sets executed without an approved gate; /execution only records bank confirmation by a user distinct from the authorizer, after approval status=approved.'"
+  }
+ ]
+}

@@ -1,0 +1,45 @@
+===== Grow AI's Email Agent https://help.clio.com/hc/en-us/articles/55876222702363-Grow-AI-s-Email-Agent updated 2026-09-28T22:05:53Z
+Grow AI's email agent monitors a connected inbox for lead inquiries, replies to gather the details your firm needs, screens each lead for fit, and books a consultation when the lead qualifies. Grow AI replies to direct inquiries from prospective clients, and routes anything that is is unsure about to your lead inbox marked For review, allowing your team to decide how to handle it.
+For example, Grow AI may route referrals from another lawyer or firm, lead notifications from third-party services rather than from the lead themselves, and emails where it is unclear whether the sender is a prospective client or not for review rather than answering. A lead that arrives from a third-party source is only billable if Grow AI engaged with the lead.
+Make sure to set your intake criteria, frequently asked questions, and languages before you connect your an inbox. These settings determine how the email agent responds.
+Note: You need Clio Grow administrator access to connect an inbox. 
+Connect an inbox
+Grow AI monitors the inboxes you connect. Connecting an inbox also turns on Automated Email Filing in Clio Grow, which makes Grow AI's replies visible in Clio and files new emails from that inbox against associated contacts and matters.
+- In Clio Grow, go to Settings > Grow AI.
+- Click Go live.
+- Click Email.
+- Click Connect inbox, then select your email provider.
+- 
+Follow the prompts to sign in and grant access.
+Note: You have to grant read and write access to use the Email Agent.
+- Click Done.
+Important: Because connecting an inbox turns on Automated Email Filing, new emails from that inbox start appearing on associated contacts and matters across Clio Grow, including emails unrelated to leads. Make sure this is what your firm wants before connecting a shared or personal inbox. 
+Set how Grow AI signs off and discloses AI
+You can change the sign-off that appears at the end of every reply Grow AI sends to a lead, and whether replies disclose that they are AI assisted.
+- In Clio Grow, go to Settings > Grow AI.
+- In the test panel, click the Email tab.
+- Click Email settings.
+- Update the following:
+- 
+Sign-off for automated replies: Click Edit sign-off, enter the sign-off you want at the end of every AI reply, then click Save.
+Tip: Write a sign-off that makes clear the reply came from your firm's intake assistant rather than from a lawyer, for example "Smith Law AI intake assistant."
+- 
+AI disclosure: Toggle on to disclose that the reply is AI assisted.
+Important: Check the rules that apply in your jurisdiction regarding the disclosure of AI use to prospective clients.
+- Click Done.
+Test the email agent
+You can exchange messages with the email agent as a lead would, before or after you connect an inbox.
+- In Clio Grow, go to Settings > Grow AI.
+- In the test panel, click the Email tab.
+- Describe a situation as a lead would, then send the message.
+- Confirm that Grow AI asks for the details you expect, answers questions the way your firm would, and offers a consultation when the lead qualifies.
+Review leads from email
+Leads from email appear in your lead inbox in Clio Grow alongside leads from website chat and phone, with a summary of the exchange, the information Grow AI collected, and a fit assessment. Leads marked For review appear there too, flagged so you can tell them apart from leads Grow AI handled end to end.
+Grow AI's replies are also filed against the associated contact or matter, so your team can see the full email history without leaving Clio Grow.
+Up next
+- 
+Customize Grow AI: Change what the email agent asks leads and how it answers their questions.
+- 
+Automated Email Filing: Understand how connected inbox emails are filed in Clio Grow.
+
+IMGS: []

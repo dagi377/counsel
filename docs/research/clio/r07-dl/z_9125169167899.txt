@@ -1,0 +1,128 @@
+===== Clio Grow Emails, Communication Templates, and Sequences https://help.clio.com/hc/en-us/articles/9125169167899-Clio-Grow-Emails-Communication-Templates-and-Sequences updated 2026-09-28T23:22:45Z
+In Clio Grow, you can use email and text communication templates to streamline your intake process when sending forms and documents, scheduling appointments, and creating email sequences. You can also create and schedule reminder communications for intake forms, documents, and appointments, and create standalone email templates that are not attached to any intake process or checklist items. You can also connect your email account to Clio Grow so that all email communications are logged for easy viewing in Clio Grow.
+Tip: Learn more about text notification templates and sending texts in Clio Grow here.
+Note: All firm users can access created communication templates.
+Personalize emails sent from Clio Grow
+By default, emails sent from Clio Grow are sent from notifications@grow.clio.com. You can also connect your own email address, allowing clients to see that you sent an email rather than Clio Grow. Once sent, you can view sent emails in the sent folder of your email inbox. If your firm uses Grow AI, you can allow Grow AI to scan your connected inbox for lead emails and send them directly to your Grow Lead Inbox with a summary and fit assessment. Learn more about using Grow AI for email intake.
+Connect your email address
+When connecting your Gmail, Outlook, or Exchange email address, you can sign in directly to establish the connection. See the first tab below for directions for these email address types. If you want to set up a different type of email address, such as GoDaddy, Yahoo, iCloud, AOL, etc., see the directions in the second tab.
+Gmail, Outlook, or Exchange Different email provider
+- Go to Settings > Communications.
+- In the Email integration section, click Connect email.
+- Click Gmail, Outlook, or Exchange.
+- Click Connect email.
+- Follow the prompts to connect your email address and authorize the connection.
+Note: If you have the option to Automatically file your emails and attachments, you can check that box during setup to allow Clio to pull in attachments from your email and store them within Clio.
+- Go to Settings > Communications.
+- In the Email integration section, click Connect email.
+- Click I use a different email provider.
+- Complete the SMTP information. See the directions on your email provider's help center for details about the SMTP server, port number, and connection security.
+- Click Connect email.
+Note: If you have the option to Automatically file your emails and attachments, you can check that box during setup to allow Clio to pull in attachments from your email and store them within Clio.
+Tip: See below for directions for common email providers:
+- GoDaddy
+- Yahoo
+- iCloud
+- AOL
+Add a custom email signature
+- Go to Settings > Communications.
+- In the Email signature section, click Add email signature.
+- Add your email signature.- You can copy and paste your signature from Outlook or Gmail, enter custom text and/or add images, files, and hyperlinks, format lines, add numbered lists, and more.
+- Click Save signature.
+Create email communication templates
+You can create email templates for intake forms, documents, manual appointments and Clio Scheduler appointment types, and communication emails. Communication email templates are standalone templates that you can use to send emails to clients or use as part of an email sequences that you send out at scheduled intervals or at particular points in your client’s journey with your firm.
+Clio Grow has a default list of communication templates for intake forms, documents, and appointments. You can edit the email templates that you created or add new ones; however, you can only have one reminder email template each for forms and documents.
+Note: Templates cannot be duplicated. Additionally, you cannot add, edit, or remove the text notification templates. Learn more about text notifications in Clio Grow here.
+- Go to Settings > Communication templates.- You can create communication templates related to appointments, sending documents, sending forms, or other types of email templates. To create a template, click the relevant button for the relevant section:
+- 
+Appointments: Click Add new, then select the purpose of the appointment-related template you want to create.
+- 
+Documents: Click Add new send document email template.
+- 
+Forms: Click Add new send form email template.
+- 
+Payment requests: Customers with online payments can click Add new payment request email template.
+- 
+Other: For any other purpose that you want to create an email template for, click Add new for this section.
+- Complete the template details.
+- 
+Template name: Enter the template's name.
+- 
+Template applied to: Select which appointment type(s) you want to assign this email template to.
+Note: This only applies to appointment templates.
+- 
+Email subject: Enter the email template's subject.
+- 
+Greeting format: Enter the greeting salutation used to start the template before the contact's name appears. 
+- 
+Contact name options: Select how the contact's name will appear in the template.
+- 
+Body: Enter the body of the template.
+- 
+Automatically CC everyone assigned to the matter: All users assigned to the matter will receive an email copy. 
+- 
+Sign off format: Enter the sign off salutation used to end the template before the firm user's name appears. 
+- 
+User name options: Select how the firm user's name will appear in the template.
+- 
+Add attachments: You can add attachments to the template, such as an image of your firm logo or a video. You cannot embed videos into the body of the template.
+- Click Save.
+Edit email communication templates
+You can edit any of your email templates, but you cannot make changes to your text notification templates. 
+- Go to Settings > Communication templates.
+- Click the email template name and select Edit.
+- Make your changes and click Save.
+Delete communication templates
+You can only delete email templates that you created. You cannot delete any of the default communication templates, including the text notification templates.
+Important: This is an irreversible and permanent action.
+- Go to Settings > Communication templates.
+- Click the name of the template and select Delete.
+- When the warning prompt appears, select Ok.
+Create checklist templates and email sequences
+Checklist templates are groups of actionable items, including appointments, tasks, forms, documents, and emails, that you can add to a matter’s intake process. Email sequences are groups of communication email templates that you can add to a matter’s intake process and schedule them to automatically send to individual clients depending on where the client is in their journey with your firm.
+You need to create the templates before using them in a matter's intake process. When you add a checklist template or email sequence to a matter, it will appear as a block of items, differentiating the template from individually added items.
+Create checklist template Create email sequence template
+- Go to Settings > Checklists and sequences.
+- Click New Template.
+- Name the checklist template and add any appointments, tasks, forms, documents, or emails.
+- When you are finished, click Create Checklist Template.
+- You can edit a checklist template by clicking the template name and selecting Edit.
+- Go to Settings > Checklists and sequences.
+- Click New Sequence Template.
+- Name the email sequence and select from your existing communication email templates.- You can click Add Email to add additional emails.
+- 
+Optional: You can schedule the emails to be sent automatically using the Schedule Automatically checkbox- Select the relevant fields depending on when you want the email to send.
+- When you are finished, click Create Sequence Template.
+Use communication templates
+You can use email templates that you created when sending intake process emails, as checklists for work in progress, and when sending standalone emails, as long as your client has an email address added to their contact card. Intake process emails are used for preparing and sending forms or documents to clients, when scheduling manual appointments, or as part of email sequence. Checklists are used to check off work in progress. Standalone emails are used for sending individual emails immediately or at a scheduled date.
+If your client has a valid North American phone number and you enabled text notifications in Clio Grow, you can also send text notification templates when preparing and sending forms or documents to clients and when reminding clients about their appointments. Learn more about text notifications and reminders in Clio Grow here.
+Note: If you set a due date and reminder for a form, document, or manual appointment, your client will also receive the appropriate reminder emails along with any text reminders that you choose to send. The reminder email templates can be modified in your settings but you cannot make changes to the text reminder templates.
+Send intake process emails
+After creating an email template, you can use it when sending matter intake process emails, including emails for prepared forms and documents and for appointments. To send an email for an intake process item:
+- Go to the matter's Intake process section.
+- Under Add single item, select Create New Appointment, Prepare Form, or Prepare Document.
+- Follow the directions for preparing a form, sending a document, and creating an appointment.
+- When preparing the email, select one of the communication templates, and click Send Email.
+Add checklist template or sequenced email to matter
+After creating a communication template, you can add a checklist template or sequenced email to a matter. Once this is done, you can edit, delete, and mark template items complete like regular intake process items.
+- Go to the matter's Intake process section.
+- Select the Add checklist, automated workflow, or sequenced email box and then select a template. The template items will appear as a block of checklist items.
+Use email template in standalone email
+When sending a standalone email to a single contact, you can use the communication template that you previously created to send the email immediately or at a scheduled date.
+Immediate email Scheduled email
+- Go to the matter or the contact.
+- Click the Communications tab.
+- For the Email Templates field, select a template that you previously created. 
+- Make any changes to the template.
+- Once finished, scroll down and click Send email.
+- Go to the matter's Intake process section.
+- Under Add single item, select Schedule email.
+- Select your template and make any changes.
+- Under Send Date select the date and time that the email will automatically send.
+- Click Schedule Email.
+Disconnect email account from Clio Grow
+- In Clio Grow, go to Settings > Communications.
+- In the card Automatically file your emails and attachments, click Disconnect for the relevant inbox.
+- In the modal, click Disconnect to confirm.
+
+IMGS: ['https://brand.clio.com/m/e27937f8da8fc5b', 'https://brand.clio.com/m/1ee4c18e133da523', 'https://brand.clio.com/m/4c81e0beef3ea4cf']

@@ -1,0 +1,675 @@
+{
+ "id": "r12-canada-security",
+ "scope": "Clio in Canada (data residency, law society partnerships, Ontario features, French), security and compliance (SOC, ISO, encryption, uptime/SLA, status history), pricing tiers and add-ons in CAD and USD 2025-2026",
+ "clio_products": [
+  "Clio Manage",
+  "Clio Manage AI (formerly Clio Duo)",
+  "Clio Work",
+  "Clio Grow",
+  "Clio Draft",
+  "Clio Payments",
+  "Clio Accounting (Canada)"
+ ],
+ "features": [
+  {
+   "name": "Canadian regional instance (data at rest in Canada)",
+   "product": "Clio Manage / platform",
+   "where": "Chosen at account creation; Canadian accounts live on ca.app.clio.com",
+   "what": "Clio runs separate US, Canada, EMEA and Australia instances; a Canadian firm CAN choose the Canadian server (help: 'if your firm is required to store ... in Canada, your firm can use a Canadian server'). It is a choice, not automatic: Clio help notes Canadian-billing firms 'hosted on US servers'. Integrations and API tokens are region-bound (ca.api.clio.com). Clio Work/Vincent data at rest stays in the account's environment.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://docs.developers.clio.com/handbook/getting-started/regions",
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+    "https://help.clio.com/hc/en-us/articles/53337803186715",
+    "https://help.clio.com/hc/en-us/articles/53337803186715-Understand-Clio-Work-Data-Residency-in-Canada",
+    "https://help.clio.com/hc/en-us/articles/9284651312411-Compliance"
+   ],
+   "screenshots": [
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "AI processing region claim",
+   "product": "Clio Manage AI / Clio Work",
+   "where": "n/a (policy)",
+   "what": "Clio's Canadian security page says data used by its AI is encrypted and processed in the customer's region and never used for training. But Clio's own Clio Work help article says generating a response may involve temporary processing outside the account's region (storage at rest stays in region). The two official statements conflict for Clio Work / Vincent.",
+   "plan_tier": "Core and above (Manage AI); Clio Work",
+   "sources": [
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+    "https://help.clio.com/hc/en-us/articles/53337803186715",
+    "https://help.clio.com/hc/en-us/articles/53337803186715-Understand-Clio-Work-Data-Residency-in-Canada",
+    "https://help.clio.com/hc/en-us/articles/9284651312411-Compliance"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Work launched in Canada",
+   "product": "Clio Work",
+   "where": "Clio Work (separate AI workspace)",
+   "what": "Matter-aware AI workspace (summaries, Canadian legal research with linked sources, strategy stress-test, drafting, multi-step agentic tasks). Went live in Canada 23 July 2026, using the Jurisage corpus (~470k Canadian decisions, 40+ courts, daily updates) Clio bought June 2026. vLex/Vincent (acquired 2025) powers it elsewhere.",
+   "plan_tier": "Sold separately / 'Elite Work' bundle; CAD price not public",
+   "sources": [
+    "https://lawnext.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada.html",
+    "https://www.legaltechmonitor.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada/",
+    "https://siliconangle.com/2025/06/30/canadian-legal-tech-startup-clio-swoops-acquire-vlex-1b/",
+    "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/"
+   ],
+   "screenshots": [
+    "https://lawnext.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada.html"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Canadian legal accounting in Clio Manage",
+   "product": "Clio Manage (Accounting)",
+   "where": "Accounting / Trust",
+   "what": "2026 launch of built-in legal accounting for Canadian firms, described as designed around provincial/territorial law society trust rules. Sept 2026 CA pricing table: bank account sync, auto-match transactions, trust and operating reconciliation, chart of accounts, cheque printing, free accountant licence on every plan.",
+   "plan_tier": "All plans (Starter up)",
+   "sources": [
+    "https://www.clio.com/?p=63101",
+    "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/"
+   ],
+   "screenshots": [
+    "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Law Society of Alberta trust report + approved solution",
+   "product": "Clio Manage",
+   "where": "Reports > Compliance Reports > LSA Trust",
+   "what": "Built-in LSA trust compliance report (Reports > Compliance Reports > LSA Trust) and LSA-approved vendor status; Law Society of BC Trust Administration Fee ($20 + GST per matter over $10k) auto-applied and reported for Canadian-billing accounts. Help-centre search for Ontario/LSO trust reports returns nothing Ontario-specific (no By-Law 9 / Form 9A report found).",
+   "plan_tier": "All plans with trust accounting",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report",
+    "https://www.clio.com/about/press/clio-becomes-first-cloud-based-practice-management-solution-approved-law-society-alberta/",
+    "https://www.clio.com/app-directory/cloudact-solutions/",
+    "https://help.clio.com/hc/en-us/articles/52126240002843-Manage-Trust-Administration-Fee"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Canadian court rules coverage",
+   "product": "Clio Manage (Court Rules)",
+   "where": "Settings > Court Rules > jurisdictions; matter > court rules",
+   "what": "Rules-based deadline calendaring: 50 US states / 2,200 jurisdictions; in Canada only 'two provincial courts and the federal court' (help article updated 2026-10-06; provinces not named). Jurisdiction caps per plan: Starter none, Core 3/firm, Signature/Elite 10/firm (CA Sept 2026).",
+   "plan_tier": "Core and above",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9289840995867",
+    "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/",
+    "https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Law society / association member discounts (Ontario)",
+   "product": "Clio (sales)",
+   "where": "clio.com/partnerships",
+   "what": "No Law Society of Ontario partnership found. Ontario groups: Federation of Ontario Law Associations 10%, Criminal Lawyers' Association 15%, Ottawa Legal Managers Association 10%. Law Society of Alberta members 10% (excludes Clio Draft). Clio claims 100+ bar/law society partners globally.",
+   "plan_tier": "Any plan; not combinable",
+   "sources": [
+    "https://www.clio.com/partnerships/bar-associations/fola/",
+    "https://www.clio.com/partnerships/bar-associations/criminal-lawyers-association/",
+    "https://www.clio.com/partnerships/bar-associations/the-ottawa-legal-managers-association/",
+    "https://www.clio.com/?p=13133",
+    "https://www.clio.com/partnerships/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "French language",
+   "product": "Clio Manage",
+   "where": "n/a",
+   "what": "No French UI found in help centre or pricing; a French review site says UI and docs are English-only. Clio Work offers AI document translation to a chosen language (not certified). Quebec firms excluded from card surcharging. Treat 'no French UI' as likely, not proven.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://www.clubic.com/telecharger-fiche540860-clio.html",
+    "https://www.clio.com/about/careers/job_id=JOB_POSTING-3-6968/",
+    "https://help.clio.com/hc/en-us/articles/51846753939483-Set-Up-Surcharging-in-Canada",
+    "https://help.clio.com/hc/en-us/articles/51541484444187-Translate-Documents-in-Clio-Work"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Card surcharging in Canada",
+   "product": "Clio Payments",
+   "where": "Settings > Payments > Surcharging (by request)",
+   "what": "Optional surcharge on credit cards capped at 2.4%; not for debit/prepaid, Apple/Google Pay or trust payments; not available to Quebec firms or Quebec billing addresses.",
+   "plan_tier": "Clio Payments users in Canada",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/51846753939483-Set-Up-Surcharging-in-Canada"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Payments fees (Canada)",
+   "product": "Clio Payments",
+   "where": "Billing > payments",
+   "what": "2.95% per card transaction in Canada, no monthly fee; Pay Later with Affirm 4.95%; text-to-pay from Core up (CA Sept 2026 table). PCI DSS compliant.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/",
+    "https://www.clio.com/wp-content/uploads/2025/06/Brochure-Quickstart-PDF-Getting-Paid-Quickly-and-Reliably.pdf",
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/"
+   ],
+   "screenshots": [
+    "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "SOC 2 Type II and SOC 1 Type II",
+   "product": "Clio (company)",
+   "where": "trust.clio.com",
+   "what": "Annual SOC 2 Type II and SOC 1 Type II audits; reports requested via trust.clio.com.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+    "https://trust.clio.com"
+   ],
+   "screenshots": [
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "ISO 27001",
+   "product": "Clio (company)",
+   "where": "n/a",
+   "what": "No evidence Clio itself holds ISO 27001; Clio pages say its AWS hosting facilities are audited (e.g. SOC 2, ISO 27001) and Clio reviews those annually.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+    "https://www.clio.com/uk/features/data-security/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Encryption",
+   "product": "Clio (platform)",
+   "where": "n/a",
+   "what": "TLS 1.2+ in transit, AES-256 at rest; AWS hosting; brochure cites alignment with NIST SP 800-53. No customer-managed/per-firm keys mentioned.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+    "https://www.clio.com/wp-content/uploads/2024/04/Brochure-Guide-Security-Protocols-and-Infrastructure-Guide.pdf"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Backups, geo-redundancy, DR testing, data escrow",
+   "product": "Clio (platform)",
+   "where": "Settings > Data escrow (customer backups)",
+   "what": "Backups several times per day, mirrored data centres with daily backups, multi-region AWS geo-redundancy, quarterly production DB restore tests, data escrow for firm-owned backups; Clio still recommends firms keep a local backup. Whether Canadian backups stay in Canada is not stated.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+    "https://help.clio.com/hc/en-us/articles/9284651312411-Compliance"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "99.9% uptime guarantee / SLA",
+   "product": "Clio (contract)",
+   "where": "Pricing page claim; Service Level Commitments document",
+   "what": "Clio's Compliance help article lists a 99.9% uptime SLA (links to status page); CA pricing page advertised a 99.9% uptime guarantee; service-level document gives fee-percentage credits below 99.9% monthly uptime as sole remedy. Credit table not retrieved.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://web.archive.org/web/20250805044607/https://www.clio.com/ca/pricing/",
+    "https://web.archive.org/web/20260113223409/https://www.clio.com/ca/pricing/",
+    "https://www.clio.com/uk/?p=16273",
+    "https://help.clio.com/hc/en-us/articles/9284651312411-Compliance"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Status page and incident history",
+   "product": "Clio (ops)",
+   "where": "status.clio.com (per region incl. Manage Canada)",
+   "what": "Public per-region status. Notable 2026 incidents (from mirrors): 18 Feb US full outage of app.clio.com for a few hours; 29 Apr Manage Canada latency (~30 min); 17 Jun performance incident affecting Canada and Europe; 9 Feb SMS-MFA login failures. One tracker counts 12 incidents / ~135h since 9 Feb 2026 (tracker's own tally).",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://status.clio.com",
+    "https://pingoru.io/providers/clio/outage-history",
+    "https://incidenthub.cloud/status/clio-us"
+   ],
+   "screenshots": [
+    "https://pingoru.io/providers/clio/outage-history"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Account security controls",
+   "product": "Clio Manage",
+   "where": "Settings > Security / Users",
+   "what": "2FA (Clio app push or authenticator), password policy, lockout after failed logins, per-session IP log with ability to view/terminate active sessions, user action log, log of AI actions, role-based permissions (custom roles: Core 2, Signature/Elite unlimited), SAML SSO on Signature/Elite.",
+   "plan_tier": "Varies; SSO Signature+",
+   "sources": [
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+    "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/"
+   ],
+   "screenshots": [
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Support access requires firm consent",
+   "product": "Clio Manage",
+   "where": "In-app permission prompt",
+   "what": "Clio support needs explicit in-app permission for temporary data access; time-limited, logged, revocable.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Pen tests, bug bounty, 24/7 security team; PIPEDA, GDPR, HIPAA, PCI",
+   "product": "Clio (company)",
+   "where": "n/a",
+   "what": "Annual third-party pen tests, private bug bounty, daily malware scans, 24/7/365 security monitoring; claims PIPEDA compliance, regional infra for GDPR/UK DPA/FADP, HIPAA support, PCI DSS for payments.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Pricing (current, Sept-Oct 2026): Starter / Core / Signature / Elite",
+   "product": "Clio Manage (+Grow in Elite)",
+   "where": "clio.com/ca/pricing",
+   "what": "New four-tier lineup replaces EasyStart/Essentials/Advanced/Complete(Expand). Only Starter is priced publicly: from CA$69/user/mo (CA page) and US$49/user/mo (US page); Core, Signature, Elite are 'Get pricing'. AI included from Core up (not an add-on). Elite = Signature + Clio Grow; 'Elite Work' bundle also referenced. Annual saves 'over 16%' (CA) / 'over 17%' (US).",
+   "plan_tier": "Starter / Core / Signature / Elite",
+   "sources": [
+    "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/",
+    "https://web.archive.org/web/20261005012636/https://www.clio.com/pricing/"
+   ],
+   "screenshots": [
+    "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/",
+    "https://web.archive.org/web/20261005012636/https://www.clio.com/pricing/"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Pricing (2025 to Jan 2026) in CAD",
+   "product": "Clio Manage",
+   "where": "clio.com/ca/pricing (archived)",
+   "what": "Per user per month, annual / monthly billing: EasyStart CA$69/79; Essentials CA$129/139; Advanced CA$179/199; Complete (renamed Expand by Jan 2026) CA$219/239. 7-day free trial.",
+   "plan_tier": "EasyStart / Essentials / Advanced / Complete-Expand",
+   "sources": [
+    "https://web.archive.org/web/20250805044607/https://www.clio.com/ca/pricing/",
+    "https://web.archive.org/web/20260113223409/https://www.clio.com/ca/pricing/"
+   ],
+   "screenshots": [
+    "https://web.archive.org/web/20250805044607/https://www.clio.com/ca/pricing/"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Pricing (mid-2025) in USD",
+   "product": "Clio Manage",
+   "where": "clio.com/pricing (archived)",
+   "what": "Annual / monthly per user: EasyStart US$49/59; Essentials US$89/99; Advanced US$119/139; Complete US$149 annual (monthly ~US$169-189, ambiguous in archive). Page had an 'Add AI with Clio Duo' toggle showing higher figures (e.g. Essentials US$119/129, Advanced US$149/169), implying Duo was roughly +US$30/user/mo; treat as unconfirmed.",
+   "plan_tier": "EasyStart / Essentials / Advanced / Complete",
+   "sources": [
+    "https://web.archive.org/web/20250609020854/https://www.clio.com/pricing/"
+   ],
+   "screenshots": [
+    "https://web.archive.org/web/20250609020854/https://www.clio.com/pricing/"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Add-on prices",
+   "product": "Clio Grow / Draft / Duo / Manage AI / Court rules",
+   "where": "Pricing page add-ons",
+   "what": "Clio Grow add-on: CA$89 annual / CA$99 monthly per user + CA$549 one-time setup; US$59 / US$69 + US$399 setup (2025-Jan 2026). From Sept 2026 Grow is 'Get pricing' (included in Elite; pay-per-matter-hired Grow AI option). Clio Draft, Clio Duo / Manage AI: 'contact sales'. Extra court-rule jurisdictions US$10 per firm per month (US tooltip). Card fees 2.95%, Affirm 4.95%.",
+   "plan_tier": "Core/Signature (add-ons)",
+   "sources": [
+    "https://web.archive.org/web/20250805044607/https://www.clio.com/ca/pricing/",
+    "https://web.archive.org/web/20260113223409/https://www.clio.com/ca/pricing/",
+    "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/",
+    "https://web.archive.org/web/20250609020854/https://www.clio.com/pricing/"
+   ],
+   "screenshots": [
+    "https://web.archive.org/web/20260113223409/https://www.clio.com/ca/pricing/"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Canadian practice-area guides and prompt library for Vincent",
+   "product": "Clio Work",
+   "where": "Clio Manage > Work > Vincent",
+   "what": "Canadian-specific Vincent workflows and example prompts by practice area (admin/regulatory etc.), published Aug 2026 after the Canada launch.",
+   "plan_tier": "Clio Work",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/54983295087259-Canadian-Practice-Area-Guides",
+    "https://help.clio.com/hc/en-us/articles/55209967448219-Canadian-Practice-Area-Prompt-Library"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  }
+ ],
+ "gaps": [
+  {
+   "feature": "Canadian data residency (Clio has it too)",
+   "our_area": "readiness",
+   "our_screen": "trust-center",
+   "status": "deliberately different",
+   "proposal": "Make the edge provable, not 'in Canada' alone: add field 'AI inference location' (region + provider) and a per-request residency log on agent calls; sub-processor list must include model provider and state that no prompt/response leaves Canada; show backup region. Versus page should claim 'storage AND AI processing in Canada, logged per call' rather than 'Clio may process outside Canada'.",
+   "priority": "must"
+  },
+  {
+   "feature": "SOC 2 Type II + SOC 1 Type II reports via trust portal",
+   "our_area": "readiness",
+   "our_screen": "trust-center",
+   "status": "partial",
+   "proposal": "Add SOC 1 Type II (financial controls, relevant to trust money) to the Certification enum and a request-report flow with NDA click-through, matching trust.clio.com.",
+   "priority": "should"
+  },
+  {
+   "feature": "99.9% uptime SLA with service credits",
+   "our_area": "readiness",
+   "our_screen": "trust-center",
+   "status": "missing",
+   "proposal": "Add 'SLA target' and 'Service credit policy' fields, and a monthly uptime calc from the status page that auto-drafts a credit note (agent prepares, owner approves).",
+   "priority": "should"
+  },
+  {
+   "feature": "Public per-region status page with incident history",
+   "our_area": "readiness",
+   "our_screen": "trust-center",
+   "status": "partial",
+   "proposal": "Already lists uptime/incident log; add a public status page (per firm cell) with 90-day history and subscribe-to-incident email; firm-scoped incident notice ties to PIPEDA breach edge case.",
+   "priority": "should"
+  },
+  {
+   "feature": "Support access only with explicit, time-limited, logged firm consent",
+   "our_area": "access",
+   "our_screen": "break-glass",
+   "status": "partial",
+   "proposal": "Add vendor-support access grant: firm owner grants scope + expiry; every support action logged in access-audit; revocable at any time; default none.",
+   "priority": "must"
+  },
+  {
+   "feature": "Session list with IP, terminate sessions; 2FA via authenticator/push; lockout",
+   "our_area": "access",
+   "our_screen": "user-detail",
+   "status": "partial",
+   "proposal": "Add active-sessions table (device, IP, last seen, terminate), mandatory TOTP/passkey 2FA, failed-login lockout rule, and AI-action log filter in access-audit.",
+   "priority": "should"
+  },
+  {
+   "feature": "Data escrow / firm-controlled automated backups",
+   "our_area": "platform",
+   "our_screen": "archive-retention",
+   "status": "missing",
+   "proposal": "Add scheduled encrypted export of the firm's full data to firm-owned storage (in Canada), with restore-test evidence shown in trust-center.",
+   "priority": "should"
+  },
+  {
+   "feature": "Quarterly restore testing evidence",
+   "our_area": "readiness",
+   "our_screen": "trust-center",
+   "status": "missing",
+   "proposal": "Add control row 'Backup restore test' with last date and evidence link.",
+   "priority": "could"
+  },
+  {
+   "feature": "Law society trust compliance report (Clio: Alberta only built-in)",
+   "our_area": "trust",
+   "our_screen": "lso-annual-report",
+   "status": "covered",
+   "proposal": "Keep; this is a real Ontario edge (no built-in LSO/Form 9A report found in Clio). Add to versus page with source.",
+   "priority": "must"
+  },
+  {
+   "feature": "Canadian court-rule calendaring (Clio: 2 provinces + Federal, capped per plan)",
+   "our_area": "deadlines",
+   "our_screen": null,
+   "status": "covered",
+   "proposal": "Keep Ontario rules with citations; versus page should say Clio has limited Canadian court rules rather than 'mostly US'.",
+   "priority": "should"
+  },
+  {
+   "feature": "Bar/association member discounts (FOLA 10%, CLA 15%, OLMA 10%, LSA 10%)",
+   "our_area": "readiness",
+   "our_screen": null,
+   "status": "missing",
+   "proposal": "Go-to-market, not spec: seek FOLA / county law association or LawPRO practice-support listing; no screen needed.",
+   "priority": "could"
+  },
+  {
+   "feature": "French interface",
+   "our_area": "readiness",
+   "our_screen": "provinces-languages",
+   "status": "partial",
+   "proposal": "Clio appears English-only; a French UI and French agent drafts for Ontario francophone firms would be an edge. Keep in plan; decide v1.1.",
+   "priority": "could"
+  },
+  {
+   "feature": "Card surcharging with Canadian rules (2.4% cap, Quebec excluded, no trust)",
+   "our_area": "billing",
+   "our_screen": "payment-settings",
+   "status": "covered",
+   "proposal": "Verify our surcharge rule encodes the cap, Quebec exclusion and 'never on trust payments'.",
+   "priority": "should"
+  },
+  {
+   "feature": "Public CAD pricing / plan table",
+   "our_area": "platform",
+   "our_screen": "account-subscription",
+   "status": "partial",
+   "proposal": "Publish a CAD per-firm price with AI included; compare against Clio Starter CA$69 + quote-gated AI tiers.",
+   "priority": "should"
+  },
+  {
+   "feature": "Canadian legal research (Clio Work on Jurisage, July 2026)",
+   "our_area": "platform",
+   "our_screen": "research-workspace",
+   "status": "partial",
+   "proposal": "Clio now has 470k Canadian decisions in-product; our research must at least cite CanLII/e-Laws with pinpoints and say so; readiness 'research' gap is real.",
+   "priority": "must"
+  },
+  {
+   "feature": "Province-specific trust levies (Clio: LSBC Trust Administration Fee automation)",
+   "our_area": "trust",
+   "our_screen": "matter-trust-settings",
+   "status": "missing",
+   "proposal": "When adding BC: rule-pack field for per-matter trust levies (e.g. LSBC TAF) with auto-apply and remittance report. Not needed for Ontario v1.",
+   "priority": "could"
+  }
+ ],
+ "corrections": [
+  {
+   "our_claim": "versus-clio: 'Data — Clio: AI may process outside Canada' and 'Why they'd choose us: Data stays in Canada' (implies Clio does not)",
+   "truth": "Clio hosts Canadian firms on a Canadian instance (ca.app.clio.com) and its security page claims AI data is processed in-region. Only for Clio Work/Vincent does Clio's help article admit temporary processing outside the region. Reword: 'Clio stores Canadian data in Canada; its Clio Work AI may process outside Canada. We keep storage and every model call in Canada.' Note Canadian hosting is opt-in; some Canadian firms are on US servers, so 'your data is in Canada by default and always' is still a fair edge if we make it the only option.",
+   "sources": [
+    "https://docs.developers.clio.com/handbook/getting-started/regions",
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+    "https://help.clio.com/hc/en-us/articles/53337803186715",
+    "https://help.clio.com/hc/en-us/articles/53337803186715-Understand-Clio-Work-Data-Residency-in-Canada",
+    "https://help.clio.com/hc/en-us/articles/9284651312411-Compliance"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: 'Ontario rules — Clio: Mostly US court rules'",
+   "truth": "Overstated but directionally right. Clio Court Rules (help, updated 2026-10-06): 50 US states / 2,200 jurisdictions vs only two provincial courts plus Federal Court in Canada. Clio also has Canadian legal accounting (2026), an Alberta trust report and BC TAF handling, and Clio Work with Canadian case law. No Ontario LSO (Form 9A/By-Law 9) report found. Reword: 'Clio: few Canadian court rule sets, no Ontario trust report'.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9289840995867",
+    "https://www.clio.com/?p=63101",
+    "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report",
+    "https://lawnext.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada.html",
+    "https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules",
+    "https://help.clio.com/hc/en-us/articles/52126240002843-Manage-Trust-Administration-Fee"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: 'Trust — Clio: Monthly manual reconciliation'",
+   "truth": "Clio (all CA plans, Sept 2026) has bank account sync, auto-match transactions and trust/operating reconciliation; three-way reconciliation is assisted. Reconciliation is monthly and user-driven, but not purely manual.",
+   "sources": [
+    "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/",
+    "https://www.clio.com/features/law-firm-financial-reporting/"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: 'Software — ~US$90–150+/user/mo with AI (check)'",
+   "truth": "Outdated and wrong currency for an Ontario firm. 2025-Jan 2026 CAD list: EasyStart 69, Essentials 129, Advanced 179, Complete/Expand 219 (annual; monthly 79/139/199/239). Since ~Sept 2026: Starter from CA$69 (US$49); Core/Signature/Elite are quote-only with AI included from Core. Say 'from CA$69/user/mo; AI tiers quote-only (2025 list CA$129–219)'.",
+   "sources": [
+    "https://web.archive.org/web/20250805044607/https://www.clio.com/ca/pricing/",
+    "https://web.archive.org/web/20260113223409/https://www.clio.com/ca/pricing/",
+    "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/",
+    "https://web.archive.org/web/20261005012636/https://www.clio.com/pricing/"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: 'What Clio has: All provinces, French'",
+   "truth": "'French' is unproven: no French UI found (third-party says English-only). 'All provinces' holds for sales/hosting, but built-in law society reports and court rules cover only some provinces.",
+   "sources": [
+    "https://www.clubic.com/telecharger-fiche540860-clio.html",
+    "https://help.clio.com/hc/en-us/articles/9289840995867",
+    "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: 'Security certifications, uptime, support team' (unspecified)",
+   "truth": "Make concrete: Clio has SOC 2 Type II + SOC 1 Type II (annual), annual pen tests, private bug bounty, 99.9% uptime guarantee with credits, 24/5 support; no ISO 27001 of its own found. It also had a multi-hour US outage on 18 Feb 2026 and Canada performance incidents (Apr, Jun 2026).",
+   "sources": [
+    "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+    "https://web.archive.org/web/20260113223409/https://www.clio.com/ca/pricing/",
+    "https://www.clio.com/uk/?p=16273",
+    "https://pingoru.io/providers/clio/outage-history"
+   ]
+  },
+  {
+   "our_claim": "readiness.json provinces-languages / summary: Clio gap framed as 'more provinces and French'",
+   "truth": "French is not a confirmed Clio capability; treat French as a potential edge, not a gap to close.",
+   "sources": [
+    "https://www.clubic.com/telecharger-fiche540860-clio.html"
+   ]
+  },
+  {
+   "our_claim": "readiness.json clio gap list: 'Legal research content — where_in_clio: Clio Work'",
+   "truth": "Correct, and now stronger: Clio Work went live in Canada on 23 Jul 2026 with ~470k Canadian decisions (Jurisage). Update priority.",
+   "sources": [
+    "https://lawnext.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada.html",
+    "https://www.legaltechmonitor.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada/"
+   ]
+  }
+ ],
+ "screenshots_index": [
+  {
+   "area": "security",
+   "url": "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+   "shows": "Clio Canada security page (SOC, encryption, hosting regions, AI data handling)"
+  },
+  {
+   "area": "pricing",
+   "url": "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/",
+   "shows": "Current CA pricing: Starter/Core/Signature/Elite and full comparison table"
+  },
+  {
+   "area": "pricing",
+   "url": "https://web.archive.org/web/20261005012636/https://www.clio.com/pricing/",
+   "shows": "Current US pricing: Starter from US$49"
+  },
+  {
+   "area": "pricing",
+   "url": "https://web.archive.org/web/20250805044607/https://www.clio.com/ca/pricing/",
+   "shows": "2025 CAD prices EasyStart/Essentials/Advanced/Complete, Grow add-on, 99.9% uptime claim"
+  },
+  {
+   "area": "pricing",
+   "url": "https://web.archive.org/web/20260113223409/https://www.clio.com/ca/pricing/",
+   "shows": "Jan 2026 CAD prices incl. Expand tier and Manage AI add-on"
+  },
+  {
+   "area": "pricing",
+   "url": "https://web.archive.org/web/20250609020854/https://www.clio.com/pricing/",
+   "shows": "Mid-2025 USD prices with Clio Duo toggle"
+  },
+  {
+   "area": "canada",
+   "url": "https://lawnext.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada.html",
+   "shows": "Clio Work Canada launch article"
+  },
+  {
+   "area": "trust",
+   "url": "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report",
+   "shows": "Alberta trust compliance report steps"
+  },
+  {
+   "area": "uptime",
+   "url": "https://pingoru.io/providers/clio/outage-history",
+   "shows": "Third-party mirror of Clio status incident history"
+  }
+ ],
+ "open_questions": [
+  "Current CAD prices for Core, Signature, Elite and Clio Work / 'Elite Work' (quote-only since ~Sept 2026).",
+  "Does Clio Manage AI (Core+) on Canadian accounts process inside Canada? Security page says yes; Clio Work help article says may be outside region.",
+  "Are Canadian-account backups and geo-redundant copies kept in Canada?",
+  "Does Clio offer any French UI or French help centre? No official statement found either way.",
+  "Exact service-credit percentages and exclusions in Clio's English SLA.",
+  "Does LSO / LawPRO list Clio in any practice-support or member-benefit program? None found.",
+  "Which two provinces does Clio Court Rules cover (help article does not name them)? Likely candidates from LSA/LSBC features: Alberta and BC; unconfirmed."
+ ],
+ "sources": [
+  "https://docs.developers.clio.com/handbook/getting-started/regions",
+  "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report",
+  "https://help.clio.com/hc/en-us/articles/51541484444187-Translate-Documents-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/51846753939483-Set-Up-Surcharging-in-Canada",
+  "https://help.clio.com/hc/en-us/articles/52126240002843-Manage-Trust-Administration-Fee",
+  "https://help.clio.com/hc/en-us/articles/53337803186715",
+  "https://help.clio.com/hc/en-us/articles/53337803186715-Understand-Clio-Work-Data-Residency-in-Canada",
+  "https://help.clio.com/hc/en-us/articles/54983295087259-Canadian-Practice-Area-Guides",
+  "https://help.clio.com/hc/en-us/articles/55209967448219-Canadian-Practice-Area-Prompt-Library",
+  "https://help.clio.com/hc/en-us/articles/9284651312411-Compliance",
+  "https://help.clio.com/hc/en-us/articles/9289840995867",
+  "https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules",
+  "https://incidenthub.cloud/status/clio-us",
+  "https://lawnext.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada.html",
+  "https://pingoru.io/providers/clio/outage-history",
+  "https://siliconangle.com/2025/06/30/canadian-legal-tech-startup-clio-swoops-acquire-vlex-1b/",
+  "https://status.clio.com",
+  "https://trust.clio.com",
+  "https://web.archive.org/web/20250609020854/https://www.clio.com/pricing/",
+  "https://web.archive.org/web/20250805044607/https://www.clio.com/ca/pricing/",
+  "https://web.archive.org/web/20260113223409/https://www.clio.com/ca/pricing/",
+  "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+  "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/",
+  "https://web.archive.org/web/20261005012636/https://www.clio.com/pricing/",
+  "https://www.clio.com/?p=13133",
+  "https://www.clio.com/?p=63101",
+  "https://www.clio.com/about/careers/job_id=JOB_POSTING-3-6968/",
+  "https://www.clio.com/about/press/clio-becomes-first-cloud-based-practice-management-solution-approved-law-society-alberta/",
+  "https://www.clio.com/app-directory/cloudact-solutions/",
+  "https://www.clio.com/features/law-firm-financial-reporting/",
+  "https://www.clio.com/partnerships/",
+  "https://www.clio.com/partnerships/bar-associations/criminal-lawyers-association/",
+  "https://www.clio.com/partnerships/bar-associations/fola/",
+  "https://www.clio.com/partnerships/bar-associations/the-ottawa-legal-managers-association/",
+  "https://www.clio.com/uk/?p=16273",
+  "https://www.clio.com/uk/features/data-security/",
+  "https://www.clio.com/wp-content/uploads/2024/04/Brochure-Guide-Security-Protocols-and-Infrastructure-Guide.pdf",
+  "https://www.clio.com/wp-content/uploads/2025/06/Brochure-Quickstart-PDF-Getting-Paid-Quickly-and-Reliably.pdf",
+  "https://www.clubic.com/telecharger-fiche540860-clio.html",
+  "https://www.legaltechmonitor.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada/"
+ ],
+ "notes": "clio.com and help.clio.com return 403 to direct fetch; clio.com pages were read via Wayback snapshots (dates in URLs). help.clio.com facts are from search snippets (medium). Status history from third-party mirrors. Upgraded via help.clio.com Zendesk API (articles 9284651312411, 9289840995867, 53337803186715, 52126240002843, 51846753939483, 14353332840603, 51541484444187, 54983295087259)."
+}

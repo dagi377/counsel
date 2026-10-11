@@ -1,0 +1,6 @@
+{
+ "access/offboard-user": {"view": ["owner", "admin", "lawyer", "auditor", "agent"], "act": ["owner", "admin", "agent"], "approve": ["owner", "lawyer"]},
+ "access/sign-in-settings": {"view": ["owner", "admin", "auditor"], "act": ["owner", "admin"], "approve": ["owner"]},
+ "access/support-access": {"view": ["owner", "admin", "auditor"], "act": ["owner", "admin"], "approve": ["owner"]},
+ "access/teams": {"view": ["owner", "admin", "lawyer", "associate", "paralegal", "clerk", "auditor"], "act": ["owner", "admin", "lawyer"], "approve": []}
+}

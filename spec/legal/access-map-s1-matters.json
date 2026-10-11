@@ -1,0 +1,5 @@
+{
+ "matters/matter-access-report": {"view": ["owner","admin","lawyer"], "act": ["owner","admin","lawyer","agent"], "approve": ["owner","lawyer"]},
+ "matters/matter-ask": {"view": ["owner","lawyer","associate","paralegal","clerk","agent"], "act": ["owner","lawyer","associate","paralegal","clerk","agent"], "approve": ["owner","lawyer","associate"]},
+ "matters/matter-chronology": {"view": ["owner","lawyer","associate","paralegal","clerk","agent"], "act": ["owner","lawyer","associate","paralegal","clerk","agent"], "approve": ["owner","lawyer","associate"]}
+}

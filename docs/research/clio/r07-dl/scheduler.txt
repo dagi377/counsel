@@ -1,0 +1,228 @@
+
+Clio Scheduler – Home
+ Refer a Friend to Clio. Refer a Friend (North America Based Firms) & 
+ Earn $250
+ or Refer a Friend in Europe & the UK & 
+ Earn £150/€150
+ -->
+ Learn more about Clio's most powerful add-ons in our 30 min product tours!
+ Register Now
+Skip to main content
+ All Categories
+ English (US)
+ English (Europe)
+ English (AU)
+ Home
+ Appointments and Clio Scheduler
+Clio Scheduler
+ Updated 
+November 01, 2023 16:32
+Have more questions? Submit a request
+Refer a Friend to Clio
+Refer a Friend (North America Based Firms) & Earn $250 
+ Earn $250
+Refer a Friend in Europe & the UK & Earn £150/€150
+ Earn £150/€150
+Exclusive Clio Customer Offer
+Draft routine documents faster in 2024 with Lawyaw. Get 15% off a monthly subscription until Dec 31, 2023!
+ Book a walkthrough
+ -->
+Clio Scheduler is an online appointment booking tool for prospective clients. Prospective clients can book appointments in available time slots and pay for appointments in advance if your firm has Clio Payments enabled. Once booked, appointments will appear in your Clio Manage calendar. When configuring your settings, you can also set up your firm booking page to host multiple appointment types across your firm and customize how Clio Scheduler is displayed.
+Note: All settings and appointment setups are done in Clio Grow.
+Connect Grow and Manage
+Before using Scheduler, you need to connect your Clio Grow and Clio Manage accounts and then enable Clio Grow appointments to appear in your Clio Manage calendar. You can connect both products in Clio Grow.
+Go to Settings > Email & calendar.
+In the Send events to Clio Manage calendar section, click Connect with Clio Manage.
+Click Allow Access. The calendar will automatically connect to the Clio Manage calendar that matches your username in Clio Grow. If no matching calendar can be found, you will need to manually select a calendar.
+Ensure that the box for Add appointments to my calendar is checked.
+Create appointment types
+In Clio Grow, appointment types are templates of appointments that you commonly schedule with prospective clients. You can add appointment types to Clio Scheduler to allow prospective clients to book appointments themselves. Once a prospective client books an unpaid appointment, it will be added to your Lead inbox. Paid appointments will be added to your Pipeline.
+Tip: Once the appointment type is created, click the appointment link URL to view what your prospective clients will see.
+Go to Settings > Appointments > Clio Scheduler appointments.
+Under the My appointment types section, click New appointment type.
+See the accordion sections below to learn more about each section in the appointment type creation tool.
+Appointment information
+Enter basic information for your appointment type, including the appointment type's name and description, the location of this appointment type, any internal note that will not be visible to prospective clients.
+Optional: Check the box for Add this appointment type to firm booking page. Learn more about the firm booking page below.
+Click Save and close.
+Basic booking details
+Complete basic booking settings.
+Duration: Select how long this appointment type will be.
+Recurring availability: Select which days and times are available for prospective clients to book for this appointment type.
+Click Save and close.
+Advanced booking settings
+Set advanced booking details.
+Start time increments: Select how often appointments can be started each hour.
+Minimum advance booking: Set the minimum amount of time required between the time of a booking and the start of an appointment. This setting can prevent a prospective client from booking the day of the appointment.
+Buffer before appointment: Set a buffer before the appointment type to avoid back-to-back appointments. 
+Buffer after appointment: Set a buffer after the appointment type to avoid back-to-back appointments. 
+Click Save and close.
+Note: Buffers are not displayed on your Clio Manage calendar.
+Emails
+When your prospective client books an appointment via the Clio Scheduler booking link, you can choose which emails they receive for appointment invitation, confirmation, and reminder. You can also create multiple email templates for each. Learn more about creating email templates here.
+Under Invitation email, select the email template that will be sent once a prospective client books an appointment via the Clio Scheduler booking link.
+Under Current email template, select the appropriate email template.
+Optional: Click View templates to see a preview of the listed templates.
+Under Confirmation email, select the email that will be sent to confirm the prospective client's appointment.
+Under Current email template, select the appropriate email template.
+Optional: Click View templates to see a preview of the listed templates.
+Under Reminder email, select the email that will be sent to remind the prospective client of their upcoming appointment.
+Under Current email template, select the appropriate email template.
+Optional: Click View templates to see a preview of the listed templates.
+Click Save and close.
+Collect payments
+If you have Clio Payments enabled on your Clio Manage account, you can accept debit or credit card payments or Apple Pay or Google Pay at the time that a prospective client books an appointment using the Clio Scheduler booking link. Paid appointments will automatically be added to your matter Pipeline.
+The payment will either be recorded as a completed transaction in Clio Manage or kept as a credit for the contact for future billing, depending on the selected setting. If the payment is recorded as a transaction, you can find it in the contact’s Transactions subtab.
+Note: You can only collect payments if you have Clio Payments enabled, are located in North America, and have at least one of the following permissions: administrator, accounts, or billing.
+Check the box for Collect payments for this appointment if you want clients to always pay for this appointment type when booking their appointments.
+Matter status applied to these new leads: Select the matter status that will be applied to any new leads that book and pay for this appointment type.
+Amount: Enter the amount due for this appointment type.
+Linked bank account: Select the bank account that the collected payment funds will be deposited into.
+When do you want to record the payment as fees earned: Select whether the payment should deposit into your bank account as a transaction or be kept as a credit on the contact’s record for future billing. If you select a trust account as the bank account, you only have the option to keep the payment as a credit for future billing.
+Click Create.
+Edit appointment types
+You can change any setting that you initially set when you created an appointment type, including the date and times that you are available for appointments, minimum advanced booking times, start time increments, buffer times, and more.
+Go to Settings > Appointments > Clio Scheduler appointments.
+Find the appointment type in the My appointment types section.
+Click Edit appointment type.
+Open the appropriate section and make your changes.
+Click Save and Close.
+Delete appointment types
+Go to Settings > Appointments > Clio Scheduler appointments.
+Find the appointment in the My appointment types section.
+Click Delete.
+When the warning prompt appears, select Delete.
+Share appointment booking link
+When setting up appointments, you can embed a public link on your website that prospective clients can click to schedule appointments. You can also share this link directly with prospective clients.
+Tip: You can also add your Clio Scheduler link to your Google Business Profile in Google. Learn more here.
+Go to Settings > Appointments > Clio Scheduler appointments.
+Find the appointment type in the My appointment types section.
+Click Copy link below the appointment type.
+Paste the link on your website or send it to a client by email.
+Add appointments to firm booking page
+With the firm booking page, you can display multiple firm appointment types on a single webpage using one link. When a client clicks the firm booking page link, they will see all available appointment types for your firm that you added to the firm booking page. Follow the steps below to add appointment types to the firm booking page.
+Note: Only administrators can view this section.
+Go to Settings > Appointments > Clio Scheduler appointments.
+Under Firm booking page click Select appointment types.
+Select which appointment types you want your prospective clients to see.
+Click Save.
+Click Copy link to add the link to your website.
+Customize Scheduler appearance
+With Clio Scheduler, you can customize the display name that prospective clients see when booking appointments and choose whether you want the appointment link to display your firm logo. If you do not select a display name, appointments will show your Clio Grow username.
+Change display name Show firm logo
+Note: The display name limit is 255 characters.
+Go to Settings > Appointments > Clio Scheduler appointments.
+Scroll down to the My appointment types section.
+Click Edit display name.
+Change the name and click Save display name.
+Go to Settings > Logo & letterhead.
+Click Edit Law Firm Info.
+Upload a logo and click Update Law Firm Info.
+Pause appointment types
+Appointment time slots are always available unless you temporarily pause them by unchecking all available days for all appointment types. When you’re ready to accept appointments again, just re-add days and times. An alternative to pausing appointment types is creating an all-day event in your Clio Manage calendar. When you do this, Clio Scheduler prevents appointments from being booked on the day of the all-day event.
+Uncheck available days Create all-day event
+Go to Settings > Appointments > Clio Scheduler appointments.
+Find the appointment type in the My appointment types section.
+Click Edit appointment type.
+Open the Basic booking settings section and uncheck all days.
+Click Save and Close.
+Go to Calendar.
+Click New event.
+Set the start time for the event as 12:00AM and end time as 12:00AM on the last day of your absence.
+Complete the remaining details.
+Click Save event.
+Important: When changing the start and end times, do not select the All Day checkbox. Selecting this checkbox will not affect the appointment type's availability.
+Cancel booked appointments
+When you cancel an appointment, both you and the prospective client will receive an email confirmation. If you need to reschedule or cancel an appointment that your client booked through Clio Scheduler, follow the directions below.
+Go to the matter.
+Under Intake process, find the appointment booking.
+Click the Options dropdown and select Cancel Appointment.
+When the warning prompt appears, select Cancel Appointment.
+Actions for prospective clients
+Prospective clients can book appointments by clicking the link you send them or by clicking the Scheduler link embedded in your website. When your prospective client clicks the link, they will be taken to the Scheduler where they can book their appointment, and if required, enter payment information. If an appointment type requires a payment but the prospective client does not provide payment, the appointment will automatically be unscheduled. When the appointment is booked, both you and the prospective client will receive a confirmation email.
+When clients book appointments, the default time zone is based on the computer or phone time of the person viewing the scheduler. Your clients can change the time zone when booking appointments upon clicking the appointment link.
+Prospective clients can also reschedule and cancel appointments that they booked. The prospective client can reschedule or cancel their booked appointment from the confirmation email by clicking either Reschedule or Cancel. When a prospective client reschedules or cancels an appointment, both you and the prospective client will receive an email notification of the change. Appointment emails are sent from notifications@grow.clio.com. You cannot change this to your firm email.
+Important: Only clients can reschedule appointments that they booked. You can only reschedule the appointment if you booked it on behalf of your client. If you need to reschedule an appointment that your client booked, cancel the appointment and create a new one.
+Need more help?
+ Ask The Law Community
+ Get answers from fellow Clio customers
+ Contact us
+ Tell us more and get personalized support
+Was this article helpful?
+ Yes
+ No
+ 0 out of 0 found this helpful
+ Still have questions?
+ Get personalized support—24 hours a day, 5 days a week—from the largest and most experienced team in the industry. 1-888-858-2546.
+ Chat with us
+PRODUCTS
+Clio Complete
+Clio Manage
+Clio Grow
+Clio for Clients
+Lawyaw
+Integrations
+Pricing
+FEATURES
+Client Intake
+Billing and Collections
+Case Management
+Document Management
+Task Management
+What’s New
+See All Features
+RESOURCES
+All Upcoming Events
+Customer Stories
+Clio Cloud Conference
+Legal Trends Report
+Compare Clio
+Blog
+Start a Law Firm
+COMMUNITY
+Customer Community
+Bar Associations
+Incubator Program
+Referrals
+Academic Access
+Certified Consultants
+COMPANY
+About Us
+Our Mission
+Leadership
+Careers
+News & Press
+SUPPORT
+Developer Hub
+Find a Consultant
+Clio Academy
+Sitemap
+Subscribe
+Support Login
+ -->
+ Clio - Legal Software
+ Terms
+ Privacy Policy
+ Legal Service
+ -->
+©2008 - 2022 Themis Solutions 
+ Clio - Legal Software
+ Terms
+ Privacy Policy
+ Legal Service
+ Facebook
+ Twitter
+ YouTube
+ LinkedIn
+ Instagram
+Return to top
+ https://www.clio.com/features/whats-new/
+//theme.zdassets.com/theme_assets/15629/8cc92d753bb894b7bacd5dc692dec4dd1a2d467f.png
+ Product Updates
+ Learn more about what’s new at Clio and get insight into product enhancements and improvements
+custom
+ https://community.clio.com/?utm_source=help-center&utm_medium=home-link
+//theme.zdassets.com/theme_assets/15629/1687e69ca29829b0d7ed3ffbca1b4e5aa021664e.png
+ Customer Community
+ Get answers t
+IMGS: []

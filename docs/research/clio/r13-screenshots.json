@@ -1,0 +1,2694 @@
+{
+ "id": "r13-screenshots",
+ "scope": "Index of publicly visible Clio UI images and videos across all product areas (clio.com product pages via Wayback, help.clio.com article images/videos via Zendesk API, App Store / Google Play, official YouTube channel @goclio).",
+ "clio_products": [
+  "Clio Manage",
+  "Clio Grow",
+  "Clio Draft",
+  "Clio Accounting",
+  "Clio Payments",
+  "Clio for Clients",
+  "Clio Scheduler",
+  "Clio File",
+  "Clio Duo / Manage AI",
+  "Clio Work (Vincent)",
+  "Clio Library"
+ ],
+ "features": [
+  {
+   "name": "Matter stages board",
+   "product": "Clio Manage",
+   "where": "Matters > Stages view",
+   "what": "Matters move through firm-defined stages shown as a board.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/15083241879195-Create-and-Manage-Matter-Stages",
+    "https://www.clio.com/features/case-management-software/"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2024/08/Matter-Stages-Animation-Compressed.gif"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Court rules calendaring",
+   "product": "Clio Manage",
+   "where": "Calendar > new event > court rules",
+   "what": "Generates deadline chains from jurisdiction rules; editable per matter.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules"
+   ],
+   "screenshots": [
+    "https://brand.clio.com/m/1cd675dce17e6754/original/Edit-Court-Rule-Calendar.jpg"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Text messaging",
+   "product": "Clio Manage",
+   "where": "Matter or contact dashboard > send text",
+   "what": "Two-way SMS with clients logged to the matter, also on mobile.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage"
+   ],
+   "screenshots": [
+    "https://brand.clio.com/m/4cc4672a3178c452/original/Text-Messaging.gif"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Internal messages",
+   "product": "Clio Manage",
+   "where": "Communications > internal messages",
+   "what": "Staff-to-staff messages, e.g. bill approval requests.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125264015259-Internal-Messages"
+   ],
+   "screenshots": [
+    "https://brand.clio.com/m/323c354d9f7890f9/original/Internal-Message-Bill-Approval.jpg"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Protected trust funds",
+   "product": "Clio Manage",
+   "where": "Matter > trust funds > protect",
+   "what": "Funds can be marked protected so non-accounts users cannot spend them; permission-gated edit/release.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/51583795486363-Protect-Client-Trust-Funds"
+   ],
+   "screenshots": [
+    "https://brand.clio.com/m/49ea92b2d2e060c0/original/Add-protect-matter-funds-accounts-permissions.png"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio for Clients portal app",
+   "product": "Clio Manage",
+   "where": "Client-facing app (iOS/Android/web)",
+   "what": "Clients message, share documents, pay and complete client actions.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://apps.apple.com/us/app/clio-for-clients/id1506329289",
+    "https://www.clio.com/features/client-portal/"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2023/04/Clio-for-Clients-Message-Thread-550x765.png"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Draft questionnaires",
+   "product": "Clio Draft",
+   "where": "Draft > questionnaires",
+   "what": "Client-facing multi-page questionnaires whose answers fill document templates.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://www.clio.com/draft/automated-legal-client-questionnaires/"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/02/Questionnaires-mapping-fields-to-documents-750x539.png"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Grow matter pipeline",
+   "product": "Clio Grow",
+   "where": "Grow > Pipeline",
+   "what": "Leads tracked across intake stages on a board.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://www.clio.com/grow/"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2023/11/Feature-Animation-Clio-Grow-Matter-Pipeline-2025.gif"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Grow conflict check",
+   "product": "Clio Grow",
+   "where": "Grow > lead > conflict check",
+   "what": "Conflict check run during intake.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://www.clio.com/grow/"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/10/Simplified-Product-UI_Clio-Manage_Clio-Grow_Grow_Conflict-Check_GIF.gif"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Grow AI website chat",
+   "product": "Clio Grow",
+   "where": "Grow > website chat tool",
+   "what": "AI chat on firm website that captures leads.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/52131068035995-Grow-AI-s-Website-Chat-Tool"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/1166727285"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Accounting bank feed and trust withdrawal",
+   "product": "Clio Accounting",
+   "where": "Accounting > bank feed",
+   "what": "Bank feed matching and trust withdrawal flows.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://www.clio.com/features/legal-accounting-software/"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2024/07/Simplified-Product-UI_Clio-Manage_Clio-Accounting_Bank-Feed-GIF-Bone-Background.gif"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Manage AI (Duo)",
+   "product": "Clio Manage",
+   "where": "Duo panel / AI features",
+   "what": "Answers matter questions, drafts communications, extracts deadlines, assists billing.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://www.clio.com/features/legal-ai-software/",
+    "https://www.clio.com/features/duo-legal-ai-software/"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/08/Manage-AI-Masthead-1-750x700.png"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Work (Vincent)",
+   "product": "Clio Work",
+   "where": "Clio Work app; iOS 'Vincent by Clio'",
+   "what": "AI legal research, document analysis, redlines, timelines, translation, Legal Pad, SEC filing search.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://www.clio.com/work/",
+    "https://apps.apple.com/us/app/vincent-by-clio/id6759928193"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/09/Clio-Work-NA-Clio-Work-Meet-Vincent-750x403.png"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Tap to Pay",
+   "product": "Clio Manage mobile",
+   "where": "Mobile app > bill > Tap to Pay",
+   "what": "Take card payments on a phone against an invoice.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://www.clio.com/features/mobile-app/"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2023/10/Tap-to-Pay-Invoice-crop-550x671.png"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio File e-filing",
+   "product": "Clio Manage",
+   "where": "Matter > documents > e-file",
+   "what": "Court e-filing with status tracking, auto filing-fee expense and rules calendaring.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://www.clio.com/features/file/"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2024/06/Simplified-Product-UI-Clio-Manage-Clio-File-E-Filing-Status-Simplified-UI-1-750x468.png"
+   ],
+   "confidence": "high"
+  }
+ ],
+ "gaps": [],
+ "corrections": [],
+ "screenshots_index": [
+  {
+   "area": "matters",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Photography_Legal-Case-Management_Matter-Dashboard-750x750.jpg",
+   "shows": "Matter dashboard (marketing photo of Manage UI) [clio.com/manage/ via Wayback]"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.clio.com/wp-content/uploads/2024/09/Manage-Keeping-law-firms-organized.png",
+   "shows": "Manage overview collage: organized firm view [clio.com/manage/ via Wayback]"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.clio.com/wp-content/uploads/2024/09/Manage-Your-case-files-in-one-place.png",
+   "shows": "Matter documents/case files in one place (simplified UI) [clio.com/manage/ via Wayback]"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://www.clio.com/wp-content/uploads/2024/09/Manage-Get-paid-for-every-billable-moment.png",
+   "shows": "Time capture and billing (simplified UI) [clio.com/manage/ via Wayback]"
+  },
+  {
+   "area": "communications",
+   "url": "https://www.clio.com/wp-content/uploads/2024/09/Manage-Collaborate-from-anywhere.png",
+   "shows": "Collaboration/communication (simplified UI) [clio.com/manage/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2024/12/Clio-Manage-Clio-Duo-NA-Duo-faster-details-750x538.png",
+   "shows": "Clio Duo answering matter detail questions in Manage [clio.com/manage/ via Wayback]"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.clio.com/wp-content/uploads/2023/07/Manage-Your-Firm-image-750x704.png",
+   "shows": "Features hub: manage-your-firm UI collage [clio.com/features/ via Wayback]"
+  },
+  {
+   "area": "billing",
+   "url": "https://www.clio.com/wp-content/uploads/2023/07/Billing-Masthead-Image-1-750x705.png",
+   "shows": "Features hub: billing and payments UI collage [clio.com/features/ via Wayback]"
+  },
+  {
+   "area": "portal",
+   "url": "https://www.clio.com/wp-content/uploads/2023/07/Engage-Clients-better-image-1-750x722.png",
+   "shows": "Features hub: client engagement UI collage [clio.com/features/ via Wayback]"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.clio.com/wp-content/uploads/2023/07/Manage-Your-Documents-image-updated-750x712.png",
+   "shows": "Features hub: documents UI collage [clio.com/features/ via Wayback]"
+  },
+  {
+   "area": "matters",
+   "url": "https://www.clio.com/wp-content/uploads/2024/08/Matter-Stages-Animation-Compressed.gif",
+   "shows": "Animated matter stages board (kanban-style) [clio.com/features/case-management-software/ via Wayback]"
+  },
+  {
+   "area": "matters",
+   "url": "https://www.clio.com/wp-content/uploads/2024/08/case-management-pic-1.png",
+   "shows": "Case management UI tile 1 [clio.com/features/case-management-software/ via Wayback]"
+  },
+  {
+   "area": "matters",
+   "url": "https://www.clio.com/wp-content/uploads/2024/08/case-management-pic-3.png",
+   "shows": "Case management UI tile 3 [clio.com/features/case-management-software/ via Wayback]"
+  },
+  {
+   "area": "matters",
+   "url": "https://www.clio.com/wp-content/uploads/2024/08/case-management-pic-7.png",
+   "shows": "Case management UI tile 7 [clio.com/features/case-management-software/ via Wayback]"
+  },
+  {
+   "area": "matters",
+   "url": "https://www.clio.com/wp-content/uploads/2024/08/case-management-pic-10.png",
+   "shows": "Case management UI tile 10 [clio.com/features/case-management-software/ via Wayback]"
+  },
+  {
+   "area": "contacts",
+   "url": "https://www.clio.com/wp-content/uploads/2025/11/Track-every-client-and-every-detail-550x512.png",
+   "shows": "Contact details record in Manage [clio.com/features/contact-management/ via Wayback]"
+  },
+  {
+   "area": "calendar",
+   "url": "https://www.clio.com/wp-content/uploads/2023/06/Feature-Animation_Clio-Manage_Calendaring_NA_Calendaring-Animation-Create-Court-Rule.gif",
+   "shows": "Animation: creating a court-rule (rules-based) calendar event [clio.com/features/legal-calendaring-software/ via Wayback]"
+  },
+  {
+   "area": "scheduler",
+   "url": "https://www.clio.com/wp-content/uploads/2023/06/Simplified-Product-UI_Clio-Grow_Appointment-Booking_Select-a-Date-UI-Lifestyle-Overlay-550x367.png",
+   "shows": "Booking page: client selects a date [clio.com/features/legal-calendaring-software/ via Wayback]"
+  },
+  {
+   "area": "tasks",
+   "url": "https://www.clio.com/wp-content/uploads/2025/08/tasks-creating-new-NA-mid-collage_-550x673.png",
+   "shows": "Creating a new task / task list collage [clio.com/features/task-management/ via Wayback]"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.clio.com/wp-content/uploads/2018/02/Product-Mockup-Promo-Photo_-Firm-Dashboard-crop-750x487.jpeg",
+   "shows": "Older firm dashboard mockup (2018) [clio.com/features/task-management/ via Wayback]"
+  },
+  {
+   "area": "tasks",
+   "url": "https://www.clio.com/wp-content/uploads/2025/11/Clio-Manage_Task-Management_Work-remotely-while-staying-connected-to-your-law-firm-550x494.png",
+   "shows": "Tasks/collaboration simplified UI [clio.com/features/collaboration/ via Wayback]"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.clio.com/wp-content/uploads/2021/11/Clio-Manage_Document-Management_Clio-Desktop-App-and-Clio-Drive-550x393.png",
+   "shows": "Clio Desktop App / Clio Drive document access [clio.com/features/legal-documents/ via Wayback]"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Simplified-UI_Document-Management_Document-Template-550x430.png",
+   "shows": "Document template generation in Manage [clio.com/features/legal-documents/ via Wayback]"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Grow_Simplified-UI_Document-Automation-Electronic-Signatures_Documents-and-ESignatures-550x486.png",
+   "shows": "Documents and e-signature request (Grow) [clio.com/features/legal-documents/ via Wayback]"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Grow_Simplified-UI_Document-Automation-Electronic-Signatures_Documents-and-ESignatures-550x486.png",
+   "shows": "E-signature UI [clio.com/features/legal-e-signature-software/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2024/09/Simplified-Product-UI_Clio-Draft_Lawyaw-Templates-and-Court-Forms.png",
+   "shows": "Clio Draft templates and court forms library [clio.com/draft/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2024/01/Lawyaw-Legal-Drafting-crop.png",
+   "shows": "Clio Draft template builder [clio.com/draft/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2021/11/Doc-Creation_Lawyaw.gif",
+   "shows": "Animated document creation flow in Draft [clio.com/draft/ via Wayback]"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.clio.com/wp-content/uploads/2024/09/Simplified-Product-UI_Clio-Grow_Document-Automation-Electronic-Signatures_Document-and-E-Signatures_-Sign-Here.png",
+   "shows": "Signer view: sign here [clio.com/draft/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2024/02/Clio-Draft_NA_Word-to-Clio-Draft.png",
+   "shows": "Word document converted to Draft template [clio.com/draft/advanced-document-automation/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2024/02/Simplified-Product-UI_Clio-Draft_Autopopulate-550x493.png",
+   "shows": "Template field autopopulation [clio.com/draft/advanced-document-automation/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2025/02/Build-Client-Trust-Questionnaires-Branding-rev-750x619.png",
+   "shows": "Branded multi-page client questionnaire [clio.com/draft/automated-legal-client-questionnaires/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2025/02/Select-Documents-to-Build-a-Quesitonnaire-Rev-750x547.png",
+   "shows": "Select documents to build a questionnaire [clio.com/draft/automated-legal-client-questionnaires/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2025/02/Questionnaires-mapping-fields-to-documents-750x539.png",
+   "shows": "Questionnaire answers mapped to template fields [clio.com/draft/automated-legal-client-questionnaires/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2024/09/Clio-Draft-Court-Forms-750x750.png",
+   "shows": "Court forms library [clio.com/draft/court-forms/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2022/09/Lawyaw_AllStates_Web.gif",
+   "shows": "Court forms coverage by state (animated) [clio.com/draft/court-forms/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2025/06/Clio-Draft-NA-eSignatures-in-Clio-Draft-Legal-Document-Automation-Software-1-750x749.png",
+   "shows": "E-signatures inside Clio Draft [clio.com/draft/e-signatures/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2025/06/Clio-Draft-NA-Clio-Draft-Track-signatures-in-real-time.png",
+   "shows": "Signature status tracking [clio.com/draft/e-signatures/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2025/06/Clio-Draft-NA-eSignatures-Clio-Draft-Reduce-delays-and-bottlenecks.png",
+   "shows": "E-signature request flow [clio.com/draft/e-signatures/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.clio.com/wp-content/uploads/2024/09/Clio-Draft-Template-Exchange-1-550x360.png",
+   "shows": "Template Exchange / templates service [clio.com/draft/templates-service/ via Wayback]"
+  },
+  {
+   "area": "communications",
+   "url": "https://www.clio.com/wp-content/uploads/2022/07/Clio-Manage_NA_Text-Messaging-from-Manage-to-Phone-550x538.png",
+   "shows": "Text messaging from Manage to client phone [clio.com/features/law-firm-communications/ via Wayback]"
+  },
+  {
+   "area": "communications",
+   "url": "https://www.clio.com/wp-content/uploads/2022/07/Feature-Mockup_Clio-Manage_Clio-Grow_Calendaring_Text-Notifications-1-550x552.png",
+   "shows": "Calendar text notifications to clients [clio.com/features/law-firm-communications/ via Wayback]"
+  },
+  {
+   "area": "communications",
+   "url": "https://www.clio.com/wp-content/uploads/2022/07/Screenshot-Mockup_Feature-Mockup_NA_Communications-550x344.png",
+   "shows": "Communications log mockup [clio.com/features/law-firm-communications/ via Wayback]"
+  },
+  {
+   "area": "communications",
+   "url": "https://www.clio.com/wp-content/uploads/2022/04/Clio-Manage_Outlook_Add-in_Workflow.mp4",
+   "shows": "Video: Outlook add-in workflow (file email to matter) [clio.com/features/integrations/ via Wayback]"
+  },
+  {
+   "area": "calendar",
+   "url": "https://www.clio.com/wp-content/uploads/2022/02/Feature-Animation_Clio-Manage_Clio-Grow_Calendaring_Zoom-Integration.mp4",
+   "shows": "Video: Zoom integration in calendaring [clio.com/features/integrations/ via Wayback]"
+  },
+  {
+   "area": "settings",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Simplified-UI_Integrations-App-Ecosystem-750x738.png",
+   "shows": "App directory / integrations ecosystem [clio.com/features/integrations/ via Wayback]"
+  },
+  {
+   "area": "portal",
+   "url": "https://www.clio.com/wp-content/uploads/2022/11/Product_Screenshot_Clio_for_Clients_Device_Lockup-550x367.png",
+   "shows": "Clio for Clients on desktop and mobile [clio.com/features/client-portal/ via Wayback]"
+  },
+  {
+   "area": "portal",
+   "url": "https://www.clio.com/wp-content/uploads/2023/04/Clio-for-Clients-Message-Thread-550x765.png",
+   "shows": "Clio for Clients secure message thread [clio.com/features/client-portal/ via Wayback]"
+  },
+  {
+   "area": "portal",
+   "url": "https://www.clio.com/wp-content/uploads/2020/10/Scan-Document-550x550.png",
+   "shows": "Client scans and uploads a document in portal app [clio.com/features/client-portal/ via Wayback]"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Simplified-UI_Time-And-Expense-Tracking_Time_Tracker-550x217.png",
+   "shows": "Timer / time tracker widget [clio.com/features/legal-time-expense-tracking/ via Wayback]"
+  },
+  {
+   "area": "billing",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Simplified-UI_Clio-Payments-New-Bill-550x516.png",
+   "shows": "New bill creation [clio.com/features/legal-billing-software/ via Wayback]"
+  },
+  {
+   "area": "billing",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Simplified-UI_Billing_Invoice-550x345.png",
+   "shows": "Invoice (bill) view [clio.com/features/legal-billing-software/ via Wayback]"
+  },
+  {
+   "area": "mobile",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Mobile_Simplified-UI_Case-Management_Manage-Desktop-Mobile-550x332.png",
+   "shows": "Manage on desktop and mobile [clio.com/features/legal-billing-software/ via Wayback]"
+  },
+  {
+   "area": "billing",
+   "url": "https://www.clio.com/wp-content/uploads/2023/11/Simplified-Product-UI_Clio-Manage_Billing_Split-Billing-Micro-UI-750x610.png",
+   "shows": "Split billing between payers [clio.com/features/whats-new/ via Wayback]"
+  },
+  {
+   "area": "billing",
+   "url": "https://www.clio.com/wp-content/uploads/2024/10/Settlement-Statement-Generator-crop-750x466.png",
+   "shows": "Settlement statement generator (PI) [clio.com/features/whats-new/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2024/12/Motion-Graphic-Simplified-Product-UI-Clio-Duo-Direct-Actions-White-BG-Gif.gif",
+   "shows": "Clio Duo direct actions (animated) [clio.com/features/whats-new/ via Wayback]"
+  },
+  {
+   "area": "contacts",
+   "url": "https://www.clio.com/wp-content/uploads/2025/01/Contact-tags-settings.png",
+   "shows": "Contact tags settings [clio.com/features/whats-new/ via Wayback]"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.clio.com/wp-content/uploads/2025/01/Report-Overview-crop.png",
+   "shows": "Reports overview page [clio.com/features/whats-new/ via Wayback]"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.clio.com/wp-content/uploads/2025/01/Matter-revenue-report-2025-crop.png",
+   "shows": "Matter revenue report [clio.com/features/whats-new/ via Wayback]"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.clio.com/wp-content/uploads/2024/10/Clio-Grow-Matter-revenue-report-crop.png",
+   "shows": "Grow matter revenue report [clio.com/features/whats-new/ via Wayback]"
+  },
+  {
+   "area": "payments",
+   "url": "https://www.clio.com/wp-content/uploads/2024/10/Tap-to-Pay.png",
+   "shows": "Tap to Pay on mobile [clio.com/features/whats-new/ via Wayback]"
+  },
+  {
+   "area": "accounting",
+   "url": "https://www.clio.com/wp-content/uploads/2024/07/Simplified-Product-UI_Clio-Manage_Clio-Accounting_Bank-Feed-Matching-GIF.gif",
+   "shows": "Bank feed transaction matching (animated) [clio.com/features/whats-new/ via Wayback]"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.clio.com/wp-content/uploads/2024/07/Simplified-Product-UI_Clio-Manage_Clio-File_Clio-File-Efiling-Bone-BG-GIF.gif",
+   "shows": "Clio File e-filing flow (animated) [clio.com/features/whats-new/ via Wayback]"
+  },
+  {
+   "area": "contacts",
+   "url": "https://www.clio.com/wp-content/uploads/2023/12/Clio-Manage_Clio-Grow_Shared-Contacts-Illustration-1024x467.png",
+   "shows": "Shared contacts between Manage and Grow [clio.com/features/whats-new/ via Wayback]"
+  },
+  {
+   "area": "payments",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Simplified-UI_Clio-Payments_Secure-Payment-Link-550x340.png",
+   "shows": "Secure payment link [clio.com/features/payments/ via Wayback]"
+  },
+  {
+   "area": "payments",
+   "url": "https://www.clio.com/wp-content/uploads/2023/10/Tap-to-Pay-Invoice-crop-550x671.png",
+   "shows": "Tap to Pay against an invoice (mobile) [clio.com/features/mobile-app/ via Wayback]"
+  },
+  {
+   "area": "mobile",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Mobile_Simplified-UI_Case-Management_Clio-Mobil-550x577.png",
+   "shows": "Clio mobile matter view [clio.com/features/mobile-app/ via Wayback]"
+  },
+  {
+   "area": "mobile",
+   "url": "https://www.clio.com/wp-content/uploads/2023/11/Mobile-Communication.png",
+   "shows": "Mobile client messaging [clio.com/features/mobile-app/ via Wayback]"
+  },
+  {
+   "area": "trust/accounts",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Simplified-UI_Accounting_Billing_Trust_Account-550x359.png",
+   "shows": "Trust account balance / ledger [clio.com/features/trust-account-management-software/ via Wayback]"
+  },
+  {
+   "area": "accounting",
+   "url": "https://www.clio.com/wp-content/uploads/2024/07/Clio-Accounting_NA_Accounting-Made-Approachable-Clio-Accounting-500px.png",
+   "shows": "Clio Accounting overview [clio.com/features/trust-account-management-software/ via Wayback]"
+  },
+  {
+   "area": "accounting",
+   "url": "https://www.clio.com/wp-content/uploads/2024/07/Clio-Accounting_Legal-and-Trust-Accounting-Software.png",
+   "shows": "Clio Accounting legal and trust accounting [clio.com/features/legal-accounting-software/ via Wayback]"
+  },
+  {
+   "area": "accounting",
+   "url": "https://www.clio.com/wp-content/uploads/2024/07/Simplified-Product-UI_Clio-Manage_Clio-Accounting_Bank-Feed-GIF-Bone-Background.gif",
+   "shows": "Bank feed (animated) [clio.com/features/legal-accounting-software/ via Wayback]"
+  },
+  {
+   "area": "trust/accounts",
+   "url": "https://www.clio.com/wp-content/uploads/2024/07/Simplified-Product-UI_Clio-Manage_Clio-Accounting_Trust-Withdrawal-GIF-Bone-Background.gif",
+   "shows": "Trust withdrawal (animated) [clio.com/features/legal-accounting-software/ via Wayback]"
+  },
+  {
+   "area": "accounting",
+   "url": "https://www.clio.com/wp-content/uploads/2024/07/Clio-Manage-Trust-Accounting-Make-Informed-Decisions-Clio-Accounting.png",
+   "shows": "Accounting financial view [clio.com/features/legal-accounting-software/ via Wayback]"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.clio.com/wp-content/uploads/2024/07/Simplified-Product-UI_Clio-Manage_Clio-Accounting_Financial-Health-GIF-Bone-Background.gif",
+   "shows": "Financial health dashboard (animated) [clio.com/features/law-firm-financial-reporting/ via Wayback]"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Simplified-UI_Law-Firm-Insights_Firm-Dashboard-550x345.png",
+   "shows": "Firm dashboard (insights) [clio.com/features/law-firm-insights/ via Wayback]"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.clio.com/wp-content/uploads/2019/10/Firm-Dashboard-750x598.png",
+   "shows": "Firm dashboard KPIs (2019) [clio.com/features/law-firm-insights/ via Wayback]"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.clio.com/wp-content/uploads/2019/10/Clio-LTR-2019-Utilization_Rate-550x379.png",
+   "shows": "Utilization rate widget [clio.com/features/law-firm-insights/ via Wayback]"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.clio.com/wp-content/uploads/2019/10/Clio-LTR-2019-Realization_Rate-3-550x404.png",
+   "shows": "Realization rate widget [clio.com/features/law-firm-insights/ via Wayback]"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.clio.com/wp-content/uploads/2019/10/Clio-LTR-2019-Collection_Rate-2-550x402.png",
+   "shows": "Collection rate widget [clio.com/features/law-firm-insights/ via Wayback]"
+  },
+  {
+   "area": "matters",
+   "url": "https://www.clio.com/wp-content/uploads/2023/10/Personal_Ingury_AddOn_-_cropped.gif",
+   "shows": "PI add-on: medical provider details (animated) [clio.com/features/personal-injury-case-management-software/ via Wayback]"
+  },
+  {
+   "area": "matters",
+   "url": "https://www.clio.com/wp-content/uploads/2023/08/Simplified-Product-UI_Clio-Complete_Clio-Manage_Medical-Records-Settlement-Management_NA_Personal-Injury-settlement-dashboard-750x473.png",
+   "shows": "PI settlement dashboard [clio.com/features/personal-injury-case-management-software/ via Wayback]"
+  },
+  {
+   "area": "matters",
+   "url": "https://www.clio.com/wp-content/uploads/2023/08/Simplified-Product-UI_Clio-Manage_Medical-Records-Settlement-Management_NA_Personal-Injury-Medical-Bill-750x481.png",
+   "shows": "PI: add a medical bill [clio.com/features/personal-injury-case-management-software/ via Wayback]"
+  },
+  {
+   "area": "calendar",
+   "url": "https://www.clio.com/wp-content/uploads/2024/06/Feature-Animation-Clio-Manage-Clio-File-Clio-File-Calendar-Rules-2.gif",
+   "shows": "Clio File: court rules calendar after filing [clio.com/features/file/ via Wayback]"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.clio.com/wp-content/uploads/2024/06/Simplified-Product-UI-Clio-Manage-Clio-File-E-Filing-Status-Simplified-UI-1-750x468.png",
+   "shows": "Clio File e-filing status [clio.com/features/file/ via Wayback]"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://www.clio.com/wp-content/uploads/2024/06/Feature-Animation-Clio-Manage-Clio-File-Clio-File-Auto-Expense-2.gif",
+   "shows": "Clio File auto-created filing fee expense [clio.com/features/file/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2025/08/Feature-Images_Clio-Grow-Legal-client-intake-software-750x750.png",
+   "shows": "Grow intake overview [clio.com/grow/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2023/11/Feature-Animation-Clio-Grow-Matter-Pipeline-2025.gif",
+   "shows": "Grow matter pipeline board (animated, 2025) [clio.com/grow/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2025/12/Client-Intake-Workflow-Builder-2025.gif",
+   "shows": "Client intake workflow builder (animated) [clio.com/grow/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2025/10/Simplified-Product-UI_Clio-Manage_Clio-Grow_Grow_Conflict-Check_GIF.gif",
+   "shows": "Conflict check in Grow (animated) [clio.com/grow/ via Wayback]"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.clio.com/wp-content/uploads/2022/09/Insights-Animation_Compressed.gif",
+   "shows": "Grow insights: top lead sources (animated) [clio.com/grow/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2022/09/Clio-Grow_Client-Intake-550x366.png",
+   "shows": "Grow client intake [clio.com/grow/ via Wayback]"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.clio.com/wp-content/uploads/2022/09/Clio-Grow_Document-management-550x366.png",
+   "shows": "Grow document management [clio.com/grow/ via Wayback]"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.clio.com/wp-content/uploads/2022/09/Clio-Grow_e-sign-550x367.png",
+   "shows": "Grow e-sign [clio.com/grow/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2023/08/Google-LSA-Search_Compressed.gif",
+   "shows": "Google Local Services Ads leads (animated) [clio.com/grow/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2025/08/email-marketing-grow-your-firm-750x669.png",
+   "shows": "Grow email marketing [clio.com/grow/ via Wayback]"
+  },
+  {
+   "area": "scheduler",
+   "url": "https://www.clio.com/wp-content/uploads/2022/09/Clio-Grow_NA_EMEA_Clio-Grow-Website-Builder-and-Scheduler-1.gif",
+   "shows": "Website builder with Scheduler booking (animated) [clio.com/grow/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2022/09/Simplified-Product-UI_Clio-Grow_Client-Intake_NA_Client-Intake-Simplified-UI-550x324.png",
+   "shows": "Intake form builder [clio.com/features/online-intake-forms/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Grow_Simplified-UI_Client-Relationship-Management-Matter-Pipeline-550x345.png",
+   "shows": "Grow matter pipeline (CRM) [clio.com/features/legal-crm-software/ via Wayback]"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Grow_Simplified-UI_Client-Intake-Insights-Reports-550x345.png",
+   "shows": "Grow intake insights reports [clio.com/features/client-intake-insights/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2023/11/Simplified-Product-UI_Clio-Grow_Client-Intake_Workflow-Email-Automation_Client-Intake-Automated-Workflow-Simplified-UI-3-550x343.png",
+   "shows": "Automated intake workflow [clio.com/features/legal-workflow-automation-software/ via Wayback]"
+  },
+  {
+   "area": "scheduler",
+   "url": "https://www.clio.com/wp-content/uploads/2023/11/Simplified-Product-UI_Clio-Grow_Appointment-Booking_Grow-Appointment-Text-Reminder-2-550x550.png",
+   "shows": "Appointment text reminder [clio.com/features/legal-workflow-automation-software/ via Wayback]"
+  },
+  {
+   "area": "scheduler",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Grow_Simplified-UI_Appointment-Booking_Scheduler-550x582.png",
+   "shows": "Clio Scheduler booking page [clio.com/features/appointment-bookings/ via Wayback]"
+  },
+  {
+   "area": "scheduler",
+   "url": "https://www.clio.com/wp-content/uploads/2019/11/Clio-Scheduler-750x628.png",
+   "shows": "Clio Scheduler (2019) [clio.com/features/appointment-bookings/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2025/07/Clio-Grow_Marketing_NA_Grow-Email-Marketing-Engage-clients-with-high-impact-emails.png",
+   "shows": "Email marketing campaign editor [clio.com/features/law-firm-email-marketing-software/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2022/10/grow-website-feature-v1.1.gif",
+   "shows": "Website builder (animated) [clio.com/features/law-firm-website-builder/ via Wayback]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.clio.com/wp-content/uploads/2022/09/Clio-Grow-Website-Builder-Domain-Name-crop-2-1024x660.png",
+   "shows": "Website builder domain setup [clio.com/features/law-firm-website-builder/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/08/Manage-AI-Masthead-1-750x700.png",
+   "shows": "Manage AI masthead [clio.com/features/legal-ai-software/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/09/Clio-Manage_Clio-Duo_NA_Manage-AI-Smarter-scheduling-and-deadlines-750x540.png",
+   "shows": "Manage AI: scheduling and deadlines extraction [clio.com/features/legal-ai-software/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/08/Manage-AI-Billing-without-the-bottlenecks-750x540.png",
+   "shows": "Manage AI: billing assistance [clio.com/features/legal-ai-software/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/08/Manage-AI-Compose-on-demand-750x540.png",
+   "shows": "Manage AI: compose emails/text on demand [clio.com/features/legal-ai-software/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/08/Manage-AI-Admin-that-handles-itself-1-750x540.png",
+   "shows": "Manage AI: admin automation [clio.com/features/legal-ai-software/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/10/Clio-Duo-LP1-Masthead-Alt-750x750.png",
+   "shows": "Clio Duo masthead UI [clio.com/features/duo-legal-ai-software/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/10/Firm-Case-and-Client-Answers-CAD-GIF.gif",
+   "shows": "Duo answering firm/case/client questions (animated) [clio.com/features/duo-legal-ai-software/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2024/10/Clio-Manage-Clio-Duo-NA-Meet-Clio-Duo-Your-AI-Powered-Partner.png",
+   "shows": "Clio Duo chat panel [clio.com/ai-principles/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/09/Clio-Work-The-only-AI-that-understands-your-cases-their-context-and-the-law.png",
+   "shows": "Clio Work masthead UI [clio.com/work/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/09/Clio-Work-NA-Clio-Work-Meet-Vincent-750x403.png",
+   "shows": "Clio Work: Vincent assistant [clio.com/work/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/09/Clio-Work-Legal-intelligence-you-can-verify-750x614.png",
+   "shows": "Clio Work key passages / verifiable citations [clio.com/work/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/09/Clio-Library-Masthead-750x689.png",
+   "shows": "Clio Library (legal research) masthead [clio.com/work/ai-legal-research/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/09/Clio-Library-Surface-the-law-that-matters-750x453.png",
+   "shows": "Clio Library search results [clio.com/work/ai-legal-research/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/09/Clio-Library-Know-when-laws-change-750x453.png",
+   "shows": "Clio Library law-change alerts [clio.com/work/ai-legal-research/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2025/09/Clio-Library-NA-Clio-Library-Explore-without-limits-750x453.png",
+   "shows": "Clio Library browsing [clio.com/work/ai-legal-research/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2026/04/Clio-Work-At-Work-Masthead-Image-final-750x687.png",
+   "shows": "Clio Work at work masthead [clio.com/work/at-work/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2026/04/Clio-Work-Clio-Work-Standalone-Get-to-stronger-drafts-faster-2-750x540.png",
+   "shows": "Clio Work drafting [clio.com/work/at-work/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2026/04/Feature-Images-Thumbnail-X-Ray-a-Witness-With-AI-Analyzed-Transcripts-Thumbnail.png",
+   "shows": "Clio Work transcript analysis (video thumbnail) [clio.com/work/at-work/ via Wayback]"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.clio.com/wp-content/uploads/2026/04/Feature-Images-Thumbnail-Contract-Review-That-Doesnt-Miss-the-Buried-Clause-Thumbnail.png",
+   "shows": "Clio Work contract review (video thumbnail) [clio.com/work/at-work/ via Wayback]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://fast.wistia.net/embed/iframe/s1s62akw4y",
+   "shows": "Clio Draft product video [embedded on clio.com/draft/]"
+  },
+  {
+   "area": "Draft",
+   "url": "https://fast.wistia.net/embed/iframe/oi7mln1zkg",
+   "shows": "Questionnaires video [embedded on clio.com/draft/automated-legal-client-questionnaires/]"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://fast.wistia.net/embed/iframe/u3hinohhyv",
+   "shows": "Features hub product video [embedded on clio.com/features/]"
+  },
+  {
+   "area": "AI",
+   "url": "https://fast.wistia.net/embed/iframe/og1sif31sv",
+   "shows": "Clio Duo / Manage AI video (also on task, documents pages) [embedded on clio.com/features/duo-legal-ai-software/]"
+  },
+  {
+   "area": "accounting",
+   "url": "https://fast.wistia.net/embed/iframe/ov0u61fcap",
+   "shows": "Clio Accounting video [embedded on clio.com/features/legal-accounting-software/]"
+  },
+  {
+   "area": "payments",
+   "url": "https://fast.wistia.net/embed/iframe/mdzrbg5vcg",
+   "shows": "Clio Payments video [embedded on clio.com/features/payments/]"
+  },
+  {
+   "area": "payments",
+   "url": "https://fast.wistia.net/embed/iframe/cabh5pb8qf",
+   "shows": "Clio Payments video 2 [embedded on clio.com/features/payments/]"
+  },
+  {
+   "area": "matters",
+   "url": "https://fast.wistia.net/embed/iframe/ymrxpadu6i",
+   "shows": "Personal injury add-on demo video [embedded on clio.com/features/personal-injury-case-management-software/]"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://fast.wistia.net/embed/iframe/5ep4olgzjm",
+   "shows": "What's new video [embedded on clio.com/features/whats-new/]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://fast.wistia.net/embed/iframe/r4c92ex68w",
+   "shows": "Clio Grow overview video [embedded on clio.com/grow/]"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://fast.wistia.net/embed/iframe/jz55b0tj1c",
+   "shows": "Website builder video [embedded on clio.com/features/law-firm-website-builder/]"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/821808710?badge=0",
+   "shows": "Video in help article 'Create Matters' (article: https://help.clio.com/hc/en-us/articles/9285959663131-Create-Matters; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/817140109?badge=0",
+   "shows": "Video in help article 'Create Matters' (article: https://help.clio.com/hc/en-us/articles/9285959663131-Create-Matters; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/779756226?badge=0",
+   "shows": "Video in help article 'Create Matters' (article: https://help.clio.com/hc/en-us/articles/9285959663131-Create-Matters; via help center API)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://player.vimeo.com/video/1074799191",
+   "shows": "Video in help article 'Clio Draft: Matters' (article: https://help.clio.com/hc/en-us/articles/24315032920987-Clio-Draft-Matters; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/823776046?badge=0",
+   "shows": "Video in help article 'Create and Manage Matter Stages' (article: https://help.clio.com/hc/en-us/articles/15083241879195-Create-and-Manage-Matter-Stages; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/823775871?badge=0",
+   "shows": "Video in help article 'Create and Manage Matter Stages' (article: https://help.clio.com/hc/en-us/articles/15083241879195-Create-and-Manage-Matter-Stages; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/823776395?h=df60eed288&badge=0",
+   "shows": "Video in help article 'Create and Manage Matter Stages' (article: https://help.clio.com/hc/en-us/articles/15083241879195-Create-and-Manage-Matter-Stages; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/823776712?badge=0",
+   "shows": "Video in help article 'Create and Manage Matter Stages' (article: https://help.clio.com/hc/en-us/articles/15083241879195-Create-and-Manage-Matter-Stages; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/1068610208",
+   "shows": "Video in help article 'Clio Manage Automated Workflows' (article: https://help.clio.com/hc/en-us/articles/35132279298843-Clio-Manage-Automated-Workflows; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/1068610290",
+   "shows": "Video in help article 'Clio Manage Automated Workflows' (article: https://help.clio.com/hc/en-us/articles/35132279298843-Clio-Manage-Automated-Workflows; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/1068610177",
+   "shows": "Video in help article 'Clio Manage Automated Workflows' (article: https://help.clio.com/hc/en-us/articles/35132279298843-Clio-Manage-Automated-Workflows; via help center API)"
+  },
+  {
+   "area": "portal",
+   "url": "https://fast.wistia.com/embed/iframe/099ynt77wj#",
+   "shows": "Video in help article 'Clio for Clients: Client Actions' (article: https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions; via help center API)"
+  },
+  {
+   "area": "contacts",
+   "url": "https://fast.wistia.com/embed/iframe/oap03y3c5v",
+   "shows": "Video in help article 'Create Contacts' (article: https://help.clio.com/hc/en-us/articles/9290466190363-Create-Contacts; via help center API)"
+  },
+  {
+   "area": "contacts",
+   "url": "https://help.clio.com/hc/article_attachments/54347242786331",
+   "shows": "Interactive Navattic tutorial thumbnail in help article 'Create Contacts in Clio Grow' (article: https://help.clio.com/hc/en-us/articles/40257491789467-Create-Contacts-in-Clio-Grow; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/5525de7fb4463ea/original/Calendar-Event-Types-Selection.jpg",
+   "shows": "Screenshot in help article 'Calendar Events': Calendar Event Types Selection (article: https://help.clio.com/hc/en-us/articles/9289905071387-Calendar-Events; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/667203b335c49de7/original/Create-and-Configure-Event-Types-and-Colors.jpg",
+   "shows": "Screenshot in help article 'Calendar Events': Create and Configure Event Types and Colors (article: https://help.clio.com/hc/en-us/articles/9289905071387-Calendar-Events; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/5b5d60213e574d28/original/Create-Repeat-Calendar-Event.jpg",
+   "shows": "Screenshot in help article 'Calendar Events': Create Repeat Calendar Event (article: https://help.clio.com/hc/en-us/articles/9289905071387-Calendar-Events; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://player.vimeo.com/video/854534908?h=968e1bdc5a?badge=0",
+   "shows": "Video in help article 'Calendar Events' (article: https://help.clio.com/hc/en-us/articles/9289905071387-Calendar-Events; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/6852a5776c70e986/original/Notify-Via-Text-Calendar-Event.jpg",
+   "shows": "Screenshot in help article 'Calendar Notifications and Reminders': Notify Via Text Calendar Event (article: https://help.clio.com/hc/en-us/articles/9289861195291-Calendar-Notifications-and-Reminders; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/3676d8eef97eb613/original/Add-Calendar-Event-Reminders.jpg",
+   "shows": "Screenshot in help article 'Calendar Notifications and Reminders': Add Calendar Event Reminders (article: https://help.clio.com/hc/en-us/articles/9289861195291-Calendar-Notifications-and-Reminders; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/9bcdb148440d77/original/Start-Microsoft-Calendar-Sync.jpg",
+   "shows": "Screenshot in help article 'Calendar Sync and Feeds': Start Microsoft Calendar Sync (article: https://help.clio.com/hc/en-us/articles/9289960611355-Calendar-Sync-and-Feeds; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/7986d98132245074/original/Stop-Microsoft-Calendar-Sync.jpg",
+   "shows": "Screenshot in help article 'Calendar Sync and Feeds': Stop Microsoft Calendar Sync (article: https://help.clio.com/hc/en-us/articles/9289960611355-Calendar-Sync-and-Feeds; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://fast.wistia.com/embed/iframe/bq33resxxy",
+   "shows": "Video in help article 'Calendar Sync and Feeds' (article: https://help.clio.com/hc/en-us/articles/9289960611355-Calendar-Sync-and-Feeds; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/531dd6939dd70e8a/original/Add-new-calendar.png",
+   "shows": "Screenshot in help article 'Calendar Set Up and Settings': Add new calendar (article: https://help.clio.com/hc/en-us/articles/9290016489883-Calendar-Set-Up-and-Settings; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/45663793bdb5fb1d/original/Calendar-Sort-Options.png",
+   "shows": "Screenshot in help article 'Calendar Set Up and Settings': Calendar Sort Options (article: https://help.clio.com/hc/en-us/articles/9290016489883-Calendar-Set-Up-and-Settings; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/1cd675dce17e6754/original/Edit-Court-Rule-Calendar.jpg",
+   "shows": "Screenshot in help article 'Court Rules': Edit Court Rule Calendar (article: https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/3b3a7023be8d55c0/original/Edit-Court-Rule-Matter-s-Calendar-Subtab.jpg",
+   "shows": "Screenshot in help article 'Court Rules': Edit Court Rule Matter s Calendar Subtab (article: https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/2bf1d1a238f7f64b/original/Edit-Court-Rule-Parent-Event-Calendar.jpg",
+   "shows": "Screenshot in help article 'Court Rules': Edit Court Rule Parent Event Calendar (article: https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/2329d0604c7da38f/original/Edit-Court-Rule-Parent-Event-Matter-s-Calendar-Subtab.jpg",
+   "shows": "Screenshot in help article 'Court Rules': Edit Court Rule Parent Event Matter s Calendar Subtab (article: https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://fast.wistia.com/embed/iframe/mafnhx7adz?badge=0",
+   "shows": "Video in help article 'Court Rules' (article: https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://fast.wistia.com/embed/iframe/5vzw3q42xg?badge=0",
+   "shows": "Video in help article 'Court Rules' (article: https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules; via help center API)"
+  },
+  {
+   "area": "settings",
+   "url": "https://fast.wistia.com/embed/iframe/3v8oslh9jo",
+   "shows": "Video in help article 'Set Up Clio Manage' (article: https://help.clio.com/hc/en-us/articles/9290346939547-Set-Up-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "tasks",
+   "url": "https://player.vimeo.com/video/803198551",
+   "shows": "Video in help article 'Filter and Export Tasks' (article: https://help.clio.com/hc/en-us/articles/9204982812699-Filter-and-Export-Tasks; via help center API)"
+  },
+  {
+   "area": "tasks",
+   "url": "https://fast.wistia.com/embed/iframe/kryi277vnu",
+   "shows": "Video in help article 'Task Lists' (article: https://help.clio.com/hc/en-us/articles/9206286672155-Task-Lists; via help center API)"
+  },
+  {
+   "area": "tasks",
+   "url": "https://fast.wistia.com/embed/iframe/y0yhxn9ycl",
+   "shows": "Video in help article 'Task Lists' (article: https://help.clio.com/hc/en-us/articles/9206286672155-Task-Lists; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1196744322?h=5417a46e10&badge=0&autopause=0&player_id=0&app_id=58479",
+   "shows": "Video in help article 'Compare Documents With Tabular Document Review' (article: https://help.clio.com/hc/en-us/articles/49566590035227-Compare-Documents-With-Tabular-Document-Review; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1214604089?h=7a4c5e32e3&badge=0&autopause=0&player_id=0&app_id=58479",
+   "shows": "Video in help article 'Search for Dockets and Documents' (article: https://help.clio.com/hc/en-us/articles/54380691566747-Search-for-Dockets-and-Documents; via help center API)"
+  },
+  {
+   "area": "documents",
+   "url": "https://player.vimeo.com/video/1220333593?h=[HASH]&badge=0&autopause=0&player_id=0&app_id=58479",
+   "shows": "Video in help article 'Get Started with Documents' (article: https://help.clio.com/hc/en-us/articles/55085715266587-Get-Started-with-Documents; via help center API)"
+  },
+  {
+   "area": "documents",
+   "url": "https://help.clio.com/hc/article_attachments/43337702742939",
+   "shows": "Screenshot in help article 'Combine or Replace Documents' (article: https://help.clio.com/hc/en-us/articles/43337504015387-Combine-or-Replace-Documents; via help center API)"
+  },
+  {
+   "area": "documents",
+   "url": "https://player.vimeo.com/video/851009295",
+   "shows": "Video in help article 'Document Templates in Clio Manage' (article: https://help.clio.com/hc/en-us/articles/53353783646875-Document-Templates-in-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "documents",
+   "url": "https://fast.wistia.com/embed/iframe/0mwevmjfj7?badge=0",
+   "shows": "Video in help article 'Document Templates in Clio Grow' (article: https://help.clio.com/hc/en-us/articles/9290238939163-Document-Templates-in-Clio-Grow; via help center API)"
+  },
+  {
+   "area": "documents",
+   "url": "https://fast.wistia.com/embed/iframe/f5gbusuylc?badge=0",
+   "shows": "Video in help article 'Document Templates in Clio Grow' (article: https://help.clio.com/hc/en-us/articles/9290238939163-Document-Templates-in-Clio-Grow; via help center API)"
+  },
+  {
+   "area": "documents",
+   "url": "https://fast.wistia.com/embed/iframe/5zbq6qqv0e",
+   "shows": "Video in help article 'Create or Edit Word Document Templates' (article: https://help.clio.com/hc/en-us/articles/41958696760987-Create-or-Edit-Word-Document-Templates; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1230092655?h=25ff416def",
+   "shows": "Video in help article 'Build and Manage Templates in Clio Work' (article: https://help.clio.com/hc/en-us/articles/56367796556443-Build-and-Manage-Templates-in-Clio-Work; via help center API)"
+  },
+  {
+   "area": "documents",
+   "url": "https://fast.wistia.com/embed/iframe/wm0puzg00x",
+   "shows": "Video in help article 'Clio Launcher' (article: https://help.clio.com/hc/en-us/articles/9290315308699-Clio-Launcher; via help center API)"
+  },
+  {
+   "area": "documents",
+   "url": "https://fast.wistia.com/embed/iframe/bckvk5jlb7",
+   "shows": "Video in help article 'Clio Launcher' (article: https://help.clio.com/hc/en-us/articles/9290315308699-Clio-Launcher; via help center API)"
+  },
+  {
+   "area": "documents",
+   "url": "https://fast.wistia.com/embed/iframe/6pkduccab6",
+   "shows": "Video in help article 'Google Drive and Clio' (article: https://help.clio.com/hc/en-us/articles/9284884888475-Google-Drive-and-Clio; via help center API)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://player.vimeo.com/video/1076471578",
+   "shows": "Video in help article 'Clio Draft: Sets' (article: https://help.clio.com/hc/en-us/articles/24316265351451-Clio-Draft-Sets; via help center API)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://player.vimeo.com/video/973527061?badge=0",
+   "shows": "Video in help article 'Get Started With Clio Draft' (article: https://help.clio.com/hc/en-us/articles/24313560334747-Get-Started-With-Clio-Draft; via help center API)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://player.vimeo.com/video/1059060893?badge=0",
+   "shows": "Video in help article 'Clio Draft: Live Questionnaires' (article: https://help.clio.com/hc/en-us/articles/33309999460891-Clio-Draft-Live-Questionnaires; via help center API)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://player.vimeo.com/video/1072329848",
+   "shows": "Video in help article 'Clio Draft: Form Templates' (article: https://help.clio.com/hc/en-us/articles/24315924591771-Clio-Draft-Form-Templates; via help center API)"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://fast.wistia.com/embed/iframe/ypu4s16u4y?badge=0",
+   "shows": "Video in help article 'Navigate Clio Manage' (article: https://help.clio.com/hc/en-us/articles/9290390462875-Navigate-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "communications",
+   "url": "https://brand.clio.com/m/4cc4672a3178c452/original/Text-Messaging.gif",
+   "shows": "Screenshot in help article 'Text Messaging in Clio Manage': Text Messaging (article: https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "communications",
+   "url": "https://brand.clio.com/m/175d004c3414a9a7/original/Send-Text-Matter-Dashboard.jpg",
+   "shows": "Screenshot in help article 'Text Messaging in Clio Manage': Send Text Matter Dashboard (article: https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "communications",
+   "url": "https://brand.clio.com/m/4c71c8bd82565e7f/original/Send-Text-Contact-Dashboard.jpg",
+   "shows": "Screenshot in help article 'Text Messaging in Clio Manage': Send Text Contact Dashboard (article: https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "communications",
+   "url": "https://brand.clio.com/m/2a2ad4fd55895e9e/original/Send-Text-Mobile.PNG",
+   "shows": "Screenshot in help article 'Text Messaging in Clio Manage': Send Text Mobile (article: https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "communications",
+   "url": "https://brand.clio.com/m/4159d4cbce5522ed/original/View-and-Respond-to-Text.jpg",
+   "shows": "Screenshot in help article 'Text Messaging in Clio Manage': View and Respond to Text (article: https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/772343373?badge=0",
+   "shows": "Video in help article 'Send Bills to Clients' (article: https://help.clio.com/hc/en-us/articles/9285343645595-Send-Bills-to-Clients; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/772343423?badge=0",
+   "shows": "Video in help article 'Send Bills to Clients' (article: https://help.clio.com/hc/en-us/articles/9285343645595-Send-Bills-to-Clients; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/817165066?badge=0",
+   "shows": "Video in help article 'Send Bills to Clients' (article: https://help.clio.com/hc/en-us/articles/9285343645595-Send-Bills-to-Clients; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/817165245?badge=0",
+   "shows": "Video in help article 'Send Bills to Clients' (article: https://help.clio.com/hc/en-us/articles/9285343645595-Send-Bills-to-Clients; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/772343330?badge=0",
+   "shows": "Video in help article 'Send Bills to Clients' (article: https://help.clio.com/hc/en-us/articles/9285343645595-Send-Bills-to-Clients; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://fast.wistia.com/embed/iframe/4sp81qqo9z?badge=0",
+   "shows": "Video in help article 'Send, View, and Manage Intake Forms' (article: https://help.clio.com/hc/en-us/articles/9284567246747-Send-View-and-Manage-Intake-Forms; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/772343523",
+   "shows": "Video in help article 'Send and Automate Bill Reminders' (article: https://help.clio.com/hc/en-us/articles/9285345945243-Send-and-Automate-Bill-Reminders; via help center API)"
+  },
+  {
+   "area": "portal",
+   "url": "https://fast.wistia.com/embed/iframe/k0d0p2afw1#",
+   "shows": "Video in help article 'Clio for Clients: Law Firm Setup' (article: https://help.clio.com/hc/en-us/articles/9043484357147-Clio-for-Clients-Law-Firm-Setup; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://brand.clio.com/asset/8613a016-afd0-418e-aef3-cc3b7a01f625/Multi-Client-Matters-GIF.gif",
+   "shows": "Interactive Navattic tutorial thumbnail in help article 'Multi-Client Matters in Clio Manage and Clio Grow': Multi Client Matters GIF (article: https://help.clio.com/hc/en-us/articles/46839239014299-Multi-Client-Matters-in-Clio-Manage-and-Clio-Grow; via help center API)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://player.vimeo.com/video/817133681?badge=0",
+   "shows": "Video in help article 'Time Entries' (article: https://help.clio.com/hc/en-us/articles/9289741706779-Time-Entries; via help center API)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://player.vimeo.com/video/815705935?badge=0",
+   "shows": "Video in help article 'Time Entries' (article: https://help.clio.com/hc/en-us/articles/9289741706779-Time-Entries; via help center API)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://player.vimeo.com/video/819894837?h=048e1a207f?badge=0",
+   "shows": "Video in help article 'Time Entries' (article: https://help.clio.com/hc/en-us/articles/9289741706779-Time-Entries; via help center API)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://player.vimeo.com/video/819895475?badge=0",
+   "shows": "Video in help article 'Rates and Rate Hierarchies' (article: https://help.clio.com/hc/en-us/articles/9289801180187-Rates-and-Rate-Hierarchies; via help center API)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://player.vimeo.com/video/819895036?badge=0",
+   "shows": "Video in help article 'Rates and Rate Hierarchies' (article: https://help.clio.com/hc/en-us/articles/9289801180187-Rates-and-Rate-Hierarchies; via help center API)"
+  },
+  {
+   "area": "communications",
+   "url": "https://brand.clio.com/m/323c354d9f7890f9/original/Internal-Message-Bill-Approval.jpg",
+   "shows": "Screenshot in help article 'Internal Messages': Internal Message Bill Approval (article: https://help.clio.com/hc/en-us/articles/9125264015259-Internal-Messages; via help center API)"
+  },
+  {
+   "area": "communications",
+   "url": "https://brand.clio.com/m/7e17a6de5788c0b8/original/Internal-Message-View-and-Respond.jpg",
+   "shows": "Screenshot in help article 'Internal Messages': Internal Message View and Respond (article: https://help.clio.com/hc/en-us/articles/9125264015259-Internal-Messages; via help center API)"
+  },
+  {
+   "area": "scheduler",
+   "url": "https://fast.wistia.com/embed/iframe/tjmlcq0hms",
+   "shows": "Video in help article 'Clio Scheduler' (article: https://help.clio.com/hc/en-us/articles/9192379853979-Clio-Scheduler; via help center API)"
+  },
+  {
+   "area": "scheduler",
+   "url": "https://player.vimeo.com/video/817153998",
+   "shows": "Video in help article 'Clio Scheduler' (article: https://help.clio.com/hc/en-us/articles/9192379853979-Clio-Scheduler; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/772343175?badge=0",
+   "shows": "Video in help article 'Generate Bills in Clio Manage' (article: https://help.clio.com/hc/en-us/articles/9285169278747-Generate-Bills-in-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/772343248?badge=0",
+   "shows": "Video in help article 'Generate Bills in Clio Manage' (article: https://help.clio.com/hc/en-us/articles/9285169278747-Generate-Bills-in-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/819893341?badge=0",
+   "shows": "Video in help article 'Configure General Bill Settings' (article: https://help.clio.com/hc/en-us/articles/14078692470427-Configure-General-Bill-Settings; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/772343290?badge=0",
+   "shows": "Video in help article 'Bill States and Bill Approval' (article: https://help.clio.com/hc/en-us/articles/17284937823387-Bill-States-and-Bill-Approval; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/817164738?badge=0",
+   "shows": "Video in help article 'Interest' (article: https://help.clio.com/hc/en-us/articles/9285277478171-Interest; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/854486974?h=dbe115b5ff",
+   "shows": "Video in help article 'Download and Print Bills' (article: https://help.clio.com/hc/en-us/articles/14078142068123-Download-and-Print-Bills; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/817164368",
+   "shows": "Video in help article 'Discounts' (article: https://help.clio.com/hc/en-us/articles/9285279237787-Discounts; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/951723463",
+   "shows": "Video in help article 'Split Billing' (article: https://help.clio.com/hc/en-us/articles/25704317136155-Split-Billing; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/1192728835",
+   "shows": "Video in help article 'Design Bills With Billing Templates' (article: https://help.clio.com/hc/en-us/articles/48926867354907-Design-Bills-With-Billing-Templates; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/854486905?h=35ac397328",
+   "shows": "Video in help article 'LEDES Bills' (article: https://help.clio.com/hc/en-us/articles/14078113389723-LEDES-Bills; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/854487753",
+   "shows": "Video in help article 'Delete and Void Bills' (article: https://help.clio.com/hc/en-us/articles/9285226640155-Delete-and-Void-Bills; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/815700971?badge=0",
+   "shows": "Video in help article 'Edit Bills' (article: https://help.clio.com/hc/en-us/articles/9285222010395-Edit-Bills; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/815699058?badge=0",
+   "shows": "Video in help article 'Edit Bills' (article: https://help.clio.com/hc/en-us/articles/9285222010395-Edit-Bills; via help center API)"
+  },
+  {
+   "area": "accounting",
+   "url": "https://player.vimeo.com/video/1228994380",
+   "shows": "Video in help article 'Accounting Reports' (article: https://help.clio.com/hc/en-us/articles/21249768099355-Accounting-Reports; via help center API)"
+  },
+  {
+   "area": "accounting",
+   "url": "https://fast.wistia.com/embed/iframe/a2cxrrpsui#",
+   "shows": "Video in help article 'Xero and Clio' (article: https://help.clio.com/hc/en-us/articles/9290118056603-Xero-and-Clio; via help center API)"
+  },
+  {
+   "area": "accounting",
+   "url": "https://player.vimeo.com/video/1229292269",
+   "shows": "Video in help article 'Set Up Clio Accounting' (article: https://help.clio.com/hc/en-us/articles/47397952204315-Set-Up-Clio-Accounting; via help center API)"
+  },
+  {
+   "area": "accounting",
+   "url": "https://player.vimeo.com/video/1229317128",
+   "shows": "Video in help article 'Set Up Clio Accounting' (article: https://help.clio.com/hc/en-us/articles/47397952204315-Set-Up-Clio-Accounting; via help center API)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://player.vimeo.com/video/1074399397",
+   "shows": "Video in help article 'Clio Draft: Account Settings and User Invitation' (article: https://help.clio.com/hc/en-us/articles/24313887490203-Clio-Draft-Account-Settings-and-User-Invitation; via help center API)"
+  },
+  {
+   "area": "accounting",
+   "url": "https://player.vimeo.com/video/1229234617",
+   "shows": "Video in help article 'Set up Chart of Accounts' (article: https://help.clio.com/hc/en-us/articles/20965581497627-Set-up-Chart-of-Accounts; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://player.vimeo.com/video/851427775",
+   "shows": "Video in help article 'Set Up Clio Grow Intake Form Templates' (article: https://help.clio.com/hc/en-us/articles/9073499214747-Set-Up-Clio-Grow-Intake-Form-Templates; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://player.vimeo.com/video/821807947",
+   "shows": "Video in help article 'Clio Grow Pipeline' (article: https://help.clio.com/hc/en-us/articles/9286134468507-Clio-Grow-Pipeline; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://fast.wistia.com/embed/iframe/c2g584kdq7",
+   "shows": "Video in help article 'Navigate Clio Grow' (article: https://help.clio.com/hc/en-us/articles/9290426619675-Navigate-Clio-Grow; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://player.vimeo.com/video/854476514",
+   "shows": "Video in help article 'Clio Grow Agenda' (article: https://help.clio.com/hc/en-us/articles/9198647259291-Clio-Grow-Agenda; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://player.vimeo.com/video/854476484",
+   "shows": "Video in help article 'Clio Grow Agenda' (article: https://help.clio.com/hc/en-us/articles/9198647259291-Clio-Grow-Agenda; via help center API)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://fast.wistia.com/embed/iframe/ehvrgxe2v0",
+   "shows": "Video in help article 'Zoom and Clio' (article: https://help.clio.com/hc/en-us/articles/9284967030939-Zoom-and-Clio; via help center API)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://player.vimeo.com/video/819894224?h=871df0b598",
+   "shows": "Video in help article 'Filter and Export Activities' (article: https://help.clio.com/hc/en-us/articles/9289743207835-Filter-and-Export-Activities; via help center API)"
+  },
+  {
+   "area": "settings",
+   "url": "https://player.vimeo.com/video/854486932?badge=0",
+   "shows": "Video in help article 'Permissions and Billing Rates' (article: https://help.clio.com/hc/en-us/articles/9285360193819-Permissions-and-Billing-Rates; via help center API)"
+  },
+  {
+   "area": "settings",
+   "url": "https://player.vimeo.com/video/819895687?badge=0",
+   "shows": "Video in help article 'Permissions and Billing Rates' (article: https://help.clio.com/hc/en-us/articles/9285360193819-Permissions-and-Billing-Rates; via help center API)"
+  },
+  {
+   "area": "settings",
+   "url": "https://player.vimeo.com/video/819895898",
+   "shows": "Video in help article 'Activities Settings and Permissions' (article: https://help.clio.com/hc/en-us/articles/9289781023771-Activities-Settings-and-Permissions; via help center API)"
+  },
+  {
+   "area": "settings",
+   "url": "https://player.vimeo.com/video/779759654",
+   "shows": "Video in help article 'Sync and Convert Custom Fields' (article: https://help.clio.com/hc/en-us/articles/9285553508635-Sync-and-Convert-Custom-Fields; via help center API)"
+  },
+  {
+   "area": "settings",
+   "url": "https://player.vimeo.com/video/779680608",
+   "shows": "Video in help article 'Sync and Convert Custom Fields' (article: https://help.clio.com/hc/en-us/articles/9285553508635-Sync-and-Convert-Custom-Fields; via help center API)"
+  },
+  {
+   "area": "settings",
+   "url": "https://player.vimeo.com/video/779767488",
+   "shows": "Video in help article 'Delete Custom Fields in Clio Manage' (article: https://help.clio.com/hc/en-us/articles/9285552102171-Delete-Custom-Fields-in-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "settings",
+   "url": "https://player.vimeo.com/video/779759271",
+   "shows": "Video in help article 'Create Custom Fields in Clio Manage' (article: https://help.clio.com/hc/en-us/articles/9285496802331-Create-Custom-Fields-in-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "settings",
+   "url": "https://player.vimeo.com/video/779768253",
+   "shows": "Video in help article 'Create Custom Fields in Clio Manage' (article: https://help.clio.com/hc/en-us/articles/9285496802331-Create-Custom-Fields-in-Clio-Manage; via help center API)"
+  },
+  {
+   "area": "settings",
+   "url": "https://player.vimeo.com/video/779751866",
+   "shows": "Video in help article 'Manage Custom Fields in Clio Grow' (article: https://help.clio.com/hc/en-us/articles/39596742551067-Manage-Custom-Fields-in-Clio-Grow; via help center API)"
+  },
+  {
+   "area": "mobile",
+   "url": "https://brand.clio.com/asset/d3944b49-ef19-46fb-a688-38d8ae9f9531/Vincent-Mobile-Jurisdiction.gif",
+   "shows": "Screenshot in help article 'Clio Work on Mobile': Vincent Mobile Jurisdiction (article: https://help.clio.com/hc/en-us/articles/47843698025371-Clio-Work-on-Mobile; via help center API)"
+  },
+  {
+   "area": "mobile",
+   "url": "https://brand.clio.com/asset/b2f70aef-02a8-4d52-b607-f1ed8c4d2734/Vincent-Mobile-Dictation-GIF.gif",
+   "shows": "Screenshot in help article 'Clio Work on Mobile': Vincent Mobile Dictation GIF (article: https://help.clio.com/hc/en-us/articles/47843698025371-Clio-Work-on-Mobile; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://help.clio.com/hc/article_attachments/52179193855771",
+   "shows": "Interactive Navattic tutorial thumbnail in help article 'Legal Pad in Clio Work' (article: https://help.clio.com/hc/en-us/articles/49678596987803-Legal-Pad-in-Clio-Work; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1181756728?badge=0",
+   "shows": "Video in help article 'Legal Pad in Clio Work' (article: https://help.clio.com/hc/en-us/articles/49678596987803-Legal-Pad-in-Clio-Work; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1194557929?h=1cb56836da&badge=0&autopause=0&player_id=0&app_id=58479",
+   "shows": "Video in help article 'Create Timelines in Clio Work' (article: https://help.clio.com/hc/en-us/articles/49677893380251-Create-Timelines-in-Clio-Work; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://help.clio.com/hc/article_attachments/52177500966811",
+   "shows": "Interactive Navattic tutorial thumbnail in help article 'Translate Documents in Clio Work' (article: https://help.clio.com/hc/en-us/articles/51541484444187-Translate-Documents-in-Clio-Work; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://brand.clio.com/asset/32b8fc9f-2451-408f-a4fd-2a9cd2e7e915/Compare-Document-Versions-Navattic-Thumbnail.png",
+   "shows": "Interactive Navattic tutorial thumbnail in help article 'Compare Documents in Clio Work': Compare Document Versions Navattic Thumbnail (article: https://help.clio.com/hc/en-us/articles/41750517581723-Compare-Documents-in-Clio-Work; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1127310748?badge=%20",
+   "shows": "Video in help article 'Compare Documents in Clio Work' (article: https://help.clio.com/hc/en-us/articles/41750517581723-Compare-Documents-in-Clio-Work; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://player.vimeo.com/video/821806962",
+   "shows": "Video in help article 'Convert Matters' (article: https://help.clio.com/hc/en-us/articles/9286116462747-Convert-Matters; via help center API)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://brand.clio.com/m/2c27663e25563c44/Regenerate-with-Clio-Draft.png",
+   "shows": "Screenshot in help article 'Clio Draft: Draft and Manage Documents': Regenerate with Clio Draft (article: https://help.clio.com/hc/en-us/articles/24317070863899-Clio-Draft-Draft-and-Manage-Documents; via help center API)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://brand.clio.com/m/623ee93d019f04a9/original/Clio-Draft-Add-or-Delete-Documents.png",
+   "shows": "Screenshot in help article 'Clio Draft: Draft and Manage Documents': Clio Draft Add or Delete Documents (article: https://help.clio.com/hc/en-us/articles/24317070863899-Clio-Draft-Draft-and-Manage-Documents; via help center API)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://player.vimeo.com/video/1073725757?badge=0",
+   "shows": "Video in help article 'Clio Draft: Draft and Manage Documents' (article: https://help.clio.com/hc/en-us/articles/24317070863899-Clio-Draft-Draft-and-Manage-Documents; via help center API)"
+  },
+  {
+   "area": "contacts",
+   "url": "https://fast.wistia.com/embed/iframe/u2913xzh7e",
+   "shows": "Video in help article 'Mailchimp and Clio' (article: https://help.clio.com/hc/en-us/articles/9284807555099-Mailchimp-and-Clio; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1127157841?badge=%20",
+   "shows": "Video in help article 'Analyze Legal Documents in Clio Work' (article: https://help.clio.com/hc/en-us/articles/41670894211995-Analyze-Legal-Documents-in-Clio-Work; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1232172137?h=0a93d88d55",
+   "shows": "Video in help article 'Write Effective Prompts for Vincent' (article: https://help.clio.com/hc/en-us/articles/48792757612955-Write-Effective-Prompts-for-Vincent; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://brand.clio.com/m/42c70d4954fcf882/original/Delete-Document-in-Grow-Intake-Process.jpg",
+   "shows": "Screenshot in help article 'Delete Documents in Clio Grow': Delete Document in Grow Intake Process (article: https://help.clio.com/hc/en-us/articles/55218534058139-Delete-Documents-in-Clio-Grow; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://brand.clio.com/m/684a8be404e839ad/original/Download-Grow-Document-PDF-Intake-Process.jpg",
+   "shows": "Screenshot in help article 'Download Documents From Clio Grow': Download Grow Document PDF Intake Process (article: https://help.clio.com/hc/en-us/articles/55316895595547-Download-Documents-From-Clio-Grow; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://brand.clio.com/m/1597e84d18ddda80/original/Download-Grow-Document-PDF-Files.jpg",
+   "shows": "Screenshot in help article 'Download Documents From Clio Grow': Download Grow Document PDF Files (article: https://help.clio.com/hc/en-us/articles/55316895595547-Download-Documents-From-Clio-Grow; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://brand.clio.com/m/651589a1b5c8a143/original/Set-Auto-Reminder-for-Grow-Document-Intake-Process.jpg",
+   "shows": "Screenshot in help article 'Resend Documents and Send Reminders in Clio Grow': Set Auto Reminder for Grow Document Intake Process (article: https://help.clio.com/hc/en-us/articles/55317324866587-Resend-Documents-and-Send-Reminders-in-Clio-Grow; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://help.clio.com/hc/article_attachments/52510655250203",
+   "shows": "Interactive Navattic tutorial thumbnail in help article 'Perform Redline Analyses in Clio Work' (article: https://help.clio.com/hc/en-us/articles/52508612250523-Perform-Redline-Analyses-in-Clio-Work; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1168999846?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1182022409?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1196533445?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1127206078?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1194533763?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1194153830?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1179717571?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1179687248?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1196744322?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1196072684?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1194557929?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1125966207?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1195782061?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1197799252?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1196759667?badge=0",
+   "shows": "Video in help article 'Watch Clio Work Video Tutorials' (article: https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials; via help center API)"
+  },
+  {
+   "area": "documents",
+   "url": "https://brand.clio.com/m/1023cfb9c6c9bfa1/original/Edit-Sent-Document-Due-Date-Grow.jpg",
+   "shows": "Screenshot in help article 'Get Started With e-Signatures': Edit Sent Document Due Date Grow (article: https://help.clio.com/hc/en-us/articles/9207223181979-Get-Started-With-e-Signatures; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/866126116",
+   "shows": "Video in help article 'Settlement' (article: https://help.clio.com/hc/en-us/articles/18350703919899-Settlement; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://brand.clio.com/asset/d89e4546-6d66-40c3-843b-94a495baddc1/Navattic-Thumbnail-Extract-and-Classify-Probate-Assets.png",
+   "shows": "Interactive Navattic tutorial thumbnail in help article 'Start and Guide Conversations in Clio Work': Navattic Thumbnail Extract and Classify Probate Assets (article: https://help.clio.com/hc/en-us/articles/44559477619483-Start-and-Guide-Conversations-in-Clio-Work; via help center API)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://player.vimeo.com/video/1059048142?badge=0",
+   "shows": "Video in help article 'Clio Draft: Create Questionnaire Templates' (article: https://help.clio.com/hc/en-us/articles/24663592578075-Clio-Draft-Create-Questionnaire-Templates; via help center API)"
+  },
+  {
+   "area": "documents",
+   "url": "https://fast.wistia.com/embed/iframe/000xuodbls",
+   "shows": "Video in help article 'Dropbox and Clio' (article: https://help.clio.com/hc/en-us/articles/9284769790619-Dropbox-and-Clio; via help center API)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://player.vimeo.com/video/819893455",
+   "shows": "Video in help article 'Activity Categories' (article: https://help.clio.com/hc/en-us/articles/9289744400667-Activity-Categories; via help center API)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://player.vimeo.com/video/819893585",
+   "shows": "Video in help article 'Activity Categories' (article: https://help.clio.com/hc/en-us/articles/9289744400667-Activity-Categories; via help center API)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://player.vimeo.com/video/819895235",
+   "shows": "Video in help article 'Activity Categories' (article: https://help.clio.com/hc/en-us/articles/9289744400667-Activity-Categories; via help center API)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://player.vimeo.com/video/819893993",
+   "shows": "Video in help article 'Create and Manage Expenses Entries' (article: https://help.clio.com/hc/en-us/articles/9289745356571-Create-and-Manage-Expenses-Entries; via help center API)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://player.vimeo.com/video/823824882?h=a12948b15d",
+   "shows": "Video in help article 'Create and Manage Expenses Entries' (article: https://help.clio.com/hc/en-us/articles/9289745356571-Create-and-Manage-Expenses-Entries; via help center API)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://player.vimeo.com/video/819894630?h=510fd58e70",
+   "shows": "Video in help article 'Create and Manage Expenses Entries' (article: https://help.clio.com/hc/en-us/articles/9289745356571-Create-and-Manage-Expenses-Entries; via help center API)"
+  },
+  {
+   "area": "trust/accounts",
+   "url": "https://brand.clio.com/m/49ea92b2d2e060c0/original/Add-protect-matter-funds-accounts-permissions.png",
+   "shows": "Screenshot in help article 'Protect Client Trust Funds': Add protect matter funds accounts permissions (article: https://help.clio.com/hc/en-us/articles/51583795486363-Protect-Client-Trust-Funds; via help center API)"
+  },
+  {
+   "area": "trust/accounts",
+   "url": "https://brand.clio.com/m/22f86dd528f858c4/original/Edit-and-delete-protected-matter-funds-accounts-permissions.png",
+   "shows": "Screenshot in help article 'Protect Client Trust Funds': Edit and delete protected matter funds accounts permissions (article: https://help.clio.com/hc/en-us/articles/51583795486363-Protect-Client-Trust-Funds; via help center API)"
+  },
+  {
+   "area": "trust/accounts",
+   "url": "https://brand.clio.com/m/554f4d7592b4c178/original/View-protected-matter-funds-non-accounts-permission.png",
+   "shows": "Screenshot in help article 'Protect Client Trust Funds': View protected matter funds non accounts permission (article: https://help.clio.com/hc/en-us/articles/51583795486363-Protect-Client-Trust-Funds; via help center API)"
+  },
+  {
+   "area": "trust/accounts",
+   "url": "https://brand.clio.com/m/7d16f9afbc3cc8b5/original/Edit-protected-matter-funds-non-accounts-permissions.png",
+   "shows": "Screenshot in help article 'Protect Client Trust Funds': Edit protected matter funds non accounts permissions (article: https://help.clio.com/hc/en-us/articles/51583795486363-Protect-Client-Trust-Funds; via help center API)"
+  },
+  {
+   "area": "trust/accounts",
+   "url": "https://brand.clio.com/m/5d4ccad86cb4d5a4/original/Release-protected-matter-funds-non-accounts-permissions.png",
+   "shows": "Screenshot in help article 'Protect Client Trust Funds': Release protected matter funds non accounts permissions (article: https://help.clio.com/hc/en-us/articles/51583795486363-Protect-Client-Trust-Funds; via help center API)"
+  },
+  {
+   "area": "billing",
+   "url": "https://player.vimeo.com/video/819896105?badge=0",
+   "shows": "Video in help article 'UTBMS Codes' (article: https://help.clio.com/hc/en-us/articles/9289762435099-UTBMS-Codes; via help center API)"
+  },
+  {
+   "area": "payments",
+   "url": "https://player.vimeo.com/video/854487001?h=711c098a7f",
+   "shows": "Video in help article 'Record and Manage Online Bill Payments' (article: https://help.clio.com/hc/en-us/articles/9285641955355-Record-and-Manage-Online-Bill-Payments; via help center API)"
+  },
+  {
+   "area": "accounting",
+   "url": "https://fast.wistia.com/embed/iframe/v18cyo7hpt",
+   "shows": "Video in help article 'QuickBooks Desktop and Clio' (article: https://help.clio.com/hc/en-us/articles/9290132162075-QuickBooks-Desktop-and-Clio; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://player.vimeo.com/video/912365028",
+   "shows": "Video in help article 'Clio Grow Automated Workflows' (article: https://help.clio.com/hc/en-us/articles/17770743592219-Clio-Grow-Automated-Workflows; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://player.vimeo.com/video/912365080",
+   "shows": "Video in help article 'Clio Grow Automated Workflows' (article: https://help.clio.com/hc/en-us/articles/17770743592219-Clio-Grow-Automated-Workflows; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1166727285",
+   "shows": "Video in help article 'Grow AI's Website Chat Tool' (article: https://help.clio.com/hc/en-us/articles/52131068035995-Grow-AI-s-Website-Chat-Tool; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1164817425",
+   "shows": "Video in help article 'Grow AI's Website Chat Tool' (article: https://help.clio.com/hc/en-us/articles/52131068035995-Grow-AI-s-Website-Chat-Tool; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://brand.clio.com/m/e27937f8da8fc5b",
+   "shows": "Screenshot in help article 'Clio Grow Emails, Communication Templates, and Sequences': e27937f8da8fc5b (article: https://help.clio.com/hc/en-us/articles/9125169167899-Clio-Grow-Emails-Communication-Templates-and-Sequences; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://brand.clio.com/m/1ee4c18e133da523",
+   "shows": "Screenshot in help article 'Clio Grow Emails, Communication Templates, and Sequences': 1ee4c18e133da523 (article: https://help.clio.com/hc/en-us/articles/9125169167899-Clio-Grow-Emails-Communication-Templates-and-Sequences; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://brand.clio.com/m/4c81e0beef3ea4cf",
+   "shows": "Screenshot in help article 'Clio Grow Emails, Communication Templates, and Sequences': 4c81e0beef3ea4cf (article: https://help.clio.com/hc/en-us/articles/9125169167899-Clio-Grow-Emails-Communication-Templates-and-Sequences; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://player.vimeo.com/video/1205851031",
+   "shows": "Video in help article 'Email Marketing in Clio Grow' (article: https://help.clio.com/hc/en-us/articles/39242840782107-Email-Marketing-in-Clio-Grow; via help center API)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://player.vimeo.com/video/1205487040",
+   "shows": "Video in help article 'Email Marketing in Clio Grow' (article: https://help.clio.com/hc/en-us/articles/39242840782107-Email-Marketing-in-Clio-Grow; via help center API)"
+  },
+  {
+   "area": "communications",
+   "url": "https://player.vimeo.com/video/1216476614?h=b01fe1c8e7&badge=0",
+   "shows": "Video in help article 'Automated Email Filing' (article: https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing; via help center API)"
+  },
+  {
+   "area": "reports",
+   "url": "https://player.vimeo.com/video/815701981",
+   "shows": "Video in help article 'Clio Manage Reports, Presets, and History' (article: https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History; via help center API)"
+  },
+  {
+   "area": "reports",
+   "url": "https://player.vimeo.com/video/815702048",
+   "shows": "Video in help article 'Clio Manage Reports, Presets, and History' (article: https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://help.clio.com/hc/article_attachments/52177822835355",
+   "shows": "Interactive Navattic tutorial thumbnail in help article 'Search SEC Corporate Filings in Clio Work' (article: https://help.clio.com/hc/en-us/articles/49679152046235-Search-SEC-Corporate-Filings-in-Clio-Work; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://help.clio.com/hc/article_attachments/40287884032411",
+   "shows": "Screenshot in help article 'AI Support Agent' (article: https://help.clio.com/hc/en-us/articles/40283218733467-AI-Support-Agent; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1114963055?badge=0",
+   "shows": "Video in help article 'AI Support Agent' (article: https://help.clio.com/hc/en-us/articles/40283218733467-AI-Support-Agent; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://player.vimeo.com/video/1197874582?badge=0",
+   "shows": "Video in help article 'Verify Case Law With Citators' (article: https://help.clio.com/hc/en-us/articles/41905437195675-Verify-Case-Law-With-Citators; via help center API)"
+  },
+  {
+   "area": "AI",
+   "url": "https://help.clio.com/hc/article_attachments/52177214931995",
+   "shows": "Interactive Navattic tutorial thumbnail in help article 'Web Search with Vincent AI' (article: https://help.clio.com/hc/en-us/articles/51437510123035-Web-Search-with-Vincent-AI; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/866128305",
+   "shows": "Video in help article 'Damages' (article: https://help.clio.com/hc/en-us/articles/15811227212443-Damages; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/866123916",
+   "shows": "Video in help article 'Medical Records' (article: https://help.clio.com/hc/en-us/articles/15815962459931-Medical-Records; via help center API)"
+  },
+  {
+   "area": "matters",
+   "url": "https://player.vimeo.com/video/866124108",
+   "shows": "Video in help article 'Medical Records' (article: https://help.clio.com/hc/en-us/articles/15815962459931-Medical-Records; via help center API)"
+  },
+  {
+   "area": "mobile",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/88/92/93/889293a2-21a9-b004-c4e6-4f66b1321b34/iPhone_01_Home.jpg/320x480bb.jpg",
+   "shows": "Clio for Law Firms and Lawyers (iOS) App Store iPhone screenshot 1 (iPhone_01_Home.jpg); listing https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370"
+  },
+  {
+   "area": "mobile",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/b4/0e/e5/b40ee5c1-917d-92ba-cd92-334fc352a4ee/iPhone_02_Home.jpg/320x480bb.jpg",
+   "shows": "Clio for Law Firms and Lawyers (iOS) App Store iPhone screenshot 2 (iPhone_02_Home.jpg); listing https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370"
+  },
+  {
+   "area": "mobile",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/f9/f0/e1/f9f0e153-a9f4-108d-69cd-d161ff4329bc/iPhone_03_Matter.jpg/320x480bb.jpg",
+   "shows": "Clio for Law Firms and Lawyers (iOS) App Store iPhone screenshot 3 (iPhone_03_Matter.jpg); listing https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370"
+  },
+  {
+   "area": "mobile",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/05/77/64/057764c8-9f11-50f5-d6c6-c3c9d7a399c6/iPhone_04_Billing.jpg/320x480bb.jpg",
+   "shows": "Clio for Law Firms and Lawyers (iOS) App Store iPhone screenshot 4 (iPhone_04_Billing.jpg); listing https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370"
+  },
+  {
+   "area": "mobile",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/09/31/5b/09315bfe-295e-66f6-8539-2764269a283e/iPhone_05_Client_Portal.jpg/320x480bb.jpg",
+   "shows": "Clio for Law Firms and Lawyers (iOS) App Store iPhone screenshot 5 (iPhone_05_Client_Portal.jpg); listing https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370"
+  },
+  {
+   "area": "mobile",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/d9/ce/c2/d9cec242-601a-fed2-5f2d-a1a7bd260f32/iPhone_06_Calendar.jpg/320x480bb.jpg",
+   "shows": "Clio for Law Firms and Lawyers (iOS) App Store iPhone screenshot 6 (iPhone_06_Calendar.jpg); listing https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370"
+  },
+  {
+   "area": "mobile",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/d4/29/75/d4297559-8321-77d2-7beb-7ab184131e86/iPhone_07_TTP.jpg/320x480bb.jpg",
+   "shows": "Clio for Law Firms and Lawyers (iOS) App Store iPhone screenshot 7 (iPhone_07_TTP.jpg); listing https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370"
+  },
+  {
+   "area": "mobile",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/ab/12/09/ab120994-4fbd-716a-7069-fd926a766097/iPad_01_Home.jpg/360x480bb.jpg",
+   "shows": "Clio for Law Firms and Lawyers (iOS) App Store iPad screenshot 1 (iPad_01_Home.jpg); listing https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370"
+  },
+  {
+   "area": "mobile",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/5a/a3/8e/5aa38ef7-27fb-f2e4-408e-360079da86a6/iPad_02_Matter.jpg/360x480bb.jpg",
+   "shows": "Clio for Law Firms and Lawyers (iOS) App Store iPad screenshot 2 (iPad_02_Matter.jpg); listing https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370"
+  },
+  {
+   "area": "mobile",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/50/a2/0d/50a20df0-27e6-d1de-da34-212516542b3f/iPad_03_Billing.jpg/360x480bb.jpg",
+   "shows": "Clio for Law Firms and Lawyers (iOS) App Store iPad screenshot 3 (iPad_03_Billing.jpg); listing https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370"
+  },
+  {
+   "area": "mobile",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/f3/13/ab/f313ab37-45e8-ad4e-610e-f612045589a1/iPad_04_Client_Portal.jpg/360x480bb.jpg",
+   "shows": "Clio for Law Firms and Lawyers (iOS) App Store iPad screenshot 4 (iPad_04_Client_Portal.jpg); listing https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370"
+  },
+  {
+   "area": "mobile",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/24/e3/e2/24e3e2d2-134b-1a8c-c2e8-391f9acac9f9/iPad_05_Calendar.jpg/360x480bb.jpg",
+   "shows": "Clio for Law Firms and Lawyers (iOS) App Store iPad screenshot 5 (iPad_05_Calendar.jpg); listing https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/fa/7b/9b/fa7b9b53-ec1e-6deb-8833-70c789a5bae0/iPhone_01_NA.jpg/320x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPhone screenshot 1 (iPhone_01_NA.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/ff/a5/ed/ffa5ed7b-85dc-28d5-59af-5814a2526a81/iPhone_02_NA.jpg/320x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPhone screenshot 2 (iPhone_02_NA.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/85/ea/f9/85eaf9cd-26e4-73cb-fd9c-fa1b4349d429/iPhone_03.jpg/320x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPhone screenshot 3 (iPhone_03.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/1e/d9/65/1ed965fa-edb0-e2f6-0974-59d512ffc49e/iPhone_04.jpg/320x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPhone screenshot 4 (iPhone_04.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/da/07/20/da0720fa-355e-9414-b697-f17c493ceb62/iPhone_05.jpg/320x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPhone screenshot 5 (iPhone_05.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/29/19/58/29195824-9484-40cb-e4e6-0e2973f243ff/iPhone_06.jpg/320x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPhone screenshot 6 (iPhone_06.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/88/c4/32/88c432c7-2930-a6e0-edf4-b373ec1f7943/iPhone_07.jpg/320x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPhone screenshot 7 (iPhone_07.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/d1/ec/c6/d1ecc62d-dd24-d712-133b-86e2582af266/iPad_01_Home_NA.jpg/360x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPad screenshot 1 (iPad_01_Home_NA.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/4e/ec/4b/4eec4b32-60a5-5e90-3a30-303d7bc38b53/iPad_02.jpg/360x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPad screenshot 2 (iPad_02.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/7c/d7/1d/7cd71d02-9e12-1c23-8303-2d77f92377d5/iPad_03.jpg/360x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPad screenshot 3 (iPad_03.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/5f/55/82/5f558226-c9fc-e614-8b95-eeb05c3ce531/iPad_04.jpg/360x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPad screenshot 4 (iPad_04.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/b1/8e/f9/b18ef908-a6f4-c9ff-fbe1-865141a981b0/iPad_05.jpg/360x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPad screenshot 5 (iPad_05.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "portal",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/90/b1/ba/90b1baa7-8a56-8a0f-d8ee-8eafc2c2f929/iPad_06.jpg/360x480bb.jpg",
+   "shows": "Clio for Clients (iOS, client portal app) App Store iPad screenshot 6 (iPad_06.jpg); listing https://apps.apple.com/us/app/clio-for-clients/id1506329289"
+  },
+  {
+   "area": "AI",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/87/97/ae/8797aee0-177d-a395-c3dd-0f0bc8cc818b/iOS_Image_1_ENG.png/320x480bb.jpg",
+   "shows": "Vincent by Clio (iOS, Clio Work AI) App Store iPhone screenshot 1 (iOS_Image_1_ENG.png); listing https://apps.apple.com/us/app/vincent-by-clio/id6759928193"
+  },
+  {
+   "area": "AI",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/ff/09/3b/ff093bfc-0c79-2f8c-9837-85b637425981/iOS_Image_2_ENG.png/320x480bb.jpg",
+   "shows": "Vincent by Clio (iOS, Clio Work AI) App Store iPhone screenshot 2 (iOS_Image_2_ENG.png); listing https://apps.apple.com/us/app/vincent-by-clio/id6759928193"
+  },
+  {
+   "area": "AI",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/e1/8a/67/e18a67d4-94a2-07cc-100b-84abc004525e/iOS_Image_3_ENG.png/320x480bb.jpg",
+   "shows": "Vincent by Clio (iOS, Clio Work AI) App Store iPhone screenshot 3 (iOS_Image_3_ENG.png); listing https://apps.apple.com/us/app/vincent-by-clio/id6759928193"
+  },
+  {
+   "area": "AI",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/4c/49/77/4c497746-6fdb-50a2-0284-b687dfbeb7f0/iOS_Image_4_ENG_v2.png/320x480bb.jpg",
+   "shows": "Vincent by Clio (iOS, Clio Work AI) App Store iPhone screenshot 4 (iOS_Image_4_ENG_v2.png); listing https://apps.apple.com/us/app/vincent-by-clio/id6759928193"
+  },
+  {
+   "area": "AI",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/2a/99/0c/2a990cb3-413e-a2f8-0eba-7cbf9839ab29/iOS_Image_5_ENG.png/320x480bb.jpg",
+   "shows": "Vincent by Clio (iOS, Clio Work AI) App Store iPhone screenshot 5 (iOS_Image_5_ENG.png); listing https://apps.apple.com/us/app/vincent-by-clio/id6759928193"
+  },
+  {
+   "area": "AI",
+   "url": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/24/1c/64/241c647e-5292-53fd-9402-8471c6b33269/iOS_Image_6_ENG.png/320x480bb.jpg",
+   "shows": "Vincent by Clio (iOS, Clio Work AI) App Store iPhone screenshot 6 (iOS_Image_6_ENG.png); listing https://apps.apple.com/us/app/vincent-by-clio/id6759928193"
+  },
+  {
+   "area": "mobile",
+   "url": "https://play-lh.googleusercontent.com/Oo5gcDWAInFzUhgFb6gO0gU9GZzMqePTGfIWqXH_kNui8ukCv6Hu4tPjwLSqUzBF40_6x34jO3yDOmiL4ouL",
+   "shows": "Clio Android app (com.themis.clioAndroid) Google Play screenshot 1 (screen not labelled); listing https://play.google.com/store/apps/details?id=com.themis.clioAndroid"
+  },
+  {
+   "area": "mobile",
+   "url": "https://play-lh.googleusercontent.com/qP3AkTHeMrbVcFsHLECBJJqzIk_V7auOkfXhALt6LOIMHLAf7v766q3qeZ5COZhLtiGTHL6Tzyf_6a1Hz-lCo6I",
+   "shows": "Clio Android app (com.themis.clioAndroid) Google Play screenshot 2 (screen not labelled); listing https://play.google.com/store/apps/details?id=com.themis.clioAndroid"
+  },
+  {
+   "area": "mobile",
+   "url": "https://play-lh.googleusercontent.com/dk_ew0qB_IwNUjrHMH9NAKmeZkp_Uw3x_kpa2dmJ3h-i2iuu7hTmI5nOWZgN27b3a-s6nWuza7WEacq99tr5eA",
+   "shows": "Clio Android app (com.themis.clioAndroid) Google Play screenshot 3 (screen not labelled); listing https://play.google.com/store/apps/details?id=com.themis.clioAndroid"
+  },
+  {
+   "area": "mobile",
+   "url": "https://play-lh.googleusercontent.com/ZEJ3mIVH867cm_fANXXrCh_V94vlsraei6vPcPgwZtdeqVpUvU_57dlQP50zlBu5n_ZUdnAV0xm1mU1PnNqP",
+   "shows": "Clio Android app (com.themis.clioAndroid) Google Play screenshot 4 (screen not labelled); listing https://play.google.com/store/apps/details?id=com.themis.clioAndroid"
+  },
+  {
+   "area": "mobile",
+   "url": "https://play-lh.googleusercontent.com/llZvmn4zTVm6l_-NEnsAe8IfsmL-qvDivuMhmXNl0ZmONWg873IJbqy0poDbnpZ04jnVJAe9QioV86ajepjGSME",
+   "shows": "Clio Android app (com.themis.clioAndroid) Google Play screenshot 5 (screen not labelled); listing https://play.google.com/store/apps/details?id=com.themis.clioAndroid"
+  },
+  {
+   "area": "mobile",
+   "url": "https://play-lh.googleusercontent.com/VaqIsWFES-HqynSbMddz59PJsJN2UbZrit6d9mUNNc137slMeLwpLU6qU_nnpN5obn3BHmJdUw2PRafkCstL",
+   "shows": "Clio Android app (com.themis.clioAndroid) Google Play screenshot 6 (screen not labelled); listing https://play.google.com/store/apps/details?id=com.themis.clioAndroid"
+  },
+  {
+   "area": "mobile",
+   "url": "https://play-lh.googleusercontent.com/BHHMRPop_DDq5Zib8GuD2fGUcfXR6TgWNyWPvnohF4fWW0KYCtBq6J6HmQ-NVkRxGxQ641FuxXIMXqKg__2n1g",
+   "shows": "Clio Android app (com.themis.clioAndroid) Google Play screenshot 7 (screen not labelled); listing https://play.google.com/store/apps/details?id=com.themis.clioAndroid"
+  },
+  {
+   "area": "mobile",
+   "url": "https://play-lh.googleusercontent.com/81lbUjcY875GiV00YCwY5-Hfhi0b45xIOG1yNtEcB8mkOvrYU01g2KNw3PUErrHxU8TJoVnENruYm0jOwUu2",
+   "shows": "Clio Android app (com.themis.clioAndroid) Google Play screenshot 8 (screen not labelled); listing https://play.google.com/store/apps/details?id=com.themis.clioAndroid"
+  },
+  {
+   "area": "mobile",
+   "url": "https://play-lh.googleusercontent.com/x_p0LWT1Ggg4GbbSGnkGXOH1DOtL44IQxa5QLGh763dJK_mWyywwQ3CUMpLKkjS97nUY3xNDlfFmE3hSDvzjj9c",
+   "shows": "Clio Android app (com.themis.clioAndroid) Google Play screenshot 9 (screen not labelled); listing https://play.google.com/store/apps/details?id=com.themis.clioAndroid"
+  },
+  {
+   "area": "mobile",
+   "url": "https://play-lh.googleusercontent.com/R3gyPuUdDKG_hRTGHzBvL4KrloqpKN3-UkrJsfN77MKbqmwXLbftvmqeT5NrZnhZeBxQb-yGK48EL8o-9wB6FQ",
+   "shows": "Clio Android app (com.themis.clioAndroid) Google Play screenshot 10 (screen not labelled); listing https://play.google.com/store/apps/details?id=com.themis.clioAndroid"
+  },
+  {
+   "area": "mobile",
+   "url": "https://play-lh.googleusercontent.com/r661GYWwS8G6Z5H5T5mqqQhbVZ-5LiZ76cdLgcq9hFHEsHLB0-BudL-PkrGArVJgI5HAs2QuZ0LGpFJ1MemMog",
+   "shows": "Clio Android app (com.themis.clioAndroid) Google Play screenshot 11 (screen not labelled); listing https://play.google.com/store/apps/details?id=com.themis.clioAndroid"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.youtube.com/watch?v=dbIQsezQp1Q",
+   "shows": "YouTube (official Clio channel @goclio): 'Getting Started with Clio' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.youtube.com/watch?v=emer9JBfxf4",
+   "shows": "YouTube (official Clio channel @goclio): '20 Features in 20 Minutes' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.youtube.com/watch?v=nnFJaRYusHg",
+   "shows": "YouTube (official Clio channel @goclio): 'The Ultimate Clio Test Drive: How To Do Everything You Want (and Need) on The Platform' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "tasks",
+   "url": "https://www.youtube.com/watch?v=zyoyRBXCYbY",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Organize\u2014and Prioritize\u2014Work in Clio Manage' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "tasks",
+   "url": "https://www.youtube.com/watch?v=i-F9Xvkrf5M",
+   "shows": "YouTube (official Clio channel @goclio): 'Getting the Most out of Task Management in Clio Manage' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "tasks",
+   "url": "https://www.youtube.com/watch?v=_4hkQj028f4",
+   "shows": "YouTube (official Clio channel @goclio): 'Getting the Most out of Task Management in Clio Manage' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "tasks",
+   "url": "https://www.youtube.com/watch?v=E96-k8qJUUc",
+   "shows": "YouTube (official Clio channel @goclio): 'Best Practices: Clio Tasks' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "matters",
+   "url": "https://www.youtube.com/watch?v=ybbdGcX2Vxs",
+   "shows": "YouTube (official Clio channel @goclio): 'Matters, Managed: Improving Workflows With Clio Manage' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "matters",
+   "url": "https://www.youtube.com/watch?v=xnORtwCxACE",
+   "shows": "YouTube (official Clio channel @goclio): 'PI, 4U: How Clio Makes Personal Injury Firms More Efficient' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "matters",
+   "url": "https://www.youtube.com/watch?v=HX3238bkPCU",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio for Personal Injury' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "settings",
+   "url": "https://www.youtube.com/watch?v=tEelLzQ3KfY",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio's Best-Kept Secret: Making Custom Fields Work for You' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://www.youtube.com/watch?v=uC15yr0b9io",
+   "shows": "YouTube (official Clio channel @goclio): 'Best Practices: Scheduling with Clio' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://www.youtube.com/watch?v=rYiKhlB29vo",
+   "shows": "YouTube (official Clio channel @goclio): '4 ways to take control of your calendar using Clio' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "calendar",
+   "url": "https://www.youtube.com/watch?v=IqK7s59g_X8",
+   "shows": "YouTube (official Clio channel @goclio): 'Keeping Court: Simplifying Court Dates With Clio' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "scheduler",
+   "url": "https://www.youtube.com/watch?v=eLef1p898fc",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Use Clio Scheduler' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.youtube.com/watch?v=ii1Mz29jLeE",
+   "shows": "YouTube (official Clio channel @goclio): 'Best Practices: Document Management' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.youtube.com/watch?v=v6WFfJAyJL0",
+   "shows": "YouTube (official Clio channel @goclio): 'Document Templates and Automation with Clio' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.youtube.com/watch?v=YXFOuazf5xo",
+   "shows": "YouTube (official Clio channel @goclio): 'Advanced Document Templates: Conditional Formatting in Clio' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.youtube.com/watch?v=sBRorsaJQHY",
+   "shows": "YouTube (official Clio channel @goclio): 'Introducing Clio File: the fastest, most efficient way to file' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "documents",
+   "url": "https://www.youtube.com/watch?v=WFpLqnDneCU",
+   "shows": "YouTube (official Clio channel @goclio): 'From Draft to Done: 5 Ways Clio Simplifies Legal Documentation' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.youtube.com/watch?v=9mmUn7_ppHY",
+   "shows": "YouTube (official Clio channel @goclio): 'Drafting Redefined: Automating Document Creation With Clio Draft' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.youtube.com/watch?v=0A0HK8PJITM",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio Draft Power Hour' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.youtube.com/watch?v=D3vcO3XR1_c",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio Draft Power Hour' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.youtube.com/watch?v=PPQ-Jrpq6dY",
+   "shows": "YouTube (official Clio channel @goclio): 'Better together: Document Workflows with Clio Draft and Clio Manage' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.youtube.com/watch?v=OxXZHGd_pvc",
+   "shows": "YouTube (official Clio channel @goclio): 'Better together: Document Workflows with Clio Draft and Clio Manage' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.youtube.com/watch?v=8G08iuS2F08",
+   "shows": "YouTube (official Clio channel @goclio): 'Next Level Document Automation: The Magic of Conditional Logic' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Draft",
+   "url": "https://www.youtube.com/watch?v=eFLkqe7uBDM",
+   "shows": "YouTube (official Clio channel @goclio): 'The Recipe for Perfect Court Forms with Clio Draft (formerly Lawyaw)' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "communications",
+   "url": "https://www.youtube.com/watch?v=QSCCxKZGigo",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Use Clio\u2019s Text Messaging' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "communications",
+   "url": "https://www.youtube.com/watch?v=AG29FV1s5_8",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Add Text Messaging to Your Client Communications' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "communications",
+   "url": "https://www.youtube.com/watch?v=5Uu46C7C6Ms",
+   "shows": "YouTube (official Clio channel @goclio): 'Improved Law Firm Client Communications With Clio Manage' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "communications",
+   "url": "https://www.youtube.com/watch?v=P3hOGLrMFvE",
+   "shows": "YouTube (official Clio channel @goclio): 'Best Practices: Clio x Microsoft 365' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "portal",
+   "url": "https://www.youtube.com/watch?v=14eCpJQfvCo",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Collaborate with your Clients using Clio for Clients' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "portal",
+   "url": "https://www.youtube.com/watch?v=0OQ6NtmqwF8",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Launch Clio for Clients and Give Them One Place to Manage Their Case' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "portal",
+   "url": "https://www.youtube.com/watch?v=ujfJ8bqBSlI",
+   "shows": "YouTube (official Clio channel @goclio): 'How to implement Clio for Clients in your Firm' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "portal",
+   "url": "https://www.youtube.com/watch?v=i2SaMgt0kKg",
+   "shows": "YouTube (official Clio channel @goclio): 'Beyond the Inbox: Revolutionizing Client Communication with Clio for Clients' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "portal",
+   "url": "https://www.youtube.com/watch?v=zQYfvHA9Wk8",
+   "shows": "YouTube (official Clio channel @goclio): '3 ways the Clio for Clients App Enhances Client communication and Collaboration' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://www.youtube.com/watch?v=JAktYP38IeY",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Use Activity Categories in Clio' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://www.youtube.com/watch?v=oo8827YYQ-Y",
+   "shows": "YouTube (official Clio channel @goclio): 'Track Less, Earn More, and Create Fee Certainty in Clio' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "activities/time",
+   "url": "https://www.youtube.com/watch?v=KhjLx9YPJEc",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio University Track 2: Time is Money - Efficient Attorney Workflows in Clio' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "billing",
+   "url": "https://www.youtube.com/watch?v=kAfLDO0Lujs",
+   "shows": "YouTube (official Clio channel @goclio): 'Your Best Billing Week with Clio' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "billing",
+   "url": "https://www.youtube.com/watch?v=jqJvHxBygcY",
+   "shows": "YouTube (official Clio channel @goclio): 'Your Best Billing Week with Clio' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "billing",
+   "url": "https://www.youtube.com/watch?v=oMH8BSdEdh4",
+   "shows": "YouTube (official Clio channel @goclio): '5 Billing Features You Didn't Know You Always Needed' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "billing",
+   "url": "https://www.youtube.com/watch?v=j_3kUi0rlP8",
+   "shows": "YouTube (official Clio channel @goclio): 'Best Practices: Bill Themes' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "billing",
+   "url": "https://www.youtube.com/watch?v=K6tHqws5xrc",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Optimize Your Billing Process' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "billing",
+   "url": "https://www.youtube.com/watch?v=ZRJvhynxX3U",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Automate Your Accounts Receivable Process' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "payments",
+   "url": "https://www.youtube.com/watch?v=7s0ODNno9O8",
+   "shows": "YouTube (official Clio channel @goclio): 'Future-Proof Your Firm\u2019s Bottom Line: Clio Payments in Action' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "payments",
+   "url": "https://www.youtube.com/watch?v=4qpZQ36vuxc",
+   "shows": "YouTube (official Clio channel @goclio): 'Power Hour: Optimize Your Payment Workflows with Clio' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "payments",
+   "url": "https://www.youtube.com/watch?v=pr7VqEONjuQ",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Use Payment Plans to Meet Your Clients Where They're At' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "payments",
+   "url": "https://www.youtube.com/watch?v=9SwJDvNhb2I",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio University Track 1: Boosting Your Firm's Collections with Clio Payments' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "payments",
+   "url": "https://www.youtube.com/watch?v=4Y-1CaK8Eqc",
+   "shows": "YouTube (official Clio channel @goclio): 'How Clio Supports Payment Structures and Subscriptions' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "trust/accounts",
+   "url": "https://www.youtube.com/watch?v=1VdFx7vSuZk",
+   "shows": "YouTube (official Clio channel @goclio): 'Best Practices: Trust Accounting' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "accounting",
+   "url": "https://www.youtube.com/watch?v=HPwUqVZ4nqE",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio Accounting Demo: A Quick 2-Minute Overview for Law Firms' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "accounting",
+   "url": "https://www.youtube.com/watch?v=Ft8hkO9hUE8",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio Accounting 101' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "accounting",
+   "url": "https://www.youtube.com/watch?v=RfFpt55Z-I8",
+   "shows": "YouTube (official Clio channel @goclio): 'Accounting, Streamlined: Managing Finances with Clio Accounting' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "accounting",
+   "url": "https://www.youtube.com/watch?v=pMWJWYypTGA",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio and QuickBooks Online' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.youtube.com/watch?v=ETyBJNH8WDY",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio Grow Overview' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.youtube.com/watch?v=u3mU6g41jUM",
+   "shows": "YouTube (official Clio channel @goclio): 'Learn What's New with Clio Grow' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.youtube.com/watch?v=T8QNJmnrKjM",
+   "shows": "YouTube (official Clio channel @goclio): '02   Clio Grow Power Hour' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.youtube.com/watch?v=iJ4MjSCxRbI",
+   "shows": "YouTube (official Clio channel @goclio): 'Power Half Hour: How to set up a form in Clio Grow' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.youtube.com/watch?v=dpPtp7A3Lm0",
+   "shows": "YouTube (official Clio channel @goclio): 'Best Practices: Clio Grow Forms' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.youtube.com/watch?v=nu-xu9UBKuA",
+   "shows": "YouTube (official Clio channel @goclio): 'Best Practices: Clio Grow Templates' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.youtube.com/watch?v=Ob4s5FT68bU",
+   "shows": "YouTube (official Clio channel @goclio): 'Advanced Client Intake Workflows with Clio Grow' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.youtube.com/watch?v=J3L9sV86er4",
+   "shows": "YouTube (official Clio channel @goclio): 'Three ways to speed up your intake with Clio Grow' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.youtube.com/watch?v=_32lOdK7h1I",
+   "shows": "YouTube (official Clio channel @goclio): '5 Ways to Automate Routine Tasks with Clio Grow' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.youtube.com/watch?v=IRZikUluRIE",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio University Track 2: Using Clio Grow - The Journey of a Lead to Client in Clio Manage' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "Grow intake/pipeline",
+   "url": "https://www.youtube.com/watch?v=glbVHKA8UM8",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Set Up Your New Firm Website in 15 Minutes' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.youtube.com/watch?v=PX1CxRQKgF0",
+   "shows": "YouTube (official Clio channel @goclio): 'Maximizing Firm Insights: Reporting in Clio Manage' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.youtube.com/watch?v=JSTzlYIFNLw",
+   "shows": "YouTube (official Clio channel @goclio): 'Maximizing Firm Insights: Reporting in Clio Manage' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.youtube.com/watch?v=t3H1tKiD1zk",
+   "shows": "YouTube (official Clio channel @goclio): 'Maximizing Firm Insights: Reporting in Clio Grow' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.youtube.com/watch?v=sWQIEwqfmQA",
+   "shows": "YouTube (official Clio channel @goclio): 'Maximizing Firm Insights: Reporting in Clio Grow' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.youtube.com/watch?v=eaHFRDfGkxs",
+   "shows": "YouTube (official Clio channel @goclio): 'Look Closer: Gaining Visibility with Reports in Clio Manage and Clio Grow' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "reports",
+   "url": "https://www.youtube.com/watch?v=WJJn63U4XfE",
+   "shows": "YouTube (official Clio channel @goclio): 'Turn Insights into Actions with Clio Manage Reports' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "settings",
+   "url": "https://www.youtube.com/watch?v=Uos8urAadPc",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Enable Clio\u2019s Security Features' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "settings",
+   "url": "https://www.youtube.com/watch?v=m7GKAo-uIrA",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio University Track 1: An Overview of Clio's App Directory' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.youtube.com/watch?v=mjQn-arpP7U",
+   "shows": "YouTube (official Clio channel @goclio): 'Power Up! Unlocking New Levels of Efficiency with Clio\u2019s AI Tools' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.youtube.com/watch?v=EjvbJeemTss",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Transform Tone with AI' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.youtube.com/watch?v=Sj0-tU_2xfw",
+   "shows": "YouTube (official Clio channel @goclio): 'Break down a complaint in under 2 minutes with Clio Work' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.youtube.com/watch?v=vB8mfdt2esY",
+   "shows": "YouTube (official Clio channel @goclio): 'Find winning case law in 2 minutes with Clio Work' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.youtube.com/watch?v=mjH0Cm5XACQ",
+   "shows": "YouTube (official Clio channel @goclio): 'Analyze a 100-page deposition in seconds with Clio Work' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.youtube.com/watch?v=K5xaMe7-yPY",
+   "shows": "YouTube (official Clio channel @goclio): 'Catch every risk in a 30-page contract with Clio Work' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.youtube.com/watch?v=r7f1Xnb-jP0",
+   "shows": "YouTube (official Clio channel @goclio): 'Stress-test your legal argument in minutes with Clio Work' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.youtube.com/watch?v=Tyn8ChNx5Wk",
+   "shows": "YouTube (official Clio channel @goclio): 'Never start with a blank page again: Drafting with Clio Work' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.youtube.com/watch?v=_mJoKgezbnY",
+   "shows": "YouTube (official Clio channel @goclio): 'Turn SEC Filings Into a Deal-Ready Issues List' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "AI",
+   "url": "https://www.youtube.com/watch?v=IHRWyPD4ihM",
+   "shows": "YouTube (official Clio channel @goclio): 'The AI-Enabled Law Firm: How Clio's Level Up the Use of AI in Your Practice' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "mobile",
+   "url": "https://www.youtube.com/watch?v=iP0E-6vJQCg",
+   "shows": "YouTube (official Clio channel @goclio): 'Lawyering on the Go: Mastering Clio\u2019s Mobile Experience' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "mobile",
+   "url": "https://www.youtube.com/watch?v=rvMzfxPnSR4",
+   "shows": "YouTube (official Clio channel @goclio): '10 Mobile App Tricks to  Simplify Your Daily Tasks' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "mobile",
+   "url": "https://www.youtube.com/watch?v=tiDrMNSs__A",
+   "shows": "YouTube (official Clio channel @goclio): 'How to Make the Most of the Clio Mobile App' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "mobile",
+   "url": "https://www.youtube.com/watch?v=-0h_oDyWRuo",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio University Track 1: The Mobile Experience' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.youtube.com/watch?v=Kfnz_aOT5fA",
+   "shows": "YouTube (official Clio channel @goclio): 'Whats New at Clio: Spring 2025' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.youtube.com/watch?v=MSeBfPHcd2w",
+   "shows": "YouTube (official Clio channel @goclio): 'Whats New at Clio: 2024 Year in Review' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.youtube.com/watch?v=VXuDkjHe-Ws",
+   "shows": "YouTube (official Clio channel @goclio): 'Whats New at Clio: Fall 2024' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.youtube.com/watch?v=gF8p9AJz6WQ",
+   "shows": "YouTube (official Clio channel @goclio): 'What's New at Clio: Summer 2024 - Updates to Simplify and Automate Your Workflow' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.youtube.com/watch?v=Y5ZgnvCp2f0",
+   "shows": "YouTube (official Clio channel @goclio): 'What's New at Clio: 2023 Year in Review' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.youtube.com/watch?v=LXkqQuFwbDo",
+   "shows": "YouTube (official Clio channel @goclio): 'What's New in Clio: April 2023' (title only; screens inferred from title, timestamps not verified)"
+  },
+  {
+   "area": "dashboard",
+   "url": "https://www.youtube.com/watch?v=uuq7rhpCYLo",
+   "shows": "YouTube (official Clio channel @goclio): 'Clio University - Lectures Track: Behind the Scenes with the New Clio Experience' (title only; screens inferred from title, timestamps not verified)"
+  }
+ ],
+ "open_questions": [
+  "G2, Capterra, GetApp and Software Advice return 403 to direct fetch and the session web-search budget was exhausted, so their screenshot galleries are NOT indexed. Candidate pages to open manually: https://www.capterra.com/p/105428/Clio/ , https://www.getapp.com/legal-law-software/a/clio/ , https://www.softwareadvice.com/legal/clio-profile/ , https://www.g2.com/products/clio/reviews",
+  "YouTube entries are titles only from the @goclio channel search pages; screens are inferred from titles and per-screen timestamps were not extracted (no transcripts fetched).",
+  "Help-article video embeds (Vimeo/Wistia) are mapped to areas by article title; the exact screen inside each video is not verified.",
+  "clio.com images come from 2025-2026 Wayback snapshots (live clio.com returns 403); some 2019-2021 images are older UI and may not match the current product.",
+  "Google Play screenshots (com.themis.clioAndroid) are not labelled with screen names; App Store file names give screen names (Home, Matter, Billing, Client_Portal, Calendar, TTP).",
+  "No public screenshot found specifically for Settings > users/roles permissions; only help videos (Permissions and Billing Rates, Activities Settings and Permissions) and the Protect Client Trust Funds permission screenshots.",
+  "gaps/corrections left empty: this worker's scope was the screenshot index, not the spec comparison."
+ ],
+ "sources": [
+  "https://apps.apple.com/us/app/clio-for-clients/id1506329289",
+  "https://apps.apple.com/us/app/clio-for-law-firms-and-lawyers/id686777370",
+  "https://apps.apple.com/us/app/vincent-by-clio/id6759928193",
+  "https://help.clio.com/api/v2/help_center/articles/search.json",
+  "https://help.clio.com/hc/en-us/articles/14078113389723-LEDES-Bills",
+  "https://help.clio.com/hc/en-us/articles/14078142068123-Download-and-Print-Bills",
+  "https://help.clio.com/hc/en-us/articles/14078692470427-Configure-General-Bill-Settings",
+  "https://help.clio.com/hc/en-us/articles/15083241879195-Create-and-Manage-Matter-Stages",
+  "https://help.clio.com/hc/en-us/articles/15811227212443-Damages",
+  "https://help.clio.com/hc/en-us/articles/15815962459931-Medical-Records",
+  "https://help.clio.com/hc/en-us/articles/17284937823387-Bill-States-and-Bill-Approval",
+  "https://help.clio.com/hc/en-us/articles/17770743592219-Clio-Grow-Automated-Workflows",
+  "https://help.clio.com/hc/en-us/articles/18350703919899-Settlement",
+  "https://help.clio.com/hc/en-us/articles/20965581497627-Set-up-Chart-of-Accounts",
+  "https://help.clio.com/hc/en-us/articles/21249768099355-Accounting-Reports",
+  "https://help.clio.com/hc/en-us/articles/24313560334747-Get-Started-With-Clio-Draft",
+  "https://help.clio.com/hc/en-us/articles/24313887490203-Clio-Draft-Account-Settings-and-User-Invitation",
+  "https://help.clio.com/hc/en-us/articles/24315032920987-Clio-Draft-Matters",
+  "https://help.clio.com/hc/en-us/articles/24315924591771-Clio-Draft-Form-Templates",
+  "https://help.clio.com/hc/en-us/articles/24316265351451-Clio-Draft-Sets",
+  "https://help.clio.com/hc/en-us/articles/24317070863899-Clio-Draft-Draft-and-Manage-Documents",
+  "https://help.clio.com/hc/en-us/articles/24663592578075-Clio-Draft-Create-Questionnaire-Templates",
+  "https://help.clio.com/hc/en-us/articles/25704317136155-Split-Billing",
+  "https://help.clio.com/hc/en-us/articles/33309999460891-Clio-Draft-Live-Questionnaires",
+  "https://help.clio.com/hc/en-us/articles/35132279298843-Clio-Manage-Automated-Workflows",
+  "https://help.clio.com/hc/en-us/articles/39242840782107-Email-Marketing-in-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/39596742551067-Manage-Custom-Fields-in-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/40257491789467-Create-Contacts-in-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/40283218733467-AI-Support-Agent",
+  "https://help.clio.com/hc/en-us/articles/41670894211995-Analyze-Legal-Documents-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/41750517581723-Compare-Documents-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/41905437195675-Verify-Case-Law-With-Citators",
+  "https://help.clio.com/hc/en-us/articles/41958696760987-Create-or-Edit-Word-Document-Templates",
+  "https://help.clio.com/hc/en-us/articles/43337504015387-Combine-or-Replace-Documents",
+  "https://help.clio.com/hc/en-us/articles/44559477619483-Start-and-Guide-Conversations-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/46839239014299-Multi-Client-Matters-in-Clio-Manage-and-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/47397952204315-Set-Up-Clio-Accounting",
+  "https://help.clio.com/hc/en-us/articles/47843698025371-Clio-Work-on-Mobile",
+  "https://help.clio.com/hc/en-us/articles/48792757612955-Write-Effective-Prompts-for-Vincent",
+  "https://help.clio.com/hc/en-us/articles/48926867354907-Design-Bills-With-Billing-Templates",
+  "https://help.clio.com/hc/en-us/articles/49566590035227-Compare-Documents-With-Tabular-Document-Review",
+  "https://help.clio.com/hc/en-us/articles/49677893380251-Create-Timelines-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/49678596987803-Legal-Pad-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/49679152046235-Search-SEC-Corporate-Filings-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/51149258229275-Watch-Clio-Work-Video-Tutorials",
+  "https://help.clio.com/hc/en-us/articles/51437510123035-Web-Search-with-Vincent-AI",
+  "https://help.clio.com/hc/en-us/articles/51541484444187-Translate-Documents-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/51583795486363-Protect-Client-Trust-Funds",
+  "https://help.clio.com/hc/en-us/articles/52131068035995-Grow-AI-s-Website-Chat-Tool",
+  "https://help.clio.com/hc/en-us/articles/52508612250523-Perform-Redline-Analyses-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing",
+  "https://help.clio.com/hc/en-us/articles/53353783646875-Document-Templates-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/54380691566747-Search-for-Dockets-and-Documents",
+  "https://help.clio.com/hc/en-us/articles/55085715266587-Get-Started-with-Documents",
+  "https://help.clio.com/hc/en-us/articles/55218534058139-Delete-Documents-in-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/55316895595547-Download-Documents-From-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/55317324866587-Resend-Documents-and-Send-Reminders-in-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/56367796556443-Build-and-Manage-Templates-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/9043484357147-Clio-for-Clients-Law-Firm-Setup",
+  "https://help.clio.com/hc/en-us/articles/9073499214747-Set-Up-Clio-Grow-Intake-Form-Templates",
+  "https://help.clio.com/hc/en-us/articles/9125169167899-Clio-Grow-Emails-Communication-Templates-and-Sequences",
+  "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/9125264015259-Internal-Messages",
+  "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions",
+  "https://help.clio.com/hc/en-us/articles/9192379853979-Clio-Scheduler",
+  "https://help.clio.com/hc/en-us/articles/9198647259291-Clio-Grow-Agenda",
+  "https://help.clio.com/hc/en-us/articles/9204982812699-Filter-and-Export-Tasks",
+  "https://help.clio.com/hc/en-us/articles/9206286672155-Task-Lists",
+  "https://help.clio.com/hc/en-us/articles/9207223181979-Get-Started-With-e-Signatures",
+  "https://help.clio.com/hc/en-us/articles/9284567246747-Send-View-and-Manage-Intake-Forms",
+  "https://help.clio.com/hc/en-us/articles/9284769790619-Dropbox-and-Clio",
+  "https://help.clio.com/hc/en-us/articles/9284807555099-Mailchimp-and-Clio",
+  "https://help.clio.com/hc/en-us/articles/9284884888475-Google-Drive-and-Clio",
+  "https://help.clio.com/hc/en-us/articles/9284967030939-Zoom-and-Clio",
+  "https://help.clio.com/hc/en-us/articles/9285169278747-Generate-Bills-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/9285222010395-Edit-Bills",
+  "https://help.clio.com/hc/en-us/articles/9285226640155-Delete-and-Void-Bills",
+  "https://help.clio.com/hc/en-us/articles/9285277478171-Interest",
+  "https://help.clio.com/hc/en-us/articles/9285279237787-Discounts",
+  "https://help.clio.com/hc/en-us/articles/9285343645595-Send-Bills-to-Clients",
+  "https://help.clio.com/hc/en-us/articles/9285345945243-Send-and-Automate-Bill-Reminders",
+  "https://help.clio.com/hc/en-us/articles/9285360193819-Permissions-and-Billing-Rates",
+  "https://help.clio.com/hc/en-us/articles/9285496802331-Create-Custom-Fields-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/9285552102171-Delete-Custom-Fields-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/9285553508635-Sync-and-Convert-Custom-Fields",
+  "https://help.clio.com/hc/en-us/articles/9285641955355-Record-and-Manage-Online-Bill-Payments",
+  "https://help.clio.com/hc/en-us/articles/9285959663131-Create-Matters",
+  "https://help.clio.com/hc/en-us/articles/9286116462747-Convert-Matters",
+  "https://help.clio.com/hc/en-us/articles/9286134468507-Clio-Grow-Pipeline",
+  "https://help.clio.com/hc/en-us/articles/9289741706779-Time-Entries",
+  "https://help.clio.com/hc/en-us/articles/9289743207835-Filter-and-Export-Activities",
+  "https://help.clio.com/hc/en-us/articles/9289744400667-Activity-Categories",
+  "https://help.clio.com/hc/en-us/articles/9289745356571-Create-and-Manage-Expenses-Entries",
+  "https://help.clio.com/hc/en-us/articles/9289762435099-UTBMS-Codes",
+  "https://help.clio.com/hc/en-us/articles/9289781023771-Activities-Settings-and-Permissions",
+  "https://help.clio.com/hc/en-us/articles/9289801180187-Rates-and-Rate-Hierarchies",
+  "https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules",
+  "https://help.clio.com/hc/en-us/articles/9289861195291-Calendar-Notifications-and-Reminders",
+  "https://help.clio.com/hc/en-us/articles/9289905071387-Calendar-Events",
+  "https://help.clio.com/hc/en-us/articles/9289960611355-Calendar-Sync-and-Feeds",
+  "https://help.clio.com/hc/en-us/articles/9290016489883-Calendar-Set-Up-and-Settings",
+  "https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History",
+  "https://help.clio.com/hc/en-us/articles/9290118056603-Xero-and-Clio",
+  "https://help.clio.com/hc/en-us/articles/9290132162075-QuickBooks-Desktop-and-Clio",
+  "https://help.clio.com/hc/en-us/articles/9290238939163-Document-Templates-in-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/9290315308699-Clio-Launcher",
+  "https://help.clio.com/hc/en-us/articles/9290346939547-Set-Up-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/9290390462875-Navigate-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/9290426619675-Navigate-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/9290466190363-Create-Contacts",
+  "https://itunes.apple.com/lookup?id=554319163&entity=software",
+  "https://play.google.com/store/apps/details?id=com.themis.clioAndroid",
+  "https://www.clio.com/ai-principles/",
+  "https://www.clio.com/draft/",
+  "https://www.clio.com/draft/advanced-document-automation/",
+  "https://www.clio.com/draft/automated-legal-client-questionnaires/",
+  "https://www.clio.com/draft/court-forms/",
+  "https://www.clio.com/draft/e-signatures/",
+  "https://www.clio.com/draft/templates-service/",
+  "https://www.clio.com/features/",
+  "https://www.clio.com/features/appointment-bookings/",
+  "https://www.clio.com/features/case-management-software/",
+  "https://www.clio.com/features/client-intake-insights/",
+  "https://www.clio.com/features/client-portal/",
+  "https://www.clio.com/features/collaboration/",
+  "https://www.clio.com/features/contact-management/",
+  "https://www.clio.com/features/duo-legal-ai-software/",
+  "https://www.clio.com/features/file/",
+  "https://www.clio.com/features/integrations/",
+  "https://www.clio.com/features/law-firm-communications/",
+  "https://www.clio.com/features/law-firm-email-marketing-software/",
+  "https://www.clio.com/features/law-firm-financial-reporting/",
+  "https://www.clio.com/features/law-firm-insights/",
+  "https://www.clio.com/features/law-firm-website-builder/",
+  "https://www.clio.com/features/legal-accounting-software/",
+  "https://www.clio.com/features/legal-ai-software/",
+  "https://www.clio.com/features/legal-billing-software/",
+  "https://www.clio.com/features/legal-calendaring-software/",
+  "https://www.clio.com/features/legal-crm-software/",
+  "https://www.clio.com/features/legal-documents/",
+  "https://www.clio.com/features/legal-e-signature-software/",
+  "https://www.clio.com/features/legal-time-expense-tracking/",
+  "https://www.clio.com/features/legal-workflow-automation-software/",
+  "https://www.clio.com/features/mobile-app/",
+  "https://www.clio.com/features/online-intake-forms/",
+  "https://www.clio.com/features/payments/",
+  "https://www.clio.com/features/personal-injury-case-management-software/",
+  "https://www.clio.com/features/task-management/",
+  "https://www.clio.com/features/trust-account-management-software/",
+  "https://www.clio.com/features/whats-new/",
+  "https://www.clio.com/grow/",
+  "https://www.clio.com/manage/",
+  "https://www.clio.com/work/",
+  "https://www.clio.com/work/ai-legal-research/",
+  "https://www.clio.com/work/at-work/",
+  "https://www.youtube.com/@goclio"
+ ]
+}

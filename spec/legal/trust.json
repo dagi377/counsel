@@ -1,0 +1,2954 @@
+{
+ "area": "trust",
+ "title": "Trust accounting (Ontario By-Law 9)",
+ "summary": "Books and controls for client money held in trust: pooled (mixed) and separate interest-bearing accounts, per-client ledgers, receipts and disbursements journals, transfers, withdrawals, bank feed matching, monthly three-way reconciliation and LSO annual report support. The agent posts, matches, checks and drafts. Money never moves, and no month is closed, without a named licensee's authorization. Every entry is append-only and fully audited.",
+ "screens": [
+  {
+   "id": "trust-overview",
+   "name": "Trust overview",
+   "route": "/trust",
+   "who": [
+    "lawyer",
+    "clerk",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Shows the trust position and every open exception on one page, so the responsible lawyer knows what needs action today.",
+   "layout": "Top: one balance card per trust account (bank balance, book balance, sum of client ledgers, a match light). Middle: an exceptions queue. Right: pending approvals (withdrawals, reconciliations) and the next reconciliation due date.",
+   "fields": [
+    {
+     "name": "account",
+     "type": "ref",
+     "required": true,
+     "note": "TrustAccount"
+    },
+    {
+     "name": "bank_balance",
+     "type": "money",
+     "required": true,
+     "note": "From the latest bank feed or statement"
+    },
+    {
+     "name": "journal_balance",
+     "type": "money",
+     "required": true,
+     "note": "Opening balance + receipts - disbursements"
+    },
+    {
+     "name": "client_ledger_total",
+     "type": "money",
+     "required": true,
+     "note": "Sum of all client ledger balances"
+    },
+    {
+     "name": "exception",
+     "type": "enum",
+     "required": false,
+     "note": "unmatched-bank-line | ledger-negative | cash-limit | stale-balance | unbilled-withdrawal-attempt | recon-overdue | dormant-2y"
+    },
+    {
+     "name": "next_recon_due",
+     "type": "date",
+     "required": true,
+     "note": "Month end + 25 days (verify)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Open exception",
+     "by": "human",
+     "gate": "none",
+     "note": "Goes to the screen that owns the exception"
+    },
+    {
+     "name": "Run match now",
+     "by": "agent",
+     "gate": "none",
+     "note": "Matches bank, journals and ledgers on demand"
+    },
+    {
+     "name": "Approve queued item",
+     "by": "human",
+     "gate": "approve",
+     "note": "Deep link into the withdrawal or reconciliation gate"
+    }
+   ],
+   "agent": "Runs a three-way match every day after the bank feed arrives, raises an exception for each variance with a plain-language cause, and sends the trust lawyer a daily digest.",
+   "gate": "none",
+   "states": [
+    "no trust account set up",
+    "all matched",
+    "exceptions open",
+    "reconciliation overdue",
+    "bank feed stale"
+   ],
+   "edge": [
+    "Bank feed is down, so balances show as of the last statement with a staleness badge",
+    "A firm with several trust accounts, where totals must never be netted across accounts",
+    "A firm that holds no trust money: screen shows a declaration helper for the annual report"
+   ],
+   "reg": "BL9 requires accurate, current records. The daily match goes beyond the monthly minimum but does not replace the signed monthly comparison (verify).",
+   "mock": {
+    "kind": "dashboard",
+    "columns": [
+     "Account",
+     "Bank",
+     "Journal",
+     "Client ledgers",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Mixed trust #1 (pooled)",
+      "$412,880.15",
+      "$412,880.15",
+      "$412,880.15",
+      "Matched"
+     ],
+     [
+      "Separate trust: Okafor estate",
+      "$150,312.40",
+      "$150,312.40",
+      "$150,312.40",
+      "Matched"
+     ],
+     [
+      "Mixed trust #1: exception",
+      "-",
+      "-",
+      "-",
+      "1 unmatched bank line ($1,250.00, Oct 8)"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "trust-accounts",
+   "name": "Trust accounts and signing authority",
+   "route": "/trust/accounts",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "Set up each trust bank account (pooled/mixed or separate interest-bearing), who may authorize withdrawals, and how the bank is connected.",
+   "layout": "List of accounts on the left. Detail on the right with tabs: Account, Signatories, Electronic transfer users, Bank connection, History.",
+   "fields": [
+    {
+     "name": "type",
+     "type": "enum",
+     "required": true,
+     "note": "mixed (pooled, interest to Law Foundation of Ontario) | separate-interest-bearing (single client or matter, interest to the client) (verify)"
+    },
+    {
+     "name": "institution",
+     "type": "text",
+     "required": true,
+     "note": "Must be a chartered bank, credit union or other eligible institution (verify)"
+    },
+    {
+     "name": "transit_and_account_no",
+     "type": "text",
+     "required": true,
+     "note": "Masked after save"
+    },
+    {
+     "name": "account_title",
+     "type": "text",
+     "required": true,
+     "note": "Must name the account as a trust account (verify)"
+    },
+    {
+     "name": "for_client_matter",
+     "type": "ref",
+     "required": false,
+     "note": "Required for a separate interest-bearing account"
+    },
+    {
+     "name": "signatories",
+     "type": "ref",
+     "required": true,
+     "note": "Users with signing authority. Licensees only, unless a bonded non-licensee exception is recorded"
+    },
+    {
+     "name": "bonded_non_licensee",
+     "type": "file",
+     "required": false,
+     "note": "Bond amount >= max trust balance in the prior fiscal year. Required evidence for a non-licensee who initiates transfers"
+    },
+    {
+     "name": "eft_users",
+     "type": "ref",
+     "required": false,
+     "note": "Each with a unique bank login. No shared credentials"
+    },
+    {
+     "name": "dual_authorization",
+     "type": "enum",
+     "required": true,
+     "note": "single-licensee | enter-and-authorize (two people)"
+    },
+    {
+     "name": "opened_on",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "closed_on",
+     "type": "date",
+     "required": false,
+     "note": "Closed accounts stay readable for the retention period"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Add account",
+     "by": "human",
+     "gate": "approve",
+     "note": "A licensee approves before the account is used"
+    },
+    {
+     "name": "Change signatories",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Firm's responsible lawyer signs off. Audited"
+    },
+    {
+     "name": "Open separate interest-bearing account for a client",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Agent drafts the request when a large or long-held deposit is expected"
+    },
+    {
+     "name": "Close account",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Only allowed at a zero balance with a final reconciliation"
+    }
+   ],
+   "agent": "Checks signatories against the user directory (former staff, non-licensees without bond evidence), flags shared bank logins, and suggests a separate interest-bearing account when a single client's money is large or will be held a long time.",
+   "gate": "Responsible lawyer approves every new account and every change to who can sign or initiate electronic transfers.",
+   "states": [
+    "draft",
+    "pending approval",
+    "active",
+    "frozen",
+    "closed"
+   ],
+   "edge": [
+    "A signatory leaves the firm: access is frozen at once and the bank change is tracked as a task",
+    "A non-licensee's bond lapses: their electronic-transfer initiation right is suspended automatically",
+    "A separate account is opened for a matter with several clients"
+   ],
+   "reg": "BL9: trust money goes in an account at an eligible institution, titled as trust. A mixed account's interest is paid to the Law Foundation of Ontario under the Law Society Act (verify). A separate interest-bearing account holds money for one client, with interest for that client (verify). An electronic transfer must be initiated by a licensee, or exceptionally by a bonded non-licensee with signing authority (BL9 s.12).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Account",
+     "Type",
+     "Institution",
+     "Signatories",
+     "EFT mode",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Mixed trust #1",
+      "Mixed (pooled)",
+      "Northfield Bank ...4417",
+      "Linda Kassim, Ayo Ewebiyi",
+      "Enter + authorize",
+      "Active"
+     ],
+     [
+      "Okafor estate",
+      "Separate interest-bearing",
+      "Northfield Bank ...8820",
+      "Linda Kassim",
+      "Single licensee",
+      "Active"
+     ],
+     [
+      "Mixed trust #0 (old)",
+      "Mixed (pooled)",
+      "Lakeshore CU ...1102",
+      "-",
+      "-",
+      "Closed 2024-03-31"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "client-trust-ledger",
+   "name": "Client trust ledger",
+   "route": "/trust/ledgers/:matterId",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent",
+    "client"
+   ],
+   "purpose": "Running record of one client's (per matter) money in trust: each receipt, disbursement and transfer, with the balance after each line.",
+   "layout": "Header: client, matter, trust account, current balance, held-for notes (undertakings, conditions). Body: a dated ledger with a running balance. Side panel: linked bills and pending requests.",
+   "fields": [
+    {
+     "name": "date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "entry_type",
+     "type": "enum",
+     "required": true,
+     "note": "receipt | disbursement | transfer-in | transfer-out | correction"
+    },
+    {
+     "name": "reference",
+     "type": "text",
+     "required": true,
+     "note": "Receipt no., cheque no., EFT confirmation or transfer id"
+    },
+    {
+     "name": "counterparty",
+     "type": "text",
+     "required": true,
+     "note": "Payer or payee"
+    },
+    {
+     "name": "purpose",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "amount",
+     "type": "money",
+     "required": true,
+     "note": "Positive in, negative out"
+    },
+    {
+     "name": "balance",
+     "type": "money",
+     "required": true,
+     "note": "Computed. Can never go below zero"
+    },
+    {
+     "name": "trust_condition",
+     "type": "text",
+     "required": false,
+     "note": "Undertaking or trust condition that restricts release"
+    },
+    {
+     "name": "source_journal_line",
+     "type": "ref",
+     "required": true,
+     "note": "Every ledger line comes from a journal line"
+    },
+    {
+     "name": "minimum_balance",
+     "type": "money",
+     "required": false,
+     "note": "evergreen floor; below it a top-up request is drafted"
+    },
+    {
+     "name": "protected_amount",
+     "type": "money",
+     "required": false,
+     "note": "held for a stated purpose (e.g. closing funds); cannot be applied to fees"
+    },
+    {
+     "name": "holding_level",
+     "type": "enum",
+     "required": true,
+     "note": "client | matter: a receipt may be held unallocated at client level, then moved to a matter"
+    },
+    {
+     "name": "client_unallocated_balance",
+     "type": "money",
+     "required": false,
+     "note": "sub-ledger; the BL9 client ledger rolls up all the client's matters"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Request retainer top-up",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Client-facing request, sent once the lawyer approves"
+    },
+    {
+     "name": "Request withdrawal",
+     "by": "human",
+     "gate": "approve",
+     "note": "Opens a withdrawal request"
+    },
+    {
+     "name": "Export ledger statement",
+     "by": "human",
+     "gate": "none",
+     "note": "PDF for client or auditor"
+    },
+    {
+     "name": "Share with client",
+     "by": "human",
+     "gate": "approve",
+     "note": "Shown read-only in the client portal"
+    }
+   ],
+   "agent": "Keeps balances current from journal postings, warns when a requested payment exceeds the available balance (funds received but not yet cleared are excluded), and drafts a trust statement for the client at milestones and at closing.",
+   "gate": "none (entries come from gated journal actions)",
+   "states": [
+    "no activity",
+    "funds held",
+    "funds held with conditions",
+    "zero balance",
+    "dormant (no activity 2y+)",
+    "closed"
+   ],
+   "edge": [
+    "A deposit cheque bounces: a reversing entry is posted and any money already paid out against it becomes an immediate shortage to replenish",
+    "Joint clients on one matter: who may instruct release must be recorded",
+    "A correction is posted as a new reversing line. No line is ever edited or deleted",
+    "client has ledgers on several matters: each matter is its own ledger; moving money between them needs written client authority (trust-transfers)"
+   ],
+   "reg": "BL9 s.18(3): a clients' trust ledger shows money received and disbursed for each client and the unexpended balance. A client ledger must never be overdrawn. One client's money cannot cover another client's payment (verify).",
+   "mock": {
+    "kind": "ledger",
+    "columns": [
+     "Date",
+     "Type",
+     "Ref",
+     "Counterparty",
+     "Purpose",
+     "Amount",
+     "Balance"
+    ],
+    "rows": [
+     [
+      "2026-09-02",
+      "Receipt",
+      "R-1042",
+      "Hana Tesfaye",
+      "Retainer",
+      "$5,000.00",
+      "$5,000.00"
+     ],
+     [
+      "2026-09-20",
+      "Disbursement",
+      "EFT-0381",
+      "Ontario Court filing",
+      "Filing fee",
+      "-$202.00",
+      "$4,798.00"
+     ],
+     [
+      "2026-10-03",
+      "Disbursement",
+      "EFT-0394",
+      "Linda K Law (general)",
+      "Fees, bill INV-2207",
+      "-$2,486.00",
+      "$2,312.00"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "trust-receipts-journal",
+   "name": "Trust receipts journal",
+   "route": "/trust/receipts",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Book of original entry for every amount received into trust, in date order, and the screen where a new receipt is recorded.",
+   "layout": "Filter bar (account, month, matter). A chronological journal table with a month total. 'Record receipt' drawer with the cash-limit check inline.",
+   "fields": [
+    {
+     "name": "date_received",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "method",
+     "type": "enum",
+     "required": true,
+     "note": "cheque | EFT/wire | e-transfer | bank draft | cash | card-processor payout"
+    },
+    {
+     "name": "payer",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "amount",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "client_matter",
+     "type": "ref",
+     "required": true,
+     "note": "No posting without a client ledger"
+    },
+    {
+     "name": "purpose",
+     "type": "text",
+     "required": true,
+     "note": "Retainer, settlement funds, purchase price, and so on"
+    },
+    {
+     "name": "deposit_date",
+     "type": "date",
+     "required": true,
+     "note": "Deposit no later than the next banking day (verify)"
+    },
+    {
+     "name": "cash_details",
+     "type": "text",
+     "required": false,
+     "note": "For cash: currency, denominations, and the cash-limit exception relied on"
+    },
+    {
+     "name": "id_verified",
+     "type": "ref",
+     "required": false,
+     "note": "Link to the client ID and verification record (BL7.1) when funds are received"
+    },
+    {
+     "name": "evidence",
+     "type": "file",
+     "required": true,
+     "note": "Cheque image, wire advice or deposit slip"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Record receipt",
+     "by": "human",
+     "gate": "none",
+     "note": "Clerk records it. The agent proposes from the bank feed"
+    },
+    {
+     "name": "Post proposed receipt from bank feed",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Gate G6: a clerk or lawyer confirms the client ledger and that the money belongs in trust, not general"
+    },
+    {
+     "name": "Accept cash over the limit",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Allowed only under a listed exception. A lawyer signs and records the exception"
+    },
+    {
+     "name": "Reverse receipt",
+     "by": "human",
+     "gate": "approve",
+     "note": "NSF or misposting. Posts a reversing line"
+    }
+   ],
+   "agent": "Builds proposed receipts from bank lines and payment-processor payouts, matches them to retainer requests and bills, checks the client's cumulative cash on the file against the limit, and warns when ID verification is missing before funds are accepted.",
+   "gate": "Gate G6: a human confirms each proposed receipt's client ledger and trust or general classification. A lawyer signs off on any cash over the limit, naming the exception.",
+   "states": [
+    "proposed",
+    "pending confirmation",
+    "posted",
+    "reversed",
+    "month locked"
+   ],
+   "edge": [
+    "A payer sends a single amount that covers several matters: split into one line per client ledger",
+    "Money that belongs in general (payment of a delivered bill) arrives in trust: flag it and withdraw it promptly, per the withdrawal rules (verify)",
+    "Card-processor fees must not be taken from trust: card payments for retainers settle gross to trust, and fees are charged to general",
+    "Cash in foreign currency is converted to CAD for the limit check (verify)",
+    "Posting into a month that is already reconciled and locked is blocked; a dated correction is posted in the current month instead"
+   ],
+   "reg": "BL9 s.18(1): trust receipts journal (date, method, payer, amount, purpose, client). Cash: a licensee may not receive cash aggregating $7,500 CAD or more on one client file (trust and operating receipts counted together; 749,999 cents allowed, 750,000 refused), subject to listed exceptions such as payment from a financial institution or public body, or fees where a refund over $7,500 is paid in cash (BL9 s.4 and s.6, verify). Client ID verification is required when funds are received, paid or transferred (By-Law 7.1, verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Date",
+     "Method",
+     "Payer",
+     "Client / matter",
+     "Purpose",
+     "Amount"
+    ],
+    "rows": [
+     [
+      "2026-10-01",
+      "EFT",
+      "Bereket Holdings Inc.",
+      "Bereket Holdings / 2026-031",
+      "Retainer",
+      "$10,000.00"
+     ],
+     [
+      "2026-10-02",
+      "Cheque",
+      "Selam Girma",
+      "Girma / 2026-044",
+      "Retainer",
+      "$3,500.00"
+     ],
+     [
+      "2026-10-06",
+      "Wire",
+      "Maple Mortgage Corp.",
+      "Abebe purchase / 2026-039",
+      "Mortgage advance",
+      "$412,000.00"
+     ],
+     [
+      "2026-10-07",
+      "Cash",
+      "Daniel Mekonnen",
+      "Mekonnen / 2026-047",
+      "Retainer (cash total on file $1,500)",
+      "$1,500.00"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "trust-disbursements-journal",
+   "name": "Trust disbursements journal",
+   "route": "/trust/disbursements",
+   "who": [
+    "lawyer",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Book of original entry for every amount paid out of trust, in date order. Each line links to its authorized withdrawal.",
+   "layout": "Filter bar plus a chronological journal table with a month total. Each row expands to show the authorization, Form 9A or cheque image, and bank confirmation.",
+   "fields": [
+    {
+     "name": "date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "method",
+     "type": "enum",
+     "required": true,
+     "note": "cheque | electronic transfer | Teranet (Form 9B) | bank draft"
+    },
+    {
+     "name": "instrument_no",
+     "type": "text",
+     "required": true,
+     "note": "Cheque no. or EFT confirmation no."
+    },
+    {
+     "name": "payee",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "amount",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "client_matter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "purpose",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "withdrawal_request",
+     "type": "ref",
+     "required": true,
+     "note": "No disbursement without an authorized request"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Post from executed withdrawal",
+     "by": "agent",
+     "gate": "none",
+     "note": "The trust entry posts when execution is recorded (cheque issued or EFT sent), dated the execution date; bank confirmation only matches the bank line. From authorization until execution the amount is held and reduces the available balance"
+    },
+    {
+     "name": "Void / stop payment",
+     "by": "human",
+     "gate": "approve",
+     "note": "Posts a reversing line and restores the client balance"
+    },
+    {
+     "name": "Flag stale cheque",
+     "by": "agent",
+     "gate": "none",
+     "note": "An uncashed cheque older than six months goes on the reconciliation list"
+    }
+   ],
+   "agent": "Posts the disbursement when the bank confirms, attaches the confirmation, follows outstanding cheques, and drafts reissue or stop-payment steps for stale items.",
+   "gate": "none here; authorization happens on the withdrawal request (G11)",
+   "states": [
+    "executed",
+    "outstanding (cheque not cleared)",
+    "cleared",
+    "voided",
+    "stale"
+   ],
+   "edge": [
+    "The bank executes an amount that differs from the one authorized: raise an exception and stop further withdrawals on that ledger",
+    "A Teranet debit for land transfer tax arrives before the Form 9B authorization is filed: raise an exception",
+    "A cheque is lost after it was issued"
+   ],
+   "reg": "BL9 s.18(2): trust disbursements journal (date, method, instrument number, payee, amount, purpose, client). Cash withdrawals and cheques payable to cash or bearer are not permitted (verify). The only third party that may debit a trust account is Teranet, under Form 9B (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Date",
+     "Method",
+     "No.",
+     "Payee",
+     "Client / matter",
+     "Amount"
+    ],
+    "rows": [
+     [
+      "2026-10-03",
+      "EFT",
+      "EFT-0394",
+      "Linda K Law (general)",
+      "Tesfaye / 2026-022",
+      "$2,486.00"
+     ],
+     [
+      "2026-10-06",
+      "Teranet",
+      "9B-0112",
+      "Minister of Finance (LTT)",
+      "Abebe purchase / 2026-039",
+      "$6,475.00"
+     ],
+     [
+      "2026-10-07",
+      "Cheque",
+      "001288",
+      "Selam Girma",
+      "Girma / 2026-044",
+      "$900.00"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "withdrawal-request",
+   "name": "Withdrawal authorization",
+   "route": "/trust/withdrawals/:id",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Prepare, check and authorize one payment out of trust (to a client, a third party, general for fees, or another trust account). This is the only path by which money leaves trust.",
+   "layout": "Left: request details and the automatic checks list (pass or fail). Center: the generated Form 9A requisition or cheque preview. Right: supporting evidence (bill, direction, statement of adjustments) and the authorization block with signer identity.",
+   "fields": [
+    {
+     "name": "client_matter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "purpose_category",
+     "type": "enum",
+     "required": true,
+     "note": "payment to or for client | reimburse expense paid for client | fees on a delivered bill | transfer to another trust account | money paid in error | unclaimed funds to LSO (BL9 s.9, verify)"
+    },
+    {
+     "name": "payee",
+     "type": "text",
+     "required": true,
+     "note": "Fees and reimbursements may go only to the licensee or firm general account (BL9 s.10)"
+    },
+    {
+     "name": "amount",
+     "type": "money",
+     "required": true,
+     "note": "<= available (cleared) client balance"
+    },
+    {
+     "name": "method",
+     "type": "enum",
+     "required": true,
+     "note": "electronic transfer | cheque | bank draft"
+    },
+    {
+     "name": "bill",
+     "type": "ref",
+     "required": false,
+     "note": "Required for fees: the bill must be delivered first"
+    },
+    {
+     "name": "client_direction",
+     "type": "file",
+     "required": false,
+     "note": "Written direction for payment to a third party"
+    },
+    {
+     "name": "receiving_account",
+     "type": "text",
+     "required": false,
+     "note": "For EFT: institution, transit, account and account name. Verified by a callback for new payees"
+    },
+    {
+     "name": "requisition_form_9a",
+     "type": "file",
+     "required": false,
+     "note": "Generated. Signed by the requisitioning licensee before the transfer"
+    },
+    {
+     "name": "initiated_by",
+     "type": "ref",
+     "required": true,
+     "note": "Licensee, or a bonded non-licensee with signing authority"
+    },
+    {
+     "name": "authorized_by",
+     "type": "ref",
+     "required": true,
+     "note": "For dual mode, a different person from the one entering"
+    },
+    {
+     "name": "bank_confirmation",
+     "type": "file",
+     "required": false,
+     "note": "Confirmation showing account numbers, amount, date and time"
+    },
+    {
+     "name": "cheque_number",
+     "type": "text",
+     "required": false,
+     "note": "from the account's cheque sequence"
+    },
+    {
+     "name": "cheque_template",
+     "type": "ref",
+     "required": false,
+     "note": "per account, Canadian layout (Payments Canada Standard 006, verify)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Draft request",
+     "by": "agent",
+     "gate": "none",
+     "note": "From a delivered bill, a closing statement or a client direction"
+    },
+    {
+     "name": "Authorize withdrawal",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Gate G11: licensee signs Form 9A or the cheque. Strong re-authentication. Never an agent"
+    },
+    {
+     "name": "Execute at bank",
+     "by": "human",
+     "gate": "approve",
+     "note": "The person with a bank login enters the transfer, or authorizes it in dual mode"
+    },
+    {
+     "name": "Attach confirmation",
+     "by": "agent",
+     "gate": "none",
+     "note": "Pulled from the bank feed or uploaded; checked against the request"
+    },
+    {
+     "name": "Reject / return for fix",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Print cheque",
+     "by": "human",
+     "gate": "none",
+     "note": "only after Authorize withdrawal; alignment test print; number taken from sequence"
+    },
+    {
+     "name": "Void cheque",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "voided number kept in the sequence with reason"
+    }
+   ],
+   "agent": "Fills in the request, then runs checks: the purpose is permitted; a bill was delivered for fees; the amount is within the cleared balance; no trust condition blocks release; the payee matches the direction; ID is verified; the bank details match a known payee, and a new or changed payee triggers a fraud warning. It then generates Form 9A and, after execution, reconciles the confirmation to the request.",
+   "gate": "G11: a licensee with signing authority authorizes the exact amount, payee, account and purpose. In dual mode, a second authorized person approves the transfer that the first person entered. The agent cannot authorize or execute.",
+   "states": [
+    "draft",
+    "checks failed",
+    "pending authorization",
+    "authorized",
+    "sent to bank",
+    "confirmed",
+    "posted",
+    "rejected",
+    "cancelled"
+   ],
+   "edge": [
+    "Funds are deposited but not cleared: the request is blocked (default hard block). A lawyer override with reason 'uncleared_override' under G11 exists only if the firm owner turns it on (owner decision, verify policy)",
+    "Payee bank details changed by email: hard stop with a callback requirement (fraud)",
+    "Withdrawal for fees where the bill is not yet delivered: blocked",
+    "The authorizing lawyer is also the client or payee: a second licensee is required",
+    "Bank confirmation does not arrive within one banking day: exception (verify timing)",
+    "A partial withdrawal leaves a small residue: the agent suggests a refund at closing",
+    "cheque spoiled in printer: void and reprint with the next number; both logged"
+   ],
+   "reg": "BL9 s.9 (permitted withdrawals), s.10 (methods for fees and reimbursements), s.11 (no cash, verify) and s.12 (electronic transfers). Conditions in s.12: each user has a unique login; the system produces a confirmation right after the transfer showing the account numbers and the date and time; the initiator is a licensee or a bonded non-licensee with signing authority; a requisition (Form 9A) is signed before the transfer (verify); the confirmation is printed or kept and checked against the requisition within set timing (verify). Form 9A has a section for dual authorization. Forms were renumbered in a November 2025 amendment (verify).",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Check",
+     "Result"
+    ],
+    "rows": [
+     [
+      "Purpose permitted (fees on delivered bill INV-2207)",
+      "Pass"
+     ],
+     [
+      "Amount $2,486.00 <= cleared balance $4,798.00",
+      "Pass"
+     ],
+     [
+      "Payee is firm general account (known)",
+      "Pass"
+     ],
+     [
+      "Trust conditions on ledger",
+      "None"
+     ],
+     [
+      "Authorizer: Linda Kassim (licensee, signatory)",
+      "Awaiting signature"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "trust-transfers",
+   "name": "Trust-to-trust transfers",
+   "route": "/trust/transfers",
+   "who": [
+    "lawyer",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Move money between two client ledgers (for example, a parent matter to a new matter) or between trust accounts (mixed to separate interest-bearing), with a record of both sides.",
+   "layout": "List of transfers with status. A transfer form with a 'from' ledger or account and a 'to' ledger or account side by side, plus the client authority evidence.",
+   "fields": [
+    {
+     "name": "from_ledger",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "to_ledger",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "from_account",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "to_account",
+     "type": "ref",
+     "required": true,
+     "note": "Same account for a ledger-to-ledger transfer"
+    },
+    {
+     "name": "amount",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "authority",
+     "type": "file",
+     "required": true,
+     "note": "written client authorization file required for matter-to-matter transfers"
+    },
+    {
+     "name": "reason",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "transfer_type",
+     "type": "enum",
+     "required": true,
+     "note": "matter to matter (same client) | client unallocated to matter | trust to trust account"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Draft transfer",
+     "by": "agent",
+     "gate": "none",
+     "note": "For example, at matter split or when an interest-bearing account is opened"
+    },
+    {
+     "name": "Authorize transfer",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Licensee. A bank movement between accounts also follows the withdrawal (EFT) rules"
+    },
+    {
+     "name": "Reverse",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    }
+   ],
+   "agent": "Drafts transfers, makes sure both legs post together (or neither does), and checks the client's authority when the beneficial owner changes.",
+   "gate": "A licensee authorizes every transfer. A transfer between bank accounts also goes through G11.",
+   "states": [
+    "draft",
+    "pending authorization",
+    "posted",
+    "reversed"
+   ],
+   "edge": [
+    "Transfer to another client's ledger without that client's documented authority: blocked",
+    "Moving to a separate account: until the bank movement confirms, the money shows as in transit on the reconciliation"
+   ],
+   "reg": "BL9 requires a record of transfers between client ledgers or trust accounts, showing the source and destination (s.18, verify subsection).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Date",
+     "From",
+     "To",
+     "Amount",
+     "Authority",
+     "Status"
+    ],
+    "rows": [
+     [
+      "2026-09-15",
+      "Okafor estate (mixed #1)",
+      "Okafor estate (separate)",
+      "$150,000.00",
+      "Executor direction 2026-09-12",
+      "Posted"
+     ],
+     [
+      "2026-10-04",
+      "Bereket Holdings / 2026-031",
+      "Bereket Holdings / 2026-050",
+      "$2,000.00",
+      "Client email 2026-10-03",
+      "Pending authorization"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "bank-feed-import",
+   "name": "Bank feed and statement import",
+   "route": "/trust/bank",
+   "who": [
+    "clerk",
+    "lawyer",
+    "agent"
+   ],
+   "purpose": "Bring in trust bank transactions (direct feed, or OFX/CSV/PDF statement upload) and match each line to journal entries.",
+   "layout": "Left: bank lines. Right: candidate journal matches with a confidence score. Bottom: import history and connection health.",
+   "fields": [
+    {
+     "name": "source",
+     "type": "enum",
+     "required": true,
+     "note": "direct feed | OFX | CSV | PDF statement"
+    },
+    {
+     "name": "statement_period",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "bank_line",
+     "type": "text",
+     "required": true,
+     "note": "Date, description, amount, bank reference"
+    },
+    {
+     "name": "match",
+     "type": "ref",
+     "required": false,
+     "note": "Journal line(s). One-to-many is allowed for batched deposits"
+    },
+    {
+     "name": "match_status",
+     "type": "enum",
+     "required": true,
+     "note": "auto-matched | suggested | unmatched | ignored-with-reason"
+    },
+    {
+     "name": "statement_file",
+     "type": "file",
+     "required": false,
+     "note": "Kept as the bank evidence for the reconciliation"
+    },
+    {
+     "name": "match_rules",
+     "type": "list",
+     "required": false,
+     "note": "payee/description/amount patterns that suggest a ledger; on trust accounts a rule only suggests, never auto-confirms"
+    },
+    {
+     "name": "bank_profile",
+     "type": "enum",
+     "required": false,
+     "note": "CSV/OFX profiles for RBC, TD, BMO, Scotiabank, CIBC, Desjardins, generic"
+    },
+    {
+     "name": "feed_health",
+     "type": "text",
+     "required": false,
+     "note": "last successful sync and connection state"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Import / sync",
+     "by": "agent",
+     "gate": "none",
+     "note": "Read-only bank access. The app never initiates payments through the feed"
+    },
+    {
+     "name": "Confirm suggested match",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    },
+    {
+     "name": "Create receipt from unmatched deposit",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Becomes a proposed receipt (G6)"
+    },
+    {
+     "name": "Mark bank error",
+     "by": "human",
+     "gate": "approve",
+     "note": "Carried as a reconciling item until the bank corrects it"
+    },
+    {
+     "name": "Undo upload batch",
+     "by": "human",
+     "gate": "none",
+     "note": "removes one imported batch and its unconfirmed matches"
+    }
+   ],
+   "agent": "Pulls the feed daily, de-duplicates overlapping imports, matches lines exactly or with fuzzy logic, explains each unmatched line, and turns unknown deposits into proposed receipts.",
+   "gate": "A human confirms every match that is not exact, and every receipt created from the feed.",
+   "states": [
+    "not connected",
+    "syncing",
+    "up to date",
+    "stale",
+    "import error"
+   ],
+   "edge": [
+    "Bank charges or interest posted to a mixed trust account: route them to the bank or the Law Foundation and keep them off client ledgers (verify bank arrangement)",
+    "Duplicate statement upload",
+    "A feed's history gap means a statement must be uploaded for the missing period",
+    "bank connection expires: banner and fallback to statement file upload (CSV/OFX)"
+   ],
+   "reg": "The bank statement is part of the monthly reconciliation evidence and must be kept with the trust records for the retention period (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Bank date",
+     "Description",
+     "Amount",
+     "Match",
+     "Status"
+    ],
+    "rows": [
+     [
+      "2026-10-01",
+      "EFT CR BEREKET HOLDINGS",
+      "$10,000.00",
+      "R-1051",
+      "Auto-matched"
+     ],
+     [
+      "2026-10-06",
+      "TERANET LTT",
+      "-$6,475.00",
+      "9B-0112",
+      "Auto-matched"
+     ],
+     [
+      "2026-10-08",
+      "DEPOSIT BR 0221",
+      "$1,250.00",
+      "-",
+      "Unmatched"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "monthly-reconciliation",
+   "name": "Monthly trust reconciliation",
+   "route": "/trust/reconciliations/:accountId/:month",
+   "who": [
+    "lawyer",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Three-way reconciliation for one account and month: adjusted bank balance = trust journal balance = sum of client ledgers, with every difference explained and signed.",
+   "layout": "Top: three totals with differences. Middle: reconciling items (outstanding cheques, deposits in transit, bank errors). Bottom: client listing (each ledger balance) and the sign-off block. Prior months are listed on the left.",
+   "fields": [
+    {
+     "name": "month_end",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "bank_statement_balance",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "outstanding_cheques",
+     "type": "money",
+     "required": true,
+     "note": "Itemized"
+    },
+    {
+     "name": "deposits_in_transit",
+     "type": "money",
+     "required": true,
+     "note": "Itemized"
+    },
+    {
+     "name": "adjusted_bank_balance",
+     "type": "money",
+     "required": true,
+     "note": "Computed"
+    },
+    {
+     "name": "journal_balance",
+     "type": "money",
+     "required": true,
+     "note": "Computed"
+    },
+    {
+     "name": "client_listing_total",
+     "type": "money",
+     "required": true,
+     "note": "Computed. Lists every client with a non-zero balance"
+    },
+    {
+     "name": "explanations",
+     "type": "text",
+     "required": false,
+     "note": "Required for each difference"
+    },
+    {
+     "name": "due_date",
+     "type": "date",
+     "required": true,
+     "note": "Within 25 days after month end (verify)"
+    },
+    {
+     "name": "signed_by",
+     "type": "ref",
+     "required": true,
+     "note": "Licensee"
+    },
+    {
+     "name": "signed_at",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "adjustments",
+     "type": "list",
+     "required": false,
+     "note": "each needs a reason and evidence; a balancing plug with no explanation is refused"
+    },
+    {
+     "name": "bank_statement_file",
+     "type": "file",
+     "required": true,
+     "note": "the statement for the period; reconciliation cannot be signed without it"
+    },
+    {
+     "name": "package_contents",
+     "type": "list",
+     "required": true,
+     "note": "1 summary (ledger vs bank, difference); 2 transaction detail: money in, money out, interest, bank charges, adjustments, cleared and uncleared; 3 per-client ledger effect; plus the client trust listing and the attached statement"
+    },
+    {
+     "name": "later_months_affected",
+     "type": "list",
+     "required": false,
+     "note": "on reopen: every later signed month for this account"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Prepare package",
+     "by": "agent",
+     "gate": "none",
+     "note": "Ready on the first business day after the statement arrives"
+    },
+    {
+     "name": "Resolve item",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Sign reconciliation",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Gate G12. Locks the month"
+    },
+    {
+     "name": "Reopen month",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "reason required; reopening month N reopens every later month of the account because opening balances chain; licensee signs off"
+    },
+    {
+     "name": "Export package (PDF)",
+     "by": "human",
+     "gate": "none",
+     "note": "For the LSO spot audit or an accountant"
+    }
+   ],
+   "agent": "Assembles the comparison, itemizes the reconciling items, explains each variance in plain language (for example, 'cheque 001288 issued 10-07, not yet cleared'), flags shortages that need immediate replenishment, and reminds the lawyer as the due date nears.",
+   "gate": "G12: the responsible licensee reviews and signs the monthly comparison and its explanations. A month cannot be signed while there is an unexplained difference or a negative client balance.",
+   "states": [
+    "not started",
+    "prepared",
+    "differences open",
+    "ready to sign",
+    "signed (locked)",
+    "overdue",
+    "reopened"
+   ],
+   "edge": [
+    "Shortage found: an immediate replenishment task from the firm's own funds, and the reconciliation records it (verify reporting duty)",
+    "Prior month is not signed: the current month can be prepared but not signed",
+    "The bank statement arrives late: the due-date clock still runs",
+    "A reconciling item older than three months goes to the escalation list",
+    "preparer tries to force a $0 difference with an adjustment: blocked (deliberate)",
+    "reconciliation saved half-done: draft kept, due-date clock keeps running",
+    "reopen a month with later signed months: all later months shown and reopened together, their packages marked superseded"
+   ],
+   "reg": "BL9 s.18(8): a monthly comparison of trust bank balances with client trust ledger totals, with the reasons for any difference, a detailed client listing and the bank reconciliations, kept as a record. It must be done within 25 days of month end (verify). Records are kept for 10 years before the most recent fiscal year end (verify). The signed package is kept for the full trust-record retention period.",
+   "mock": {
+    "kind": "ledger",
+    "columns": [
+     "Line",
+     "Amount"
+    ],
+    "rows": [
+     [
+      "Bank balance Sep 30",
+      "$418,982.15"
+     ],
+     [
+      "Less outstanding cheques (2)",
+      "-$6,102.00"
+     ],
+     [
+      "Plus deposits in transit (0)",
+      "$0.00"
+     ],
+     [
+      "Adjusted bank / Journal / Client listing",
+      "$412,880.15 / $412,880.15 / $412,880.15"
+     ],
+     [
+      "Signed",
+      "Linda Kassim, 2026-10-09"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "lso-annual-report",
+   "name": "LSO annual report: trust section",
+   "route": "/trust/annual-report/:year",
+   "who": [
+    "lawyer",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Collect the year's trust facts that the licensee's LSO Annual Report asks for, with evidence links. The licensee files the report themselves on the LSO portal.",
+   "layout": "A question-by-question worksheet. Each answer shows a computed value, a source link and a confirm checkbox. A readiness bar sits at the top.",
+   "fields": [
+    {
+     "name": "fiscal_year_end",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "accounts_held",
+     "type": "ref",
+     "required": true,
+     "note": "Mixed and separate accounts, with year-end balances"
+    },
+    {
+     "name": "reconciliations_complete",
+     "type": "enum",
+     "required": true,
+     "note": "Computed from the 12 signed months"
+    },
+    {
+     "name": "late_reconciliations",
+     "type": "text",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "shortages_in_year",
+     "type": "money",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "cash_received_over_limit",
+     "type": "text",
+     "required": false,
+     "note": "With exception"
+    },
+    {
+     "name": "unclaimed_or_dormant_balances",
+     "type": "money",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "eft_and_teranet_use",
+     "type": "text",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "confirmed_by",
+     "type": "ref",
+     "required": true,
+     "note": "Licensee"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Prepare worksheet",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Confirm answers",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "The licensee confirms. The app does not file with the LSO"
+    },
+    {
+     "name": "Export evidence pack",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Computes every trust answer from the books, links each one to its source records, and lists anything that would need explaining (late months, shortages, dormant balances).",
+   "gate": "The licensee confirms the worksheet before using it to file. Anything sent to the regulator or an auditor is approved first.",
+   "states": [
+    "not started",
+    "draft",
+    "needs attention",
+    "confirmed",
+    "filed (marked by user)"
+   ],
+   "edge": [
+    "A licensee who joined or left during the year: answers are limited to the trust accounts they ran",
+    "Report questions change from year to year: a question set is kept for each year (verify against the current form)"
+   ],
+   "reg": "Licensees file an Annual Report with the LSO each year. It includes questions on trust accounts and record keeping (verify current questions and deadline, traditionally March 31, verify). Unclaimed trust money held for two years or more may be paid to the LSO unclaimed trust fund (Law Society Act, verify).",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Question area",
+     "Computed answer",
+     "Source"
+    ],
+    "rows": [
+     [
+      "Trust accounts held at year end",
+      "2 (1 mixed, 1 separate)",
+      "Accounts register"
+     ],
+     [
+      "Monthly comparisons done within the deadline",
+      "11 of 12 (Jul late by 3 days)",
+      "Reconciliations 2025"
+     ],
+     [
+      "Cash received over the limit",
+      "None",
+      "Receipts journal"
+     ],
+     [
+      "Dormant balances over 2 years",
+      "$184.20 (1 ledger)",
+      "Ledger aging"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "trust-audit-trail",
+   "name": "Trust audit trail and records",
+   "route": "/trust/audit",
+   "who": [
+    "lawyer",
+    "admin",
+    "agent"
+   ],
+   "purpose": "An append-only, searchable history of every trust event (who, what, when, before and after, agent or human, gate decision), plus the retention controls for trust records.",
+   "layout": "Filter bar (date, user, agent, ledger, event type). An event timeline. A detail pane shows the payload diff and linked evidence. A records tab shows the retention status for each record class.",
+   "fields": [
+    {
+     "name": "at",
+     "type": "datetime",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "actor",
+     "type": "ref",
+     "required": true,
+     "note": "User or agent job, with the approving human for gated actions"
+    },
+    {
+     "name": "event",
+     "type": "enum",
+     "required": true,
+     "note": "posted | reversed | authorized | rejected | executed | signed | reopened | permission-changed | export"
+    },
+    {
+     "name": "object",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "before_after",
+     "type": "text",
+     "required": false,
+     "note": "Amounts and fields only. Never bank credentials"
+    },
+    {
+     "name": "hash_chain",
+     "type": "text",
+     "required": true,
+     "note": "Tamper-evident chain over the events"
+    },
+    {
+     "name": "retain_until",
+     "type": "date",
+     "required": true,
+     "note": "10 years after the fiscal year end for trust records (verify)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Search / export",
+     "by": "human",
+     "gate": "none",
+     "note": "Every export is itself audited"
+    },
+    {
+     "name": "Spot-audit pack",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Builds the pack an LSO examiner asks for. A lawyer approves before release"
+    },
+    {
+     "name": "Verify chain",
+     "by": "agent",
+     "gate": "none",
+     "note": "Runs nightly integrity check"
+    }
+   ],
+   "agent": "Writes every event, verifies the integrity chain nightly, and assembles spot-audit or accountant packs on request.",
+   "gate": "A lawyer approves before any audit pack leaves the firm.",
+   "states": [
+    "normal",
+    "integrity alert"
+   ],
+   "edge": [
+    "Records cannot be deleted before the retention date, and that includes requests from admins",
+    "Records of a closed firm cell must stay retrievable (verify obligations on practice wind-up)"
+   ],
+   "reg": "BL9 records are kept for at least 10 years (trust journals, ledgers, comparisons, EFT records) before the most recent fiscal year end (verify). LSO spot audits may require access on short notice (verify).",
+   "mock": {
+    "kind": "timeline",
+    "columns": [
+     "When",
+     "Actor",
+     "Event",
+     "Object"
+    ],
+    "rows": [
+     [
+      "2026-10-03 10:12",
+      "agent:withdrawal-drafter",
+      "drafted",
+      "WD-0394 $2,486.00"
+     ],
+     [
+      "2026-10-03 10:40",
+      "Linda Kassim",
+      "authorized (Form 9A signed)",
+      "WD-0394"
+     ],
+     [
+      "2026-10-03 10:52",
+      "Meraf Abay / Linda Kassim",
+      "executed (dual)",
+      "EFT-0394"
+     ],
+     [
+      "2026-10-09 16:05",
+      "Linda Kassim",
+      "signed reconciliation",
+      "Mixed #1, Sep 2026"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "matter-trust-settings",
+   "name": "Matter trust settings",
+   "route": "/matters/:id/trust/settings",
+   "who": [
+    "lawyer",
+    "clerk"
+   ],
+   "purpose": "Per-matter rules for the trust ledger: default account, minimum balance, protected funds, alerts.",
+   "layout": "Small form inside the matter's trust tab; history of changes below.",
+   "fields": [
+    {
+     "name": "default_trust_account",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "minimum_balance",
+     "type": "money",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "low_balance_alert",
+     "type": "money",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "protected_amount",
+     "type": "money",
+     "required": false,
+     "note": "with purpose text"
+    },
+    {
+     "name": "protected_purpose",
+     "type": "text",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "client_direction_on_file",
+     "type": "file",
+     "required": false,
+     "note": "standing written directions (e.g. pay fees on bill approval)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Save settings",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Release protected amount",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    }
+   ],
+   "agent": "Drafts a top-up request when the ledger drops below the minimum; warns if a bill would use protected funds.",
+   "gate": "Lawyer approves release of protected funds.",
+   "states": [
+    "default",
+    "custom"
+   ],
+   "edge": [
+    "minimum set above current balance: immediate top-up draft",
+    "protected amount larger than balance: refused"
+   ],
+   "reg": "Funds held for a specific purpose may be used only for that purpose (BL9 / RPC, verify).",
+   "mock": {
+    "kind": "form",
+    "columns": [],
+    "rows": []
+   }
+  },
+  {
+   "id": "trust-reports",
+   "name": "Trust reports",
+   "route": "/trust/reports",
+   "who": [
+    "lawyer",
+    "clerk",
+    "admin"
+   ],
+   "purpose": "Standard trust reports for the firm, the LSO and the client.",
+   "layout": "Report picker; parameters; preview; export PDF/CSV; schedule.",
+   "fields": [
+    {
+     "name": "report",
+     "type": "enum",
+     "required": true,
+     "note": "client trust listing at a date; client ledger; receipts journal; disbursements journal; transfers journal; reconciliation package; overdrawn/negative ledgers; dormant balances (no activity 12+ months); cash receipts over limit; Form 9A / EFT log; trust held by responsible lawyer; includes Retainer coverage and Trust interest (see own screens)"
+    },
+    {
+     "name": "as_of / period",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "account",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "format",
+     "type": "enum",
+     "required": true,
+     "note": "PDF | CSV"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Run / export",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Schedule monthly pack",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Send to accountant",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    }
+   ],
+   "agent": "Builds the month-end pack automatically after G12 sign-off.",
+   "gate": "Sending reports outside the firm is approved (G-TREL).",
+   "states": [
+    "idle",
+    "running",
+    "ready"
+   ],
+   "edge": [
+    "report for a reopened month: watermarked 'superseded'"
+   ],
+   "reg": "Records listed in BL9 s.18 must be producible to the LSO on request (verify section).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Report",
+     "As of",
+     "Account",
+     "Format"
+    ],
+    "rows": [
+     [
+      "Client trust listing",
+      "2026-09-30",
+      "Mixed trust RBC",
+      "PDF"
+     ],
+     [
+      "Dormant balances",
+      "2026-09-30",
+      "all",
+      "CSV"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "trust-balance-clearance",
+   "name": "Trust balance clearance at matter close",
+   "route": "/matters/:id/trust/clear",
+   "who": [
+    "lawyer",
+    "clerk"
+   ],
+   "purpose": "Bring a closing matter's trust ledger to zero: final bill, refund, or unclaimed funds handling.",
+   "layout": "Ledger balance, open bills, proposed disposition lines, client contact attempts log.",
+   "fields": [
+    {
+     "name": "balance",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "disposition",
+     "type": "enum",
+     "required": true,
+     "note": "apply to final bill | refund to client | pay as directed | unclaimed after search"
+    },
+    {
+     "name": "refund_payee_and_method",
+     "type": "text",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "contact_attempts",
+     "type": "list",
+     "required": false,
+     "note": "dated attempts to locate the client"
+    },
+    {
+     "name": "lso_unclaimed_application",
+     "type": "file",
+     "required": false,
+     "note": "application to pay unclaimed funds to the LSO (verify process)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Propose disposition",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Authorize refund / payment",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "becomes a withdrawal request (G11)"
+    },
+    {
+     "name": "Record contact attempt",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Proposes how to clear the balance and drafts the refund letter; blocks matter close while balance non-zero.",
+   "gate": "Licensee signs the withdrawal for the disposition.",
+   "states": [
+    "balance > 0",
+    "proposed",
+    "authorized",
+    "zero"
+   ],
+   "edge": [
+    "client unreachable for 2+ years: unclaimed trust funds path (verify)",
+    "small residual cents from interest: still needs disposition"
+   ],
+   "reg": "LSO unclaimed trust funds program: funds unclaimed for at least two years may be paid to the LSO (BL9, verify section).",
+   "mock": {
+    "kind": "detail",
+    "columns": [],
+    "rows": []
+   }
+  },
+  {
+   "id": "general-account-books",
+   "name": "General (operating) account books",
+   "route": "/accounts/general",
+   "who": [
+    "clerk",
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Firm money books outside trust: general receipts and disbursements journals, fees book, operating bank match and reconciliation; export to the firm's accounting system.",
+   "layout": "Tabs: Receipts, Disbursements, Fees book (bills in date order), Bank match, Reconciliation, Export.",
+   "fields": [
+    {
+     "name": "account",
+     "type": "ref",
+     "required": true,
+     "note": "operating / credit card"
+    },
+    {
+     "name": "date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "payee_or_payer",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "amount",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "category",
+     "type": "ref",
+     "required": true,
+     "note": "expense / revenue category mapped to the firm's chart of accounts"
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": "for client disbursements to bill"
+    },
+    {
+     "name": "vendor_bill",
+     "type": "ref",
+     "required": false,
+     "note": "bill from a supplier, due date, paid status"
+    },
+    {
+     "name": "export_status",
+     "type": "enum",
+     "required": false,
+     "note": "not exported | exported to accounting"
+    },
+    {
+     "name": "export_target",
+     "type": "enum",
+     "required": false,
+     "note": "QuickBooks Online | Xero | general journal CSV"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Record receipt / payment",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Enter vendor bill",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Match bank line",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Reconcile month",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    },
+    {
+     "name": "Export to accounting system",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Trial balance by category",
+     "by": "human",
+     "gate": "none",
+     "note": "read-only view before export"
+    }
+   ],
+   "agent": "Matches operating bank lines to bills paid and expenses, categorizes, and prepares the monthly operating reconciliation.",
+   "gate": "Bookkeeper or lawyer approves operating reconciliation; nothing here touches trust.",
+   "states": [
+    "unmatched lines",
+    "reconciled",
+    "exported"
+   ],
+   "edge": [
+    "client payment deposited to operating that should be trust: raise trust exception, transfer within rule time limit (verify)",
+    "processor fee debited from operating vs trust"
+   ],
+   "reg": "LSO requires general account receipts and disbursements books and a fees book or chronological bill file (BL9, verify). We do not aim to replace a full GL (deliberately different); we export.",
+   "mock": {
+    "kind": "ledger",
+    "columns": [
+     "Date",
+     "Payee/Payer",
+     "Category",
+     "Amount",
+     "Matched"
+    ],
+    "rows": [
+     [
+      "2026-10-02",
+      "Kofi Osei",
+      "Fees received",
+      "$2,340.00",
+      "yes"
+     ],
+     [
+      "2026-10-03",
+      "Bell Canada",
+      "Telephone",
+      "-$89.20",
+      "yes"
+     ],
+     [
+      "2026-10-05",
+      "ServiceOntario",
+      "Client disbursement",
+      "-$75.00",
+      "no"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "retainer-coverage",
+   "name": "Retainer coverage",
+   "route": "/trust/reports/retainer-coverage",
+   "who": [
+    "lawyer",
+    "associate",
+    "bookkeeper",
+    "agent"
+   ],
+   "purpose": "Per matter, compare work not yet paid for (unbilled WIP plus receivables) with trust held and the minimum, to see where a top-up is needed.",
+   "layout": "Filter bar (lawyer, client, shortfall only); table of matters; side panel with the drafted top-up request.",
+   "fields": [
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "unbilled_wip",
+     "type": "money",
+     "required": true,
+     "note": "unbilled time and disbursements"
+    },
+    {
+     "name": "receivables",
+     "type": "money",
+     "required": true,
+     "note": "delivered, unpaid bills"
+    },
+    {
+     "name": "trust_balance",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "protected_amount",
+     "type": "money",
+     "required": false,
+     "note": "reserved for a stated purpose; not available for fees"
+    },
+    {
+     "name": "minimum_balance",
+     "type": "money",
+     "required": false,
+     "note": "from matter trust settings / evergreen"
+    },
+    {
+     "name": "shortfall",
+     "type": "money",
+     "required": true,
+     "note": "WIP + receivables + minimum - (trust - protected), floored at 0"
+    },
+    {
+     "name": "top_up_needed",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Draft top-up request",
+     "by": "agent",
+     "gate": "approve",
+     "note": "creates a retainer request draft in billing; lawyer approves and sends"
+    },
+    {
+     "name": "Export",
+     "by": "human",
+     "gate": "none",
+     "note": "CSV or PDF"
+    }
+   ],
+   "agent": "Recomputes nightly; drafts top-up requests for matters with a shortfall, with the numbers that drove it.",
+   "gate": "Lawyer approves each top-up request before it reaches the client.",
+   "states": [
+    "no shortfall",
+    "shortfall",
+    "request drafted",
+    "request sent"
+   ],
+   "edge": [
+    "protected funds counted as unavailable",
+    "flat-fee matter: WIP excluded, only stage fees due",
+    "matter with no trust and no minimum: listed only if receivables exist"
+   ],
+   "reg": "Money for fees may be taken from trust only after a bill is delivered (BL9 s.10, verify); this report never moves money.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Matter",
+     "Unbilled WIP",
+     "Receivables",
+     "Trust",
+     "Minimum",
+     "Shortfall"
+    ],
+    "rows": [
+     [
+      "Halloway v. Pine Ridge",
+      "$6,240.00",
+      "$0.00",
+      "$3,000.00",
+      "$2,500.00",
+      "$5,740.00"
+     ],
+     [
+      "Moreau estate",
+      "$1,150.00",
+      "$900.00",
+      "$8,000.00",
+      "$1,000.00",
+      "$0.00"
+     ],
+     [
+      "Tessaro lease review",
+      "$480.00",
+      "$1,320.00",
+      "$0.00",
+      "$0.00",
+      "$1,800.00"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "trust-interest",
+   "name": "Trust interest allocation",
+   "route": "/trust/reports/interest",
+   "who": [
+    "lawyer",
+    "bookkeeper",
+    "auditor"
+   ],
+   "purpose": "Compute and allocate interest earned on separate interest-bearing trust accounts to the client they belong to.",
+   "layout": "Account picker and period; rate inputs; per-client allocation table; post button.",
+   "fields": [
+    {
+     "name": "account",
+     "type": "ref",
+     "required": true,
+     "note": "separate interest-bearing trust accounts only; mixed trust accounts are excluded"
+    },
+    {
+     "name": "period",
+     "type": "date range",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "rate",
+     "type": "percent",
+     "required": true,
+     "note": "from the bank statement"
+    },
+    {
+     "name": "compounding",
+     "type": "enum",
+     "required": true,
+     "note": "daily | monthly | none"
+    },
+    {
+     "name": "bank_interest_posted",
+     "type": "money",
+     "required": true,
+     "note": "amount the bank credited"
+    },
+    {
+     "name": "allocation",
+     "type": "list",
+     "required": true,
+     "note": "client, matter, computed interest; difference to bank figure shown"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Compute",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Post interest to client ledgers",
+     "by": "human",
+     "gate": "approve",
+     "note": "lawyer approves; posts trust journal lines"
+    }
+   ],
+   "agent": "Computes per-client interest from daily balances and flags differences from the bank's credited amount.",
+   "gate": "Lawyer approves the allocation before interest is posted to client ledgers.",
+   "states": [
+    "draft",
+    "approved",
+    "posted"
+   ],
+   "edge": [
+    "computed total differs from bank credit by more than rounding: blocked until explained",
+    "mixed trust account selected: refused, interest belongs to the Law Foundation of Ontario (verify)"
+   ],
+   "reg": "Interest on a mixed trust account goes to the Law Foundation of Ontario, not clients; a separate interest-bearing account earns interest for the client (Law Society Act s.57, verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Client",
+     "Matter",
+     "Avg balance",
+     "Interest"
+    ],
+    "rows": [
+     [
+      "Moreau estate",
+      "Estate administration",
+      "$120,000.00",
+      "$212.40"
+     ],
+     [
+      "Okafor holdings",
+      "Share purchase escrow",
+      "$45,000.00",
+      "$79.65"
+     ]
+    ]
+   }
+  }
+ ],
+ "entities": [
+  {
+   "name": "TrustAccount",
+   "fields": [
+    "id",
+    "type(mixed|separate)",
+    "institution",
+    "account_no_masked",
+    "title",
+    "for_matter_id?",
+    "opened_on",
+    "closed_on",
+    "eft_mode"
+   ],
+   "relations": [
+    "Signatory many (User)",
+    "TrustJournalLine many",
+    "Reconciliation many"
+   ]
+  },
+  {
+   "name": "Signatory",
+   "fields": [
+    "id",
+    "account_id",
+    "user_id",
+    "is_licensee",
+    "bond_amount",
+    "bond_expiry",
+    "eft_user",
+    "from",
+    "to"
+   ],
+   "relations": [
+    "TrustAccount",
+    "User"
+   ]
+  },
+  {
+   "name": "ClientTrustLedger",
+   "fields": [
+    "id",
+    "account_id",
+    "client_id",
+    "matter_id",
+    "balance",
+    "conditions",
+    "last_activity"
+   ],
+   "relations": [
+    "Matter one",
+    "Client one",
+    "TrustJournalLine many"
+   ]
+  },
+  {
+   "name": "TrustJournalLine",
+   "fields": [
+    "id",
+    "account_id",
+    "ledger_id",
+    "kind(receipt|disbursement|transfer|correction)",
+    "date",
+    "method",
+    "instrument_no",
+    "counterparty",
+    "amount",
+    "purpose",
+    "reverses_id?",
+    "posted_by",
+    "posted_at",
+    "month_locked"
+   ],
+   "relations": [
+    "ClientTrustLedger",
+    "WithdrawalRequest?",
+    "BankLine many-to-many via Match",
+    "Evidence many"
+   ]
+  },
+  {
+   "name": "WithdrawalRequest",
+   "fields": [
+    "id",
+    "ledger_id",
+    "purpose_category",
+    "payee",
+    "amount",
+    "method",
+    "bill_id?",
+    "direction_doc?",
+    "receiving_account",
+    "form_9a_doc",
+    "initiated_by",
+    "authorized_by",
+    "executed_by",
+    "bank_confirmation",
+    "status"
+   ],
+   "relations": [
+    "Bill",
+    "TrustJournalLine",
+    "GateDecision"
+   ]
+  },
+  {
+   "name": "TrustTransfer",
+   "fields": [
+    "id",
+    "from_ledger",
+    "to_ledger",
+    "from_account",
+    "to_account",
+    "amount",
+    "authority_doc",
+    "status"
+   ],
+   "relations": [
+    "two TrustJournalLine",
+    "WithdrawalRequest? (if bank movement)"
+   ]
+  },
+  {
+   "name": "CashReceiptTally",
+   "fields": [
+    "matter_id",
+    "cad_total",
+    "exception_code?",
+    "approved_by"
+   ],
+   "relations": [
+    "TrustJournalLine many"
+   ]
+  },
+  {
+   "name": "BankLine",
+   "fields": [
+    "id",
+    "account_id",
+    "date",
+    "description",
+    "amount",
+    "bank_ref",
+    "import_id",
+    "match_status"
+   ],
+   "relations": [
+    "TrustJournalLine many-to-many via Match",
+    "BankImport"
+   ]
+  },
+  {
+   "name": "Reconciliation",
+   "fields": [
+    "id",
+    "account_id",
+    "month",
+    "bank_balance",
+    "outstanding_items",
+    "adjusted_bank",
+    "journal_balance",
+    "client_listing_total",
+    "explanations",
+    "signed_by",
+    "signed_at",
+    "status",
+    "bank_statement_file",
+    "package_ref",
+    "superseded_by",
+    "reopen_reason"
+   ],
+   "relations": [
+    "TrustAccount",
+    "ReconcilingItem many",
+    "ClientListingSnapshot one"
+   ]
+  },
+  {
+   "name": "AnnualReportWorksheet",
+   "fields": [
+    "id",
+    "licensee_id",
+    "year",
+    "answers",
+    "confirmed_by",
+    "confirmed_at"
+   ],
+   "relations": [
+    "Reconciliation many (12)"
+   ]
+  },
+  {
+   "name": "TrustAuditEvent",
+   "fields": [
+    "id",
+    "at",
+    "actor",
+    "approver?",
+    "event",
+    "object_ref",
+    "before_after",
+    "prev_hash",
+    "hash",
+    "retain_until"
+   ],
+   "relations": [
+    "any trust object"
+   ]
+  },
+  {
+   "name": "MatterTrustSettings",
+   "fields": [
+    "matter_id",
+    "default_account_id",
+    "minimum_balance",
+    "low_balance_alert",
+    "protected_amount",
+    "protected_purpose"
+   ],
+   "relations": [
+    "Matter one-to-one",
+    "TrustAccount"
+   ]
+  },
+  {
+   "name": "GeneralJournalLine",
+   "fields": [
+    "id",
+    "account_id",
+    "date",
+    "kind",
+    "party",
+    "amount",
+    "category",
+    "matter_id",
+    "vendor_bill_id",
+    "bank_line_id"
+   ],
+   "relations": [
+    "Matter optional",
+    "BankLine"
+   ]
+  },
+  {
+   "name": "VendorBill",
+   "fields": [
+    "id",
+    "vendor",
+    "date",
+    "due",
+    "amount",
+    "tax",
+    "status"
+   ],
+   "relations": [
+    "GeneralJournalLine one-to-many"
+   ]
+  },
+  {
+   "name": "BankImport",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by trust relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "ClientListingSnapshot",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by trust relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "Evidence",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by trust relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "GateDecision",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by trust relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "Match",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by trust relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "ReconcilingItem",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by trust relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  }
+ ],
+ "gates": [
+  {
+   "id": "G6",
+   "name": "Receipt classification",
+   "approver": "clerk or lawyer",
+   "blocks": "A proposed receipt posting to a client ledger (confirms trust versus general, and the correct client)"
+  },
+  {
+   "id": "G6c",
+   "name": "Cash over limit",
+   "approver": "lawyer",
+   "blocks": "Accepting cash that takes a file to $7,500 or more aggregate, trust and operating combined (verify), unless an exception is recorded"
+  },
+  {
+   "id": "G11",
+   "name": "Trust withdrawal authorization",
+   "approver": "licensee with signing authority (plus a second person in dual mode)",
+   "blocks": "Any money leaving trust: cheque, EFT, or bank movement between trust accounts"
+  },
+  {
+   "id": "G11t",
+   "name": "Ledger-to-ledger transfer",
+   "approver": "licensee",
+   "blocks": "Moving money between client ledgers"
+  },
+  {
+   "id": "G12",
+   "name": "Monthly reconciliation sign-off",
+   "approver": "responsible licensee",
+   "blocks": "Locking the month. The next month cannot be signed until it is done"
+  },
+  {
+   "id": "G-TSIG",
+   "name": "Signing authority change (alias of access GA6)",
+   "approver": "owner with signing authority plus a second signatory (canonical gate GA6, CF-07)",
+   "blocks": "Adding or removing signatories or EFT users, and opening or closing accounts"
+  },
+  {
+   "id": "G-TREL",
+   "name": "Regulatory or audit release",
+   "approver": "licensee",
+   "blocks": "The annual report worksheet confirmation and any audit pack leaving the firm"
+  },
+  {
+   "id": "G12g",
+   "name": "Operating reconciliation",
+   "approver": "lawyer or bookkeeper",
+   "blocks": "closing the operating month and export"
+  }
+ ],
+ "agent_jobs": [
+  {
+   "name": "bank-feed-sync",
+   "trigger": "schedule (daily, plus when a statement is uploaded)",
+   "does": "Imports bank lines, de-duplicates them, matches them to journal lines and turns unknown deposits into proposed receipts",
+   "output": "proposed receipts for G6; match suggestions"
+  },
+  {
+   "name": "daily-three-way-match",
+   "trigger": "after bank-feed-sync",
+   "does": "Compares bank, journal and the sum of ledgers for each account, and checks for negative ledgers, cash tallies and dormant balances",
+   "output": "exceptions on trust overview, daily digest"
+  },
+  {
+   "name": "withdrawal-drafter",
+   "trigger": "event (bill delivered with trust applied; closing; client direction)",
+   "does": "Drafts the withdrawal request, runs the permitted-purpose, balance, condition and payee checks, and generates Form 9A",
+   "output": "draft withdrawal for G11"
+  },
+  {
+   "name": "payee-fraud-check",
+   "trigger": "event (new or changed receiving account)",
+   "does": "Compares the bank details with known payees and requires a callback record",
+   "output": "block or pass on withdrawal checks"
+  },
+  {
+   "name": "month-end-reconciliation",
+   "trigger": "schedule (statement received after month end)",
+   "does": "Builds the comparison, the reconciling items, the client listing and the variance explanations, then reminds the lawyer at day 15 and day 22",
+   "output": "reconciliation package for G12"
+  },
+  {
+   "name": "retainer-replenishment",
+   "trigger": "event (ledger below the agreed floor)",
+   "does": "Drafts a top-up request to the client",
+   "output": "client request for lawyer approval"
+  },
+  {
+   "name": "dormant-balance-sweep",
+   "trigger": "schedule (monthly)",
+   "does": "Lists ledgers with no activity and balances held for two years or more, and drafts client contact steps or an unclaimed-funds application",
+   "output": "task list; draft LSO unclaimed-funds request for G11"
+  },
+  {
+   "name": "annual-report-prep",
+   "trigger": "schedule (after fiscal year end)",
+   "does": "Computes the trust answers for the annual report and links the evidence",
+   "output": "worksheet for G-TREL"
+  },
+  {
+   "name": "audit-chain-verify",
+   "trigger": "schedule (nightly)",
+   "does": "Verifies the hash chain and the retention locks",
+   "output": "integrity alert or none"
+  },
+  {
+   "name": "retainer-coverage-scan",
+   "trigger": "schedule (nightly)",
+   "does": "Compute WIP + receivables vs available trust and minimum per matter",
+   "output": "draft retainer top-up requests for lawyer approval"
+  }
+ ],
+ "open_questions": [
+  "Uncleared funds: hard block on withdrawals against uncleared deposits, or allow a lawyer override with a reason?",
+  "Must every withdrawal require dual authorization (two people), or should this be a per-firm setting with single-licensee as the minimum the by-law allows?",
+  "Will we integrate directly with banks for EFT initiation (an API) or only produce Form 9A plus a read-only feed, leaving the person to key the transfer in online banking? The second option is lower risk for v1.",
+  "Which Canadian banks or aggregators can supply read-only trust account feeds with data held in Canada?",
+  "Teranet: do we support Form 9B records for real-estate firms in v1?",
+  "Is paralegal (P1) trust accounting in scope? Same by-law, but the annual report questions differ (verify)",
+  "Should the app keep the general (operating) account books too, or only the trust books plus a sync to QuickBooks or Xero?",
+  "Valuable property held in trust (BL9 s.18(9) record): add a small register screen in v1?",
+  "Fiscal year: per licensee or per firm, which affects the retention clock and the annual report.",
+  "Do we ship operating books (general journals, vendor bills) or only an export to the firm's accounting system?",
+  "Unclaimed trust funds: do we file the LSO application or only draft it?",
+  "Could: require written client authorization file on every matter-to-matter transfer (now required) - also for client-to-matter moves?",
+  "Could: Alberta and BC law society report packs after Ontario v1?",
+  "Is the BL9 retention period for reconciliation packages 10 years before the most recent fiscal year end? (verify against By-Law 9 text)"
+ ],
+ "sources": [
+  "https://lso.ca/about-lso/legislation-and-rules/by-laws/by-law-9",
+  "https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9/form-9a-electronic-trust-transfer-requisition",
+  "https://www.lso.ca/about-lso/legislation-rules/by-laws/by-law-9/form-9b-authorization-of-withdrawal-by-teranet",
+  "https://lso.ca/lawyers/practice-supports-and-resources/topics/guide-to-managing-trust-accounts",
+  "https://lso.ca/lawyers/practice-supports-and-resources/topics/guide-to-managing-trust-accounts/i-what-books-and-records-are-required-for-trust-ac",
+  "https://lso.ca/getdoc/dddb1045-4594-47e0-a69b-e30cfd9f3550/trust-account-operation",
+  "https://emond.ca/Legal-Resource-Hub/Bar-Exam-Indices/2016-2017-BARRISTER---SOLICITOR-INDICES-(4)/6-By-Laws-Barrister-2016-AlphaSort",
+  "https://www.ccla-abcc.ca/blogpost/1067586/",
+  "https://yorklaw.ca/Blog/8910801",
+  "https://open-exam-prep.com/study-guides/ca-on-paralegal-p1/ethics-retainers-fees-trust/trust-bookkeeping",
+  "https://www.clio.com/ca/features/trust-account-management-software/",
+  "https://help.clio.com/hc/en-us/articles/9290138047899 (trust reconciliation)",
+  "https://help.clio.com/hc/en-us/articles/51554190645659 (trust requests)",
+  "https://help.clio.com/hc/en-us/articles/25386185645595-Set-Up-Evergreen-Management-Retainers",
+  "https://help.clio.com/hc/en-au/articles/19199218407835 (client funds reports)",
+  "https://help.clio.com/hc/en-us/articles/20965581497627 (chart of accounts)",
+  "https://help.clio.com/hc/articles/21004158222235-Clio-Accounting-Banking",
+  "https://help.clio.com/hc/en-us/articles/48689921038107 (funds out: expenses)",
+  "https://lso.ca/lawyers/practice-supports-and-resources/topics/unclaimed-trust-funds (verify)",
+  "https://help.clio.com/hc/en-us/articles/9290138047899-Trust-Reconciliation-in-Clio",
+  "https://help.clio.com/hc/en-us/articles/54824841490075-View-Reconciliation-Reports",
+  "https://help.clio.com/hc/en-us/articles/54824936256027-Void-or-delete-a-reconciliation",
+  "https://help.clio.com/hc/en-us/articles/52224795936539-Disburse-Trust-Funds",
+  "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports",
+  "https://help.clio.com/hc/en-us/articles/36518880678171-Checks",
+  "https://help.clio.com/hc/en-us/articles/21004158222235-Clio-Accounting-Banking",
+  "https://www.clio.com/?p=63101"
+ ],
+ "clio_gaps": [
+  {
+   "clio_feature": "Trust and operating bank accounts",
+   "where_in_clio": "Settings > Accounts / Bank accounts",
+   "status": "already covered",
+   "note": "trust-accounts; operating via general-account-books"
+  },
+  {
+   "clio_feature": "Trust requests with approval, card pay, QR, portal",
+   "where_in_clio": "Contact/Matter > New trust request; Create new",
+   "status": "already covered",
+   "note": "r06-money: approval and card pay confirmed; trust-account QR/links carry no amount and are linked to a client after payment; Canadian behaviour not documented. We keep trust links matter-bound."
+  },
+  {
+   "clio_feature": "Evergreen retainer / minimum trust balance and low-balance alerts",
+   "where_in_clio": "Matter billing preferences > Evergreen",
+   "status": "added",
+   "note": "matter-trust-settings"
+  },
+  {
+   "clio_feature": "Protected / held trust funds",
+   "where_in_clio": "Matter trust funds",
+   "status": "added",
+   "note": "protected amount on ledger and settings"
+  },
+  {
+   "clio_feature": "Transfer funds between matters and bank accounts (ledger only, money moved at bank)",
+   "where_in_clio": "Contact/Matter > Transactions > Transfer funds",
+   "status": "already covered",
+   "note": "trust-transfers + withdrawal-request; we also never move money ourselves in v1"
+  },
+  {
+   "clio_feature": "Trust reconciliation: manual matching in Manage; three-way with bank feeds only in Clio Accounting",
+   "where_in_clio": "Accounts > trust account > Reconcile account (Manage); Banking > Reconcile now (Clio Accounting)",
+   "status": "already covered",
+   "note": "r06-money: Manage is manual tick-matching for any period; Clio Accounting (Canada from 23 Sep 2026) adds feeds, match suggestions and locked three-way. Both lock and chain voids. Ours: daily matching + signed BL9 package."
+  },
+  {
+   "clio_feature": "Reconciliation adjustments",
+   "where_in_clio": "Reconcile > Add adjustment",
+   "status": "deliberately different",
+   "note": "adjustments need reason + evidence; no plug to force $0"
+  },
+  {
+   "clio_feature": "Client funds and trust reports (client ledger, trust ledger, trust listing, jurisdiction reports)",
+   "where_in_clio": "Reports > Classic reports > Client category (non-AU)",
+   "status": "added",
+   "note": "new screen trust-reports. Clio help has no dormant/unclaimed trust report or separate receipts/disbursements journals; the dormant 12-month report is ours (r10 correction)."
+  },
+  {
+   "clio_feature": "Jurisdiction report packs (e.g. Alberta trust report)",
+   "where_in_clio": "Reports, enabled by support",
+   "status": "added",
+   "note": "LSO pack in trust-reports and lso-annual-report"
+  },
+  {
+   "clio_feature": "Clio Accounting: chart of accounts, journal entries",
+   "where_in_clio": "Clio Manage header > Clio Accounting",
+   "status": "deliberately different",
+   "note": "r06-money: now available to Canadian firms (23 Sep 2026) with CAD feeds, Canadian cheques, three-way reconciliation. We keep export, add QBO/Xero/GL CSV targets and trial balance view."
+  },
+  {
+   "clio_feature": "Bank feeds (Plaid) and file upload, bank feed rules with auto-confirm",
+   "where_in_clio": "Clio Accounting > Banking",
+   "status": "added",
+   "note": "match rules on bank-feed-import; suggest-only on trust (deliberately different) | Merged duplicate 'Bank feeds via Plaid (screen scraping in Canada) and file upload with undo': r06-money: statement upload stays primary; bank profiles, feed health, undo batch added"
+  },
+  {
+   "clio_feature": "Funds out: vendors, vendor bills, operating expenses",
+   "where_in_clio": "Clio Accounting > Funds out",
+   "status": "added",
+   "note": "general-account-books"
+  },
+  {
+   "clio_feature": "Operating account reconciliation",
+   "where_in_clio": "Clio Accounting > Reconcile",
+   "status": "added",
+   "note": "general-account-books reconciliation + G12g"
+  },
+  {
+   "clio_feature": "P&L, balance sheet, accounting dashboard",
+   "where_in_clio": "Clio Accounting > Reports / Dashboard",
+   "status": "deliberately different",
+   "note": "left to the firm's accounting system via export | Merged duplicate 'Accounting reports (P&L, balance sheet, trial balance, GL)': r06-money: trial balance by category view and export only"
+  },
+  {
+   "clio_feature": "Trust refund to client",
+   "where_in_clio": "Matter > Transactions > Refund",
+   "status": "added",
+   "note": "trust-balance-clearance"
+  },
+  {
+   "clio_feature": "Unclaimed / dormant trust handling",
+   "where_in_clio": "Not found in Clio help (r10)",
+   "status": "added",
+   "note": "dormant report + trust-balance-clearance unclaimed path; no Clio equivalent documented (r10 correction)."
+  },
+  {
+   "clio_feature": "Ontario Form 9A for electronic trust transfers",
+   "where_in_clio": "not confirmed in Clio help (CosmoLex has it)",
+   "status": "already covered",
+   "note": "r06-money: Clio help has no LSO report or Form 9A/9C/9D; Clio Canada points to a third party for Ontario reports. Ours is native."
+  },
+  {
+   "clio_feature": "Trust payments by card into trust with fees from operating",
+   "where_in_clio": "Settings > Online payments",
+   "status": "added",
+   "note": "billing payment-settings fee source rule"
+  },
+  {
+   "clio_feature": "Disburse trust funds (record only, no approval step)",
+   "where_in_clio": "Contact/Matter > Transactions > Disburse funds",
+   "status": "deliberately different",
+   "note": "r06-money: every withdrawal here is authorized by a named licensee before money moves"
+  },
+  {
+   "clio_feature": "Reconciliation report: summary, transaction detail, per-client effect; PDF; kept 10 years",
+   "where_in_clio": "Accounts > Reconciliations > View report",
+   "status": "added",
+   "note": "r06-money/r10-reports: monthly-reconciliation package_contents and required statement"
+  },
+  {
+   "clio_feature": "Void reconciliation requires voiding all newer ones first",
+   "where_in_clio": "Accounts > Reconciliations > Void; Reconciliation history",
+   "status": "added",
+   "note": "r06-money: chained reopen with licensee sign-off | Merged duplicate 'Undo / reopen reconciliation': Reopen month action"
+  },
+  {
+   "clio_feature": "Trust management report (unbilled work vs trust vs minimum)",
+   "where_in_clio": "Reports > Client reports",
+   "status": "added",
+   "note": "r06-money/r10-reports: new screen retainer-coverage"
+  },
+  {
+   "clio_feature": "Trust interest calculation report",
+   "where_in_clio": "Reports > Client reports",
+   "status": "added",
+   "note": "r10-reports: new screen trust-interest (separate interest-bearing accounts only)"
+  },
+  {
+   "clio_feature": "Client-level vs matter-level trust holding",
+   "where_in_clio": "Trust request stored at client or matter level",
+   "status": "added",
+   "note": "r06-money: holding_level and client unallocated sub-ledger"
+  },
+  {
+   "clio_feature": "Cheque printing with templates and alignment test",
+   "where_in_clio": "Clio Accounting > Checks",
+   "status": "added",
+   "note": "r06-money: withdrawal-request Print cheque / Void cheque"
+  },
+  {
+   "clio_feature": "Accounting automation rules and processor deposit auto-match",
+   "where_in_clio": "Banking > Accounting automation",
+   "status": "already covered",
+   "note": "r06-money: bank-feed-import match_rules"
+  },
+  {
+   "clio_feature": "Trust applied to a bill capped at available balance",
+   "where_in_clio": "Bill > Apply trust funds",
+   "status": "already covered",
+   "note": "r06-money: ledgers can never go negative; not a differentiator"
+  },
+  {
+   "clio_feature": "Electronic refund of a trust card payment",
+   "where_in_clio": "Online payments > Refund",
+   "status": "already covered",
+   "note": "r06-money: trust refund via withdrawal-request"
+  },
+  {
+   "clio_feature": "Law Society of Alberta trust report",
+   "where_in_clio": "Reports > Compliance",
+   "status": "deliberately different",
+   "note": "r06-money: Ontario only in v1"
+  },
+  {
+   "clio_feature": "BC Trust Administration Fee automation",
+   "where_in_clio": "Settings > Firm Preferences > Compliance",
+   "status": "deliberately different",
+   "note": "r06-money: Ontario only in v1"
+  }
+ ]
+}

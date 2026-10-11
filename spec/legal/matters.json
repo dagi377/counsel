@@ -1,0 +1,3824 @@
+{
+  "area": "matters",
+  "title": "Matters, contacts, firm home and search",
+  "summary": "The matter is the system of record for the firm. The agent keeps a cited matter brief, plans the stages, and proposes contacts and roles drawn from email and documents. Humans approve anything that changes conflict data, key facts or client-facing state. Contacts and their roles feed the conflict check, so merges, role changes and new adverse parties all pass a gate.",
+  "screens": [
+    {
+      "id": "firm-home",
+      "name": "Firm home",
+      "route": "/",
+      "who": [
+        "lawyer",
+        "clerk",
+        "paralegal",
+        "admin"
+      ],
+      "purpose": "Each person's daily starting point: approvals waiting, deadlines and matters at risk.",
+      "layout": "Top: approval inbox counts by gate. Left: my matters with a status digest. Right: deadlines over the next 14 days, and trust and AR alerts. Bottom: agent activity feed.",
+      "fields": [
+        {
+          "name": "approvals_waiting",
+          "type": "count by gate",
+          "required": true,
+          "note": "Grouped by G-id. Each count links to its queue."
+        },
+        {
+          "name": "my_matters",
+          "type": "list<ref Matter>",
+          "required": true,
+          "note": "Responsible or assigned. Sorted by risk score."
+        },
+        {
+          "name": "upcoming_deadlines",
+          "type": "list<ref Deadline>",
+          "required": true,
+          "note": "Only confirmed deadlines count as authoritative. Unconfirmed ones carry a separate badge."
+        },
+        {
+          "name": "stale_matters",
+          "type": "list<ref Matter>",
+          "required": false,
+          "note": "No activity for N days (firm setting)."
+        },
+        {
+          "name": "unbilled_wip",
+          "type": "money",
+          "required": false,
+          "note": "Per user, or firm-wide for admins."
+        },
+        {
+          "name": "trust_alerts",
+          "type": "list",
+          "required": false,
+          "note": "Low retainer, or a client ledger near zero. Lawyers and admins only."
+        },
+        {
+          "name": "agent_feed",
+          "type": "list<ref Activity>",
+          "required": false,
+          "note": "What the agent did since the user last logged in."
+        },
+        {
+          "name": "my_time_today",
+          "type": "number",
+          "required": false,
+          "note": "Hours recorded today against the user's daily target, from the time module."
+        },
+        {
+          "name": "followed_matters",
+          "type": "list",
+          "required": false,
+          "note": "Recent changes on matters the user follows."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Open approval queue",
+          "by": "human",
+          "gate": "none",
+          "note": "Opens the filtered approvals inbox."
+        },
+        {
+          "name": "Ask the firm",
+          "by": "human",
+          "gate": "none",
+          "note": "Plain-language question. The answer cites matter records and respects ethical walls."
+        },
+        {
+          "name": "Snooze stale flag",
+          "by": "human",
+          "gate": "none",
+          "note": "Snoozes for a set period. The reason is logged."
+        },
+        {
+          "name": "Compose morning digest",
+          "by": "agent",
+          "gate": "none",
+          "note": "Internal only."
+        },
+        {
+          "name": "Rearrange or hide cards",
+          "by": "human",
+          "gate": "none",
+          "note": "Per-user layout."
+        }
+      ],
+      "agent": "Before the workday starts, the agent builds each person's digest. It ranks matters by risk (unconfirmed deadline, limitation within 90 days, no activity, retainer below threshold, unsigned engagement letter) and proposes one next action per matter.",
+      "gate": "none (the screen only views and routes; each linked approval keeps its own gate)",
+      "states": [
+        "first-run empty (no matters)",
+        "loaded",
+        "nothing pending",
+        "degraded (agent offline, raw lists only)"
+      ],
+      "edge": [
+        "The user is behind an ethical wall: walled matters must not appear in any count or feed item.",
+        "A deadline has no confirmation: show it as provisional and never in green.",
+        "A large firm has many approvals: paginate per gate and never truncate silently."
+      ],
+      "reg": "Supervision of non-lawyers and of agent work (RPC 6.1, verify). A limitation date shown as confirmed must have passed gate G7 (Limitations Act, 2002).",
+      "mock": {
+        "kind": "dashboard",
+        "columns": [
+          "Widget",
+          "Item",
+          "Detail"
+        ],
+        "rows": [
+          [
+            "Approvals",
+            "G7 deadlines to confirm",
+            "3"
+          ],
+          [
+            "Approvals",
+            "G9 time entries",
+            "14 (Linda Kassim)"
+          ],
+          [
+            "At risk",
+            "2026-0142 Tesfaye v. Northgate Rentals",
+            "Limitation in 41 days, claim not issued"
+          ],
+          [
+            "Stale",
+            "2026-0098 Halvorsen Estate",
+            "No activity for 23 days"
+          ],
+          [
+            "Trust",
+            "2026-0117 Okafor purchase",
+            "Retainer $350 left, below the $1,000 floor"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-list",
+      "name": "Matter list",
+      "route": "/matters",
+      "who": [
+        "lawyer",
+        "clerk",
+        "paralegal",
+        "admin"
+      ],
+      "purpose": "Find, filter and triage every matter the user is allowed to see.",
+      "layout": "Saved views on the left (Mine, Open, By stage, Closing). Filter bar plus a table in the centre. The row drawer on the right shows the agent's digest. A toggle switches the table to the stage board.",
+      "fields": [
+        {
+          "name": "number",
+          "type": "text",
+          "required": true,
+          "note": "Firm pattern, e.g. YYYY-NNNN. Unique and immutable."
+        },
+        {
+          "name": "short_name",
+          "type": "text",
+          "required": true,
+          "note": "Pattern: 'Client v. Adverse' or 'Client - subject'."
+        },
+        {
+          "name": "client",
+          "type": "ref Contact",
+          "required": true
+        },
+        {
+          "name": "practice_area",
+          "type": "enum",
+          "required": true
+        },
+        {
+          "name": "status",
+          "type": "enum(pending,open,closing,closed,archived)",
+          "required": true
+        },
+        {
+          "name": "stage",
+          "type": "ref Stage",
+          "required": false
+        },
+        {
+          "name": "responsible_lawyer",
+          "type": "ref User",
+          "required": true
+        },
+        {
+          "name": "next_deadline",
+          "type": "date",
+          "required": false
+        },
+        {
+          "name": "unbilled",
+          "type": "money",
+          "required": false
+        },
+        {
+          "name": "trust_balance",
+          "type": "money",
+          "required": false,
+          "note": "Hidden for roles without trust access."
+        },
+        {
+          "name": "last_activity",
+          "type": "datetime",
+          "required": false
+        },
+        {
+          "name": "agent_flag",
+          "type": "enum(ok,stale,due,unbilled,blocked)",
+          "required": false
+        },
+        {
+          "name": "status_tab",
+          "type": "enum",
+          "required": false,
+          "note": "Quick tabs: open | pending | closed | all. Pending means accepted but not yet opened, or winding down (the firm picks which in settings)."
+        },
+        {
+          "name": "columns",
+          "type": "list",
+          "required": false,
+          "note": "Column picker per user, including any custom field; stored with the saved view."
+        },
+        {
+          "name": "tags",
+          "type": "list",
+          "required": false,
+          "note": "Free labels on matters (e.g. 'legal aid', 'rush'); filterable."
+        },
+        {
+          "name": "client_reference",
+          "type": "text",
+          "required": false,
+          "note": "The client's own file or claim number; searchable."
+        },
+        {
+          "name": "following",
+          "type": "bool",
+          "required": false,
+          "note": "Matters the user follows get change notifications even when not on the team."
+        },
+        {
+          "name": "responsible_staff",
+          "type": "ref User",
+          "required": false,
+          "note": "Available in the column picker and as a filter."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Filter, sort and save a view",
+          "by": "human",
+          "gate": "none"
+        },
+        {
+          "name": "Open a new matter",
+          "by": "human",
+          "gate": "none",
+          "note": "Opens the matter-opening wizard."
+        },
+        {
+          "name": "Bulk change responsible lawyer",
+          "by": "human",
+          "gate": "approve",
+          "note": "A lawyer or admin approves. Logged per matter."
+        },
+        {
+          "name": "Bulk change status or stage",
+          "by": "human",
+          "gate": "approve",
+          "note": "Never available for closing; closing goes through the closing area (G13)."
+        },
+        {
+          "name": "Export CSV",
+          "by": "human",
+          "gate": "none",
+          "note": "Respects walls. The export is audit-logged."
+        },
+        {
+          "name": "Propose next actions",
+          "by": "agent",
+          "gate": "none",
+          "note": "Suggestions only; they show in the drawer."
+        },
+        {
+          "name": "Bulk set a custom field value",
+          "by": "human",
+          "gate": "approve",
+          "note": "Same G-BK gate; preview lists every matter and old value first."
+        },
+        {
+          "name": "Bulk add or remove tags",
+          "by": "human",
+          "gate": "none",
+          "note": "Tags carry no conflict or client-facing effect."
+        },
+        {
+          "name": "Bulk close",
+          "by": "human",
+          "gate": "approve",
+          "note": "Does not close directly: opens the closing checklist (platform matter-closing) for each selected matter."
+        },
+        {
+          "name": "Follow / unfollow",
+          "by": "human",
+          "gate": "none",
+          "note": ""
+        },
+        {
+          "name": "Print or PDF the current view",
+          "by": "human",
+          "gate": "none",
+          "note": "Watermarked with user and time."
+        }
+      ],
+      "agent": "The agent keeps agent_flag and a one-line digest current for each matter, recomputed on every event. It proposes one next action per row (for example, 'draft the statement of claim; limitation 2026-11-20').",
+      "gate": "Bulk changes to responsible lawyer, status or stage need lawyer or admin approval before they apply.",
+      "states": [
+        "empty (no matters)",
+        "filtered with no results",
+        "loaded",
+        "bulk change pending approval"
+      ],
+      "edge": [
+        "A walled matter must not leak through counts, autocomplete or export.",
+        "Matter number collision on import: reject and keep the legacy number in a separate field.",
+        "A matter with no responsible lawyer is invalid and shows as blocked.",
+        "Bulk change spans matters the user cannot see behind a wall: those are silently excluded and the preview counts them as 'not permitted'.",
+        "A bulk custom-field set where the field is not in a matter's practice-area set: skipped with a reason rather than adding the field.",
+        "Saved view references a deleted custom field: column drops out and the view owner is told."
+      ],
+      "reg": "Confidentiality and ethical walls (RPC 3.3 and 3.4, verify). Exports are audit-logged.",
+      "mock": {
+        "kind": "table",
+        "columns": [
+          "No.",
+          "Matter",
+          "Area",
+          "Stage",
+          "Lawyer",
+          "Next deadline",
+          "Unbilled",
+          "Flag"
+        ],
+        "rows": [
+          [
+            "2026-0142",
+            "Tesfaye v. Northgate Rentals",
+            "Civil litigation",
+            "Pleadings",
+            "Linda Kassim",
+            "2026-11-20",
+            "$4,180",
+            "due"
+          ],
+          [
+            "2026-0117",
+            "Okafor - purchase of 12 Elm Cres.",
+            "Real estate",
+            "Requisitions",
+            "Ayo Ewebiyi",
+            "2026-10-24",
+            "$1,050",
+            "ok"
+          ],
+          [
+            "2026-0098",
+            "Halvorsen Estate",
+            "Estates",
+            "Probate application",
+            "Linda Kassim",
+            "-",
+            "$2,600",
+            "stale"
+          ],
+          [
+            "2026-0151",
+            "Marchetti v. Marchetti",
+            "Family",
+            "Disclosure",
+            "Yonathan Degu",
+            "2026-10-30",
+            "$0",
+            "blocked"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-stage-board",
+      "name": "Matter stage board",
+      "route": "/matters/board?area=:practiceArea",
+      "who": [
+        "lawyer",
+        "clerk",
+        "paralegal"
+      ],
+      "purpose": "Shows the matters in one practice area by stage and lets users move them along.",
+      "layout": "One column per stage for the selected practice area. Each card shows the matter, the lawyer, days in stage and blockers. A side panel lists the matters the agent proposes to advance, with the evidence for each.",
+      "fields": [
+        {
+          "name": "practice_area",
+          "type": "enum",
+          "required": true,
+          "note": "Each area has its own stage set."
+        },
+        {
+          "name": "days_in_stage",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "entry_criteria_met",
+          "type": "bool",
+          "required": false,
+          "note": "Evidence-based, e.g. signed engagement letter present."
+        },
+        {
+          "name": "blockers",
+          "type": "list<text>",
+          "required": false
+        }
+      ],
+      "actions": [
+        {
+          "name": "Drag a card to another stage",
+          "by": "human",
+          "gate": "none",
+          "note": "Moves to a stage flagged 'client-facing' or 'billing' require approval."
+        },
+        {
+          "name": "Propose stage advance",
+          "by": "agent",
+          "gate": "approve",
+          "note": "The proposal cites evidence, such as a filed document or a paid bill."
+        },
+        {
+          "name": "Flag stuck matter",
+          "by": "agent",
+          "gate": "none"
+        }
+      ],
+      "agent": "The agent watches for evidence events (document filed, letter signed, bill paid, deadline passed) and proposes stage moves with links to that evidence. It flags any matter that has been in one stage longer than the area's expected duration.",
+      "gate": "A lawyer approves any move into a stage that triggers a client-facing message, a bill or the closing workflow.",
+      "states": [
+        "no stages configured",
+        "loaded",
+        "move pending approval"
+      ],
+      "edge": [
+        "A matter changes practice area: map its stage to the new area or reset it, and log the old stage.",
+        "Two users move the same card at once: the last write is rejected and the user sees the current stage.",
+        "A stage is deleted while matters sit in it: the delete is blocked until they move."
+      ],
+      "reg": "",
+      "mock": {
+        "kind": "board",
+        "columns": [
+          "Intake complete",
+          "Pleadings",
+          "Discoveries",
+          "Mediation",
+          "Trial prep"
+        ],
+        "rows": [
+          [
+            "2026-0160 Abay v. Lakeshore Transit (2d)",
+            "2026-0142 Tesfaye v. Northgate (12d)",
+            "2025-0311 Bereket v. Orion Signs (60d, stuck)",
+            "-",
+            "-"
+          ],
+          [
+            "-",
+            "2026-0149 Sinke v. Delta Movers (4d)",
+            "-",
+            "2025-0280 Ruiz v. Kwan (9d)",
+            "-"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-open-wizard",
+      "name": "Open a matter",
+      "route": "/matters/new",
+      "who": [
+        "lawyer",
+        "clerk",
+        "paralegal",
+        "agent"
+      ],
+      "purpose": "Turns an accepted, conflict-cleared intake into an open matter with parties, fields, a stage and a task plan.",
+      "layout": "Five steps across the top: 1 Client & source, 2 Parties & roles, 3 Practice area & custom fields, 4 Team, billing & stage, 5 Review. The agent's pre-fill is shown with a source chip on each field.",
+      "fields": [
+        {
+          "name": "source_intake",
+          "type": "ref Lead",
+          "required": false,
+          "note": "When set, the agent pre-fills from the intake summary."
+        },
+        {
+          "name": "client",
+          "type": "ref Contact",
+          "required": true,
+          "note": "Existing contact or a new one. A duplicate check runs."
+        },
+        {
+          "name": "parties",
+          "type": "list<ref MatterRole>",
+          "required": true,
+          "note": "At least the client. Adverse parties are required for litigation areas."
+        },
+        {
+          "name": "conflict_check",
+          "type": "ref ConflictCheck",
+          "required": true,
+          "note": "Must be in state cleared or consent-on-file (G2)."
+        },
+        {
+          "name": "client_id_status",
+          "type": "enum(identified,verified,exempt,pending)",
+          "required": true,
+          "note": "Pending is allowed to open, but blocks trust receipts until G4."
+        },
+        {
+          "name": "engagement",
+          "type": "ref EngagementLetter",
+          "required": true,
+          "note": "Signed (G5), or a recorded exception approved by a lawyer."
+        },
+        {
+          "name": "practice_area",
+          "type": "enum",
+          "required": true
+        },
+        {
+          "name": "custom_fields",
+          "type": "map",
+          "required": false,
+          "note": "From the practice area's field set. Its required flags apply."
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "responsible_lawyer",
+          "type": "ref User",
+          "required": true,
+          "note": "Must be a licensee."
+        },
+        {
+          "name": "originating_lawyer",
+          "type": "ref User",
+          "required": false
+        },
+        {
+          "name": "team",
+          "type": "list<ref User>",
+          "required": false
+        },
+        {
+          "name": "billing_method",
+          "type": "enum(hourly,flat,contingency,mixed)",
+          "required": true
+        },
+        {
+          "name": "rates",
+          "type": "ref RateTable",
+          "required": false
+        },
+        {
+          "name": "open_date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "initial_stage",
+          "type": "ref Stage",
+          "required": true
+        },
+        {
+          "name": "task_plan",
+          "type": "ref TaskTemplate",
+          "required": false
+        },
+        {
+          "name": "ethical_wall",
+          "type": "list<ref User>",
+          "required": false,
+          "note": "Users to exclude from the matter."
+        },
+        {
+          "name": "responsible_staff",
+          "type": "ref User",
+          "required": false,
+          "note": "Clerk or paralegal who runs the file day to day, beside the responsible and originating lawyer. The agent routes clerk-level work items to this person by default."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Pre-fill from intake",
+          "by": "agent",
+          "gate": "none"
+        },
+        {
+          "name": "Re-run conflict on new parties",
+          "by": "agent",
+          "gate": "sign-off",
+          "note": "Adding a party not in the original check re-opens G2."
+        },
+        {
+          "name": "Open matter",
+          "by": "human",
+          "gate": "approve",
+          "note": "The responsible lawyer confirms. The matter number is assigned at this point."
+        },
+        {
+          "name": "Create folders, task plan and calendar placeholders",
+          "by": "agent",
+          "gate": "none",
+          "note": "Runs after opening. Deadlines are created as unconfirmed (G7)."
+        }
+      ],
+      "agent": "The agent pre-fills every step from the intake, conflict memo and engagement letter, and attaches a source to each value. It suggests the practice area and the custom-field values, drafts the description, and proposes the team and the task plan. It refuses to submit if G2 or G5 is not satisfied.",
+      "gate": "The responsible lawyer approves the opening. That approval confirms the parties, the practice area and the billing method. Any party added after the conflict check triggers a fresh G2 sign-off.",
+      "states": [
+        "draft",
+        "blocked (conflict not cleared)",
+        "blocked (engagement unsigned)",
+        "pending approval",
+        "opened"
+      ],
+      "edge": [
+        "The client is an organization with no ID record: the matter can open, but the trust panel shows a G4 block.",
+        "Urgent matter (limitation within days): an approved exception lets it open before the engagement letter is signed, and it is logged.",
+        "Joint clients: a joint-retainer disclosure must be recorded (RPC 3.4, verify).",
+        "The intake is abandoned midway: the draft expires after 30 days, and conflict-relevant data is kept under the prospective-client rule."
+      ],
+      "reg": "Conflicts (RPC 3.4) must clear before opening. Client identification under By-Law 7.1 is required at opening; verification is required before funds move (verify). The fee agreement must comply with RPC 3.6 and the Solicitors Act. Contingency terms are subject to O. Reg. 563/20 (verify).",
+      "mock": {
+        "kind": "form",
+        "columns": [
+          "Field",
+          "Value",
+          "Source"
+        ],
+        "rows": [
+          [
+            "Client",
+            "Selam Tesfaye",
+            "Intake L-0388"
+          ],
+          [
+            "Adverse party",
+            "Northgate Rentals Inc.",
+            "Intake L-0388; conflict check C-0201 cleared"
+          ],
+          [
+            "Practice area",
+            "Civil litigation",
+            "Agent (0.94)"
+          ],
+          [
+            "Incident date",
+            "2024-12-02",
+            "Intake transcript, line 41"
+          ],
+          [
+            "Responsible lawyer",
+            "Linda Kassim",
+            "Default for area"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-overview",
+      "name": "Matter overview",
+      "route": "/matters/:id",
+      "who": [
+        "lawyer",
+        "clerk",
+        "paralegal",
+        "agent"
+      ],
+      "purpose": "Shows the state of one matter on a single page: the brief, the parties, what is due and the money position.",
+      "layout": "Header with number, name, status, stage, lawyer and a wall badge. Tabs: Overview, Parties, Notes, Activity, Financial, plus links to other areas (Docs, Calendar, Tasks, Bills). Overview has the agent brief on the left; key fields, next deadlines and open approvals on the right.",
+      "fields": [
+        {
+          "name": "brief",
+          "type": "rich text with citations",
+          "required": false,
+          "note": "Agent-maintained. Each statement links to a document, email or note."
+        },
+        {
+          "name": "key_facts",
+          "type": "list<Fact>",
+          "required": false,
+          "note": "Examples: incident date, property address, court file no. Edits are gated."
+        },
+        {
+          "name": "court_file_number",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "court_location",
+          "type": "enum",
+          "required": false
+        },
+        {
+          "name": "limitation_date",
+          "type": "date",
+          "required": false,
+          "note": "Confirmed via G7 only."
+        },
+        {
+          "name": "open_items",
+          "type": "list",
+          "required": false,
+          "note": "Tasks, approvals and unconfirmed deadlines."
+        },
+        {
+          "name": "custom_fields",
+          "type": "map",
+          "required": false
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "required": true,
+          "note": "open | pending | closed; each change stamps its own date."
+        },
+        {
+          "name": "open_date",
+          "type": "date",
+          "required": true,
+          "note": ""
+        },
+        {
+          "name": "pending_date",
+          "type": "date",
+          "required": false,
+          "note": ""
+        },
+        {
+          "name": "close_date",
+          "type": "date",
+          "required": false,
+          "note": "Set only by the closing flow."
+        },
+        {
+          "name": "client_reference",
+          "type": "text",
+          "required": false,
+          "note": ""
+        },
+        {
+          "name": "related_matters",
+          "type": "ref[]",
+          "required": false,
+          "note": "Link to other matters with a reason: same client, same transaction, appeal of, related claim. Feeds conflict context."
+        },
+        {
+          "name": "followers",
+          "type": "ref[]",
+          "required": false,
+          "note": "Users notified of changes without being on the team."
+        },
+        {
+          "name": "tags",
+          "type": "list",
+          "required": false,
+          "note": ""
+        },
+        {
+          "name": "matter_location",
+          "type": "text",
+          "required": false,
+          "note": "Office or region handling the file, for multi-office firms."
+        },
+        {
+          "name": "responsible_staff",
+          "type": "ref User",
+          "required": false,
+          "note": "Shown in the header next to the responsible lawyer. Change is logged, no gate."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Ask about this matter",
+          "by": "human",
+          "gate": "none",
+          "note": "Opens matter-ask. The answer cites sources inside this matter only, to page and line."
+        },
+        {
+          "name": "Edit key fact",
+          "by": "human",
+          "gate": "approve",
+          "note": "A change to a party, a key date or the court file no. is logged with the old value."
+        },
+        {
+          "name": "Refresh brief",
+          "by": "agent",
+          "gate": "none"
+        },
+        {
+          "name": "Propose key-fact change",
+          "by": "agent",
+          "gate": "approve",
+          "note": "Raised when new evidence contradicts a stored fact."
+        },
+        {
+          "name": "Change responsible lawyer",
+          "by": "human",
+          "gate": "approve"
+        },
+        {
+          "name": "Link related matter",
+          "by": "human",
+          "gate": "none",
+          "note": "Agent may propose links (same parties, same property) for confirmation."
+        },
+        {
+          "name": "Change status to pending",
+          "by": "human",
+          "gate": "approve",
+          "note": "Lawyer approves; pending stops new time entry by default."
+        },
+        {
+          "name": "Reopen closed matter",
+          "by": "human",
+          "gate": "approve",
+          "note": "Routes to platform matter-closing 'Reopen'; reason required."
+        },
+        {
+          "name": "Apply template to this matter",
+          "by": "human",
+          "gate": "approve",
+          "note": "Shows a preview of what the template would add (fields, folders, work items, billing preset). Nothing already set is overwritten unless the user ticks it. The responsible lawyer approves (G-AT)."
+        },
+        {
+          "name": "Suggest a template",
+          "by": "agent",
+          "gate": "none",
+          "note": "When a matter has no template, the agent proposes the best fit from the practice area and past matters, with its reasons."
+        },
+        {
+          "name": "Open chronology",
+          "by": "human",
+          "gate": "none",
+          "note": "Opens matter-chronology."
+        }
+      ],
+      "agent": "The agent rewrites the brief after each new document, email, note or event, citing every claim. It detects contradictions between a new document and the stored key facts (for example, a different incident date) and raises a change proposal instead of editing the fact.",
+      "gate": "The responsible lawyer approves changes to key facts, parties or the responsible lawyer. Reading needs no approval.",
+      "states": [
+        "pending (not yet opened)",
+        "open",
+        "closing",
+        "closed (read-only)",
+        "archived (read-only, retention date shown)"
+      ],
+      "edge": [
+        "Brief claim without a source: it is not shown.",
+        "A user behind the wall opens a direct URL: return 404, not 403, so the matter's existence does not leak.",
+        "A closed matter receives new mail: the agent flags it to the lawyer and does not reopen the matter.",
+        "Related matter is walled from this user: link shows as 'restricted matter' with no name.",
+        "Status set to closed by import while trust balance is non-zero: import refuses that row.",
+        "Template applied to a matter whose practice area differs from the template's: refuse, and offer the templates for the matter's area.",
+        "Template adds a required custom field the matter lacks: the field is added empty and listed as an open item; the matter is not blocked."
+      ],
+      "reg": "Accuracy of the record and privilege. Walls (RPC 3.4, verify).",
+      "mock": {
+        "kind": "detail",
+        "columns": [
+          "Section",
+          "Content"
+        ],
+        "rows": [
+          [
+            "Brief",
+            "Tenant slipped on an unlit stairwell at 88 Queen St. on 2024-12-02 [intake]. Landlord notice delivered 2025-01-10 [email 14]."
+          ],
+          [
+            "Limitation",
+            "2026-12-02 (confirmed by L. Kassim, 2026-09-30)"
+          ],
+          [
+            "Court file",
+            "Not issued"
+          ],
+          [
+            "Open items",
+            "Draft statement of claim (agent, awaiting G8); 2 unconfirmed deadlines"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-parties",
+      "name": "Matter parties and roles",
+      "route": "/matters/:id/parties",
+      "who": [
+        "lawyer",
+        "clerk",
+        "paralegal",
+        "agent"
+      ],
+      "purpose": "Lists everyone connected to the matter and their role in it, including opposing counsel and related parties.",
+      "layout": "Table grouped by side (Our client, Adverse, Neutral, Court/Other). A proposals strip at the top lists parties the agent found in documents or email.",
+      "fields": [
+        {
+          "name": "contact",
+          "type": "ref Contact",
+          "required": true
+        },
+        {
+          "name": "role",
+          "type": "enum(client,co-client,adverse party,opposing counsel,adverse insurer,witness,expert,guardian/litigation guardian,estate trustee,beneficiary,lender,agent/realtor,court/tribunal,mediator,other)",
+          "required": true
+        },
+        {
+          "name": "side",
+          "type": "enum(ours,adverse,neutral)",
+          "required": true
+        },
+        {
+          "name": "represented_by",
+          "type": "ref MatterRole",
+          "required": false,
+          "note": "Links an adverse party to their counsel."
+        },
+        {
+          "name": "conflict_relevant",
+          "type": "bool",
+          "required": true,
+          "note": "Derived from the role. Adverse, co-client and related parties are true."
+        },
+        {
+          "name": "conflict_check",
+          "type": "ref ConflictCheck",
+          "required": false
+        },
+        {
+          "name": "start_date",
+          "type": "date",
+          "required": false
+        },
+        {
+          "name": "end_date",
+          "type": "date",
+          "required": false,
+          "note": "A role is ended, never deleted, so conflict history survives."
+        },
+        {
+          "name": "lso_number",
+          "type": "text",
+          "required": false,
+          "note": "For opposing counsel or paralegal (optional, for reference)."
+        },
+        {
+          "name": "bill_recipient",
+          "type": "bool",
+          "required": false,
+          "note": "Who receives bills for this matter; more than one allowed with split percentages (billing area owns the split)."
+        },
+        {
+          "name": "relationship_label",
+          "type": "text",
+          "required": false,
+          "note": "Free text beyond the role, e.g. 'adjuster for defendant's insurer'."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Add party",
+          "by": "human",
+          "gate": "sign-off",
+          "note": "A conflict-relevant role runs a conflict check and needs G2 sign-off before it becomes active."
+        },
+        {
+          "name": "Propose party from document or email",
+          "by": "agent",
+          "gate": "approve"
+        },
+        {
+          "name": "End role",
+          "by": "human",
+          "gate": "approve"
+        },
+        {
+          "name": "Mark opposing counsel as representing a party",
+          "by": "human",
+          "gate": "none",
+          "note": "Once set, it routes the no-contact warning: do not message a represented party directly."
+        }
+      ],
+      "agent": "The agent extracts names, organizations and counsel from pleadings, correspondence and closing documents, and matches them to existing contacts. It proposes roles and starts the conflict check on any new conflict-relevant party.",
+      "gate": "A new conflict-relevant party (adverse, co-client or related company) becomes active only after a lawyer signs off its conflict check (G2). Ending a role needs approval.",
+      "states": [
+        "client only",
+        "proposals pending",
+        "conflict check running",
+        "active"
+      ],
+      "edge": [
+        "The same contact appears on both sides: blocked, with the result shown as a conflict.",
+        "Opposing counsel changes firms: end the old role and add the new one, keeping history.",
+        "A party is a minor or a person under disability: a litigation guardian role is required (verify the RCP rule).",
+        "An adverse party is a related company of a current client: the check must surface the corporate relationship.",
+        "Removing the only bill recipient: blocked until another is chosen.",
+        "Same contact holds two roles on one matter (client and guarantor): allowed, both shown, both sent to conflict index."
+      ],
+      "reg": "RPC 3.4 (conflicts, including related entities). RPC 7.2 on communicating with a represented person (verify). Role history is kept for future conflict checks.",
+      "mock": {
+        "kind": "table",
+        "columns": [
+          "Side",
+          "Contact",
+          "Role",
+          "Represented by",
+          "Conflict"
+        ],
+        "rows": [
+          [
+            "Ours",
+            "Selam Tesfaye",
+            "Client",
+            "-",
+            "cleared C-0201"
+          ],
+          [
+            "Adverse",
+            "Northgate Rentals Inc.",
+            "Adverse party",
+            "Brampton & Vale LLP (D. Osei)",
+            "cleared C-0201"
+          ],
+          [
+            "Adverse",
+            "Brampton & Vale LLP",
+            "Opposing counsel",
+            "-",
+            "n/a"
+          ],
+          [
+            "Adverse",
+            "Gateway Mutual Insurance",
+            "Adverse insurer",
+            "-",
+            "proposed, check running"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-notes-activity",
+      "name": "Matter notes and activity",
+      "route": "/matters/:id/activity",
+      "who": [
+        "lawyer",
+        "clerk",
+        "paralegal",
+        "agent"
+      ],
+      "purpose": "A single timeline of everything that happened on the matter (human and agent), with notes alongside.",
+      "layout": "Filter chips (notes, emails, calls, documents, events, approvals, agent actions, stage changes). Reverse-chronological timeline. A note composer at the top.",
+      "fields": [
+        {
+          "name": "entry_type",
+          "type": "enum(note,email,call,document,event,task,approval,stage,financial,agent-action)",
+          "required": true
+        },
+        {
+          "name": "actor",
+          "type": "ref User|agent",
+          "required": true
+        },
+        {
+          "name": "at",
+          "type": "datetime",
+          "required": true
+        },
+        {
+          "name": "summary",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "body",
+          "type": "rich text",
+          "required": false,
+          "note": "Notes only. Stored in the firm cell, not in platform metadata."
+        },
+        {
+          "name": "visibility",
+          "type": "enum(team,lawyers-only)",
+          "required": true
+        },
+        {
+          "name": "privileged",
+          "type": "bool",
+          "required": false
+        },
+        {
+          "name": "source_link",
+          "type": "ref",
+          "required": false
+        },
+        {
+          "name": "note_subject",
+          "type": "text",
+          "required": false,
+          "note": ""
+        },
+        {
+          "name": "note_date",
+          "type": "date",
+          "required": true,
+          "note": "Defaults today; may be backdated with the real entry time kept in the audit."
+        },
+        {
+          "name": "note_target",
+          "type": "enum",
+          "required": true,
+          "note": "matter | contact. Contact notes show on every matter where that contact is a party, if permitted."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Add note",
+          "by": "human",
+          "gate": "none"
+        },
+        {
+          "name": "Draft call summary note",
+          "by": "agent",
+          "gate": "approve",
+          "note": "The participant confirms it is accurate before it enters the record."
+        },
+        {
+          "name": "Propose time entry from activity",
+          "by": "agent",
+          "gate": "approve",
+          "note": "Goes to the G9 queue."
+        },
+        {
+          "name": "Edit note",
+          "by": "human",
+          "gate": "none",
+          "note": "Versioned. The original is kept."
+        },
+        {
+          "name": "Create time entry from note",
+          "by": "human",
+          "gate": "none",
+          "note": "Pre-fills duration and narrative; time module owns approval."
+        },
+        {
+          "name": "Filter timeline by type, actor, date",
+          "by": "human",
+          "gate": "none",
+          "note": ""
+        },
+        {
+          "name": "Export timeline as PDF",
+          "by": "human",
+          "gate": "approve",
+          "note": "Lawyer approves because the export can include privileged entries."
+        }
+      ],
+      "agent": "The agent writes an activity entry for every action it takes, saying what it did, why, and from which inputs. It summarises calls and meetings into draft notes and pulls out commitments as tasks.",
+      "gate": "A person confirms each agent-drafted note or call summary before it becomes part of the record. Activity entries cannot be edited.",
+      "states": [
+        "empty",
+        "loaded",
+        "draft note awaiting confirmation"
+      ],
+      "edge": [
+        "Note deleted: it is soft-deleted, with an audit entry kept.",
+        "Call recorded without consent recorded: the summary is blocked.",
+        "Very long timeline: paged, with a jump-to-date control.",
+        "Backdated note: displays its stated date but sorts with a 'entered later' marker.",
+        "Private task or private note: excluded from the timeline for everyone but creator, assignee and admins."
+      ],
+      "reg": "Notes may become evidence and must be preserved. Consent is required to record calls (verify for Canada and Ontario). Privilege marking applies.",
+      "mock": {
+        "kind": "timeline",
+        "columns": [
+          "When",
+          "Who",
+          "What"
+        ],
+        "rows": [
+          [
+            "2026-10-09 16:12",
+            "agent",
+            "Filed email from D. Osei (Brampton & Vale) to the matter; proposed 0.2h review entry"
+          ],
+          [
+            "2026-10-09 11:40",
+            "Meraf Abay",
+            "Note: client confirmed two witnesses, names to follow"
+          ],
+          [
+            "2026-10-08 09:05",
+            "Linda Kassim",
+            "Approved G7: limitation 2026-12-02"
+          ],
+          [
+            "2026-10-07 14:30",
+            "agent",
+            "Stage proposal: Intake complete -> Pleadings (evidence: signed engagement letter)"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-financial-summary",
+      "name": "Matter financial summary",
+      "route": "/matters/:id/financial",
+      "who": [
+        "lawyer",
+        "clerk",
+        "admin"
+      ],
+      "purpose": "Shows the money position of one matter at a glance (read-only here) and links to billing and trust.",
+      "layout": "Tiles: Unbilled time, Unbilled disbursements, Outstanding AR, Trust balance, Budget used. Below: recent bills and recent trust transactions, with links to the billing and trust areas.",
+      "fields": [
+        {
+          "name": "unbilled_time",
+          "type": "money",
+          "required": true
+        },
+        {
+          "name": "unbilled_disbursements",
+          "type": "money",
+          "required": true
+        },
+        {
+          "name": "ar_outstanding",
+          "type": "money",
+          "required": true
+        },
+        {
+          "name": "trust_balance",
+          "type": "money",
+          "required": true,
+          "note": "Taken from the client trust ledger and never computed here."
+        },
+        {
+          "name": "retainer_floor",
+          "type": "money",
+          "required": false
+        },
+        {
+          "name": "budget",
+          "type": "money",
+          "required": false
+        },
+        {
+          "name": "fee_arrangement",
+          "type": "enum",
+          "required": true
+        }
+      ],
+      "actions": [
+        {
+          "name": "Request retainer top-up",
+          "by": "agent",
+          "gate": "approve",
+          "note": "Drafts the trust request. A lawyer approves before it is sent."
+        },
+        {
+          "name": "Start bill draft",
+          "by": "human",
+          "gate": "none",
+          "note": "Hands off to the billing area (G-B2)."
+        },
+        {
+          "name": "Flag budget overrun",
+          "by": "agent",
+          "gate": "none"
+        }
+      ],
+      "agent": "The agent watches trust against the retainer floor and budget against estimate. When either crosses its threshold, it drafts a top-up request or a budget update for the client.",
+      "gate": "No money moves from this screen. Client-facing requests (top-up, budget update) need lawyer approval.",
+      "states": [
+        "no activity",
+        "normal",
+        "below retainer floor",
+        "over budget",
+        "trust access denied (tiles hidden)"
+      ],
+      "edge": [
+        "Trust is negative on the ledger: show it as a critical BL9 exception and escalate. This should never happen.",
+        "Contingency matter: show disbursements and the accrued fee estimate, not hourly WIP.",
+        "The viewer's rates.view capability is 'own' or 'none': other timekeepers' rates are hidden on this screen and in its export; totals still show."
+      ],
+      "reg": "BL9: per-client trust ledger, no overdrawn client balances (verify). HST on fees and disbursements.",
+      "mock": {
+        "kind": "ledger",
+        "columns": [
+          "Item",
+          "Amount"
+        ],
+        "rows": [
+          [
+            "Unbilled time",
+            "$4,180.00"
+          ],
+          [
+            "Unbilled disbursements",
+            "$312.40"
+          ],
+          [
+            "Outstanding AR",
+            "$0.00"
+          ],
+          [
+            "Trust balance",
+            "$2,500.00"
+          ],
+          [
+            "Budget used",
+            "38% of $18,000"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "contact-list",
+      "name": "Contacts",
+      "route": "/contacts",
+      "who": [
+        "lawyer",
+        "clerk",
+        "paralegal",
+        "admin"
+      ],
+      "purpose": "Directory of people and organizations, with duplicate review.",
+      "layout": "Tabs: People, Organizations, Possible duplicates. Search and filters (type, tag, has active matters, role). Table.",
+      "fields": [
+        {
+          "name": "type",
+          "type": "enum(person,organization)",
+          "required": true
+        },
+        {
+          "name": "display_name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "emails",
+          "type": "list<email>",
+          "required": false
+        },
+        {
+          "name": "phones",
+          "type": "list<phone>",
+          "required": false
+        },
+        {
+          "name": "active_matters",
+          "type": "count",
+          "required": false
+        },
+        {
+          "name": "roles_summary",
+          "type": "text",
+          "required": false,
+          "note": "Example: 'client 2, adverse 1'."
+        },
+        {
+          "name": "tags",
+          "type": "list<text>",
+          "required": false
+        },
+        {
+          "name": "is_client",
+          "type": "bool",
+          "required": false,
+          "note": "Quick tab: clients | all contacts | companies | people."
+        },
+        {
+          "name": "company",
+          "type": "ref",
+          "required": false,
+          "note": "For people: their organization."
+        },
+        {
+          "name": "archived_tab",
+          "type": "view",
+          "required": false,
+          "note": "Archived contacts with restore. Archiving is our delete: history and the conflict index stay. A true erasure (privacy request) leaves a name-only conflict stub."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Create contact",
+          "by": "human",
+          "gate": "none",
+          "note": "A duplicate check runs on save."
+        },
+        {
+          "name": "Propose contact from email or document",
+          "by": "agent",
+          "gate": "none",
+          "note": "Created in 'proposed' state until it is used on a matter."
+        },
+        {
+          "name": "Merge duplicates",
+          "by": "human",
+          "gate": "approve",
+          "note": "A merge rewrites conflict data, so a lawyer approves it. It is reversible for 30 days."
+        },
+        {
+          "name": "Propose merge",
+          "by": "agent",
+          "gate": "approve"
+        },
+        {
+          "name": "Import contacts",
+          "by": "human",
+          "gate": "approve",
+          "note": "Opens contact-import."
+        },
+        {
+          "name": "Bulk tag",
+          "by": "human",
+          "gate": "none",
+          "note": ""
+        },
+        {
+          "name": "Bulk delete",
+          "by": "human",
+          "gate": "approve",
+          "note": "Admin plus lawyer; blocked for any contact on a matter, a bill, a trust entry, a note or a conflict record. Deleting instead archives and keeps the conflict index entry."
+        },
+        {
+          "name": "Export vCard or CSV",
+          "by": "human",
+          "gate": "none",
+          "note": "Audit-logged."
+        },
+        {
+          "name": "Restore archived contact",
+          "by": "human",
+          "gate": "none",
+          "note": "Restores the contact and its links; logged."
+        }
+      ],
+      "agent": "The agent finds likely duplicates by name similarity, email, phone and company registration number. It enriches organization records from public registries where the firm allows it, and proposes merges along with the reasons.",
+      "gate": "A lawyer approves every merge and every deletion, because both change what the conflict check sees.",
+      "states": [
+        "empty",
+        "loaded",
+        "duplicates pending",
+        "merge pending approval"
+      ],
+      "edge": [
+        "Two people genuinely share a name: the user marks them 'not a duplicate', which suppresses future proposals.",
+        "Deleting a contact who has matter history: blocked. Archive it instead.",
+        "A PIPEDA access request: export everything held on the contact.",
+        "Contact referenced by a closed matter: may be archived, never hard-deleted, so later conflict checks still find it.",
+        "Bulk delete selection mixes free and linked contacts: free ones archived, linked ones listed as refused."
+      ],
+      "reg": "Contacts feed conflict checks (RPC 3.4). PIPEDA applies to personal information. Prospective-client information is retained for conflicts even when the firm declines.",
+      "mock": {
+        "kind": "table",
+        "columns": [
+          "Name",
+          "Type",
+          "Email",
+          "Active matters",
+          "Roles"
+        ],
+        "rows": [
+          [
+            "Selam Tesfaye",
+            "Person",
+            "s.tesfaye@example.ca",
+            "1",
+            "client 1"
+          ],
+          [
+            "Northgate Rentals Inc.",
+            "Organization",
+            "legal@northgate.example",
+            "1",
+            "adverse 1"
+          ],
+          [
+            "Brampton & Vale LLP",
+            "Organization",
+            "info@bvlaw.example",
+            "3",
+            "opposing counsel 3"
+          ],
+          [
+            "Chidi Okafor",
+            "Person",
+            "chidi.o@example.ca",
+            "1",
+            "client 1"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "contact-detail",
+      "name": "Contact detail",
+      "route": "/contacts/:id",
+      "who": [
+        "lawyer",
+        "clerk",
+        "paralegal"
+      ],
+      "purpose": "One person or organization: details, relationships, roles across matters, and ID status.",
+      "layout": "Header with name, type and ID-verification badge. Sections: Details, Relationships (graph and list), Roles on matters, Communications, Custom fields.",
+      "fields": [
+        {
+          "name": "legal_name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "aliases",
+          "type": "list<text>",
+          "required": false,
+          "note": "Former names, trade names. Used by the conflict check."
+        },
+        {
+          "name": "date_of_birth",
+          "type": "date",
+          "required": false,
+          "note": "Person only. Restricted field."
+        },
+        {
+          "name": "occupation",
+          "type": "text",
+          "required": false,
+          "note": "Person only. Part of the By-Law 7.1 identification record (verify)."
+        },
+        {
+          "name": "addresses",
+          "type": "list<address>",
+          "required": false
+        },
+        {
+          "name": "org_number",
+          "type": "text",
+          "required": false,
+          "note": "Ontario corporation number or BN."
+        },
+        {
+          "name": "relationships",
+          "type": "list<Relationship>",
+          "required": false,
+          "note": "Examples: spouse, parent, director of, subsidiary of, employee of, member of firm."
+        },
+        {
+          "name": "id_verification",
+          "type": "ref IdVerification",
+          "required": false,
+          "note": "Status only on this screen. The documents sit in the ID area."
+        },
+        {
+          "name": "preferred_language",
+          "type": "enum(en,fr,other)",
+          "required": false
+        },
+        {
+          "name": "type",
+          "type": "enum",
+          "required": true,
+          "note": "person | organization"
+        },
+        {
+          "name": "prefix_title",
+          "type": "text",
+          "required": false,
+          "note": ""
+        },
+        {
+          "name": "emails",
+          "type": "list",
+          "required": false,
+          "note": "Each with type work | home | other and a primary flag."
+        },
+        {
+          "name": "phones",
+          "type": "list",
+          "required": false,
+          "note": "Each typed; primary flag."
+        },
+        {
+          "name": "websites",
+          "type": "list",
+          "required": false,
+          "note": ""
+        },
+        {
+          "name": "employees",
+          "type": "ref[]",
+          "required": false,
+          "note": "For organizations: people linked as staff, with title."
+        },
+        {
+          "name": "tags",
+          "type": "list",
+          "required": false,
+          "note": ""
+        },
+        {
+          "name": "custom_fields",
+          "type": "map",
+          "required": false,
+          "note": "Firm-wide contact field sets, see contact-field-settings."
+        },
+        {
+          "name": "portal_access",
+          "type": "enum",
+          "required": false,
+          "note": "none | invited | active; set from the client portal, shown here read-only."
+        },
+        {
+          "name": "billing_defaults",
+          "type": "ref",
+          "required": false,
+          "note": "Client-specific rates per user or team, owned by billing. Precedence follows billing.json; Clio's documented order is entry custom rate > flat rate > matter rate > client rate > activity rate > user default."
+        },
+        {
+          "name": "notes",
+          "type": "list",
+          "required": false,
+          "note": "Contact-level notes."
+        },
+        {
+          "name": "roles_across_matters",
+          "type": "list<ref MatterRole>",
+          "required": false,
+          "note": "Grouped as client of, party to, counsel on, other. Each row links the matter; walled matters count as 'restricted matter' with no name."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Edit details",
+          "by": "human",
+          "gate": "none",
+          "note": "A change to legal name or aliases re-runs conflict indexing."
+        },
+        {
+          "name": "Add relationship",
+          "by": "human",
+          "gate": "none"
+        },
+        {
+          "name": "Propose relationship",
+          "by": "agent",
+          "gate": "approve",
+          "note": "Example: 'director of Northgate Rentals Inc.', cited from a corporate profile."
+        },
+        {
+          "name": "Request ID",
+          "by": "agent",
+          "gate": "approve",
+          "note": "Sends a portal request. G4 applies afterwards."
+        },
+        {
+          "name": "Open communications for this contact",
+          "by": "human",
+          "gate": "none",
+          "note": "Calls, emails and messages not tied to a matter land here."
+        },
+        {
+          "name": "Archive contact",
+          "by": "human",
+          "gate": "approve",
+          "note": "Same gate as delete (G-CM); contact stays in the conflict index."
+        }
+      ],
+      "agent": "The agent keeps aliases and relationships current from documents and public registries, citing each source. It warns when a new relationship links this contact to an adverse party on any open matter.",
+      "gate": "A lawyer approves agent-proposed relationships, because they change conflict results. Direct edits by staff are logged.",
+      "states": [
+        "proposed (not on any matter)",
+        "active",
+        "archived"
+      ],
+      "edge": [
+        "Legal name change: keep the old name as an alias and re-run conflict matching across open matters.",
+        "Relationship creates a new conflict on an open matter: raise an alert to the responsible lawyer.",
+        "Someone without access opens a restricted field (DOB, ID): the value is masked.",
+        "Organization renamed (amalgamation): old name kept as alias so conflict search still hits it.",
+        "Person leaves an organization: employment end-dated, not removed."
+      ],
+      "reg": "BL7.1 identification fields (verify). RPC 3.4 related persons and entities. PIPEDA minimisation: collect only what is needed.",
+      "mock": {
+        "kind": "detail",
+        "columns": [
+          "Section",
+          "Content"
+        ],
+        "rows": [
+          [
+            "Identity",
+            "Northgate Rentals Inc., Ont. corp. no. 00XXXXXX (fictional)"
+          ],
+          [
+            "Aliases",
+            "Northgate Property Mgmt"
+          ],
+          [
+            "Relationships",
+            "Director: Peter Lund; Parent: Northgate Holdings Ltd."
+          ],
+          [
+            "Roles",
+            "Adverse party on 2026-0142"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "practice-area-settings",
+      "name": "Practice areas, custom fields and stages",
+      "route": "/settings/practice-areas/:area",
+      "who": [
+        "admin",
+        "lawyer"
+      ],
+      "purpose": "Defines, for each practice area, its custom field set, stage list, default task plan and conflict-relevant roles.",
+      "layout": "List of areas on the left. On the right, tabs: Fields (drag to reorder), Stages (ordered list with flags), Roles, Defaults. The agent's suggestions sit in a side panel.",
+      "fields": [
+        {
+          "name": "area_name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "field_defs",
+          "type": "list<{label,key,type(text|number|date|time|money|enum|contact|bool),required,options,help}>",
+          "required": false
+        },
+        {
+          "name": "stages",
+          "type": "list<{name,order,expected_days,flags(client-facing|billing|closing),entry_criteria}>",
+          "required": true
+        },
+        {
+          "name": "default_roles",
+          "type": "list<role>",
+          "required": false
+        },
+        {
+          "name": "default_task_template",
+          "type": "ref TaskTemplate",
+          "required": false
+        },
+        {
+          "name": "default_billing_method",
+          "type": "enum",
+          "required": false
+        },
+        {
+          "name": "field_rules",
+          "type": "object",
+          "required": false,
+          "note": "Per field: required yes/no, default-shown yes/no, picklist options, help text, 64-char name limit."
+        },
+        {
+          "name": "field_type",
+          "type": "enum",
+          "required": true,
+          "note": "text | long text | number | money | date | time | picklist | yes/no | contact ref | matter ref | email | URL. Every Clio custom field type maps 1:1, including time of day, so a Clio import loses no field."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Add or edit field",
+          "by": "human",
+          "gate": "approve",
+          "note": "An admin edits it and a lawyer approves before the change goes live. A field type cannot change once it holds data."
+        },
+        {
+          "name": "Add or reorder stages",
+          "by": "human",
+          "gate": "approve"
+        },
+        {
+          "name": "Suggest starter set",
+          "by": "agent",
+          "gate": "approve",
+          "note": "Ontario-flavoured defaults, e.g. Real estate: closing date, LRO no., PIN; Family: separation date, FRO no.; Estates: date of death, estate value (verify field names)."
+        },
+        {
+          "name": "Retire a field or picklist option",
+          "by": "human",
+          "gate": "approve",
+          "note": "Retired values stay on old matters, read-only; cannot be picked again."
+        },
+        {
+          "name": "Make a field required",
+          "by": "human",
+          "gate": "approve",
+          "note": "Preview shows how many open matters would become non-compliant; they are flagged, not blocked."
+        }
+      ],
+      "agent": "The agent proposes a starter field set and stage list for each area. It spots fields that are never filled in, or free-text values that are always the same, and suggests turning those into enums.",
+      "gate": "A lawyer approves configuration changes before they go live, because required fields and stage flags change what the agent may do.",
+      "states": [
+        "no areas",
+        "draft config",
+        "pending approval",
+        "live"
+      ],
+      "edge": [
+        "Field deleted while it holds data: hide it and keep the data. Hard delete is not allowed.",
+        "A required field is added to an area with open matters: existing matters show it as missing, and nothing is blocked.",
+        "Stage renamed: history keeps the old label alongside the id.",
+        "Field made required while a bulk import is pending: import validates against the new rule and reports rows.",
+        "Renaming a field used in saved views, templates and document merge fields: references follow the field id, not the name.",
+        "Clio import brings a custom field type we do not support: the import dry run lists it and refuses that field rather than coercing it to text silently."
+      ],
+      "reg": "",
+      "mock": {
+        "kind": "table",
+        "columns": [
+          "Area",
+          "Field",
+          "Type",
+          "Required"
+        ],
+        "rows": [
+          [
+            "Real estate",
+            "Closing date",
+            "date",
+            "yes"
+          ],
+          [
+            "Real estate",
+            "Property PIN",
+            "text",
+            "yes"
+          ],
+          [
+            "Civil litigation",
+            "Incident date",
+            "date",
+            "yes"
+          ],
+          [
+            "Estates",
+            "Date of death",
+            "date",
+            "yes"
+          ],
+          [
+            "Family",
+            "Date of separation",
+            "date",
+            "no"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "global-search",
+      "name": "Global search",
+      "route": "/search?q=",
+      "who": [
+        "lawyer",
+        "clerk",
+        "paralegal",
+        "admin"
+      ],
+      "purpose": "Search, or ask a question, across matters, contacts, documents, notes, emails and events, scoped by permission.",
+      "layout": "Command bar (keyboard shortcut) with typeahead grouped by type. The full results page has a type facet on the left and results on the right. An answer card at the top appears for questions.",
+      "fields": [
+        {
+          "name": "q",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "types",
+          "type": "list<enum(matter,contact,document,note,email,event,task,bill)>",
+          "required": false
+        },
+        {
+          "name": "matter_scope",
+          "type": "ref Matter",
+          "required": false
+        },
+        {
+          "name": "date_range",
+          "type": "daterange",
+          "required": false
+        },
+        {
+          "name": "include_closed",
+          "type": "bool",
+          "required": false,
+          "note": "Default off for browsing, always on when run as a conflict check."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Jump to record",
+          "by": "human",
+          "gate": "none"
+        },
+        {
+          "name": "Answer question with citations",
+          "by": "agent",
+          "gate": "none",
+          "note": "Uses only records the user can read."
+        },
+        {
+          "name": "Run as conflict check",
+          "by": "human",
+          "gate": "none",
+          "note": "Hands off to the conflict area. A search is not a recorded conflict check."
+        }
+      ],
+      "agent": "The agent turns natural-language questions (for example, 'which real estate closings next week still lack a title search') into structured queries plus a cited answer. It ranks results by recency and by the user's matters.",
+      "gate": "none",
+      "states": [
+        "idle",
+        "typing (typeahead)",
+        "results",
+        "no results",
+        "answer with citations"
+      ],
+      "edge": [
+        "A walled matter matches the query: it is excluded completely, including from counts.",
+        "Results include privileged documents: show the privilege badge.",
+        "Search used to fish for conflicts without a recorded check: point the user to the conflict check.",
+        "Search hit in a walled matter: excluded entirely, not counted in totals."
+      ],
+      "reg": "Ethical walls and confidentiality (RPC 3.3, verify). Search queries are audit-logged without storing their text in platform metadata.",
+      "mock": {
+        "kind": "table",
+        "columns": [
+          "Type",
+          "Result",
+          "Context"
+        ],
+        "rows": [
+          [
+            "Matter",
+            "2026-0142 Tesfaye v. Northgate Rentals",
+            "Civil litigation, Pleadings"
+          ],
+          [
+            "Contact",
+            "Northgate Rentals Inc.",
+            "Adverse on 1 matter"
+          ],
+          [
+            "Document",
+            "Notice letter to landlord.pdf",
+            "2026-0142, 2025-01-10"
+          ],
+          [
+            "Email",
+            "Re: stairwell lighting",
+            "From D. Osei, 2026-10-09"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-templates",
+      "name": "Matter templates",
+      "route": "/settings/matter-templates",
+      "who": [
+        "admin",
+        "lawyer"
+      ],
+      "purpose": "Presets that fill a new matter: practice area, fields, billing, folders, team roles and the work template, with one firm default.",
+      "layout": "Left: template list grouped by practice area, default marked. Main: preset sections (details, fields, billing, folders, team, work plan). Right: 'used by N matters'.",
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "note": ""
+        },
+        {
+          "name": "practice_area",
+          "type": "ref",
+          "required": true,
+          "note": ""
+        },
+        {
+          "name": "is_default",
+          "type": "bool",
+          "required": false,
+          "note": "One firm-wide default applied when the user picks none."
+        },
+        {
+          "name": "description_pattern",
+          "type": "text",
+          "required": false,
+          "note": "e.g. '{client} purchase of {property}'."
+        },
+        {
+          "name": "preset_fields",
+          "type": "map",
+          "required": false,
+          "note": "Custom field defaults."
+        },
+        {
+          "name": "billing_preset",
+          "type": "object",
+          "required": false,
+          "note": "Method, rate table ref, retainer floor; billing area validates."
+        },
+        {
+          "name": "folder_structure",
+          "type": "list",
+          "required": false,
+          "note": "Owned by documents area."
+        },
+        {
+          "name": "team_roles",
+          "type": "list",
+          "required": false,
+          "note": "Roles to fill, not names: responsible lawyer, clerk."
+        },
+        {
+          "name": "work_template",
+          "type": "ref",
+          "required": false,
+          "note": "From work.json workflow-templates."
+        },
+        {
+          "name": "automation_on_open",
+          "type": "list",
+          "required": false,
+          "note": "Which work automation rules fire on open."
+        },
+        {
+          "name": "template_cap",
+          "type": "number",
+          "required": false,
+          "note": "No hard cap planned. Clio limits a firm to 200 templates; an import above that is not a problem for us."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Create or edit template",
+          "by": "human",
+          "gate": "none",
+          "note": ""
+        },
+        {
+          "name": "Set as default",
+          "by": "human",
+          "gate": "approve",
+          "note": ""
+        },
+        {
+          "name": "Publish",
+          "by": "human",
+          "gate": "sign-off",
+          "note": "Lawyer sign-off, same as G-CF."
+        },
+        {
+          "name": "Suggest from past matters",
+          "by": "agent",
+          "gate": "none",
+          "note": "Clusters closed matters of the area and proposes presets."
+        },
+        {
+          "name": "Archive template",
+          "by": "human",
+          "gate": "none",
+          "note": ""
+        },
+        {
+          "name": "Apply to existing matters",
+          "by": "human",
+          "gate": "approve",
+          "note": "Pick one or more open matters; each gets its own add-only preview. Approval by each matter's responsible lawyer (G-AT)."
+        }
+      ],
+      "agent": "Proposes presets from recent matters of the same area; flags templates whose fields or work template were retired.",
+      "gate": "Lawyer signs off a template before it can be picked (G-CF).",
+      "states": [
+        "empty",
+        "draft",
+        "published",
+        "default",
+        "archived"
+      ],
+      "edge": [
+        "Template edited after matters were opened from it: existing matters unchanged.",
+        "Template references a retired field: publish blocked until fixed.",
+        "Firm hits a template count limit: none set by us; warn above 50 as a hygiene signal."
+      ],
+      "reg": "",
+      "mock": {
+        "kind": "table",
+        "columns": [
+          "Template",
+          "Area",
+          "Default",
+          "Used by"
+        ],
+        "rows": [
+          [
+            "Residential purchase",
+            "Real estate",
+            "yes",
+            "42"
+          ],
+          [
+            "Simplified procedure claim",
+            "Civil litigation",
+            "no",
+            "9"
+          ],
+          [
+            "Uncontested divorce",
+            "Family",
+            "no",
+            "14"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-numbering",
+      "name": "Matter numbering",
+      "route": "/settings/matters/numbering",
+      "who": [
+        "admin"
+      ],
+      "purpose": "Choose the matter number pattern, the next sequence value and how names display, with a preview before anything changes.",
+      "layout": "Pattern builder with tokens, live preview of five sample matters, and a renumber impact panel.",
+      "fields": [
+        {
+          "name": "pattern",
+          "type": "text",
+          "required": true,
+          "note": "Tokens: year, sequence, practice-area code, client code, lawyer initials."
+        },
+        {
+          "name": "sequence_scope",
+          "type": "enum",
+          "required": true,
+          "note": "firm | per year | per practice area"
+        },
+        {
+          "name": "next_value",
+          "type": "number",
+          "required": true,
+          "note": ""
+        },
+        {
+          "name": "display_format",
+          "type": "enum",
+          "required": true,
+          "note": "number only | number + client | number + short name"
+        },
+        {
+          "name": "apply_to_existing",
+          "type": "bool",
+          "required": false,
+          "note": "Default off."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Preview",
+          "by": "human",
+          "gate": "none",
+          "note": ""
+        },
+        {
+          "name": "Save for new matters",
+          "by": "human",
+          "gate": "approve",
+          "note": ""
+        },
+        {
+          "name": "Renumber existing matters",
+          "by": "human",
+          "gate": "sign-off",
+          "note": "Irreversible in effect; old numbers kept as aliases and in the audit."
+        }
+      ],
+      "agent": "Checks for collisions with imported legacy numbers and lists documents and bills that print the old number.",
+      "gate": "Admin plus lawyer sign-off to renumber existing matters.",
+      "states": [
+        "current",
+        "draft change",
+        "renumber running",
+        "done"
+      ],
+      "edge": [
+        "Next value lower than an existing number: refused.",
+        "Renumber after bills issued: issued bills keep the old number; the alias links them.",
+        "Two matters opened at once: sequence assigned at G-MO approval, never at draft."
+      ],
+      "reg": "LSO by-laws require records to identify each client and matter; renumbering must not break the trail to trust ledgers (verify).",
+      "mock": {
+        "kind": "form",
+        "columns": [
+          "Setting",
+          "Value"
+        ],
+        "rows": [
+          [
+            "Pattern",
+            "{YYYY}-{SEQ:4}"
+          ],
+          [
+            "Next value",
+            "0118"
+          ],
+          [
+            "Display",
+            "number + short name"
+          ],
+          [
+            "Preview",
+            "2026-0118 Tesfaye purchase"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-access",
+      "name": "Matter access and followers",
+      "route": "/matters/:id/access",
+      "who": [
+        "lawyer",
+        "admin"
+      ],
+      "purpose": "Who can see and edit this matter (everyone, team, named users or groups), who follows it, and any wall in force.",
+      "layout": "Visibility selector at top; table of users and groups with level; followers list; wall banner if any.",
+      "fields": [
+        {
+          "name": "visibility",
+          "type": "enum",
+          "required": true,
+          "note": "firm | team only | named users and groups"
+        },
+        {
+          "name": "grants",
+          "type": "list",
+          "required": false,
+          "note": "user or group + level: view | edit | manage A grant can name a user or a team (access.json Teams). No cap on grants; Clio caps at 20 users and groups per matter."
+        },
+        {
+          "name": "followers",
+          "type": "ref[]",
+          "required": false,
+          "note": ""
+        },
+        {
+          "name": "wall",
+          "type": "ref",
+          "required": false,
+          "note": "Read-only link to the conflicts ethical wall."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Change visibility",
+          "by": "human",
+          "gate": "approve",
+          "note": "Responsible lawyer approves; audit-logged."
+        },
+        {
+          "name": "Add follower",
+          "by": "human",
+          "gate": "none",
+          "note": ""
+        },
+        {
+          "name": "Request access",
+          "by": "human",
+          "gate": "approve",
+          "note": "A user asks; responsible lawyer decides."
+        },
+        {
+          "name": "Flag oversharing",
+          "by": "agent",
+          "gate": "none",
+          "note": "Agent notes when a sensitive matter (family, criminal) is firm-visible."
+        }
+      ],
+      "agent": "Flags matters whose visibility is wider than the area default and users with access who never touched the file.",
+      "gate": "Responsible lawyer approves any widening of access.",
+      "states": [
+        "firm-visible",
+        "restricted",
+        "walled"
+      ],
+      "edge": [
+        "Grant conflicts with an ethical wall: wall wins, grant refused with a reason.",
+        "Responsible lawyer leaves the firm: access falls to the supervising lawyer, not to all.",
+        "A team on a grant is archived: the agent lists every matter that still names it and proposes a replacement, so no orphan grants remain.",
+        "A user is offboarded: their grants and responsible roles on open and closed matters go to the handover list in access user-detail; the matter is never left without a responsible lawyer."
+      ],
+      "reg": "Confidentiality (RPC 3.3) and walls (RPC 3.4 commentary) (verify exact cites).",
+      "mock": {
+        "kind": "table",
+        "columns": [
+          "Who",
+          "Level",
+          "Since"
+        ],
+        "rows": [
+          [
+            "Linda Kassim",
+            "manage",
+            "2026-03-02"
+          ],
+          [
+            "Meraf Abay",
+            "edit",
+            "2026-03-02"
+          ],
+          [
+            "Family group",
+            "view",
+            "2026-03-05"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "contact-import",
+      "name": "Contact import",
+      "route": "/contacts/import",
+      "who": [
+        "admin",
+        "clerk"
+      ],
+      "purpose": "Bring contacts in from CSV, vCard or a prior system, mapped and de-duplicated before they reach the conflict index.",
+      "layout": "Stepper: upload, map columns, review duplicates, review conflicts impact, confirm.",
+      "fields": [
+        {
+          "name": "file",
+          "type": "file",
+          "required": true,
+          "note": "CSV (including Clio's migration templates as-is) or vCard."
+        },
+        {
+          "name": "mapping",
+          "type": "map",
+          "required": true,
+          "note": "Source column to contact field, including custom fields."
+        },
+        {
+          "name": "dedupe_rule",
+          "type": "enum",
+          "required": true,
+          "note": "skip | merge proposal | create anyway"
+        },
+        {
+          "name": "default_tags",
+          "type": "list",
+          "required": false,
+          "note": ""
+        },
+        {
+          "name": "source_format",
+          "type": "enum",
+          "required": true,
+          "note": "generic CSV | Clio contacts template | Clio related-contacts template | Clio custom-fields template | vCard"
+        },
+        {
+          "name": "companies_to_create",
+          "type": "list",
+          "required": false,
+          "note": "Dry run lists every organization that would be created from company names on person rows, so none appear silently."
+        },
+        {
+          "name": "import_order",
+          "type": "list",
+          "required": false,
+          "note": "Enforced order for a Clio import: contacts, then custom field values, then matters, then related contacts. A later file is refused until the earlier one has committed."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Auto-map columns",
+          "by": "agent",
+          "gate": "none",
+          "note": ""
+        },
+        {
+          "name": "Dry run",
+          "by": "human",
+          "gate": "none",
+          "note": "Shows counts: new, duplicate, invalid."
+        },
+        {
+          "name": "Commit import",
+          "by": "human",
+          "gate": "approve",
+          "note": "Lawyer or admin approves because new names enter conflict search."
+        },
+        {
+          "name": "Undo import",
+          "by": "human",
+          "gate": "approve",
+          "note": "Allowed until any imported contact is linked to a matter."
+        }
+      ],
+      "agent": "Maps columns, normalizes names and phones, proposes merges with existing contacts.",
+      "gate": "Approve commit (G-CM).",
+      "states": [
+        "uploaded",
+        "mapped",
+        "dry run",
+        "committed",
+        "undone"
+      ],
+      "edge": [
+        "Required custom field missing in file: row imports with field blank and a flag, rather than failing the whole file.",
+        "Special characters or encodings garbled: row-level error list.",
+        "Very large file: runs as a job with progress.",
+        "A Clio related-contacts file arrives before its matters exist: refuse the rows and point to the missing matters import.",
+        "A person row names a company that matches an existing organization only loosely: propose a link, never create a second company without a tick."
+      ],
+      "reg": "PIPEDA: imported personal data needs a lawful purpose (verify).",
+      "mock": {
+        "kind": "table",
+        "columns": [
+          "Row",
+          "Name",
+          "Result"
+        ],
+        "rows": [
+          [
+            "12",
+            "Selam Haile",
+            "new"
+          ],
+          [
+            "13",
+            "Haile, Selam",
+            "merge proposal"
+          ],
+          [
+            "14",
+            "(blank)",
+            "invalid"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "contact-field-settings",
+      "name": "Contact fields and tags",
+      "route": "/settings/contacts/fields",
+      "who": [
+        "admin"
+      ],
+      "purpose": "Firm-wide custom fields and field sets for contacts, plus the tag list for contacts and matters.",
+      "layout": "Two tabs: fields and sets; tags. Each row shows usage count.",
+      "fields": [
+        {
+          "name": "field",
+          "type": "object",
+          "required": true,
+          "note": "name, type, required, default-shown, options"
+        },
+        {
+          "name": "field_set",
+          "type": "object",
+          "required": false,
+          "note": "Grouped fields; may be default for all people or organizations."
+        },
+        {
+          "name": "tag",
+          "type": "text",
+          "required": false,
+          "note": "name and colour"
+        }
+      ],
+      "actions": [
+        {
+          "name": "Add or edit field",
+          "by": "human",
+          "gate": "none",
+          "note": ""
+        },
+        {
+          "name": "Retire field",
+          "by": "human",
+          "gate": "approve",
+          "note": ""
+        },
+        {
+          "name": "Merge tags",
+          "by": "human",
+          "gate": "none",
+          "note": ""
+        },
+        {
+          "name": "Suggest cleanup",
+          "by": "agent",
+          "gate": "none",
+          "note": "Near-duplicate tags and unused fields."
+        }
+      ],
+      "agent": "Proposes merging near-duplicate tags and retiring unused fields.",
+      "gate": "Approve retirement of a field holding data.",
+      "states": [
+        "active",
+        "retired"
+      ],
+      "edge": [
+        "Tag used in a saved view is merged: views follow."
+      ],
+      "reg": "",
+      "mock": {
+        "kind": "table",
+        "columns": [
+          "Field",
+          "Type",
+          "Applies to",
+          "Used"
+        ],
+        "rows": [
+          [
+            "Preferred pronoun",
+            "text",
+            "people",
+            "61"
+          ],
+          [
+            "Business number",
+            "text",
+            "organizations",
+            "33"
+          ],
+          [
+            "Referral source",
+            "picklist",
+            "all",
+            "120"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "firm-feed",
+      "name": "Firm activity feed",
+      "route": "/feed",
+      "who": [
+        "lawyer",
+        "clerk",
+        "paralegal",
+        "admin"
+      ],
+      "purpose": "Firm-wide, permission-filtered stream of what changed across matters, contacts, work, deadlines and bills, by humans and the agent.",
+      "layout": "Filter bar (person, agent, object type, matter, date). Main: grouped stream. Each row links to the object.",
+      "fields": [
+        {
+          "name": "actor",
+          "type": "ref",
+          "required": true,
+          "note": "user or agent"
+        },
+        {
+          "name": "object_type",
+          "type": "enum",
+          "required": true,
+          "note": "matter | contact | note | work item | event | deadline | document | bill | time"
+        },
+        {
+          "name": "verb",
+          "type": "enum",
+          "required": true,
+          "note": "created | updated | deleted | approved | rejected"
+        },
+        {
+          "name": "at",
+          "type": "datetime",
+          "required": true,
+          "note": ""
+        },
+        {
+          "name": "diff",
+          "type": "object",
+          "required": false,
+          "note": "Field-level before/after where allowed."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Filter and save feed view",
+          "by": "human",
+          "gate": "none",
+          "note": ""
+        },
+        {
+          "name": "Summarize this week",
+          "by": "agent",
+          "gate": "none",
+          "note": "Narrative digest of the filtered feed."
+        },
+        {
+          "name": "Export",
+          "by": "human",
+          "gate": "approve",
+          "note": "Admin; audit evidence."
+        }
+      ],
+      "agent": "Writes daily narrative summaries; hides noise (bulk import rows collapse into one entry).",
+      "gate": "none",
+      "states": [
+        "empty",
+        "live"
+      ],
+      "edge": [
+        "Private tasks, private notes and walled matters never appear.",
+        "Deleted object: entry remains with a tombstone, no content."
+      ],
+      "reg": "Not the compliance audit log (conflicts area owns that); this is a working feed.",
+      "mock": {
+        "kind": "timeline",
+        "columns": [
+          "When",
+          "Who",
+          "What"
+        ],
+        "rows": [
+          [
+            "09:12",
+            "Agent",
+            "Proposed party 'Northlake Insurance' on 2026-0112"
+          ],
+          [
+            "09:30",
+            "Linda Kassim",
+            "Approved stage move to Discovery on 2026-0098"
+          ],
+          [
+            "10:05",
+            "Ayo Ewebiyi",
+            "Added note on Bekele contact"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-access-report",
+      "name": "Matter access report",
+      "route": "/settings/matter-access-report",
+      "who": [
+        "admin",
+        "owner",
+        "lawyer"
+      ],
+      "purpose": "Lets an admin see how every matter is shared and fix access in bulk without ever seeing matter content.",
+      "layout": "Filter bar (visibility, practice area, has wall, team). Table of matters by number with visibility, grant count and responsible lawyer. Bulk action bar at the bottom.",
+      "fields": [
+        {
+          "name": "matter_number",
+          "type": "text",
+          "required": true,
+          "note": "Number only for admins. Names and clients are hidden; a walled matter shows 'restricted' and nothing else."
+        },
+        {
+          "name": "visibility",
+          "type": "enum",
+          "required": true,
+          "note": "firm | team only | named users and teams"
+        },
+        {
+          "name": "grant_count",
+          "type": "number",
+          "required": true,
+          "note": "Users and teams with access."
+        },
+        {
+          "name": "responsible_lawyer",
+          "type": "ref User",
+          "required": true,
+          "note": "Approver for any widening."
+        },
+        {
+          "name": "has_wall",
+          "type": "bool",
+          "required": false,
+          "note": "From conflicts; the wall itself is not editable here."
+        },
+        {
+          "name": "admin_has_access",
+          "type": "bool",
+          "required": false,
+          "note": "Whether the viewing admin is on the grant list. An admin can never add themselves here."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Filter and export the report",
+          "by": "human",
+          "gate": "none",
+          "note": "Export holds numbers and access data only."
+        },
+        {
+          "name": "Bulk change visibility",
+          "by": "human",
+          "gate": "approve",
+          "note": "Narrowing applies at once. Widening goes to each matter's responsible lawyer (G-ACC), batched under G-BK."
+        },
+        {
+          "name": "Bulk add or remove a team",
+          "by": "human",
+          "gate": "approve",
+          "note": "Same approval path as bulk visibility."
+        },
+        {
+          "name": "Flag over-shared matters",
+          "by": "agent",
+          "gate": "none",
+          "note": "Sensitive practice areas visible firm-wide, stale grants, departed users still listed."
+        }
+      ],
+      "agent": "Weekly the agent ranks matters by access risk and proposes narrowing changes. It never proposes granting access to the admin who runs the report.",
+      "gate": "Narrowing access needs no approval. Any widening is approved per matter by its responsible lawyer (G-ACC); bulk runs also pass G-BK. Admins and the agent never approve.",
+      "states": [
+        "loaded",
+        "no restricted matters",
+        "bulk change pending approval",
+        "partially applied (some lawyers declined)"
+      ],
+      "edge": [
+        "An admin tries to grant themselves access: refused; the request goes to the responsible lawyer as an ordinary access request.",
+        "A walled matter is selected in a bulk change: it is skipped and listed; walls change only in conflicts.",
+        "A bulk widening is approved by some lawyers and declined by others: apply the approved ones and report the rest; never all-or-nothing silently."
+      ],
+      "reg": "Confidentiality (RPC 3.3) and walls (RPC 3.4). Clio lets an admin list matters they are restricted from and re-grant themselves; ours keeps the admin out of content by design.",
+      "mock": {
+        "kind": "table",
+        "columns": [
+          "Matter",
+          "Visibility",
+          "Grants",
+          "Responsible"
+        ],
+        "rows": [
+          [
+            "2026-0142",
+            "team only",
+            "3",
+            "L. Kassim"
+          ],
+          [
+            "2026-0157",
+            "restricted",
+            "-",
+            "-"
+          ],
+          [
+            "2026-0160",
+            "firm",
+            "all",
+            "M. Abay"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-ask",
+      "name": "Ask the matter",
+      "route": "/matters/:id/ask",
+      "who": [
+        "lawyer",
+        "associate",
+        "paralegal",
+        "clerk"
+      ],
+      "purpose": "Plain-language questions about one matter, answered from its own documents, emails, scans, notes and events, with every claim cited to page and line.",
+      "layout": "Question box at the top with suggested questions for the practice area. Answer panel with numbered citations; a source preview opens beside it on click. History of past questions for this matter below.",
+      "fields": [
+        {
+          "name": "question",
+          "type": "text",
+          "required": true,
+          "note": ""
+        },
+        {
+          "name": "scope",
+          "type": "enum",
+          "required": false,
+          "note": "whole matter | documents only | emails only | a chosen folder | a date range"
+        },
+        {
+          "name": "answer",
+          "type": "rich text with citations",
+          "required": true,
+          "note": "Every sentence carries at least one citation to a document page and line, an email or a note. A sentence with no source is not shown."
+        },
+        {
+          "name": "sources",
+          "type": "list<ref Document|Email|Note>",
+          "required": true,
+          "note": "With preview; scans are searched through OCR text."
+        },
+        {
+          "name": "confidence",
+          "type": "enum",
+          "required": false,
+          "note": "found | partly found | not in the file. 'Not in the file' says so instead of guessing."
+        },
+        {
+          "name": "history",
+          "type": "list",
+          "required": false,
+          "note": "Past questions and answers on this matter, visible to people with matter access."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Ask",
+          "by": "human",
+          "gate": "none",
+          "note": "Searches this matter only; walls and access apply to the sources used."
+        },
+        {
+          "name": "Save answer as a note",
+          "by": "human",
+          "gate": "approve",
+          "note": "Saved as an agent-drafted note under G-NT; the citations come with it."
+        },
+        {
+          "name": "Build a chronology from this answer",
+          "by": "human",
+          "gate": "none",
+          "note": "Opens matter-chronology filtered to the question's topic."
+        },
+        {
+          "name": "Report a wrong answer",
+          "by": "human",
+          "gate": "none",
+          "note": "Feeds the harness evals with the question, answer and the right source."
+        }
+      ],
+      "agent": "Answers only from the matter's own record. It cites to page and line, says 'not in the file' when it cannot find support, and flags conflicts between sources (two different dates for one event) instead of choosing one.",
+      "gate": "Reading needs no approval. Saving an answer into the record passes G-NT; changing a key fact from an answer goes through G-KF.",
+      "states": [
+        "empty (suggested questions)",
+        "answering",
+        "answered",
+        "not in the file",
+        "sources still processing (OCR pending)"
+      ],
+      "edge": [
+        "A source document is under a narrower restriction than the matter: it is not used, and the answer says one source was withheld.",
+        "Sources disagree: show both with citations and propose a key-fact check; never pick one silently.",
+        "A document is still being OCR'd: answer from what is ready and say which files were not searched."
+      ],
+      "reg": "Competence and supervision of technology (RPC 3.1 and 6.1, verify). Privilege stays inside the matter; nothing leaves the firm cell.",
+      "mock": {
+        "kind": "detail",
+        "columns": [
+          "Section",
+          "Content"
+        ],
+        "rows": [
+          [
+            "Question",
+            "When did the landlord first get notice of the stairwell light?"
+          ],
+          [
+            "Answer",
+            "A tenant email to the property manager on 2024-11-18 reported the light out [email 3, line 4]. The formal notice was delivered 2025-01-10 [email 14]."
+          ],
+          [
+            "Confidence",
+            "found"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "matter-chronology",
+      "name": "Matter chronology",
+      "route": "/matters/:id/chronology",
+      "who": [
+        "lawyer",
+        "associate",
+        "paralegal",
+        "clerk"
+      ],
+      "purpose": "A dated table of events built from the matter's record, each row cited to its source, ready to check and export to Word.",
+      "layout": "Toolbar (build or refresh, filter by party or topic, export). Table: date, event, people, source cite, status. A source preview opens on row click.",
+      "fields": [
+        {
+          "name": "date",
+          "type": "date or date range",
+          "required": true,
+          "note": "Approximate dates are marked as such ('circa', 'week of')."
+        },
+        {
+          "name": "event",
+          "type": "text",
+          "required": true,
+          "note": "One line in the firm's own words."
+        },
+        {
+          "name": "people",
+          "type": "list<ref Contact>",
+          "required": false,
+          "note": ""
+        },
+        {
+          "name": "source",
+          "type": "citation",
+          "required": true,
+          "note": "Document page and line, email, note or event. No row without a source."
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "required": true,
+          "note": "proposed | checked | disputed. Only a person can mark a row checked."
+        },
+        {
+          "name": "conflicts_with",
+          "type": "ref",
+          "required": false,
+          "note": "Another row or a key fact with a different date for the same event."
+        }
+      ],
+      "actions": [
+        {
+          "name": "Build chronology",
+          "by": "agent",
+          "gate": "none",
+          "note": "From the whole matter or a filter; rows arrive as proposed."
+        },
+        {
+          "name": "Mark row checked or disputed",
+          "by": "human",
+          "gate": "none",
+          "note": "Logged with the user and time."
+        },
+        {
+          "name": "Add or edit a row",
+          "by": "human",
+          "gate": "none",
+          "note": "A manual row still needs a source or is labelled 'from lawyer's knowledge'."
+        },
+        {
+          "name": "Export to Word or PDF",
+          "by": "human",
+          "gate": "none",
+          "note": "Internal work product. Sending it outside the firm goes through the documents send flow and its gate."
+        },
+        {
+          "name": "Refresh with new material",
+          "by": "agent",
+          "gate": "none",
+          "note": "New rows only; checked rows are never changed, a conflict is flagged instead."
+        }
+      ],
+      "agent": "Reads every document, email, scan and note in the matter, pulls dated events, de-duplicates them and cites each. It marks contradictions and links them to key facts so the lawyer can resolve them through G-KF.",
+      "gate": "No gate to build or export internally. A checked row that changes a key fact goes through G-KF.",
+      "states": [
+        "empty",
+        "building",
+        "proposed (unchecked rows)",
+        "checked",
+        "stale (new material since last build)"
+      ],
+      "edge": [
+        "Two sources give different dates for one event: both rows kept and linked as disputed.",
+        "A source is deleted or restricted after the row was built: the row shows 'source withdrawn' and drops to proposed.",
+        "A very large matter: build in batches and show progress; never truncate silently."
+      ],
+      "reg": "Accuracy of the record (RPC 3.1, verify). Exports are work product and privileged.",
+      "mock": {
+        "kind": "table",
+        "columns": [
+          "Date",
+          "Event",
+          "Source",
+          "Status"
+        ],
+        "rows": [
+          [
+            "2024-11-18",
+            "Tenant reports stairwell light out",
+            "email 3, l.4",
+            "checked"
+          ],
+          [
+            "2024-12-02",
+            "Fall on stairwell at 88 Queen St.",
+            "intake p.1",
+            "checked"
+          ],
+          [
+            "2025-01-10",
+            "Notice delivered to landlord",
+            "email 14",
+            "proposed"
+          ]
+        ]
+      }
+    }
+  ],
+  "entities": [
+    {
+      "name": "Matter",
+      "fields": [
+        "id",
+        "number",
+        "short_name",
+        "description",
+        "client_id",
+        "practice_area_id",
+        "status",
+        "stage_id",
+        "responsible_lawyer_id",
+        "originating_lawyer_id",
+        "responsible_staff_id",
+        "open_date",
+        "close_date",
+        "billing_method",
+        "rate_table_id",
+        "budget",
+        "retainer_floor",
+        "custom_fields(jsonb)",
+        "court_file_number",
+        "court_location",
+        "limitation_date",
+        "wall_id",
+        "retention_until",
+        "legacy_number",
+        "applied_template_id"
+      ],
+      "relations": [
+        "Contact many-to-many via MatterRole",
+        "PracticeArea many-to-one",
+        "Stage many-to-one",
+        "User (team) many-to-many via TeamMember",
+        "ConflictCheck one-to-many",
+        "EngagementLetter one-to-many",
+        "Activity one-to-many",
+        "Note one-to-many",
+        "Fact one-to-many"
+      ]
+    },
+    {
+      "name": "Contact",
+      "fields": [
+        "id",
+        "type(person|organization)",
+        "legal_name",
+        "display_name",
+        "aliases[]",
+        "emails[]",
+        "phones[]",
+        "addresses[]",
+        "date_of_birth",
+        "occupation",
+        "org_number",
+        "preferred_language",
+        "tags[]",
+        "state(proposed|active|archived)",
+        "custom_fields(jsonb)",
+        "merged_into_id"
+      ],
+      "relations": [
+        "Matter many-to-many via MatterRole",
+        "Contact many-to-many via Relationship",
+        "IdVerification one-to-many"
+      ]
+    },
+    {
+      "name": "MatterRole",
+      "fields": [
+        "id",
+        "matter_id",
+        "contact_id",
+        "role",
+        "side",
+        "represented_by_role_id",
+        "conflict_relevant",
+        "conflict_check_id",
+        "start_date",
+        "end_date",
+        "proposed_by(user|agent)",
+        "approved_by",
+        "approved_at"
+      ],
+      "relations": [
+        "Matter many-to-one",
+        "Contact many-to-one",
+        "ConflictCheck many-to-one"
+      ]
+    },
+    {
+      "name": "Relationship",
+      "fields": [
+        "id",
+        "from_contact_id",
+        "to_contact_id",
+        "kind(spouse|parent|child|director_of|officer_of|shareholder_of|subsidiary_of|employee_of|member_of_firm|other)",
+        "source_ref",
+        "start_date",
+        "end_date",
+        "approved_by"
+      ],
+      "relations": [
+        "Contact both ends"
+      ]
+    },
+    {
+      "name": "PracticeArea",
+      "fields": [
+        "id",
+        "name",
+        "default_billing_method",
+        "default_task_template_id",
+        "default_roles[]",
+        "config_version",
+        "approved_by"
+      ],
+      "relations": [
+        "FieldDef one-to-many",
+        "Stage one-to-many"
+      ]
+    },
+    {
+      "name": "FieldDef",
+      "fields": [
+        "id",
+        "practice_area_id|contact_scope",
+        "key",
+        "label",
+        "type",
+        "required",
+        "options[]",
+        "help",
+        "order",
+        "hidden"
+      ],
+      "relations": [
+        "PracticeArea many-to-one"
+      ]
+    },
+    {
+      "name": "Stage",
+      "fields": [
+        "id",
+        "practice_area_id",
+        "name",
+        "order",
+        "expected_days",
+        "flags[]",
+        "entry_criteria"
+      ],
+      "relations": [
+        "PracticeArea many-to-one",
+        "StageChange one-to-many"
+      ]
+    },
+    {
+      "name": "StageChange",
+      "fields": [
+        "id",
+        "matter_id",
+        "from_stage_id",
+        "to_stage_id",
+        "evidence_refs[]",
+        "proposed_by",
+        "approved_by",
+        "at"
+      ],
+      "relations": [
+        "Matter many-to-one"
+      ]
+    },
+    {
+      "name": "Fact",
+      "fields": [
+        "id",
+        "matter_id",
+        "key",
+        "value",
+        "source_refs[]",
+        "confirmed_by",
+        "confirmed_at",
+        "superseded_by"
+      ],
+      "relations": [
+        "Matter many-to-one"
+      ]
+    },
+    {
+      "name": "Note",
+      "fields": [
+        "id",
+        "matter_id",
+        "author_id|agent",
+        "body",
+        "visibility",
+        "privileged",
+        "version",
+        "confirmed_by",
+        "deleted_at"
+      ],
+      "relations": [
+        "Matter many-to-one"
+      ]
+    },
+    {
+      "name": "Activity",
+      "fields": [
+        "id",
+        "matter_id",
+        "type",
+        "actor",
+        "at",
+        "summary",
+        "source_ref",
+        "gate_id"
+      ],
+      "relations": [
+        "Matter many-to-one (append-only)"
+      ]
+    },
+    {
+      "name": "EthicalWall",
+      "fields": [
+        "id",
+        "matter_id",
+        "excluded_user_ids[]",
+        "reason",
+        "created_by",
+        "created_at"
+      ],
+      "relations": [
+        "Matter one-to-one"
+      ]
+    },
+    {
+      "name": "SavedView",
+      "fields": [
+        "id",
+        "owner_id",
+        "name",
+        "filters",
+        "sort",
+        "shared"
+      ],
+      "relations": [
+        "User many-to-one"
+      ]
+    },
+    {
+      "name": "MatterTemplate",
+      "fields": [
+        "id",
+        "name",
+        "practice_area_id",
+        "is_default",
+        "preset_fields",
+        "billing_preset",
+        "folder_structure",
+        "team_roles",
+        "work_template_id",
+        "status"
+      ],
+      "relations": [
+        "PracticeArea one-to-many",
+        "WorkTemplate many-to-one"
+      ]
+    },
+    {
+      "name": "MatterLink",
+      "fields": [
+        "id",
+        "matter_a",
+        "matter_b",
+        "reason",
+        "created_by"
+      ],
+      "relations": [
+        "Matter many-to-many with Matter"
+      ]
+    },
+    {
+      "name": "MatterAccess",
+      "fields": [
+        "matter_id",
+        "principal",
+        "level",
+        "granted_by",
+        "granted_at"
+      ],
+      "relations": [
+        "Matter one-to-many",
+        "User or Group"
+      ]
+    },
+    {
+      "name": "Tag",
+      "fields": [
+        "id",
+        "name",
+        "colour",
+        "applies_to"
+      ],
+      "relations": [
+        "Matter and Contact many-to-many"
+      ]
+    },
+    {
+      "name": "Group",
+      "fields": [
+        "id"
+      ],
+      "relations": [
+        "referenced by matters relations"
+      ],
+      "note": "stub added by spec lint: fields to be defined by the area owner"
+    },
+    {
+      "name": "IdVerification",
+      "fields": [
+        "id"
+      ],
+      "relations": [
+        "referenced by matters relations"
+      ],
+      "note": "stub added by spec lint: fields to be defined by the area owner"
+    }
+  ],
+  "gates": [
+    {
+      "id": "G2",
+      "name": "Conflict sign-off for a new conflict-relevant party",
+      "approver": "lawyer",
+      "blocks": "Opening the matter, and activating any adverse, co-client or related party added later."
+    },
+    {
+      "id": "G-MO",
+      "name": "Matter opening",
+      "approver": "responsible lawyer",
+      "blocks": "Matter number assignment, the task plan, trust requests and agent work on the matter."
+    },
+    {
+      "id": "G-KF",
+      "name": "Key fact or party change",
+      "approver": "responsible lawyer",
+      "blocks": "A changed incident date, court file no., party or responsible lawyer becoming authoritative, including for deadline computation."
+    },
+    {
+      "id": "G-ST",
+      "name": "Stage move with consequences",
+      "approver": "lawyer",
+      "blocks": "Moving into a stage flagged client-facing, billing or closing, along with the actions it triggers."
+    },
+    {
+      "id": "G-CM",
+      "name": "Contact merge, deletion or agent-proposed relationship",
+      "approver": "lawyer",
+      "blocks": "Any change to the data the conflict index sees."
+    },
+    {
+      "id": "G-NT",
+      "name": "Agent-drafted note or call summary",
+      "approver": "the participant (lawyer or staff)",
+      "blocks": "The note entering the matter record."
+    },
+    {
+      "id": "G-CF",
+      "name": "Practice-area configuration",
+      "approver": "lawyer",
+      "blocks": "New fields, stages or flags going live."
+    },
+    {
+      "id": "G-BK",
+      "name": "Bulk matter change",
+      "approver": "lawyer or admin",
+      "blocks": "Bulk reassignment, or bulk status and stage change."
+    },
+    {
+      "id": "G-NUM",
+      "name": "Renumber existing matters",
+      "approver": "admin + lawyer",
+      "blocks": "Any change to numbers of already-opened matters."
+    },
+    {
+      "id": "G-ACC",
+      "name": "Widen matter access",
+      "approver": "responsible lawyer",
+      "blocks": "Changing a restricted matter to wider visibility or adding grants."
+    },
+    {
+      "id": "G-AT",
+      "name": "Apply a template to an existing matter",
+      "approver": "responsible lawyer",
+      "blocks": "Adding the template's fields, folders, work items and billing preset to a matter that is already open."
+    }
+  ],
+  "agent_jobs": [
+    {
+      "name": "Matter brief refresh",
+      "trigger": "event: document, email, note or event added to a matter",
+      "does": "Rewrites the cited brief and detects contradictions with stored facts.",
+      "output": "Updated brief; a key-fact change proposal for G-KF"
+    },
+    {
+      "name": "Matter digest and risk score",
+      "trigger": "schedule: nightly, and on any matter event",
+      "does": "Computes agent_flag, the risk score and one next action per matter.",
+      "output": "Firm home and matter list digests (no gate)"
+    },
+    {
+      "name": "Stage advance watcher",
+      "trigger": "event: evidence event (signed, filed, paid, deadline passed)",
+      "does": "Checks the stage entry criteria.",
+      "output": "Stage move proposal for G-ST"
+    },
+    {
+      "name": "Party extraction",
+      "trigger": "event: new pleading, correspondence or closing document",
+      "does": "Extracts parties and counsel, matches them to contacts, and starts conflict checks.",
+      "output": "Party and role proposals for G2"
+    },
+    {
+      "name": "Contact dedupe and enrichment",
+      "trigger": "schedule: daily, and on contact create",
+      "does": "Finds duplicates and pulls aliases and relationships from documents and registries.",
+      "output": "Merge and relationship proposals for G-CM"
+    },
+    {
+      "name": "Matter opening pre-fill",
+      "trigger": "event: G2 cleared and G5 signed on a lead",
+      "does": "Drafts the full matter-opening wizard with a source on each field.",
+      "output": "Draft matter for G-MO"
+    },
+    {
+      "name": "Call and meeting summary",
+      "trigger": "event: call recording or transcript filed (consent recorded)",
+      "does": "Summarises the call and pulls out tasks and time.",
+      "output": "Draft note for G-NT; time entry for G9"
+    },
+    {
+      "name": "Retainer and budget watch",
+      "trigger": "event: trust or WIP change",
+      "does": "Compares trust against the floor and WIP against the budget.",
+      "output": "Top-up request or budget update draft for lawyer approval"
+    },
+    {
+      "name": "Config hygiene",
+      "trigger": "schedule: monthly",
+      "does": "Finds unused fields, free text that should be an enum, and stages where matters get stuck.",
+      "output": "Config proposals for G-CF"
+    },
+    {
+      "name": "Related matter finder",
+      "trigger": "event: party added or matter opened",
+      "does": "Looks for other matters sharing parties, property or court file",
+      "output": "proposed links on matter-overview"
+    },
+    {
+      "name": "Access hygiene",
+      "trigger": "schedule: weekly",
+      "does": "Finds sensitive matters visible firm-wide, stale grants, grants naming archived teams or departed users",
+      "output": "flags on matter-access and matter-access-report"
+    },
+    {
+      "name": "Matter chronology builder",
+      "trigger": "on request; event: new document or email on a matter with a chronology",
+      "does": "Extracts dated events with citations, de-duplicates, flags conflicts with key facts",
+      "output": "proposed rows on matter-chronology; key-fact check proposals for G-KF"
+    },
+    {
+      "name": "Matter question answering",
+      "trigger": "on request from matter-ask",
+      "does": "Answers from the matter's record only, cited to page and line; says 'not in the file' when unsupported",
+      "output": "cited answer; optional G-NT note draft"
+    },
+    {
+      "name": "Template fit",
+      "trigger": "event: matter opened without a template; weekly sweep",
+      "does": "Proposes the best-fit template for matters with none and lists what it would add",
+      "output": "suggestion on matter-overview for G-AT"
+    }
+  ],
+  "open_questions": [
+    "Can a matter open before the engagement letter is signed (an urgent limitation case), with a logged lawyer exception, or is G5 always a hard block?",
+    "Should matter numbering be global per firm (YYYY-NNNN) or per practice area? Do we keep legacy numbers on migration from Clio or PCLaw?",
+    "Should ethical walls hide a matter completely (404) or show a 'restricted' stub? The spec currently hides it.",
+    "Should practice-area starter sets (fields and stages) ship as product defaults per Ontario area, or does each firm build its own with agent help?",
+    "May the agent enrich organization contacts from public registries (the Ontario Business Registry) automatically, or only on request? This affects cost and PIPEDA.",
+    "Is a stage change by a clerk or paralegal into a non-flagged stage ungated, or do all stage changes need a lawyer?",
+    "Do notes and the activity timeline live entirely in the firm cell (yes per the brief), and what retention applies to agent activity entries after the matter closes?",
+    "Who counts as approver for G-NT when the call participant is a paralegal: the paralegal, or the supervising lawyer as well?",
+    "Pending status: does it mean 'not yet opened' or 'winding down'? Clio's own help and API disagree; we should pick one and add a separate 'closing' state if needed.",
+    "Should contact deletion ever be a true delete (PIPEDA erasure request) given conflict search needs the name? Proposal: redact to name-only conflict stub.",
+    "Do firms need groups (e.g. 'Family team') for access, or are per-matter teams enough for small firms?",
+    "Duplicate matter (could, r01): copy practice area, parties as proposals, fields and team into a new number with a 'duplicated from' link?",
+    "Stage board (could, r01): add a 'No stage' column with agent-proposed stages, and do we cap stages per area (Clio: 15)?",
+    "Stage history (could, r01): surface time spent in each stage per matter as a differentiator?",
+    "Matter overview layout (could, r01): firm default card order set by admin, per practice area, with per-user override?",
+    "Tags (could, r01): admins curate the shared list (Clio model) or anyone creates with agent dedupe; 30-day undo on tag delete?",
+    "Followers (could, r01): allow teams as followers, as Clio allows groups?",
+    "Contact permissions (could, r01): restrict a sensitive contact to named users or teams while conflict search still finds the name?",
+    "Personal targets (could, r01/r09): store annual target, working days and fiscal year end in user settings (time area)?"
+  ],
+  "sources": [
+    "https://help.clio.com/hc/articles/9285959663131",
+    "https://help.clio.com/hc/articles/9285496802331",
+    "https://help.clio.com/hc/articles/9285493193115",
+    "https://help.clio.com/hc/en-us/articles/35393101722523-Preconfigured-Accounts",
+    "https://docs.developers.clio.com/guides/clio-manage/matters/",
+    "https://support.practicepanther.com/en/articles/629220-dashboard-tutorial",
+    "https://support.practicepanther.com/en/collections/340046-contacts-matters",
+    "https://support.practicepanther.com/en/articles/8912775-the-modern-matters-grid",
+    "https://practicepanther.com/case-management/matters",
+    "https://help.mycase.com/s/article/Dashboard-Navigation-Overview",
+    "https://oba.org/Sections/Real-Property-Law/Articles/Articles-2024/January-2024/LSO-Virtual-Authentication-Requirements",
+    "https://lso.ca/about-lso/legislation-rules/by-laws (By-Law 7.1, By-Law 9: verify)",
+    "https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct (RPC 3.3, 3.4, 3.6, 6.1, 7.2: verify)",
+    "https://www.ontario.ca/laws/statute/02l24 (Limitations Act, 2002)",
+    "https://www.ontario.ca/laws/regulation/900194 (Rules of Civil Procedure)",
+    "https://help.clio.com/hc/en-au/articles/9285496802331",
+    "https://help.clio.com/hc/articles/9286056633115",
+    "https://help.clio.com/hc/en-us/articles/9286019831707",
+    "https://help.clio.com/hc/articles/54372493652251",
+    "https://help.clio.com/hc/en-us/articles/9290520359579",
+    "https://help.clio.com/hc/en-us/articles/50701718721307",
+    "https://help.clio.com/hc/en-150/articles/29765932267675",
+    "https://help.clio.com/hc/en-us/articles/18353050138651",
+    "https://help.clio.com/hc/articles/15083241879195",
+    "https://help.clio.com/hc/en-us/articles/9286062516123",
+    "https://help.clio.com/hc/articles/50600879151003",
+    "https://help.clio.com/hc/en-us/articles/16681289917595",
+    "https://help.clio.com/hc/articles/9290486281627",
+    "https://help.clio.com/hc/articles/54372637942427",
+    "https://help.clio.com/hc/articles/9289801180187",
+    "https://help.clio.com/hc/en-us/articles/9285360193819",
+    "https://help.clio.com/hc/articles/9204917906971",
+    "https://www.leaplegalsoftware.com/au/features/matterai",
+    "https://lawnext.com/2026/07/two-years-after-launching-its-ai-assistant-archie-smokeball-rolls-out-the-next-generation-built-on-agentic-ai-and-embedded-in-word-and-outlook.html"
+  ],
+  "clio_gaps": [
+    {
+      "clio_feature": "Matter status open/pending/closed with a date per status",
+      "where_in_clio": "Matters > matter > Details; Matters page quick filters",
+      "status": "added",
+      "note": "Status dates and quick tabs added to matter-overview and matter-list; meaning of pending is an open question."
+    },
+    {
+      "clio_feature": "Bulk change status on many matters",
+      "where_in_clio": "Matters page > select > bulk actions",
+      "status": "already covered",
+      "note": "matter-list bulk status/stage under G-BK; bulk close now routes to the closing checklist instead of closing directly."
+    },
+    {
+      "clio_feature": "Related contacts with relationship and bill recipient flag",
+      "where_in_clio": "Matter > Related contacts > Add",
+      "status": "added",
+      "note": "bill_recipient and free relationship label on matter-parties."
+    },
+    {
+      "clio_feature": "Custom fields and field sets, default sets, required fields, 64-char names",
+      "where_in_clio": "Settings > Custom Fields",
+      "status": "added",
+      "note": "Field rules, retire flow and required-field impact preview on practice-area-settings; contact fields in new contact-field-settings."
+    },
+    {
+      "clio_feature": "Matter templates with one firm default, max 200, can be applied to existing matters",
+      "where_in_clio": "Matters > Matter Templates",
+      "status": "added",
+      "note": "matter-templates plus 'Apply to existing matters' (G-AT) and 'Apply template to this matter' on matter-overview. Clio presets details, custom fields, billing, folders and task lists (r01, medium). | Merged duplicate 'Apply a matter template to an existing matter': G-AT with an add-only preview; agent suggests a template for matters with none (r01)."
+    },
+    {
+      "clio_feature": "Matter numbering presets, starting number, renumber existing",
+      "where_in_clio": "Settings > Firm Preferences > Matter Numbering",
+      "status": "added",
+      "note": "New matter-numbering screen; we keep old numbers as aliases instead of an irreversible rename."
+    },
+    {
+      "clio_feature": "Matter permissions (firm, user, group)",
+      "where_in_clio": "Matter > edit > Permissions",
+      "status": "added",
+      "note": "matter-access plus matter-access-report. Clio caps a matter at 20 users and groups; ours has no cap and grants can name teams (r01, r09)."
+    },
+    {
+      "clio_feature": "Matter notifications to chosen users",
+      "where_in_clio": "Matter > edit > Notifications",
+      "status": "added",
+      "note": "Followers on matter-access and matter-list. Which events Clio notifies on is not documented (r01, low)."
+    },
+    {
+      "clio_feature": "Related matters (Clio: associated matters on a contact; 'Linked matters' for duplicated Legal Aid matters)",
+      "where_in_clio": "Contact dashboard > associated matters; Legal Aid linked matters",
+      "status": "deliberately different",
+      "note": "A general matter-to-matter link was not found in Clio (r01 correction). Ours: related_matters field, MatterLink entity, agent link finder."
+    },
+    {
+      "clio_feature": "Client reference number and location on a matter",
+      "where_in_clio": "Matter > edit > Details",
+      "status": "added",
+      "note": "client_reference and matter_location fields."
+    },
+    {
+      "clio_feature": "Manual contact merge (move data, then delete secondary)",
+      "where_in_clio": "Contacts > contact > move matters/notes; Merge Contacts Manually",
+      "status": "deliberately different",
+      "note": "We do a guided merge with a lawyer gate (G-CM) and keep the merged name as an alias for conflicts."
+    },
+    {
+      "clio_feature": "Bulk delete contacts (admin, unrecoverable)",
+      "where_in_clio": "Contacts page > select > Delete; Settings > Bulk operations",
+      "status": "deliberately different",
+      "note": "We archive instead of hard delete; contact-list has an Archived tab with restore. Clio has a Recovery Bin for single deletes, but bulk delete is unrecoverable (r01)."
+    },
+    {
+      "clio_feature": "Contact import from CSV (Clio migration templates, incl. 'Contacts from Outlook CSV')",
+      "where_in_clio": "Settings > Imports > Add",
+      "status": "added",
+      "note": "contact-import accepts Clio's templates as-is, enforces import order and previews companies created. vCard is ours; no vCard import documented for Clio (r01 correction)."
+    },
+    {
+      "clio_feature": "Company with employees; multiple typed emails, phones, addresses",
+      "where_in_clio": "Contacts > New company / person",
+      "status": "added",
+      "note": "employees, typed emails and phones on contact-detail."
+    },
+    {
+      "clio_feature": "Matter dashboard details, balances, custom fields",
+      "where_in_clio": "Matters > matter > Dashboard",
+      "status": "already covered",
+      "note": "matter-overview and matter-financial-summary."
+    },
+    {
+      "clio_feature": "Matter stages kanban per practice area",
+      "where_in_clio": "Matters > Stages board",
+      "status": "already covered",
+      "note": "matter-stage-board with G-ST on consequential stages. Clio offers stages and templates on select plans only; stage-triggered automated workflows are Advanced/Expand only (r01 correction). Plan names Advanced/Expand are the 2025-early 2026 CA tiers (Complete renamed Expand 1 Jan 2026, r02); since about Sept 2026 CA plans are Starter/Core/Signature/Elite (r12), so the tier mapping needs re-checking."
+    },
+    {
+      "clio_feature": "Matter and contact notes, time from note",
+      "where_in_clio": "Matter > Notes; Contact > Notes",
+      "status": "added",
+      "note": "Note subject, date, contact-level notes and 'create time entry from note'."
+    },
+    {
+      "clio_feature": "Communications tab (emails, phone logs) on matter and contact",
+      "where_in_clio": "Matter > Communications; Contact > Communications",
+      "status": "already covered",
+      "note": "platform.json comms-log; contact-detail now links to contact-level comms."
+    },
+    {
+      "clio_feature": "Firm feed of all activity",
+      "where_in_clio": "Dashboard area > Firm Feed tab (Clio's 'Activities' are time and expense entries, not a log)",
+      "status": "added",
+      "note": "New firm-feed screen; private and walled items excluded. Clio's Firm Feed contents and filters are not documented in sources found (r01, low confidence)."
+    },
+    {
+      "clio_feature": "Personal dashboard (billable target, tasks, events)",
+      "where_in_clio": "Dashboard",
+      "status": "already covered",
+      "note": "firm-home; added my_time_today, followed matters and card layout."
+    },
+    {
+      "clio_feature": "AI actions card on matter and personal dashboard",
+      "where_in_clio": "Matter dashboard > AI actions (Manage AI); Matter dashboard > AI Actions card",
+      "status": "already covered",
+      "note": "Agent next-actions on matter-list and firm-home; ours are gated proposals. | Merged duplicate 'Manage AI proactive AI Actions': Clio's are proactive suggestions the user accepts; ours do the work first with citations and a gate (r01 correction on 'AI assists on request')."
+    },
+    {
+      "clio_feature": "Global search across records",
+      "where_in_clio": "Top bar search",
+      "status": "already covered",
+      "note": "global-search; added include_closed and wall exclusion."
+    },
+    {
+      "clio_feature": "Import matter custom fields via migration templates",
+      "where_in_clio": "Settings > Data import",
+      "status": "added",
+      "note": "contact-import accepts Clio's custom-fields and related-contacts templates and enforces order; matter bulk import lives in platform integrations-data (r01)."
+    },
+    {
+      "clio_feature": "Responsible staff on a matter",
+      "where_in_clio": "Matter form > Matter details",
+      "status": "added",
+      "note": "responsible_staff on matter-open-wizard, matter-list, matter-overview and the Matter entity (r01)."
+    },
+    {
+      "clio_feature": "Custom field types incl. time",
+      "where_in_clio": "Settings > Custom Fields",
+      "status": "added",
+      "note": "'time' added to field types so a Clio import maps every type 1:1 (r01)."
+    },
+    {
+      "clio_feature": "Admin view of restricted matters and bulk permission update",
+      "where_in_clio": "Matters table filters; bulk actions > Update matter permissions",
+      "status": "deliberately different",
+      "note": "matter-access-report shows numbers and access only; admins cannot grant themselves access; widening needs the responsible lawyer (r01, r09)."
+    },
+    {
+      "clio_feature": "Groups in matter permissions, calendars and client rates",
+      "where_in_clio": "Settings > Groups",
+      "status": "added",
+      "note": "Grants name users or teams (access.json Teams); archiving a team triggers replacement, fixing Clio's leftover-group issue (r09)."
+    },
+    {
+      "clio_feature": "Contact dashboard: associated matters",
+      "where_in_clio": "Contacts > contact > Dashboard",
+      "status": "added",
+      "note": "roles_across_matters on contact-detail, walls respected (r01)."
+    },
+    {
+      "clio_feature": "Contact Recovery Bin",
+      "where_in_clio": "Settings > Recovery Bin",
+      "status": "deliberately different",
+      "note": "Archive with restore instead of delete; erasure keeps a name-only conflict stub (r01)."
+    },
+    {
+      "clio_feature": "Client-specific rates and rate hierarchy",
+      "where_in_clio": "Contact > Edit > Billing preferences; Settings > Billing > Rate tables",
+      "status": "already covered",
+      "note": "billing_defaults on contact-detail; precedence owned by billing.json (r01, r09)."
+    },
+    {
+      "clio_feature": "Closed matters read-only; reopen by status change",
+      "where_in_clio": "Matters > Closed subtab",
+      "status": "already covered",
+      "note": "closed (read-only) state and gated 'Reopen closed matter' on matter-overview (r01)."
+    },
+    {
+      "clio_feature": "Matters list filters, columns and CSV export",
+      "where_in_clio": "Matters > Filters / Columns / Export",
+      "status": "already covered",
+      "note": "matter-list column picker, saved views and Export CSV (r01)."
+    },
+    {
+      "clio_feature": "Multiple clients on one matter",
+      "where_in_clio": "Matter > Contacts",
+      "status": "already covered",
+      "note": "MatterRole many-to-many on matter-parties (r01, API docs)."
+    },
+    {
+      "clio_feature": "Duplicate a matter",
+      "where_in_clio": "Matter > Duplicate",
+      "status": "deliberately different",
+      "note": "Not in v1; open question (r01, could). Was status 'missing'."
+    },
+    {
+      "clio_feature": "Stage-triggered automated workflows",
+      "where_in_clio": "Settings > Automated workflows (Advanced/Expand)",
+      "status": "already covered",
+      "note": "work.json automation; stage moves with consequences gated by G-ST (r01). Plan names Advanced/Expand are the 2025-early 2026 CA tiers (Complete renamed Expand 1 Jan 2026, r02); since about Sept 2026 CA plans are Starter/Core/Signature/Elite (r12), so the tier mapping needs re-checking."
+    },
+    {
+      "clio_feature": "Tags shared by contacts and matters",
+      "where_in_clio": "Contacts or Matters > Manage tags",
+      "status": "already covered",
+      "note": "Tag entity; who curates tags is an open question (r01)."
+    },
+    {
+      "clio_feature": "Manage AI matter and contact summaries",
+      "where_in_clio": "AI Launchpad > Catch up on a matter",
+      "status": "already covered",
+      "note": "matter-overview brief, always cited and refreshed on new material rather than on request (r01)."
+    },
+    {
+      "clio_feature": "Reassign work and deactivate a user",
+      "where_in_clio": "Settings > Manage Users > Reassign Work / Deactivate",
+      "status": "added",
+      "note": "Offboarding lives in access user-detail; matters edge requires a successor for open and closed matters (Clio cannot move closed ones) (r09)."
+    },
+    {
+      "clio_feature": "Billing rate visibility per user (all/own/none)",
+      "where_in_clio": "Settings > Manage Users > user",
+      "status": "added",
+      "note": "rates.view capability owned by access; matter-financial-summary hides others' rates accordingly (r09)."
+    },
+    {
+      "clio_feature": "Matter Q&A and cited chronology (rivals: LEAP Matter AI, Smokeball Archie)",
+      "where_in_clio": "n/a (rival products)",
+      "status": "added",
+      "note": "New matter-ask and matter-chronology screens, every claim cited to page and line (r14, must)."
+    }
+  ]
+}

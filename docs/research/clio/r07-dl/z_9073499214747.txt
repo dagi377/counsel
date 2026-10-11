@@ -1,0 +1,73 @@
+===== Set Up Clio Grow Intake Form Templates https://help.clio.com/hc/en-us/articles/9073499214747-Set-Up-Clio-Grow-Intake-Form-Templates updated 2026-09-28T23:27:43Z
+In Clio Grow, intake forms are used to collect personal and case-specific information from prospective clients. Once set up, you can send prepared forms to prospective clients. embed the form link on your website, and view completed form information. Learn more here.
+Tip: If you need assistance with creating your forms and documents, Clio offers a package for purchase to create forms and documents. If you are interested in getting your forms and documents built by a Clio representative, contact Clio's support team.
+Grant access to your account
+If your firm purchased the package to create forms and documents, you will need to grant Clio's support team temporary access to your Clio Grow account before your Clio representative can set up forms and documents in your account. Once granted, the temporary access will authorize a Clio representative to log in with your credentials. Access is valid for two weeks but will expire seven days after the representative first signs into your account.
+- Go to Settings > Personal.
+- Scroll down to Support access.
+- Click Grant access.
+Create intake forms
+With intake form templates, you can collect specific information from prospective clients and even map contact custom fields to questions in the form. You can create multiple intake form templates for various scenarios. By default, intake forms are in English, but you can change the intake form language to Spanish, French, Portuguese, or German. Once changed, only the fields provided by Clio Grow will automatically translate to the selected language. 
+- Go to Forms the main navigation bar and then select the Templates subtab.
+- Click New template.
+- 
+Optional: If you want to change the intake form language, click Edit in the Form language box and then select the relevant language.
+- Under the Contacts section on the left, you can add additional contacts to the form, change the description for each contact, remove contacts, and remove contact fields.
+- To change the contact's description, click the description, update the name, and then click Save.
+- Click Add a contact to add another contact to the form. This will create a second contact block below the first one in the form, where you can capture contact information such as their name, email address, address, and more. There is no limit to the number of contacts you can add to a single intake form.
+- If you only want to collect certain contact information for potential clients, you can choose which fields you want to insert into the form for each contact's contact block by checking or unchecking the boxes below each added contact.
+- Click Remove all fields to hide the contact block from clients. This will still allow you to link questions in the form to contact custom fields for that client without having to collect any contact information.
+- You can remove contacts entirely from the form by clicking Remove next to the contact's description.
+- Give your form a title and any instructions on how your client can complete it. Then click Save.
+- Under the Add fields menu on the left, click a question type. This will append the question to the bottom of the form, where you can enter question details.
+- Learn more about adding and managing questions fields here.
+- You can also collect contact custom field data from any of the contacts added to the form by mapping questions to the appropriate contacts. Learn more about linking questions to custom fields here.
+- You can delete a question by selecting the question block and clicking Delete question.
+- You can move a question block from its current position on the form to a new position by dragging and dropping the block before or after another question block. 
+- Click Save question.
+- Repeat steps 5-6 to add additional questions to the form.
+- 
+Optional: To make your form public, scroll to the top of the page. Click Edit next to Public Form Settings and then check the box for Form is public. Learn more below.
+- Click Preview form to view a visual of what your form looks like.
+- Click Exit builder to leave.
+Change intake form language
+By default, intake forms are in English, but you have the option to change the intake form language to Spanish, French, Portuguese, or German. Once a new language is selected, only the fields provided by Clio Grow will automatically translate to the selected language.
+Tip: Before changing an intake form's language, duplicate the form to retain an English copy for your English-speaking clients and create Spanish, French, Portuguese, and/or German translations of outgoing email templates for a better client experience. Learn more about duplicating forms below and creating and editing email templates here.
+- Go to Forms the main navigation bar and then select the Templates subtab.
+- Click New template.
+- In the Form language box, click Edit.
+- Under Language, select the relevant language.
+- Click Save.- Once a new language is selected, only the fields provided by Clio Grow will translate to that language, including contact field labels and the form completion confirmation page. Fields added by your firm will not be translated, including instructions and questions.
+- Complete the rest of the intake form.
+Set intake forms public
+When you set an intake form as public, you can share the form's link with prospective clients or embed the form link on your website. You can change an intake form's public setting when creating/editing a form or from the form templates screen.
+When editing form Via form template screen
+- Go to Forms > Templates.
+- Find your template and click Edit.
+- Under Public Form Settings, click Edit.
+- Check the box for Form is public.
+- Select where in the Pipeline the matter will appear when the form is completed, the matter type that is assigned upon form completion, which firm user the matter is assigned to, and which firm user a confirmation email is sent from.
+- Click Save form settings.
+- Copy the link under Link to public form and paste it on your website.
+- Go to Forms > Templates.
+- Click the down arrow next to Edit.
+- Toggle the button for Form is not public to the on position.
+- Select Copy link to public form to copy and paste the form link into your website.
+Edit intake forms
+- Go to Forms > Templates.
+- Find your form template and click Edit.
+- Make your changes.
+- Click Preview form to view a visual of what your form looks like.
+- Click Exit builder to leave.
+Duplicate intake forms
+- Go to Forms > Templates.
+- Find the form that you want to duplicate.
+- Click the down arrow next to Edit and then select Duplicate.
+Delete intake forms
+Note: There is no option to archive forms in Clio Grow.
+- Go to Forms > Templates.
+- Find your form template.
+- Click the down arrow next to Edit and select Delete.
+- Click Delete to confirm the action.
+
+IMGS: []

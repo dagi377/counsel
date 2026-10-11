@@ -1,0 +1,2739 @@
+{
+ "area": "conflicts",
+ "title": "Conflicts, client ID and screening",
+ "summary": "The agent searches every party, alias and related entity against the firm's history, ranks the hits with a reason for each and drafts a clearance memo. It also collects and checks client ID under By-Law 7.1 and proposes ethical walls. A lawyer signs off on each conflict result, each consent or waiver, each ID verification and each wall. No matter opens and no money moves until those gates clear, and every search and decision lands in an append-only audit log.",
+ "screens": [
+  {
+   "id": "conflict-check-new",
+   "name": "New conflict check",
+   "route": "/conflicts/new",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Collect every party to search and start a check, usually pre-filled by the agent from an intake.",
+   "layout": "Left: the source (lead, intake or matter) and a short matter description. Centre: an editable party list with a role, aliases and related entities on each row. Right: the search scope and a preview of the parties the agent suggests adding.",
+   "fields": [
+    {
+     "name": "source",
+     "type": "ref",
+     "required": true,
+     "note": "Lead, intake submission or existing matter (for a new party added mid-matter)"
+    },
+    {
+     "name": "matter_description",
+     "type": "text",
+     "required": true,
+     "note": "One line, used to judge subject-matter conflicts. Kept in the check record, not the search index."
+    },
+    {
+     "name": "practice_area",
+     "type": "enum",
+     "required": true,
+     "note": "Practice area for the matter"
+    },
+    {
+     "name": "parties[].name",
+     "type": "text",
+     "required": true,
+     "note": "Person or organization name as given"
+    },
+    {
+     "name": "parties[].kind",
+     "type": "enum",
+     "required": true,
+     "note": "person | organization Adds 'keyword': free text searched in matter descriptions, notes and documents (for example a property address or vessel name)."
+    },
+    {
+     "name": "parties[].role",
+     "type": "enum",
+     "required": true,
+     "note": "prospective client | adverse party | co-party | related company | director/officer | spouse/family | guarantor | opposing counsel | witness/expert | other"
+    },
+    {
+     "name": "parties[].aliases",
+     "type": "text[]",
+     "required": false,
+     "note": "Former names, maiden names, trade names, transliterations"
+    },
+    {
+     "name": "parties[].dob_or_number",
+     "type": "text",
+     "required": false,
+     "note": "Date of birth or corporation number, used only to tell same-name parties apart"
+    },
+    {
+     "name": "parties[].related",
+     "type": "ref[]",
+     "required": false,
+     "note": "Parent, subsidiary, affiliate, principal"
+    },
+    {
+     "name": "scope",
+     "type": "enum[]",
+     "required": true,
+     "note": "Defaults to all: current clients, former clients, prospective clients (including declined), adverse parties, related parties, lateral-hire disclosures"
+    },
+    {
+     "name": "requested_by",
+     "type": "ref",
+     "required": true,
+     "note": "User. Set automatically."
+    },
+    {
+     "name": "match_mode",
+     "type": "enum",
+     "required": true,
+     "note": "similar | exact; defaults from settings"
+    },
+    {
+     "name": "identifiers_per_party",
+     "type": "list",
+     "required": false,
+     "note": "email, phone, address searched as well as names"
+    },
+    {
+     "name": "parties[].require_full_name_match",
+     "type": "bool",
+     "required": false,
+     "note": "Default true for persons"
+    },
+    {
+     "name": "parties[].label",
+     "type": "text",
+     "required": false,
+     "note": "Display only, not searched"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Suggest parties",
+     "by": "agent",
+     "gate": "none",
+     "note": "Pulls parties out of the intake narrative, documents and corporate registry lookups"
+    },
+    {
+     "name": "Add or remove a party",
+     "by": "human",
+     "gate": "none",
+     "note": "Every change is logged"
+    },
+    {
+     "name": "Run check",
+     "by": "human",
+     "gate": "none",
+     "note": "Starts the search. A clerk may run it, but only a lawyer clears it."
+    },
+    {
+     "name": "Save as draft",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Start from a matter being created",
+     "by": "human",
+     "gate": "none",
+     "note": "'Save and run check' path; matter stays draft until G2"
+    }
+   ],
+   "agent": "Reads the intake, extracts every named person and organization with a proposed role, expands aliases (name variants, transliterations, initials, legal suffixes such as Inc/Ltd/Corp) and proposes related entities from public registry data. Each suggestion is labelled as proposed until a human keeps it.",
+   "gate": "none (the run itself is not gated; clearance is gated on conflict-clearance)",
+   "states": [
+    "empty",
+    "draft",
+    "agent suggesting",
+    "ready to run",
+    "running"
+   ],
+   "edge": [
+    "Prospect gives only a first name or a nickname for the adverse party: the agent marks the party 'insufficient identifiers' and the check cannot be cleared until it is completed or a lawyer accepts the gap",
+    "The adverse party is unknown at intake (for example, an unnamed defendant): the check is saved with a placeholder and re-runs automatically once the party is named",
+    "Duplicate parties entered under two roles: merge them, keeping both roles",
+    "Non-Latin names: store the original script and the transliteration, and search both"
+   ],
+   "reg": "RPC 3.4 conflicts and RPC 3.3 confidentiality (verify rule numbers). Information from a prospective client can itself create a conflict, so the matter description is minimal and access to it is restricted.",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Name",
+     "Kind",
+     "Role",
+     "Aliases",
+     "Related"
+    ],
+    "rows": [
+     [
+      "Hawthorne Bakery Inc.",
+      "organization",
+      "prospective client",
+      "Hawthorne Bakeries; HBI",
+      "Hawthorne Holdings Ltd."
+     ],
+     [
+      "Teodros Alemu",
+      "person",
+      "director/officer",
+      "T. Alemu",
+      "Hawthorne Bakery Inc."
+     ],
+     [
+      "Riverside Commercial Leasing Corp.",
+      "organization",
+      "adverse party",
+      "Riverside Leasing",
+      ""
+     ],
+     [
+      "Priya Nandakumar",
+      "person",
+      "opposing counsel",
+      "",
+      ""
+     ]
+    ]
+   }
+  },
+  {
+   "id": "conflict-results",
+   "name": "Conflict results review",
+   "route": "/conflicts/:id",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Review the ranked hits for one check and mark each one relevant or not relevant, with a reason.",
+   "layout": "Top: the check header (parties, scope, run time, index version). Main: hits grouped by searched party, with the match score, match type, the firm record that matched and the agent's reason. Side panel: the matched record's details, limited to what the reviewer is allowed to see.",
+   "fields": [
+    {
+     "name": "hit.searched_party",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "hit.matched_record",
+     "type": "ref",
+     "required": true,
+     "note": "A contact, matter party, declined prospect or lateral-hire disclosure"
+    },
+    {
+     "name": "hit.match_type",
+     "type": "enum",
+     "required": true,
+     "note": "exact | alias | fuzzy | phonetic | related entity | shared identifier (address, phone, corp number)"
+    },
+    {
+     "name": "hit.score",
+     "type": "number",
+     "required": true,
+     "note": "0-100"
+    },
+    {
+     "name": "hit.matched_role",
+     "type": "enum",
+     "required": true,
+     "note": "The matched party's role on the other matter (client, adverse and so on)"
+    },
+    {
+     "name": "hit.other_matter_status",
+     "type": "enum",
+     "required": true,
+     "note": "open | closed | declined prospect"
+    },
+    {
+     "name": "hit.conflict_kind",
+     "type": "enum",
+     "required": false,
+     "note": "Agent proposal: direct adversity (current client) | former client, same or related matter | former client, confidential info | joint retainer | own-interest | prospective client info | none"
+    },
+    {
+     "name": "hit.reason",
+     "type": "text",
+     "required": true,
+     "note": "The agent's one-line explanation of why this record matched and why it matters"
+    },
+    {
+     "name": "hit.disposition",
+     "type": "enum",
+     "required": true,
+     "note": "unreviewed | not relevant (false match) | relevant | needs lawyer"
+    },
+    {
+     "name": "hit.disposition_note",
+     "type": "text",
+     "required": false,
+     "note": "Required when a hit scoring 80 or more is marked not relevant"
+    },
+    {
+     "name": "hit.found_in",
+     "type": "enum",
+     "required": true,
+     "note": "contact, party, lead, note, calendar, document, email, prospect"
+    },
+    {
+     "name": "hit.source_highlight",
+     "type": "span",
+     "required": false,
+     "note": "Opens the matched record or document span side by side with the searched party"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Mark a hit not relevant",
+     "by": "human",
+     "gate": "none",
+     "note": "Clerks may dismiss low-score false matches. Dismissing a high-score hit needs a note, and the lawyer sees it at sign-off."
+    },
+    {
+     "name": "Mark a hit relevant",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Propose dispositions",
+     "by": "agent",
+     "gate": "none",
+     "note": "Proposals only. The agent never sets a final disposition."
+    },
+    {
+     "name": "Ask the responsible lawyer on the other matter",
+     "by": "human",
+     "gate": "none",
+     "note": "Sends an internal query that reveals the party name only, never the new matter's facts"
+    },
+    {
+     "name": "Re-run with more parties",
+     "by": "human",
+     "gate": "none",
+     "note": "Creates a new run version. The old results are kept."
+    },
+    {
+     "name": "Send to lawyer for clearance",
+     "by": "human",
+     "gate": "none",
+     "note": "Allowed once every hit has a disposition"
+    },
+    {
+     "name": "Duplicate and re-run",
+     "by": "human",
+     "gate": "none",
+     "note": "New run on a lapsed or closed check, linked to the old one"
+    }
+   ],
+   "agent": "Runs exact, alias, fuzzy (edit distance and token reordering), phonetic and shared-identifier matching across contacts, matter parties, closed matters, declined prospects and lateral-hire disclosures. Follows related-entity links one or two hops out. Ranks hits and writes a reason for each, proposes a conflict kind and disposition, and flags hits on walled matters without revealing walled content.",
+   "gate": "none (dispositions are reviewed again at clearance)",
+   "states": [
+    "running",
+    "no hits",
+    "hits unreviewed",
+    "partly reviewed",
+    "ready for clearance",
+    "stale (data changed after the run)"
+   ],
+   "edge": [
+    "A hit is on a matter behind an ethical wall the reviewer is screened from: show 'match on a restricted matter, refer to <lawyer>' with no details",
+    "Very common names (for example 'Mohamed Ali', 'John Smith') produce many hits: group them, and use DOB or address to rule them out",
+    "Corporate name reuse after amalgamation: link the predecessor and successor through the corp number",
+    "The index is still rebuilding after a bulk import: the run is flagged as incomplete and cannot go to clearance",
+    "A new contact is added to the firm while the check is open: the check is marked stale and the agent re-runs it",
+    "Hit is inside a document's text the reviewer cannot open (walled): shows 'restricted' and routes to compliance"
+   ],
+   "reg": "RPC 3.4 covers current, former and joint clients and the duty to former clients (verify). Results are confidential: access is role-restricted and every view is logged.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Searched party",
+     "Matched record",
+     "Type",
+     "Score",
+     "Other matter",
+     "Agent reason",
+     "Disposition"
+    ],
+    "rows": [
+     [
+      "Riverside Commercial Leasing Corp.",
+      "Riverside Commercial Leasing Corp. (client)",
+      "exact",
+      "100",
+      "2023-0141 Lease renewal (closed)",
+      "Former client on a lease matter; possible same-or-related",
+      "needs lawyer"
+     ],
+     [
+      "Teodros Alemu",
+      "Tewodros Alemu (adverse)",
+      "phonetic",
+      "86",
+      "2022-0377 Small claims (closed)",
+      "Different DOB on file (1961 vs 1984)",
+      "not relevant"
+     ],
+     [
+      "Hawthorne Bakery Inc.",
+      "Hawthorne Holdings Ltd. (declined prospect)",
+      "related entity",
+      "72",
+      "Prospect 2025-118 (declined)",
+      "Parent company consulted the firm; check what was disclosed",
+      "relevant"
+     ],
+     [
+      "Priya Nandakumar",
+      "Priya Nandakumar (opposing counsel)",
+      "exact",
+      "100",
+      "2024-0090 (open)",
+      "Opposing counsel role only",
+      "not relevant"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "conflict-clearance",
+   "name": "Clearance memo and sign-off",
+   "route": "/conflicts/:id/clearance",
+   "who": [
+    "lawyer",
+    "agent"
+   ],
+   "purpose": "The lawyer reads the agent's memo and records the decision: cleared, cleared with consent, decline, or cleared with a wall.",
+   "layout": "Left: the memo draft (facts, each relevant hit, analysis, recommendation). Right: the decision panel (outcome, conditions, signature) with a list of what is still outstanding.",
+   "fields": [
+    {
+     "name": "memo",
+     "type": "doc",
+     "required": true,
+     "note": "Agent draft. Every claim links back to a hit."
+    },
+    {
+     "name": "outcome",
+     "type": "enum",
+     "required": true,
+     "note": "cleared | cleared subject to consent | cleared subject to screen | decline"
+    },
+    {
+     "name": "conditions",
+     "type": "text[]",
+     "required": false,
+     "note": "For example: written consent from X; wall excluding Y"
+    },
+    {
+     "name": "rationale",
+     "type": "text",
+     "required": true,
+     "note": "The lawyer's own words. It may adopt the memo, but adopting it is an explicit act."
+    },
+    {
+     "name": "signed_by",
+     "type": "ref",
+     "required": true,
+     "note": "Must be a lawyer licensee who is not screened from any hit matter"
+    },
+    {
+     "name": "signed_at",
+     "type": "datetime",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "results_version",
+     "type": "ref",
+     "required": true,
+     "note": "Pins the exact run version that was reviewed"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Draft memo",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Edit memo",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Sign off",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Gate G2"
+    },
+    {
+     "name": "Send back for more search",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Decline and draft a non-engagement letter",
+     "by": "human",
+     "gate": "approve",
+     "note": "The agent drafts the letter. The lawyer approves the text, which must not disclose the conflicting client."
+    },
+    {
+     "name": "Generate check report (PDF)",
+     "by": "agent",
+     "gate": "none",
+     "note": "Frozen snapshot of searches, hits, dispositions and sign-off; filed to the matter"
+    },
+    {
+     "name": "Link check to matter",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Drafts the memo: parties searched, scope, each relevant hit with the applicable conflict category, and whether consent, a screen or a decline is indicated, citing the rule (verify). Lists open items such as an unreviewed hit or a missing identifier. On 'subject to consent' it creates the consent requests; on 'subject to screen' it drafts the wall.",
+   "gate": "G2: a lawyer signs the conflict outcome. Until then the matter cannot open, the engagement letter cannot be sent and no trust request can be issued.",
+   "states": [
+    "memo drafting",
+    "pending sign-off",
+    "cleared",
+    "cleared - consent pending",
+    "cleared - wall pending",
+    "declined",
+    "superseded by re-check"
+   ],
+   "edge": [
+    "The signer is the lawyer on the conflicting matter: allowed, but the memo flags it (firm policy may require a second lawyer)",
+    "Data changes after sign-off (a new party, a new contact): clearance is marked stale and the agent requests a re-check",
+    "Sole practitioner: self sign-off allowed, logged like any other",
+    "Decline outcome: the prospect's information is kept for future checks but sealed (see the conflicts register)",
+    "Check lapses (auto-close) before sign-off: cannot be signed; must duplicate and re-run"
+   ],
+   "reg": "RPC 3.4: some conflicts cannot be cured by consent, for example acting against a current client in the same matter (verify). The record of who cleared what, and when, is the firm's evidence for the LSO and LawPRO.",
+   "mock": {
+    "kind": "doc",
+    "columns": [
+     "Section",
+     "Content"
+    ],
+    "rows": [
+     [
+      "Recommendation",
+      "Cleared subject to consent of Riverside Commercial Leasing Corp. (former client)"
+     ],
+     [
+      "Hit 1",
+      "Former client 2023-0141; lease renewal on the same premises, so 'related matter' is likely"
+     ],
+     [
+      "Hit 3",
+      "Declined prospect Hawthorne Holdings; intake note shows no confidential facts kept"
+     ],
+     [
+      "Signed",
+      "Linda Kassim, 2026-10-08 14:12"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "consents-waivers",
+   "name": "Consents and waivers",
+   "route": "/conflicts/:id/consents",
+   "who": [
+    "lawyer",
+    "clerk",
+    "client",
+    "agent"
+   ],
+   "purpose": "Track every consent or waiver a clearance depends on, from draft through signed receipt.",
+   "layout": "List of consent requests, each showing who consents, its type, status and a link to the document. Detail drawer: the letter text, ILA (independent legal advice) recommendation, signature trail.",
+   "fields": [
+    {
+     "name": "consenting_party",
+     "type": "ref",
+     "required": true,
+     "note": "A current or former client, or a joint client"
+    },
+    {
+     "name": "consent_type",
+     "type": "enum",
+     "required": true,
+     "note": "acting against former client | joint retainer | advance waiver | consent to screen | other"
+    },
+    {
+     "name": "disclosure_summary",
+     "type": "text",
+     "required": true,
+     "note": "What the party is told. It must not breach any other client's confidence."
+    },
+    {
+     "name": "ila_recommended",
+     "type": "bool",
+     "required": true,
+     "note": "Whether the letter recommends independent legal advice"
+    },
+    {
+     "name": "document",
+     "type": "file",
+     "required": true,
+     "note": "Signed letter"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "draft | approved | sent | signed | refused | withdrawn | expired"
+    },
+    {
+     "name": "scope_limits",
+     "type": "text",
+     "required": false,
+     "note": "What the consent does not cover"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Draft consent letter",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Approve letter text",
+     "by": "human",
+     "gate": "approve",
+     "note": "Gate G2a. A lawyer approves before it is sent."
+    },
+    {
+     "name": "Send for e-signature",
+     "by": "agent",
+     "gate": "none",
+     "note": "Only after approval"
+    },
+    {
+     "name": "Chase",
+     "by": "agent",
+     "gate": "none",
+     "note": "Reminders on a schedule the lawyer sets"
+    },
+    {
+     "name": "Record oral consent",
+     "by": "human",
+     "gate": "approve",
+     "note": "Allowed only with a written confirmation sent afterwards (verify)"
+    },
+    {
+     "name": "Mark refused",
+     "by": "human",
+     "gate": "none",
+     "note": "Sets the clearance to blocked"
+    }
+   ],
+   "agent": "Drafts each letter from the memo with a factual disclosure, the risks, the right to refuse and an ILA recommendation. Checks the disclosure text against walled and other-client data and blocks it if the text would leak them. Sends it after approval, chases it and attaches the signed copy to the clearance.",
+   "gate": "G2a: a lawyer approves each consent letter's text before it goes out. The clearance becomes effective only when every required consent is signed.",
+   "states": [
+    "none required",
+    "draft",
+    "pending approval",
+    "sent",
+    "signed",
+    "refused",
+    "withdrawn"
+   ],
+   "edge": [
+    "A consent is withdrawn mid-matter: the matter is flagged, the responsible lawyer is notified and the agent drafts withdrawal-options notes (RPC 3.7, verify)",
+    "An advance waiver given years ago is too vague for the current matter: the agent flags it rather than relying on it",
+    "Consenting party is an organization: record the signer's authority"
+   ],
+   "reg": "RPC 3.4: consent must be informed, and joint-retainer consent has specific disclosure content (verify). Keep the signed consent on file.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Party",
+     "Type",
+     "ILA",
+     "Status",
+     "Sent",
+     "Signed"
+    ],
+    "rows": [
+     [
+      "Riverside Commercial Leasing Corp.",
+      "acting against former client",
+      "yes",
+      "sent",
+      "2026-10-08",
+      ""
+     ],
+     [
+      "Hawthorne Bakery Inc.",
+      "consent to screen",
+      "no",
+      "signed",
+      "2026-10-08",
+      "2026-10-09"
+     ],
+     [
+      "Kebede & Sons Ltd. / Ruth Kebede",
+      "joint retainer",
+      "yes",
+      "pending approval",
+      "",
+      ""
+     ]
+    ]
+   }
+  },
+  {
+   "id": "conflicts-register",
+   "name": "Conflict checks register",
+   "route": "/conflicts",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "Firm-wide list of every check, its outcome and its age, plus the sealed prospect records used in future searches.",
+   "layout": "Filter bar (status, lawyer, date, outcome). Table of checks. A side tab for 'Sealed prospects' (declined or unretained prospects kept for searching only).",
+   "fields": [
+    {
+     "name": "check_id",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "source",
+     "type": "ref",
+     "required": true,
+     "note": "Lead or matter"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "outcome",
+     "type": "enum",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "signed_by",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "age_days",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "stale",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Open a check",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Re-run stale checks",
+     "by": "agent",
+     "gate": "none",
+     "note": "Results go back through G2"
+    },
+    {
+     "name": "Export register",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer-only. The export is logged."
+    },
+    {
+     "name": "Unseal a prospect record",
+     "by": "human",
+     "gate": "approve",
+     "note": "A lawyer gives a reason, for example a LawPRO claim"
+    },
+    {
+     "name": "Export CSV",
+     "by": "human",
+     "gate": "approve",
+     "note": "Same rule as export register"
+    }
+   ],
+   "agent": "Nightly, re-runs open matters' party lists against parties added that day (the reverse check) and raises an alert when a new client conflicts with an existing matter. Lists checks waiting more than 2 business days for sign-off.",
+   "gate": "none (views only; exports and unsealing need a lawyer)",
+   "states": [
+    "empty",
+    "populated",
+    "filtered",
+    "export pending approval"
+   ],
+   "edge": [
+    "Data imported from a previous system has no check record: shown as 'legacy, no check on file', with a one-click backfill check",
+    "A clerk searches the register for a name with no business reason: allowed by role, but every search is logged and visible to the admin"
+   ],
+   "reg": "Keeping prospect data for conflict searching is a confidentiality and PIPEDA question: say so in the privacy notice (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Check",
+     "Source",
+     "Lawyer",
+     "Status",
+     "Outcome",
+     "Age"
+    ],
+    "rows": [
+     [
+      "CC-2026-0412",
+      "Lead: Hawthorne Bakery Inc.",
+      "Linda Kassim",
+      "cleared - consent pending",
+      "subject to consent",
+      "2d"
+     ],
+     [
+      "CC-2026-0409",
+      "Lead: Selam Tadesse (family)",
+      "Ayo Ewebiyi",
+      "pending sign-off",
+      "",
+      "3d"
+     ],
+     [
+      "CC-2026-0401",
+      "Matter 2026-0088: new party",
+      "Linda Kassim",
+      "cleared",
+      "cleared",
+      "9d"
+     ],
+     [
+      "CC-2026-0397",
+      "Lead: Northgate Dental PC",
+      "Yonathan Degu",
+      "declined",
+      "decline",
+      "12d"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "client-identification",
+   "name": "Client identification (individual)",
+   "route": "/clients/:id/identity",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Record who the client is (identification), and when funds will move, verify it, together with any third party the client acts for.",
+   "layout": "Top: obligation banner (identify only, or identify and verify, or exempt, with the reason). Left: identity fields. Right: the verification method panel with evidence. Bottom: third parties and history.",
+   "fields": [
+    {
+     "name": "full_name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "home_address",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "home_phone",
+     "type": "text",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "business_address_phone",
+     "type": "text",
+     "required": false,
+     "note": "If any"
+    },
+    {
+     "name": "occupation",
+     "type": "text",
+     "required": true,
+     "note": "One or more"
+    },
+    {
+     "name": "dob",
+     "type": "date",
+     "required": false,
+     "note": "Needed for the credit file method"
+    },
+    {
+     "name": "obligation",
+     "type": "enum",
+     "required": true,
+     "note": "identify only | identify + verify (funds) | exempt. Computed by the agent and confirmed by a human."
+    },
+    {
+     "name": "exemption_reason",
+     "type": "enum",
+     "required": false,
+     "note": "client is the licensee's employer | agent for another licensee who identified the client | referred by a licensee who identified the client | funds-related exemption (see note) (verify list)"
+    },
+    {
+     "name": "funds_trigger",
+     "type": "ref",
+     "required": false,
+     "note": "The trust request or transaction that triggered verification"
+    },
+    {
+     "name": "verification_method",
+     "type": "enum",
+     "required": false,
+     "note": "government photo ID (in person, or virtual with authentication) | credit file (Canada, at least 3 years) | dual process (two independent reliable sources) | agent (verify)"
+    },
+    {
+     "name": "id_doc.type",
+     "type": "enum",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "id_doc.number",
+     "type": "text",
+     "required": false,
+     "note": "Stored encrypted and masked in the UI"
+    },
+    {
+     "name": "id_doc.issuer_place",
+     "type": "text",
+     "required": false,
+     "note": "Jurisdiction and place of issue"
+    },
+    {
+     "name": "id_doc.expiry",
+     "type": "date",
+     "required": false,
+     "note": "Must be valid on the verification date"
+    },
+    {
+     "name": "id_doc.copy",
+     "type": "file",
+     "required": false,
+     "note": "Copy kept on file. Restricted access."
+    },
+    {
+     "name": "authentication_result",
+     "type": "enum",
+     "required": false,
+     "note": "For virtual photo ID: passed | failed | manual review. Includes the vendor reference."
+    },
+    {
+     "name": "verified_on",
+     "type": "date",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "verified_by",
+     "type": "ref",
+     "required": false,
+     "note": "Licensee, or a named agent with an agreement on file"
+    },
+    {
+     "name": "third_party",
+     "type": "ref[]",
+     "required": false,
+     "note": "Anyone the client acts for or represents, identified on the same basis"
+    },
+    {
+     "name": "source_of_funds",
+     "type": "text",
+     "required": false,
+     "note": "Where the money comes from, recorded when verifying (verify)"
+    },
+    {
+     "name": "retention_until",
+     "type": "date",
+     "required": true,
+     "note": "Computed: at least 6 years after the later of the end of the retainer and the last transaction (verify)"
+    },
+    {
+     "name": "risk_rating",
+     "type": "enum",
+     "required": true,
+     "note": "low | medium | high, with risk_reason; recorded at matter opening and again at closing"
+    },
+    {
+     "name": "risk_reason",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "aml_check_date",
+     "type": "date",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "source_of_funds_check_date",
+     "type": "date",
+     "required": false,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Request ID from client",
+     "by": "agent",
+     "gate": "none",
+     "note": "Sends a portal link (see identity-portal)"
+    },
+    {
+     "name": "Determine obligation",
+     "by": "agent",
+     "gate": "none",
+     "note": "A proposal with a reason"
+    },
+    {
+     "name": "Confirm exemption",
+     "by": "human",
+     "gate": "approve",
+     "note": "A lawyer confirms why verification is not needed"
+    },
+    {
+     "name": "Record in-person check",
+     "by": "human",
+     "gate": "none",
+     "note": "The licensee saw the original document and the person"
+    },
+    {
+     "name": "Confirm verified",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Gate G4"
+    },
+    {
+     "name": "Flag suspicion",
+     "by": "human",
+     "gate": "none",
+     "note": "Opens a restricted note for the lawyer. The client is never told."
+    },
+    {
+     "name": "Show KYC summary on matter",
+     "by": "agent",
+     "gate": "none",
+     "note": "Card on the matter with status, check dates and risk rating"
+    }
+   ],
+   "agent": "Fills the identity fields from intake and the ID upload. Works out the obligation from the matter type and expected money flows, and when a trust request is drafted, flips the obligation to 'verify' automatically. Checks the document's validity dates, name and DOB consistency across sources, and the vendor authentication result. Screens names against Canadian sanctions lists. Lists gaps and computes the retention date.",
+   "gate": "G4: a lawyer confirms identification is complete and, where required, verification is done by an allowed method. Until then no trust receipt, payment or transfer can be posted on any of the client's matters.",
+   "states": [
+    "not started",
+    "requested",
+    "partly received",
+    "identified",
+    "verification required",
+    "pending sign-off",
+    "verified",
+    "exempt (approved)",
+    "failed / mismatch",
+    "expired document"
+   ],
+   "edge": [
+    "Funds arrive before verification: the receipt is held in a 'pending ID' state with an alert. The by-law allows verification within a period after the funds start moving (verify timing).",
+    "Virtual photo ID was only seen on a video call: rejected as insufficient since Jan 1 2024 unless it is authenticated",
+    "Credit file younger than 3 years, or its name or address does not match: the method fails, so try dual process",
+    "The client cannot produce ID (refugee, elder, minor): the lawyer records the alternative and the reason (verify what is allowed)",
+    "A returning client was verified years ago: reuse the verification if nothing has changed and it was already done (verify the reuse rule)",
+    "Name changed (marriage): link the former name for conflict searching",
+    "Risk rating at close differs from opening: the change and its reason are logged and shown on the card"
+   ],
+   "reg": "LSO By-Law 7.1 Part III: identify every client when retained, and verify identity when receiving, paying or transferring funds, unless exempt (verify section numbers and the exemption list). Since Jan 1 2024, virtual photo-ID checks need authentication; credit file and dual process remain available (OBA summary; verify against LSO text). Records are kept for the period set by the by-law (verify the 6-year figure). Cash limits fall under By-Law 9.",
+   "mock": {
+    "kind": "detail",
+    "columns": [
+     "Field",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Client",
+      "Selam Tadesse"
+     ],
+     [
+      "Obligation",
+      "Identify + verify (trust retainer requested 2026-10-09)"
+     ],
+     [
+      "Method",
+      "Government photo ID, virtual, authenticated"
+     ],
+     [
+      "Document",
+      "Ontario driver's licence, ****-*7213, Ontario, expires 2029-04-30"
+     ],
+     [
+      "Status",
+      "Pending sign-off by Ayo Ewebiyi"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "organization-identification",
+   "name": "Organization identification and beneficial owners",
+   "route": "/clients/:id/identity/organization",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Identify a corporate or other organizational client, verify that it exists, and record its directors, owners and controllers.",
+   "layout": "Top: organization facts and the verification document. Middle: the people (authorized signers, directors, owners or controllers) in a table with the individual identity status of each. Bottom: the ownership chart and the agent's notes.",
+   "fields": [
+    {
+     "name": "legal_name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "operating_names",
+     "type": "text[]",
+     "required": false,
+     "note": "Feeds conflict aliases"
+    },
+    {
+     "name": "org_type",
+     "type": "enum",
+     "required": true,
+     "note": "corporation | partnership | trust | society/non-profit | public body | other"
+    },
+    {
+     "name": "jurisdiction_and_number",
+     "type": "text",
+     "required": true,
+     "note": "Corporation or registration number"
+    },
+    {
+     "name": "address_phone",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "business_nature",
+     "type": "text",
+     "required": true,
+     "note": "General nature of the business or activity"
+    },
+    {
+     "name": "instructing_individual",
+     "type": "ref",
+     "required": true,
+     "note": "Name, position and contact details of the person who gives instructions"
+    },
+    {
+     "name": "existence_evidence",
+     "type": "file",
+     "required": false,
+     "note": "Certificate of status, articles, partnership or trust agreement (required when verifying)"
+    },
+    {
+     "name": "authorized_signers",
+     "type": "ref[]",
+     "required": false,
+     "note": "Individuals with authority to bind the organization on the matter (verify)"
+    },
+    {
+     "name": "directors",
+     "type": "ref[]",
+     "required": false,
+     "note": "Required when verifying (verify)"
+    },
+    {
+     "name": "owners_25pct",
+     "type": "ref[]",
+     "required": false,
+     "note": "Anyone owning or controlling, directly or indirectly, 25% or more (verify the threshold for By-Law 7.1)"
+    },
+    {
+     "name": "trust_parties",
+     "type": "ref[]",
+     "required": false,
+     "note": "For a trust: trustees, known beneficiaries and settlors (verify)"
+    },
+    {
+     "name": "ownership_structure",
+     "type": "text",
+     "required": false,
+     "note": "How control is held"
+    },
+    {
+     "name": "bo_confirmation_steps",
+     "type": "text",
+     "required": false,
+     "note": "Reasonable steps taken to confirm the beneficial ownership information (verify)"
+    },
+    {
+     "name": "exemption",
+     "type": "enum",
+     "required": false,
+     "note": "public body | reporting issuer | financial institution (verify)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Pull registry profile",
+     "by": "agent",
+     "gate": "none",
+     "note": "Public corporate registry lookup"
+    },
+    {
+     "name": "Request beneficial ownership details",
+     "by": "agent",
+     "gate": "none",
+     "note": "Portal form for the instructing individual. Can ask for the corporation's register of individuals with significant control (Ontario private corporations keep one)."
+    },
+    {
+     "name": "Map ownership",
+     "by": "agent",
+     "gate": "none",
+     "note": "Builds the chart. Each layer is checked against registry data where it is public."
+    },
+    {
+     "name": "Confirm organization verified",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Gate G4 (organization)"
+    }
+   ],
+   "agent": "Pulls the registry profile, compares it with what the client gave, and lists directors and officers. Builds the ownership chart and flags opaque layers (a foreign holding company, nominee shareholders, bearer-style arrangements). Adds every director, owner and related company to the conflict party list and re-runs the check if new names appear. Runs sanctions screening on the organization and each owner.",
+   "gate": "G4 (organization): a lawyer confirms the organization's existence is verified and that the beneficial ownership record is complete or the gaps are explained. It blocks the same fund movements as the individual G4.",
+   "states": [
+    "not started",
+    "registry pulled",
+    "awaiting client details",
+    "pending sign-off",
+    "verified",
+    "exempt (approved)",
+    "gaps outstanding"
+   ],
+   "edge": [
+    "Owners cannot be determined (a widely held private company or a chain of holding companies): record the steps taken and name the most senior managing officer instead (verify the fallback)",
+    "Registry data and client statements conflict: block and escalate",
+    "A numbered company with no operating name: generate searchable aliases",
+    "The organization changes control mid-matter: the agent watches registry changes on open matters"
+   ],
+   "reg": "By-Law 7.1: organization identification, existence verification from an independent document, and beneficial ownership information when verifying (verify which provisions Ontario adopted from the Federation Model Rule and in what form). Ontario's 25% significant control register under the OBCA is a separate obligation on the corporation, but a useful source.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Person",
+     "Role",
+     "Ownership",
+     "ID status",
+     "Sanctions"
+    ],
+    "rows": [
+     [
+      "Teodros Alemu",
+      "Director, authorized signer",
+      "60% via Hawthorne Holdings Ltd.",
+      "verified",
+      "clear"
+     ],
+     [
+      "Hirut Alemu",
+      "Director",
+      "40% direct",
+      "identified",
+      "clear"
+     ],
+     [
+      "Hawthorne Holdings Ltd.",
+      "Shareholder (corporate)",
+      "60%",
+      "registry confirmed",
+      "clear"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "identity-portal",
+   "name": "Client ID upload (portal)",
+   "route": "/portal/verify/:token",
+   "who": [
+    "client",
+    "agent"
+   ],
+   "purpose": "A guided, mobile-first flow where the client provides identity details and documents for the firm.",
+   "layout": "Step-by-step on one column: 1 details, 2 document capture (front, back, selfie with liveness) or another method, 3 organization details if relevant, 4 review and submit. A firm-branded header names the lawyer who asked.",
+   "fields": [
+    {
+     "name": "personal_details",
+     "type": "form",
+     "required": true,
+     "note": "Pre-filled from intake. The client confirms."
+    },
+    {
+     "name": "method_choice",
+     "type": "enum",
+     "required": true,
+     "note": "photo ID with authentication | in-person appointment | dual process documents"
+    },
+    {
+     "name": "document_images",
+     "type": "file",
+     "required": false,
+     "note": "Sent straight to the authentication vendor in Canada (verify vendor residency)"
+    },
+    {
+     "name": "dual_process_docs",
+     "type": "file[]",
+     "required": false,
+     "note": "For example a utility bill plus a bank or CRA statement from two different sources"
+    },
+    {
+     "name": "consent",
+     "type": "bool",
+     "required": true,
+     "note": "Consent to collect and use the ID (privacy notice)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Submit",
+     "by": "human",
+     "gate": "none",
+     "note": "By the client"
+    },
+    {
+     "name": "Book in-person check",
+     "by": "human",
+     "gate": "none",
+     "note": "Picks a slot on the firm calendar"
+    },
+    {
+     "name": "Validate and authenticate",
+     "by": "agent",
+     "gate": "none",
+     "note": "Calls the vendor and records the result"
+    }
+   ],
+   "agent": "Validates image quality in real time, runs authentication through the vendor, extracts the fields, compares them with intake, and gives the client a plain-language reason when a step fails. It never states a legal conclusion to the client.",
+   "gate": "none here (the result feeds G4)",
+   "states": [
+    "link sent",
+    "opened",
+    "in progress",
+    "submitted",
+    "authentication failed",
+    "link expired"
+   ],
+   "edge": [
+    "Link forwarded to someone else: links are single-use, bound to an email or phone one-time passcode, and expire in 7 days",
+    "The vendor is down: offer dual process or an appointment",
+    "The client uploads an expired document: rejected with the reason",
+    "Accessibility: the flow must work with a screen reader and offer an in-person alternative"
+   ],
+   "reg": "PIPEDA consent and purpose limitation for ID data (verify). ID images are kept only as long as By-Law 7.1 record keeping needs.",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Step",
+     "Status"
+    ],
+    "rows": [
+     [
+      "1 Your details",
+      "done"
+     ],
+     [
+      "2 Photo ID",
+      "authenticating"
+     ],
+     [
+      "3 Business details",
+      "not needed"
+     ],
+     [
+      "4 Review",
+      "pending"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "ethical-walls",
+   "name": "Ethical walls",
+   "route": "/compliance/walls",
+   "who": [
+    "lawyer",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Create, review and monitor screens that keep named people away from named matters, and enforce them across every module and the agent itself.",
+   "layout": "List of walls (matter, screened people, reason, status, breaches). Detail: the screened people, the protected matters, the undertakings, the access-attempt log and the notice to the affected client.",
+   "fields": [
+    {
+     "name": "protected_matters",
+     "type": "ref[]",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "screened_users",
+     "type": "ref[]",
+     "required": true,
+     "note": "Users who must not see the matters or work on them"
+    },
+    {
+     "name": "reason",
+     "type": "enum",
+     "required": true,
+     "note": "lateral hire (conflict from a former firm) | former client info | personal interest | consent condition | other"
+    },
+    {
+     "name": "origin_check",
+     "type": "ref",
+     "required": false,
+     "note": "The clearance that required the wall"
+    },
+    {
+     "name": "undertakings",
+     "type": "file[]",
+     "required": true,
+     "note": "Signed by each screened user and each team member (verify that the rule requires this)"
+    },
+    {
+     "name": "client_notice",
+     "type": "file",
+     "required": false,
+     "note": "Notice to the former client, where required (verify)"
+    },
+    {
+     "name": "effective_from",
+     "type": "datetime",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "review_date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "draft | pending approval | active | lifted"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Propose wall",
+     "by": "agent",
+     "gate": "none",
+     "note": "From a clearance outcome or a lateral-hire disclosure"
+    },
+    {
+     "name": "Approve and activate",
+     "by": "human",
+     "gate": "approve",
+     "note": "Gate G2b. A lawyer who is not screened approves."
+    },
+    {
+     "name": "Collect undertakings",
+     "by": "agent",
+     "gate": "none",
+     "note": "E-sign"
+    },
+    {
+     "name": "Lift wall",
+     "by": "human",
+     "gate": "approve",
+     "note": "A reason is required"
+    },
+    {
+     "name": "Review breach alert",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Drafts the wall from the conflict memo. Once it is active, enforces it everywhere: search, documents, email filing, time entry, calendar, reports and its own context. The agent never loads walled matter content into a session for a screened user, or answers that user's questions about it. Logs and alerts on blocked access attempts, and reminds the lawyer at each review date.",
+   "gate": "G2b: a lawyer approves each wall before it is active and each lift. Where the clearance depends on a wall, the matter cannot open until the wall is active and all undertakings are signed.",
+   "states": [
+    "draft",
+    "pending approval",
+    "active",
+    "breach alert",
+    "under review",
+    "lifted"
+   ],
+   "edge": [
+    "The screened user is the only person with a needed skill: the wall stands, and the work goes elsewhere",
+    "Small firm (2-3 lawyers): the agent warns that a screen may not be adequate in a small firm and recommends considering a decline (verify against LSO commentary)",
+    "Shared mailbox or drive: walled content in shared spaces is flagged for clean-up",
+    "An admin with global access is screened: the wall overrides their role, and break-glass access needs a second lawyer and is logged"
+   ],
+   "reg": "RPC 3.4 transfers between firms and the screening commentary; the CBA screening guidelines are commonly cited (verify Ontario rule numbers). The firm must be able to prove the screen was in place before the conflicted person arrived or the matter began.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Wall",
+     "Protected matter",
+     "Screened",
+     "Reason",
+     "Status",
+     "Blocked attempts"
+    ],
+    "rows": [
+     [
+      "W-07",
+      "2026-0101 Abay v. Lakeshore Condo Corp.",
+      "Kaleab Bereket",
+      "lateral hire",
+      "active",
+      "1"
+     ],
+     [
+      "W-08",
+      "2026-0144 Hawthorne Bakery lease dispute",
+      "Yohannes Sinke",
+      "former client info",
+      "pending approval",
+      "0"
+     ],
+     [
+      "W-05",
+      "2025-0310 Estate of G. Worku",
+      "Meraf Abay",
+      "personal interest",
+      "lifted",
+      "0"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "lateral-hire-intake",
+   "name": "Lateral hire conflict disclosure",
+   "route": "/compliance/laterals/:userId",
+   "who": [
+    "lawyer",
+    "admin",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Before a new lawyer, paralegal or staff member starts, record the matters they worked on at their former firm (at a high level) and check them against the firm's data.",
+   "layout": "A disclosure form (client names, adverse parties and general nature only) next to the agent's hit list and proposed walls.",
+   "fields": [
+    {
+     "name": "joiner",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "former_firm",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "disclosed_matters",
+     "type": "list",
+     "required": true,
+     "note": "Client, adverse parties, general nature, dates. No privileged detail (verify the limits on disclosure)."
+    },
+    {
+     "name": "start_date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Run lateral check",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Approve start conditions",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Gate G2c: walls active before the start date"
+    }
+   ],
+   "agent": "Runs every disclosed party against the firm's current and former matters, proposes walls, and stores the disclosures, sealed, as a search source for future conflict checks.",
+   "gate": "G2c: a lawyer signs off on the lateral result. The joiner's account stays inactive until every required wall is active.",
+   "states": [
+    "not started",
+    "disclosure pending",
+    "checked",
+    "walls pending",
+    "cleared to start"
+   ],
+   "edge": [
+    "The joiner refuses to disclose: escalate to the lawyer",
+    "Disclosure itself would breach a former client's confidence: allow a generic description"
+   ],
+   "reg": "RPC 3.4 transfers between firms, and the duty not to disclose former-firm confidences (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Disclosed client",
+     "Adverse",
+     "Nature",
+     "Hit here",
+     "Proposed"
+    ],
+    "rows": [
+     [
+      "Lakeshore Condo Corp.",
+      "Meron Abay",
+      "condo arrears",
+      "2026-0101 (we act for Abay)",
+      "wall W-07"
+     ],
+     [
+      "Bekele Trucking Ltd.",
+      "",
+      "employment advice",
+      "none",
+      "none"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "compliance-audit-log",
+   "name": "Conflicts and ID audit log",
+   "route": "/compliance/audit",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "An append-only record of every search, view, disposition, sign-off, consent, ID access, wall change and blocked access in this area.",
+   "layout": "A filter bar (actor, human or agent, object, action, date) above a timeline table. Each row expands to show before and after values (sensitive values masked). Export button.",
+   "fields": [
+    {
+     "name": "at",
+     "type": "datetime",
+     "required": true,
+     "note": "Server time, UTC, shown in local time"
+    },
+    {
+     "name": "actor",
+     "type": "ref",
+     "required": true,
+     "note": "A user, or the agent with the user it acted for"
+    },
+    {
+     "name": "action",
+     "type": "enum",
+     "required": true,
+     "note": "search | view result | disposition | memo edit | sign-off | consent event | id view | id download | verification | wall change | access blocked | export"
+    },
+    {
+     "name": "object",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "detail",
+     "type": "json",
+     "required": false,
+     "note": "Masked. Never holds ID numbers or images, and never holds memo text, only a hash."
+    },
+    {
+     "name": "hash_chain",
+     "type": "text",
+     "required": true,
+     "note": "Tamper evidence"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Filter and search",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Export for the LSO or LawPRO",
+     "by": "human",
+     "gate": "approve",
+     "note": "A lawyer approves. The export itself is logged."
+    },
+    {
+     "name": "Weekly anomaly digest",
+     "by": "agent",
+     "gate": "none",
+     "note": "For example, unusual name searches or repeated blocked access"
+    }
+   ],
+   "agent": "Writes every event, including its own actions, with the human on whose behalf it acted. Detects anomalies (searches unrelated to any intake, ID downloads in bulk, attempts on walled matters) and sends the digest to the admin and the responsible lawyer.",
+   "gate": "none (read-only; exports need lawyer approval)",
+   "states": [
+    "populated",
+    "filtered",
+    "export pending approval",
+    "integrity check failed"
+   ],
+   "edge": [
+    "Hash chain verification fails: alert the admin and lock exports",
+    "A retention expiry removes an ID record: the log keeps a 'destroyed per schedule' event, not the data"
+   ],
+   "reg": "Proof of who cleared a conflict and when, and of By-Law 7.1 record keeping. The log is kept at least as long as the records it covers (verify).",
+   "mock": {
+    "kind": "timeline",
+    "columns": [
+     "Time",
+     "Actor",
+     "Action",
+     "Object"
+    ],
+    "rows": [
+     [
+      "2026-10-08 14:12",
+      "Linda Kassim",
+      "sign-off: subject to consent",
+      "CC-2026-0412"
+     ],
+     [
+      "2026-10-08 13:58",
+      "agent (for Meraf Abay)",
+      "memo draft v2",
+      "CC-2026-0412"
+     ],
+     [
+      "2026-10-08 11:03",
+      "Kaleab Bereket",
+      "access blocked (wall W-07)",
+      "Matter 2026-0101"
+     ],
+     [
+      "2026-10-09 09:40",
+      "Ayo Ewebiyi",
+      "id view",
+      "Selam Tadesse identity"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "id-retention-register",
+   "name": "Client ID records and retention",
+   "route": "/compliance/client-id",
+   "who": [
+    "lawyer",
+    "admin",
+    "agent"
+   ],
+   "purpose": "A firm-wide view of ID status for every active client and the retention or destruction schedule for ID records.",
+   "layout": "KPI strip (clients blocked on ID, verifications due, expiring documents, records due for destruction). Table of clients below, with tabs: Active, Blocked, Retention due.",
+   "fields": [
+    {
+     "name": "client",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "id_status",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "funds_blocked",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "retention_until",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "destruction_status",
+     "type": "enum",
+     "required": false,
+     "note": "not due | due | approved | destroyed"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Chase outstanding ID",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Approve destruction batch",
+     "by": "human",
+     "gate": "approve",
+     "note": "Gate G14 (shared with closing)"
+    }
+   ],
+   "agent": "Recomputes retention dates when matters close. Proposes destruction batches only for records past their date with no legal hold, and keeps a destruction certificate.",
+   "gate": "A lawyer approves each destruction batch.",
+   "states": [
+    "all clear",
+    "items blocked",
+    "destruction batch pending"
+   ],
+   "edge": [
+    "Legal hold or a LawPRO claim: destruction is suspended",
+    "The client has several matters: retention runs from the last one to end (verify)"
+   ],
+   "reg": "By-Law 7.1 record retention (verify the period and its start event). PIPEDA requires that personal information is not kept longer than needed.",
+   "mock": {
+    "kind": "dashboard",
+    "columns": [
+     "Client",
+     "ID status",
+     "Funds blocked",
+     "Retain until"
+    ],
+    "rows": [
+     [
+      "Selam Tadesse",
+      "pending sign-off",
+      "yes",
+      "-"
+     ],
+     [
+      "Hawthorne Bakery Inc.",
+      "gaps outstanding",
+      "yes",
+      "-"
+     ],
+     [
+      "Mesfin Girma",
+      "verified",
+      "no",
+      "2032-06-30"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "conflict-search-settings",
+   "name": "Conflict search settings",
+   "route": "/settings/conflicts",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Decide what a conflict check searches, how loosely it matches, and how long checks and reports are kept.",
+   "layout": "Sections: Sources searched, Matching, Identifiers, Check lifecycle, Report. Each shows what it changes and a test search box.",
+   "fields": [
+    {
+     "name": "sources_searched",
+     "type": "enum[]",
+     "required": true,
+     "note": "contacts, parties on matters, leads, sealed prospects, notes, calendar entries, document names, document text, emails/communications, former-firm disclosures"
+    },
+    {
+     "name": "default_match",
+     "type": "enum",
+     "required": true,
+     "note": "similar (spelling, initials, transliteration) | exact; similar is default and cannot be off for names"
+    },
+    {
+     "name": "identifiers",
+     "type": "enum[]",
+     "required": true,
+     "note": "name, alias, email, phone, address, business number, DOB"
+    },
+    {
+     "name": "similarity_threshold",
+     "type": "number",
+     "required": true,
+     "note": "Below it a hit is hidden; admin sees how many were hidden"
+    },
+    {
+     "name": "auto_close_days",
+     "type": "number",
+     "required": true,
+     "note": "An unresolved check lapses after N days (default 5); lapsed checks cannot clear a matter"
+    },
+    {
+     "name": "stale_after_days",
+     "type": "number",
+     "required": true,
+     "note": "A cleared check older than N days must be re-run before opening the matter (default 30)"
+    },
+    {
+     "name": "max_parties_per_check",
+     "type": "number",
+     "required": false,
+     "note": "No hard cap; warn above 25"
+    },
+    {
+     "name": "report_template",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Test a search",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Change settings",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer-admin; every change is in the audit log with before/after"
+    },
+    {
+     "name": "Estimate impact",
+     "by": "agent",
+     "gate": "none",
+     "note": "Re-runs last month's checks with new settings, shows hits gained/lost"
+    }
+   ],
+   "agent": "Runs the impact estimate; warns if a setting would hide hits that a lawyer previously marked relevant.",
+   "gate": "A lawyer approves any change that narrows the search.",
+   "states": [
+    "defaults",
+    "edited",
+    "pending approval",
+    "saved"
+   ],
+   "edge": [
+    "Someone turns off document-text search to speed things up: impact shows hits lost; requires approval",
+    "A new data source (email filing) is enabled: offer a one-time back-search of open matters"
+   ],
+   "reg": "Rule 3.4 conflicts and LSO by-law record keeping: firm must have a reasonable system to check conflicts (verify).",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Setting",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Matching",
+      "similar"
+     ],
+     [
+      "Searches",
+      "contacts, parties, leads, sealed prospects, notes, documents (text)"
+     ],
+     [
+      "Auto-close",
+      "5 days"
+     ],
+     [
+      "Stale after",
+      "30 days"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "quick-name-search",
+   "name": "Quick name search",
+   "route": "/conflicts/quick",
+   "who": [
+    "clerk",
+    "paralegal",
+    "lawyer",
+    "agent"
+   ],
+   "purpose": "A fast pre-screen of one or two names while someone is on the phone, before any facts are taken.",
+   "layout": "Single search box with name and optional phone/email; result list grouped as client, adverse, prospect, other; button to turn into a full check.",
+   "fields": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "phone_or_email",
+     "type": "text",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "result_groups",
+     "type": "list",
+     "required": false,
+     "note": "Only role and matter number shown, never facts"
+    },
+    {
+     "name": "reason",
+     "type": "text",
+     "required": true,
+     "note": "Short reason; required for audit"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Search",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Start full check from this",
+     "by": "human",
+     "gate": "none",
+     "note": "Carries names into conflict-check-new"
+    },
+    {
+     "name": "Stop the call script",
+     "by": "agent",
+     "gate": "none",
+     "note": "If an adverse hit, intake tells the caller the firm will call back"
+    }
+   ],
+   "agent": "Runs on every incoming lead and phone note automatically and shows a traffic light on the lead.",
+   "gate": "none (it never clears anything; only G2 clears)",
+   "states": [
+    "empty",
+    "no hits",
+    "possible hits",
+    "adverse hit"
+   ],
+   "edge": [
+    "Quick search shows no hits and staff treat it as cleared: screen states 'not a conflict clearance' and matter opening still requires G2",
+    "Screened user searches a walled matter's party: result says 'restricted, ask compliance' without details"
+   ],
+   "reg": "Gather only enough to check conflicts before clearance (LSO Rules commentary to 3.4, verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Name",
+     "Found as",
+     "Matter",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Daniel Brooks",
+      "adverse party",
+      "2025-0142",
+      "closed"
+     ],
+     [
+      "Brooks Holdings Ltd.",
+      "prospect (sealed)",
+      "-",
+      "declined 2025"
+     ],
+     [
+      "D. Brookes",
+      "contact",
+      "-",
+      "no matter"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "party-records-hygiene",
+   "name": "Party records cleanup",
+   "route": "/conflicts/records",
+   "who": [
+    "clerk",
+    "paralegal",
+    "lawyer",
+    "agent"
+   ],
+   "purpose": "Keep the conflict database accurate: merge duplicate people and companies, fill missing identifiers, and record relationships.",
+   "layout": "Tabs: Possible duplicates, Missing identifiers, Relationships. Each row shows two records side by side and the matters they touch.",
+   "fields": [
+    {
+     "name": "record_a",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "record_b",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "match_reason",
+     "type": "text",
+     "required": false,
+     "note": "same email, same phone, similar name + address"
+    },
+    {
+     "name": "relationship",
+     "type": "enum",
+     "required": false,
+     "note": "spouse, parent/child, director, shareholder >25%, parent/subsidiary, employer, insurer, guarantor"
+    },
+    {
+     "name": "missing",
+     "type": "enum[]",
+     "required": false,
+     "note": "DOB, email, address, corporate number"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Merge records",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer approves; merge keeps both old names as aliases and all roles"
+    },
+    {
+     "name": "Mark not duplicate",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Add relationship",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Propose duplicates and relationships",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Finds probable duplicates and relationships from registry pulls, documents and emails; never merges on its own.",
+   "gate": "Lawyer approves merges, because a merge can create or remove a conflict on an open matter.",
+   "states": [
+    "clean",
+    "suggestions waiting",
+    "merge pending approval"
+   ],
+   "edge": [
+    "Merge would put adverse parties of two clients into one record: blocked and raised as a conflict",
+    "Two people truly share a name and DOB: 'not duplicate' is remembered",
+    "Undo a wrong merge: split restores both records and re-runs affected checks"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Record A",
+     "Record B",
+     "Why",
+     "Matters"
+    ],
+    "rows": [
+     [
+      "Abebe Girma",
+      "Abebe Girma Wolde",
+      "same phone",
+      "2"
+     ],
+     [
+      "Hawthorne Bakery Inc.",
+      "Hawthorne Bakery",
+      "same address",
+      "1"
+     ],
+     [
+      "Selam Tadesse",
+      "S. Tadesse",
+      "same email",
+      "1"
+     ]
+    ]
+   }
+  }
+ ],
+ "entities": [
+  {
+   "name": "ConflictCheck",
+   "fields": [
+    "id",
+    "source_ref",
+    "matter_description",
+    "scope",
+    "status",
+    "requested_by",
+    "created_at"
+   ],
+   "relations": [
+    "has many CheckRun",
+    "has one Clearance",
+    "belongs to Lead or Matter"
+   ]
+  },
+  {
+   "name": "CheckParty",
+   "fields": [
+    "id",
+    "check_id",
+    "name",
+    "kind",
+    "role",
+    "aliases",
+    "dob_or_number",
+    "related_party_ids",
+    "require_full_name_match",
+    "label"
+   ],
+   "relations": [
+    "links to Contact (optional)"
+   ]
+  },
+  {
+   "name": "CheckRun",
+   "fields": [
+    "id",
+    "check_id",
+    "version",
+    "index_version",
+    "ran_at",
+    "complete"
+   ],
+   "relations": [
+    "has many Hit"
+   ]
+  },
+  {
+   "name": "Hit",
+   "fields": [
+    "id",
+    "run_id",
+    "check_party_id",
+    "matched_record_ref",
+    "match_type",
+    "score",
+    "conflict_kind_proposed",
+    "reason",
+    "disposition",
+    "disposition_note",
+    "disposed_by"
+   ],
+   "relations": [
+    "matched record is a Contact, MatterParty, SealedProspect or LateralDisclosure"
+   ]
+  },
+  {
+   "name": "Clearance",
+   "fields": [
+    "id",
+    "check_id",
+    "run_id",
+    "memo_doc_ref",
+    "outcome",
+    "conditions",
+    "rationale",
+    "signed_by",
+    "signed_at",
+    "stale"
+   ],
+   "relations": [
+    "has many Consent",
+    "may require EthicalWall"
+   ]
+  },
+  {
+   "name": "Consent",
+   "fields": [
+    "id",
+    "clearance_id",
+    "party_ref",
+    "type",
+    "disclosure_summary",
+    "ila_recommended",
+    "status",
+    "document_ref",
+    "approved_by",
+    "signed_at"
+   ],
+   "relations": [
+    "belongs to Clearance"
+   ]
+  },
+  {
+   "name": "SealedProspect",
+   "fields": [
+    "id",
+    "names",
+    "adverse_names",
+    "nature",
+    "declined_at",
+    "sealed"
+   ],
+   "relations": [
+    "search source only"
+   ]
+  },
+  {
+   "name": "IdentityRecord",
+   "fields": [
+    "id",
+    "client_ref",
+    "subject_kind",
+    "obligation",
+    "exemption_reason",
+    "status",
+    "verified_by",
+    "verified_on",
+    "signed_by",
+    "retention_until",
+    "source_of_funds",
+    "risk_rating_open",
+    "risk_reason_open",
+    "risk_rating_close",
+    "risk_reason_close",
+    "aml_check_date",
+    "source_of_funds_check_date"
+   ],
+   "relations": [
+    "has many IdDocument",
+    "has many BeneficialOwner (organization)",
+    "has many ThirdParty"
+   ]
+  },
+  {
+   "name": "IdDocument",
+   "fields": [
+    "id",
+    "identity_id",
+    "method",
+    "doc_type",
+    "number_encrypted",
+    "issuer_place",
+    "expiry",
+    "file_ref",
+    "auth_vendor_ref",
+    "auth_result"
+   ],
+   "relations": [
+    "belongs to IdentityRecord"
+   ]
+  },
+  {
+   "name": "BeneficialOwner",
+   "fields": [
+    "id",
+    "identity_id",
+    "person_or_org_ref",
+    "role",
+    "ownership_pct",
+    "control_description",
+    "id_status",
+    "sanctions_result"
+   ],
+   "relations": [
+    "each person also gets an IdentityRecord when required",
+    "added to CheckParty"
+   ]
+  },
+  {
+   "name": "EthicalWall",
+   "fields": [
+    "id",
+    "protected_matter_ids",
+    "screened_user_ids",
+    "reason",
+    "origin_clearance_id",
+    "status",
+    "effective_from",
+    "review_date",
+    "approved_by"
+   ],
+   "relations": [
+    "has many Undertaking",
+    "has many AccessAttempt"
+   ]
+  },
+  {
+   "name": "LateralDisclosure",
+   "fields": [
+    "id",
+    "user_id",
+    "former_firm",
+    "matters",
+    "start_date",
+    "cleared_by"
+   ],
+   "relations": [
+    "search source; may create EthicalWall"
+   ]
+  },
+  {
+   "name": "ComplianceAuditEvent",
+   "fields": [
+    "id",
+    "at",
+    "actor_user_id",
+    "on_behalf_of",
+    "is_agent",
+    "action",
+    "object_ref",
+    "detail_masked",
+    "prev_hash",
+    "hash"
+   ],
+   "relations": [
+    "append-only"
+   ]
+  },
+  {
+   "name": "PartyRelationship",
+   "fields": [
+    "id",
+    "from_party",
+    "to_party",
+    "kind",
+    "source",
+    "confirmed_by"
+   ],
+   "relations": [
+    "links two Contact/Party records"
+   ]
+  },
+  {
+   "name": "ConflictSettings",
+   "fields": [
+    "sources_searched",
+    "default_match",
+    "identifiers",
+    "similarity_threshold",
+    "auto_close_days",
+    "stale_after_days",
+    "version"
+   ],
+   "relations": [
+    "one per firm; versioned"
+   ]
+  },
+  {
+   "name": "AccessAttempt",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by conflicts relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "MatterParty",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by conflicts relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "ThirdParty",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by conflicts relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  }
+ ],
+ "gates": [
+  {
+   "id": "G2",
+   "name": "Conflict clearance",
+   "approver": "lawyer (not screened from any hit matter)",
+   "blocks": "Opening the matter, sending the engagement letter, any trust request, any substantive advice"
+  },
+  {
+   "id": "G2a",
+   "name": "Consent / waiver letter text",
+   "approver": "lawyer",
+   "blocks": "Sending the consent. The clearance takes effect only when every consent is signed."
+  },
+  {
+   "id": "G2b",
+   "name": "Ethical wall activate / lift",
+   "approver": "lawyer not screened",
+   "blocks": "Opening a matter whose clearance depends on the wall; lifting any wall"
+  },
+  {
+   "id": "G2c",
+   "name": "Lateral hire clearance",
+   "approver": "lawyer",
+   "blocks": "Activating the joiner's account until required walls are active"
+  },
+  {
+   "id": "G4",
+   "name": "Client ID verified (individual or organization)",
+   "approver": "lawyer",
+   "blocks": "Posting trust receipts, payments or transfers for the client; an exempt status also needs this approval"
+  },
+  {
+   "id": "G14",
+   "name": "ID record destruction",
+   "approver": "lawyer",
+   "blocks": "Deleting ID documents and images past retention"
+  }
+ ],
+ "agent_jobs": [
+  {
+   "name": "Party extraction",
+   "trigger": "event: intake submitted or document added to a matter",
+   "does": "Extracts named parties and roles, expands aliases and pulls related entities from the registry",
+   "output": "Proposed CheckParty list on conflict-check-new"
+  },
+  {
+   "name": "Conflict search and ranking",
+   "trigger": "event: check run",
+   "does": "Runs multi-method matching with related-party hops and ranks the hits with reasons",
+   "output": "Hit list with proposed dispositions for conflict-results"
+  },
+  {
+   "name": "Clearance memo",
+   "trigger": "event: all hits disposed",
+   "does": "Drafts the memo with categories, rule references (verify) and a recommendation",
+   "output": "Draft memo for gate G2"
+  },
+  {
+   "name": "Consent drafting and chasing",
+   "trigger": "event: clearance outcome 'subject to consent'",
+   "does": "Drafts the letters, then sends and chases them after approval",
+   "output": "Draft letters for gate G2a"
+  },
+  {
+   "name": "Reverse conflict sweep",
+   "trigger": "schedule: nightly",
+   "does": "Checks parties added today against all open matters and stale clearances",
+   "output": "Alerts and re-check requests (back through G2)"
+  },
+  {
+   "name": "ID obligation watcher",
+   "trigger": "event: trust request drafted or funds expected",
+   "does": "Raises the client's obligation to 'verify' and holds fund movement",
+   "output": "Verification task for gate G4"
+  },
+  {
+   "name": "ID evidence check",
+   "trigger": "event: portal submission",
+   "does": "Authenticates the document, checks it for consistency, screens names against sanctions lists and lists gaps",
+   "output": "Pre-filled IdentityRecord for gate G4"
+  },
+  {
+   "name": "Beneficial ownership mapping",
+   "trigger": "event: organization client created",
+   "does": "Pulls registry data, builds the ownership chart and adds owners to the conflict parties",
+   "output": "Draft organization record for gate G4"
+  },
+  {
+   "name": "Wall enforcement and monitoring",
+   "trigger": "event: any access to a walled matter, plus schedule: review dates",
+   "does": "Blocks access, logs it and alerts; sends review reminders",
+   "output": "Breach alerts and review tasks (G2b)"
+  },
+  {
+   "name": "Expiry and retention",
+   "trigger": "schedule: weekly",
+   "does": "Flags expiring ID documents on open matters and proposes destruction batches",
+   "output": "Destruction batch for gate G14"
+  },
+  {
+   "name": "Audit anomaly digest",
+   "trigger": "schedule: weekly",
+   "does": "Reviews the audit log for unusual searches, downloads and blocked-access patterns",
+   "output": "Digest for the admin and lawyer"
+  },
+  {
+   "name": "Duplicate and relationship finder",
+   "trigger": "schedule: nightly",
+   "does": "Finds probable duplicate party records and missing relationships",
+   "output": "Suggestions on party-records-hygiene for lawyer merge approval"
+  }
+ ],
+ "open_questions": [
+  "Fuzzy-match threshold: below what score may a clerk dismiss a hit without lawyer review (proposed: 80)?",
+  "Should a sole practitioner's self sign-off need any extra step, or is the log enough?",
+  "Which ID authentication vendor, with Canadian data residency, and is its result accepted as 'authentication' under the 2024 LSO change?",
+  "Sanctions screening: which lists (Canadian consolidated autonomous sanctions list, SEMA, JVCFOA), and do we include politically exposed persons even though By-Law 7.1 may not require it?",
+  "Should declined prospects be kept indefinitely for conflict searches (sealed), or purged after N years?",
+  "Small firms: should the app refuse to activate a wall in firms below N lawyers, or only warn?",
+  "Are the agent's own reads of walled matters (on behalf of a screened user) blocked at the platform layer (per-session policy) or only in the app?",
+  "Need a lawyer review of the By-Law 7.1 exemption list, timing for verification after funds move, and the retention period before we hard-code them",
+  "Auto-close after 5 days and stale after 30: are these the right defaults for the firm?",
+  "Should email bodies be searched in conflict checks or only sender/recipient addresses?",
+  "'Share check' in-app link to any user allowed to see the check (walled users excluded), logged? (could)",
+  "Require an explicit acknowledgement when the clearance outcome differs from what hit dispositions imply? (could)"
+ ],
+ "sources": [
+  "https://help.clio.com/hc/articles/41182681954331",
+  "https://help.clio.com/hc/articles/35286010477979",
+  "https://www.clio.com/blog/conflict-check-how-to/",
+  "https://lso.ca/about-lso/legislation-rules/by-laws/by-law-7-1 (primary; returned 403 to the fetcher, so it was not read)",
+  "https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct (primary, to verify)",
+  "https://oba.org/Sections/Real-Property-Law/Articles/Articles-2024/January-2024/LSO-Virtual-Authentication-Requirements",
+  "https://hrlawcanada.com/2023/07/law-society-of-ontario-implements-virtual-verification-for-client-identity-to-combat-fraud-ensure-compliance/",
+  "https://lawtimesnews.com/resources/professional-regulation/law-society-of-ontario-extends-virtual-verification-until-january-2024/371969",
+  "https://www.allaboutestates.ca/?p=20552",
+  "https://www.ontario.ca/page/beneficial-ownership-information-requirements",
+  "https://www.oba.org/Sections/Labour-Employment-Law/Articles/Articles-2023/May-2023/The-Ethical-Screen-A-How-to-Guide",
+  "https://www.slaw.ca/?p=44476",
+  "https://clp.law.utoronto.ca/sites/clp.law.utoronto.ca/files/documents/Conflicts-of-Interest.pdf",
+  "https://help.clio.com/hc/en-us/articles/41182681954331-Run-Conflict-Checks-in-Clio-Manage-and-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/43953875528731-Customize-Conflict-Check-Search-Settings",
+  "https://support.clio.com/hc/en-us/articles/360013666333-Can-I-Run-a-Conflict-Check-on-Multiple-Parties-at-Once-",
+  "https://help.clio.com/hc/en-us/articles/9290347515291-Global-Search",
+  "https://www.clio.com/about/press/grow-ai/",
+  "https://help.clio.com/hc/en-us/articles/40830064366875-Know-Your-Client"
+ ],
+ "clio_gaps": [
+  {
+   "clio_feature": "Start check from global search, contacts tab, matter, or new-matter save",
+   "where_in_clio": "Manage > Search bar / Contacts > Conflict checks / Matter > Conflicts",
+   "status": "added",
+   "note": "quick-name-search + 'start from matter being created'"
+  },
+  {
+   "clio_feature": "Flex vs exact matching",
+   "where_in_clio": "Conflict check > search type",
+   "status": "added",
+   "note": "match_mode on check; default in settings"
+  },
+  {
+   "clio_feature": "Search by email, phone, address as well as name",
+   "where_in_clio": "Conflict check > identifying details",
+   "status": "added",
+   "note": "identifiers_per_party"
+  },
+  {
+   "clio_feature": "Multiple searches per check (up to 10)",
+   "where_in_clio": "Conflict check > Add another search",
+   "status": "already covered",
+   "note": "parties[] list; no hard cap, warn above 25"
+  },
+  {
+   "clio_feature": "Search categories incl. notes, calendar, document names/contents, communications",
+   "where_in_clio": "Conflict check > categories; plan-dependent",
+   "status": "added",
+   "note": "sources_searched in conflict-search-settings, all on by default"
+  },
+  {
+   "clio_feature": "Customize conflict check search settings",
+   "where_in_clio": "Settings > Conflict check; Conflict check summary > preferences",
+   "status": "added",
+   "note": "conflict-search-settings with impact estimate | Merged duplicate 'Firm-wide conflict search preferences and categories': conflict-search-settings. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Per-result status and note; results sorted into status tabs",
+   "where_in_clio": "Conflict check results",
+   "status": "already covered",
+   "note": "hit.disposition + disposition_note"
+  },
+  {
+   "clio_feature": "Close check generates PDF report",
+   "where_in_clio": "Conflict check > Close",
+   "status": "added",
+   "note": "Generate check report action"
+  },
+  {
+   "clio_feature": "Check auto-closes after 3 days",
+   "where_in_clio": "Conflict check lifecycle",
+   "status": "deliberately different",
+   "note": "Configurable auto-close (default 5) and a separate stale-after rule; lapsed checks cannot clear"
+  },
+  {
+   "clio_feature": "Duplicate and re-run a closed check",
+   "where_in_clio": "Contacts > Conflict checks",
+   "status": "added",
+   "note": "Duplicate and re-run action"
+  },
+  {
+   "clio_feature": "Download report / export CSV of checks",
+   "where_in_clio": "Contacts > Conflict checks",
+   "status": "added",
+   "note": "Export CSV on register (approval, logged) (unverified)"
+  },
+  {
+   "clio_feature": "Link check to a matter",
+   "where_in_clio": "Matter > Conflict checks",
+   "status": "added",
+   "note": "Link check to matter action"
+  },
+  {
+   "clio_feature": "Checks shared between intake and practice products",
+   "where_in_clio": "Grow + Manage sync",
+   "status": "already covered",
+   "note": "One app; one check record per lead/matter"
+  },
+  {
+   "clio_feature": "Role permissions for running/viewing checks",
+   "where_in_clio": "Settings > Roles",
+   "status": "already covered",
+   "note": "who[] per screen; exports and unseal need lawyer (unverified)"
+  },
+  {
+   "clio_feature": "AI lead screening against conflict rules",
+   "where_in_clio": "Grow AI; Lead assessment",
+   "status": "already covered",
+   "note": "Party extraction + quick search on every lead | Merged duplicate 'Grow AI conflict flag on leads': pre-conflict screen in intake triage. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Clearance memo, consents, walls, laterals, client ID",
+   "where_in_clio": "Clio has a KYC/KYB field log (settings toggle, region-gated) and an overall conflict status with comments on close; memo, consents, walls, laterals not structured",
+   "status": "deliberately different",
+   "note": "Partly corrected: Clio logs conflict, ID, AML and source-of-funds check dates plus a risk rating with reason on contacts and matters, but has no verification workflow. We go further: clearance sign-off gate, consents, walls, ID verification. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Contact merge (manual in Clio: move data, then delete secondary)",
+   "where_in_clio": "Contacts > contact > move matters/notes; Merge Contacts Manually",
+   "status": "added",
+   "note": "party-records-hygiene with lawyer approval. Clio has no merge tool, only a manual move-then-delete (r01); consistent with matters.json."
+  },
+  {
+   "clio_feature": "Keyword search subject, full-name match toggle, per-search label",
+   "where_in_clio": "Conflict check > Add search",
+   "status": "added",
+   "note": "parties[].kind keyword, require_full_name_match, label. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Know Your Client / Know Your Business field set",
+   "where_in_clio": "Settings > Firm Preferences > Compliance",
+   "status": "added",
+   "note": "client-identification risk rating at open and close, AML and source-of-funds dates, KYC card. Source: r07-grow"
+  }
+ ]
+}

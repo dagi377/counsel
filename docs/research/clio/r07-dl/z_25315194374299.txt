@@ -1,0 +1,75 @@
+===== Clio Grow Marketing Sources https://help.clio.com/hc/en-us/articles/25315194374299-Clio-Grow-Marketing-Sources updated 2026-10-07T17:15:51Z
+In Clio Grow, you can track how your marketing outreach turns prospective leads into first-time clients, as well as how outreach contributes to how your clients continued use of your services. You can leverage certain integrations, like Google Local Services Ads to facilitate this tracking and you can create and manage marketing sources and add them to matters and contacts manually.
+With campaign tracking, you can also record the specific marketing campaign that brought in a contact or matter, separately from the marketing source. For example, if you run the same promotion on Facebook and LinkedIn, you can track Facebook and LinkedIn as sources and the promotion as a campaign. This lets you see how the campaign performed overall and how each channel contributed.
+Manage standard marketing sources
+Standard marketing sources in Clio Grow are used for tracking common marketing channels like advertising, your website, and other online platforms. You can manage your standard marketing sources by adding, editing, or deleting sources. Once a standard marketing source is created, you can add it to a contact or matter.
+- Go to Settings > Sources & campaigns.
+- In the Sources tab, click New source.
+- Add a source name.
+- Click Create source.
+Rename sources
+You can edit the name of an existing marketing source as needed.
+- Go to Settings > Sources & campaigns.
+- Click the edit icon for the source you want to rename.
+- Update the source name.
+- Click Save source.
+Delete sources
+If you no longer need a specific source, you can delete it from your account.
+- Go to Settings > Sources & campaigns.
+- Click the delete icon for the source you want to delete.
+- Confirm the action by clicking Delete.
+Deleting a source that was added to matters and/or contacts will remove that source from the matter and/or contact.
+Manage campaigns
+Campaigns let you track a specific marketing effort, such as a seasonal promotion or event, separately from the channel it ran on. Once you create a campaign, you can add it to contacts and matters alongside their marketing source.
+Add Rename Delete
+- Go to Settings > Sources & campaigns.
+- Click the Campaigns tab.
+- Click New campaign.
+- Add a campaign name.
+- Click Create campaign.
+Tip: Name campaigns with a date and offer, so that you can easily select the right campaign for attribution and so that reports on campaign attributions are easy to understand.
+- Go to Settings > Sources & campaigns.
+- Click the Campaigns tab.
+- Click the edit icon for the campaign you want to rename.
+- Update the campaign name.
+- Click Save campaign.
+- Go to Settings > Sources & campaigns.
+- Click the Campaigns tab.
+- Click the delete icon for the campaign you want to delete.
+- Confirm the action by clicking Delete.
+Note: Deleting a campaign that was added to matters and/or contacts will remove that campaign from the matter and/or contact.
+Add, edit, and delete sources and campaigns in a matter
+Once you have created marketing sources, you can add them to a matter. If you use campaigns, you can also select the campaign associated with the source. 
+If you use Google’s Local Services Ads integration, marketing sources will automatically be added as to relevant matters. While sources added to matters via the Google Local Services Ads may be locked for editing, you can manually add, edit, or delete other marketing sources associated with matters.
+Note: Matters can have multiple marketing sources which can be useful to track how continued marketing outreach contributes to turning a lead into a client and to providing ongoing services on the matter. In contrast, a contact can only have one source representing the initial outreach that establishes the firm’s relationship with the client.
+Add Edit Delete
+- Go to Matters.
+- Click on the name of the relevant matter to open the matter’s page.
+- For the Marketing section, click Edit to open a Marketing panel.
+- Click Add new source.
+- Select the source, campaign (optional), and the date at which the source became relevant.
+- Click Create source.
+- Go to Matters.
+- Click on the name of the relevant matter to open the matter’s page.
+- For the Marketing section, click Edit to open a Marketing panel.
+- For the relevant source, click the edit (pencil) icon.
+- Update the source, campaign, and/or attribution date.
+- Click Update source.
+- Go to Matters.
+- Click on the name of the relevant matter to open the matter’s page.
+- For the Marketing section, click Edit to open a Marketing panel.
+- For the relevant source, click the delete (trash can) icon.
+- Click Delete source to confirm your choice.
+Edit source and campaign for a contact
+Note: While matters can have multiple marketing sources, a contact can only have one source representing the initial outreach that establishes the firm’s relationship with the client.
+Once you have created marketing sources and campaigns, you can edit the source and campaign on a contact. If you use the Google’s Local Services Ads integration, a relevant marketing source may automatically be added to a contact. While sources added to a contact via the Google Local Services Ads may be locked for editing, you can generally edit the marketing sources associated with a contact.
+- Go to Contacts.
+- Click on the name of the relevant contact to open the contact’s information page.
+- For the Marketing section, click Edit to open a Marketing panel.
+- 
+Click the edit (pencil) icon for the marketing source.
+Note: You can also update who the contact was referred by from this panel.
+- Select the new source, campaign (optional), and/or set the date at which the source became relevant.
+- Click Update source.
+
+IMGS: []

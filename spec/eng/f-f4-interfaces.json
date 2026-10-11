@@ -1,0 +1,108 @@
+{
+ "owner": "f4-interfaces",
+ "items": [
+  {
+   "finding": "RV2-011",
+   "status": "fixed",
+   "change": "x-money on 20 ops, x-external-effect on 4; all carry IdempotencyKey (also POST /documents); ARC-I-007 test asserts count(x-money)>=20, count(x-external-effect)>=4",
+   "left_for": ""
+  },
+  {
+   "finding": "RV2-012",
+   "status": "fixed",
+   "change": "POST /hooks/{provider} (security none, Standard Webhooks headers, 204 dup, 401 bad sig); ARC-I-048 dedup via platform.inbound_event + precedence state for out-of-order; event payment.reversed",
+   "left_for": "a4-data-model.sql: platform.inbound_event, platform.inbox; o1-tasks.json: T-021b"
+  },
+  {
+   "finding": "RV1-022",
+   "status": "fixed",
+   "change": "same route as RV2-012; precedence pending<received<posted<partially_refunded<refunded, reversed terminal (ARC-I-048, cites BIL-C-068)",
+   "left_for": "a4: billing.payment_event/inbound_event"
+  },
+  {
+   "finding": "RV2-013",
+   "status": "fixed",
+   "change": "PATCH /webhook-endpoints/{webhook_id} renew (expires_at nullable); ARC-I-049: webhook_endpoint.expiring at 14d/1d; platform owns source_subscription, hourly River subscription.renew at <=7d, alert <72h (aligned with f5/a3 MIG-042); events source_subscription.renewal_failed",
+   "left_for": "a4: platform.source_subscription, webhook.expires_at nullable; o1: T-040b"
+  },
+  {
+   "finding": "RV2-015",
+   "status": "fixed",
+   "change": "ARC-I-045 rewritten: Counsel gate engine authoritative for Counsel effects (amends ADR 0014 sec.5); agent creates pending gate.approval_request via app API, no Paploo gate; ARC-I-016/021 sole-practitioner only in Counsel engine; ARC-I-022 Counsel TTL governs, 72h only for Paploo-native gates; HTML findings bullet",
+   "left_for": "ADR 0014 sec.5 text; o1 T-037 accept"
+  },
+  {
+   "finding": "RV2-019",
+   "status": "fixed",
+   "change": "ARC-I-030: per-subject relay claim (DISTINCT ON subject ORDER BY subject_seq SKIP LOCKED), inbox insert+effect one tx; new ARC-I-047: money_external stop at 20h, provider lookup by idempotency key before resend, DLQ+page; ARC-I-023 effect row gate.effect_execution unique (gate_id,version) (f5 handoff)",
+   "left_for": "a1-uptime.html (done by f5)"
+  },
+  {
+   "finding": "RV2-025",
+   "status": "fixed",
+   "change": "every mutating op lists 400/401/403/404/409/412/422/428/429, reads 401/403/404/429, default kept; ARC-I-051 conformance rule",
+   "left_for": ""
+  },
+  {
+   "finding": "RV2-026",
+   "status": "fixed",
+   "change": "ARC-I-012 + execution summary: /execution only records bank payment of an already-authorized (approved, unexpired) withdrawal by non-authorizer; 409 not_authorized otherwise",
+   "left_for": "o1-build-guide.html / o1-tasks.json: reword T-009 accept"
+  },
+  {
+   "finding": "RV2-003",
+   "status": "partial",
+   "change": "ARC-I-022: expires_at stored, checked in Decide and effect worker, River gate.expire",
+   "left_for": "a4: expires_at column + check_decision"
+  },
+  {
+   "finding": "RV1-009",
+   "status": "fixed",
+   "change": "voidBill only when approved and delivered_at null, gate billing.bill_void (G-B2, billing.approve), exact reversal BIL-J-012, no credit note; delivered -> 409 bill_delivered_use_credit_note; credit note kind 'void' removed; bill.voided event no credit_note_id; ARC-I-050",
+   "left_for": "o1-tasks.json: register new conflict"
+  },
+  {
+   "finding": "RV1-008",
+   "status": "partial",
+   "change": "ARC-I-052 + deliverBill description: delivered_at set only by delivery effect on evidence, Toronto date, immutable, bounce leaves null (f1 handoff)",
+   "left_for": "a4: bill_guard"
+  },
+  {
+   "finding": "RV1-010",
+   "status": "fixed",
+   "change": "ARC-I-029 + schemas: bill target requires operating payment, trust payment only to trust_ledger (422 trust_receipt_not_allocatable), server-computed read-only fee/dtx/dnt/tax/interest_cents per allocation, reversal mirrors buckets, no over-allocation (422 over_allocation); Payment.status adds reversed",
+   "left_for": "a4: payment_allocation columns/triggers; b3"
+  },
+  {
+   "finding": "RV1-002",
+   "status": "fixed",
+   "change": "ARC-I-025 available = posted - protected - minimum - authorized holds, checked FOR UPDATE at authorization (409 insufficient_trust_funds) and execution; bill reserved_cents; ARC-I-027 posts trust_transaction at execution, bank confirmation only bank_match; states proposed->pending_authorization->authorized->executed->applied->confirmed (f1); excess -> due to trust + return task; sequence 2.4 redrawn; events trust.withdrawal_executed(transaction_id), trust.withdrawal_confirmed",
+   "left_for": "b3 state machine; a4 reservation/available view"
+  },
+  {
+   "finding": "RV1-011",
+   "status": "partial",
+   "change": "ARC-I-027 executor=authorizer allowed only when core.firm.sole_practitioner with audit sod_solo_exception; ARC-I-021 uses same flag",
+   "left_for": "a4 triggers"
+  },
+  {
+   "finding": "CF-04",
+   "status": "fixed",
+   "change": "spec ids GA1 (trust)/GA2 (trust) -> G-TSIG/G-TREL; ARC-I-013: kind stored in gate.approval_request.gate_code, spec id in spec_gate",
+   "left_for": ""
+  },
+  {
+   "finding": "CF-05",
+   "status": "fixed",
+   "change": "modules = 17 a4 schemas (core, party, intake, conflict, matter, docs, cal, work, timekeeping, billing, trust, gl, comms, agent, gate, audit, platform) with a4 singular table names; gate kinds/effect handlers/event owners renamed by MODULE_RENAME (58 kinds); json carries module_rename + renamed_gate_kinds; capabilities keep their names. Tables not yet in a4 are marked '(a4 addendum)'",
+   "left_for": "o1-tasks.json and others referencing old kind names (documents.*, deadlines.*, matters.*, conflicts.*, time.*, access.*, readiness.*, books.*) must use renamed_gate_kinds"
+  },
+  {
+   "finding": "CF-01",
+   "status": "fixed",
+   "change": "ARC-I-028 rate_ppm/1e6 (130000 ppm; QST 99750); Bill.hst_rate_bp -> hst_rate_ppm; conventions.rates=ppm; HTML conventions row",
+   "left_for": ""
+  }
+ ],
+ "notes": "gen.py regenerates a2-interfaces.json + HTML fragments; a2-interfaces.html = cat head gates mid events agent tools mods modules rules tail; OpenAPI produced by a2work/openapi_patch.py openapi.before.yaml a2-interfaces.json out.yaml (section comments dropped by the YAML dump). 53 paths, 69 ops, all $refs resolve."
+}

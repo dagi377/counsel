@@ -1,0 +1,31 @@
+===== Request Payments in Clio Grow https://help.clio.com/hc/en-us/articles/47739327025051-Request-Payments-in-Clio-Grow updated 2026-09-28T23:27:43Z
+In Clio Grow, your firm can request payment from leads during intake without waiting for a matter conversion. By capturing payments earlier in the journey, you eliminate the administrative burden of collecting payments after your prospective client has converted to a client, improving the lead-to-client experience and ensuring your firm is compensated from the very first interaction.
+Important: This feature is available to customers with both Clio Grow and Clio Manage who have signed up for Clio Payments.
+Request payment
+You can create a request for payment from the matter page in Clio Grow.
+- In Clio Grow, click Matters.
+- Select a matter to open the matter details.
+- While in the Intake process subtab, click the down arrow for the Schedule or send field, and then select Request payment.
+- Fill the required fields in the modal, and then click Generate payment request link.
+- 
+Use the copy icon to copy the link to your clipboard and use external to Clio Grow, or click Continue to email to send an email from Clio Grow.
+Tip: You can create an email template for payment requests that will include the payment link in the email.
+Payment requests—along with relevant details—are logged in the matter's timeline and as a checklist item. Tags on the checklist items indicate the payment status and depending on the status you will be able to take different actions that include resending the request, copying the request link, manually marking a payment that was not made via the payment link as paid, or deleting the checklist item from the matter. Once a customer pays via the payment link, you can view the transaction in Clio Manage in the main Online payments tab or in the contact’s Transactions tab. When you manually mark the request as paid, this transaction will be reflected in Grow timeline.
+Delete a payment request
+You can delete a payment request from the matter page. Once deleted, your clients will no longer be able to access the payment request link on previously-sent communications.
+- In Clio Grow, click Matters.
+- Select a matter to open the matter details.
+- In the matter's checklist section, find the payment request.
+- Click the Options dropdown for the request, and then select Delete from checklist.
+- Click Delete to confirm.
+Manually record a payment request
+When your client pays online, the payment is automatically logged. You can view these payments in Clio Manage on the Online Payments page. If a client pays using another method (e.g., cash or check), you can also manually log the payment.
+- In Clio Grow, click Matters.
+- Select a matter to open the matter details.
+- In the matter's checklist section, find the payment request.
+- Click the Options dropdown for the request, and then select Mark as manually paid.
+- 
+Optional: In the modal, use the checkbox if you also want to sync the manual payment to Clio Manage, and then fill out the required information for the record.
+- Click Mark as paid.
+
+IMGS: []

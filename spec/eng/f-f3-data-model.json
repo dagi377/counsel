@@ -1,0 +1,221 @@
+{
+ "owner": "f3-data-model",
+ "items": [
+  {
+   "finding": "RV2-001",
+   "status": "fixed",
+   "change": "gate_code CHECK '^[a-z]+\\.[a-z_]+$' (kind slug); new spec_gate CHECK '^G(-?[A-Z0-9]+)+[a-z]?$' accepts G-B2, G-IMP, G-TSIG, G-TREL, G11t, G6c, GA1; check_decision cooling-off list uses trust.* kinds; gate.gate_kind catalogue. Smoke 10-11.",
+   "left_for": "o1-tasks.json (close CF-04), a2 gate_kinds"
+  },
+  {
+   "finding": "RV2-002",
+   "status": "fixed",
+   "change": "approval_request.version, supersedes_id, row_version, status 'superseded'; gate.approval_request_guard (DM-077) freezes the payload binding and allows status changes only via gate functions (counsel.gate_tx); gate.supersede(); check_decision counts approvals WHERE payload_hash = r.payload_hash. Smoke 12-17.",
+   "left_for": null
+  },
+  {
+   "finding": "RV2-003",
+   "status": "fixed",
+   "change": "approval_request.expires_at NOT NULL; check_decision raises DM-076 after expiry; gate.expire_due() for the River job; gate.effect_guard re-checks approved and not expired. Smoke 18-21.",
+   "left_for": "a2/o1: River job gate.expire every minute"
+  },
+  {
+   "finding": "RV2-004",
+   "status": "fixed",
+   "change": "Unique indexes trust_txn_once_per_withdrawal / _transfer_leg / _payment / _one_opening / _replenish, journal_once_per_source; gate.effect_execution(approval_id PK). Smoke 24-28.",
+   "left_for": null
+  },
+  {
+   "finding": "RV2-005",
+   "status": "fixed",
+   "change": "trust.historical_line (append-only, excluded from balance views); kind 'opening_balance' needs approval_id (G-IMP); one per ledger; view trust.opening_tieout for VC-TR-4. Smoke 29-32.",
+   "left_for": "a3-migration (table names)"
+  },
+  {
+   "finding": "RV1-002",
+   "status": "fixed",
+   "change": "Withdrawal states proposed/pending_authorization/authorized/executed/applied/confirmed; trust row posted at executed; trust.available_cents = cleared - protected - minimum - authorized holds; checked under the ledger FOR UPDATE at authorization and posting (DM-064); billing.trust_fee_transfer + bill_balance.reserved_cents; fee transfers and allocations limited to balance - reserved (DM-047). Smoke 33-35.",
+   "left_for": "b3 (state names), a2 recordWithdrawalExecution"
+  },
+  {
+   "finding": "RV1-003",
+   "status": "fixed",
+   "change": "trust_transaction.cleared_on (required except for cheque/bank_draft receipts); append-only trust.receipt_clearance; override only via approved trust.uncleared_override / trust.protected_release gate. Smoke 39-42.",
+   "left_for": null
+  },
+  {
+   "finding": "RV1-008",
+   "status": "fixed",
+   "change": "bill_guard: delivered_at goes NULL to a value at or before now() once; later changes need an approved billing.delivery_correction; a delivered bill cannot be voided; due_date, approver, signer, interest and place of supply freeze at approval. Smoke 56-58.",
+   "left_for": "a2 deliverBill (set on delivery evidence)"
+  },
+  {
+   "finding": "RV1-010",
+   "status": "fixed",
+   "change": "payment_allocation fee/dtx/dnt/tax/interest columns with sum and sign CHECKs; billing.allocation_guard: bill needs operating deposit, trust_ledger needs trust (DM-046), reversal mirrors every bucket; deferred bill_not_overpaid (DM-047). Smoke 59-63.",
+   "left_for": null
+  },
+  {
+   "finding": "RV1-011",
+   "status": "fixed",
+   "change": "Removed the hard SoD CHECKs on withdrawal_request, bill and reconciliation; core.check_sod triggers allow maker = checker only when core.firm.sole_practitioner, and write audit action sod_solo_exception. Smoke 50-52.",
+   "left_for": "a2 ARC-I-027"
+  },
+  {
+   "finding": "RV1-012",
+   "status": "fixed",
+   "change": "trust_transaction.replenishes_id (receipt from firm funds, gate required); reversal plus replenishment in one transaction passes the deferred DM-052 check. Smoke 43-45.",
+   "left_for": "b3 (replenish only on shortfall)"
+  },
+  {
+   "finding": "RV1-013",
+   "status": "fixed",
+   "change": "bill.interest_rate_ppm (ppm, not bp, per FIX.md), interest_terms_doc_id, place_of_supply jsonb + province, pos_confirmed_by, signed_by/at, signature_hash, all frozen; billing.interest_charge with interest_guard (DM-048); payment_profile.interest_ppm renamed interest_rate_ppm.",
+   "left_for": "b3 (rename interest_rate_bp to interest_rate_ppm)"
+  },
+  {
+   "finding": "CF-09",
+   "status": "fixed",
+   "change": "Same as RV1-013; issue_date defined as approval date in America/Toronto.",
+   "left_for": null
+  },
+  {
+   "finding": "CF-01",
+   "status": "fixed",
+   "change": "Every rate is *_ppm (header DM-005). New columns: interest_rate_ppm, rate_ppm, fx_rate_ppm. No *_bp columns.",
+   "left_for": "b3/a2: switch bp to ppm"
+  },
+  {
+   "finding": "CF-02",
+   "status": "fixed",
+   "change": "Decision written into the SQL header, JSON conventions and HTML: trust.trust_transaction is the book of record, TR-1500/2500 are derived, gl is operating only.",
+   "left_for": "b3 BIL-I-001/002/009 restated"
+  },
+  {
+   "finding": "CF-03",
+   "status": "fixed",
+   "change": "Added platform.outbox, inbox, idempotency_key, inbound_event, feature_flag, source_subscription; gate.effect_execution, gate.gate_kind (gate versions) + approval_request.version; billing.payment_event, interest_charge, client_credit, trust_fee_transfer, write_off, delivery_correction, tax_period_adjustment.",
+   "left_for": null
+  },
+  {
+   "finding": "CF-08",
+   "status": "fixed",
+   "change": "Dropped UNIQUE on bill_line.time_entry_id/expense_id; partial unique indexes WHERE NOT bill_voided; trigger billing.bill_void_lines. Smoke 54-55.",
+   "left_for": null
+  },
+  {
+   "finding": "CF-17",
+   "status": "fixed",
+   "change": "See RV2-014.",
+   "left_for": null
+  },
+  {
+   "finding": "RV2-014",
+   "status": "fixed",
+   "change": "RLS + policy matter.can_see(matter_id) on every matter_id table except gate.approval_request and gl.journal_line; FORCE on all 47; counsel_owner / counsel_integrity (BYPASSRLS, owns integrity functions) / counsel_jobs BYPASSRLS; GRANTs added. Smoke 64-67.",
+   "left_for": null
+  },
+  {
+   "finding": "RV2-007",
+   "status": "fixed",
+   "change": "before_txn takes FOR SHARE on trust_account; signing takes FOR UPDATE and recomputes journal balance (DM-066). Smoke 46. Concurrency (20 sessions) left for the T-011 integration test.",
+   "left_for": "o1 T-011"
+  },
+  {
+   "finding": "RV2-017",
+   "status": "fixed",
+   "change": "core.app_user.principal_kind (human/agent/service); check_decision DM-075 for non-human or system admin; risk 'irreversible' needs >= 2 approvals; audit actor_kind 'service'. Smoke 22-23.",
+   "left_for": null
+  },
+  {
+   "finding": "RV2-018",
+   "status": "fixed",
+   "change": "trust.withdrawal_guard: authorized/executed/applied/confirmed need an approved gate bound to the row (DM-067); terms frozen after proposed; payee CHECK not cash/bearer. Same for bill approval in bill_guard. Smoke 36-38, 53.",
+   "left_for": null
+  },
+  {
+   "finding": "RV2-021",
+   "status": "fixed",
+   "change": "Covered by available_cents (protected + minimum balance) on disbursement/transfer_out. Smoke 41-42.",
+   "left_for": null
+  },
+  {
+   "finding": "RV2-022",
+   "status": "fixed",
+   "change": "bank_line.source_seq added to the dedupe key. Smoke 48-49.",
+   "left_for": null
+  },
+  {
+   "finding": "CF-19",
+   "status": "fixed",
+   "change": "Copied from b3 state_machines: bill, time_entry, expense, payment and credit_note statuses; credit_note.kind; time_entry.rate_source (8 tiers); issued credit notes immutable (DM-049).",
+   "left_for": null
+  },
+  {
+   "finding": "RV1-019",
+   "status": "fixed",
+   "change": "See CF-19.",
+   "left_for": "o1 (register CF-19)"
+  },
+  {
+   "finding": "RV1-025",
+   "status": "fixed",
+   "change": "before_txn rejects trust postings outside READ COMMITTED (DM-065). Smoke 68.",
+   "left_for": null
+  },
+  {
+   "finding": "RV2-006",
+   "status": "fixed",
+   "change": "reconciliation status 'imported', external_signer, imported_job_id; month lock and ordering accept imported; trust_account.live_from. Smoke 47.",
+   "left_for": null
+  },
+  {
+   "finding": "RV2-012",
+   "status": "fixed",
+   "change": "platform.inbound_event and platform.inbox.",
+   "left_for": "a2 POST /hooks/{provider}"
+  },
+  {
+   "finding": "RV2-013",
+   "status": "partial",
+   "change": "platform.source_subscription; webhook.expires_at nullable. Task wiring stays with o1.",
+   "left_for": "o1 tasks"
+  },
+  {
+   "finding": "RV1-022",
+   "status": "fixed",
+   "change": "billing.payment_event(provider, event_id PK, object_ref, body_sha256).",
+   "left_for": "a2 route"
+  },
+  {
+   "finding": "RV1-004",
+   "status": "partial",
+   "change": "billing.cash_received_cents(matter) adds up operating and trust cash; the >= 750000 block runs in the app under a per-matter advisory lock.",
+   "left_for": "a2/b1 wording"
+  },
+  {
+   "finding": "RV1-020",
+   "status": "fixed",
+   "change": "expense.amount_pre_tax_cents, vendor_tax_cents, fx_rate_ppm, fx_date; dropped taxable_on_bill (now derived).",
+   "left_for": null
+  },
+  {
+   "finding": "f2 handoff",
+   "status": "fixed",
+   "change": "fee_arrangement.recovery_base_cents (BIL-L-020); billing.tax_period_adjustment (BIL-T-090); cash function; expense columns.",
+   "left_for": null
+  },
+  {
+   "finding": "f5 handoff",
+   "status": "fixed",
+   "change": "historical_line, opening_balance, imported recon + imported_job_id, live_from, source_subscription, once-only indexes, effect_execution, source_seq, docs.document status 'lost_in_dr'.",
+   "left_for": null
+  },
+  {
+   "finding": "RV2-024",
+   "status": "n/a",
+   "change": "Rewords Accept items in o1; no DDL change.",
+   "left_for": "o1-tasks.json"
+  }
+ ]
+}

@@ -1,0 +1,667 @@
+{
+ "id": "r08-ai",
+ "scope": "Clio AI features 2025-2026: Manage AI (ex Clio Duo), Clio Work / Vincent / vLex, agentic features, citations, human review, Canada availability, and our AI-native claims",
+ "clio_products": [
+  "Clio Manage",
+  "Manage AI (formerly Clio Duo)",
+  "Clio Work",
+  "Vincent by Clio",
+  "Clio Library (vLex)",
+  "Clio Draft",
+  "Clio Grow (Grow AI)",
+  "Clio Operate",
+  "Vincent Studio"
+ ],
+ "features": [
+  {
+   "name": "Manage AI (renamed from Clio Duo)",
+   "product": "Clio Manage",
+   "where": "Gem/diamond icon in the top nav opens the AI Launchpad; AI Actions cards on Personal and Matter dashboards",
+   "what": "Clio Duo (launched as a paid add-on in 2024) was renamed Manage AI at ClioCon Oct 2025 and repositioned from a chat assistant to an AI that completes routine actions. Admin must switch it on and accept terms.",
+   "plan_tier": "Help centre snippet: Essentials, Advanced, Expand (not EasyStart); an older article version says all plans. Price: Duo was an add-on at about US$39/user/mo in 2024; current Manage AI pricing is quote-gated or bundled per tier, sources disagree",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/41990965598491-Manage-AI-The-Evolution-of-Clio-Duo",
+    "https://help.clio.com/hc/articles/29657814904475",
+    "https://help.clio.com/hc/en-us/sections/48844374061723-Manage-AI",
+    "https://www.lawnext.com/2025/10/to-a-sometimes-shell-shocked-cliocon-audience-jack-newton-presented-clios-vision-for-a-new-era-of-ai-driven-legal-work.html",
+    "https://legaltechnology.com/cliocon-2024-legal-trends-report-plus-all-the-latest-news-and-interviews/",
+    "https://costbench.com/software/legal-practice-management/clio-manage/"
+   ],
+   "screenshots": [
+    "https://www.lawnext.com/wp-content/uploads/2025/10/IMG_7453-scaled.jpg"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Ask about matters and contacts (summaries)",
+   "product": "Clio Manage",
+   "where": "AI Launchpad > Ask a question",
+   "what": "Natural-language questions over matter and contact data; returns matter and contact summaries and recent communications, limited to what the user may see.",
+   "plan_tier": "Manage AI plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29658072890523-Clio-Duo-Ask-About-Matters-and-Contacts",
+    "https://help.clio.com/hc/en-us/articles/41990965598491-Manage-AI-The-Evolution-of-Clio-Duo"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Create activities, events, notes, tasks, time and expense entries from plain language",
+   "product": "Clio Manage",
+   "where": "AI Launchpad > Create",
+   "what": "User types an instruction; Manage AI drafts the record (task, note, calendar event, time entry, expense) for the user to save.",
+   "plan_tier": "Manage AI plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/29658207678107"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Proactive AI Actions",
+   "product": "Clio Manage",
+   "where": "Personal Dashboard and Matter Dashboard > AI Actions card",
+   "what": "Suggested next actions surfaced without a prompt, e.g. drafting a client update from recent matter activity, bills ready for review, scheduling suggestions.",
+   "plan_tier": "Manage AI plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/29765932267675",
+    "https://help.clio.com/hc/en-us/articles/29764998990491"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Drafted client communications",
+   "product": "Clio Manage",
+   "where": "Matter Dashboard > AI Actions; Launchpad",
+   "what": "Drafts client update messages from recent matter activity, visible only to the responsible lawyer or staff on the matter, who reviews and sends.",
+   "plan_tier": "Manage AI plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/29658448391067"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Document Analyzer",
+   "product": "Clio Manage",
+   "where": "AI Launchpad, or Documents list > Actions",
+   "what": "Summarize, extract details or produce lists from up to 25 matter documents (DOCX, TXT, PDF), quick or thorough; result can be kept. Not available in Manage if the firm has Clio Work (Vincent takes over). No evidence of page-level citations.",
+   "plan_tier": "Manage AI plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/33476998957211"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "AI Scheduling (deadlines from documents)",
+   "product": "Clio Manage",
+   "where": "Launchpad gem; Matter AI Actions; Personal Dashboard; Calendar > Extract from a document",
+   "what": "Classifies an uploaded court notice, scheduling order or even handwritten notes, extracts dates and proposes events/tasks for the user to confirm. Does NOT apply local court rules for day counting; Clio says to check against rules.",
+   "plan_tier": "Manage AI plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/42019952139035"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Automated billing",
+   "product": "Clio Manage",
+   "where": "Billing > Automated Billing subtab; Launchpad > Automate your bills; Matter AI Actions",
+   "what": "Scheduled job (runs overnight) notifies users to finish time entry, converts entries into draft bills, rewrites narratives (changes highlighted), flags duplicates/unusual entries, routes drafts to named approvers with reminders until approved.",
+   "plan_tier": "Manage AI plans (Essentials/Advanced/Expand per newer article)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29764998990491"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "AI activity / event log",
+   "product": "Clio Manage",
+   "where": "Admin settings (AI event log)",
+   "what": "Admin-visible log of AI actions with timestamp, user and description; secondary sources say 90-day retention.",
+   "plan_tier": "Manage AI plans",
+   "sources": [
+    "https://layer3labs.io/guides/clio-duo-explained",
+    "https://help.clio.com/hc/en-us/articles/41990965598491-Manage-AI-The-Evolution-of-Clio-Duo"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Permission-scoped AI and no training on customer data",
+   "product": "Clio Manage",
+   "where": "n/a (policy)",
+   "what": "Manage AI follows existing Manage permissions and will not surface matters the user cannot access; customer data not used to train external models.",
+   "plan_tier": "all AI products",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/41990965598491-Manage-AI-The-Evolution-of-Clio-Duo",
+    "https://www.clio.com/ca/ai-principles/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "AI data processing location",
+   "product": "Clio Manage / Clio Work",
+   "where": "n/a (policy)",
+   "what": "Data at rest can be on Clio's Canadian server, but Manage AI and Vincent may process prompts on servers outside the home jurisdiction (temporary processing). Sub-processor list names OpenAI (US/EU), AWS Bedrock, Anthropic, Google Vertex AI, Microsoft Azure Foundry for AI.",
+   "plan_tier": "all",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/41990965598491-Manage-AI-The-Evolution-of-Clio-Duo",
+    "https://help.clio.com/hc/en-us/articles/53337803186715",
+    "https://www.clio.com/tos/subprocessors/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Duo / Manage AI in Canada",
+   "product": "Clio Manage",
+   "where": "n/a",
+   "what": "Clio Duo launched in Canada July 28, 2025 (drafting emails, matter lookup, summaries, time-entry recommendations); Canadian AI principles page now names Manage AI.",
+   "plan_tier": "Canadian Manage plans",
+   "sources": [
+    "https://www.clio.com/about/press/clio-duo-launches-in-canada/",
+    "https://www.clio.com/ca/ai-principles/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Work: what it is",
+   "product": "Clio Work (Vincent by Clio)",
+   "where": "Separate workspace linked to Manage matters (also standalone since Apr 2026)",
+   "what": "NOT a Jira-like task tool. It is an AI legal workspace: research, analysis, strategy and drafting powered by vLex's Vincent AI and the vLex/Clio Library corpus (1B+ documents, 110+ jurisdictions), grounded in the matter's documents, emails, notes, tasks and deadlines from Manage. Launched ClioCon Oct 16 2025.",
+   "plan_tier": "Add-on US$199/user/mo at launch, Manage required; standalone for solo/small/mid firms from Apr 2026 (current price not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/48791655710235-Understand-Clio-Work",
+    "https://www.lawnext.com/2025/10/to-a-sometimes-shell-shocked-cliocon-audience-jack-newton-presented-clios-vision-for-a-new-era-of-ai-driven-legal-work.html",
+    "https://www.lawnext.com/2026/04/clio-work-clios-ai-workspace-is-now-available-to-solo-and-smaller-law-firms-as-a-standalone-product.html",
+    "https://www.clio.com/about/press/clio-completes-landmark-1b-vlex-acquisition-series-g-5b-valuation/"
+   ],
+   "screenshots": [
+    "https://www.lawnext.com/wp-content/uploads/2026/04/ClioWorkFeaturedImage.png",
+    "https://www.lawnext.com/wp-content/uploads/2025/10/IMG_7453-scaled.jpg",
+    "https://www.lawnext.com/wp-content/uploads/2025/10/ClioCon2025Keynote-Featured.jpg"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Work: cited legal research",
+   "product": "Clio Work",
+   "where": "Clio Work > conversation > Ask Research Questions",
+   "what": "Answers questions with citations to legal authority from the vLex corpus; Clio states all outputs need review by a qualified professional.",
+   "plan_tier": "Clio Work",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/48791655710235-Understand-Clio-Work",
+    "https://help.clio.com/hc/sections/49467623032859-Core-Workflows",
+    "https://help.clio.com/hc/en-au/articles/44559477619483"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Work: core workflows (cards)",
+   "product": "Clio Work",
+   "where": "Workflow cards in a conversation",
+   "what": "Selectable task cards: research questions, summarize documents, analyze contracts, compare documents, Vincent Tables review, create timelines, build arguments, Legal Pad; also deposition transcription/analysis and contract risk review per ClioCon.",
+   "plan_tier": "Clio Work",
+   "sources": [
+    "https://help.clio.com/hc/sections/49467623032859-Core-Workflows",
+    "https://help.clio.com/hc/en-us/articles/48791655710235-Understand-Clio-Work",
+    "https://www.lawnext.com/2025/10/to-a-sometimes-shell-shocked-cliocon-audience-jack-newton-presented-clios-vision-for-a-new-era-of-ai-driven-legal-work.html"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Work: Vincent Tables",
+   "product": "Clio Work",
+   "where": "Core workflows > Review documents with Vincent Tables",
+   "what": "Upload many documents; Vincent builds a comparison table (row per document, column per question) from a template or described analysis; snippets say up to 500 documents.",
+   "plan_tier": "Clio Work",
+   "sources": [
+    "https://help.clio.com/hc/articles/41750517581723",
+    "https://www.clio.com/wp-content/uploads/2026/04/Clio-Matters-Work-Training-Session-Takeaways.pdf"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Work: persistent memory",
+   "product": "Clio Work",
+   "where": "Automatic across conversations",
+   "what": "Keeps context and preferences across conversations on a matter so later work builds on earlier work.",
+   "plan_tier": "Clio Work",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/48791655710235-Understand-Clio-Work"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Clio Work: citator",
+   "product": "Clio Work",
+   "where": "Case law analysis panel",
+   "what": "Colour-coded treatment indicators showing whether cited case law is still good law (US Cert citator named); Canadian citator coverage not confirmed.",
+   "plan_tier": "Clio Work",
+   "sources": [
+    "https://help.clio.com/hc/en-au/articles/44559477619483",
+    "https://help.clio.com/hc/en-us/articles/48791655710235-Understand-Clio-Work"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Clio Work: Legal Pad drafting",
+   "product": "Clio Work",
+   "where": "Legal Pad (edit) icon; Save to matter",
+   "what": "Drafting workspace (Mar 26 2026) to develop memos, advice and arguments alongside analysis, revise, export to Word, save to matter.",
+   "plan_tier": "Clio Work",
+   "sources": [
+    "https://www.clio.com/about/press/clio-legal-pad-ai-drafting-workspace-clio-work/",
+    "https://www.clio.com/wp-content/uploads/2026/04/Clio-Matters-Work-Training-Session-Takeaways.pdf"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Work: agentic mode",
+   "product": "Clio Work",
+   "where": "Default in any Clio Work prompt",
+   "what": "Since Apr 2 2026, goal-level prompts (e.g. build a defence strategy) are planned and executed as multi-step tasks using a 'skills' framework; live thinking traces; user can interrupt or redirect. No formal approval gate described.",
+   "plan_tier": "All Clio Work users, no setup",
+   "sources": [
+    "https://www.lawnext.com/2026/04/clio-adds-agentic-ai-capabilities-to-clio-work-also-launches-vincent-mobile-app.html",
+    "https://www.clio.com/about/press/clio-work-agentic-mode-small-law-firms/",
+    "https://www.legaltechmonitor.com/2026/04/clio-adds-agentic-ai-capabilities-to-clio-work-also-launches-vincent-mobile-app/"
+   ],
+   "screenshots": [
+    "https://www.lawnext.com/wp-content/uploads/2026/04/clio-work-agentic-featured.png",
+    "https://www.legaltechmonitor.com/files/2026/04/clio-work-agentic-featured-1024x576-1.png"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Vincent by Clio mobile app",
+   "product": "Vincent / Clio Work",
+   "where": "iOS and Android",
+   "what": "Ask questions, upload and analyse documents with cited authority; Clio Work subscribers get matter context; continues on desktop.",
+   "plan_tier": "Vincent / Clio Work",
+   "sources": [
+    "https://www.lawnext.com/2026/04/clio-adds-agentic-ai-capabilities-to-clio-work-also-launches-vincent-mobile-app.html"
+   ],
+   "screenshots": [
+    "https://www.lawnext.com/wp-content/uploads/2026/04/clio-work-agentic-featured.png"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Work in Canada",
+   "product": "Clio Work",
+   "where": "Canadian server",
+   "what": "Live in Canada from July 23 2026, using Jurisage (acquired June 2026): 470k+ Canadian decisions, 40+ courts, updated daily. Matter-aware summaries, Canadian law research linked to sources, strategy stress-test, drafting, agentic multi-step with lawyer visibility. Data at rest on Canadian server; processing may leave region. French and CAD price not found.",
+   "plan_tier": "Clio Work (Canada)",
+   "sources": [
+    "https://www.clio.com/about/press/clio-work-canada-legal-ai/",
+    "https://lawnext.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada.html",
+    "https://www.lawnext.com/2026/06/clio-acquires-jurisage-paving-the-way-for-canadian-launch-of-clio-work-and-other-canadian-ai-tools.html",
+    "https://betakit.com/clio-acquires-fellow-canadian-legaltech-firm-jurisage/",
+    "https://help.clio.com/hc/en-us/articles/53337803186715"
+   ],
+   "screenshots": [
+    "https://www.lawnext.com/wp-content/uploads/2026/07/ClioWorkCanada-Featured.png"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Vincent Studio / Vincent Drafting (enterprise)",
+   "product": "Vincent by Clio / Clio for Enterprise",
+   "where": "Vincent",
+   "what": "No-code builder for firm-specific AI workflows; drafting from firm precedents; iManage/NetDocuments/SharePoint integrations. Enterprise-focused.",
+   "plan_tier": "Enterprise",
+   "sources": [
+    "https://www.lawnext.com/2025/10/to-a-sometimes-shell-shocked-cliocon-audience-jack-newton-presented-clios-vision-for-a-new-era-of-ai-driven-legal-work.html",
+    "https://www.clio.com/about/press/clio-completes-landmark-1b-vlex-acquisition-series-g-5b-valuation/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Draft AI and Canada launch",
+   "product": "Clio Draft",
+   "where": "Clio Draft",
+   "what": "Turns firm Word precedents into AI-assisted templates and questionnaires; Canadian court forms; Canadian hosting; all provinces except Quebec.",
+   "plan_tier": "Clio Draft (separate product; in top Manage tier per some sources)",
+   "sources": [
+    "https://www.clio.com/about/press/clio-draft-canada-launch/",
+    "https://www.lawnext.com/2025/10/to-a-sometimes-shell-shocked-cliocon-audience-jack-newton-presented-clios-vision-for-a-new-era-of-ai-driven-legal-work.html"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Grow AI intake agents",
+   "product": "Clio Grow",
+   "where": "Grow > Grow AI",
+   "what": "24/7 phone, email and web-chat agents that answer, capture intake, score leads, run conflict checks and book consults (Aug 2026). Canada availability not confirmed.",
+   "plan_tier": "Clio Grow",
+   "sources": [
+    "https://lawnext.com/2026/08/clio-grows-clio-grow-with-launch-of-grow-ai-providing-24-7-intake-agents.html",
+    "https://www.lawnext.com/2025/10/to-a-sometimes-shell-shocked-cliocon-audience-jack-newton-presented-clios-vision-for-a-new-era-of-ai-driven-legal-work.html"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Operate (work management, enterprise)",
+   "product": "Clio for Enterprise",
+   "where": "Clio Operate",
+   "what": "Adaptive work-management platform built on ShareDo for ~1000-lawyer firms. This, plus Manage tasks/workflows, is Clio's analog of our Jira-like Work area, not Clio Work.",
+   "plan_tier": "Enterprise",
+   "sources": [
+    "https://www.lawnext.com/2025/10/to-a-sometimes-shell-shocked-cliocon-audience-jack-newton-presented-clios-vision-for-a-new-era-of-ai-driven-legal-work.html"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  }
+ ],
+ "gaps": [
+  {
+   "feature": "Clio Work (AI legal workspace) vs our Work area",
+   "our_area": "work",
+   "our_screen": null,
+   "status": "deliberately different",
+   "proposal": "Rename nothing, but fix the mapping: Clio Work maps to our documents/ai-draft-workspace + platform/research-workspace + documents/multi-document-analysis, not to work/*. Our Work area's Clio analogs are Manage tasks, task lists, Automated Workflows and (enterprise) Clio Operate. Add a clio_gaps row in work.json saying so.",
+   "priority": "must"
+  },
+  {
+   "feature": "Agentic multi-step tasks from one goal prompt",
+   "our_area": "platform",
+   "our_screen": "ask-agent",
+   "status": "partial",
+   "proposal": "ask-agent: show the agent's step plan before running, live step trace, Stop/Redirect buttons, and a per-step 'needs approval' marker for any regulated output (filing, sending, money). This is our genuine difference vs Clio Work agentic mode (no approval gates described), so make it visible.",
+   "priority": "must"
+  },
+  {
+   "feature": "Canadian case law corpus (Jurisage 470k decisions, daily)",
+   "our_area": "readiness",
+   "our_screen": "research",
+   "status": "partial",
+   "proposal": "readiness/research: stop treating 'public Canadian sources' as an edge. Add fields: corpus source, coverage (courts, provinces, statutes), update cadence, and a licensing decision (CanLII API terms vs commercial licence). Mark Clio as having deeper Canadian content since Jul 2026.",
+   "priority": "must"
+  },
+  {
+   "feature": "Citator treatment (good law check)",
+   "our_area": "platform",
+   "our_screen": "research-workspace",
+   "status": "deliberately different",
+   "proposal": "Keep 'treatment (verify)' but add an explicit 'not checked for subsequent treatment' badge on every case citation until a licensed Canadian noter-up exists; open question on licensing.",
+   "priority": "should"
+  },
+  {
+   "feature": "Vincent Tables up to ~500 documents",
+   "our_area": "documents",
+   "our_screen": "multi-document-analysis",
+   "status": "partial",
+   "proposal": "Add a table mode: rows=documents, columns=questions, templates per practice area, cell-level citation to page/line, 'not applicable' cells, export CSV; set a stated document limit.",
+   "priority": "should"
+  },
+  {
+   "feature": "Legal Pad drafting next to analysis",
+   "our_area": "documents",
+   "our_screen": "ai-draft-workspace",
+   "status": "covered",
+   "proposal": "Confirm ai-draft-workspace has side-by-side analysis panel, Save to matter, Word export; no new screen.",
+   "priority": "could"
+  },
+  {
+   "feature": "Persistent matter memory",
+   "our_area": "platform",
+   "our_screen": "research-workspace",
+   "status": "covered",
+   "proposal": "Already matter_memory (lawyer-editable). Add a visible 'what the agent remembers' list with delete per item to beat Clio's opaque memory.",
+   "priority": "could"
+  },
+  {
+   "feature": "Automated billing job with approver routing",
+   "our_area": "billing",
+   "our_screen": "pre-bill-review",
+   "status": "covered",
+   "proposal": "Add scheduled pre-bill run (cut-off date, run time), pre-run 'finish your time' nudge, highlighted narrative rewrites with original shown, and approver reminders. Clio already routes to approvers, so do not claim approvals as unique.",
+   "priority": "should"
+  },
+  {
+   "feature": "Drafted client updates visible only to responsible lawyer",
+   "our_area": "platform",
+   "our_screen": "client-portal",
+   "status": "covered",
+   "proposal": "State visibility rule: drafts visible to responsible lawyer/clerk only, as Clio does; ours adds gate G-PM on send.",
+   "priority": "could"
+  },
+  {
+   "feature": "AI event log",
+   "our_area": "platform",
+   "our_screen": "agent-activity",
+   "status": "covered",
+   "proposal": "No change; our permanent log plus inputs/sources per action is a real difference vs reported 90 days (low confidence on Clio's 90 days).",
+   "priority": "could"
+  },
+  {
+   "feature": "AI inference location disclosure",
+   "our_area": "platform",
+   "our_screen": "integrations-data",
+   "status": "partial",
+   "proposal": "Residency panel must list the model provider and the region where inference runs, not just storage. If Canadian-region inference is not available for our model, show 'stored in Canada, processed in <region>' exactly as Clio does, and remove 'all in Canada' wording until proven.",
+   "priority": "must"
+  },
+  {
+   "feature": "Mobile AI app (Vincent)",
+   "our_area": "readiness",
+   "our_screen": "mobile-app",
+   "status": "partial",
+   "proposal": "Add 'ask the agent' and 'upload document for analysis' to the installable web app scope; Clio now has native iOS/Android AI.",
+   "priority": "could"
+  },
+  {
+   "feature": "Grow AI 24/7 intake agents",
+   "our_area": "intake",
+   "our_screen": "ai-receptionist",
+   "status": "covered",
+   "proposal": "Already added; note Clio launched it Aug 2026 (phone, email, chat, scoring, conflicts, booking) so this is parity, not an edge.",
+   "priority": "could"
+  }
+ ],
+ "corrections": [
+  {
+   "our_claim": "versus-clio: 'Who does the work - Clio: People work; AI assists on request'",
+   "truth": "Overstated. Manage AI runs proactive actions without a prompt (scheduled overnight bill drafting, AI Actions cards, drafted client updates) and Clio Work agentic mode plans and executes multi-step tasks from one goal prompt (Apr 2026). The fair contrast is: Clio's agent acts but approval is per feature and not described for Clio Work agentic runs; ours gates every regulated step in one queue.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29764998990491",
+    "https://help.clio.com/hc/articles/29765932267675",
+    "https://www.lawnext.com/2026/04/clio-adds-agentic-ai-capabilities-to-clio-work-also-launches-vincent-mobile-app.html",
+    "https://www.clio.com/about/press/clio-work-agentic-mode-small-law-firms/"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: 'Approvals - Clio: Per feature'",
+   "truth": "Accurate but understates Clio: automated billing routes AI drafts to named approvers with reminders and 'checkpoints'; scheduling and created records need user confirmation; client update drafts need the lawyer to send. Keep the claim but say 'per feature, with no single queue or preparer/approver separation' (the latter is unverified for Clio).",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29764998990491",
+    "https://help.clio.com/hc/articles/42019952139035",
+    "https://help.clio.com/hc/articles/29658448391067"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: 'Citations - Clio: Sometimes'",
+   "truth": "Too vague and partly wrong for research: Clio Work/Vincent cites legal authority by design and has a citator. Manage AI Document Analyzer shows no evidence of page-level citations. Say: 'Research answers cite authority; matter-document answers in Manage are not shown citing page and line.' Our 'every claim, to page and line' is a prototype claim, unproven.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/48791655710235-Understand-Clio-Work",
+    "https://help.clio.com/hc/en-au/articles/44559477619483",
+    "https://help.clio.com/hc/en-us/articles/33476998957211"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: 'Ontario rules - Clio: Mostly US court rules'",
+   "truth": "Partly true for deadlines (Manage AI Scheduling applies no local court rules at all; court-rule sets are US-centric). But Clio now has Canadian case law in Clio Work (Jurisage, Jul 2026) and Canadian court forms in Clio Draft (all provinces except Quebec). Narrow the claim to 'no Ontario court-rule deadline calculation'.",
+   "sources": [
+    "https://help.clio.com/hc/articles/42019952139035",
+    "https://lawnext.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada.html",
+    "https://www.clio.com/about/press/clio-draft-canada-launch/"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: 'Data - Clio: AI may process outside Canada / Counsel: All in Canada'",
+   "truth": "Clio half is correct (help articles: storage on Canadian server, AI processing may leave the region; sub-processors include OpenAI US/EU). Our half is unproven: it requires the model inference itself to run in a Canadian region; readiness mock shows 'Data in Canada: Done' for model calls without evidence. Keep only once the inference region is contractually confirmed.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/41990965598491-Manage-AI-The-Evolution-of-Clio-Duo",
+    "https://help.clio.com/hc/en-us/articles/53337803186715",
+    "https://www.clio.com/tos/subprocessors/"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: 'Software ~US$90-150+/user/mo with AI (check)'",
+   "truth": "Understates Clio's full AI cost: Clio Work was US$199/user/mo on top of Manage at launch; Duo was a ~US$39/user/mo add-on in 2024; Manage AI tier inclusion and current price are quote-gated and sources disagree. Say 'Manage US$49-149 list plus AI add-ons; Clio Work was US$199/user/mo extra at launch'.",
+   "sources": [
+    "https://www.lawnext.com/2025/10/to-a-sometimes-shell-shocked-cliocon-audience-jack-newton-presented-clios-vision-for-a-new-era-of-ai-driven-legal-work.html",
+    "https://legaltechnology.com/cliocon-2024-legal-trends-report-plus-all-the-latest-news-and-interviews/",
+    "https://costbench.com/software/legal-practice-management/clio-manage/",
+    "https://clio.com/pricing"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: 'Legal research content - Our gap: None; license or link out' combined with readiness 'Research on public Canadian sources' as covered",
+   "truth": "Clio's Canadian research depth jumped in Jul 2026 (470k+ decisions, 40+ courts, daily). Public sources will not match that without a licence; treat research as a clear Clio edge, not 'added'.",
+   "sources": [
+    "https://lawnext.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada.html",
+    "https://www.lawnext.com/2026/06/clio-acquires-jurisage-paving-the-way-for-canadian-launch-of-clio-work-and-other-canadian-ai-tools.html"
+   ]
+  },
+  {
+   "our_claim": "work.json summary framing ('Jira-style work tracking') and owner's belief that Clio Work is a Jira-like tool",
+   "truth": "Clio Work is an AI legal research/analysis/drafting workspace (Vincent + vLex), not a task tracker. Clio's work-tracking is Manage tasks/workflows and enterprise Clio Operate (ShareDo).",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/48791655710235-Understand-Clio-Work",
+    "https://www.lawnext.com/2025/10/to-a-sometimes-shell-shocked-cliocon-audience-jack-newton-presented-clios-vision-for-a-new-era-of-ai-driven-legal-work.html",
+    "https://www.lawnext.com/2026/04/clio-work-clios-ai-workspace-is-now-available-to-solo-and-smaller-law-firms-as-a-standalone-product.html"
+   ]
+  },
+  {
+   "our_claim": "documents.json clio_gaps: 'Clio for Word / Clio Work drafting and research - already covered by ai-draft-workspace with verified citations'",
+   "truth": "Only partly covered: Clio Work includes a licensed 1B+ document corpus, citator, Vincent Tables, persistent memory and agentic mode; ai-draft-workspace has none of the corpus. Status should be 'partial'.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/48791655710235-Understand-Clio-Work",
+    "https://help.clio.com/hc/articles/41750517581723",
+    "https://www.lawnext.com/2026/04/clio-adds-agentic-ai-capabilities-to-clio-work-also-launches-vincent-mobile-app.html"
+   ]
+  },
+  {
+   "our_claim": "platform.json: 'Clio Work: multi-document tables - already covered by documents-area document-review'",
+   "truth": "Vincent Tables handles large sets (snippet says up to 500 documents) with templates; confirm our document-review has a table mode and a limit before claiming coverage.",
+   "sources": [
+    "https://help.clio.com/hc/articles/41750517581723",
+    "https://www.clio.com/wp-content/uploads/2026/04/Clio-Matters-Work-Training-Session-Takeaways.pdf"
+   ]
+  },
+  {
+   "our_claim": "deadlines.json: 'AI scheduling: extract deadlines ... with side-by-side source' (as Clio's feature)",
+   "truth": "Side-by-side source view not confirmed in sources found; confirmed: document-type classification, date extraction, user confirmation, and no court-rule day counting. Mark side-by-side as (verify).",
+   "sources": [
+    "https://help.clio.com/hc/articles/42019952139035"
+   ]
+  }
+ ],
+ "screenshots_index": [
+  {
+   "area": "Clio Work",
+   "url": "https://www.lawnext.com/wp-content/uploads/2026/04/ClioWorkFeaturedImage.png",
+   "shows": "Clio Work product hero (LawNext)"
+  },
+  {
+   "area": "Clio Work agentic",
+   "url": "https://www.lawnext.com/wp-content/uploads/2026/04/clio-work-agentic-featured.png",
+   "shows": "Agentic Clio Work announcement image"
+  },
+  {
+   "area": "Clio Work agentic",
+   "url": "https://www.legaltechmonitor.com/files/2026/04/clio-work-agentic-featured-1024x576-1.png",
+   "shows": "Agentic Clio Work image (LegalTech Monitor)"
+  },
+  {
+   "area": "Clio Work Canada",
+   "url": "https://www.lawnext.com/wp-content/uploads/2026/07/ClioWorkCanada-Featured.png",
+   "shows": "Clio Work Canada launch image"
+  },
+  {
+   "area": "Product line-up",
+   "url": "https://www.lawnext.com/wp-content/uploads/2025/10/IMG_7453-scaled.jpg",
+   "shows": "ClioCon 2025 slide of full product line-up (Manage AI, Grow AI, Draft AI, Work, Vincent)"
+  },
+  {
+   "area": "ClioCon keynote",
+   "url": "https://www.lawnext.com/wp-content/uploads/2025/10/ClioCon2025Keynote-Featured.jpg",
+   "shows": "ClioCon 2025 keynote"
+  },
+  {
+   "area": "Clio Work training",
+   "url": "https://www.clio.com/wp-content/uploads/2026/04/Clio-Matters-Work-Training-Session-Takeaways.pdf",
+   "shows": "Clio PDF of Clio Work training takeaways (Legal Pad, Tables)"
+  }
+ ],
+ "open_questions": [
+  "Current Manage AI price and tier inclusion in Canada (CAD); sources conflict (add-on quote vs included on Core/Signature/Elite).",
+  "Is Manage AI processing for Canadian accounts ever in Canada, and which model provider serves it?",
+  "Does Clio Work in Canada have a Canadian citator / noter-up, statutes and regulations, and French content?",
+  "Clio Work current standalone price (not published after Apr 2026).",
+  "Does Clio Work agentic mode require approval before saving/sending anything to the matter?",
+  "Is the AI event log really 90 days, and can it be exported?",
+  "Is Grow AI available in Canada?",
+  "Can our model provider run inference inside a Canadian region under contract? Our 'All in Canada' claim depends on it.",
+  "Clio Manage plan names differ across sources (EasyStart/Essentials/Advanced/Complete vs Expand vs Core/Signature/Elite); confirm current names."
+ ],
+ "sources": [
+  "https://betakit.com/clio-acquires-fellow-canadian-legaltech-firm-jurisage/",
+  "https://clio.com/duo",
+  "https://clio.com/pricing",
+  "https://costbench.com/software/legal-practice-management/clio-manage/",
+  "https://help.clio.com/hc/articles/29657814904475",
+  "https://help.clio.com/hc/articles/29658207678107",
+  "https://help.clio.com/hc/articles/29658448391067",
+  "https://help.clio.com/hc/articles/29765932267675",
+  "https://help.clio.com/hc/articles/41750517581723",
+  "https://help.clio.com/hc/articles/42019952139035",
+  "https://help.clio.com/hc/en-au/articles/44559477619483",
+  "https://help.clio.com/hc/en-us/articles/29658072890523-Clio-Duo-Ask-About-Matters-and-Contacts",
+  "https://help.clio.com/hc/en-us/articles/29764998990491",
+  "https://help.clio.com/hc/en-us/articles/33476998957211",
+  "https://help.clio.com/hc/en-us/articles/41990965598491-Manage-AI-The-Evolution-of-Clio-Duo",
+  "https://help.clio.com/hc/en-us/articles/48791655710235-Understand-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/53337803186715",
+  "https://help.clio.com/hc/en-us/sections/48844374061723-Manage-AI",
+  "https://help.clio.com/hc/sections/49467623032859-Core-Workflows",
+  "https://lawnext.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada.html",
+  "https://lawnext.com/2026/08/clio-grows-clio-grow-with-launch-of-grow-ai-providing-24-7-intake-agents.html",
+  "https://layer3labs.io/guides/clio-duo-explained",
+  "https://legaltechnology.com/cliocon-2024-legal-trends-report-plus-all-the-latest-news-and-interviews/",
+  "https://www.clio.com/about/press/clio-completes-landmark-1b-vlex-acquisition-series-g-5b-valuation/",
+  "https://www.clio.com/about/press/clio-draft-canada-launch/",
+  "https://www.clio.com/about/press/clio-duo-launches-in-canada/",
+  "https://www.clio.com/about/press/clio-legal-pad-ai-drafting-workspace-clio-work/",
+  "https://www.clio.com/about/press/clio-work-agentic-mode-small-law-firms/",
+  "https://www.clio.com/about/press/clio-work-canada-legal-ai/",
+  "https://www.clio.com/blog/cliocon-2025-highlights/",
+  "https://www.clio.com/ca/ai-principles/",
+  "https://www.clio.com/tos/subprocessors/",
+  "https://www.clio.com/wp-content/uploads/2026/04/Clio-Matters-Work-Training-Session-Takeaways.pdf",
+  "https://www.lawnext.com/2025/10/to-a-sometimes-shell-shocked-cliocon-audience-jack-newton-presented-clios-vision-for-a-new-era-of-ai-driven-legal-work.html",
+  "https://www.lawnext.com/2026/04/clio-adds-agentic-ai-capabilities-to-clio-work-also-launches-vincent-mobile-app.html",
+  "https://www.lawnext.com/2026/04/clio-work-clios-ai-workspace-is-now-available-to-solo-and-smaller-law-firms-as-a-standalone-product.html",
+  "https://www.lawnext.com/2026/06/clio-acquires-jurisage-paving-the-way-for-canadian-launch-of-clio-work-and-other-canadian-ai-tools.html",
+  "https://www.legaltechmonitor.com/2026/04/clio-adds-agentic-ai-capabilities-to-clio-work-also-launches-vincent-mobile-app/"
+ ],
+ "method_note": "help.clio.com and clio.com returned 403 to direct fetch and curl; web.archive.org was unreachable. Official help-centre facts come from search-result snippets of the official articles (medium confidence). LawNext articles were opened directly."
+}

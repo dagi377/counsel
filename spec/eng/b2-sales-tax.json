@@ -1,0 +1,1710 @@
+{
+ "id": "b2-sales-tax",
+ "as_of": "2026-10-10",
+ "money": "integer cents CAD",
+ "rate_unit": "ppm (13% = 130000)",
+ "rounding": "per bill per tax code, half away from zero",
+ "rules": [
+  {
+   "id": "BIL-T-001",
+   "area": "rates",
+   "rule": "Tax rates are data, not code: TaxRate rows (jurisdiction, kind GST|HST|PST|QST|RST, rate_ppm integer parts-per-million, effective_from date, effective_to date|null) seeded as: GST 5% (50000) federal; HST ON 13% (130000); HST NB 15%, NL 15%, PE 15% (150000); HST NS 14% (140000) from 2025-04-01 and 15% before; QST 9.975% (99750); BC PST 7% (70000); MB RST 7% (70000); SK PST 6% (60000).",
+   "source": [
+    {
+     "cite": "CRA, GST/HST rates by province (rate table incl. NS 15%->14% on 2025-04-01)",
+     "url": "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/charge-collect-which-rate/calculator.html"
+    },
+    {
+     "cite": "Excise Tax Act s.165(1) (GST 5%), s.165(2) and Schedule VIII (participating-province rates)",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "Seed migration + admin-only edit with audit; tax engine never contains a literal rate.",
+   "tests": [
+    {
+     "given": "NS bill, issue date 2025-03-31, base 100000",
+     "expect": "HST 15000"
+    },
+    {
+     "given": "NS bill, issue date 2025-04-01, base 100000",
+     "expect": "HST 14000"
+    },
+    {
+     "given": "ON bill, base 429890",
+     "expect": "HST 55886 (matches billing.json sample $558.86)"
+    }
+   ],
+   "verify": "Re-check the CRA rate page and provincial sites before launch and on each budget; ETA Schedule VIII rate structure not read directly."
+  },
+  {
+   "id": "BIL-T-002",
+   "area": "rates",
+   "rule": "The rate applied to a bill is the rate in effect on the day tax becomes payable for that bill (BIL-T-050: earlier of the day consideration is paid and the day it is due; due = bill date = approval date, BIL-C-121; a trust retainer is not payment until applied to the bill, BIL-T-051), looked up by place-of-supply jurisdiction; a credit note uses the rate of the bill it reverses, never today's rate.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.168(1) (tax payable earliest of paid / due); s.232 (adjustment of tax charged)",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "Engine: rate_lookup(jurisdiction, kind, tax_point_date); credit note copies rate_ppm from source bill tax line.",
+   "tests": [
+    {
+     "given": "NS bill issued 2025-03-15, base 100000, HST 15000 (15%), credit note 2025-05-01 for base 10000",
+     "expect": "credit HST -1500 (BIL-T-070 proportional to the source bill), not -1400"
+    }
+   ],
+   "verify": "Transitional rules for services straddling a rate change (e.g. NS 2025) are in the ETA transitional provisions; confirm with adviser if a bill covers pre- and post-change work."
+  },
+  {
+   "id": "BIL-T-010",
+   "area": "place_of_supply",
+   "rule": "Place of supply is decided per matter in this order: (1) non-resident zero-rating test (BIL-T-015); (2) litigation rule (BIL-T-012); (3) real-property rule (BIL-T-011); (4) general address rule (BIL-T-013/014). The first rule that applies wins; the result is a jurisdiction code (ON, NS, NB, NL, PE, BC, AB, SK, MB, QC, YT, NT, NU) or ZERO.",
+   "source": [
+    {
+     "cite": "New Harmonized Value-added Tax System Regulations, No. 2 (SOR/2010-117) Part 1 Div. 3 ss.13-14 and Div. 5 'Special Cases' s.27 (Div. 5 applies despite Divs. 2 and 3)",
+     "url": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-2010-117/"
+    },
+    {
+     "cite": "Excise Tax Act Schedule VI Part V s.23",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    },
+    {
+     "cite": "CRA Technical Information Bulletin B-103, Harmonized sales tax: place of supply rules for determining whether a supply is made in a province",
+     "url": "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/b-103.html"
+    }
+   ],
+   "enforcement": "Matter.place_of_supply {jurisdiction, rule_applied, rationale, confirmed_by, confirmed_at}. Agent proposes, responsible lawyer confirms; bill approval blocked while unconfirmed. Change after bill approval returns bill to draft (billing.json gate).",
+   "tests": [
+    {
+     "given": "Non-resident corporation, Ontario Superior Court action already started",
+     "expect": "rule 1 applies (litigation exclusion in s.23(a) is for individuals only) -> ZERO"
+    },
+    {
+     "given": "Alberta individual, Ontario Superior Court action started",
+     "expect": "rule 2 -> ON, HST 13%"
+    }
+   ],
+   "verify": "B-103 not read in this pass (URL unverified); ordering mirrors SOR/2010-117 s.12 and Div. 5 'despite' wording. Confirm with B-103."
+  },
+  {
+   "id": "BIL-T-011",
+   "area": "place_of_supply",
+   "rule": "A legal service in relation to real property (e.g. purchase/sale/mortgage of land, title opinion) is supplied in the province where the property is situated; if property is in several provinces, the province where it is primarily situated (largest share; tie -> highest rate) when that share is in participating provinces, else GST-only.",
+   "source": [
+    {
+     "cite": "SOR/2010-117 s.14; tie-break s.18",
+     "url": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-2010-117/"
+    }
+   ],
+   "enforcement": "Matter.real_property_location required when practice_area = real estate; engine uses it instead of client address.",
+   "tests": [
+    {
+     "given": "Ontario-resident client buys a condo in Halifax NS, fees 150000 on 2026-10-01",
+     "expect": "HST NS 14% = 21000"
+    },
+    {
+     "given": "Ontario client buys land in Alberta, fees 100000",
+     "expect": "GST 5% = 5000, no HST"
+    }
+   ],
+   "verify": "Whether a given legal service is 'in relation to' real property is a CRA test (direct connection); agent proposes, lawyer confirms. Check B-103 / GST/HST Info Sheet on real-property services."
+  },
+  {
+   "id": "BIL-T-012",
+   "area": "place_of_supply",
+   "rule": "A service rendered in connection with criminal, civil or administrative litigation that is under the jurisdiction of a court or tribunal established under the laws of a province (or an appeal from one) is supplied in that province, but only for services after the litigation commenced; earlier services follow the general rule.",
+   "source": [
+    {
+     "cite": "SOR/2010-117 s.27 (Part 1 Div. 5 'Special Cases')",
+     "url": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-2010-117/"
+    }
+   ],
+   "enforcement": "Matter.litigation {forum_province, commenced_on}. Time lines dated >= commenced_on use forum province; earlier lines use BIL-T-013. A bill may therefore carry two tax codes.",
+   "tests": [
+    {
+     "given": "Manitoba client, Ontario Superior Court claim issued 2026-06-01; bill has 20000 of pre-claim advice (May) and 80000 post-claim",
+     "expect": "May lines: GST 5% = 1000 (+MB RST if registered, BIL-T-023); post-claim: HST ON 13% = 10400"
+    }
+   ],
+   "verify": "Federal courts/tribunals (Federal Court, Tax Court, SCC) are not 'established under the laws of a province'; treat with general rule and flag (verify)."
+  },
+  {
+   "id": "BIL-T-013",
+   "area": "place_of_supply",
+   "rule": "General rule: a legal service is supplied in the province of the recipient's home or business address in Canada that the firm obtains in the ordinary course of business; if only one such address, that one; if more than one, the address most closely connected with the supply.",
+   "source": [
+    {
+     "cite": "SOR/2010-117 s.13(1)",
+     "url": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-2010-117/"
+    }
+   ],
+   "enforcement": "Use the client billing/engagement addresses on file. If >1 Canadian address, agent proposes the most-closely-connected one with a one-line rationale; lawyer confirms. Never use the address of a third-party payer instead of the client.",
+   "tests": [
+    {
+     "given": "Client corporation, head office Calgary AB, only address on file",
+     "expect": "AB: GST 5%; fees 100000 -> 5000"
+    },
+    {
+     "given": "Client with Ottawa ON and Gatineau QC addresses, mandate concerns the Ottawa business",
+     "expect": "ON proposed, HST 13%"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-014",
+   "area": "place_of_supply",
+   "rule": "If the firm has no Canadian address for a resident recipient, the supply is made in the participating province where the Canadian element is primarily performed (for a firm working in Ontario: ON, 13%).",
+   "source": [
+    {
+     "cite": "SOR/2010-117 s.13(2)",
+     "url": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-2010-117/"
+    }
+   ],
+   "enforcement": "Default fallback when Canadian-resident flag set but no Canadian address; logged as rule 'no_address'.",
+   "tests": [
+    {
+     "given": "Resident client, no address on file, all work done in Toronto, fees 100000",
+     "expect": "ON, HST 13000"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-015",
+   "area": "zero_rating",
+   "rule": "A legal (professional/advisory) service supplied to a non-resident person is zero-rated (0%), except when it is: (a) rendered to an individual in connection with criminal, civil or administrative litigation in Canada after the litigation commenced; (b) in respect of real property situated in Canada; (c) in respect of tangible personal property in Canada when performed; (d) acting as the non-resident's agent or arranging/procuring/soliciting supplies for it. Excluded services are taxed under BIL-T-011/012/013.",
+   "source": [
+    {
+     "cite": "Excise Tax Act Schedule VI Part V s.23(a)-(d) (read on Justice Laws 2026-10-10): 'A supply of an advisory, professional or consulting service made to a non-resident person, but not including a supply of (a) a service rendered to an individual in connection with criminal, civil or administrative litigation in Canada, other than a service rendered before the commencement of such litigation; ...'; s.7(b) excludes advisory, consulting and professional services from s.7, so the s.7(a)/(a.1) 'individual in Canada' exclusions do not apply to legal services",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/page-121.html"
+    }
+   ],
+   "enforcement": "Client.non_resident must be confirmed by a lawyer (residence is a legal test, ETA s.132) with foreign address on file; the litigation exclusion (a) applies only when the recipient is an individual (a non-resident corporation, trust or partnership in Canadian litigation stays zero-rated); the client's physical presence in Canada is not a test under s.23; exclusion flags on matter (litigation individual post-commencement, real property in Canada, TPP in Canada, agency). Bill shows 'Zero-rated, Excise Tax Act Sch. VI Part V s.23'.",
+   "tests": [
+    {
+     "given": "US corporation, contract advice, fees 200000",
+     "expect": "GST/HST 0"
+    },
+    {
+     "given": "UK individual, defence of Ontario civil action after service of claim, fees 100000",
+     "expect": "excluded by s.23(a) -> s.27 ON -> HST 13000"
+    },
+    {
+     "given": "UK corporation, same Ontario action",
+     "expect": "s.23(a) covers individuals only -> zero-rated, 0"
+    },
+    {
+     "given": "US individual selling Toronto house, fees 120000",
+     "expect": "excluded by s.23(b) -> ON -> HST 15600"
+    },
+    {
+     "given": "US individual meets the lawyer in Toronto for contract advice (no litigation, no Canadian property), fees 100000",
+     "expect": "s.23 has no presence test; s.7(a.1) does not apply to professional services (s.7(b)) -> zero-rated, 0"
+    }
+   ],
+   "verify": "Section 23 and section 7 text re-read on Justice Laws (E-15/page-121.html) on 2026-10-10. Still cross-check CRA GST/HST Memorandum 4.5.3 for CRA's reading of 'individual' (e.g. a sole proprietor) before launch."
+  },
+  {
+   "id": "BIL-T-016",
+   "area": "zero_rating",
+   "rule": "The zero-rate or rate of the matter's service also applies to the firm's own-cost (not-as-agent) disbursements re-billed on that matter; agent disbursements stay outside the tax base in all cases.",
+   "source": [
+    {
+     "cite": "CRA Policy P-209R: GST/HST is exigible on reimbursement of disbursements not incurred as agent 'to the extent' it applies to the lawyer's service",
+     "url": "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/p-209r/lawyers-disbursements.html"
+    }
+   ],
+   "enforcement": "Own-cost disbursement lines inherit the matter's tax code; the line amount is the pre-tax cost (expense.amount_pre_tax_cents) plus any markup; there is no per-expense taxable flag (agent lines are outside the base, all others take the matter tax code).",
+   "tests": [
+    {
+     "given": "Alberta client, courier own-cost 2500 + vendor HST 325 paid by the firm",
+     "expect": "line 2500 (vendor HST claimed as ITC, never billed), GST 125 (not HST 325)"
+    },
+    {
+     "given": "Non-resident corp (zero-rated), courier 2500",
+     "expect": "0"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-017",
+   "area": "exemption",
+   "rule": "Indian Act s.87 relief: no GST/HST on legal services to a status Indian, Indian band or band-empowered entity only when the service is performed entirely on a reserve or the conditions in CRA guidance are met, with the client's registration number recorded.",
+   "source": [
+    {
+     "cite": "Indian Act s.87; CRA GST/HST Technical Information Bulletin B-039R (verify)",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/i-5/"
+    }
+   ],
+   "enforcement": "Manual tax code 'S87' only, requires lawyer approval and stored evidence; never proposed by the agent automatically.",
+   "tests": [
+    {
+     "given": "Band-council client, S87 code approved, fees 100000",
+     "expect": "tax 0, bill notes 'Indian Act s.87 relief'"
+    }
+   ],
+   "verify": "Conditions for services (off-reserve vs on-reserve performance) not read; get adviser sign-off before enabling the S87 code."
+  },
+  {
+   "id": "BIL-T-020",
+   "area": "pst",
+   "rule": "A provincial PST/RST/QST line is added only if (i) the place of supply for that tax is in that province and (ii) the firm's TaxProfile holds a registration number for that provincial tax; otherwise no provincial line is charged and the bill carries a review flag 'client may owe provincial tax by self-assessment'.",
+   "source": [
+    {
+     "cite": "BC PST Bulletin PST 106 Legal Services",
+     "url": "https://www2.gov.bc.ca/assets/gov/taxes/sales-taxes/publications/pst-106-legal-services.pdf"
+    },
+    {
+     "cite": "Manitoba RST Bulletin 056 Legal Services",
+     "url": "https://www.gov.mb.ca/finance/taxation/pubs/bulletins/056.pdf"
+    },
+    {
+     "cite": "Revenu Québec, GST/HST and QST",
+     "url": "https://www.revenuquebec.ca/en/businesses/consumption-taxes/gsthst-and-qst/"
+    }
+   ],
+   "enforcement": "TaxProfile.provincial_registrations[{kind, province, number}]. Engine refuses to emit a provincial line without a number; pre-flight shows the flag for BC/MB/SK/QC clients when unregistered.",
+   "tests": [
+    {
+     "given": "BC individual, Ontario contract advice, fees 100000, firm not BC-registered",
+     "expect": "GST 5000 only + flag"
+    },
+    {
+     "given": "Same, firm BC-registered",
+     "expect": "GST 5000 + BC PST 7000"
+    }
+   ],
+   "verify": "Whether an Ontario firm must register in BC/MB/SK/QC depends on each province's out-of-province vendor rules; adviser to confirm per province before any firm enables those lines."
+  },
+  {
+   "id": "BIL-T-021",
+   "area": "pst",
+   "rule": "BC PST 7% applies to legal services that relate to BC (e.g. supplied to an individual resident in BC, or concerning BC real or tangible property or BC courts), computed on the fee base excluding GST.",
+   "source": [
+    {
+     "cite": "BC Provincial Sales Tax Act; Bulletin PST 106 Legal Services",
+     "url": "https://www2.gov.bc.ca/assets/gov/taxes/sales-taxes/publications/pst-106-legal-services.pdf"
+    }
+   ],
+   "enforcement": "Provincial base = same pre-tax base as GST; never tax-on-tax.",
+   "tests": [
+    {
+     "given": "BC-resident individual, fees 100000, firm BC-registered",
+     "expect": "GST 5000 + PST 7000 = total 112000"
+    }
+   ],
+   "verify": "PST 106 text could not be extracted in this pass (PDF). Verify exact 'relates to BC' tests, the business-client treatment, and which disbursements are taxable."
+  },
+  {
+   "id": "BIL-T-022",
+   "area": "pst",
+   "rule": "Quebec: QST 9.975% on services supplied in Quebec, computed on the price excluding GST, shown as its own line after GST; only when the firm is QST-registered (regular, or the specified system for supplies to non-registered Quebec consumers).",
+   "source": [
+    {
+     "cite": "Act respecting the Québec sales tax (QST rate 9.975%); Revenu Québec guidance",
+     "url": "https://www.revenuquebec.ca/en/businesses/consumption-taxes/gsthst-and-qst/"
+    },
+    {
+     "cite": "CRA rate table (QC PST 9.975%)",
+     "url": "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/charge-collect-which-rate/calculator.html"
+    }
+   ],
+   "enforcement": "Two lines: 'GST 5%' and 'QST 9.975%' with each registration number.",
+   "tests": [
+    {
+     "given": "Montreal client, fees 100000, firm QST-registered",
+     "expect": "GST 5000, QST 9975, total 114975"
+    }
+   ],
+   "verify": "QST place-of-supply rules mirror but are not identical to ETA rules; confirm with Revenu Québec, and whether the specified-system $30,000 consumer threshold applies to the firm."
+  },
+  {
+   "id": "BIL-T-023",
+   "area": "pst",
+   "rule": "Manitoba RST 7% applies to legal services that relate to Manitoba; specified estate-planning documents (will, health care directive, related power of attorney) and legal-aid services are exempt.",
+   "source": [
+    {
+     "cite": "Manitoba Retail Sales Tax Act; RST Bulletin 056 Legal Services (rev. 2019/2020)",
+     "url": "https://www.gov.mb.ca/finance/taxation/pubs/bulletins/056.pdf"
+    }
+   ],
+   "enforcement": "Provincial line only per BIL-T-020; exempt-activity codes on matter type 'estate planning'.",
+   "tests": [
+    {
+     "given": "Winnipeg client, contract advice, fees 100000, firm MB-registered",
+     "expect": "GST 5000 + RST 7000"
+    },
+    {
+     "given": "Winnipeg client, will only, fees 100000",
+     "expect": "GST 5000, RST 0"
+    }
+   ],
+   "verify": "Bulletin read only via search summary; verify current revision and the 'relates to Manitoba' tests."
+  },
+  {
+   "id": "BIL-T-024",
+   "area": "pst",
+   "rule": "Saskatchewan PST 6% applies to legal services provided for use or consumption in Saskatchewan when the firm is SK-registered.",
+   "source": [
+    {
+     "cite": "The Provincial Sales Tax Act (Saskatchewan); SK PST legal-services bulletin (not located)",
+     "url": "https://www.saskatchewan.ca/business/taxes-licensing-and-reporting/provincial-taxes-policies-and-bulletins/provincial-sales-tax"
+    }
+   ],
+   "enforcement": "As BIL-T-020.",
+   "tests": [
+    {
+     "given": "Regina client, fees 100000, firm SK-registered",
+     "expect": "GST 5000 + PST 6000"
+    }
+   ],
+   "verify": "UNVERIFIED: the official SK bulletin on legal services was not found in this pass. Ship SK PST disabled until an adviser confirms taxability and registration duty."
+  },
+  {
+   "id": "BIL-T-025",
+   "area": "pst",
+   "rule": "Alberta, Yukon, Northwest Territories and Nunavut: GST 5% only, no provincial/territorial sales tax.",
+   "source": [
+    {
+     "cite": "CRA rate table (PST 0%)",
+     "url": "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/charge-collect-which-rate/calculator.html"
+    }
+   ],
+   "enforcement": "Seed data: no provincial rows for AB/YT/NT/NU.",
+   "tests": [
+    {
+     "given": "Yellowknife client, fees 100000",
+     "expect": "GST 5000, total 105000"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-030",
+   "area": "disbursements",
+   "rule": "Every expense category carries a treatment: AGENT (paid as the client's agent, re-billed at cost with no GST/HST added, and outside the tax base) or OWN (firm's own cost, re-billed as part of the legal service and taxed at the matter's tax code). Default table from P-209R: AGENT = land/real-property application and registration fees, land transfer tax, government entity creation/maintenance fees, fines, penalties and taxes, court fees to start a proceeding, notice-of-motion fees, defence filing fees, probate fee, IP office application/examination/issuance/maintenance fees. OWN = title, municipal, utility and other searches, prior-art searches, witness fees, transcripts and recordings, expert fees, service-of-document (process server) fees, law stamps, wills searches, vital-statistics certificates, telephone, photocopies, courier, postage, travel and mileage.",
+   "source": [
+    {
+     "cite": "CRA Policy Statement P-209R, Lawyers' disbursements (section headings by practice area and 'General disbursements')",
+     "url": "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/p-209r/lawyers-disbursements.html"
+    }
+   ],
+   "enforcement": "ExpenseCategory.tax_treatment seeded from this list; a lawyer may override per expense with a reason; override is audited. CRA states it follows P-209R treatment absent strong contrary evidence.",
+   "tests": [
+    {
+     "given": "Court filing fee 22900 (AGENT) + courier 8640 (OWN) + fees 421250, ON",
+     "expect": "HST base 429890, HST 55886, non-taxable 22900, total 508676 (billing.json sample)"
+    },
+    {
+     "given": "Title search 3500 classified OWN",
+     "expect": "HST 455"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-031",
+   "area": "disbursements",
+   "rule": "Own-cost disbursements are re-billed on the vendor's pre-tax amount (the firm recovers vendor GST/HST through its own input tax credit) and then taxed once at the matter's rate; never compute tax on an amount that already includes tax.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.169 (input tax credits); P-209R",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "Expense stores amount_pre_tax and tax_paid separately (time.json); bill line uses amount_pre_tax (+ markup if any).",
+   "tests": [
+    {
+     "given": "Courier invoice 2500 + HST 325, ON client",
+     "expect": "bill line 2500, HST 325 (wrong: 2825 base -> 367)"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-032",
+   "area": "disbursements",
+   "rule": "Agent disbursements are re-billed at the exact amount paid, including any tax the vendor charged; the firm claims no input tax credit for them; they are shown in a separate 'non-taxable disbursements' section and are never discounted or marked up.",
+   "source": [
+    {
+     "cite": "P-209R (no GST/HST exigible on reimbursement of disbursements incurred as agent); ETA s.169",
+     "url": "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/p-209r/lawyers-disbursements.html"
+    }
+   ],
+   "enforcement": "AGENT lines excluded from ITC report, discount allocation and markup; markup on AGENT category rejected at save.",
+   "tests": [
+    {
+     "given": "Land transfer tax 1247500 paid as agent",
+     "expect": "billed 1247500, HST 0, no ITC"
+    },
+    {
+     "given": "Attempt 10% markup on court filing fee 22900",
+     "expect": "save rejected"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-033",
+   "area": "disbursements",
+   "rule": "A markup on an own-cost disbursement is part of the taxable consideration: tax = rate x (pre-tax cost + markup).",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.165 (tax on value of consideration); P-209R",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "Engine taxes the billed line amount, not the cost.",
+   "tests": [
+    {
+     "given": "Photocopies cost 1000 + markup 50, ON",
+     "expect": "line 1050, HST 137 (136.5 rounded half away from zero, if this is the only taxable line)"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-040",
+   "area": "computation",
+   "rule": "Tax per bill is computed per tax line (kind+jurisdiction+rate) on the sum of the bill's taxable line amounts in that tax code after discounts, then rounded once to the cent, half a cent and up rounded away from zero. All amounts are integer cents; rates are integer ppm; tax = round_half_away((base_cents x rate_ppm) / 1,000,000).",
+   "source": [
+    {
+     "cite": "CRA RC4022 'Rounding off fractional amounts' (round to nearest cent, half a cent or more up; may total taxable supplies and round once)",
+     "url": "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/rc4022/general-information-gst-hst-registrants.html"
+    }
+   ],
+   "enforcement": "Single pure function in the billing domain, property-tested; per-line tax is derived only for display/LEDES by allocating the bill tax with largest-remainder so line taxes sum exactly to the bill tax.",
+   "tests": [
+    {
+     "given": "Three ON lines 333, 333, 334",
+     "expect": "bill HST = tax(1000) = 130 (per-line rounding would give 43+43+43 = 129; not used)"
+    },
+    {
+     "given": "ON base 429890",
+     "expect": "55885.7 -> 55886"
+    },
+    {
+     "given": "Credit base -1050",
+     "expect": "-137"
+    }
+   ],
+   "verify": "RC4022 permits per-item or total; this product fixes total-per-tax-code for consistency. Re-read RC4022 rounding paragraph."
+  },
+  {
+   "id": "BIL-T-041",
+   "area": "computation",
+   "rule": "Where a bill carries GST plus a provincial tax, each tax is computed independently on the same pre-tax base (no tax on tax) and shown as a separate line naming the tax, its rate (up to 4 decimals of a percent) and the firm's registration number for that tax.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.223(1) (disclosure of tax); QST and provincial acts",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "Bill render: one line per TaxLine; HST shown as 'HST 13%' (not GST+PST split).",
+   "tests": [
+    {
+     "given": "QC fees 100000",
+     "expect": "GST 5000; QST 9975 (not 9.975% of 105000 = 10474)"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-042",
+   "area": "computation",
+   "rule": "A discount (line or whole-bill) reduces the taxable base before tax. A whole-bill discount is allocated to fee and own-cost lines in proportion to their pre-tax amounts (largest-remainder to the cent), never to agent disbursements, and tax is computed on the reduced base per tax code.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.165 (tax on consideration actually charged); billing.json Bill.discount note",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "Discount allocation function returns per-line cents summing exactly to the discount.",
+   "tests": [
+    {
+     "given": "Fees 100000 + own-cost 10000 (ON), line discount -5000 on fees",
+     "expect": "base 105000, HST 13650"
+    },
+    {
+     "given": "Line A 60000 at 13%, line B 40000 zero-rated, whole-bill discount 10000",
+     "expect": "A -6000, B -4000; HST on 54000 = 7020"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-043",
+   "area": "computation",
+   "rule": "Early-payment discounts do not reduce tax: tax is charged on the full invoiced amount even if the client takes the discount; late-payment interest and late-payment charges are not subject to GST/HST and are shown on a separate non-taxable line. Card (payment-method) surcharges are not late-payment charges and are covered by BIL-T-044.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.161 (early or late payments: the consideration due is deemed to be the amount shown on the invoice, so neither an early-payment discount nor a late-payment charge changes the taxable consideration; read on Justice Laws 2026-10-10. s.162 is about natural resource rights and does not apply)",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/section-161.html"
+    },
+    {
+     "cite": "CRA RC4022 'Early-payment discounts' and 'Late-payment surcharges'",
+     "url": "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/rc4022/general-information-gst-hst-registrants.html"
+    }
+   ],
+   "enforcement": "Payment application of an early-payment discount posts a non-tax discount; interest lines have tax_code NONE.",
+   "tests": [
+    {
+     "given": "ON bill fees 100000 + HST 13000; early-payment discount 2% of fees 100000 = 2000 taken",
+     "expect": "client pays 111000; HST liability stays 13000"
+    },
+    {
+     "given": "Interest 1250 on overdue bill",
+     "expect": "HST 0"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-044",
+   "area": "computation",
+   "rule": "A surcharge for paying by credit card is additional consideration for the taxable supply being paid, not a financial service or a late-payment charge: tax it at the paid bill's tax codes, split in proportion to the bill's tax lines. A refund of a surcharged payment refunds the surcharge and its tax pro rata. Feature stays off until an adviser confirms CRA's position.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.165 (tax on the value of consideration), s.161 does not cover payment-method surcharges; CRA position on card surcharges (verify)",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "Surcharge line tax_code = the paid bill's tax codes (proportional to its tax lines, largest remainder); journal adds Cr tax payable for the surcharge tax; feature flag card_surcharge default off.",
+   "tests": [
+    {
+     "given": "ON bill (HST only), card payment, surcharge 2712",
+     "expect": "HST 353 (352.56 rounded half away from zero); surcharge with tax 3065"
+    },
+    {
+     "given": "Same payment refunded in full",
+     "expect": "surcharge 2712 and HST 353 refunded"
+    }
+   ],
+   "verify": "CRA guidance on credit card surcharges not read; confirm with a tax adviser before enabling."
+  },
+  {
+   "id": "BIL-T-050",
+   "area": "tax_point",
+   "rule": "Tax on a bill becomes payable on the earlier of the day the consideration is paid and the day it becomes due; consideration becomes due no later than the bill date. The bill is reported in the HST period containing its issue date in America/Toronto.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.168(1) and s.152(1)",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    },
+    {
+     "cite": "CRA RC4022 'When GST/HST becomes payable'",
+     "url": "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/rc4022/general-information-gst-hst-registrants.html"
+    }
+   ],
+   "enforcement": "Bill date = approval date (b3 BIL-C-121), stored UTC; period = local date in America/Toronto. 'Due' = bill date; payment = money applied to the bill (a trust retainer counts only when applied, BIL-T-051).",
+   "tests": [
+    {
+     "given": "Bill issued 2026-09-30T23:30 America/Toronto (2026-10-01T03:30Z), quarterly filer",
+     "expect": "Q3 2026 (Jul-Sep) HST report"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-051",
+   "area": "tax_point",
+   "rule": "Money received into trust as a retainer is a deposit, not consideration, and attracts no tax until it is applied to a bill; applying it does not change the bill's tax.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.168(9) (deposits)",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "No tax computed on trust receipts; trust-to-bill application references the issued bill.",
+   "tests": [
+    {
+     "given": "Retainer 300000 received 2026-08-01, bill 113000 issued 2026-09-15, trust applied",
+     "expect": "HST 13000 reported in Q3 via the bill; nothing taxed on 2026-08-01"
+    }
+   ],
+   "verify": "Confirm s.168(9) wording and CRA view on lawyers' retainers held in trust."
+  },
+  {
+   "id": "BIL-T-052",
+   "area": "tax_point",
+   "rule": "Work must not be held unbilled to defer tax: tax is due when an invoice would have been issued but for undue delay; WIP older than the matter's billing cycle plus 30 days is flagged in WIP reports.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.152(1)(c) (undue delay)",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "Report flag only; no auto-billing.",
+   "tests": [
+    {
+     "given": "Monthly-billed matter, WIP dated 2026-07-10 unbilled on 2026-09-15",
+     "expect": "flag 'undue delay' risk"
+    }
+   ],
+   "verify": "Paragraph letter (c) from memory; verify on Justice Laws. 30-day margin is a product choice."
+  },
+  {
+   "id": "BIL-T-060",
+   "area": "invoice_content",
+   "rule": "Every bill (regardless of amount) shows: firm legal/trading name; GST/HST registration number; bill date; client name (or authorized agent); description of each supply; terms of payment; total amount payable; and the tax charged (per tax line) or a statement that the total includes tax with the total tax rate. This satisfies all three threshold tiers (<100.00, 100.00-499.99, >=500.00 dollars).",
+   "source": [
+    {
+     "cite": "Input Tax Credit Information (GST/HST) Regulations (SOR/91-45) s.3(a), (b), (c)",
+     "url": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-91-45/"
+    },
+    {
+     "cite": "Excise Tax Act s.169(4), s.223(1)",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "Bill layout cannot activate without the fields; pre-flight blocks approval if any is missing (billing.json gate).",
+   "tests": [
+    {
+     "given": "Bill total 9500 (under 100 dollars) missing terms of payment",
+     "expect": "approval blocked (product requires full set)"
+    },
+    {
+     "given": "Bill total 56500, firm registration number empty",
+     "expect": "approval blocked"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-061",
+   "area": "invoice_content",
+   "rule": "GST/HST registration number format: 9-digit Business Number + 'RT' + 4-digit account (e.g. 123456782RT0001); BN must pass the CRA check-digit (Luhn on 9 digits) before it is saved.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.241 (registration); CRA Business Number structure",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "TaxProfile validator; also offer a link to the CRA GST/HST Registry for manual confirmation.",
+   "tests": [
+    {
+     "given": "'123456789RT0001'",
+     "expect": "format ok, Luhn check on 123456789 fails -> rejected"
+    },
+    {
+     "given": "'123456782RT0001' (sample number used in all other tests)",
+     "expect": "accepted (Luhn sum 40)"
+    },
+    {
+     "given": "'12345678RT0001'",
+     "expect": "rejected (8 digits)"
+    }
+   ],
+   "verify": "Confirm the BN check-digit algorithm with CRA documentation before relying on it."
+  },
+  {
+   "id": "BIL-T-070",
+   "area": "credit_notes",
+   "rule": "A credit note reverses tax in proportion to the pre-tax amount credited, using the source bill's tax lines and rates, and must state: that it is a credit note; firm name and registration number; client name; issue date; and the tax credited (or that the total includes it, with the total tax rate and the reduction).",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.232(1), (3)",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    },
+    {
+     "cite": "Credit Note Information (GST/HST) Regulations (SOR/91-44) s.3(a)-(d), (f)",
+     "url": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-91-44/"
+    }
+   ],
+   "enforcement": "CreditNote numbered sequence; tax per source tax line = -rhu(credit_pre_tax x line_tax / bill_taxable_base) (rhu = round half away from zero); the credit that exhausts the bill's remaining taxable base takes exactly the remaining tax of each line, so credits never exceed the bill's tax (same rule as b3 BIL-C-203); reported in the period of the credit note date, not the bill date.",
+   "tests": [
+    {
+     "given": "ON bill base 100000, HST 13000, credit pre-tax 10000",
+     "expect": "HST -1300; credit total -11300"
+    },
+    {
+     "given": "Bill base 5, HST rhu(0.65) = 1; credit pre-tax 3",
+     "expect": "HST -rhu(3 x 1 / 5) = -1 (rate x base would give 0); a later credit of the remaining 2 takes the remaining tax 0"
+    },
+    {
+     "given": "Bill base 1005, HST 131; three credits 335, 335, 335",
+     "expect": "-44, -44, then the last takes the remainder -43; total -131 (rate x base would give -132)"
+    },
+    {
+     "given": "Bill dated 2026-09-20, credit note 2026-10-05",
+     "expect": "reduction reported in Q4 2026"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-071",
+   "area": "credit_notes",
+   "rule": "Write-down before issue is not a credit note: editing a draft bill recomputes tax; once issued, only a credit note or bad-debt write-off may reduce it.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.232",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "Issued bills immutable; UI routes reductions to credit-note flow.",
+   "tests": [
+    {
+     "given": "Attempt to edit line on issued bill",
+     "expect": "rejected; suggest credit note"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-080",
+   "area": "bad_debt",
+   "rule": "On writing off an uncollectible bill owed by an arm's-length client, the firm may deduct tax = tax_on_bill x amount_written_off / bill_total_incl_tax (rounded half away from zero, BIL-T-040), claimed on a return filed within four years after the due date of the return for the period of the write-off.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.231(1)",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    },
+    {
+     "cite": "CRA RC4022 'Bad debt adjustments' (A x B / C; four-year limit)",
+     "url": "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/rc4022/general-information-gst-hst-registrants.html"
+    }
+   ],
+   "enforcement": "Write-off approval records written_off_at; HST report shows the adjustment in that period and a deadline date.",
+   "tests": [
+    {
+     "given": "Bill 113000 (HST 13000), paid 56500, written off 56500",
+     "expect": "deduction 6500"
+    },
+    {
+     "given": "Write-off 2026-11-15, quarterly filer, Q4 return due 2027-01-31",
+     "expect": "last day to claim 2031-01-31"
+    }
+   ],
+   "verify": "Arm's-length condition and return-due-date arithmetic per filer type to be confirmed."
+  },
+  {
+   "id": "BIL-T-081",
+   "area": "bad_debt",
+   "rule": "A later recovery of a written-off bill re-includes tax = amount_recovered x tax_on_bill / bill_total_incl_tax in the period of recovery.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.231(3)",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    },
+    {
+     "cite": "CRA RC4022 'Bad debt adjustments' recovery",
+     "url": "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/rc4022/general-information-gst-hst-registrants.html"
+    }
+   ],
+   "enforcement": "Payment matched to a written-off bill posts a recovery tax entry.",
+   "tests": [
+    {
+     "given": "Recovery 22600 on bill 113000 (HST 13000)",
+     "expect": "remit 2600"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-082",
+   "area": "bad_debt",
+   "rule": "Payments are applied for tax purposes proportionally (each dollar received carries tax_on_bill / bill_total); the firm's fees>disbursements>interest allocation order does not change the tax collected figure.",
+   "source": [
+    {
+     "cite": "CRA RC4022 bad-debt formula (proportional)",
+     "url": "https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/rc4022/general-information-gst-hst-registrants.html"
+    }
+   ],
+   "enforcement": "HST-collected report derives from bills (accrual), not from allocation order.",
+   "tests": [
+    {
+     "given": "Bill 113000 incl HST 13000; payment 50000",
+     "expect": "tax portion 50000*13000/113000 = 5752.2 -> 5752 for cash-basis views only"
+    }
+   ],
+   "verify": null
+  },
+  {
+   "id": "BIL-T-090",
+   "area": "reporting",
+   "rule": "The HST report per period lists: taxable supplies by jurisdiction and tax kind, tax charged (bills) minus tax credited (credit notes), bad-debt adjustments and recoveries, zero-rated supplies, and agent disbursements (excluded); ITCs come from own-cost expenses' tax_paid only.",
+   "source": [
+    {
+     "cite": "Excise Tax Act s.225 (net tax), s.169 (ITCs), s.231",
+     "url": "https://laws-lois.justice.gc.ca/eng/acts/E-15/"
+    }
+   ],
+   "enforcement": "Report reproducible from immutable bills/credit notes; totals reconcile to the GL. A bill voided after the period of its bill date was filed is reported as a negative adjustment in the void period; a void within the same unfiled period nets to zero. Preflight warning W-PERIOD-CROSS when an approved bill is still undelivered at period end.",
+   "tests": [
+    {
+     "given": "Q3: bills HST 55886, credit note -1300, bad debt -6500",
+     "expect": "line 105 component = 48086"
+    },
+    {
+     "given": "Bill base 100000 HST 13000 approved 2026-09-30, Q3 filed, voided 2026-10-05",
+     "expect": "Q3 unchanged; Q4 adjustment -13000"
+    },
+    {
+     "given": "Bill approved and voided within unfiled Q4",
+     "expect": "net 0 in Q4"
+    }
+   ],
+   "verify": null
+  }
+ ],
+ "decision_table": [
+  {
+   "client_location": "ON",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "ON",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "ON",
+     "rate_ppm": 130000
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "NS",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "NS",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "NS",
+     "rate_ppm": 140000
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "NB",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "NB",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "NB",
+     "rate_ppm": 150000
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "NL",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "NL",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "NL",
+     "rate_ppm": 150000
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "PE",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "PE",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "PE",
+     "rate_ppm": 150000
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "QC",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "QC",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    },
+    {
+     "kind": "QST",
+     "jurisdiction": "QC",
+     "rate_ppm": 99750,
+     "condition": "firm registered for QC QST (BIL-T-020)"
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "BC",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "BC",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    },
+    {
+     "kind": "PST",
+     "jurisdiction": "BC",
+     "rate_ppm": 70000,
+     "condition": "firm registered for BC PST (BIL-T-020)"
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "MB",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "MB",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    },
+    {
+     "kind": "RST",
+     "jurisdiction": "MB",
+     "rate_ppm": 70000,
+     "condition": "firm registered for MB RST (BIL-T-020)"
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "SK",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "SK",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    },
+    {
+     "kind": "PST",
+     "jurisdiction": "SK",
+     "rate_ppm": 60000,
+     "condition": "firm registered for SK PST (BIL-T-020)"
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "AB",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "AB",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "YT",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "YT",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "NT",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "NT",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "NU",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "NU",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    }
+   ],
+   "rules": [
+    "BIL-T-013"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in ON",
+   "place_of_supply": "ON",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "ON",
+     "rate_ppm": 130000
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in NS",
+   "place_of_supply": "NS",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "NS",
+     "rate_ppm": 140000
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in NB",
+   "place_of_supply": "NB",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "NB",
+     "rate_ppm": 150000
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in NL",
+   "place_of_supply": "NL",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "NL",
+     "rate_ppm": 150000
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in PE",
+   "place_of_supply": "PE",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "PE",
+     "rate_ppm": 150000
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in QC",
+   "place_of_supply": "QC",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    },
+    {
+     "kind": "QST",
+     "jurisdiction": "QC",
+     "rate_ppm": 99750,
+     "condition": "firm registered for QC QST (BIL-T-020)"
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in BC",
+   "place_of_supply": "BC",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    },
+    {
+     "kind": "PST",
+     "jurisdiction": "BC",
+     "rate_ppm": 70000,
+     "condition": "firm registered for BC PST (BIL-T-020)"
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in MB",
+   "place_of_supply": "MB",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    },
+    {
+     "kind": "RST",
+     "jurisdiction": "MB",
+     "rate_ppm": 70000,
+     "condition": "firm registered for MB RST (BIL-T-020)"
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in SK",
+   "place_of_supply": "SK",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    },
+    {
+     "kind": "PST",
+     "jurisdiction": "SK",
+     "rate_ppm": 60000,
+     "condition": "firm registered for SK PST (BIL-T-020)"
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in AB",
+   "place_of_supply": "AB",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in YT",
+   "place_of_supply": "YT",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in NT",
+   "place_of_supply": "NT",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any resident or non-resident",
+   "service_type": "real property situated in NU",
+   "place_of_supply": "NU",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    }
+   ],
+   "rules": [
+    "BIL-T-011",
+    "BIL-T-015(b)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of ON, after commencement",
+   "place_of_supply": "ON",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "ON",
+     "rate_ppm": 130000
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of NS, after commencement",
+   "place_of_supply": "NS",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "NS",
+     "rate_ppm": 140000
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of NB, after commencement",
+   "place_of_supply": "NB",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "NB",
+     "rate_ppm": 150000
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of NL, after commencement",
+   "place_of_supply": "NL",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "NL",
+     "rate_ppm": 150000
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of PE, after commencement",
+   "place_of_supply": "PE",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "PE",
+     "rate_ppm": 150000
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of QC, after commencement",
+   "place_of_supply": "QC",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    },
+    {
+     "kind": "QST",
+     "jurisdiction": "QC",
+     "rate_ppm": 99750,
+     "condition": "firm registered for QC QST (BIL-T-020)"
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of BC, after commencement",
+   "place_of_supply": "BC",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    },
+    {
+     "kind": "PST",
+     "jurisdiction": "BC",
+     "rate_ppm": 70000,
+     "condition": "firm registered for BC PST (BIL-T-020)"
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of MB, after commencement",
+   "place_of_supply": "MB",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    },
+    {
+     "kind": "RST",
+     "jurisdiction": "MB",
+     "rate_ppm": 70000,
+     "condition": "firm registered for MB RST (BIL-T-020)"
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of SK, after commencement",
+   "place_of_supply": "SK",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    },
+    {
+     "kind": "PST",
+     "jurisdiction": "SK",
+     "rate_ppm": 60000,
+     "condition": "firm registered for SK PST (BIL-T-020)"
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of AB, after commencement",
+   "place_of_supply": "AB",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of YT, after commencement",
+   "place_of_supply": "YT",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of NT, after commencement",
+   "place_of_supply": "NT",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "Canadian resident (any province), or non-resident individual",
+   "service_type": "litigation in a court/tribunal of NU, after commencement",
+   "place_of_supply": "NU",
+   "taxes": [
+    {
+     "kind": "GST",
+     "jurisdiction": "CA",
+     "rate_ppm": 50000
+    }
+   ],
+   "rules": [
+    "BIL-T-012",
+    "BIL-T-015(a)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "non-resident (individual or business)",
+   "service_type": "general (advisory, transactional, pre-litigation)",
+   "place_of_supply": "ZERO",
+   "taxes": [
+    {
+     "kind": "GST/HST",
+     "jurisdiction": "CA",
+     "rate_ppm": 0
+    }
+   ],
+   "rules": [
+    "BIL-T-015"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "non-resident business (corporation, trust, partnership)",
+   "service_type": "litigation in Canada after commencement",
+   "place_of_supply": "ZERO",
+   "taxes": [
+    {
+     "kind": "GST/HST",
+     "jurisdiction": "CA",
+     "rate_ppm": 0
+    }
+   ],
+   "rules": [
+    "BIL-T-015(a) individuals only (s.23(a) text read)"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "non-resident individual, met in Canada",
+   "service_type": "general advice rendered while the individual is in Canada",
+   "place_of_supply": "ZERO",
+   "taxes": [
+    {
+     "kind": "GST/HST",
+     "jurisdiction": "CA",
+     "rate_ppm": 0
+    }
+   ],
+   "rules": [
+    "BIL-T-015 (s.7(a.1) does not apply: s.7(b))"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "non-resident (any)",
+   "service_type": "acting as the client's agent / procuring supplies for it",
+   "place_of_supply": "general rule (BIL-T-013/014; typically ON)",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "ON",
+     "rate_ppm": 130000
+    }
+   ],
+   "rules": [
+    "BIL-T-015(d)",
+    "BIL-T-014"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "Canadian resident, no address on file",
+   "service_type": "general",
+   "place_of_supply": "ON (Canadian element performed in Ontario)",
+   "taxes": [
+    {
+     "kind": "HST",
+     "jurisdiction": "ON",
+     "rate_ppm": 130000
+    }
+   ],
+   "rules": [
+    "BIL-T-014"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any",
+   "service_type": "litigation in a federal court (FC, FCA, TCC, SCC)",
+   "place_of_supply": "general rule (client address)",
+   "taxes": "as client_location general row",
+   "rules": [
+    "BIL-T-012"
+   ],
+   "verify": true
+  },
+  {
+   "client_location": "any",
+   "service_type": "agent disbursement line (BIL-T-030 AGENT)",
+   "place_of_supply": "n/a",
+   "taxes": [],
+   "rules": [
+    "BIL-T-030",
+    "BIL-T-032"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any",
+   "service_type": "own-cost disbursement line (BIL-T-030 OWN)",
+   "place_of_supply": "same as the matter's service",
+   "taxes": "inherit matter tax code",
+   "rules": [
+    "BIL-T-016",
+    "BIL-T-031"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any",
+   "service_type": "late-payment interest",
+   "place_of_supply": "n/a",
+   "taxes": [],
+   "rules": [
+    "BIL-T-043"
+   ],
+   "verify": false
+  },
+  {
+   "client_location": "any",
+   "service_type": "credit card surcharge on a payment",
+   "place_of_supply": "same as the paid bill",
+   "taxes": "paid bill's tax codes, pro rata",
+   "rules": [
+    "BIL-T-044"
+   ],
+   "verify": true
+  }
+ ]
+}

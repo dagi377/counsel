@@ -1,0 +1,197 @@
+{
+ "owner": "f6-guide-tasks",
+ "items": [
+  {
+   "finding": "RV2-013",
+   "status": "fixed",
+   "change": "Every rule id now sits on a task (321/321). New tasks T-040b (Clio alongside sync, MIG-040..044, ARC-I-049), T-024b (assessment, BIL-L-004/005/006/011/033). MIG-060..065 and ARC-U-004/007/011/038/042/043 on T-043; ARC-U-013/019/024 on T-044; BIL-T-050 on T-018; BIL-C-042 on T-022. tasks.py computes coverage from b1,b2,b3,a1,a2,a3 and refuses to write if any id is unmapped or a task depends on a later one; T-001 adds a rule-coverage CI check.",
+   "left_for": "a4 platform.source_subscription; a2 PATCH /webhook-endpoints (f5/f3/a2 owners)"
+  },
+  {
+   "finding": "RV2-016",
+   "status": "fixed",
+   "change": "New T-010b matter core (deps T-006,T-009) added to T-011,T-016,T-019,T-029,T-030. T-008 now precedes T-007; T-007 depends on T-008 and is blocked by CF-03. T-011 blocked by CF-07. T-042 depends on T-038,T-032,T-035,T-039,T-037,T-040.",
+   "left_for": ""
+  },
+  {
+   "finding": "RV2-023",
+   "status": "fixed",
+   "change": "o2_lint.py: --strict exits 1 on any mechanical finding, judgment count above o2_lint.baseline.json, or missing spec dir; --baseline, --write-baseline; spec dir from --spec, $COUNSEL_SPEC_DIR, ../spec, ../legal-spec. Baseline written (entity-conflict 12, gate-dup 3, gate-no-approver 9); strict run exits 0. T-001 make check uses --spec spec --strict. o2 page documents it.",
+   "left_for": ""
+  },
+  {
+   "finding": "RV2-024",
+   "status": "fixed",
+   "change": "Reworded T-004 (Go ids monotonic, SQL ids ms-sortable), T-008 (consumer applies once after relay kill), T-011 (32 goroutines: committed*amount <= balance, rejects return 409).",
+   "left_for": ""
+  },
+  {
+   "finding": "RV2-026",
+   "status": "fixed",
+   "change": "T-009 accept reworded: /execution only records bank confirmation by a user distinct from the authorizer after authorization.",
+   "left_for": ""
+  },
+  {
+   "finding": "RV2-001",
+   "status": "fixed",
+   "change": "CF-04 closed with the RV2-001 text; T-007 accept checks gate_code slug + spec_gate.",
+   "left_for": "a4 DDL (f3), a2 gate_kinds"
+  },
+  {
+   "finding": "RV2-004",
+   "status": "fixed",
+   "change": "T-007, T-012, T-019 accept: replay effect 3x concurrently -> one effect_execution row and one posting.",
+   "left_for": "a4 indexes + gate.effect_execution"
+  },
+  {
+   "finding": "RV2-011",
+   "status": "fixed",
+   "change": "T-008 accept: conformance over x-money/x-external-effect, must reference IdempotencyKey, count(x-money) >= 20.",
+   "left_for": "a2 openapi x-money tags"
+  },
+  {
+   "finding": "RV2-012",
+   "status": "fixed",
+   "change": "New T-021b inbound provider webhooks (ARC-I-048, BIL-C-068, BIL-I-020).",
+   "left_for": "a2 /hooks/{provider}; a4 platform.inbound_event"
+  },
+  {
+   "finding": "RV2-015",
+   "status": "fixed",
+   "change": "T-037 accept: Counsel gate is the only authority; Paploo has no gate row; run resumes on gate.decided.",
+   "left_for": "ADR 0014, a2"
+  },
+  {
+   "finding": "RV2-020",
+   "status": "fixed",
+   "change": "T-043 accept: SET LOCAL only test; River connects directly (ARC-U-011).",
+   "left_for": ""
+  },
+  {
+   "finding": "RV1-019",
+   "status": "fixed",
+   "change": "Added CF-19 enum alignment (b3 state machines are the source; rate_source 8 values; no credit_note void).",
+   "left_for": "a4 CHECK lists"
+  },
+  {
+   "finding": "RV1-009",
+   "status": "fixed",
+   "change": "Added CF-20 (voidBill only before delivery), T-020 accept 409 bill_delivered_use_credit_note, ARC-I-050 on T-020.",
+   "left_for": "a2 voidBill"
+  },
+  {
+   "finding": "RV1-013",
+   "status": "fixed",
+   "change": "CF-09 resolution rewritten in ppm (interest_rate_ppm, place_of_supply jsonb, interest_charge, bill_guard freeze).",
+   "left_for": "a4"
+  },
+  {
+   "finding": "RV1-007",
+   "status": "partial",
+   "change": "CF-18 updated: surcharge taxable (BIL-T-044/BIL-C-208, verify), refund pro rata; T-026 accept 2712 -> 353; billing.json text aligned. Flag stays off.",
+   "left_for": "b3 BIL-C-204/J-013/X-013"
+  },
+  {
+   "finding": "RV1-001",
+   "status": "n/a",
+   "change": "Rejected by the b2 owner (f2) after reading ETA Sch. VI Part V s.7/s.23; recorded in o1-tasks.json findings_note. No task change.",
+   "left_for": ""
+  },
+  {
+   "finding": "RV1-002",
+   "status": "fixed",
+   "change": "trust.json: entry posts at execution, authorized amounts held; billing.json fee transfer up to min(bill balance less reserved, available); T-012/T-021/T-022 accept tests.",
+   "left_for": "b3, a4"
+  },
+  {
+   "finding": "RV1-003",
+   "status": "fixed",
+   "change": "trust.json: uncleared funds hard block by default, override only via G11 if owner enables; T-012 accept 409 uncleared_funds.",
+   "left_for": "a4 cleared_on"
+  },
+  {
+   "finding": "RV1-004",
+   "status": "fixed",
+   "change": "trust.json and billing.json: $7,500 or more, trust and operating cash combined; T-011 accept 749999 allowed, 750000 refused.",
+   "left_for": "b1, a4"
+  },
+  {
+   "finding": "RV1-006",
+   "status": "fixed",
+   "change": "billing.json overpayment/client credit short-lived (N=5 business days default, verify; apply, refund or pay into trust); T-021 accept aging exception.",
+   "left_for": "b3 BIL-C-063/067"
+  },
+  {
+   "finding": "RV1-008",
+   "status": "fixed",
+   "change": "time.json void only before delivery; T-019 accept delivered_at immutability; T-020 void delivered -> 409.",
+   "left_for": "a4 bill_guard"
+  },
+  {
+   "finding": "RV1-011",
+   "status": "n/a",
+   "change": "time.json already allows solo self-approval with audit note; T-007 accept already covers sole-practitioner exception.",
+   "left_for": "a4 triggers"
+  },
+  {
+   "finding": "RV1-012",
+   "status": "fixed",
+   "change": "T-011 accept: NSF reversal plus replenishment of the shortfall in one tx.",
+   "left_for": ""
+  },
+  {
+   "finding": "RV1-014",
+   "status": "fixed",
+   "change": "billing.json credit note text cites BIL-T-070/BIL-C-203 per-tax-line formula.",
+   "left_for": ""
+  },
+  {
+   "finding": "RV1-016",
+   "status": "fixed",
+   "change": "T-024 accept months_after tests with Toronto local date; T-024b collection hold one month after delivery.",
+   "left_for": ""
+  },
+  {
+   "finding": "CF-16",
+   "status": "fixed",
+   "change": "documents.json Auto-purge gate G14 (proposes list only); intake.json Send reminders and Warm transfer gate G-SK; platform.json e-sign Send reminders gate G-SK. o2 agent-ungated-external 3 -> 0.",
+   "left_for": ""
+  },
+  {
+   "finding": "CF-07",
+   "status": "fixed",
+   "change": "trust.json G-TSIG renamed as alias of canonical access GA6.",
+   "left_for": ""
+  },
+  {
+   "finding": "CF-14",
+   "status": "fixed",
+   "change": "billing.json place-of-supply text: approved bill never returns to draft; void before delivery, credit note after.",
+   "left_for": ""
+  },
+  {
+   "finding": "CF-01..20",
+   "status": "fixed",
+   "change": "Every conflict now has status + status_note in o1-tasks.json and a Status column in the build guide: resolved CF-01,04,05,06,07,11,13,14,16; resolving CF-03,08,09,10,17,18,19,20 (other owners); open CF-02,12,15. All task text in ppm.",
+   "left_for": ""
+  },
+  {
+   "finding": "build-guide",
+   "status": "fixed",
+   "change": "Added 'How to read this spec' (reading order, where truth lives, how rule ids/tests/tasks connect) and a Rule coverage section.",
+   "left_for": ""
+  },
+  {
+   "finding": "CF-05 follow-up (f4 renames)",
+   "status": "fixed",
+   "change": "o1 now uses a2's renamed gate kinds and a4 module names: CF-11 billing.trust_fee_withdrawal (G-B4); CF-07 core.trust_signatory (GA6) canonical, trust.signing_authority routes to it; CF-20 billing.bill_void; T-039 core.role_change/core.user_activation/core.trust_signatory; T-032 platform.file_destruction (G14); CF-05 status = applied by f4, map becomes docs/MODULES.md. Capability ids unchanged. No old-style kinds (documents.*, deadlines.*, access.*, ...) remain in o1 outputs.",
+   "left_for": ""
+  },
+  {
+   "finding": "f4 alignment T-009/T-021b/T-037/T-040b",
+   "status": "fixed",
+   "change": "T-009: /execution 409 not_authorized unless authorized and unexpired. T-021b: state-precedence out-of-order cases (ARC-I-048, BIL-C-068). T-040b: renewal_failed event, 72 h alert, webhook_endpoint.expiring at 14 d, PATCH renew, nullable expires_at (ARC-I-049). T-037 already matches ARC-I-045/RV2-015. New ARC-I-052 (delivery date) mapped to T-019. Coverage 322/322.",
+   "left_for": ""
+  }
+ ]
+}

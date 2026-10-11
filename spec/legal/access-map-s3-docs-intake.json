@@ -1,0 +1,24 @@
+{
+ "documents/firm-library": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ }
+}

@@ -1,0 +1,165 @@
+<h2>A4 Canonical data model</h2>
+<p><b>Files:</b> <code>a4-data-model.sql</code> (PostgreSQL 16 DDL, 17 schemas, 197 tables, 9 views, triggers, RLS) and <code>a4-data-model.json</code> (every table with columns, PK, FKs, unique/check constraints, indexes, triggers, retention, classification, plus 39 merge records). The JSON was produced by loading the SQL into a fresh cluster and reading the catalog back, so it matches the DDL.</p>
+<p><b>Validation:</b> the DDL loads cleanly with <code>ON_ERROR_STOP=1</code> on a local PostgreSQL <b>14.18</b>. No 16 binary was available. The DDL uses no syntax newer than 14, so it targets 16 unchanged. Smoke tests T1 to T9 (below) were run against that cluster and all behaved as expected. Docker was not used.</p>
+
+<h3>Key decisions</h3>
+<ol>
+<li><b>No <code>firm_id</code> column.</b> Each firm cell has its own database, keys and namespace, so the database itself is the tenant boundary. A <code>firm_id</code> on every row would protect nothing: no row from another firm can exist in the database. It would add an index column to every key and would suggest that a shared, multi-firm database is supported. Firm-level settings live in the singleton <code>core.firm</code>; <code>singleton boolean UNIQUE CHECK(singleton)</code> allows only one row. Cross-firm data (billing of the product, the fleet registry) belongs in the control-plane database, which is out of scope here. If pooling is ever needed, it is a migration that adds the column plus RLS. That is recorded as a non-goal.</li>
+<li><b>RLS protects access inside a firm, not between firms.</b> Ten content tables carry policies of the form <code>matter.can_see(matter_id)</code>. Ethical walls override everything, owners included. The system administrator never sees matter content. Access is granted by team membership, firm-open visibility or an active break-glass window. The app checks access first and RLS is the backstop. <code>counsel_jobs</code> bypasses RLS and is audited.</li>
+<li><b>One module per Postgres schema:</b> core, party, intake, conflict, matter, docs, cal, work, timekeeping, trust, billing, gl, comms, gate, agent, audit and platform. The <code>time</code> area is named <code>timekeeping</code> because <code>time</code> is a SQL type keyword.</li>
+<li><b>Balances are derived, never stored.</b> Trust ledger balances, bill balances, client credit and retainer funding are views over append-only rows. Overdraft protection is a deferred constraint trigger that runs at commit.</li>
+<li><b>One approval mechanism.</b> Every gate (G1 to G14, GA*) is a <code>gate.approval_request</code> with a <code>payload_hash</code>, plus append-only <code>gate.gate_decision</code> rows. Domain tables point to the request through <code>approval_id</code>.</li>
+<li><b>One audit hash chain.</b> Six per-area event tables are merged into <code>audit.audit_event</code> with a <code>stream</code> column. The matter timeline is the view <code>matter.activity</code>.</li>
+<li><b>Agents are not users.</b> An <code>agent_run</code> has <code>on_behalf_of</code>, and its actions count as that human's for separation of duties.</li>
+<li><b>No conversation or document text in Postgres.</b> Bodies are kept as encrypted object-store keys (<code>*_ref</code>). Short structured fields such as narrative, title and quote are allowed and are classed P4.</li>
+<li><b>Deletion policy.</b> Financial tables are never deleted. Mutable records use <code>archived_at</code>. Retention destruction runs only for RC-FILE and RC-LEAD classes through <code>matter.matter_closing.destroyed_at</code> plus object-store purge, and is blocked by legal hold.</li>
+</ol>
+
+<h3>Retention and classification</h3>
+<div class="scroll"><table class="ftable">
+<tr><th>Class</th><th>Rule</th><th>Tables (examples)</th></tr>
+<tr><td>RC-FIN</td><td>At least 10 years. <b>(verify)</b> the LSO By-Law 9 record-keeping retention section at lso.ca, and whether the clock runs from fiscal year end. Never deleted.</td><td>trust.*, billing.*, gl.*, timekeeping.time_entry/expense/rate</td></tr>
+<tr><td>RC-ID</td><td>Kept for the later of the end of the retainer or the last transaction, plus 6 years. <b>(verify)</b> the LSO By-Law 7.1 retention section.</td><td>party.identity_record, id_document, beneficial_owner</td></tr>
+<tr><td>RC-FILE</td><td>Set by the firm per practice area; the default is 15 years after close (<code>RC-FILE-15</code>). The default is chosen to match the Limitations Act, 2002 ultimate period. <b>(verify)</b> s. 15 at ontario.ca/laws. Legal hold blocks destruction.</td><td>matter.*, docs.*, cal.deadline, comms.comm_item</td></tr>
+<tr><td>RC-CONFLICT</td><td>Kept while the firm operates, because the conflict index needs it.</td><td>party.contact, matter.party_role, conflict.*</td></tr>
+<tr><td>RC-AUDIT</td><td>Kept for the life of the cell plus 10 years (policy). Never deleted.</td><td>audit.*, gate.*, agent.agent_run, access grants</td></tr>
+<tr><td>RC-LEAD / RC-OPS / RC-CONFIG / RC-PERSONNEL / RC-PERM</td><td>Declined leads: 2 years, then reduced to a sealed_prospect row. Operational data: 1 year. Configuration: current and superseded versions kept. Personnel: employment plus 7 years. Rule packs and readiness records: permanent.</td><td>see JSON</td></tr>
+</table></div>
+<p>Classification levels are P0 (config), P1 (internal), P2 (personal information), P3 (sensitive personal information or secrets: encrypted or hashed, for example <code>id_document.number_ciphertext</code>, <code>trust_account.account_no_ciphertext</code>, <code>connector.credential_ref</code>) and P4 (privileged). The JSON lists the class of each column group per table.</p>
+
+<h3>ERD by module (main relations only)</h3>
+<pre>
+CORE / PARTY / MATTER
+ role 1--* role_grant *--1 capability        firm (singleton)
+ role 1--* app_user *--* team (team_user)    app_user 1--* temp_grant / authority_limit / user_session
+ contact 1--* contact_relationship *--1 contact
+ contact 1--* identity_record 1--* id_document, beneficial_owner
+ practice_area 1--* stage, field_def, matter_template
+ contact(client) 1--* matter *--1 practice_area
+ matter 1--* party_role *--1 contact        (party_role: matter_id XOR lead_id)
+ matter 1--* matter_member (user|team)       matter 1--1 matter_closing
+ ethical_wall 1--* ethical_wall_matter *--1 matter
+ ethical_wall 1--* ethical_wall_screened_user *--1 app_user
+ matter 1--* fact (supersession), note, stage_change(append-only)
+
+INTAKE / CONFLICT
+ lead_source 1--* campaign;  lead *--1 contact; lead 0..1--1 matter (converted_matter_id)
+ intake_form 1--* intake_submission *--1 lead;  lead 1--* consultation, lead_outcome_letter, sequence_run
+ conflict_check (lead|matter) 1--* check_party, check_run(append-only) 1--* hit
+ conflict_check 1--* clearance 1--* consent;  clearance --> ethical_wall (origin)
+
+DOCS / CAL
+ matter 1--* folder (tree) 1--* document 1--* document_version(append-only) 1--* extraction
+ document.current_version_id --> document_version (deferred FK)
+ doc_template 1--* doc_template_version;  court_form 1--* doc_template
+ draft 1--* citation --> document_version | external_cite;  draft 1--* redline
+ document_version 1--* document_review --> approval_request (G8)
+ signature_request 1--* signer *--1 contact;  document_share (version|folder)
+ rule_pack 1--* holiday;  rule_pack 1--* deadline (pinned version)
+ trigger_event 1--* deadline 1--* deadline_confirmation(append-only), deadline_reminder
+ deadline 0..1--1 calendar_event *--1 calendar;  limitation_assessment --> deadline(basic, ultimate)
+
+WORK / TIME
+ workflow 1--* status, transition;  work_item *--1 status, matter, parent work_item
+ work_item 1--* comment, watcher, work_item_link;  automation_rule 1--* automation_run(append-only)
+ rate_table 1--* rate;  matter 1--* fee_arrangement (one current)
+ time_entry *--1 matter, user, activity_code, timesheet;  time_entry 0..1--1 time_suggestion
+ expense --> trust_transaction (when paid_from=trust);  write_down(append-only) --> time_entry|expense
+
+TRUST (By-Law 9)                         BILLING / GL
+ trust_account 1--* signatory             bill *--1 matter, payer(contact) ; bill 1--* bill_line
+ trust_account 1--* client_ledger *--1 matter   bill_line 0..1--1 time_entry | expense
+ client_ledger 1--* trust_transaction (append-only, signed cents)
+ withdrawal_request 1--* trust_transaction(disbursement)  payment 1--* payment_allocation(append-only)
+ trust_transfer 1--2 trust_transaction(in/out)        allocation --> bill | client_ledger | client(credit)
+ bank_import 1--* bank_line *--* trust_transaction (bank_match)
+ trust_account 1--* reconciliation (monthly; signed=immutable)   bill 1--* credit_note ; payment 1--* refund
+ VIEWS: ledger_balance, account_balance   VIEWS: bill_balance, client_credit_balance
+                                          gl.account 1--* journal_line *--1 journal_entry(balanced, append-only)
+GATE / AGENT / AUDIT / COMMS
+ approval_request 1--* gate_decision(append-only);  approval_request *--0..1 agent_run
+ agent_run *--1 app_user(on_behalf_of), skill;  audit_event(hash chain) --> actor, run, matter, approval
+ comm_item 1--* comm_filing *--1 matter;  comm_item *--1 connector;  portal_access contact*--*matter
+</pre>
+
+<h3>Rules the database enforces (DM-###)</h3>
+<p>The test case for each rule is a SQL statement with the expected result. T1 to T9 were run during validation. The other cases are specified for the migration test suite (<code>//go:build integration</code>).</p>
+<div class="scroll"><table class="ftable">
+<tr><th>ID</th><th>Rule</th><th>Mechanism</th><th>Test (numbers)</th></tr>
+<tr><td>DM-001</td><td>Every primary key is a UUIDv7.</td><td><code>core.uuidv7()</code> default</td><td>T9: <code>substr(core.uuidv7()::text,15,1)='7'</code>. Two ids generated 2 ms apart sort in time order. Ids from the same ms are not ordered.</td></tr>
+<tr><td>DM-002</td><td>One firm per database.</td><td><code>core.firm.singleton UNIQUE CHECK</code></td><td>A second <code>INSERT INTO core.firm</code> fails with unique_violation.</td></tr>
+<tr><td>DM-003</td><td>Money is <code>bigint</code> cents. No float or numeric money columns.</td><td>naming plus a catalog lint</td><td>Lint: <code>SELECT ... FROM information_schema.columns WHERE column_name LIKE '%cents' AND data_type&lt;&gt;'bigint'</code> returns 0 rows. Any column with "amount" in its name must end in <code>_cents</code> or <code>_micro_usd</code>.</td></tr>
+<tr><td>DM-004</td><td>The currency is always CAD.</td><td><code>CHECK (currency='CAD')</code></td><td>A bill inserted with currency 'USD' fails the check.</td></tr>
+<tr><td>DM-005</td><td>All rates and percentages are integer ppm (tax, FX, interest, markup, splits, contingency). No basis-point columns (CF-01).</td><td><code>*_ppm integer CHECK 0..1000000</code></td><td>HST 13% is stored as 130000. Tax on 100000 cents = 100000*130000/1e6 = 13000 cents.</td></tr>
+<tr><td>DM-006</td><td>Durations are integer minutes; quantities are <code>*_milli</code>.</td><td>types and checks</td><td>A time_entry with minutes=0 or 1441 fails. 1.5 h is stored as quantity_milli=1500.</td></tr>
+<tr><td>DM-007</td><td>Business dates are <code>date</code> in America/Toronto; instants are timestamptz.</td><td><code>firm.time_zone CHECK</code></td><td>A receipt at 2026-03-31 23:30 Toronto (2026-04-01 03:30 UTC) is stored with txn_date 2026-03-31.</td></tr>
+<tr><td>DM-010</td><td>Financial and record tables are never deleted.</td><td><code>core.forbid_delete()</code> triggers</td><td><code>DELETE FROM billing.payment</code> raises DM-010. Deleting a draft bill is allowed; deleting an issued bill raises.</td></tr>
+<tr><td>DM-011</td><td>Append-only tables reject UPDATE, DELETE and TRUNCATE.</td><td><code>core.forbid_mutation()</code> plus REVOKE</td><td>T4: an UPDATE of trust_transaction raises DM-011.</td></tr>
+<tr><td>DM-020</td><td>No message or document bodies in the database; references only.</td><td>schema review: <code>*_ref</code> columns</td><td>Lint: no text column named <code>body</code>, <code>content</code> or <code>transcript</code> exists.</td></tr>
+<tr><td>DM-021</td><td>Secrets and ID numbers are never stored in plaintext.</td><td>bytea ciphertext or hash columns</td><td><code>id_document.number_ciphertext</code> must not equal <code>convert_to('A1234567','UTF8')</code>. Only last4 is readable.</td></tr>
+<tr><td>DM-030</td><td>Gate decisions are made only by humans, and agent work is attributed to a human.</td><td><code>gate_decision.decided_by → app_user</code>; <code>agent_run.on_behalf_of NOT NULL</code>; audit CHECK</td><td>An audit_event with actor_kind='agent' and no on_behalf_of fails the check.</td></tr>
+<tr><td>DM-040</td><td>Matter, bill and credit-note numbers are gapless.</td><td><code>core.number_series</code> row lock</td><td>Two concurrent approvals receive 26-0007 and 26-0008. A rolled-back approval leaves no gap.</td></tr>
+<tr><td>DM-041</td><td>Bill amounts are frozen after approval.</td><td><code>billing.bill_guard</code></td><td>On an approved bill, setting fees_cents from 100000 to 90000 raises DM-041. The correction is a credit_note of 10000 + tax 1300.</td></tr>
+<tr><td>DM-042</td><td>Bill arithmetic must add up.</td><td>CHECK total = fees + taxable_disb + nontaxable_disb - discount + tax</td><td>T8: fees 100000 and tax 13000 with total 113001 is rejected; total 113000 is accepted.</td></tr>
+<tr><td>DM-043</td><td>Billed time is frozen.</td><td><code>time_entry_guard</code></td><td>Changing minutes from 60 to 30 on a billed entry raises. A write_down row is accepted.</td></tr>
+<tr><td>DM-044</td><td>The time lock date is respected.</td><td><code>time_entry_guard</code></td><td>With lock_before 2026-09-01, an insert with work_date 2026-08-31 raises DM-044.</td></tr>
+<tr><td>DM-045</td><td>Allocations never exceed the payment.</td><td>deferred constraint trigger</td><td>Payment 50000 with allocations of 30000 + 25000 fails at commit.</td></tr>
+<tr><td>DM-050</td><td>Trust balances are derived only.</td><td>views; no balance column</td><td>Lint: <code>trust.client_ledger</code> has no column matching <code>%balance%</code>.</td></tr>
+<tr><td>DM-051</td><td>Each trust transaction is signed by kind: receipts positive, disbursements negative.</td><td>CHECK</td><td>A receipt of -100 fails the check. A disbursement without withdrawal_id fails.</td></tr>
+<tr><td>DM-052</td><td>A client trust ledger never goes below 0 at commit.</td><td>per-ledger lock plus deferred constraint trigger</td><td>T1 and T2: receipt 500000, then disbursement -500001, raises DM-052 (balance -1). T3: disbursement -500000 is accepted and the balance is 0.</td></tr>
+<tr><td>DM-053</td><td>A transaction's account must match its ledger's account.</td><td><code>trust.before_txn</code></td><td>Posting to ledger L (account A) with account_id B raises DM-053.</td></tr>
+<tr><td>DM-054</td><td>A signed reconciliation month is locked.</td><td><code>trust.before_txn</code></td><td>After 2026-02 is signed, a txn dated 2026-02-27 raises. The correction is posted in March as a reversal.</td></tr>
+<tr><td>DM-055</td><td>A reversal negates exactly one transaction, once.</td><td>trigger plus UNIQUE(reverses_id)</td><td>Reversing +500000 with -400000 raises. A second reversal of the same id fails the unique constraint.</td></tr>
+<tr><td>DM-056</td><td>A signed reconciliation is immutable and can only be superseded with a reason.</td><td><code>reconciliation_guard</code></td><td>Updating bank_balance_cents on a signed row raises.</td></tr>
+<tr><td>DM-057</td><td>Months are signed in order.</td><td><code>reconciliation_order</code></td><td>Signing 2026-03 while 2026-02 is unsigned (account opened 2026-01-01) raises.</td></tr>
+<tr><td>DM-058</td><td>Three-way agreement is required to sign.</td><td>CHECK adjusted_bank = journal = client_listing</td><td>Values 1000000 / 1000000 / 999999 with status 'signed' fail the check.</td></tr>
+<tr><td>DM-059</td><td>Trust is never paid out in cash, and processor fees are never taken from trust.</td><td>CHECKs (verify By-Law 9)</td><td>A trust_transaction with method='cash' and amount -100 fails. A trust payment with processor_fee_cents=290 fails.</td></tr>
+<tr><td>DM-061</td><td>Every GL journal entry balances and has at least 2 lines.</td><td>deferred constraint trigger</td><td>T5: debit 11300 and credit 11299 raises DM-061 at commit.</td></tr>
+<tr><td>DM-062</td><td>A closed GL period rejects new entries.</td><td><code>gl.before_entry</code></td><td>With 2026-01 closed, an entry dated 2026-01-15 raises.</td></tr>
+<tr><td>DM-070</td><td>The maker never approves their own item, and the agent counts as its on_behalf_of human. Exception: a declared sole-practitioner self-approval.</td><td><code>gate.check_decision</code></td><td>T6: requester A approving raises DM-070. Decider B is accepted.</td></tr>
+<tr><td>DM-071</td><td>Only pending requests can be decided.</td><td>trigger</td><td>A decision on an approved request raises.</td></tr>
+<tr><td>DM-072</td><td>A decision binds to the payload hash.</td><td>trigger</td><td>T6: hash \xbb against request \xaa raises DM-072.</td></tr>
+<tr><td>DM-073</td><td>Sole-practitioner self-approval of G11, G11t, G12 or GA2 takes effect only after 24 h. <b>(verify)</b> the policy with the owner.</td><td>trigger</td><td>effective_at = decided_at + 23 h raises; + 24 h is accepted.</td></tr>
+<tr><td>DM-074</td><td>Trust withdrawals separate initiator, authorizer and executor.</td><td><code>core.check_sod</code> from <code>trust.withdrawal_guard</code> (raises DM-078)</td><td>initiated_by = authorized_by = A fails unless core.firm.sole_practitioner, which writes audit action sod_solo_exception (RV1-011).</td></tr>
+<tr><td>DM-080</td><td>The audit log is a gapless hash chain.</td><td><code>audit.chain()</code> under an advisory lock</td><td>T7: seq 1, 2 and row2.prev_hash = row1.hash. A verifier recomputes sha256 for every row.</td></tr>
+<tr><td>DM-081</td><td>A walled user cannot read a walled matter, through any table, even as owner.</td><td>RLS <code>matter.can_see</code></td><td>With user B screened on matter M, <code>SET counsel.user_id=B; SELECT count(*) FROM docs.document WHERE matter_id=M</code> returns 0.</td></tr>
+<tr><td>DM-082</td><td>The system administrator sees no matter content.</td><td>RLS</td><td>With is_system_admin=true, <code>SELECT FROM matter.note</code> returns 0 rows.</td></tr>
+<tr><td>DM-083</td><td>Break-glass access is time-boxed to at most 8 h, and its reviewer is not the user.</td><td>CHECK</td><td>ends_at = starts_at + 9 h fails.</td></tr>
+<tr><td>DM-090</td><td>A deadline that cites a rule pins a rule_pack version, and a critical deadline marked met needs evidence.</td><td>CHECKs</td><td>status='met', critical=true, evidence_doc_id NULL fails.</td></tr>
+<tr><td>DM-091</td><td>A second check records an independent date.</td><td>CHECK</td><td>kind='second_check' with independent_date NULL fails.</td></tr>
+<tr><td>DM-041</td><td>Delivery is a legal clock: delivered_at is set once (NULL to a past time), changes only through an approved billing.delivery_correction, a delivered bill is never voided, and due date, approver, signer, interest rate and place of supply freeze at approval.</td><td><code>billing.bill_guard</code></td><td>Back-dating delivered_at 2026-10-03 to 2026-09-01 fails. Voiding a delivered bill fails; issue a credit note (RV1-008).</td></tr>
+<tr><td>DM-046</td><td>Trust receipts never pay a bill directly; trust money reaches a bill only via billing.trust_fee_transfer. Reversal allocations mirror every bucket.</td><td><code>billing.allocation_guard</code></td><td>Allocating a trust payment to a bill fails (RV1-010, BIL-I-019).</td></tr>
+<tr><td>DM-047</td><td>A bill is never over-allocated, counting reserved fee transfers.</td><td>deferred <code>billing.check_bill_not_overpaid</code>; <code>trust.withdrawal_guard</code></td><td>Bill 113000, allocation 113001 fails at commit.</td></tr>
+<tr><td>DM-048</td><td>Interest uses the rate snapshotted on the bill and starts no earlier than one month after delivery (verify Solicitors Act s.33).</td><td><code>billing.interest_guard</code></td><td>interest_charge.rate_ppm differing from bill.interest_rate_ppm fails.</td></tr>
+<tr><td>DM-049</td><td>Issued credit notes are immutable apart from the refund lifecycle.</td><td><code>billing.credit_note_guard</code></td><td>Changing amount_cents on an issued note fails.</td></tr>
+<tr><td>DM-064</td><td>Money leaves trust only from available funds: cleared receipts minus protected, minimum balance and authorized holds. Checked under the ledger lock at authorization and again at posting.</td><td><code>trust.available_cents</code>, <code>trust.withdrawal_guard</code>, <code>trust.before_txn</code></td><td>500000 receipt, hold 300000, second authorization 300000 fails. An uncleared cheque cannot be paid out until trust.receipt_clearance exists. Protected 200000 of 500000: 300001 fails (RV1-002/003, RV2-021).</td></tr>
+<tr><td>DM-065</td><td>Trust postings run at READ COMMITTED, so the deferred non-negative check sees concurrent commits.</td><td><code>trust.before_txn</code></td><td>A receipt inside REPEATABLE READ fails (RV1-025).</td></tr>
+<tr><td>DM-066</td><td>Signing a reconciliation takes an exclusive account lock and recomputes the journal balance; postings take a share lock, so a month is never signed without a concurrently posted line.</td><td><code>trust.reconciliation_order</code></td><td>Signing with a stale journal_balance_cents fails (RV2-007).</td></tr>
+<tr><td>DM-067</td><td>Withdrawals and bills reach authorized/approved only with an approved gate bound to that exact row; withdrawal terms freeze once proposed.</td><td><code>trust.withdrawal_guard</code>, <code>billing.bill_guard</code></td><td>Authorizing with someone else's approval id fails (RV2-018).</td></tr>
+<tr><td>DM-068</td><td>Money effects run once: unique keys on withdrawal, transfer leg, payment and journal source; gate.effect_execution keyed by approval.</td><td>unique indexes</td><td>Replaying a disbursement for the same withdrawal fails on trust_txn_once_per_withdrawal (RV2-004).</td></tr>
+<tr><td>DM-069</td><td>Imported history is its own book (trust.historical_line). The live book starts with exactly one opening_balance row per ledger, behind the migration.trust_opening (G-IMP) gate.</td><td>CHECK + unique index + view trust.opening_tieout</td><td>History 400000 - 150000 and opening 250000: ledger balance 250000, tie-out diff 0 (RV2-005).</td></tr>
+<tr><td>DM-075</td><td>Only active human principals who are not system admins decide gates.</td><td><code>gate.check_decision</code></td><td>A decision by a principal_kind='agent' user fails (RV2-017).</td></tr>
+<tr><td>DM-076</td><td>Gates expire: no decision or effect after expires_at; job gate.expire_due() persists 'expired'.</td><td><code>gate.check_decision</code>, <code>gate.effect_guard</code></td><td>A decision one hour after expiry fails (RV2-003).</td></tr>
+<tr><td>DM-077</td><td>An approval is bound to one payload version. Hash, kind and approver count never change; editing the payload supersedes the request (version+1), and approvals on v1 never count for v2. Status changes only through gate functions.</td><td><code>gate.approval_request_guard</code>, <code>gate.supersede</code></td><td>B approves v1, payload edited, C approves v2: v2 stays pending (RV2-002).</td></tr>
+<tr><td>DM-078</td><td>Maker and checker differ unless the firm is flagged sole practitioner; each exception is audited.</td><td><code>core.check_sod</code></td><td>Two-licensee firm, self-approved bill fails; sole firm passes with one audit row (RV1-011).</td></tr>
+</table></div>
+
+<h3>Review fixes (RV1, RV2, CF)</h3>
+<ul>
+<li><b>Ledger shape (CF-02):</b> trust.trust_transaction is the By-Law 9 book of record. TR-1500/TR-2500 are derived from it, and gl.* is the operating book only. OP-2300 "Due to trust account" is a gl.account seed row, not DDL.</li>
+<li><b>Gate kinds (RV2-001, CF-04):</b> gate_code is a <code>&lt;module&gt;.&lt;slug&gt;</code> kind such as billing.bill_approval. The spec id (G9, G11t, G-B2, G-IMP, G-TSIG, G-TREL) goes in spec_gate. Each kind's definition is versioned in gate.gate_kind (ttl_hours, approver count, risk).</li>
+<li><b>Withdrawal states (RV1-002):</b> proposed, pending_authorization, authorized, executed (the trust row is posted here), applied, confirmed (bank match found). Authorized rows are holds.</li>
+<li><b>Enums copied from b3 state machines (CF-19):</b> bill, time entry, expense, payment and credit note statuses; time_entry.rate_source; credit_note.kind.</li>
+<li><b>New tables (CF-03):</b> gate.gate_kind, gate.effect_execution, trust.receipt_clearance, trust.historical_line, billing.trust_fee_transfer, billing.interest_charge, billing.write_off, billing.client_credit, billing.delivery_correction, billing.tax_period_adjustment, billing.payment_event, platform.outbox, platform.inbox, platform.idempotency_key, platform.inbound_event, platform.feature_flag, platform.source_subscription.</li>
+<li><b>Rebilling (CF-08):</b> a time entry or expense can sit on only one bill that is not void (partial unique index on bill_line.bill_voided). Voiding a bill releases its entries.</li>
+<li><b>RLS (RV2-014, CF-17):</b> RLS is enabled and forced on every table with matter_id (47 tables) except gate.approval_request and gl.journal_line. Integrity and visibility functions are owned by counsel_integrity (BYPASSRLS). counsel_jobs is created BYPASSRLS.</li>
+<li><b>Cash limit (BIL-L-039, verify):</b> billing.cash_received_cents(matter) adds up operating and trust cash. Callers block at 750000 cents or more, under a per-matter advisory lock.</li>
+<li><b>Smoke:</b> a4-data-model.smoke.sql has 68 self-checking cases, all passing on PostgreSQL 14.18. They cover each critical fix.</li>
+</ul>
+<h3>Notes for implementers</h3>
+<ul>
+<li>Audit writes are serialized by <code>pg_advisory_xact_lock</code>. Keep audit inserts at the end of transactions. This is fine at small-firm volume; if p99 lock wait goes above 50 ms, revisit with a per-stream chain.</li>
+<li>FKs to <code>gate.approval_request</code> are plain <code>approval_id</code> columns. The app must check that the request is <code>approved</code> before it moves the domain row to an approved status. This is not a DB trigger, because the approved status differs per table.</li>
+<li>The deferred FK <code>document.current_version_id</code> lets a document and its first version be inserted in one transaction.</li>
+<li>Open questions: whether By-Law 9 retention runs from fiscal year end (trust.json). Rounding of HST per line or per bill: per bill per tax code, half-up, is assumed and must be confirmed by the billing spec owner. Whether a dual-authorization threshold is the default.</li>
+</ul>

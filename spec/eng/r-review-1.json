@@ -1,0 +1,427 @@
+{
+ "id": "r-review-1",
+ "lens": "money and law correctness",
+ "as_of": "2026-10-10",
+ "reviewed": [
+  "b1-ontario-billing-law.*",
+  "b2-sales-tax.*",
+  "b3-billing-engine.* + ../b3work/engine.py",
+  "a4-data-model.sql money tables",
+  "a2 money endpoints",
+  "o1 CF-01..18",
+  "../legal-spec/billing.json, time.json, trust.json"
+ ],
+ "arithmetic_checked": "All b3 BIL-X-001..022 journals balance and cents reconcile; b1/b2 worked examples recomputed; mismatches listed in findings (BIL-L-020, BIL-L-039, BIL-X-013).",
+ "findings": [
+  {
+   "id": "RV1-001",
+   "severity": "critical",
+   "files": [
+    "b2-sales-tax.json",
+    "b2-sales-tax.html"
+   ],
+   "rule_ids": [
+    "BIL-T-010",
+    "BIL-T-015",
+    "decision_table rows 'non-resident business / litigation'"
+   ],
+   "problem": "Zero-rating exclusions for non-residents are mis-stated. ETA Sch. VI Part V s.23 excludes (a) a service rendered to an individual while that individual is in Canada, and separately excludes litigation services in Canada after commencement for ANY non-resident (not only individuals). b2 merges these into one 'individuals only' litigation exclusion and omits the 'individual while in Canada' exclusion, so the engine would zero-rate an Ontario lawsuit for a foreign corporation (under-collecting 13% HST) and zero-rate advice given in person to a visiting non-resident individual.",
+   "evidence": "BIL-T-010 test: 'Non-resident corporation, Ontario Superior Court action already started -> ZERO'. BIL-T-015 test: 'UK corporation, same Ontario action -> s.23(a) covers individuals only -> zero-rated, 0'. Decision-table row: non-resident business + litigation after commencement -> ZERO.",
+   "fix": "Re-read ETA Sch. VI Part V s.23 on Justice Laws and restate as separate exclusions: (a) service rendered to an individual while the individual is in Canada; (b) real property in Canada; (c) TPP in Canada; (litigation paragraph) service in connection with criminal, civil or administrative litigation in Canada after commencement, for any recipient; (agent paragraph) agency/procurement. Change tests: UK corporation in Ontario action after commencement -> taxable, s.27 -> ON, fees 100000 -> HST 13000. Add test: US individual meets lawyer in Toronto for advice, fees 100000 -> not zero-rated -> general rule. Change decision-table row to place_of_supply ON (forum province), HST 130000 ppm. Add matter flag 'individual_in_canada_when_rendered' (lawyer-confirmed). Keep (verify) until the paragraph letters are confirmed."
+  },
+  {
+   "id": "RV1-002",
+   "severity": "critical",
+   "files": [
+    "b3-billing-engine.json",
+    "a4-data-model.sql",
+    "a2-interfaces.openapi.yaml"
+   ],
+   "rule_ids": [
+    "BIL-C-050",
+    "BIL-C-051",
+    "BIL-I-010",
+    "BIL-I-011",
+    "TrustFeeTransfer state machine",
+    "BIL-J-008"
+   ],
+   "problem": "Race between authorization and posting lets trust money move twice. b3 posts the trust journal only at 'confirmed -> posted' (after bank confirmation), but the money leaves the bank at 'sent_to_bank'. In that window the client ledger still shows the money, so a second withdrawal (fee transfer, disbursement, refund) can be authorized against the same funds, and a card/EFT payment can clear the same bill so the fee transfer overpays it. 'Re-checked at posting' is too late because the bank has already paid. The a4 DM-052 trigger only sees posted rows, and nothing reserves authorized-but-unposted amounts against either the ledger or the bill.",
+   "evidence": "TrustFeeTransfer: authorized -> sent_to_bank -> confirmed -> posted; cancel only from proposed|pending_authorization; notes 'Amount re-checked ... at authorization and at posting'. a4 trust.withdrawal_request has statuses authorized/executed/posted but no reservation; a2 recordWithdrawalExecution posts at execution (different from b3). Scenario: ledger 500000, fee transfer 300000 authorized, disbursement 300000 authorized before either posts -> both pass ledger checks.",
+   "fix": "1) Post the trust_transaction at execution (txn_date = executed_on, matching a2 recordWithdrawalExecution); bank confirmation only matches bank_line (bank_match). Rename b3 states to: proposed -> pending_authorization -> authorized -> executed(posted) -> confirmed. 2) Define trust.available_cents(ledger) = sum(cleared posted rows) - protected_cents - minimum_balance_cents - sum(amount of withdrawal_request in ('authorized') for that ledger). Check available >= amount under SELECT ... FOR UPDATE on client_ledger at authorization and again at execution. 3) Define bill.reserved_cents = sum(fee withdrawals for the bill in authorized|executed-not-applied); fee transfer requires amount <= bill balance - reserved_cents; payment allocation to a bill limited to balance - reserved_cents, excess to unapplied/client credit. 4) If an executed fee transfer still exceeds the bill balance, post the excess to OP-2300 Due to trust and create a G6 return-to-trust task the same day. Tests: two concurrent authorizations of 300000 on a 500000 ledger -> second 409 trust_overdraw; card payment 208676 arriving while a 300000 fee transfer on a 508676 bill is authorized -> card allocation capped at 208676, excess to unapplied."
+  },
+  {
+   "id": "RV1-003",
+   "severity": "high",
+   "files": [
+    "a4-data-model.sql",
+    "b3-billing-engine.json",
+    "../legal-spec/trust.json"
+   ],
+   "rule_ids": [
+    "BIL-C-050",
+    "BIL-I-010",
+    "DM-052"
+   ],
+   "problem": "Uncleared and protected trust funds are not enforced in the data model. b3 and billing.json require 'cleared, unprotected' balance, but trust.trust_transaction has no cleared/hold field and the only DB guard (DM-052) checks sum(all rows) >= 0. Paying out against an uncleared cheque uses other clients' money if it bounces. trust.json leaves 'hard block vs override' as an open question.",
+   "evidence": "a4 trust.trust_transaction columns: no cleared_on/hold_until; client_ledger.protected_cents and minimum_balance_cents never referenced by a trigger; trust.json open_questions[0] 'Uncleared funds: hard block ... or allow a lawyer override?'.",
+   "fix": "Add trust.trust_transaction.cleared_on date NULL (receipts only; non-null for internal/cash/transfer_in at insert) and a function trust.available_cents(ledger_id) per RV1-002. Add a BEFORE INSERT check for kind in (disbursement, transfer_out): available_cents - |amount| >= 0, else raise DM-056 unless approval_id references a G11 decision with reason_code 'uncleared_override' (owner decision; default hard block). Tests: receipt 500000 by cheque not cleared, fee withdrawal 100000 -> refused uncleared_funds; after cleared_on set -> allowed; protected 200000 on 500000 ledger, withdrawal 300001 -> refused."
+  },
+  {
+   "id": "RV1-004",
+   "severity": "high",
+   "files": [
+    "b1-ontario-billing-law.json",
+    "../legal-spec/trust.json",
+    "../legal-spec/billing.json",
+    "a4-data-model.sql"
+   ],
+   "rule_ids": [
+    "BIL-L-039",
+    "G6c"
+   ],
+   "problem": "Cash-limit boundary is off by one cent. By-Law 9 s.4(1) prohibits receiving cash 'aggregating $7,500 or more' on one client file (verify wording). b1 and trust.json say 'more than $7,500' and the b1 test allows exactly 750000. Also the limit covers all cash received on the file, including fees paid into operating, but a4 only has cash_exception_code on trust rows; billing.payment(method='cash') has no aggregate check.",
+   "evidence": "BIL-L-039 test: 'Prior cash on file 500000; new cash 250000 => 750000 total: allowed. Further cash 1 cent: refused'. trust.json: 'may not receive more than $7,500 CAD in aggregate cash'.",
+   "fix": "Rule: block when aggregate cash on the client file after the receipt >= 750000 cents, unless an exception code with evidence (G6c). Change test: 500000 + 250000 = 750000 -> refused CASH_LIMIT; 500000 + 249999 -> allowed; WARN at 600000. Aggregate = sum of billing.payment(method='cash') for the matter + trust.trust_transaction(method='cash', amount>0) for the matter. Implement as a function used by both POST /payments and POST /trust/receipts under a per-matter advisory lock. Update trust.json and billing.json wording. Keep (verify) on s.4 and the exceptions in s.5-6."
+  },
+  {
+   "id": "RV1-005",
+   "severity": "high",
+   "files": [
+    "b1-ontario-billing-law.json",
+    "b3-billing-engine.json"
+   ],
+   "rule_ids": [
+    "BIL-L-020",
+    "BIL-C-033"
+   ],
+   "problem": "Contingency cap test contradicts its own rule. The rule caps fees at the client's recovery including costs but EXCLUDING disbursements and taxes; the test includes the 200000 disbursements in the cap. b3 BIL-C-033 still says 'verify exact cap formula' while b1 claims to have read O. Reg. 563/20 s.1.",
+   "evidence": "BIL-L-020 test: 'Settlement 3000000 incl. costs 500000, disbursements 200000, HST 0 on recovery: max fees = 3000000'. Correct cap = 3000000 - 200000 = 2800000.",
+   "fix": "BIL-L-020 test: 'Settlement 3000000 incl. costs 500000 and disbursements 200000 -> recovery base 2800000; CFA calc 2900000 blocked CFA_FEE_EXCEEDS_RECOVERY; capped proposal 2800000'. b3 BIL-C-033: replace '(verify exact cap formula)' with the b1 formula and cite O. Reg. 563/20 s.1; make recovery_base a stored field (damages + costs - disbursements designated - taxes) used by both BIL-C-032 and BIL-C-033."
+  },
+  {
+   "id": "RV1-006",
+   "severity": "high",
+   "files": [
+    "b3-billing-engine.json",
+    "b1-ontario-billing-law.json"
+   ],
+   "rule_ids": [
+    "BIL-C-063",
+    "BIL-C-081",
+    "BIL-C-066",
+    "BIL-X-008",
+    "BIL-X-010",
+    "BIL-X-015"
+   ],
+   "problem": "Overpayments and credit-note excess are parked indefinitely as 'client credit' in the operating account. Money that belongs to the client (not earned fees) held in the general account is the By-Law 9 'money belonging to a client' problem: it must be paid into trust or refunded promptly (verify By-Law 9 provision on mixed/client money received in general account). b3 says excess goes 'never to trust' and has no time limit.",
+   "evidence": "BIL-C-063: 'Excess goes to ClientCredit (OP-2200) ... Never to trust'. BIL-X-008 parks 24000; BIL-X-010 parks 95500. BIL-I-016 already treats trust money in operating as an exception (OP-2400), so the two rules disagree on the same kind of money.",
+   "fix": "Change BIL-C-063/081: client credit is a short-lived state. Within N business days (firm setting, default 5; verify against By-Law 9) the excess must be (a) applied to a delivered bill of the same client-matter under G-B3 with client direction, (b) refunded under G-B6, or (c) transferred to trust under G6 (operating Dr OP-2200 / Cr OP-1000; trust Dr TR-1500 / Cr TR-2500). Add an aging job raising a trust exception at N days. Remove 'Never to trust'. Add test: credit 24000 untouched 6 business days -> exception task 'client money in operating'."
+  },
+  {
+   "id": "RV1-007",
+   "severity": "high",
+   "files": [
+    "b3-billing-engine.json",
+    "b2-sales-tax.json"
+   ],
+   "rule_ids": [
+    "BIL-C-204",
+    "BIL-J-013",
+    "BIL-X-013",
+    "BIL-C-101"
+   ],
+   "problem": "Card surcharges are treated as non-taxable. CRA's position is that a surcharge a supplier adds for paying by credit card is additional consideration for the taxable supply, not a financial service (verify with CRA GST/HST guidance before launch). Treating it as exempt under-collects HST on every surcharged payment. Refunds also ignore the surcharge.",
+   "evidence": "BIL-C-204: 'Interest charges and card surcharges carry no GST/HST'. BIL-X-013: surcharge 2712, surcharge_tax 0. If taxable at 13%: rhu(2712 x 130000 / 1e6) = 353, charged 116065 not 115712.",
+   "fix": "Split BIL-C-204: interest stays non-taxable (ETA s.161/162, see RV1-023); surcharge is taxed at the paid bill's tax codes (proportional to the bill's tax lines) unless an adviser confirms otherwise, marked (verify). Update BIL-J-013 (add Cr OP-2100 tax on surcharge), BIL-X-013 (surcharge 2712, HST 353, charged 116065), and o1 CF-18. Add rule: a refund of a surcharged payment refunds the surcharge (and its tax) pro rata. Keep the feature flag off until verified."
+  },
+  {
+   "id": "RV1-008",
+   "severity": "high",
+   "files": [
+    "a4-data-model.sql",
+    "a2-interfaces.openapi.yaml",
+    "b3-billing-engine.json"
+   ],
+   "rule_ids": [
+    "BIL-I-006",
+    "BIL-C-084",
+    "BIL-C-122",
+    "DM-041"
+   ],
+   "problem": "Legal clocks can be rewritten and delivered bills voided at the DB level. bill_guard freezes amounts but not delivered_at, due_date, approved_at, approved_by or status->void. Back-dating delivered_at makes trust fee withdrawals, interest and suit eligible early; voiding a delivered bill breaks BIL-C-084. a2 deliverBill returns 202 'Delivery queued' with no rule for when delivered_at is set.",
+   "evidence": "a4 billing.bill_guard compares only (fees, taxable_disb, nontaxable_disb, discount, tax, total, number, matter_id, payer_id, tax_breakdown, issue_date). a2 /bills/{id}/deliver: '202 Delivery queued'.",
+   "fix": "Extend bill_guard: (1) delivered_at may change only from NULL to a value <= now(); never back to NULL or to another value (correction = audited admin event via a separate delivery_correction table under G-B2). (2) NEW.status='void' requires OLD.delivered_at IS NULL. (3) freeze due_date, approved_by, approved_at, signature fields, interest_rate_bp and place_of_supply (RV1-013) once status >= approved. In a2: delivered_at is set by the effect handler only on delivery evidence (email provider accepted + message-id, portal first view, or clerk-entered mailing date with proof); bounce leaves it NULL (BIL-C-122). Tests: UPDATE delivered_at from 2026-10-03 to 2026-09-01 -> DM-041; void on delivered bill -> DM-041."
+  },
+  {
+   "id": "RV1-009",
+   "severity": "high",
+   "files": [
+    "a2-interfaces.openapi.yaml",
+    "a2-interfaces.json"
+   ],
+   "rule_ids": [
+    "BIL-C-084",
+    "voidBill"
+   ],
+   "problem": "a2 voidBill contradicts b3. a2 opens a full credit-note gate for any approved bill; b3 says approved-not-delivered = void with exact reversal and no credit note, delivered = void forbidden (credit note via /credit-notes).",
+   "evidence": "a2 /bills/{bill_id}/void summary: 'Request void of an approved bill; opens gate billing.credit_note for a full credit note.' b3 BIL-C-084, BIL-J-012.",
+   "fix": "voidBill: allowed only when status=approved and delivered_at IS NULL; opens gate G-B2 (billing.approve, not preparer); effect posts BIL-J-012 reversal and returns entries to approved. When delivered_at IS NOT NULL return 409 bill_delivered_use_credit_note. Register as a new o1 conflict."
+  },
+  {
+   "id": "RV1-010",
+   "severity": "high",
+   "files": [
+    "a4-data-model.sql",
+    "b3-billing-engine.json"
+   ],
+   "rule_ids": [
+    "BIL-C-061",
+    "BIL-C-065",
+    "BIL-C-202",
+    "BIL-I-005",
+    "BIL-I-019",
+    "DM-045"
+   ],
+   "problem": "payment_allocation cannot carry the bucket split that b3 needs for proportional tax, fees-first reporting and exact reversals, and the DB lets trust receipts be allocated straight to bills or bills be over-allocated.",
+   "evidence": "a4 billing.payment_allocation has a single amount_cents; no fee/dtx/dnt/tax/interest columns. No check that target_type='bill' implies payment.deposit_to='operating'. bill_balance view can go negative (no constraint). b3 Payment notes: 'Trust-destination payments are receipts in the trust area (G6), never allocated to bills directly.'",
+   "fix": "Add to billing.payment_allocation: fee_cents, dtx_cents, dnt_cents, tax_cents, interest_cents (bigint, same sign as amount_cents) with CHECK (fee+dtx+dnt+tax+interest = amount_cents) when target_type='bill', all zero otherwise. Add a deferred constraint trigger: target_type='bill' requires payment.deposit_to='operating'; target_type='trust_ledger' requires deposit_to='trust'; per bill, total - allocations - credits - write-offs + interest_posted >= 0 (BIL-I-005). Reversal rows must equal -1 x original per bucket (BIL-I-019). Test: allocate a trust receipt to a bill -> DM-046; over-allocate 1 cent -> DM-047."
+  },
+  {
+   "id": "RV1-011",
+   "severity": "high",
+   "files": [
+    "a4-data-model.sql",
+    "a2-interfaces.json",
+    "b3-billing-engine.json",
+    "../legal-spec/time.json"
+   ],
+   "rule_ids": [
+    "BIL-I-021",
+    "ARC-I-027"
+   ],
+   "problem": "The sole-practitioner exception required by BIL-I-021 and time.json cannot happen: a4 hard-codes separation of duties in CHECK constraints, and a2 ARC-I-027 forbids executor = authorizer. A one-lawyer firm (common in the target market) could never approve its own bill, authorize a trust withdrawal it initiated, or sign its own reconciliation.",
+   "evidence": "a4: billing.bill CHECK (approved_by IS DISTINCT FROM created_by ...); trust.withdrawal_request CHECK (authorized_by IS DISTINCT FROM initiated_by ...); trust.reconciliation CHECK (signed_by IS DISTINCT FROM prepared_by ...). b3 BIL-I-021: 'sole-practitioner exception logged'. time.json: 'solo: self-approve allowed with audit note'.",
+   "fix": "Replace these three CHECKs with BEFORE triggers: allow equality only when core.firm.sole_practitioner = true (exactly one active licensee with trust_signing) and write audit event 'sod_solo_exception' with the gate id. Same exception in a2 ARC-I-027. Agent-initiated actions count as the human the agent acted for (BIL-I-021). Tests: two-licensee firm, self-approval -> 403 sod_violation; sole firm -> allowed + audit row."
+  },
+  {
+   "id": "RV1-012",
+   "severity": "high",
+   "files": [
+    "a4-data-model.sql",
+    "b3-billing-engine.json"
+   ],
+   "rule_ids": [
+    "BIL-C-065",
+    "BIL-J-016",
+    "DM-052"
+   ],
+   "problem": "A bounced trust deposit cannot be recorded. If funds were already paid out against the deposit, inserting the reversal makes the ledger negative and the deferred DM-052 trigger rolls the transaction back, so the system refuses to record a bank fact. b3 also says the reversal is 'replenished from operating' unconditionally, even when the ledger still covers it.",
+   "evidence": "a4 trust.check_ledger_non_negative raises on any negative balance. BIL-C-065: 'A reversal of a trust deposit raises a trust exception and is replenished from operating.'",
+   "fix": "Rule: in one DB transaction insert (1) the reversal of the receipt and (2) only if the ledger would go negative, a receipt from the firm general account for exactly the shortfall (kind='receipt', counterparty='firm general account', purpose='replenish NSF shortfall', approval G6) plus an OP entry Dr OP-6100 or Dr receivable-from-client / Cr OP-1000. Always open a trust exception. Test: receipt 300000, withdrawal 300000 posted, NSF reversal 300000 -> reversal + replenishment 300000 in one transaction, ledger 0; if ledger had 500000 left -> reversal only, no replenishment."
+  },
+  {
+   "id": "RV1-013",
+   "severity": "high",
+   "files": [
+    "a4-data-model.sql",
+    "o1-tasks.json"
+   ],
+   "rule_ids": [
+    "BIL-C-071",
+    "BIL-L-009",
+    "BIL-C-201",
+    "BIL-C-207",
+    "CF-09"
+   ],
+   "problem": "CF-09 resolution is incomplete for law-driven bill fields. The interest rate printed on the bill (Solicitors Act s.33(3)) must be snapshotted at approval; a4 has only payment_profile.interest_ppm (wrong unit, mutable). Interest accrual table (interest_charge) and a frozen place-of-supply are missing, so BIL-I-023 cannot be enforced in SQL.",
+   "evidence": "a4 billing.bill: no interest column, no place_of_supply; payment_profile.interest_ppm. CF-09 adds interest_rate_bp but not interest_terms reference, interest_printed flag, or freeze in bill_guard.",
+   "fix": "Add to billing.bill: interest_rate_bp integer NULL (NULL = no interest), interest_terms_doc_id uuid (engagement clause), place_of_supply jsonb {jurisdiction, rule_applied, confirmed_by, confirmed_at}; include them in bill_guard freeze. Add billing.interest_charge(id, bill_id, period daterange, principal_cents, rate_bp, days, amount_cents, posted_at, journal_entry_id) with CHECK lower(period) >= interest_start(bill). Rename payment_profile.interest_ppm -> interest_rate_bp (CF-01)."
+  },
+  {
+   "id": "RV1-014",
+   "severity": "medium",
+   "files": [
+    "b2-sales-tax.json",
+    "b3-billing-engine.json"
+   ],
+   "rule_ids": [
+    "BIL-T-070",
+    "BIL-T-040",
+    "BIL-C-203"
+   ],
+   "problem": "Two different credit-note tax formulas. b2 computes credit-note tax as rate x negative base (BIL-T-040 on negative bases); b3 computes it proportionally to the source bill's tax with the last credit taking the remainder. They diverge on small amounts and break BIL-I-014 if b2's version is coded.",
+   "evidence": "Bill base 5, tax rhu(0.65) = 1. Credit 3 pre-tax: b2 method rhu(3 x 0.13) = 0; b3 method rhu(3 x 1 / 5) = 1. BIL-X-011 (base 1005, tax 131): b2 method gives 44+44+44 = 132 > 131.",
+   "fix": "Make b3 BIL-C-203 the single rule; edit b2 BIL-T-070 enforcement to: 'tax per tax line = rhu(credit_pre_tax x line_tax / bill_taxable_base); the credit that exhausts the remaining base takes the exact remaining tax'. Add the base-5 test to both files."
+  },
+  {
+   "id": "RV1-015",
+   "severity": "medium",
+   "files": [
+    "b1-ontario-billing-law.json"
+   ],
+   "rule_ids": [
+    "BIL-L-047"
+   ],
+   "problem": "Rounding description conflicts with b2/b3: 'HST computed per line in integer cents, rounding half-up at bill total'. Per-line vs per-bill and half-up vs half-away-from-zero give different results (3 lines of 333/333/334 -> 129 vs 130; -136.5 -> -136 vs -137).",
+   "evidence": "b2 BIL-T-040 and b3 BIL-C-002/BIL-C-200: once per bill per tax line, half away from zero.",
+   "fix": "BIL-L-047 enforce text: 'HST computed once per bill per tax line on the summed taxable base, rounded half away from zero (b2 BIL-T-040)'. Also replace the sample registration number 123456789RT0001 (fails the BIL-T-061 check digit) with 123456782RT0001 in all tests."
+  },
+  {
+   "id": "RV1-016",
+   "severity": "medium",
+   "files": [
+    "b1-ontario-billing-law.json",
+    "b3-billing-engine.json",
+    "../legal-spec/billing.json"
+   ],
+   "rule_ids": [
+    "BIL-L-003",
+    "BIL-L-004",
+    "BIL-L-005",
+    "BIL-L-008",
+    "BIL-L-024",
+    "BIL-C-070"
+   ],
+   "problem": "Month arithmetic and 'after one month' boundaries are under-specified. b1 marks the clamp '(verify)' and BIL-L-004 says 'disabled until 2026-02-28' (ambiguous whether 02-28 is allowed). Local-date conversion of delivered_at is not stated, so a 23:30 Toronto delivery stored in UTC shifts every clock by a day. One-month windows (s.2, s.3, s.33) and 30-day windows (s.28.1(11)) must not share code.",
+   "evidence": "BIL-L-004 test 'disabled until 2026-02-28'; BIL-C-070 'Jan 31 -> Feb 28'; engine.add_month clamps; BIL-L-024 uses 30 days.",
+   "fix": "Define in b1 one function months_after(local_date, n) (clamp to month end; cite Legislation Act, 2006, S.O. 2006, c. 21, Sched. F, s.89 for time computation, (verify)) and one days_after. delivery_local_date = delivered_at AT TIME ZONE 'America/Toronto'. Interest accrues for days >= months_after(d,1). Suit (s.2) allowed on days > months_after(d,1) (conservative: the day after the month expires) until counsel confirms. Tests: 2026-01-31 -> 2026-02-28; 2026-03-31 -> 2026-04-30; 2028-01-30 -> 2028-02-29; 2028-02-29 + 12 months -> 2029-02-28; delivered 2026-10-31T23:30-04:00 (2026-11-01T03:30Z) -> local 2026-10-31 -> 2026-11-30; CFA 30 days from 2026-05-01 -> 2026-05-31."
+  },
+  {
+   "id": "RV1-017",
+   "severity": "medium",
+   "files": [
+    "b3-billing-engine.json"
+   ],
+   "rule_ids": [
+    "BIL-C-072",
+    "BIL-C-070"
+   ],
+   "problem": "Monthly interest postings are each rounded independently, so the total charged can differ from the one-shot amount by 1 cent per posting; a client recomputing from the printed rate gets a different number and an assessment officer may disallow it.",
+   "evidence": "BIL-C-072 test: 'total equals one-shot 43-day figure within 1 cent per posting'.",
+   "fix": "Cumulative method: posting_k = rhu(sum over segments of principal_i x rate_bp x days_i, 10000 x 365) computed from interest_start to the posting date, minus the sum of prior postings for the bill. Principal segments change on each allocation/credit. Test (BIL-X-009): Nov 30 posting 995 (29 days), payoff posting 1475 - 995 = 480; total exactly 1475."
+  },
+  {
+   "id": "RV1-018",
+   "severity": "medium",
+   "files": [
+    "b3-billing-engine.json"
+   ],
+   "rule_ids": [
+    "Bill state machine",
+    "BIL-T-081",
+    "BIL-C-205"
+   ],
+   "problem": "No path for recovery after write-off. b2 BIL-T-081 requires tax re-inclusion on a later recovery, but the Bill state machine has no transition out of written_off and no journal for recovery, so a later payment would hit a closed bill or land in client credit with no tax.",
+   "evidence": "Bill transitions end at written_off; journal BIL-J-009 only. BIL-X-014: bill 118000, tax 13000 written off 59000.",
+   "fix": "Add transition written_off -> written_off (recovery) by billing.payments under G-B3 and journal BIL-J-018: Dr OP-1000 / Cr OP-6100 pre-tax part, Cr OP-2100 tax part = rhu(recovered x bill_tax / bill_total). Test: recovery 11800 on BIL-X-014 -> tax 1300, OP-6100 credit 10500; HST report shows +1300 in the recovery period."
+  },
+  {
+   "id": "RV1-019",
+   "severity": "medium",
+   "files": [
+    "a4-data-model.sql",
+    "o1-tasks.json"
+   ],
+   "rule_ids": [
+    "BIL state machines",
+    "BIL-C-003",
+    "BIL-C-080"
+   ],
+   "problem": "Enum and state mismatches between a4 and b3 that o1 has not registered: bill statuses (a4 'in_review','issued' vs b3 'pending_approval','preflight_failed','delivered','credited'); time_entry statuses (a4 lacks suggested, accepted, on_draft_bill, rejected); time_entry.rate_source (a4 4 values vs b3 8 tiers incl. matter_role); payment statuses; credit_note.kind (a4 tax_correction/void/write_off vs b3 billing_error/bad_debt_write_off/refund) and credit_note.status 'void' (b3: issued notes are immutable); withdrawal_request vs TrustFeeTransfer states.",
+   "evidence": "a4 CHECK lists vs b3 state_machines and BIL-C-003/080. o1 CF-01..18 contain no enum item.",
+   "fix": "Add CF-19 to o1: b3 state names are the source; a4 CHECK lists copied verbatim from b3 state_machines; drop credit_note status 'void' and add an immutability trigger on issued credit notes; rate_source values = manual, flat_activity, matter_user, matter_role, client_user, client_role, activity, user_default."
+  },
+  {
+   "id": "RV1-020",
+   "severity": "medium",
+   "files": [
+    "a4-data-model.sql",
+    "b2-sales-tax.json"
+   ],
+   "rule_ids": [
+    "BIL-T-016",
+    "BIL-T-031",
+    "BIL-C-043"
+   ],
+   "problem": "Expense columns do not express the tax rules. amount_cents is ambiguous (pre-tax or incl. vendor tax); taxable_on_bill is stored per expense although b2 says own-cost lines inherit the matter's tax code (zero-rated or GST-only matters); no FX rate/date for BIL-C-043; markup_ppm vs bp (CF-01).",
+   "evidence": "a4 timekeeping.expense: amount_cents, tax_paid_cents, taxable_on_bill boolean, is_agency, markup_ppm, original_currency without rate.",
+   "fix": "Rename amount_cents -> amount_pre_tax_cents; drop taxable_on_bill (derive: is_agency -> outside base; else matter tax code); add fx_rate_ppm bigint and fx_date date with CHECK both null iff original_currency null; markup_bp. Test: courier 2500 + vendor HST 325 on an Alberta matter -> line 2500, GST 125."
+  },
+  {
+   "id": "RV1-021",
+   "severity": "medium",
+   "files": [
+    "b2-sales-tax.json",
+    "b3-billing-engine.json"
+   ],
+   "rule_ids": [
+    "BIL-T-050",
+    "BIL-T-090",
+    "BIL-C-121",
+    "BIL-J-012",
+    "CF-10"
+   ],
+   "problem": "Voided bills and tax periods. Bill date = approval date is the tax point, but an approved bill can be voided before delivery in a later period after the return is filed. Neither the HST report rule nor BIL-J-012 says how the void appears in the report.",
+   "evidence": "BIL-C-121: approved 2026-09-30 23:30, delivered 2026-10-01 -> HST in September. BIL-C-084 allows void until delivery.",
+   "fix": "BIL-T-090: 'a bill voided after the period of its bill date was filed is reported as a negative adjustment in the void period; voids within the same unfiled period net to zero'. Preflight warning W-PERIOD-CROSS when an approved bill is undelivered at period end. Test: approved 2026-09-30, Q3 filed, void 2026-10-05 -> Q4 adjustment -13000."
+  },
+  {
+   "id": "RV1-022",
+   "severity": "medium",
+   "files": [
+    "a2-interfaces.openapi.yaml",
+    "a4-data-model.sql",
+    "b3-billing-engine.json"
+   ],
+   "rule_ids": [
+    "BIL-I-020",
+    "BIL-X-021",
+    "Payment state machine"
+   ],
+   "problem": "Payment-provider webhook handling is incomplete. a2 has no inbound provider event route (only outbound /webhook-endpoints), a4 has no payment_event table (CF-03), and b3 only covers exact duplicate event ids. Out-of-order events (refund or dispute before capture, 'failed' after 'succeeded') and different events for the same object would create or reverse money twice.",
+   "evidence": "a2 path list has no provider inbound route; BIL-X-021 tests only same event_id.",
+   "fix": "Add a2 POST /integrations/payments/{provider}/events (signature verified, raw body hashed, 200 on duplicate). a4 billing.payment_event(provider, event_id UNIQUE, object_ref, type, received_at, processed_at, body_sha256). Rule: handlers re-fetch the provider object by provider_ref and apply state by precedence (pending < received < posted < partially_refunded < refunded; reversed is terminal), so order does not matter. Tests: dispute event before capture -> payment created then reversed once; capture event replayed after refund -> no change."
+  },
+  {
+   "id": "RV1-023",
+   "severity": "low",
+   "files": [
+    "b1-ontario-billing-law.json",
+    "b2-sales-tax.json"
+   ],
+   "rule_ids": [
+    "BIL-L-049",
+    "BIL-T-043"
+   ],
+   "problem": "Citation for interest/early-payment tax treatment is inconsistent and likely reversed. b2 says 's.161 (late-payment) and s.162 (early-payment)'; ETA s.161 deals with early-payment discounts and s.162 with late-payment interest/penalties (verify). b1 cites Sched. V Part VII instead.",
+   "evidence": "BIL-T-043 verify note; BIL-L-049 source.",
+   "fix": "Cite 'Excise Tax Act s.161 (early-payment discount: tax on full price) and s.162 (late-payment interest/penalty not consideration) (verify)' in both rules; drop the Sched. V Part VII citation from BIL-L-049. Clarify BIL-T-043 test base: '2% of fees 100000 = 2000; client pays 111000'."
+  },
+  {
+   "id": "RV1-024",
+   "severity": "low",
+   "files": [
+    "b3-billing-engine.json"
+   ],
+   "rule_ids": [
+    "BIL-C-091"
+   ],
+   "problem": "Split remainder always goes to the first payer per line, so on a bill with many lines the first payer absorbs up to (payers-1) cents per line, drifting from the agreed share.",
+   "evidence": "BIL-C-091: non-first payer = floor(amount x share_bp / 10000) per line. 200 lines of 101 cents at 50/50: payer B gets 50 x 200 = 10000, payer A 10200 (50.5%).",
+   "fix": "Allocate per line with largest remainder across payers, carrying the cumulative remainder across lines in sort_order (or compute per-payer totals from the bill total and spread back). Test: 200 lines of 101 cents 50/50 -> 10100 / 10100."
+  },
+  {
+   "id": "RV1-025",
+   "severity": "low",
+   "files": [
+    "a4-data-model.sql"
+   ],
+   "rule_ids": [
+    "DM-052"
+   ],
+   "problem": "The deferred non-negative trust check reads sum() with the transaction snapshot; under REPEATABLE READ or SERIALIZABLE the second of two concurrent withdrawals may not see the first's committed row, even though before_txn took the row lock.",
+   "evidence": "trust.check_ledger_non_negative: SELECT coalesce(sum(amount_cents),0) ... DEFERRABLE INITIALLY DEFERRED.",
+   "fix": "Either mandate READ COMMITTED for all trust posting transactions (documented + tested), or maintain trust.client_ledger.balance_cents updated in before_txn under the FOR UPDATE lock with CHECK (balance_cents >= 0) evaluated at commit. Test: two sessions at REPEATABLE READ each withdrawing 300000 from 500000 -> one fails."
+  }
+ ]
+}

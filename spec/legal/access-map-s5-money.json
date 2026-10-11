@@ -1,0 +1,58 @@
+{
+ "time/activity-ledger": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": []
+ },
+ "trust/retainer-coverage": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "trust/trust-interest": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ }
+}

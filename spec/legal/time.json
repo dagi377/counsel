@@ -1,0 +1,2692 @@
+{
+ "area": "time",
+ "title": "Time, expenses and rates",
+ "summary": "Captures every billable minute and dollar on a matter. The agent rebuilds the day from email, documents, calendar, calls and its own work, then proposes entries and disbursements with narratives. Nothing becomes billable until the timekeeper accepts it (G9). Rates, fee arrangements, write-downs, timesheet approval and utilization reports sit on top of the accepted record.",
+ "screens": [
+  {
+   "id": "my-time",
+   "name": "My time (day / week)",
+   "route": "/time",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal"
+   ],
+   "purpose": "One place for a timekeeper to see today's accepted entries, running timers and the agent's pending suggestions.",
+   "layout": "Top: day/week switcher, daily target bar (hours logged vs target, billable vs non-billable). Left: accepted entries list grouped by day. Right rail: pending suggestions count with link to review queue, and active timers.",
+   "fields": [
+    {
+     "name": "date",
+     "type": "date",
+     "required": true,
+     "note": "defaults to today; week view shows 7 columns"
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": true,
+     "note": "Matter; 'Firm / non-matter' allowed for admin time"
+    },
+    {
+     "name": "activity",
+     "type": "enum",
+     "required": true,
+     "note": "firm activity code list (draft, review, call, court, travel, research, admin)"
+    },
+    {
+     "name": "duration",
+     "type": "duration",
+     "required": true,
+     "note": "stored in minutes, shown in tenths; rounding per firm setting"
+    },
+    {
+     "name": "narrative",
+     "type": "text",
+     "required": true,
+     "note": "client-facing description"
+    },
+    {
+     "name": "billable",
+     "type": "enum",
+     "required": true,
+     "note": "billable | non-billable | no-charge (shown on bill at $0)"
+    },
+    {
+     "name": "rate",
+     "type": "money",
+     "required": false,
+     "note": "resolved from rate hierarchy, read-only unless user has override right"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "draft | accepted | submitted | approved | billed | written-off"
+    },
+    {
+     "name": "recorded by",
+     "type": "ref",
+     "required": false,
+     "note": "user who typed it when entering on behalf of another timekeeper; timekeeper owns the entry"
+    },
+    {
+     "name": "timers",
+     "type": "list",
+     "required": false,
+     "note": "several paused timers allowed per user, each tied to a matter and draft narrative; only one runs"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Start / stop / switch timer",
+     "by": "human",
+     "gate": "none",
+     "note": "one running timer per user; switching pauses the other"
+    },
+    {
+     "name": "Add entry by hand",
+     "by": "human",
+     "gate": "none",
+     "note": "saved as accepted (human authored)"
+    },
+    {
+     "name": "Edit or delete own unbilled entry",
+     "by": "human",
+     "gate": "none",
+     "note": "locked once on an approved bill"
+    },
+    {
+     "name": "Submit week",
+     "by": "human",
+     "gate": "approve",
+     "note": "sends timesheet to supervisor if firm requires approval"
+    },
+    {
+     "name": "Fill gaps",
+     "by": "agent",
+     "gate": "approve",
+     "note": "agent drafts suggestions for unaccounted blocks; they land in the review queue"
+    },
+    {
+     "name": "Save and duplicate",
+     "by": "human",
+     "gate": "none",
+     "note": "copy the entry to the next row with same matter and activity"
+    },
+    {
+     "name": "Enter time for another timekeeper",
+     "by": "human",
+     "gate": "none",
+     "note": "needs delegate right; entry shows both names"
+    },
+    {
+     "name": "Start timer from a document, email, task or event",
+     "by": "human",
+     "gate": "none",
+     "note": "timer pre-fills matter and narrative from the source object"
+    }
+   ],
+   "agent": "Shows a gap bar for hours with activity signals but no entry. At end of day posts a short summary: 'You logged 4.2h; I found 2.1h more from 9 emails, 2 documents and 1 call. Review?'",
+   "gate": "none on this screen for human-entered time; suggestions are gated in the review queue",
+   "states": [
+    "empty day",
+    "timer running",
+    "has pending suggestions",
+    "week submitted",
+    "week approved",
+    "locked (billed)"
+   ],
+   "edge": [
+    "timer left running overnight: auto-pause at firm cutoff and flag",
+    "entry on a closed matter: block and offer reopen request",
+    "entry on a matter behind an ethical wall the user is not on: block",
+    "duplicate of an accepted agent suggestion: warn",
+    "timer left running overnight or across midnight: split into two days, ask before saving",
+    "two devices start timers at once: last start wins, the other is paused with a notice",
+    "entry made on behalf of a timekeeper who later disputes it: audit shows recorded-by"
+   ],
+   "reg": "RPC 3.6-1: fees must be fair and reasonable and disclosed in a timely way. Accurate contemporaneous dockets support an account if the client seeks assessment under the Solicitors Act.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Time",
+     "Matter",
+     "Activity",
+     "Hrs",
+     "Narrative",
+     "Billable",
+     "Status"
+    ],
+    "rows": [
+     [
+      "09:10",
+      "2026-041 Tesfaye v. Northgate Storage",
+      "Draft",
+      "1.3",
+      "Draft statement of claim, damages section",
+      "Billable",
+      "Accepted"
+     ],
+     [
+      "11:00",
+      "2026-033 Okonkwo purchase of 14 Elm Cres",
+      "Call",
+      "0.4",
+      "Call with client re closing date",
+      "Billable",
+      "Accepted"
+     ],
+     [
+      "13:30",
+      "Firm / non-matter",
+      "Admin",
+      "0.5",
+      "CPD webinar",
+      "Non-billable",
+      "Accepted"
+     ],
+     [
+      "14:15",
+      "2026-041 Tesfaye v. Northgate Storage",
+      "Review",
+      "0.8",
+      "Review defence productions",
+      "Billable",
+      "Timer running"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "suggested-entries",
+   "name": "Suggested time review queue",
+   "route": "/time/suggestions",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "The timekeeper reviews, edits and accepts or rejects agent-proposed entries rebuilt from real activity.",
+   "layout": "Left: list of suggestions grouped by day and matter, each with confidence and source icons. Centre: editable entry card. Right: evidence panel showing the source items (email subject and timestamps, document versions edited, calendar event, call record, agent run log).",
+   "fields": [
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": true,
+     "note": "agent's best match; alternatives listed with reason"
+    },
+    {
+     "name": "activity",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "start / end",
+     "type": "datetime",
+     "required": false,
+     "note": "from source timestamps"
+    },
+    {
+     "name": "proposed duration",
+     "type": "duration",
+     "required": true,
+     "note": "estimated from active editing time, email length, meeting length"
+    },
+    {
+     "name": "narrative",
+     "type": "text",
+     "required": true,
+     "note": "agent draft, plain, no privileged detail beyond what the bill should show"
+    },
+    {
+     "name": "billable",
+     "type": "enum",
+     "required": true,
+     "note": "agent proposes from matter fee arrangement and activity code"
+    },
+    {
+     "name": "sources",
+     "type": "ref[]",
+     "required": true,
+     "note": "Email, Document version, CalendarEvent, Call, AgentRun"
+    },
+    {
+     "name": "confidence",
+     "type": "enum",
+     "required": true,
+     "note": "high | medium | low with one-line reason"
+    },
+    {
+     "name": "flags",
+     "type": "enum[]",
+     "required": false,
+     "note": "possible duplicate | block-billing | over daily cap | flat-fee matter | matter unclear | agent work"
+    },
+    {
+     "name": "source events",
+     "type": "list",
+     "required": true,
+     "note": "each suggestion links the activity-ledger events it was built from"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Accept",
+     "by": "human",
+     "gate": "approve",
+     "note": "G9: becomes an accepted entry owned by the timekeeper"
+    },
+    {
+     "name": "Edit then accept",
+     "by": "human",
+     "gate": "approve",
+     "note": "edits are recorded; used to tune future suggestions"
+    },
+    {
+     "name": "Split / merge",
+     "by": "human",
+     "gate": "none",
+     "note": "split one block across matters or merge fragments"
+    },
+    {
+     "name": "Reject with reason",
+     "by": "human",
+     "gate": "none",
+     "note": "reasons: not work, already logged, wrong matter, personal"
+    },
+    {
+     "name": "Bulk accept high-confidence",
+     "by": "human",
+     "gate": "approve",
+     "note": "only rows without flags; still one explicit click per batch"
+    },
+    {
+     "name": "Propose entries",
+     "by": "agent",
+     "gate": "approve",
+     "note": "never auto-accepted"
+    }
+   ],
+   "agent": "Reads the user's activity stream (filed emails, document edits, calendar, call logs, its own runs on the user's behalf), clusters by matter and time, estimates durations, drafts narratives in the firm's style, checks against existing entries to avoid double counting, and flags block billing. Builds suggestions from the passive activity ledger (documents, email, calls, calendar, agent work), cites the source events per entry and writes the narrative in the firm's billing style.",
+   "gate": "G9: the timekeeper personally accepts each entry (or an explicit unflagged batch) before it is billable. Agent-performed work is never billed as lawyer time unless the firm's fee arrangement says so and the lawyer accepts.",
+   "states": [
+    "empty (all caught up)",
+    "pending",
+    "accepted",
+    "edited and accepted",
+    "rejected",
+    "expired (older than firm limit, needs supervisor)"
+   ],
+   "edge": [
+    "email touches two matters: propose a split, not a guess",
+    "calendar event with no attendance evidence: low confidence",
+    "activity on a matter the user is walled from: never surfaced",
+    "agent's own compute time: shown as 'agent work', default non-billable",
+    "user on leave: suggestions held, not expired"
+   ],
+   "reg": "RPC 3.6-1 and commentary: no billing for time not spent; the lawyer remains responsible for AI-assisted work (RPC 3.1 competence, 6.1 supervision). Billing for time saved by automation as if done by hand may be unfair (verify LSO guidance on AI and fees).",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "Source",
+     "Matter",
+     "Proposed",
+     "Narrative",
+     "Confidence",
+     "Flags"
+    ],
+    "rows": [
+     [
+      "3 emails 10:02-10:41",
+      "2026-041 Tesfaye v. Northgate Storage",
+      "0.5",
+      "Correspondence with opposing counsel re discovery dates",
+      "High",
+      ""
+     ],
+     [
+      "Doc v4-v7 'Affidavit of Documents'",
+      "2026-041 Tesfaye v. Northgate Storage",
+      "1.1",
+      "Prepare affidavit of documents",
+      "Medium",
+      ""
+     ],
+     [
+      "Calendar 'Okonkwo closing prep'",
+      "2026-033 Okonkwo purchase of 14 Elm Cres",
+      "0.5",
+      "Meeting with client to review closing documents",
+      "Low",
+      "no attendance evidence"
+     ],
+     [
+      "Call 6 min, unknown number",
+      "?",
+      "0.1",
+      "Telephone call",
+      "Low",
+      "matter unclear"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "time-entry-detail",
+   "name": "Time entry detail",
+   "route": "/time/entries/:id",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "Full record of one entry: values, rate resolution, history and the bill it lands on.",
+   "layout": "Header with status chip. Body: entry form. Side: rate resolution trace, audit history (who created, edited, accepted, approved, wrote down), source evidence if agent-suggested, linked bill.",
+   "fields": [
+    {
+     "name": "timekeeper",
+     "type": "ref",
+     "required": true,
+     "note": "User"
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "duration",
+     "type": "duration",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "billed duration",
+     "type": "duration",
+     "required": false,
+     "note": "after rounding and write-down"
+    },
+    {
+     "name": "rate",
+     "type": "money",
+     "required": true,
+     "note": "with source: matter override > user-on-matter > user default > activity flat"
+    },
+    {
+     "name": "amount",
+     "type": "money",
+     "required": true,
+     "note": "billed duration x rate, or flat amount"
+    },
+    {
+     "name": "tax code",
+     "type": "enum",
+     "required": true,
+     "note": "HST 13% (Ontario) default; exempt or zero-rated per client residence (verify)"
+    },
+    {
+     "name": "internal note",
+     "type": "text",
+     "required": false,
+     "note": "never printed on bill"
+    },
+    {
+     "name": "origin",
+     "type": "enum",
+     "required": true,
+     "note": "manual | timer | agent-suggested"
+    },
+    {
+     "name": "task code (UTBMS)",
+     "type": "enum",
+     "required": false,
+     "note": "only when the matter is LEDES-billed; L/A codes"
+    },
+    {
+     "name": "activity code (UTBMS)",
+     "type": "enum",
+     "required": false,
+     "note": "A101-style activity code for e-billing"
+    },
+    {
+     "name": "show on bill when non-billable",
+     "type": "bool",
+     "required": false,
+     "note": "non-billable entry can still print at $0 to show value given"
+    },
+    {
+     "name": "rate source",
+     "type": "enum",
+     "required": false,
+     "note": "manual | flat activity | matter | client | rate table | activity | user default; shown so the user sees why"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Edit",
+     "by": "human",
+     "gate": "none",
+     "note": "allowed until on an issued bill"
+    },
+    {
+     "name": "Move to other matter",
+     "by": "human",
+     "gate": "approve",
+     "note": "needs responsible lawyer of the target matter if already approved"
+    },
+    {
+     "name": "Write down",
+     "by": "human",
+     "gate": "approve",
+     "note": "see write-down review"
+    },
+    {
+     "name": "Rewrite narrative",
+     "by": "agent",
+     "gate": "approve",
+     "note": "agent offers a clearer narrative; user accepts"
+    }
+   ],
+   "agent": "Explains the rate and amount in one line, and suggests narrative fixes (vague words like 'attention to file', block-billed lists).",
+   "gate": "none for drafts; changes after timesheet approval need re-approval",
+   "states": [
+    "draft",
+    "accepted",
+    "submitted",
+    "approved",
+    "on draft bill",
+    "billed (locked)",
+    "written off"
+   ],
+   "edge": [
+    "rate changed after entry: entry keeps rate at work date unless firm chooses bill-date rates",
+    "bill voided (possible only before delivery): entry unlocks back to approved; after delivery a credit note never unlocks entries",
+    "user moves entry to another matter: rate re-resolves from the new matter; a manual override is kept but flagged for re-check (deliberate: we never silently drop an override)",
+    "LEDES matter missing task/activity code: entry blocked from bill until coded; agent proposes codes"
+   ],
+   "reg": "Bills under the Solicitors Act may be assessed; the audit trail of changes supports the account.",
+   "mock": {
+    "kind": "detail",
+    "columns": [
+     "Field",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Timekeeper",
+      "Ayo Ewebiyi (associate)"
+     ],
+     [
+      "Matter",
+      "2026-041 Tesfaye v. Northgate Storage"
+     ],
+     [
+      "Duration / billed",
+      "1.3h / 1.3h"
+     ],
+     [
+      "Rate",
+      "$325 (Ayo default, 2026 table)"
+     ],
+     [
+      "Amount",
+      "$422.50 + HST $54.93"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "expenses",
+   "name": "Expenses and disbursements",
+   "route": "/expenses",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Record costs paid for a client, attach receipts, set tax treatment and billable status.",
+   "layout": "Top: filters (matter, status, unreceipted). Table of entries. Drawer: entry form with receipt viewer on the right. Inbox tab for receipts the agent pulled from email or uploads.",
+   "fields": [
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "category",
+     "type": "enum",
+     "required": true,
+     "note": "court filing fee, land registry search, courier, process server, transcript, expert, travel, photocopy (soft cost)"
+    },
+    {
+     "name": "vendor",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "amount",
+     "type": "money",
+     "required": true,
+     "note": "pre-tax"
+    },
+    {
+     "name": "tax paid",
+     "type": "money",
+     "required": false,
+     "note": "HST on vendor invoice"
+    },
+    {
+     "name": "agency",
+     "type": "enum",
+     "required": true,
+     "note": "paid as agent for client (no HST added on rebill) | firm's own cost (HST on rebill) per CRA P-209R (verify per category)"
+    },
+    {
+     "name": "markup",
+     "type": "money",
+     "required": false,
+     "note": "soft costs only; firm policy"
+    },
+    {
+     "name": "paid from",
+     "type": "enum",
+     "required": true,
+     "note": "operating | trust (creates trust disbursement request, see trust area) | card"
+    },
+    {
+     "name": "billable",
+     "type": "enum",
+     "required": true,
+     "note": "billable | non-billable"
+    },
+    {
+     "name": "receipt",
+     "type": "file",
+     "required": false,
+     "note": "required above firm threshold"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "suggested | draft | approved | billed | reimbursed"
+    },
+    {
+     "name": "quantity",
+     "type": "number",
+     "required": false,
+     "note": "for unit-priced soft costs (pages copied, km driven)"
+    },
+    {
+     "name": "unit price",
+     "type": "money",
+     "required": false,
+     "note": "from expense category default; amount = quantity x unit price"
+    },
+    {
+     "name": "expense category",
+     "type": "ref",
+     "required": true,
+     "note": "carries default tax code, unit price, UTBMS expense code (E101...)"
+    },
+    {
+     "name": "vendor bill link",
+     "type": "ref",
+     "required": false,
+     "note": "when paid through an operating vendor bill"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Add expense",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Extract from receipt",
+     "by": "agent",
+     "gate": "approve",
+     "note": "OCR vendor, date, amount, HST, proposes matter and category"
+    },
+    {
+     "name": "Approve for billing",
+     "by": "human",
+     "gate": "approve",
+     "note": "G9b: responsible lawyer"
+    },
+    {
+     "name": "Pay from trust",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "hands off to trust withdrawal gate (G11); never automatic"
+    },
+    {
+     "name": "Mark recurring soft cost",
+     "by": "human",
+     "gate": "none",
+     "note": "e.g. per-page copy charge"
+    }
+   ],
+   "agent": "Watches the receipts mailbox and uploads, extracts fields, matches to a matter (from reference numbers, court file numbers, property addresses), proposes agency vs own-cost tax treatment from the category table, and flags missing receipts.",
+   "gate": "Responsible lawyer approves each disbursement before it can go on a bill; any payment from trust goes through the trust withdrawal gate.",
+   "states": [
+    "empty",
+    "suggested from receipt",
+    "draft",
+    "missing receipt",
+    "approved",
+    "on draft bill",
+    "billed",
+    "non-billable"
+   ],
+   "edge": [
+    "receipt covers several matters: split by amount",
+    "foreign currency receipt: store original and CAD at date rate",
+    "trust ledger for client would go negative: block (trust area)",
+    "duplicate receipt image",
+    "same receipt uploaded twice (email + photo): duplicate detector on vendor/date/amount",
+    "foreign-currency receipt: store original amount and currency, convert at a recorded rate"
+   ],
+   "reg": "HST: CRA P-209R separates disbursements incurred as agent (rebilled without HST) from the lawyer's own costs (HST charged on rebill) (verify per category). LSO By-Law 9: payments from trust only for listed purposes and never overdraw a client's ledger.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Date",
+     "Matter",
+     "Category",
+     "Vendor",
+     "Amount",
+     "Tax treatment",
+     "Status"
+    ],
+    "rows": [
+     [
+      "2026-10-02",
+      "2026-041 Tesfaye v. Northgate Storage",
+      "Court filing fee",
+      "Ontario Superior Court",
+      "$270.00",
+      "Agent, no HST",
+      "Approved"
+     ],
+     [
+      "2026-10-03",
+      "2026-033 Okonkwo purchase of 14 Elm Cres",
+      "Title search",
+      "Land registry search service",
+      "$66.00",
+      "Agent, no HST (verify)",
+      "Suggested"
+     ],
+     [
+      "2026-10-06",
+      "2026-041 Tesfaye v. Northgate Storage",
+      "Courier",
+      "Rapid Courier Ltd",
+      "$38.50",
+      "Own cost, HST on rebill",
+      "Missing receipt"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "rates",
+   "name": "Rate tables",
+   "route": "/settings/rates",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Define default hourly rates per user, activity flat rates and effective dates.",
+   "layout": "Tabs: User rates, Activity rates, Rate history. Table with effective-from column; side panel previews which open matters and unbilled entries a change would touch.",
+   "fields": [
+    {
+     "name": "user",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "role level",
+     "type": "enum",
+     "required": false,
+     "note": "partner, associate, clerk, paralegal, student"
+    },
+    {
+     "name": "hourly rate",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "effective from",
+     "type": "date",
+     "required": true,
+     "note": "no retroactive change to billed entries"
+    },
+    {
+     "name": "activity flat rate",
+     "type": "money",
+     "required": false,
+     "note": "e.g. 'Commissioning affidavit' $50"
+    },
+    {
+     "name": "rounding",
+     "type": "enum",
+     "required": true,
+     "note": "firm-wide: 0.1h, 0.25h, none"
+    },
+    {
+     "name": "client rate",
+     "type": "money",
+     "required": false,
+     "note": "per client, per timekeeper; used when no matter rate"
+    },
+    {
+     "name": "named rate table",
+     "type": "ref",
+     "required": false,
+     "note": "reusable table (e.g. 'Insurer panel 2026') assignable to clients or matters"
+    },
+    {
+     "name": "rate precedence",
+     "type": "list",
+     "required": true,
+     "note": "manual > flat activity > matter > client/rate table > activity custom rate > user default; fixed order, not configurable"
+    },
+    {
+     "name": "client rate scope",
+     "type": "enum",
+     "required": false,
+     "note": "client-level override keyed by user or by role group; more than one client rate may apply to one matter"
+    },
+    {
+     "name": "resolved rate source",
+     "type": "text",
+     "required": false,
+     "note": "read-only chain shown on each entry: entry > flat > matter > client > activity category > user default"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Change rate",
+     "by": "human",
+     "gate": "approve",
+     "note": "managing lawyer approves"
+    },
+    {
+     "name": "Preview impact",
+     "by": "agent",
+     "gate": "none",
+     "note": "lists matters whose engagement letter fixes a different rate"
+    }
+   ],
+   "agent": "Before a rate change is saved, finds matters whose retainer quoted the old rate and drafts a notice-of-rate-change letter for each, for the responsible lawyer's approval.",
+   "gate": "Managing lawyer approves rate changes; client rate-change notices go through the document approval gate.",
+   "states": [
+    "current",
+    "scheduled change",
+    "history"
+   ],
+   "edge": [
+    "user leaves firm: rate kept for history",
+    "engagement letter caps rate: matter override wins",
+    "rate change mid-matter: entries before effective date keep their old rate; only unbilled entries after it re-price",
+    "two rate tables apply to one matter (client table and matter table): matter wins, warning shown"
+   ],
+   "reg": "RPC 3.6-1: fees and their basis must be disclosed; a rate increase on an existing retainer should be disclosed to the client in advance (verify against the retainer).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "User",
+     "Level",
+     "Rate",
+     "Effective from"
+    ],
+    "rows": [
+     [
+      "Linda Kassim",
+      "Partner",
+      "$495",
+      "2026-01-01"
+     ],
+     [
+      "Ayo Ewebiyi",
+      "Associate",
+      "$325",
+      "2026-01-01"
+     ],
+     [
+      "Meraf Abay",
+      "Law clerk",
+      "$165",
+      "2026-01-01"
+     ],
+     [
+      "Kaleab Bereket",
+      "Paralegal",
+      "$140",
+      "2026-01-01"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "matter-fee-arrangement",
+   "name": "Matter fee arrangement",
+   "route": "/matters/:id/fees",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "Set how a matter is billed: hourly, matter-specific rates, flat fee, contingency, or a mix, plus budget caps.",
+   "layout": "Arrangement picker at top. Body changes by type: rate overrides table, flat fee milestones, contingency terms. Right: link to signed engagement letter and a WIP-vs-budget meter.",
+   "fields": [
+    {
+     "name": "arrangement",
+     "type": "enum",
+     "required": true,
+     "note": "hourly | flat | contingency | hybrid (flat + hourly beyond scope)"
+    },
+    {
+     "name": "rate overrides",
+     "type": "table",
+     "required": false,
+     "note": "user -> rate for this matter"
+    },
+    {
+     "name": "flat fee",
+     "type": "money",
+     "required": false,
+     "note": "with milestones (e.g. 50% on signing, 50% on closing)"
+    },
+    {
+     "name": "flat fee scope",
+     "type": "text",
+     "required": false,
+     "note": "what is in and out of scope"
+    },
+    {
+     "name": "contingency %",
+     "type": "number",
+     "required": false,
+     "note": "may step by stage"
+    },
+    {
+     "name": "contingency agreement",
+     "type": "file",
+     "required": false,
+     "note": "must be the LSO standard form unless business-client exception"
+    },
+    {
+     "name": "budget / estimate",
+     "type": "money",
+     "required": false,
+     "note": "alert at 80%"
+    },
+    {
+     "name": "track time on flat/contingency",
+     "type": "bool",
+     "required": true,
+     "note": "default yes, non-billable, for assessment and profitability"
+    },
+    {
+     "name": "engagement letter",
+     "type": "ref",
+     "required": true,
+     "note": "Document"
+    },
+    {
+     "name": "budget alert thresholds",
+     "type": "list",
+     "required": false,
+     "note": "e.g. 50/75/90/100% of estimate; notifies responsible lawyer"
+    },
+    {
+     "name": "recurring flat fee",
+     "type": "money",
+     "required": false,
+     "note": "monthly/quarterly subscription fee, generates a fee line each period"
+    },
+    {
+     "name": "contingency fee recorded at close",
+     "type": "money",
+     "required": false,
+     "note": "contingency amount entered when the matter settles"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Set arrangement",
+     "by": "human",
+     "gate": "approve",
+     "note": "responsible lawyer; must match the signed engagement letter"
+    },
+    {
+     "name": "Extract terms from engagement letter",
+     "by": "agent",
+     "gate": "approve",
+     "note": "reads the signed letter and pre-fills"
+    },
+    {
+     "name": "Flag out-of-scope work",
+     "by": "agent",
+     "gate": "none",
+     "note": "on a flat fee matter, entries outside scope are flagged for a change-of-scope letter"
+    }
+   ],
+   "agent": "Pre-fills the arrangement from the signed engagement letter, checks contingency agreements against the standard form, warns when WIP nears the estimate, and drafts an updated estimate letter.",
+   "gate": "Responsible lawyer approves the arrangement; it cannot differ from the signed engagement letter without a new signed letter.",
+   "states": [
+    "not set (blocks billing)",
+    "draft",
+    "active",
+    "amended"
+   ],
+   "edge": [
+    "contingency on a non-claimant matter",
+    "client is a business qualifying for a non-standard contingency agreement",
+    "flat fee matter with no tracked time at close",
+    "budget exceeded with no client notice"
+   ],
+   "reg": "O. Reg. 563/20 (Solicitors Act): percentage contingency agreements must use the LSO Standard Form Contingency Fee Agreement except for qualifying business clients; fees for a claimant may not exceed the amount the client recovers (including costs, excluding disbursements and taxes); the agreement is filed with any rule 7.08 settlement approval. RPC 3.6-1: timely fee disclosure.",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Matter",
+     "Arrangement",
+     "Terms",
+     "WIP / budget"
+    ],
+    "rows": [
+     [
+      "2026-033 Okonkwo purchase of 14 Elm Cres",
+      "Flat",
+      "$1,650 + disbursements, closing on 2026-11-15",
+      "3.4h tracked (non-billable)"
+     ],
+     [
+      "2026-041 Tesfaye v. Northgate Storage",
+      "Contingency",
+      "LSO standard form, 30% after claim issued",
+      "21.0h tracked"
+     ],
+     [
+      "2026-050 Haile Holdings shareholder agreement",
+      "Hourly",
+      "Linda $450 override",
+      "$4,120 / $6,000"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "matter-wip",
+   "name": "Matter time and WIP tab",
+   "route": "/matters/:id/time",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal"
+   ],
+   "purpose": "Per-matter view of all unbilled time and expenses, ready to flow into a bill draft.",
+   "layout": "Summary strip: unbilled time, unbilled expenses, pending suggestions, budget use. Two tables: time, expenses. Footer button to send to bill draft (billing area).",
+   "fields": [
+    {
+     "name": "unbilled time total",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "unbilled expenses total",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "pending suggestions",
+     "type": "number",
+     "required": true,
+     "note": "blocks 'ready to bill' if >0, can be overridden"
+    },
+    {
+     "name": "oldest unbilled",
+     "type": "date",
+     "required": true,
+     "note": "ageing"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Send to bill draft",
+     "by": "human",
+     "gate": "none",
+     "note": "only approved entries go across"
+    },
+    {
+     "name": "Pre-bill check",
+     "by": "agent",
+     "gate": "none",
+     "note": "duplicates, block billing, vague narratives, missing receipts, out-of-scope"
+    }
+   ],
+   "agent": "Runs a pre-bill check and proposes write-downs with reasons (duplicate, over-staffing, training time, excess over estimate).",
+   "gate": "none here; bill approval is G-B2 in billing area",
+   "states": [
+    "nothing unbilled",
+    "has WIP",
+    "has pending suggestions",
+    "over budget"
+   ],
+   "edge": [
+    "entries from a lawyer who has left",
+    "matter split into sub-matters"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Date",
+     "Who",
+     "Hrs",
+     "Narrative",
+     "Amount",
+     "Check"
+    ],
+    "rows": [
+     [
+      "2026-10-01",
+      "Linda Kassim",
+      "0.6",
+      "Strategy call with client",
+      "$297.00",
+      "ok"
+     ],
+     [
+      "2026-10-02",
+      "Ayo Ewebiyi",
+      "2.8",
+      "Research; draft memo; emails; call",
+      "$910.00",
+      "block-billed"
+     ],
+     [
+      "2026-10-02",
+      "Yonathan Degu (student)",
+      "1.5",
+      "Research limitation period",
+      "$195.00",
+      "possible duplicate of Ayo"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "write-downs",
+   "name": "Write-down review",
+   "route": "/time/write-downs",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "Reduce or zero time and expense before billing (write-down) or after billing (write-off), with reasons.",
+   "layout": "Queue of agent-proposed and human-requested reductions. Each row shows original, proposed, reason, and evidence. Totals by matter and by timekeeper.",
+   "fields": [
+    {
+     "name": "entry",
+     "type": "ref",
+     "required": true,
+     "note": "TimeEntry or Expense"
+    },
+    {
+     "name": "original",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "adjusted",
+     "type": "money",
+     "required": true,
+     "note": "or adjusted hours"
+    },
+    {
+     "name": "reason",
+     "type": "enum",
+     "required": true,
+     "note": "duplicate, inefficiency, training, courtesy, over estimate, scope, other"
+    },
+    {
+     "name": "show on bill",
+     "type": "bool",
+     "required": true,
+     "note": "show as 'courtesy discount' or hide"
+    },
+    {
+     "name": "stage",
+     "type": "enum",
+     "required": true,
+     "note": "pre-bill write-down | post-bill write-off (billing area)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Approve reduction",
+     "by": "human",
+     "gate": "approve",
+     "note": "responsible lawyer; above firm threshold needs managing lawyer"
+    },
+    {
+     "name": "Reject",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Propose reduction",
+     "by": "agent",
+     "gate": "approve",
+     "note": "never applied by the agent"
+    }
+   ],
+   "agent": "Proposes reductions from the pre-bill check, and learns each lawyer's patterns (e.g. always halves student research time).",
+   "gate": "Responsible lawyer approves each write-down; write-offs of billed amounts go through a separate billing gate.",
+   "states": [
+    "proposed",
+    "approved",
+    "rejected",
+    "applied"
+   ],
+   "edge": [
+    "write-down on contingency matter (no effect on fee, recorded for reporting)",
+    "timekeeper disputes write-down"
+   ],
+   "reg": "RPC 3.6-1: fair and reasonable fees; write-downs support reasonableness if an account is assessed.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Matter",
+     "Entry",
+     "Original",
+     "Proposed",
+     "Reason"
+    ],
+    "rows": [
+     [
+      "2026-041 Tesfaye v. Northgate Storage",
+      "Yonathan Degu 1.5h research",
+      "$195.00",
+      "$0.00",
+      "Duplicate of Ayo 2026-10-02"
+     ],
+     [
+      "2026-050 Haile Holdings shareholder agreement",
+      "Ayo Ewebiyi 3.0h draft",
+      "$975.00",
+      "$650.00",
+      "Over estimate for drafting"
+     ],
+     [
+      "2026-033 Okonkwo purchase of 14 Elm Cres",
+      "Courier",
+      "$38.50",
+      "$0.00",
+      "Courtesy"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "timesheet-approval",
+   "name": "Timesheet approval",
+   "route": "/time/approvals",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "Supervising lawyer approves submitted weekly timesheets of clerks, paralegals, students and associates.",
+   "layout": "List of submitted weeks by person with totals and flags. Opening one shows the week grid, flagged entries first, with approve / return controls.",
+   "fields": [
+    {
+     "name": "timekeeper",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "week",
+     "type": "date",
+     "required": true,
+     "note": "week start"
+    },
+    {
+     "name": "billable / non-billable hours",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "flags",
+     "type": "number",
+     "required": true,
+     "note": "count of entries the agent flagged"
+    },
+    {
+     "name": "comment",
+     "type": "text",
+     "required": false,
+     "note": "required when returning"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Approve week",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "entries become approved and billable"
+    },
+    {
+     "name": "Return with comments",
+     "by": "human",
+     "gate": "none",
+     "note": "back to timekeeper as draft"
+    },
+    {
+     "name": "Remind late submitters",
+     "by": "agent",
+     "gate": "none",
+     "note": "Slack/email nudge under approved template"
+    }
+   ],
+   "agent": "Pre-reviews each week: missing days, entries over 10h/day, narratives that disclose privileged detail, entries on matters the person is not assigned to.",
+   "gate": "Supervising lawyer signs off the week (firm setting; optional for solo firms).",
+   "states": [
+    "not submitted",
+    "submitted",
+    "returned",
+    "approved"
+   ],
+   "edge": [
+    "supervisor is also the timekeeper (solo): self-approve allowed with audit note",
+    "late entries after approval reopen the week"
+   ],
+   "reg": "RPC 6.1: lawyers supervise non-lawyer staff, including their records of work (verify scope).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Timekeeper",
+     "Week",
+     "Billable",
+     "Non-billable",
+     "Flags",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Meraf Abay",
+      "2026-10-05",
+      "31.4",
+      "6.0",
+      "1",
+      "Submitted"
+     ],
+     [
+      "Kaleab Bereket",
+      "2026-10-05",
+      "28.0",
+      "8.5",
+      "0",
+      "Submitted"
+     ],
+     [
+      "Yonathan Degu",
+      "2026-10-05",
+      "18.2",
+      "14.0",
+      "3",
+      "Returned"
+     ],
+     [
+      "Yohannes Sinke",
+      "2026-10-05",
+      "-",
+      "-",
+      "-",
+      "Not submitted"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "utilization",
+   "name": "Utilization and realization report",
+   "route": "/reports/time",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "Shows hours worked, billable share, billed and collected share, and agent-suggestion adoption per timekeeper and matter.",
+   "layout": "Filters (period, person, practice area). KPI row: utilization, realization, collection, suggestion acceptance. Table by timekeeper with sparkline; drill into matter.",
+   "fields": [
+    {
+     "name": "worked hours",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "billable hours",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "utilization",
+     "type": "percent",
+     "required": true,
+     "note": "billable / target capacity"
+    },
+    {
+     "name": "realization",
+     "type": "percent",
+     "required": true,
+     "note": "billed value / standard value"
+    },
+    {
+     "name": "collection",
+     "type": "percent",
+     "required": true,
+     "note": "collected / billed"
+    },
+    {
+     "name": "recovered by agent",
+     "type": "number",
+     "required": true,
+     "note": "hours accepted from suggestions"
+    },
+    {
+     "name": "suggestion acceptance",
+     "type": "percent",
+     "required": true,
+     "note": "accepted unchanged / edited / rejected"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Export CSV",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Explain trend",
+     "by": "agent",
+     "gate": "none",
+     "note": "narrative with figures drawn only from the report"
+    }
+   ],
+   "agent": "Writes a monthly narrative (e.g. flat-fee real estate matters average 4.1h against a 3h assumption) and suggests flat fee re-pricing for the managing lawyer to consider.",
+   "gate": "none (read only)",
+   "states": [
+    "no data",
+    "partial period",
+    "complete"
+   ],
+   "edge": [
+    "part-time capacity",
+    "contingency matters: realization unknown until resolution"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "dashboard",
+    "columns": [
+     "Timekeeper",
+     "Worked",
+     "Billable",
+     "Utilization",
+     "Realization",
+     "Recovered by agent"
+    ],
+    "rows": [
+     [
+      "Linda Kassim",
+      "142",
+      "104",
+      "72%",
+      "91%",
+      "11.5h"
+     ],
+     [
+      "Ayo Ewebiyi",
+      "160",
+      "131",
+      "86%",
+      "84%",
+      "18.2h"
+     ],
+     [
+      "Meraf Abay",
+      "150",
+      "118",
+      "79%",
+      "95%",
+      "9.0h"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "activity-list",
+   "name": "All activities",
+   "route": "/time/activities",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "Firm-wide list of every time and expense entry with filters and bulk edits.",
+   "layout": "Top: tabs All / Time / Expenses, saved filters. Centre: sortable table with totals row. Bottom bar appears when rows are selected.",
+   "fields": [
+    {
+     "name": "timekeeper",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "client",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "date range",
+     "type": "daterange",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": false,
+     "note": "unbilled | draft bill | billed | written off | non-billable"
+    },
+    {
+     "name": "activity / category",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "billable",
+     "type": "enum",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "origin",
+     "type": "enum",
+     "required": false,
+     "note": "human | agent-suggested | timer | import"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Bulk change matter, category, billable flag or rate",
+     "by": "human",
+     "gate": "approve",
+     "note": "changes to billed entries refused"
+    },
+    {
+     "name": "Bulk mark non-billable / no charge",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Export CSV / Excel",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Save filter as view",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Find inconsistencies",
+     "by": "agent",
+     "gate": "none",
+     "note": "duplicate narratives, entries on closed matters, >10h days"
+    }
+   ],
+   "agent": "Highlights entries the pre-bill check will reject; suggests fixes.",
+   "gate": "Bulk edits on another timekeeper's entries need billing-admin role and are logged.",
+   "states": [
+    "empty",
+    "filtered",
+    "bulk selection",
+    "export running"
+   ],
+   "edge": [
+    "bulk edit spanning billed and unbilled rows: only unbilled change, report lists skipped",
+    "entries on a matter closed after they were made"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Date",
+     "Timekeeper",
+     "Matter",
+     "Category",
+     "Hours",
+     "Amount",
+     "Status"
+    ],
+    "rows": [
+     [
+      "2026-10-06",
+      "Ayo Ewebiyi",
+      "Osei v. Brightline",
+      "Drafting",
+      "1.4",
+      "$490.00",
+      "unbilled"
+     ],
+     [
+      "2026-10-06",
+      "Meraf Abay",
+      "Tadesse Estate",
+      "Call",
+      "0.3",
+      "$45.00",
+      "billed"
+     ],
+     [
+      "2026-10-07",
+      "Linda Kassim",
+      "Harbourview Lease",
+      "Review",
+      "0.8",
+      "$440.00",
+      "draft bill"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "activity-categories",
+   "name": "Activity categories",
+   "route": "/settings/time/categories",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Firm list of time and expense categories that set default narrative, billing method and codes.",
+   "layout": "Two tabs: Time categories, Expense categories. Table with inline edit; side panel for one category.",
+   "fields": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "kind",
+     "type": "enum",
+     "required": true,
+     "note": "time | expense"
+    },
+    {
+     "name": "billing method",
+     "type": "enum",
+     "required": true,
+     "note": "user rate | custom hourly | flat amount | no charge"
+    },
+    {
+     "name": "rate or flat amount",
+     "type": "money",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "default narrative snippet",
+     "type": "text",
+     "required": false,
+     "note": "reusable phrase; user still edits"
+    },
+    {
+     "name": "UTBMS code",
+     "type": "enum",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "tax code",
+     "type": "enum",
+     "required": false,
+     "note": "HST taxable | zero-rated | exempt (expense categories)"
+    },
+    {
+     "name": "unit price",
+     "type": "money",
+     "required": false,
+     "note": "expense categories for unit-priced soft costs"
+    },
+    {
+     "name": "active",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Add / edit category",
+     "by": "human",
+     "gate": "approve",
+     "note": "rate-bearing changes go through G9e"
+    },
+    {
+     "name": "Deactivate",
+     "by": "human",
+     "gate": "none",
+     "note": "kept on old entries"
+    },
+    {
+     "name": "Suggest categories from history",
+     "by": "agent",
+     "gate": "none",
+     "note": "clusters past narratives into proposed categories"
+    }
+   ],
+   "agent": "Proposes categories and snippets from frequent narratives; never activates them itself.",
+   "gate": "Admin approves a new rate-bearing category (G9e).",
+   "states": [
+    "empty",
+    "active",
+    "inactive"
+   ],
+   "edge": [
+    "category deleted while used: only deactivation allowed",
+    "flat category used on a flat-fee matter: double charge warning"
+   ],
+   "reg": "Disbursement tax codes must follow CRA P-209R (agent vs. own-account disbursements) (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Category",
+     "Kind",
+     "Billing",
+     "Rate",
+     "Tax"
+    ],
+    "rows": [
+     [
+      "Court attendance",
+      "time",
+      "user rate",
+      "-",
+      "HST"
+     ],
+     [
+      "Will package",
+      "time",
+      "flat",
+      "$950.00",
+      "HST"
+     ],
+     [
+      "Photocopies",
+      "expense",
+      "unit",
+      "$0.25/page",
+      "HST"
+     ],
+     [
+      "Court filing fee",
+      "expense",
+      "pass-through",
+      "-",
+      "exempt"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "time-settings",
+   "name": "Time settings",
+   "route": "/settings/time",
+   "who": [
+    "admin"
+   ],
+   "purpose": "Firm-wide rules for how time is captured, rounded and locked.",
+   "layout": "Single form in sections: Rounding, Defaults, Locking, Reminders, Permissions.",
+   "fields": [
+    {
+     "name": "rounding increment",
+     "type": "enum",
+     "required": true,
+     "note": "1 min | 6 min (0.1h) | 15 min"
+    },
+    {
+     "name": "rounding mode",
+     "type": "enum",
+     "required": true,
+     "note": "up | nearest"
+    },
+    {
+     "name": "minimum entry",
+     "type": "duration",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "default billable",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "lock entries older than",
+     "type": "date",
+     "required": false,
+     "note": "no edits to entries dated before this unless unlocked by admin"
+    },
+    {
+     "name": "daily reminder time",
+     "type": "time",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "idle timer alert after",
+     "type": "duration",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "who may enter time for others",
+     "type": "list",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "narrative style guide",
+     "type": "text",
+     "required": false,
+     "note": "firm rules the agent applies when drafting narratives (tense, no block billing)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Change rounding",
+     "by": "human",
+     "gate": "approve",
+     "note": "applies to new entries only; existing entries keep the rounding they were saved with"
+    },
+    {
+     "name": "Set lock date",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    },
+    {
+     "name": "Unlock a period",
+     "by": "human",
+     "gate": "approve",
+     "note": "reason required, audited"
+    }
+   ],
+   "agent": "Shows impact preview: 'changing to 15-min rounding would have added 31.4h last month'.",
+   "gate": "Rounding and lock changes need a billing admin's approval.",
+   "states": [
+    "default",
+    "changed pending approval"
+   ],
+   "edge": [
+    "rounding changed while drafts exist: drafts keep old rounding until re-saved, with notice"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "form",
+    "columns": [],
+    "rows": []
+   }
+  },
+  {
+   "id": "timekeeper-targets",
+   "name": "Timekeeper targets",
+   "route": "/settings/time/targets",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Billable hour and revenue targets per person and period, feeding the daily target bar and reports.",
+   "layout": "Table of timekeepers x period with target hours, target billed amount; progress column.",
+   "fields": [
+    {
+     "name": "timekeeper",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "period",
+     "type": "enum",
+     "required": true,
+     "note": "day | week | month | year"
+    },
+    {
+     "name": "billable hours target",
+     "type": "number",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "billed amount target",
+     "type": "money",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "working days",
+     "type": "list",
+     "required": false,
+     "note": "part-time schedules and leave"
+    },
+    {
+     "name": "fiscal year end",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "currency",
+     "type": "enum",
+     "required": false,
+     "note": "CAD default"
+    },
+    {
+     "name": "standard day length",
+     "type": "number",
+     "required": true,
+     "note": "hours; default 7.5, configurable (Clio assumes 8)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Set targets",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Copy from last year",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Explain shortfall",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Propose own target",
+     "by": "human",
+     "gate": "approve",
+     "note": "timekeeper proposes; managing lawyer approves"
+    }
+   ],
+   "agent": "Weekly note to each timekeeper on pace vs target, citing unlogged signal hours.",
+   "gate": "none",
+   "states": [
+    "empty",
+    "set",
+    "behind pace"
+   ],
+   "edge": [
+    "timekeeper on leave: target pro-rated",
+    "target set mid-period",
+    "working days per year changed mid-year: utilization recomputed from that date only"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Timekeeper",
+     "Period",
+     "Target h",
+     "Logged h",
+     "Pace"
+    ],
+    "rows": [
+     [
+      "Ayo Ewebiyi",
+      "Oct 2026",
+      "120",
+      "41.5",
+      "on track"
+     ],
+     [
+      "Meraf Abay",
+      "Oct 2026",
+      "100",
+      "22.0",
+      "behind"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "activity-ledger",
+   "name": "Activity ledger",
+   "route": "/time/activity",
+   "who": [
+    "lawyer",
+    "associate",
+    "paralegal",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Passive log of a timekeeper's work events per matter, the raw material the agent turns into suggested entries.",
+   "layout": "Day timeline per user (left), event list grouped by matter with durations (centre), linked suggestion status (right).",
+   "fields": [
+    {
+     "name": "user",
+     "type": "ref",
+     "required": true,
+     "note": "only the user and their supervisors see it"
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": "blank when the agent cannot tell; never guessed across ethical walls"
+    },
+    {
+     "name": "event type",
+     "type": "enum",
+     "required": true,
+     "note": "document opened | document edited | email sent | email read | call logged | calendar event | agent action"
+    },
+    {
+     "name": "source",
+     "type": "ref",
+     "required": true,
+     "note": "link to the document, email, call or agent run"
+    },
+    {
+     "name": "started at",
+     "type": "datetime",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "duration",
+     "type": "duration",
+     "required": true,
+     "note": "measured, not estimated; idle time excluded"
+    },
+    {
+     "name": "linked suggestion",
+     "type": "ref",
+     "required": false,
+     "note": "suggested-entries item built from this event"
+    },
+    {
+     "name": "capture hours",
+     "type": "time range",
+     "required": false,
+     "note": "per user; nothing is logged outside it"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Pause capture",
+     "by": "human",
+     "gate": "none",
+     "note": "per user, any time"
+    },
+    {
+     "name": "Assign event to matter",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Exclude event",
+     "by": "human",
+     "gate": "none",
+     "note": "personal or non-work; removed from suggestions"
+    },
+    {
+     "name": "Rebuild day from events",
+     "by": "agent",
+     "gate": "none",
+     "note": "drafts suggestions; acceptance happens on suggested-entries (G9)"
+    }
+   ],
+   "agent": "Records events from documents, email, calls, calendar and its own runs; groups them by matter; drafts suggested entries that cite their events.",
+   "gate": "none (the ledger is evidence; billing approval is on suggested-entries and timesheet-approval)",
+   "states": [
+    "capturing",
+    "paused",
+    "outside capture hours"
+   ],
+   "edge": [
+    "event on a walled matter: stored without matter and never shown to the user",
+    "two overlapping events: duration counted once",
+    "agent action time: logged as agent work, default non-billable",
+    "user turns capture off: no back-fill"
+   ],
+   "reg": "PIPEDA and workplace privacy: tell staff what is captured and why (verify Ontario employee monitoring policy duty, ESA Part XI.1). RPC 3.6-1: only time actually spent is billed.",
+   "mock": {
+    "kind": "timeline",
+    "columns": [
+     "Time",
+     "Matter",
+     "Event",
+     "Duration",
+     "Suggestion"
+    ],
+    "rows": [
+     [
+      "09:12",
+      "Halloway v. Pine Ridge",
+      "Edited statement of claim draft",
+      "42m",
+      "accepted"
+     ],
+     [
+      "10:05",
+      "Moreau estate",
+      "Email sent to executor",
+      "6m",
+      "pending"
+     ],
+     [
+      "10:20",
+      "(unassigned)",
+      "Call logged with unknown number",
+      "11m",
+      "needs matter"
+     ],
+     [
+      "11:00",
+      "Halloway v. Pine Ridge",
+      "Agent: cited case search",
+      "3m",
+      "agent work"
+     ]
+    ]
+   }
+  }
+ ],
+ "entities": [
+  {
+   "name": "TimeEntry",
+   "fields": [
+    "id",
+    "firm_id",
+    "matter_id",
+    "user_id",
+    "date",
+    "start_at",
+    "minutes",
+    "billed_minutes",
+    "activity_code",
+    "narrative",
+    "internal_note",
+    "billable",
+    "rate",
+    "rate_source",
+    "amount",
+    "tax_code",
+    "origin",
+    "status",
+    "suggestion_id",
+    "bill_id",
+    "accepted_by",
+    "accepted_at",
+    "approved_by",
+    "approved_at"
+   ],
+   "relations": [
+    "Matter one-to-many",
+    "User one-to-many",
+    "Bill line via BillLine",
+    "WriteDown one-to-many"
+   ]
+  },
+  {
+   "name": "Timer",
+   "fields": [
+    "id",
+    "user_id",
+    "matter_id",
+    "started_at",
+    "paused_minutes",
+    "state"
+   ],
+   "relations": [
+    "becomes TimeEntry on stop"
+   ]
+  },
+  {
+   "name": "TimeSuggestion",
+   "fields": [
+    "id",
+    "user_id",
+    "matter_id",
+    "alt_matter_ids",
+    "start_at",
+    "minutes",
+    "activity_code",
+    "narrative",
+    "confidence",
+    "reason",
+    "flags",
+    "status",
+    "reject_reason",
+    "edits"
+   ],
+   "relations": [
+    "ActivitySignal many-to-many",
+    "TimeEntry one-to-one when accepted"
+   ]
+  },
+  {
+   "name": "ActivitySignal",
+   "fields": [
+    "id",
+    "user_id",
+    "kind (email|doc_edit|calendar|call|agent_run)",
+    "source_ref",
+    "matter_id",
+    "start_at",
+    "end_at"
+   ],
+   "relations": [
+    "Email, Document version, CalendarEvent, Call, AgentRun"
+   ]
+  },
+  {
+   "name": "Expense",
+   "fields": [
+    "id",
+    "matter_id",
+    "user_id",
+    "date",
+    "category",
+    "vendor",
+    "amount",
+    "tax_paid",
+    "agency",
+    "markup",
+    "currency",
+    "paid_from",
+    "billable",
+    "receipt_file_id",
+    "status",
+    "approved_by",
+    "bill_id"
+   ],
+   "relations": [
+    "Matter",
+    "File (receipt)",
+    "TrustJournalLine when paid from trust"
+   ]
+  },
+  {
+   "name": "RateTable",
+   "fields": [
+    "id",
+    "user_id",
+    "activity_code",
+    "hourly_rate",
+    "flat_amount",
+    "effective_from"
+   ],
+   "relations": [
+    "User"
+   ]
+  },
+  {
+   "name": "FeeArrangement",
+   "fields": [
+    "id",
+    "matter_id",
+    "type",
+    "rate_overrides",
+    "flat_amount",
+    "milestones",
+    "scope",
+    "contingency_pct",
+    "contingency_steps",
+    "budget",
+    "engagement_doc_id",
+    "approved_by"
+   ],
+   "relations": [
+    "Matter one-to-one (versioned)",
+    "Document (engagement letter)"
+   ]
+  },
+  {
+   "name": "WriteDown",
+   "fields": [
+    "id",
+    "entry_kind",
+    "entry_id",
+    "original",
+    "adjusted",
+    "reason",
+    "show_on_bill",
+    "stage",
+    "proposed_by",
+    "approved_by"
+   ],
+   "relations": [
+    "TimeEntry or Expense"
+   ]
+  },
+  {
+   "name": "Timesheet",
+   "fields": [
+    "id",
+    "user_id",
+    "week_start",
+    "status",
+    "submitted_at",
+    "approver_id",
+    "approved_at",
+    "comment"
+   ],
+   "relations": [
+    "TimeEntry one-to-many"
+   ]
+  },
+  {
+   "name": "ActivityCategory",
+   "fields": [
+    "id",
+    "kind",
+    "name",
+    "billing_method",
+    "rate",
+    "flat_amount",
+    "unit_price",
+    "snippet",
+    "utbms_code",
+    "tax_code",
+    "active"
+   ],
+   "relations": [
+    "TimeEntry many-to-one",
+    "Expense many-to-one"
+   ]
+  },
+  {
+   "name": "TimeSettings",
+   "fields": [
+    "firm_id",
+    "rounding_increment",
+    "rounding_mode",
+    "minimum_entry",
+    "lock_before",
+    "default_billable",
+    "reminder_time"
+   ],
+   "relations": [
+    "Firm one-to-one"
+   ]
+  },
+  {
+   "name": "TimekeeperTarget",
+   "fields": [
+    "id",
+    "user_id",
+    "period",
+    "hours_target",
+    "amount_target",
+    "fiscal_year_end",
+    "currency",
+    "day_length_hours",
+    "working_days_per_year",
+    "proposed_by",
+    "approved_by"
+   ],
+   "relations": [
+    "User many-to-one"
+   ]
+  }
+ ],
+ "gates": [
+  {
+   "id": "G9",
+   "name": "Timekeeper accepts time",
+   "approver": "timekeeper",
+   "blocks": "an agent-suggested entry becoming a real, billable time entry"
+  },
+  {
+   "id": "G9b",
+   "name": "Disbursement approval",
+   "approver": "responsible lawyer",
+   "blocks": "an expense appearing on a bill; payment from trust goes to G11"
+  },
+  {
+   "id": "G9c",
+   "name": "Timesheet sign-off",
+   "approver": "supervising lawyer",
+   "blocks": "staff time becoming billable (firm setting)"
+  },
+  {
+   "id": "G9d",
+   "name": "Write-down approval",
+   "approver": "responsible lawyer (managing lawyer above threshold)",
+   "blocks": "any reduction of recorded time or expense"
+  },
+  {
+   "id": "G9e",
+   "name": "Fee arrangement and rate change",
+   "approver": "responsible lawyer / managing lawyer",
+   "blocks": "billing a matter with no arrangement; new rates taking effect"
+  }
+ ],
+ "agent_jobs": [
+  {
+   "name": "Rebuild day",
+   "trigger": "schedule (end of day per user, plus on demand)",
+   "does": "clusters activity signals by matter and time, estimates durations, drafts narratives, de-duplicates against existing entries",
+   "output": "TimeSuggestions for G9"
+  },
+  {
+   "name": "Receipt capture",
+   "trigger": "event (receipt email or upload)",
+   "does": "extracts vendor, date, amount, HST, proposes matter, category and agency treatment",
+   "output": "draft Expense for G9b"
+  },
+  {
+   "name": "Pre-bill check",
+   "trigger": "event (bill draft requested) or schedule (monthly)",
+   "does": "flags duplicates, block billing, vague narratives, missing receipts, out-of-scope work, budget overrun",
+   "output": "WriteDown proposals for G9d"
+  },
+  {
+   "name": "Timesheet pre-review",
+   "trigger": "event (week submitted)",
+   "does": "checks gaps, caps, assignment, privileged detail in narratives",
+   "output": "flags for G9c"
+  },
+  {
+   "name": "Engagement terms extract",
+   "trigger": "event (engagement letter signed)",
+   "does": "reads fee terms and checks contingency form",
+   "output": "draft FeeArrangement for G9e"
+  },
+  {
+   "name": "Rate change impact",
+   "trigger": "event (rate change drafted)",
+   "does": "finds affected matters and drafts client notices",
+   "output": "letters for document approval gate"
+  },
+  {
+   "name": "Timer watchdog",
+   "trigger": "schedule (hourly)",
+   "does": "pauses timers past firm cutoff, nudges users with no entries",
+   "output": "notification"
+  }
+ ],
+ "open_questions": [
+  "Should agent work (drafting done by the agent) ever be billable, and if so as a flat 'technology-assisted' line or as reviewed lawyer time?",
+  "Is weekly timesheet approval on by default, or only for staff and students?",
+  "Default rounding: 0.1h (6 min) for everyone, or firm-chosen?",
+  "Which time signals are allowed by default (email, documents, calendar, calls)? Per-user opt-in needed for privacy?",
+  "Do we track time on flat-fee and contingency matters by default (non-billable) for assessment and profitability?",
+  "Is a soft-cost markup (photocopies, postage) allowed in the product at all?",
+  "Do suggestions expire if not reviewed (e.g. after 14 days), and who handles expired ones?",
+  "Need a tax adviser to confirm the agency/own-cost table for common Ontario disbursements before launch.",
+  "Do we support UTBMS/LEDES coding in v1, or only for firms with insurer clients?",
+  "Is a time lock date (no edits before date X) required, or is 'locked once billed' enough?",
+  "Could: firm and personal text snippets (abbreviation to phrase) in narrative fields?",
+  "Could: expense report columns naming agent disbursements vs firm cost recovery?",
+  "Activity ledger: does Ontario's written electronic monitoring policy rule (ESA) apply to small firms under 25 employees? (verify)"
+ ],
+ "sources": [
+  "https://help.clio.com/hc/articles/50852535786139-Clio-Timekeeping",
+  "https://www.clio.com/au/features/legal-time-expense-tracking/",
+  "https://www.ontario.ca/laws/regulation/200563",
+  "https://www.ontario.ca/laws/statute/90s15",
+  "https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct/chapter-3",
+  "https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9",
+  "https://www.canada.ca/content/canadasite/en/revenue-agency/services/forms-publications/publications/p-209r/lawyers-disbursements",
+  "https://www.legalaid.on.ca/wp-content/uploads/billing_checklist.pdf",
+  "https://help.clio.com/hc/articles/9289741706779 (time entries)",
+  "https://help.clio.com/hc/en-us/articles/9289744400667 (activity categories)",
+  "https://help.clio.com/hc/articles/9289801180187 (rate hierarchy)",
+  "https://help.clio.com/hc/articles/54119093950747 (rate tables)",
+  "https://help.clio.com/hc/en-us/articles/14078692470427 (bill settings: rounding)",
+  "https://help.clio.com/hc/articles/29765932267675",
+  "https://help.clio.com/hc/en-us/articles/9290091783323",
+  "https://help.clio.com/hc/en-us/articles/9290560623771",
+  "https://support.smokeball.com/hc/en-us/articles/34416807166103"
+ ],
+ "clio_gaps": [
+  {
+   "clio_feature": "Timer runs from anywhere, several timers",
+   "where_in_clio": "global top bar timer; Activities",
+   "status": "added",
+   "note": "my-time: several paused timers, one running; timer from doc/email/event"
+  },
+  {
+   "clio_feature": "Activities list with filters and bulk edit",
+   "where_in_clio": "Activities tab (All / Time / Expense)",
+   "status": "added",
+   "note": "new screen activity-list"
+  },
+  {
+   "clio_feature": "Activity categories with billing method (user, custom, flat, no charge)",
+   "where_in_clio": "Activities > Manage categories",
+   "status": "added",
+   "note": "new screen activity-categories"
+  },
+  {
+   "clio_feature": "Rate hierarchy (custom > flat > matter > client > activity > user)",
+   "where_in_clio": "Settings > Billing / matter and contact billing preferences",
+   "status": "added",
+   "note": "precedence made explicit on rates; rate source shown on entry"
+  },
+  {
+   "clio_feature": "Rate tables assigned to clients or matters",
+   "where_in_clio": "Settings > Billing > Rate tables",
+   "status": "added",
+   "note": "named rate table field on rates"
+  },
+  {
+   "clio_feature": "Changing matter/category replaces a manual rate",
+   "where_in_clio": "Activities edit",
+   "status": "deliberately different",
+   "note": "we keep the override and flag it for re-check instead of dropping it"
+  },
+  {
+   "clio_feature": "Rounding change re-rounds existing and billed entries",
+   "where_in_clio": "Settings > Billing > General",
+   "status": "deliberately different",
+   "note": "rounding is snapshotted per entry; change applies forward only"
+  },
+  {
+   "clio_feature": "Non-billable entry shown on bill",
+   "where_in_clio": "Time entry: Non-billable + show on bill",
+   "status": "added",
+   "note": "field on time-entry-detail"
+  },
+  {
+   "clio_feature": "Save and duplicate / save and create another",
+   "where_in_clio": "time entry dialog",
+   "status": "added",
+   "note": "my-time action"
+  },
+  {
+   "clio_feature": "UTBMS task and activity codes",
+   "where_in_clio": "Settings > Billing > UTBMS codes",
+   "status": "added",
+   "note": "fields on time-entry-detail, categories"
+  },
+  {
+   "clio_feature": "Expense quantity x price soft costs",
+   "where_in_clio": "Expense entry",
+   "status": "added",
+   "note": "expenses fields quantity, unit price"
+  },
+  {
+   "clio_feature": "Time from calendar, document, note, communication",
+   "where_in_clio": "matter Communications / Calendar / Documents",
+   "status": "already covered",
+   "note": "agent Rebuild day goes further: proposes from signals"
+  },
+  {
+   "clio_feature": "Billable hour goals / productivity dashboard",
+   "where_in_clio": "Settings > Profile > Personal Performance (also the gear on the dashboard target); Reports > Productivity",
+   "status": "added",
+   "note": "r09-people: annual billings target, working days, fiscal year end; utilization assumes 8h day. timekeeper-targets updated."
+  },
+  {
+   "clio_feature": "Matter budget with notifications",
+   "where_in_clio": "Matter > Edit > Budget",
+   "status": "added",
+   "note": "alert thresholds on matter-fee-arrangement"
+  },
+  {
+   "clio_feature": "Flat fee matter auto-creates fee entry, time at 0",
+   "where_in_clio": "Matter billing method Flat",
+   "status": "already covered",
+   "note": "matter-fee-arrangement track time on flat/contingency"
+  },
+  {
+   "clio_feature": "Contingency fee recording",
+   "where_in_clio": "Matter billing method Contingency",
+   "status": "added",
+   "note": "contingency fee recorded at close field"
+  },
+  {
+   "clio_feature": "Time entries on behalf of another user",
+   "where_in_clio": "Time entry User field",
+   "status": "added",
+   "note": "recorded-by field and delegate permission"
+  },
+  {
+   "clio_feature": "AI time entry suggestions (Manage AI, formerly Clio Duo)",
+   "where_in_clio": "Matter dashboard AI Actions card; AI Launchpad",
+   "status": "already covered",
+   "note": "r05-time-billing: native in Clio Manage, not only third-party. Our difference is breadth, cited sources and gating, not existence."
+  },
+  {
+   "clio_feature": "Multi-currency entries",
+   "where_in_clio": "Settings > Billing > Currencies",
+   "status": "deliberately different",
+   "note": "CAD only in v1; foreign receipts converted at recorded rate"
+  },
+  {
+   "clio_feature": "Clio Timekeeping passive capture (pilot): email, documents, desktop",
+   "where_in_clio": "Outlook/OneDrive integration; desktop app",
+   "status": "added",
+   "note": "r05-time-billing/r14-rivals: new screen activity-ledger; rival Smokeball AutoTime does the same"
+  },
+  {
+   "clio_feature": "Receipt autofill from uploaded receipt",
+   "where_in_clio": "Expense entry (pilot) / Manage AI",
+   "status": "already covered",
+   "note": "r05-time-billing: expenses 'Extract from receipt'"
+  },
+  {
+   "clio_feature": "Mobile time and expense entry",
+   "where_in_clio": "Mobile app > Activities",
+   "status": "already covered",
+   "note": "r05-time-billing: readiness mobile-app"
+  },
+  {
+   "clio_feature": "Text snippets in descriptions",
+   "where_in_clio": "Settings > Text snippets (inferred)",
+   "status": "deliberately different",
+   "note": "r05-time-billing: low confidence; in open questions"
+  },
+  {
+   "clio_feature": "Client rates per user or user group",
+   "where_in_clio": "Contact > Edit > Rates",
+   "status": "added",
+   "note": "r05-time-billing: rates 'client rate scope' and resolved rate source"
+  },
+  {
+   "clio_feature": "Hard / soft cost classification",
+   "where_in_clio": "Settings > Billing > Expenses",
+   "status": "already covered",
+   "note": "r05-time-billing: expenses 'agency' field"
+  },
+  {
+   "clio_feature": "Productivity report (recorded to collected)",
+   "where_in_clio": "Reports > Productivity",
+   "status": "already covered",
+   "note": "r05-time-billing: utilization screen"
+  },
+  {
+   "clio_feature": "Billing rate report",
+   "where_in_clio": "Reports > Matter reports > Billing rate",
+   "status": "already covered",
+   "note": "r05-time-billing: rates resolved rate source"
+  },
+  {
+   "clio_feature": "AI questions about hours and utilization",
+   "where_in_clio": "Manage AI chat",
+   "status": "already covered",
+   "note": "r05-time-billing/r09-people: timekeeper-targets 'Explain shortfall'"
+  },
+  {
+   "clio_feature": "Firm dashboard utilization, realization, collection",
+   "where_in_clio": "Dashboard > Firm",
+   "status": "already covered",
+   "note": "r09-people: utilization screen"
+  },
+  {
+   "clio_feature": "Detailed annual report (target vs actual)",
+   "where_in_clio": "Reports > Detailed Annual",
+   "status": "already covered",
+   "note": "r09-people: timekeeper-targets"
+  }
+ ]
+}

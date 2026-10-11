@@ -1,0 +1,150 @@
+Enter now
+Leads in Clio Grow are categorized and appear in the Leads tab for review and action. They are processed based on their sources: marketing leads or appointment leads. Marketing leads can come from third-party integrations (i.e., Google's Local Services Ads for Clio), your firm’s website connected via the Grow API endpoint, or your firm’s Clio Website.
+Tip: The Leads tab separates leads received through marketing channels and via appointments. Appointments are generated from your Clio Scheduler, the appointment booking tool. Learn more about Clio Scheduler here.
+Set up marketing leads
+To start receiving leads, connect your Clio Grow account to a third-party integration using your unique lead capture token. Leads submitted from a third-party source are created in the Leads tab. Follow these steps to access your lead capture token.
+Note: If you create your own integration to connect to Clio Grow, you will need to use the API endpoint. Learn more in the section below.
+Go to Settings > Integrations.
+Scroll down to Lead capture.
+Under Lead capture token, click Copy.
+Use this token to connect your Clio Grow account to a third-party integration.
+Enable lead notifications
+You can choose to receive email notifications when a new lead is added to your account. To enable or disable this setting:
+Go to Settings > Personal.
+Scroll down to Notification settings.
+Check or uncheck the box for Email me when a new lead is added to the inbox.
+Add, ignore, restore, and delete marketing leads
+Marketing leads are leads added to your Clio Grow account through third-party marketing integrations, marketing channels (i.e., Google’s Local Services Ads for Clio), and your Clio Website. You can find marketing leads in the Leads inbox from the left navigation panel. You can intake a marketing lead by adding it as a contact only, or use Quick Intake to add the lead as both a contact and a matter if the lead is a potential client. You can also ignore the lead. An ignored lead will go into an ignored state, where you can either restore the ignored lead or permanently delete all ignored leads.
+Tip: If you signed up for Google's Local Services Ads for Clio, you can also dispute leads and view disputed leads. Learn more here.
+Intake lead Ignore or Mark as spam Restore Delete all
+Click Leads in the navigation menu and then select Marketing.
+Select the Untriaged subtab.
+Find the lead that you want to add as a contact.
+Click the Accept dropdown and then select Add contact or Quick Intake.
+Add contact: Fill out the contact details and create the contact.
+Quick Intake: Fill out the contact and matter details in the form, then create the matter along with the contact. You can also do a conflict check. Learn more about conflict checks.
+Click Leads in the navigation menu and then select Marketing.
+Select the Untriaged subtab.
+Find the lead that you want to ignore.
+Click the Remove dropdown.
+Select Ignore or Mark as spam.
+Click Leads in the navigation menu and then select Marketing.
+Select the Ignored subtab.
+Find the lead that you want to restore.
+Click Restore.
+Once restored, the lead will return to the Untriaged tab, where you can add the lead or ignore the lead again.
+Click Leads in the navigation menu and then select Marketing.
+Select the Ignored subtab.
+Click Delete All to delete all ignored leads.
+Add and delete appointment leads
+Appointment leads are leads added to your Clio Grow account from appointments booked using your firm's Clio Scheduler booking link. When a prospective client books an appointment via Clio Scheduler, you can either accept the appointment and add the lead as a contact with a matter or delete the lead and cancel the appointment.
+Add contact Delete and cancel appointment
+Click Leads in the navigation menu and then select Appointments.
+Find the lead that you want to add to your account.
+Click Accept.
+Under Assign a contact, select an existing contact by clicking Find an existing contact, or create a new one by clicking Create a new contact. 
+Under Assign a matter, select an existing matter by clicking Find an existing matter, or create a new one by clicking Create a new matter.
+Click Confirm.
+Check the contact and matter details in the form, then click Create matter or Save and run conflict check to run a conflict check. Learn more about conflict checks.
+Click Leads in the navigation menu and then select Appointments.
+Find the lead that you want to delete.
+Click Ignore lead and cancel appointment.
+Click Delete to confirm the action.
+Use Grow AI to assist with lead intake
+To assist you with your lead intake processes, Grow AI will analyze lead details to create summary information along with an assessment of client fit. Additionally, for leads captured through Grow AI’s website chat, it allows you to quickly review any details, such as contact details and the time the lead was created, and you can click View transcript to view the original chat exactly as it occurred.
+To provide an assessment of client fit, Grow AI analyzes the information provided by your prospect. For example, Grow AI might assess if the lead’s needs align with the services your firm typically provides, if the lead’s location is in an area serviced by your firm, or if there is a high likelihood of a conflict of interest. Click Review assessment to view the details that Grow AI used to produce its rating. You can change Grow AI’s assessment label by clicking the down arrow next to the rating and selecting a different rating category.
+Note: Information is analyzed in alignment with our established security frameworks and compliance protocols.
+Tip: Share feedback aboutGrow AI’s assessment to help Clio improve how Grow AI assesses lead fit.
+Lead capture API endpoint
+If you create your own integration, you can connect it to your Clio Grow account using Clio’s API endpoint, which lets you submit leads into Clio Grow via a web form or other source. Our Developer Documentation provides everything you need to know about using the Lead Inbox API Endpoint.
+Need more help?
+ Ask The Law Community
+ Get answers from fellow Clio customers
+ Contact us
+ Tell us more and get personalized support
+Was this article helpful?
+ Yes
+ No
+ 0 out of 0 found this helpful
+ Still have questions?
+For immediate answers, connect with our new AI Support Agent, available 24/7 directly in our in-app chat. Learn more.
+You can also get personalized support from the largest and most experienced team in the industry. Our experts are available 24 hours a day, 5 days a week. Find out how to get in touch.
+-->
+PRODUCTS
+Clio Manage
+Clio Grow
+Clio Draft
+Clio Work
+Clio for Clients
+Integrations
+Pricing
+FEATURES
+Client Intake
+Billing and Collections
+Case Management
+Document Management
+Task Management
+What’s New
+See All Features
+RESOURCES
+All Upcoming Events
+Customer Stories
+Clio Cloud Conference
+Legal Trends Report
+Compare Clio
+Blog
+Start a Law Firm
+COMMUNITY
+Customer Community
+Bar Associations
+Incubator Program
+Referrals
+Academic Access
+Certified Consultants
+COMPANY
+About Us
+Our Mission
+Leadership
+Careers
+News & Press
+SUPPORT
+Developer Hub
+Find a Consultant
+Clio Academy
+Sitemap
+Subscribe
+Support Login
+ -->
+ Clio - Legal Software
+ Terms
+ Privacy Policy
+ Legal Service
+ -->
+©2008 - 2025 Themis Solutions 
+ Clio - Legal Software
+ Terms
+ Privacy Policy
+ Legal Service
+ Facebook
+ Twitter
+ YouTube
+ LinkedIn
+ Instagram
+Return to top
+ https://www.clio.com/resources/quick-start-sessions/
+/hc/theming_assets/01JN4H56SP898G5WMRKWP3STQG
+ Live Training Sessions
+ Learn Clio faster with live, interactive training. Get the essential skills to manage your practice efficiently—whether you’re just starting or refining your workflow.
+custom
+ https://community.clio.com/?utm_source=help-center&utm_medium=home-link
+/hc/theming_assets/01HZPMA8VBT023Z0NJK5MF4X8W
+ Customer Community
+ Connect with fellow Clio users, get answers to your questions, and stay informed about new features and pilot programs.
+custom
+ https://clioacademy.learnupon.com/catalog
+/hc/theming_assets/01JN4RBVN31EN2CCM1D4TVHZ5J
+ Clio Certification
+ Build expertise in legal practice management with courses designed to enhance your skills, improve efficiency, and deepen your understanding of Clio.
+ billing, client portal, write off
+
+IMGS: []

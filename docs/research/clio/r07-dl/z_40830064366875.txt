@@ -1,0 +1,12 @@
+===== Know Your Client https://help.clio.com/hc/en-us/articles/40830064366875-Know-Your-Client updated 2026-08-31T19:41:49Z
+With Clio Manage, you can log the dates and details of any Know Your Client (KYC) or Know Your Business (KYB) checks and risk assessments for your contacts and their matters.
+Note: This feature is available to select plans. Learn more about your plan's features. If you need to upgrade your firm’s plan, ask a firm administrator.
+Disable or enable the KYC/KYB field set
+The feature is enabled by default. To enable or disable the set of KYC or KYB fields:
+- Go to Settings > Firm Preferences > Compliance.
+- 
+Check to enable or uncheck to disable the KYC/KYB is enabled checkbox.
+Note: If you don’t see this checkbox, your region may not have access to this feature. Make sure that the country in your firm's address is provided. If you don't have access to this feature, you can create your own custom fields instead to track this information.
+Once enabled, you will be able to add information about the KYC/KYB checks you performed for contacts and matters. The field set for contacts include fields for the dates of a conflict check, ID check, Anti-Money Laundering (AML) check, source of funds check, and risk assessment. You can also add a risk assessment rating and the reason for the rating. For matters, you have the same fields as for the contact, with the risk assessment fields for opening and closing the matter. Learn more about adding KYC/KYB information to a matter in Understand and complete matter form sections in Clio Manage and to a contact in Understand and complete contact form sections in Clio Manage.
+Important: If you added information into any KYC/KYB fields and then disable the feature, the information you previously added will be retained, but will be unavailable to you. You will need to re-enable the feature to view your KYC/KYB information for matters and contacts.
+IMGS: []

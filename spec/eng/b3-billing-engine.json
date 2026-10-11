@@ -1,0 +1,3358 @@
+{
+ "id": "b3-billing-engine",
+ "conventions": {
+  "money": "int64 CAD cents",
+  "rate": "int cents per hour",
+  "percent": "int ppm (1% = 10000), same unit as tax rates (CF-01)",
+  "tax_rate": "int ppm",
+  "rounding": "half away from zero, rhu(num, den); tax once per bill per tax line",
+  "local_date": "delivery_local_date = delivered_at AT TIME ZONE America/Toronto; months_after clamps to month end",
+  "time_zone": "America/Toronto",
+  "dates": "ISO 8601"
+ },
+ "chart_of_accounts": [
+  {
+   "book": "operating",
+   "code": "OP-1000",
+   "name": "Operating bank",
+   "type": "asset"
+  },
+  {
+   "book": "operating",
+   "code": "OP-1010",
+   "name": "Processor clearing",
+   "type": "asset"
+  },
+  {
+   "book": "operating",
+   "code": "OP-1100",
+   "name": "AR fees and disbursements (subledger: bill x bucket)",
+   "type": "asset"
+  },
+  {
+   "book": "operating",
+   "code": "OP-1110",
+   "name": "AR interest (subledger: InterestCharge)",
+   "type": "asset"
+  },
+  {
+   "book": "operating",
+   "code": "OP-1200",
+   "name": "WIP unbilled time, at recorded value",
+   "type": "asset (memo pair with OP-1290)"
+  },
+  {
+   "book": "operating",
+   "code": "OP-1290",
+   "name": "WIP offset",
+   "type": "contra-asset; keeps WIP out of revenue until billed"
+  },
+  {
+   "book": "operating",
+   "code": "OP-1210",
+   "name": "Disbursements recoverable (paid, not yet billed)",
+   "type": "asset"
+  },
+  {
+   "book": "operating",
+   "code": "OP-1220",
+   "name": "HST ITC recoverable",
+   "type": "asset"
+  },
+  {
+   "book": "operating",
+   "code": "OP-2100",
+   "name": "GST/HST payable",
+   "type": "liability"
+  },
+  {
+   "book": "operating",
+   "code": "OP-2110",
+   "name": "QST / PST payable",
+   "type": "liability"
+  },
+  {
+   "book": "operating",
+   "code": "OP-2200",
+   "name": "Client credit (unapplied), per client",
+   "type": "liability"
+  },
+  {
+   "book": "operating",
+   "code": "OP-2300",
+   "name": "Due to trust, per client-matter",
+   "type": "liability"
+  },
+  {
+   "book": "operating",
+   "code": "OP-2400",
+   "name": "Trust money held in operating (misdirected), per client-matter",
+   "type": "liability"
+  },
+  {
+   "book": "operating",
+   "code": "OP-4000",
+   "name": "Fee revenue",
+   "type": "revenue"
+  },
+  {
+   "book": "operating",
+   "code": "OP-4010",
+   "name": "Cost recovery revenue (soft costs, markup)",
+   "type": "revenue"
+  },
+  {
+   "book": "operating",
+   "code": "OP-4020",
+   "name": "Interest income",
+   "type": "revenue"
+  },
+  {
+   "book": "operating",
+   "code": "OP-4030",
+   "name": "Card surcharge revenue",
+   "type": "revenue"
+  },
+  {
+   "book": "operating",
+   "code": "OP-4900",
+   "name": "Fee adjustments: write-downs, discounts, credit notes",
+   "type": "contra-revenue"
+  },
+  {
+   "book": "operating",
+   "code": "OP-6100",
+   "name": "Bad debt expense",
+   "type": "expense"
+  },
+  {
+   "book": "operating",
+   "code": "OP-6200",
+   "name": "Payment processing fees",
+   "type": "expense"
+  },
+  {
+   "book": "trust",
+   "code": "TR-1500",
+   "name": "Trust bank, per trust account",
+   "type": "asset"
+  },
+  {
+   "book": "trust",
+   "code": "TR-2500",
+   "name": "Client trust ledger, per (account, client, matter)",
+   "type": "liability"
+  }
+ ],
+ "rules": [
+  {
+   "id": "BIL-C-001",
+   "title": "Money representation",
+   "rule": "All amounts are int64 CAD cents. Hourly rates are int cents per hour. Every rate and percentage (tax, FX, discount, markup, split share, surcharge, contingency, interest) is int parts-per-million (1% = 10000 ppm; 13% = 130000; 9.975% = 99750); one unit across all docs (CF-01). Columns end in _ppm. No float or numeric-with-fraction column holds money. Every division uses rhu(num, den).",
+   "source": "design; o1 CF-01",
+   "test": "rate 9.975% stored as 99750; rhu(200000*99750, 1e6) = 19950; discount 10% stored as 100000",
+   "config": null
+  },
+  {
+   "id": "BIL-C-002",
+   "title": "Rounding mode: half away from zero, at fixed points only",
+   "rule": "rhu = round half away from zero (0.5 -> 1, -0.5 -> -1). Rounding happens only at: (1) time line amount, (2) percent discount / markup / surcharge / contingency, (3) each tax line, once per bill on the summed taxable base (never per line), (4) pro-rata tax share in an allocation, (5) cumulative interest per posting (BIL-C-072). Never round an intermediate that feeds another rounding. Banker's rounding is not used: each value is rounded once, so its bias advantage does not apply; half away from zero matches b2-sales-tax BIL-T-040 and what clients and Clio expect, and a bill a client re-computes by hand must match.",
+   "source": "design; b2-sales-tax rounding + BIL-T-040 (same half-away-from-zero rule)",
+   "test": "rhu(55885.7) = 55886; rhu(65.5) = 66; rhu(-65.5) = -66; lines 333/333/334 at 13%: rhu(1000 x 0.13) = 130, not 43+43+43 = 129",
+   "config": null
+  },
+  {
+   "id": "BIL-C-003",
+   "title": "Rate resolution chain (fixed order, not configurable)",
+   "rule": "First hit wins: 1 manual rate on the entry (needs time.rates or user override right); 2 flat activity amount; 3 matter rate for the user; 4 matter rate for the user's role group (incl. a named rate table assigned to the matter); 5 client rate for the user; 6 client rate for the role group (incl. client rate table); 7 activity-category custom hourly rate; 8 user default rate. Store rate_cents and rate_source on the entry; rate_source in {manual, flat_activity, matter_user, matter_role, client_user, client_role, activity, user_default}. This reconciles the brief (matter > client > user group > user default) with time.json (manual > flat > matter > client/table > activity > default) and Clio's documented chain; user-before-group within each level.",
+   "source": "time.json rates; Clio rate hierarchy (r05)",
+   "test": "BIL-X-002: matter-role $175 beats client-user $182 and user default $200",
+   "config": null
+  },
+  {
+   "id": "BIL-C-004",
+   "title": "Rate effective date",
+   "rule": "The rate is the one effective on the work date (TimeEntry.date). A rate change re-prices only unbilled entries dated on or after its effective_from. Firm setting rate_basis = work_date (default) | bill_date; bill_date re-resolves at draft build.",
+   "source": "time.json rates edge",
+   "test": "rate $400 -> $425 effective 2026-09-01; entry dated 2026-08-31 billed on 2026-09-30 at $400",
+   "config": {
+    "rate_basis": "work_date"
+   }
+  },
+  {
+   "id": "BIL-C-005",
+   "title": "Manual override survives a matter move",
+   "rule": "Moving an entry to another matter re-resolves tiers 2-8; a manual rate (tier 1) is kept and flagged rate_recheck=true until a user with time.rates confirms it.",
+   "source": "time.json time-entry-detail (deliberate difference from Clio)",
+   "test": "entry manual $300 moved to matter with matter rate $250: rate stays $300, flag set",
+   "config": null
+  },
+  {
+   "id": "BIL-C-010",
+   "title": "Time rounding per entry, at save",
+   "rule": "billed_minutes = round(raw_minutes, increment, mode) at save; increment in {1, 6, 15} minutes, mode in {up, nearest(half-up)}. increment and mode are copied onto the entry. Bills never re-round. A settings change applies to entries saved after it.",
+   "source": "time.json time-settings",
+   "test": "BIL-X-001: 23 min up -> 24; 20 nearest -> 18; 21 nearest -> 24",
+   "config": {
+    "rounding_increment": 6,
+    "rounding_mode": "up"
+   }
+  },
+  {
+   "id": "BIL-C-011",
+   "title": "Time line amount",
+   "rule": "amount_cents = rhu(billed_minutes * rate_cents, 60). Hours displayed = billed_minutes/60 to 2 decimals (display only).",
+   "source": "design",
+   "test": "24 min x 42500 -> 17000",
+   "config": null
+  },
+  {
+   "id": "BIL-C-012",
+   "title": "Minimum entry",
+   "rule": "If raw_minutes > 0 and billed_minutes < minimum_entry, billed_minutes = minimum_entry (default 0 = off).",
+   "source": "time.json TimeSettings.minimum_entry",
+   "test": "minimum 6, raw 2 -> 6",
+   "config": {
+    "minimum_entry": 0
+   }
+  },
+  {
+   "id": "BIL-C-013",
+   "title": "Write-down and write-up never change recorded minutes",
+   "rule": "TimeEntry.minutes and billed_minutes are the accepted record (G9). A WriteDown row (original, adjusted, reason, stage) changes the bill line amount only. Pre-bill write-down: G9d / G-B1; above firm threshold also the owner role.",
+   "source": "time.json write-downs; RPC 3.6-1",
+   "test": "3.4 h x $425 = $1,445.00 adjusted to $1,200.00: entry minutes stay 204",
+   "config": {
+    "writedown_threshold_cents": 50000
+   }
+  },
+  {
+   "id": "BIL-C-014",
+   "title": "Write-up",
+   "rule": "Allowed only as a separate 'value adjustment' bill line with reason code, added by the responsible lawyer at G-B1, flagged to the approver at G-B2; never raises minutes or rate. Not allowed on contingency or flat lines.",
+   "source": "LSO Rules of Professional Conduct r.3.6-1 (https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct/chapter-3) (fees fair and reasonable)",
+   "test": "adjustment +$200.00 with reason 'urgency premium per retainer s.4' -> line shown; without reason -> rejected",
+   "config": null
+  },
+  {
+   "id": "BIL-C-020",
+   "title": "Order of reductions on a draft",
+   "rule": "1 line write-down/up; 2 line discount; 3 bill discount on its eligible base (fees + own-cost lines | fees only | one line; never agent disbursements, b2 BIL-T-042); 4 tax on the reduced base; 5 after approval only: trust application, payments, client credit, credit notes. The spec's 'after credit notes' is moot because credit notes never exist on a draft (BIL-C-080).",
+   "source": "billing.json invoice-editor Discount order; Clio discounts (r05)",
+   "test": "BIL-X-005: $1,445 -> $1,200 write-down, then $100 fixed discount, then HST on $1,460.00",
+   "config": null
+  },
+  {
+   "id": "BIL-C-021",
+   "title": "Discount amount",
+   "rule": "percent: rhu(eligible_base * ppm, 1e6); fixed: min(amount, eligible_base). A discount never makes a line negative.",
+   "source": "design",
+   "test": "10% of $2,680.50 = $268.05; fixed $5,000 on a $1,000 base -> $1,000",
+   "config": null
+  },
+  {
+   "id": "BIL-C-022",
+   "title": "Spread of a bill discount",
+   "rule": "Spread over eligible lines by largest remainder on weight = line net amount; ties go to the earliest line (sort_order). The spread is stored per line (discount_share) and drives tax buckets and realization.",
+   "source": "billing.json invoice-editor",
+   "test": "BIL-X-005: $100 over $1,200 / $360 -> $76.92 / $23.08",
+   "config": null
+  },
+  {
+   "id": "BIL-C-023",
+   "title": "Write-down reason codes",
+   "rule": "reason in {duplicate, inefficiency, training, courtesy, over_estimate, scope, other}; 'other' needs text. show_on_bill true prints 'courtesy discount'.",
+   "source": "time.json write-downs",
+   "test": "write-down with reason null -> 422",
+   "config": null
+  },
+  {
+   "id": "BIL-C-024",
+   "title": "No discount after approval",
+   "rule": "Approved bills are immutable; any reduction after approval is a credit note (G-B5).",
+   "source": "billing.json invoice-editor edge",
+   "test": "PATCH discount on approved bill -> 409 bill_immutable",
+   "config": null
+  },
+  {
+   "id": "BIL-C-030",
+   "title": "Flat fee",
+   "rule": "Flat lines come from FeeArrangement (amount or milestone %: rhu(flat * ppm, 1e6)). Time on a flat matter is tracked non-billable and prints at $0 when show_on_bill. A flat activity on a flat-fee matter raises a double-charge warning.",
+   "source": "time.json matter-fee-arrangement",
+   "test": "BIL-X-016: 50% of $3,000 = $1,500.00",
+   "config": null
+  },
+  {
+   "id": "BIL-C-031",
+   "title": "Out-of-scope work",
+   "rule": "On a hybrid arrangement, entries tagged out_of_scope are billed hourly per BIL-C-003; on a pure flat arrangement they are blocked from the bill until a change-of-scope letter is approved.",
+   "source": "time.json matter-fee-arrangement",
+   "test": "BIL-X-016: 95 min -> 96 min x $300 = $480.00",
+   "config": null
+  },
+  {
+   "id": "BIL-C-032",
+   "title": "Contingency fee",
+   "rule": "fee = rhu(recovery_base * pct_ppm, 1e6), pct may step by stage. recovery_base is a stored field on the matter's settlement record = damages + costs recovered - disbursements designated in the settlement - taxes; BIL-C-032 and BIL-C-033 both read it. No interim fee bill unless the agreement allows it. The agreement must be the LSO standard form unless the business-client exception applies.",
+   "source": "O. Reg. 563/20 Contingency Fee Agreements (https://www.ontario.ca/laws/regulation/200563) (sections: verify)",
+   "test": "BIL-X-017: 25% of $85,000.00 = $21,250.00",
+   "config": null
+  },
+  {
+   "id": "BIL-C-033",
+   "title": "Contingency cap",
+   "rule": "Refuse approval (409 CFA_FEE_EXCEEDS_RECOVERY) if fee, excluding disbursements and taxes, exceeds recovery_base (BIL-C-032). Same formula as b1 BIL-L-020.",
+   "source": "O. Reg. 563/20 Contingency Fee Agreements (https://www.ontario.ca/laws/regulation/200563) s.1 per b1 BIL-L-020",
+   "test": "settlement $30,000 incl. costs $5,000 and disbursements $2,000 -> recovery_base $28,000; fee $29,000 -> 409; capped proposal $28,000",
+   "config": null
+  },
+  {
+   "id": "BIL-C-040",
+   "title": "Disbursement tax class",
+   "rule": "Expense.agency = agent (paid as the client's agent: no HST on rebill) | own (firm's cost: HST on rebill amount). Default per category table; tax adviser must confirm the table before launch.",
+   "source": "CRA GST/HST Policy P-209R Lawyers' disbursements (https://www.canada.ca/en/revenue-agency/services/forms-publications/publications/p-209r/lawyers-disbursements.html); b2-sales-tax BIL-T-030..033",
+   "test": "court filing fee $229.00 agent -> no HST; photocopies $86.40 own -> HST $11.23 share",
+   "config": null
+  },
+  {
+   "id": "BIL-C-041",
+   "title": "Markup",
+   "rule": "Markup ppm applies to own (soft) costs only; never to agent disbursements. markup = rhu(cost * ppm, 1e6); markup is taxable with the cost. Default 0.",
+   "source": "time.json expenses; LSO Rules of Professional Conduct r.3.6-1 (https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct/chapter-3)",
+   "test": "BIL-X-016: $25.00 + 15% = $28.75",
+   "config": {
+    "soft_cost_markup_ppm": 0
+   }
+  },
+  {
+   "id": "BIL-C-042",
+   "title": "Disbursements paid from trust",
+   "rule": "An expense paid by trust withdrawal (G11) is listed on the bill in 'Paid from trust' and is excluded from amount due and AR.",
+   "source": "LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) s.9 (verify)",
+   "test": "bill with $1,200 trust-paid filing fees: amount due unchanged",
+   "config": null
+  },
+  {
+   "id": "BIL-C-043",
+   "title": "Foreign currency expense",
+   "rule": "Store original amount and currency plus CAD cents = rhu(original_minor * fx_ppm, 1e6) at a recorded rate and date.",
+   "source": "time.json expenses edge",
+   "test": "USD 100.00 at 1.372500 -> 13725 CAD cents",
+   "config": null
+  },
+  {
+   "id": "BIL-C-050",
+   "title": "Trust applied to fees",
+   "rule": "Allowed only when bill.delivered_at is set. amount <= min(bill balance - reserved_cents (BIL-C-054), trust available_cents of the same client-matter ledger (BIL-C-053)). For a combined client bill, only lines of that matter. Proposal does not touch AR. The trust row and both journals (BIL-J-008) post at execution, txn_date = executed_on; bank confirmation only matches the bank line.",
+   "source": "LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) ss.9-10 (verify)",
+   "test": "BIL-X-006: $3,000.00 against delivered bill; undelivered bill -> 409 bill_not_delivered",
+   "config": null
+  },
+  {
+   "id": "BIL-C-051",
+   "title": "Trust never overdraws",
+   "rule": "Authorization and execution each lock the client_ledger row (SELECT ... FOR UPDATE) and require available_cents >= amount; otherwise 409 trust_overdraw. Concurrent authorizations against the same funds therefore serialize and the second fails.",
+   "source": "LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) s.18 (verify)",
+   "test": "ledger $2,000.00, request $2,000.01 -> 409 trust_overdraw; BIL-X-023: two $3,000 authorizations on $5,000 -> second 409",
+   "config": null
+  },
+  {
+   "id": "BIL-C-052",
+   "title": "Auto-apply setting proposes only",
+   "rule": "auto_apply_trust_on_approval creates a TrustFeeTransfer in 'proposed'; G-B4/G11 still required.",
+   "source": "billing.json bill-settings",
+   "test": "setting on, bill approved: proposal exists, ledger unchanged",
+   "config": null
+  },
+  {
+   "id": "BIL-C-053",
+   "title": "Trust available balance",
+   "rule": "available_cents(ledger) = sum(posted rows with cleared_on <= today; receipts not yet cleared excluded) - protected_cents - minimum_balance_cents - sum(amount of withdrawal_request/TrustFeeTransfer in status authorized for that ledger). Every fee transfer, disbursement and refund from trust checks it under the ledger row lock at authorization and at execution.",
+   "source": "LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) (verify); r-review RV1-002, RV1-003",
+   "test": "BIL-X-023; cheque receipt $5,000 uncleared, fee withdrawal $1,000 -> 409 uncleared_funds; protected $2,000 on $5,000, withdrawal $3,000.01 -> 409 trust_overdraw",
+   "config": null
+  },
+  {
+   "id": "BIL-C-054",
+   "title": "Bill reservation for authorized fee transfers",
+   "rule": "bill.reserved_cents = sum of fee transfers for the bill in authorized or executed-not-yet-applied. A new fee transfer needs amount <= balance - reserved_cents; payment and client-credit allocation to the bill is capped at balance - reserved_cents, the excess goes to unapplied then client credit (BIL-C-063). Cancelling an authorized transfer releases its reservation.",
+   "source": "r-review RV1-002",
+   "test": "BIL-X-023: bill $5,086.76, $3,000 reserved, card $2,500 -> $2,086.76 allocated, $413.24 excess",
+   "config": null
+  },
+  {
+   "id": "BIL-C-055",
+   "title": "Executed fee transfer above the bill balance",
+   "rule": "If at application an executed fee transfer exceeds the bill balance, apply the balance, post the excess to OP-2300 Due to trust and create a G6 return-to-trust task due the same day.",
+   "source": "LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) (verify); r-review RV1-002",
+   "test": "BIL-X-024: $3,000 executed, balance $2,500 -> $500 due to trust",
+   "config": null
+  },
+  {
+   "id": "BIL-C-060",
+   "title": "Allocation within a bill (default fees_first)",
+   "rule": "Principal before interest: a payment first pays open principal (pre-tax + tax), then interest. Tax share per BIL-C-202. Pre-tax part order: fees, then own-cost disbursements, then agent disbursements. Alternative 'proportional' spreads the pre-tax part over the three buckets by largest remainder. Changing it is a G-B8 settings change effective for payments posted after it. The order is for revenue and fee-credit reporting; tax collected is unaffected (b2 BIL-T-082).",
+   "source": "billing.json invoice-editor edge (fees > disbursements > interest)",
+   "test": "BIL-X-007: $1,500 -> tax $164.80, fees $1,335.20",
+   "config": {
+    "allocation_within_bill": "fees_first"
+   }
+  },
+  {
+   "id": "BIL-C-061",
+   "title": "Pre-tax part fills buckets in order",
+   "rule": "pre = P - tax share; fee bucket takes min(pre, fee_open), the rest goes to dtx, then dnt. Stored per allocation row (fee, dtx, dnt, tax, interest) so reversals mirror it exactly.",
+   "source": "design",
+   "test": "BIL-X-014: $590 -> tax $65.00, fees $525.00",
+   "config": null
+  },
+  {
+   "id": "BIL-C-062",
+   "title": "Allocation across bills (default oldest_due_first)",
+   "rule": "A payment through a bill link or naming a bill number goes to that bill (excess per BIL-C-063). Otherwise order by (due_date, delivered_at, bill number) of the same client's open bills. Settings: oldest_due_first | proportional | manual. Payment plans use the same default and may be overridden per plan.",
+   "source": "billing.json payments-inbox, payment-plans; Clio payment plans (r06)",
+   "test": "BIL-X-008: 0131 then 0148",
+   "config": {
+    "allocation_across_bills": "oldest_due_first"
+   }
+  },
+  {
+   "id": "BIL-C-063",
+   "title": "Overpayment",
+   "rule": "Excess goes to ClientCredit (OP-2200) for that client under G-B3 (while G-B3 is pending it is an unapplied allocation, CF-13). Never to another client. Client credit is client money, not earned fees, so it is short-lived (BIL-C-067).",
+   "source": "billing.json payments-inbox edge",
+   "test": "BIL-X-008: $240.00 to client credit",
+   "config": null
+  },
+  {
+   "id": "BIL-C-064",
+   "title": "Refund",
+   "rule": "Refund <= client credit; to the original method up to its captured amount, else by cheque/EFT from operating; G-B6 by a lawyer not the requester.",
+   "source": "billing.json credit-notes, G-B6",
+   "test": "BIL-X-015: $955.00",
+   "config": null
+  },
+  {
+   "id": "BIL-C-065",
+   "title": "Reversal (chargeback, NSF, failed PAD)",
+   "rule": "Reverse every allocation of the payment with its stored bucket split, recompute bill status; fees debited to operating. A reversal of a trust deposit always opens a trust exception; in the same DB transaction, only if the ledger would go negative, insert a receipt from the firm general account for exactly the shortfall (G6) with Dr OP-1100 receivable from client (or OP-6100) / Cr OP-1000.",
+   "source": "billing.json payment-settings edge; LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) (verify)",
+   "test": "BIL-X-020: bill back to $2,086.76; BIL-X-026: shortfall 300000 replenished, ledger 0; ledger with 500000 -> reversal only",
+   "config": null
+  },
+  {
+   "id": "BIL-C-066",
+   "title": "Applying client credit",
+   "rule": "Same client only, to delivered bills, G-B3; allocated like a payment (BIL-C-060).",
+   "source": "billing.json receivables-aging",
+   "test": "BIL-X-022: $240 to bill 0155",
+   "config": null
+  },
+  {
+   "id": "BIL-C-067",
+   "title": "Client credit is short-lived",
+   "rule": "Within client_credit_max_business_days (firm setting, default 5, verify against By-Law 9) of creation, client credit must be (a) applied to a delivered bill of the same client under G-B3 with client direction, (b) refunded under G-B6, or (c) transferred to trust under G6 (BIL-J-019). A daily aging job opens a trust exception 'client money in operating' for credit older than the limit.",
+   "source": "b1 BIL-L-042; LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) money belonging to a client received in the general account (verify provision and time limit)",
+   "test": "BIL-X-025: $240 created 2026-10-07, open on 2026-10-15 -> exception task",
+   "config": {
+    "client_credit_max_business_days": 5
+   }
+  },
+  {
+   "id": "BIL-C-068",
+   "title": "Provider events apply by state precedence",
+   "rule": "Dedup on (provider, event_id). Handlers re-fetch the provider object by provider_ref and set payment state by precedence pending < received < posted < partially_refunded < refunded; reversed is terminal. Order of arrival does not matter; a lower-precedence event after a higher one is a no-op.",
+   "source": "r-review RV1-022",
+   "test": "dispute event before capture -> payment created then reversed once; capture replayed after refund -> no change",
+   "config": null
+  },
+  {
+   "id": "BIL-C-070",
+   "title": "Interest start and method",
+   "rule": "Simple interest, actual/365, on open principal (bill total excluding interest, less principal allocations, credit notes and write-offs) for each day in [start, paid_date). start = max(due_date, months_after(delivery_local_date, 1)) (BIL-C-073). No interest on interest.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 (https://www.ontario.ca/laws/statute/90s15) s.33(1); b1 BIL-L-008",
+   "test": "BIL-X-009: 43 days x 6% on $2,086.76 = $14.75; 2026-01-31 delivery -> start 2026-02-28",
+   "config": null
+  },
+  {
+   "id": "BIL-C-071",
+   "title": "Interest rate source",
+   "rule": "Charged only at a rate the client agreed in writing, printed on the bill. The rate is snapshotted to bill.interest_rate_ppm at approval; later profile changes affect only later bills. A firm may set its agreed rate equal to a CJA s.127 published rate as a benchmark, but the Act supplies no default rate. Default: off.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 (https://www.ontario.ca/laws/statute/90s15) s.33(3),(5); b1 BIL-L-009, BIL-L-010; Courts of Justice Act, R.S.O. 1990, c. C.43, s.127 (https://www.ontario.ca/laws/statute/90c43)",
+   "test": "retainer silent, profile 6% -> interest 0 and agent warning",
+   "config": {
+    "interest_default": "off"
+   }
+  },
+  {
+   "id": "BIL-C-072",
+   "title": "Interest posting",
+   "rule": "Interest is not a bill line on an approved bill. It accrues in InterestCharge rows posted at each month end and at payoff/credit/write-off, shown on statements and reminders, and may be carried as a non-taxable line on the next bill (BIL-C-204). Cumulative method: posting_k = rhu(sum over principal segments of principal_i * rate_ppm * days_i, 1e6 * 365) from interest start to the posting date, minus the sum of prior postings; a segment ends at each allocation, credit or write-off. Total charged always equals the one-shot figure.",
+   "source": "design; b1 BIL-L-008..011",
+   "test": "BIL-X-009: 2026-11-30 posts $9.95 (29 days); payoff posts $14.75 - $9.95 = $4.80; total exactly $14.75",
+   "config": null
+  },
+  {
+   "id": "BIL-C-073",
+   "title": "Dates for billing clocks",
+   "rule": "delivery_local_date = delivered_at AT TIME ZONE 'America/Toronto'. One-month windows use months_after(local_date, n) (same day n months later, clamped to month end, b1 BIL-L-003/004); day windows use days_after(local_date, n); the two never share code. Interest accrues for days >= months_after(d, 1); suit (Solicitors Act s.2) is allowed on days > months_after(d, 1) until counsel confirms otherwise.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 (https://www.ontario.ca/laws/statute/90s15) ss.2, 33; Legislation Act, 2006, S.O. 2006, c. 21, Sched. F, s.89 (verify); b1 BIL-L-003, BIL-L-004",
+   "test": "BIL-X-027: 2026-01-31 -> 2026-02-28; 2028-02-29 + 12 -> 2029-02-28; delivered 2026-11-01T03:30Z -> local 2026-10-31 -> 2026-11-30",
+   "config": null
+  },
+  {
+   "id": "BIL-C-080",
+   "title": "Credit notes never edit bills",
+   "rule": "A credit note references one bill (one payer bill on split), has its own gapless sequence assigned at issue, kind in {fee_reduction, billing_error, bad_debt_write_off, refund}, and lists pre-tax per bucket and tax per tax line.",
+   "source": "b2-sales-tax BIL-T-070, BIL-T-071",
+   "test": "CN-0012 on bill 2026-0147",
+   "config": null
+  },
+  {
+   "id": "BIL-C-081",
+   "title": "Where a credit goes",
+   "rule": "First reduces open AR of the bill. Excess goes back to the sources of payment: trust-sourced allocations first (OP-2300 Due to trust, repaid by a trust receipt under G6 the same day), then client credit (OP-2200), which follows BIL-C-067.",
+   "source": "billing.json credit-notes (refunds of trust-paid fees go back to trust first); LSO By-Law 9 (https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9) (verify)",
+   "test": "BIL-X-010: $3,955 -> trust $3,000, client credit $955",
+   "config": null
+  },
+  {
+   "id": "BIL-C-082",
+   "title": "Credit limits",
+   "rule": "Per bucket: credited pre-tax <= billed pre-tax minus prior credits and write-offs.",
+   "source": "design",
+   "test": "bill fees $1,000, prior CN $900, new CN $200 -> 409 credit_exceeds_bill",
+   "config": null
+  },
+  {
+   "id": "BIL-C-084",
+   "title": "Void",
+   "rule": "Draft/pending: discard (no number). Approved and delivered_at null: void under G-B2 (billing.approve, not the preparer) keeps number, posts exact reversal of the approval entry dated the void date, unlocks entries to approved; no credit note. delivered_at not null: 409 bill_delivered_use_credit_note (use POST /credit-notes). a2 voidBill must match.",
+   "source": "billing.json invoice-editor",
+   "test": "BIL-X-018; void on delivered bill -> 409 bill_delivered_use_credit_note",
+   "config": null
+  },
+  {
+   "id": "BIL-C-085",
+   "title": "Write-off of a balance",
+   "rule": "G-B5 (lawyer other than requester; owner role above threshold). Writes off all open buckets; open tax gives the bad-debt adjustment (BIL-C-205).",
+   "source": "billing.json credit-notes; b2-sales-tax BIL-T-080",
+   "test": "BIL-X-014: $590.00, adjustment $65.00",
+   "config": {
+    "writeoff_second_approval_cents": 100000
+   }
+  },
+  {
+   "id": "BIL-C-086",
+   "title": "Recovery after write-off",
+   "rule": "A payment on a written_off bill (billing.payments, G-B3) stays on that bill, up to the written-off amount: tax part = rhu(recovered * bill_tax, bill_total) per tax line, posted Cr OP-2100 in the recovery period; pre-tax part Cr OP-6100 (BIL-J-018). Status stays written_off; recovered_cents is tracked.",
+   "source": "b2-sales-tax BIL-T-081",
+   "test": "BIL-X-030: $118.00 -> tax $13.00, bad debt credit $105.00",
+   "config": null
+  },
+  {
+   "id": "BIL-C-090",
+   "title": "Split shares",
+   "rule": "BillSplit share_ppm per payer, sum = 1000000, payer order = sort_order (first payer = lowest). applies_to = all | fees | disbursements; non-covered lines go to the client payer.",
+   "source": "billing.json split-billing",
+   "test": "60/40 -> 600000/400000; 60/39 -> 422 split_sum",
+   "config": null
+  },
+  {
+   "id": "BIL-C-091",
+   "title": "Split per line with cumulative carry",
+   "rule": "Lines in sort_order; C_k = cumulative line amount through line k. Non-first payer p on line k = floor(C_k * share_ppm_p / 1e6) - amount already assigned to p; first payer takes the rest of the line. If the first payer's part would be negative (a line smaller than payers - 1 cents), cut the non-first parts from the last payer backwards; the cut carries to later lines. Each non-first payer ends within 1 cent of its share of the bill, so the first payer no longer absorbs a cent per line.",
+   "source": "billing.json split-billing edge; r-review RV1-024",
+   "test": "BIL-X-012: $1,000.01 -> $600.01 / $400.00; BIL-X-028: 200 x $1.01 at 50/50 -> $101.00 / $101.00",
+   "config": null
+  },
+  {
+   "id": "BIL-C-092",
+   "title": "Payer bills are independent",
+   "rule": "Each payer bill has its own number, tax computation (BIL-C-200), allocations, interest and aging; trust of one payer is never applied to another payer's bill.",
+   "source": "billing.json split-billing edge",
+   "test": "BIL-X-012: HST $80.60 + $53.73",
+   "config": null
+  },
+  {
+   "id": "BIL-C-100",
+   "title": "Surcharge eligibility",
+   "rule": "Only when all hold: firm setting on; card-network notice date passed; surcharge-free method offered; card funding = credit (not debit, prepaid, wallet); destination = operating; firm not in Quebec and card billing address not in Quebec; LSO position check attached at enable. Otherwise surcharge = 0.",
+   "source": "Card-network surcharge rules for Canada as published by processors (Clio Canada surcharging article, research r05/r06); Quebec Consumer Protection Act CQLR c P-40.1 (verify section); LSO position (verify)",
+   "test": "Visa debit -> 0; Quebec billing address -> 0; retainer to trust -> 0",
+   "config": null
+  },
+  {
+   "id": "BIL-C-101",
+   "title": "Surcharge amount",
+   "rule": "surcharge_ppm <= min(24000, cost_of_acceptance_ppm); surcharge = rhu(amount_applied * ppm, 1e6); shown as its own receipt line with the percent, plus its tax (BIL-C-208). Feature flag surcharge_enabled ships off until BIL-C-208 and CF-18 are verified.",
+   "source": "Card-network surcharge rules for Canada as published by processors (Clio Canada surcharging article, research r05/r06); Quebec Consumer Protection Act CQLR c P-40.1 (verify section)",
+   "test": "BIL-X-013: $1,130.00 x 2.40% = $27.12",
+   "config": {
+    "surcharge_ppm": 0,
+    "surcharge_enabled": false
+   }
+  },
+  {
+   "id": "BIL-C-102",
+   "title": "Refund of a surcharged payment",
+   "rule": "A refund of part or all of a surcharged payment refunds the surcharge and its tax pro rata: surcharge_refund = rhu(surcharge * refunded, amount_applied), tax per line = rhu(surcharge_tax * refunded, amount_applied); a full refund returns exactly the remaining surcharge and tax.",
+   "source": "r-review RV1-007",
+   "test": "BIL-X-029: $565 of $1,130 -> surcharge $13.56, HST $1.77",
+   "config": null
+  },
+  {
+   "id": "BIL-C-110",
+   "title": "Batch billing",
+   "rule": "Each draft is built in its own transaction with idempotency key (batch_run_id, matter_id | client_id, period_to). Matters under minimum_bill_cents are skipped and listed. Drafts go to G-B1; nothing is auto-approved. Cut-off: entries dated <= cutoff (default) or created <= cutoff.",
+   "source": "billing.json batch-billing",
+   "test": "re-running run R1 creates 0 new drafts; one matter failing does not roll back others",
+   "config": {
+    "cutoff_rule": "dated"
+   }
+  },
+  {
+   "id": "BIL-C-111",
+   "title": "Combined client bill",
+   "rule": "Lines grouped by matter; per-matter subtotals; tax computed once on the whole bill; trust applied per matter subtotal only.",
+   "source": "billing.json open question; trust per matter",
+   "test": "matter A $1,000 owed, matter B ledger $5,000 -> B trust cannot pay A lines",
+   "config": null
+  },
+  {
+   "id": "BIL-C-120",
+   "title": "Bill numbering",
+   "rule": "Number assigned in the approval transaction from a per-firm sequence row (SELECT ... FOR UPDATE), format prefix-YYYY-NNNN; gapless; voided numbers kept. Credit notes use their own sequence.",
+   "source": "billing.json invoice-editor",
+   "test": "two concurrent approvals get 0147 and 0148, never the same",
+   "config": null
+  },
+  {
+   "id": "BIL-C-121",
+   "title": "Bill date = approval date",
+   "rule": "Bill date is the approval date (Toronto). HST is reported in the period of the bill date.",
+   "source": "b2-sales-tax BIL-T-050",
+   "test": "approved 2026-09-30 23:30 Toronto, delivered 2026-10-01 -> HST in September",
+   "config": null
+  },
+  {
+   "id": "BIL-C-122",
+   "title": "Delivery starts the clocks",
+   "rule": "delivered_at is set only by the delivery effect handler on evidence (email provider accepted + message-id, portal first view, or clerk-entered mailing date with proof), only from null to a value <= now(), and never changed after (corrections are an audited delivery_correction under G-B2). It drives trust application eligibility, interest start, aging buckets, suit and assessment windows, always via delivery_local_date (BIL-C-073). A bounce leaves delivered_at null.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 (https://www.ontario.ca/laws/statute/90s15) ss.2, 3, 4 (verify electronic delivery)",
+   "test": "bounced email: trust proposal stays not_eligible",
+   "config": null
+  },
+  {
+   "id": "BIL-C-123",
+   "title": "Void across tax periods",
+   "rule": "A void reverses on the void date. If the bill-date period is already filed, the reversal is a negative adjustment in the void period; a void in the same unfiled period nets to zero. Preflight warning W-PERIOD-CROSS for any approved bill still undelivered at period end.",
+   "source": "b2-sales-tax BIL-T-090; r-review RV1-021",
+   "test": "BIL-X-031: approved 2026-09-30, Q3 filed, void 2026-10-05 -> Q4 adjustment -$130.00",
+   "config": null
+  },
+  {
+   "id": "BIL-C-200",
+   "title": "Tax once per bill per tax line",
+   "rule": "For each tax line: tax = rhu(sum(taxable line net after discounts) * rate_ppm, 1e6). Never per line. Rates from TaxRate rows effective on the tax point.",
+   "source": "b2-sales-tax BIL-T-040, BIL-T-001, BIL-T-002; CRA GST/HST rates (https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/charge-collect-which-rate/calculator.html)",
+   "test": "BIL-X-003: $4,298.90 x 13% -> $558.86",
+   "config": null
+  },
+  {
+   "id": "BIL-C-201",
+   "title": "Approval preconditions for tax",
+   "rule": "Approval refused if the firm GST/HST registration number is missing or invalid, or place of supply is not confirmed by the lawyer.",
+   "source": "b2-sales-tax BIL-T-010, BIL-T-060, BIL-T-061; b1 BIL-L-047",
+   "test": "no registration -> 409 tax_registration_missing",
+   "config": null
+  },
+  {
+   "id": "BIL-C-202",
+   "title": "Tax share of every allocation is proportional",
+   "rule": "Each principal allocation P on a bill carries tax = rhu(P * tax_open, principal_open) where principal_open = open pre-tax + open tax; an allocation that clears principal takes the exact remaining tax. The pre-tax part then follows BIL-C-061. With two tax lines, split the tax share by largest remainder over open tax per line.",
+   "source": "b2-sales-tax BIL-T-082",
+   "test": "BIL-X-006: rhu(300000 x 55886 / 508676) = $329.60",
+   "config": null
+  },
+  {
+   "id": "BIL-C-203",
+   "title": "Credit note tax (single rule for b2 and b3)",
+   "rule": "Per tax line: tax = rhu(credit_pre_tax * line_tax, bill_taxable_base), using the source bill's tax lines and rates; a credit that exhausts the remaining taxable base takes exactly the remaining tax.",
+   "source": "b2-sales-tax BIL-T-070 (same formula), BIL-T-002",
+   "test": "BIL-X-011: $0.44, $0.44, then remainder $0.43; base 5 c, tax 1 c, credit 3 c -> tax 1 c (rate x credit would give 0 and lets credits exceed bill tax)",
+   "config": null
+  },
+  {
+   "id": "BIL-C-204",
+   "title": "No tax on interest",
+   "rule": "Interest charges for late payment carry no GST/HST and appear on their own non-taxable line. Card surcharges are not covered here (BIL-C-208).",
+   "source": "b2-sales-tax BIL-T-043; b1 BIL-L-049; ETA s.161",
+   "test": "BIL-X-009 interest $14.75 tax 0",
+   "config": null
+  },
+  {
+   "id": "BIL-C-205",
+   "title": "Bad-debt tax adjustment",
+   "rule": "On write-off, tax adjustment = open tax of the bill (which equals rhu(bill_tax * written_off, bill_total) because BIL-C-202 keeps allocations proportional); posted in the period of write-off. Recovery later re-includes tax proportionally (BIL-C-086).",
+   "source": "b2-sales-tax BIL-T-080, BIL-T-081",
+   "test": "BIL-X-014: $65.00",
+   "config": null
+  },
+  {
+   "id": "BIL-C-206",
+   "title": "Two-line taxes",
+   "rule": "GST + QST/PST: each line on the same pre-tax base, rounded separately, no tax on tax; provincial line only if the firm holds that registration.",
+   "source": "b2-sales-tax BIL-T-041, BIL-T-020, BIL-T-022",
+   "test": "BIL-X-019: GST $100.00, QST $199.50",
+   "config": null
+  },
+  {
+   "id": "BIL-C-207",
+   "title": "Place of supply changed after approval",
+   "rule": "Before delivery: void and rebuild (new number). After delivery: full credit note + new bill. Replaces the spec's 'returns to draft', which would break approved-bill immutability.",
+   "source": "billing.json invoice-editor edge (reconciled); b2-sales-tax BIL-T-071",
+   "test": "ON bill $1,130.00 delivered, client is QC (firm QST-registered) -> CN $1,130.00 + new bill $1,149.75",
+   "config": null
+  },
+  {
+   "id": "BIL-C-208",
+   "title": "Card surcharge is taxable (verify)",
+   "rule": "A card surcharge is extra consideration for the supply being paid, so it is taxed at the paid bill's tax lines: per tax line, surcharge_tax = rhu(surcharge * line_tax, bill_total - bill_tax), i.e. the bill's effective rate on its pre-tax total (agency disbursements dilute it). Same rule as b2 BIL-T-044. (verify with CRA GST/HST guidance before enabling.)",
+   "source": "b2-sales-tax BIL-T-044 (verify); Excise Tax Act, R.S.C. 1985, c. E-15 (https://laws-lois.justice.gc.ca/eng/acts/E-15/)",
+   "test": "BIL-X-013: surcharge $27.12, HST $3.53, charged $1,160.65",
+   "config": null
+  }
+ ],
+ "invariants": [
+  {
+   "id": "BIL-I-001",
+   "invariant": "Every journal entry has >= 2 lines, belongs to exactly one book, and sum(dr) = sum(cr).",
+   "test": "DB: deferred constraint trigger on journal_entry; test inserts unbalanced entry -> error"
+  },
+  {
+   "id": "BIL-I-002",
+   "invariant": "No journal line in the operating book references a TR- account and vice versa; trust and operating entries are linked only by transfer_id.",
+   "test": "insert OP entry with TR-1500 line -> error"
+  },
+  {
+   "id": "BIL-I-003",
+   "invariant": "Journals are append-only: no UPDATE/DELETE on journal_entry/journal_line; corrections are reversing entries with reverses_id.",
+   "test": "UPDATE journal_line -> permission denied"
+  },
+  {
+   "id": "BIL-I-004",
+   "invariant": "bill.total = sum(line.net) + sum(tax_line.amount); line.net = gross - write_down + write_up - discount_share; sum(discount_share) = bill.discount.",
+   "test": "BIL-X-005: 1200+360-100+189.80 = 1649.80"
+  },
+  {
+   "id": "BIL-I-005",
+   "invariant": "bill.balance = total + interest_posted - allocations - credit_notes - write_offs, and 0 <= balance (DB-enforced, a4); allocations to a bill only from payments with deposit_to = operating; status derived: balance = total -> delivered, 0 < balance < total(+interest) -> partially_paid, 0 -> paid (or written_off / credited by cause).",
+   "test": "property test over random event sequences"
+  },
+  {
+   "id": "BIL-I-006",
+   "invariant": "Approved bill content (lines, amounts, tax, number, date, due_date, approver, signature, interest_rate_ppm, place of supply) never changes; delivered_at changes only once, from null to a value <= now(); status -> void only while delivered_at is null; otherwise only delivery fields and derived balance change.",
+   "test": "UPDATE bill_line where bill approved -> trigger error"
+  },
+  {
+   "id": "BIL-I-007",
+   "invariant": "A TimeEntry or Expense is on at most one non-void bill: unique (source_type, source_id) on bill_line where bill.status <> 'void' (partial index via bill_line.active).",
+   "test": "two drafts pulling the same entry: second build skips it"
+  },
+  {
+   "id": "BIL-I-008",
+   "invariant": "Bill numbers and credit-note numbers are unique and gapless per sequence; number is null iff status in (draft, pending_approval).",
+   "test": "count(distinct n) = max(n) - min(n) + 1"
+  },
+  {
+   "id": "BIL-I-009",
+   "invariant": "Per trust account: TR-1500 balance = sum of TR-2500 ledgers on that account (journal side of the three-way reconciliation).",
+   "test": "after every posting"
+  },
+  {
+   "id": "BIL-I-010",
+   "invariant": "Every client trust ledger balance >= 0 after every posting, and available_cents (BIL-C-053) >= 0 after every authorization.",
+   "test": "BIL-C-051 test"
+  },
+  {
+   "id": "BIL-I-011",
+   "invariant": "A trust-to-fees transfer exists only for a bill with delivered_at not null; sum of authorized + executed-unapplied transfers for a bill <= bill balance at authorization (BIL-C-054); excess at application goes to OP-2300 (BIL-C-055).",
+   "test": "BIL-C-050 test; BIL-X-023"
+  },
+  {
+   "id": "BIL-I-012",
+   "invariant": "For every payment: sum(allocations incl. client credit) + refunds + reversals = amount.",
+   "test": "BIL-X-008: 1130+1130+240 = 2500"
+  },
+  {
+   "id": "BIL-I-013",
+   "invariant": "OP-1100 + OP-1110 balance = sum(open bill balances); OP-2200 = sum(client credit); OP-1200 = sum(recorded value of approved unbilled time).",
+   "test": "nightly reconciliation job; mismatch pages billing admin"
+  },
+  {
+   "id": "BIL-I-014",
+   "invariant": "Per bill and bucket: credited + written-off pre-tax <= billed pre-tax, and credited tax <= billed tax.",
+   "test": "BIL-X-011"
+  },
+  {
+   "id": "BIL-I-015",
+   "invariant": "Processor fees, chargeback fees and surcharges never post to the trust book.",
+   "test": "grep journal: TR lines with source processor_fee -> 0"
+  },
+  {
+   "id": "BIL-I-016",
+   "invariant": "Money for fees not yet earned never posts to OP-4000; operating receipt classified as trust money posts to OP-2400 and opens an exception.",
+   "test": "retainer link payment always lands in TR"
+  },
+  {
+   "id": "BIL-I-017",
+   "invariant": "OP-2200 per client >= 0; client credit never applied across clients.",
+   "test": ""
+  },
+  {
+   "id": "BIL-I-018",
+   "invariant": "Split: sum(share_ppm) = 1000000 per matter split version; per line sum(payer portions) = line amount.",
+   "test": "BIL-X-012"
+  },
+  {
+   "id": "BIL-I-019",
+   "invariant": "A reversal entry mirrors the original line set exactly (same accounts, swapped sides, same amounts); a reversed allocation row equals -1 x the original in every bucket (fee, dtx, dnt, tax, interest).",
+   "test": "BIL-X-018, BIL-X-020"
+  },
+  {
+   "id": "BIL-I-020",
+   "invariant": "Idempotency: unique (provider, event_id) on payment_event; unique (provider, provider_ref) on payment; unique idempotency_key on refund, trust transfer and batch draft.",
+   "test": "BIL-X-021"
+  },
+  {
+   "id": "BIL-I-021",
+   "invariant": "Every gated transition stores a GateDecision by a human with the capability, who is not the creator/requester (agent counts as the human it acted for). Sole-practitioner exception: equality allowed only when core.firm.sole_practitioner = true (exactly one active licensee with trust signing), and audit event sod_solo_exception is written with the gate id.",
+   "test": "approve own bill -> 403 sod_violation"
+  },
+  {
+   "id": "BIL-I-022",
+   "invariant": "surcharge > 0 only if every BIL-C-100 condition held at capture time (stored snapshot).",
+   "test": "debit card payment with surcharge -> refused"
+  },
+  {
+   "id": "BIL-I-023",
+   "invariant": "Interest = 0 for any day before delivered_date + 1 month, and for bills without a locked rate.",
+   "test": ""
+  },
+  {
+   "id": "BIL-I-024",
+   "invariant": "All money columns are bigint cents with CHECK (amount >= 0) where direction is carried by side; every rate and percentage is bigint ppm (CF-01).",
+   "test": "schema lint"
+  },
+  {
+   "id": "BIL-I-026",
+   "invariant": "Every bill allocation row stores fee, dtx, dnt, tax, interest cents with fee + dtx + dnt + tax + interest = amount; non-bill rows (client credit, unapplied, trust ledger) have all five = 0; per bill and bucket, allocations + credits + write-offs <= billed.",
+   "test": "allocate a trust receipt to a bill -> refused; over-allocate 1 cent -> refused"
+  },
+  {
+   "id": "BIL-I-025",
+   "invariant": "Postings into a locked period (signed trust month, closed operating month) are refused; corrections post in the current period.",
+   "test": ""
+  }
+ ],
+ "state_machines": {
+  "TimeEntry": {
+   "states": [
+    "suggested",
+    "draft",
+    "accepted",
+    "submitted",
+    "approved",
+    "on_draft_bill",
+    "billed",
+    "written_off",
+    "rejected"
+   ],
+   "transitions": [
+    {
+     "from": "suggested",
+     "to": "accepted",
+     "trigger": "timekeeper accepts",
+     "by": "time.record (owner of entry)",
+     "gate": "G9"
+    },
+    {
+     "from": "suggested",
+     "to": "rejected",
+     "trigger": "reject with reason",
+     "by": "time.record",
+     "gate": "none"
+    },
+    {
+     "from": "draft",
+     "to": "accepted",
+     "trigger": "save by hand / stop timer",
+     "by": "time.record",
+     "gate": "none (human authored)"
+    },
+    {
+     "from": "accepted",
+     "to": "submitted",
+     "trigger": "submit week",
+     "by": "time.record",
+     "gate": "none"
+    },
+    {
+     "from": "submitted",
+     "to": "approved",
+     "trigger": "approve week",
+     "by": "time.approve (supervisor, not self unless solo exception)",
+     "gate": "G9c"
+    },
+    {
+     "from": "accepted",
+     "to": "approved",
+     "trigger": "firm has timesheet approval off",
+     "by": "system",
+     "gate": "none"
+    },
+    {
+     "from": "submitted",
+     "to": "accepted",
+     "trigger": "return with comment",
+     "by": "time.approve",
+     "gate": "none"
+    },
+    {
+     "from": "approved",
+     "to": "on_draft_bill",
+     "trigger": "draft built",
+     "by": "billing.draft / agent",
+     "gate": "none"
+    },
+    {
+     "from": "on_draft_bill",
+     "to": "approved",
+     "trigger": "held, removed, or draft discarded",
+     "by": "billing.draft",
+     "gate": "G-B1"
+    },
+    {
+     "from": "on_draft_bill",
+     "to": "billed",
+     "trigger": "bill approved",
+     "by": "billing.approve",
+     "gate": "G-B2"
+    },
+    {
+     "from": "on_draft_bill",
+     "to": "written_off",
+     "trigger": "line written off at pre-bill",
+     "by": "time.writedown",
+     "gate": "G9d / G-B1"
+    },
+    {
+     "from": "approved",
+     "to": "written_off",
+     "trigger": "write-off before billing",
+     "by": "time.writedown",
+     "gate": "G9d"
+    },
+    {
+     "from": "billed",
+     "to": "approved",
+     "trigger": "bill voided before delivery",
+     "by": "billing.approve",
+     "gate": "G-B2"
+    }
+   ],
+   "notes": "Edits allowed in draft/accepted/submitted (and approved, which re-enters approval). billed is terminal except void; credit notes never unlock entries."
+  },
+  "Expense": {
+   "states": [
+    "suggested",
+    "draft",
+    "missing_receipt",
+    "approved",
+    "on_draft_bill",
+    "billed",
+    "non_billable",
+    "written_off"
+   ],
+   "transitions": [
+    {
+     "from": "suggested",
+     "to": "draft",
+     "trigger": "accept extraction",
+     "by": "time.record",
+     "gate": "none"
+    },
+    {
+     "from": "draft",
+     "to": "missing_receipt",
+     "trigger": "amount over receipt threshold and no file",
+     "by": "system",
+     "gate": "none"
+    },
+    {
+     "from": "missing_receipt",
+     "to": "draft",
+     "trigger": "receipt attached",
+     "by": "time.record",
+     "gate": "none"
+    },
+    {
+     "from": "draft",
+     "to": "approved",
+     "trigger": "approve for billing",
+     "by": "billing.approve (responsible lawyer)",
+     "gate": "G9b"
+    },
+    {
+     "from": "draft",
+     "to": "non_billable",
+     "trigger": "mark non-billable",
+     "by": "time.record",
+     "gate": "none"
+    },
+    {
+     "from": "approved",
+     "to": "on_draft_bill",
+     "trigger": "draft built",
+     "by": "billing.draft / agent",
+     "gate": "none"
+    },
+    {
+     "from": "on_draft_bill",
+     "to": "billed",
+     "trigger": "bill approved",
+     "by": "billing.approve",
+     "gate": "G-B2"
+    },
+    {
+     "from": "on_draft_bill",
+     "to": "approved",
+     "trigger": "held / draft discarded",
+     "by": "billing.draft",
+     "gate": "G-B1"
+    },
+    {
+     "from": "on_draft_bill",
+     "to": "written_off",
+     "trigger": "written off",
+     "by": "time.writedown",
+     "gate": "G9d"
+    },
+    {
+     "from": "billed",
+     "to": "approved",
+     "trigger": "bill voided before delivery",
+     "by": "billing.approve",
+     "gate": "G-B2"
+    }
+   ],
+   "notes": "paid_from = trust requires a G11 withdrawal before or independent of billing."
+  },
+  "Bill": {
+   "states": [
+    "draft",
+    "preflight_failed",
+    "pending_approval",
+    "approved",
+    "delivered",
+    "partially_paid",
+    "paid",
+    "void",
+    "written_off",
+    "credited"
+   ],
+   "transitions": [
+    {
+     "from": "(none)",
+     "to": "draft",
+     "trigger": "build from WIP after pre-bill review",
+     "by": "billing.draft / agent",
+     "gate": "G-B1"
+    },
+    {
+     "from": "draft",
+     "to": "preflight_failed",
+     "trigger": "preflight check fails",
+     "by": "system",
+     "gate": "none"
+    },
+    {
+     "from": "preflight_failed",
+     "to": "draft",
+     "trigger": "fix",
+     "by": "billing.draft",
+     "gate": "none"
+    },
+    {
+     "from": "draft",
+     "to": "pending_approval",
+     "trigger": "submit",
+     "by": "billing.draft",
+     "gate": "none"
+    },
+    {
+     "from": "pending_approval",
+     "to": "draft",
+     "trigger": "return",
+     "by": "billing.approve",
+     "gate": "none"
+    },
+    {
+     "from": "pending_approval",
+     "to": "approved",
+     "trigger": "approve and sign; number assigned; BIL-J-003",
+     "by": "billing.approve, licensee, not preparer",
+     "gate": "G-B2"
+    },
+    {
+     "from": "draft|pending_approval",
+     "to": "(deleted)",
+     "trigger": "discard; no number",
+     "by": "billing.draft",
+     "gate": "none"
+    },
+    {
+     "from": "approved",
+     "to": "void",
+     "trigger": "void while delivered_at is null; BIL-J-012 (delivered -> 409 bill_delivered_use_credit_note)",
+     "by": "billing.approve, not preparer",
+     "gate": "G-B2"
+    },
+    {
+     "from": "approved",
+     "to": "delivered",
+     "trigger": "delivery evidence recorded",
+     "by": "billing.draft / agent under firm batch-send policy",
+     "gate": "none"
+    },
+    {
+     "from": "delivered",
+     "to": "partially_paid",
+     "trigger": "allocation, trust application, credit",
+     "by": "billing.payments / trust.execute",
+     "gate": "G-B3 / G-B4"
+    },
+    {
+     "from": "delivered|partially_paid",
+     "to": "paid",
+     "trigger": "balance reaches 0 by payments",
+     "by": "billing.payments",
+     "gate": "G-B3 when ambiguous"
+    },
+    {
+     "from": "delivered|partially_paid",
+     "to": "credited",
+     "trigger": "balance reaches 0 by credit notes",
+     "by": "billing.credit",
+     "gate": "G-B5"
+    },
+    {
+     "from": "delivered|partially_paid",
+     "to": "written_off",
+     "trigger": "write-off of balance",
+     "by": "billing.credit; owner role above threshold",
+     "gate": "G-B5"
+    },
+    {
+     "from": "paid|credited",
+     "to": "partially_paid",
+     "trigger": "chargeback / NSF reversal",
+     "by": "system",
+     "gate": "none"
+    },
+    {
+     "from": "written_off",
+     "to": "written_off",
+     "trigger": "recovery payment; BIL-J-018",
+     "by": "billing.payments",
+     "gate": "G-B3"
+    }
+   ],
+   "notes": "partially_paid/paid/credited are derived from balance (BIL-I-005), stored for querying. Delivered bills are never voided or edited."
+  },
+  "Payment": {
+   "states": [
+    "pending",
+    "received",
+    "suggested",
+    "posted",
+    "unallocated",
+    "partially_refunded",
+    "refunded",
+    "failed",
+    "reversed"
+   ],
+   "transitions": [
+    {
+     "from": "(webhook/bank line)",
+     "to": "pending",
+     "trigger": "provider event (idempotent)",
+     "by": "system",
+     "gate": "none"
+    },
+    {
+     "from": "pending",
+     "to": "received",
+     "trigger": "provider confirms capture / bank clears",
+     "by": "system",
+     "gate": "none"
+    },
+    {
+     "from": "pending",
+     "to": "failed",
+     "trigger": "provider declines",
+     "by": "system",
+     "gate": "none"
+    },
+    {
+     "from": "received",
+     "to": "suggested",
+     "trigger": "agent match",
+     "by": "agent",
+     "gate": "none"
+    },
+    {
+     "from": "suggested",
+     "to": "posted",
+     "trigger": "exact match under auto-post policy, or human accept",
+     "by": "billing.payments (lawyer if trust involved)",
+     "gate": "G-B3 unless exact match + policy"
+    },
+    {
+     "from": "received|suggested",
+     "to": "unallocated",
+     "trigger": "no match",
+     "by": "agent",
+     "gate": "none"
+    },
+    {
+     "from": "unallocated",
+     "to": "posted",
+     "trigger": "allocate",
+     "by": "billing.payments",
+     "gate": "G-B3"
+    },
+    {
+     "from": "posted",
+     "to": "partially_refunded|refunded",
+     "trigger": "refund executed",
+     "by": "billing.credit / lawyer",
+     "gate": "G-B6"
+    },
+    {
+     "from": "posted",
+     "to": "reversed",
+     "trigger": "chargeback, NSF, PAD return",
+     "by": "system",
+     "gate": "none"
+    }
+   ],
+   "notes": "Trust-destination payments are receipts in the trust area (G6), never allocated to bills directly. Provider events dedup on (provider, event_id) and apply by state precedence (BIL-C-068)."
+  },
+  "CreditNote": {
+   "states": [
+    "draft",
+    "pending_approval",
+    "issued",
+    "refund_pending",
+    "closed",
+    "rejected"
+   ],
+   "transitions": [
+    {
+     "from": "(none)",
+     "to": "draft",
+     "trigger": "draft",
+     "by": "billing.draft / agent",
+     "gate": "none"
+    },
+    {
+     "from": "draft",
+     "to": "pending_approval",
+     "trigger": "submit",
+     "by": "billing.draft",
+     "gate": "none"
+    },
+    {
+     "from": "pending_approval",
+     "to": "issued",
+     "trigger": "approve; number assigned; BIL-J-007",
+     "by": "billing.credit (lawyer not requester; owner role above threshold)",
+     "gate": "G-B5"
+    },
+    {
+     "from": "pending_approval",
+     "to": "rejected",
+     "trigger": "reject",
+     "by": "billing.credit",
+     "gate": "G-B5"
+    },
+    {
+     "from": "issued",
+     "to": "refund_pending",
+     "trigger": "credit created client credit or Due to trust",
+     "by": "system",
+     "gate": "none"
+    },
+    {
+     "from": "refund_pending",
+     "to": "closed",
+     "trigger": "trust repaid (G6) and/or refund executed (G-B6) or credit applied",
+     "by": "billing.payments / trust.record",
+     "gate": "G6 / G-B6"
+    },
+    {
+     "from": "issued",
+     "to": "closed",
+     "trigger": "credit fully absorbed by open AR",
+     "by": "system",
+     "gate": "none"
+    }
+   ],
+   "notes": "Issued credit notes are immutable; a mistaken credit note is corrected by a new bill, not by deletion."
+  },
+  "TrustRequest": {
+   "states": [
+    "draft",
+    "pending_approval",
+    "sent",
+    "partially_funded",
+    "funded",
+    "cancelled"
+   ],
+   "transitions": [
+    {
+     "from": "(none)",
+     "to": "draft",
+     "trigger": "draft from engagement letter / evergreen shortfall",
+     "by": "billing.draft / agent",
+     "gate": "none"
+    },
+    {
+     "from": "draft",
+     "to": "pending_approval",
+     "trigger": "submit",
+     "by": "billing.draft",
+     "gate": "none"
+    },
+    {
+     "from": "pending_approval",
+     "to": "sent",
+     "trigger": "approve amount and wording",
+     "by": "billing.approve (lawyer)",
+     "gate": "retainer approval"
+    },
+    {
+     "from": "sent",
+     "to": "partially_funded",
+     "trigger": "receipt posted to trust",
+     "by": "trust.record",
+     "gate": "G6"
+    },
+    {
+     "from": "sent|partially_funded",
+     "to": "funded",
+     "trigger": "receipts >= amount (excess stays in trust, noted)",
+     "by": "trust.record",
+     "gate": "G6"
+    },
+    {
+     "from": "draft|pending_approval|sent",
+     "to": "cancelled",
+     "trigger": "cancel",
+     "by": "billing.draft",
+     "gate": "none"
+    }
+   ],
+   "notes": "No tax on trust requests. Payment links for requests deposit only to trust; surcharge never applies."
+  },
+  "TrustFeeTransfer": {
+   "states": [
+    "not_eligible",
+    "proposed",
+    "pending_authorization",
+    "authorized",
+    "executed",
+    "applied",
+    "confirmed",
+    "rejected",
+    "cancelled"
+   ],
+   "transitions": [
+    {
+     "from": "not_eligible",
+     "to": "proposed",
+     "trigger": "bill delivered",
+     "by": "agent / billing.draft",
+     "gate": "none"
+    },
+    {
+     "from": "proposed",
+     "to": "pending_authorization",
+     "trigger": "request",
+     "by": "trust.request",
+     "gate": "none"
+    },
+    {
+     "from": "pending_authorization",
+     "to": "authorized",
+     "trigger": "Form 9A signed / cheque signed; available_cents and bill balance - reserved re-checked under row lock; amount reserved",
+     "by": "trust.authorize (designated signatory, not requester)",
+     "gate": "G-B4 = G11"
+    },
+    {
+     "from": "pending_authorization",
+     "to": "rejected",
+     "trigger": "reject",
+     "by": "trust.authorize",
+     "gate": "G11"
+    },
+    {
+     "from": "authorized",
+     "to": "executed",
+     "trigger": "entered at bank; available re-checked under lock; trust row posted, txn_date = executed_on (BIL-J-008 trust side)",
+     "by": "trust.execute (not the authorizer where 2 people)",
+     "gate": "G11 dual mode"
+    },
+    {
+     "from": "executed",
+     "to": "applied",
+     "trigger": "operating side of BIL-J-008 in the same transaction; excess to OP-2300 (BIL-C-055); reservation released",
+     "by": "system",
+     "gate": "none"
+    },
+    {
+     "from": "applied",
+     "to": "confirmed",
+     "trigger": "bank line matched (bank_match)",
+     "by": "system / trust.execute",
+     "gate": "none"
+    },
+    {
+     "from": "proposed|pending_authorization|authorized",
+     "to": "cancelled",
+     "trigger": "bill credited/paid meanwhile, or withdrawn before execution; reservation released",
+     "by": "trust.authorize / system",
+     "gate": "none"
+    }
+   ],
+   "notes": "Money is recorded when it leaves the bank (execution), not on confirmation. While authorized, the amount is held against the ledger (BIL-C-053) and the bill (BIL-C-054)."
+  }
+ },
+ "journal": [
+  {
+   "id": "BIL-J-001",
+   "event": "Time entry approved (G9 accepted; G9c if timesheets on)",
+   "book": "operating",
+   "lines": "Dr OP-1200 / Cr OP-1290 at amount_cents",
+   "notes": "Memo pair. Recorded value; write-downs do not touch it. Unaccepted suggestions post nothing."
+  },
+  {
+   "id": "BIL-J-002",
+   "event": "Expense paid from operating",
+   "book": "operating",
+   "lines": "agent: Dr OP-1210 cost / Cr OP-1000. own cost from vendor: Dr OP-1210 net, Dr OP-1220 vendor HST / Cr OP-1000. in-house soft cost: no entry until billed",
+   "notes": "Paid from trust: trust book Dr TR-2500 / Cr TR-1500 only (G11)."
+  },
+  {
+   "id": "BIL-J-003",
+   "event": "Bill approved (G-B2)",
+   "book": "operating",
+   "lines": "Dr OP-1290 / Cr OP-1200 (recorded value of every time line on the bill, incl. written-off lines); Dr OP-1100 total; Dr OP-4900 write-downs + discounts; Cr OP-4000 fees at recorded value; Cr OP-4010 own-cost recoveries + markup; Cr OP-1210 agent disbursements at cost (and own vendor cost net); Cr OP-2100 / OP-2110 tax lines",
+   "notes": "Tax point = bill date. Write-up: Cr OP-4000 extra."
+  },
+  {
+   "id": "BIL-J-004",
+   "event": "Bill delivered",
+   "book": "none",
+   "lines": "No journal entry",
+   "notes": "Sets delivered_at; starts interest, trust eligibility and aging clocks."
+  },
+  {
+   "id": "BIL-J-005",
+   "event": "Payment received to operating, allocated",
+   "book": "operating",
+   "lines": "Dr OP-1000 (EFT, cheque, e-transfer) or OP-1010 (card) / Cr OP-1100 principal, Cr OP-1110 interest, Cr OP-2200 excess",
+   "notes": "Processor fee: Dr OP-6200 / Cr OP-1010. Payout: Dr OP-1000 / Cr OP-1010."
+  },
+  {
+   "id": "BIL-J-006",
+   "event": "Unallocated payment (payer unknown)",
+   "book": "operating",
+   "lines": "Dr OP-1000 / Cr OP-2200 against a 'needs client' suspense client",
+   "notes": "Must be resolved under G-B3."
+  },
+  {
+   "id": "BIL-J-007",
+   "event": "Credit note issued (G-B5)",
+   "book": "operating",
+   "lines": "Dr OP-4900 pre-tax, Dr OP-2100 tax / Cr OP-1100 open part, Cr OP-2300 trust-sourced excess, Cr OP-2200 remaining excess",
+   "notes": "Return to trust: operating Dr OP-2300 / Cr OP-1000; trust Dr TR-1500 / Cr TR-2500 (G6)."
+  },
+  {
+   "id": "BIL-J-008",
+   "event": "Trust applied to bill (G-B4/G11, posted at execution)",
+   "book": "trust + operating",
+   "lines": "trust: Dr TR-2500 / Cr TR-1500. operating: Dr OP-1000 / Cr OP-1100 (and OP-1110), Cr OP-2300 any excess over the bill balance (BIL-C-055)",
+   "notes": "Two entries in one DB transaction at execution (txn_date = executed_on), linked by transfer_id; each balances in its own book. Bank confirmation only matches the bank line."
+  },
+  {
+   "id": "BIL-J-009",
+   "event": "Write-off (G-B5)",
+   "book": "operating",
+   "lines": "Dr OP-6100 pre-tax open + interest open, Dr OP-2100 open tax / Cr OP-1100, Cr OP-1110",
+   "notes": "Tax adjustment per BIL-C-205 (b2 BIL-T-080)."
+  },
+  {
+   "id": "BIL-J-010",
+   "event": "Interest accrued",
+   "book": "operating",
+   "lines": "Dr OP-1110 / Cr OP-4020",
+   "notes": "Month end and payoff postings."
+  },
+  {
+   "id": "BIL-J-011",
+   "event": "Refund of client credit (G-B6)",
+   "book": "operating",
+   "lines": "Dr OP-2200 / Cr OP-1010 (card) or OP-1000",
+   "notes": ""
+  },
+  {
+   "id": "BIL-J-012",
+   "event": "Void approved undelivered bill (G-B2)",
+   "book": "operating",
+   "lines": "Exact reversal of the BIL-J-003 entry, dated the void date",
+   "notes": "Tax: reported in the void period as a negative adjustment if the bill-date period is filed (BIL-C-123)."
+  },
+  {
+   "id": "BIL-J-013",
+   "event": "Card surcharge",
+   "book": "operating",
+   "lines": "Dr OP-1010 amount + surcharge + surcharge tax / Cr OP-1100 amount, Cr OP-4030 surcharge, Cr OP-2100 (OP-2110) surcharge tax",
+   "notes": "Tax per BIL-C-208 (verify). Refund reverses pro rata (BIL-C-102)."
+  },
+  {
+   "id": "BIL-J-014",
+   "event": "Retainer received into trust (G6)",
+   "book": "trust",
+   "lines": "Dr TR-1500 / Cr TR-2500",
+   "notes": "Never revenue. Card retainer posts gross; fee Dr OP-6200 / Cr OP-1000."
+  },
+  {
+   "id": "BIL-J-015",
+   "event": "Trust money received in operating by mistake",
+   "book": "operating",
+   "lines": "Dr OP-1000 / Cr OP-2400; then Dr OP-2400 / Cr OP-1000 with trust Dr TR-1500 / Cr TR-2500",
+   "notes": "Raises trust exception; transfer promptly (BL9, verify time limit)."
+  },
+  {
+   "id": "BIL-J-016",
+   "event": "Chargeback / NSF",
+   "book": "operating",
+   "lines": "Dr OP-1100 (and OP-1110) reversed allocations, Dr OP-6200 fee / Cr OP-1000",
+   "notes": "On a trust deposit: trust Dr TR-2500 / Cr TR-1500 reversal; only if the ledger would go negative, in the same transaction a trust receipt for exactly the shortfall (Dr TR-1500 / Cr TR-2500) and operating Dr OP-1100 receivable from client (or OP-6100) / Cr OP-1000; always a trust exception (BIL-C-065)."
+  },
+  {
+   "id": "BIL-J-017",
+   "event": "Client credit applied to a bill (G-B3)",
+   "book": "operating",
+   "lines": "Dr OP-2200 / Cr OP-1100",
+   "notes": ""
+  },
+  {
+   "id": "BIL-J-018",
+   "event": "Recovery after write-off (G-B3)",
+   "book": "operating",
+   "lines": "Dr OP-1000 / Cr OP-6100 pre-tax part, Cr OP-2100 tax part = rhu(recovered x bill_tax / bill_total)",
+   "notes": "BIL-C-086; tax in the recovery period (b2 BIL-T-081)."
+  },
+  {
+   "id": "BIL-J-019",
+   "event": "Client credit moved to trust (G6)",
+   "book": "operating + trust",
+   "lines": "operating: Dr OP-2200 / Cr OP-1000. trust: Dr TR-1500 / Cr TR-2500",
+   "notes": "BIL-C-067; one DB transaction, linked by transfer_id."
+  }
+ ],
+ "examples": [
+  {
+   "id": "BIL-X-001",
+   "title": "Time rounding per entry at save, 0.1 h increment",
+   "rules": [
+    "BIL-C-010",
+    "BIL-C-011",
+    "BIL-C-012"
+   ],
+   "inputs": {
+    "rate": "$425.00/h (42500 c/h)",
+    "entries": "23 min (mode up); 20 min (mode nearest); 21 min (mode nearest)"
+   },
+   "steps": [
+    "23 min up to 6-min multiple = 24 min; amount = rhu(24 x 42500 / 60) = 17000 c = $170.00",
+    "20 min nearest: 20/6 = 3.33 -> 3 -> 18 min; amount = rhu(18 x 42500 / 60) = 12750 c = $127.50",
+    "21 min nearest: 21/6 = 3.5 -> half-up 4 -> 24 min; amount = $170.00",
+    "billed_minutes and rounding_increment stored on the entry; a later settings change never re-rounds it"
+   ],
+   "journal": [],
+   "result": {
+    "billed_minutes": [
+     24,
+     18,
+     24
+    ],
+    "amounts_cents": [
+     17000,
+     12750,
+     17000
+    ]
+   }
+  },
+  {
+   "id": "BIL-X-002",
+   "title": "Rate resolution chain",
+   "rules": [
+    "BIL-C-001",
+    "BIL-C-002",
+    "BIL-C-003"
+   ],
+   "inputs": {
+    "user": "Yonathan Degu (role: clerk)",
+    "user default": "$200.00",
+    "activity custom rate (research)": "$190.00",
+    "client rate for role clerk": "$185.00",
+    "client rate for user": "$182.00",
+    "matter rate for role clerk": "$175.00",
+    "matter rate for user": "none",
+    "work date": "2026-09-04",
+    "entry": "2.0 h research, no manual override, no flat activity"
+   },
+   "steps": [
+    "tier 1 manual: none; tier 2 flat activity: none",
+    "tier 3 matter-user: none; tier 4 matter-role: $175.00 -> resolved, stop",
+    "rate_source = 'matter_role', rate = 17500 c/h; amount = rhu(120 x 17500 / 60) = 35000 c = $350.00",
+    "if the matter-role rate were removed: tier 5 client-user $182.00 wins over client-role $185.00"
+   ],
+   "journal": [],
+   "result": {
+    "rate_cents": 17500,
+    "rate_source": "matter_role",
+    "amount_cents": 35000
+   }
+  },
+  {
+   "id": "BIL-X-003",
+   "title": "Ontario bill: fees, taxable and agency disbursements, HST once per bill",
+   "rules": [
+    "BIL-C-200",
+    "BIL-C-201",
+    "BIL-C-040",
+    "BIL-J-001",
+    "BIL-J-003"
+   ],
+   "inputs": {
+    "fees": "$4,212.50",
+    "taxable disbursements (photocopies 432 pages x $0.20)": "$86.40",
+    "agency disbursement (court filing fee, paid from operating)": "$229.00",
+    "place of supply": "ON, 13.0000%"
+   },
+   "steps": [
+    "taxable base = $4,212.50 + $86.40 = $4,298.90",
+    "HST = rhu(429890 x 130000 / 1e6) = rhu(55885.7) = 55886 c = $558.86",
+    "open buckets after approval: fee 4,212.50 | dtx 86.40 | dnt 229.00 | tax 558.86 | interest 0",
+    "total = $4,298.90 + $558.86 + $229.00 = $5,086.76"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "time approved (G9c)",
+     "memo": "WIP at standard value",
+     "lines": [
+      {
+       "account": "OP-1200 WIP unbilled time",
+       "dr": 421250,
+       "cr": 0
+      },
+      {
+       "account": "OP-1290 WIP offset (contra)",
+       "dr": 0,
+       "cr": 421250
+      }
+     ]
+    },
+    {
+     "book": "operating",
+     "event": "agency disbursement paid from operating",
+     "memo": "court filing fee",
+     "lines": [
+      {
+       "account": "OP-1210 Disbursements recoverable",
+       "dr": 22900,
+       "cr": 0
+      },
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 0,
+       "cr": 22900
+      }
+     ]
+    },
+    {
+     "book": "operating",
+     "event": "bill approved (G-B2)",
+     "memo": "bill 2026-0147",
+     "lines": [
+      {
+       "account": "OP-1290 WIP offset (contra)",
+       "dr": 421250,
+       "cr": 0
+      },
+      {
+       "account": "OP-1200 WIP unbilled time",
+       "dr": 0,
+       "cr": 421250
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 508676,
+       "cr": 0
+      },
+      {
+       "account": "OP-4000 Fee revenue",
+       "dr": 0,
+       "cr": 421250
+      },
+      {
+       "account": "OP-4010 Cost recovery revenue",
+       "dr": 0,
+       "cr": 8640
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 0,
+       "cr": 55886
+      },
+      {
+       "account": "OP-1210 Disbursements recoverable",
+       "dr": 0,
+       "cr": 22900
+      }
+     ]
+    }
+   ],
+   "result": {
+    "hst": 55886,
+    "total": 508676,
+    "buckets": {
+     "fee": 421250,
+     "dtx": 8640,
+     "dnt": 22900,
+     "tax": 55886
+    }
+   }
+  },
+  {
+   "id": "BIL-X-004",
+   "title": "10% bill discount on fees only, spread by largest remainder, before tax",
+   "rules": [
+    "BIL-C-020",
+    "BIL-C-021",
+    "BIL-C-022",
+    "BIL-C-200"
+   ],
+   "inputs": {
+    "fee lines": [
+     "$1,445.00",
+     "$360.00",
+     "$875.50"
+    ],
+    "discount": "10.00% (100000 ppm) on fees"
+   },
+   "steps": [
+    "eligible base = $2,680.50; discount = rhu(268050 x 100000 / 1e6) = $268.05",
+    "spread over lines by weight (largest remainder, ties to first line): ['$144.50', '$36.00', '$87.55']",
+    "net lines: ['$1,300.50', '$324.00', '$787.95'], sum $2,412.45",
+    "HST = rhu(241245 x 0.13) = $313.62; total $2,726.07"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "bill approved (G-B2)",
+     "memo": "discount shown as contra-revenue",
+     "lines": [
+      {
+       "account": "OP-1290 WIP offset (contra)",
+       "dr": 268050,
+       "cr": 0
+      },
+      {
+       "account": "OP-1200 WIP unbilled time",
+       "dr": 0,
+       "cr": 268050
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 272607,
+       "cr": 0
+      },
+      {
+       "account": "OP-4900 Fee adjustments (contra-revenue)",
+       "dr": 26805,
+       "cr": 0
+      },
+      {
+       "account": "OP-4000 Fee revenue",
+       "dr": 0,
+       "cr": 268050
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 0,
+       "cr": 31362
+      }
+     ]
+    }
+   ],
+   "result": {
+    "discount": 26805,
+    "spread": [
+     14450,
+     3600,
+     8755
+    ],
+    "hst": 31362,
+    "total": 272607
+   }
+  },
+  {
+   "id": "BIL-X-005",
+   "title": "Line write-down first, then fixed $100 bill discount",
+   "rules": [
+    "BIL-C-020",
+    "BIL-C-023",
+    "BIL-C-024"
+   ],
+   "inputs": {
+    "lines": "3.4 h x $425 = $1,445.00 written down to $1,200.00 (reason: block billing); 2.0 h x $180 = $360.00",
+    "bill discount": "$100.00 fixed on all fees"
+   },
+   "steps": [
+    "line 1 after write-down $1,200.00 (WriteDown $245.00, reason code stored)",
+    "fixed discount spread: ['$76.92', '$23.08']",
+    "taxable base $1,460.00; HST $189.80; total $1,649.80"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "bill approved (G-B2)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1290 WIP offset (contra)",
+       "dr": 180500,
+       "cr": 0
+      },
+      {
+       "account": "OP-1200 WIP unbilled time",
+       "dr": 0,
+       "cr": 180500
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 164980,
+       "cr": 0
+      },
+      {
+       "account": "OP-4900 Fee adjustments (contra-revenue)",
+       "dr": 34500,
+       "cr": 0
+      },
+      {
+       "account": "OP-4000 Fee revenue",
+       "dr": 0,
+       "cr": 180500
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 0,
+       "cr": 18980
+      }
+     ]
+    }
+   ],
+   "result": {
+    "total": 164980,
+    "hst": 18980
+   }
+  },
+  {
+   "id": "BIL-X-006",
+   "title": "Trust applied to a delivered bill (G-B4 / G11)",
+   "rules": [
+    "BIL-C-050",
+    "BIL-C-051",
+    "BIL-I-010",
+    "BIL-I-011",
+    "BIL-J-008"
+   ],
+   "inputs": {
+    "bill": "BIL-X-003, total $5,086.76, delivered 2026-10-02 09:14",
+    "client trust ledger": "$5,000.00 cleared, $0 protected",
+    "transfer": "$3,000.00 authorized 2026-10-03 by Linda Kassim (trust.authorize), executed at the bank 2026-10-03 by bookkeeper (trust.execute)"
+   },
+   "steps": [
+    "eligibility: bill.status in {delivered, partially_paid}; amount <= min(bill balance 5,086.76 - reserved 0, trust available 5,000.00) (BIL-C-053, BIL-C-054)",
+    "at authorization: ledger available drops to $2,000.00 and bill reserved_cents = 300000 until the transfer is applied",
+    "tax share = rhu(300000 x 55886 / 508676) = $329.60 (BIL-C-202); pre-tax $2,670.40 to fees (BIL-C-060)",
+    "trust ledger after = $2,000.00; bill balance = $2,086.76; status partially_paid"
+   ],
+   "journal": [
+    {
+     "book": "trust",
+     "event": "trust withdrawal for fees posted at execution (txn_date = executed_on)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "TR-2500 Client trust ledger (client, matter)",
+       "dr": 300000,
+       "cr": 0
+      },
+      {
+       "account": "TR-1500 Trust bank (account)",
+       "dr": 0,
+       "cr": 300000
+      }
+     ]
+    },
+    {
+     "book": "operating",
+     "event": "trust funds received against bill",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 300000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 300000
+      }
+     ]
+    }
+   ],
+   "result": {
+    "bill_balance": 208676,
+    "trust_balance": 200000,
+    "allocation": {
+     "fee": 267040,
+     "dtx": 0,
+     "dnt": 0,
+     "tax": 32960,
+     "interest": 0,
+     "excess": 0
+    },
+    "open_buckets": {
+     "fee": 154210,
+     "dtx": 8640,
+     "dnt": 22900,
+     "tax": 22926,
+     "interest": 0
+    }
+   }
+  },
+  {
+   "id": "BIL-X-007",
+   "title": "Partial card payment allocated within one bill (fees -> disbursements -> interest)",
+   "rules": [
+    "BIL-C-060",
+    "BIL-C-202",
+    "BIL-J-005"
+   ],
+   "inputs": {
+    "bill": "BIL-X-003 after BIL-X-006, open $2,086.76",
+    "open buckets": {
+     "fee": "$1,542.10",
+     "dtx": "$86.40",
+     "dnt": "$229.00",
+     "tax": "$229.26",
+     "interest": "$0.00"
+    },
+    "payment": "$1,500.00 card, operating, provider fee $43.65"
+   },
+   "steps": [
+    "tax share = rhu(150000 x 22926 / 208676) = $164.80",
+    "pre-tax $1,335.20: fees open $1,542.10 -> fees $1,335.20, then disbursements $0.00 + $0.00",
+    "open after: {fee: $206.90, dtx: $86.40, dnt: $229.00, tax: $64.46, interest: $0.00} = $586.76"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "card payment captured",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1010 Processor clearing",
+       "dr": 150000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 150000
+      }
+     ]
+    },
+    {
+     "book": "operating",
+     "event": "processor fee (never trust)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-6200 Payment processing fees",
+       "dr": 4365,
+       "cr": 0
+      },
+      {
+       "account": "OP-1010 Processor clearing",
+       "dr": 0,
+       "cr": 4365
+      }
+     ]
+    },
+    {
+     "book": "operating",
+     "event": "processor payout",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 145635,
+       "cr": 0
+      },
+      {
+       "account": "OP-1010 Processor clearing",
+       "dr": 0,
+       "cr": 145635
+      }
+     ]
+    }
+   ],
+   "result": {
+    "allocation": {
+     "fee": 133520,
+     "dtx": 0,
+     "dnt": 0,
+     "tax": 16480,
+     "interest": 0,
+     "excess": 0
+    },
+    "bill_balance": 58676
+   }
+  },
+  {
+   "id": "BIL-X-008",
+   "title": "One EFT across two bills, oldest due first, excess to client credit",
+   "rules": [
+    "BIL-C-062",
+    "BIL-C-063",
+    "BIL-J-006"
+   ],
+   "inputs": {
+    "bills": "0131 due 2026-08-30 open $1,130.00; 0148 due 2026-10-02 open $1,130.00",
+    "payment": "$2,500.00 EFT, payer named no bill"
+   },
+   "steps": [
+    "order by (due_date, delivered_at, number): 0131 then 0148",
+    "0131 <- $1,130.00 (paid); 0148 <- $1,130.00 (paid); excess $240.00",
+    "excess goes to ClientCredit (OP-2200) under G-B3; it is client money, so within 5 business days it must be applied, refunded or moved to trust (BIL-C-067)"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "payment allocated (G-B3)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 250000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 226000
+      },
+      {
+       "account": "OP-2200 Client credit (unapplied)",
+       "dr": 0,
+       "cr": 24000
+      }
+     ]
+    }
+   ],
+   "result": {
+    "client_credit": 24000
+   }
+  },
+  {
+   "id": "BIL-X-009",
+   "title": "Simple interest from max(due date, one month after delivery) (Solicitors Act s.33(1))",
+   "rules": [
+    "BIL-C-070",
+    "BIL-C-071",
+    "BIL-C-072",
+    "BIL-C-073",
+    "BIL-C-204",
+    "BIL-J-010"
+   ],
+   "inputs": {
+    "open principal": "$2,086.76 (BIL-X-006 state)",
+    "delivered": "2026-10-02",
+    "rate": "6.00% simple, agreed in the signed retainer (60000 ppm)",
+    "paid in full": "2026-12-15"
+   },
+   "steps": [
+    "interest start = max(due 2026-10-02, months_after(delivery_local_date, 1)) = 2026-11-02",
+    "days = [2026-11-02, 2026-12-15) = 43",
+    "interest = rhu(208676 x 60000 x 43 / (1e6 x 365)) = 1475 c = $14.75; no GST/HST (b2 BIL-T-043, b1 BIL-L-049)",
+    "cumulative postings (BIL-C-072): 2026-11-30 covers [2026-11-02, 2026-12-01) = 29 days -> rhu(208676 x 60000 x 29 / 365e6) = $9.95; payoff posts cumulative 43-day figure $14.75 - $9.95 = $4.80; total exactly $14.75",
+    "payoff = $2,101.51; allocation pays principal first, interest last"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "interest posted 2026-11-30",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1110 AR interest",
+       "dr": 995,
+       "cr": 0
+      },
+      {
+       "account": "OP-4020 Interest income",
+       "dr": 0,
+       "cr": 995
+      }
+     ]
+    },
+    {
+     "book": "operating",
+     "event": "interest posted at payoff 2026-12-15",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1110 AR interest",
+       "dr": 480,
+       "cr": 0
+      },
+      {
+       "account": "OP-4020 Interest income",
+       "dr": 0,
+       "cr": 480
+      }
+     ]
+    },
+    {
+     "book": "operating",
+     "event": "payment",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 210151,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 208676
+      },
+      {
+       "account": "OP-1110 AR interest",
+       "dr": 0,
+       "cr": 1475
+      }
+     ]
+    }
+   ],
+   "result": {
+    "interest": 1475,
+    "days": 43,
+    "start": "2026-11-02",
+    "postings": [
+     995,
+     480
+    ]
+   }
+  },
+  {
+   "id": "BIL-X-010",
+   "title": "Credit note on a fully paid bill: trust-paid portion returns to trust first",
+   "rules": [
+    "BIL-C-080",
+    "BIL-C-081",
+    "BIL-C-082",
+    "BIL-C-203",
+    "BIL-J-007"
+   ],
+   "inputs": {
+    "bill": "BIL-X-003 paid: $3,000.00 from trust (2026-10-03) + $2,086.76 card (2026-10-05)",
+    "credit note": "CN-0012, fee reduction $3,500.00 pre-tax, approved under G-B5"
+   },
+   "steps": [
+    "CN tax = rhu(350000 x 55886 / 429890) = $455.00 (proportional to bill tax, BIL-C-203); CN total $3,955.00",
+    "open AR = $0.00, so the whole credit is excess",
+    "excess order: trust-sourced payments first -> Due to trust $3,000.00; then client credit $955.00",
+    "Due to trust is repaid by an operating payment into the trust ledger (receipt, G6) the same day; the client credit is client money and follows BIL-C-067 (apply, refund under G-B6, or move to trust within 5 business days)"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "credit note issued (G-B5)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-4900 Fee adjustments (contra-revenue)",
+       "dr": 350000,
+       "cr": 0
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 45500,
+       "cr": 0
+      },
+      {
+       "account": "OP-2300 Due to trust",
+       "dr": 0,
+       "cr": 300000
+      },
+      {
+       "account": "OP-2200 Client credit (unapplied)",
+       "dr": 0,
+       "cr": 95500
+      }
+     ]
+    },
+    {
+     "book": "operating",
+     "event": "return to trust paid",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-2300 Due to trust",
+       "dr": 300000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 0,
+       "cr": 300000
+      }
+     ]
+    },
+    {
+     "book": "trust",
+     "event": "receipt from firm general account (G6)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "TR-1500 Trust bank (account)",
+       "dr": 300000,
+       "cr": 0
+      },
+      {
+       "account": "TR-2500 Client trust ledger (client, matter)",
+       "dr": 0,
+       "cr": 300000
+      }
+     ]
+    }
+   ],
+   "result": {
+    "cn_total": 395500,
+    "due_to_trust": 300000,
+    "client_credit": 95500
+   }
+  },
+  {
+   "id": "BIL-X-011",
+   "title": "Three credit notes exhaust a bill: the last one takes the tax remainder",
+   "rules": [
+    "BIL-C-203",
+    "BIL-I-014"
+   ],
+   "inputs": {
+    "bill": "taxable base $10.05, HST $1.31",
+    "CN-1, CN-2": "$3.35 pre-tax each",
+    "CN-3": "$3.35 pre-tax (all that remains)"
+   },
+   "steps": [
+    "CN-1 and CN-2 tax = rhu(335 x 131 / 1005 = 43.67) = $0.44 each",
+    "CN-3 computed the same way would be $0.44, giving $1.32 > $1.31; CN-3 credits the whole remaining base, so tax = 1.31 - 0.88 = $0.43",
+    "sum of credited tax = $1.31 = bill tax (BIL-I-014)",
+    "small bill (RV1-014): base 5 c, tax rhu(0.65) = 1 c; credit 3 c pre-tax -> tax rhu(3 x 1 / 5) = 1 c; the credit of the last 2 c takes the remainder 0 c. Rate x credit (rhu(3 x 0.13) = 0) is not used: it lets three 335 c credits on a 131 c bill total 132 c"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "CN-3 issued",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-4900 Fee adjustments (contra-revenue)",
+       "dr": 335,
+       "cr": 0
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 43,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 378
+      }
+     ]
+    }
+   ],
+   "result": {
+    "cn1_tax": 44,
+    "cn2_tax": 44,
+    "cn3_tax": 43,
+    "base5": {
+     "bill_tax": 1,
+     "credit3_tax": 1,
+     "credit2_tax": 0
+    }
+   }
+  },
+  {
+   "id": "BIL-X-012",
+   "title": "Split bill 60/40, cumulative floor for later payers, tax per payer bill",
+   "rules": [
+    "BIL-C-090",
+    "BIL-C-091",
+    "BIL-C-092"
+   ],
+   "inputs": {
+    "lines": "fees $1,000.01; taxable disbursement $33.33",
+    "payers": "Kofi Osei 60% (first), Brightline Staffing 40%"
+   },
+   "steps": [
+    "fees: Brightline = floor(100001 x 400000 / 1e6) - 0 = $400.00; Osei = remainder $600.01",
+    "disb: cumulative 103334; Brightline = floor(103334 x 0.4) - 40000 = $13.33; Osei = $20.00",
+    "Osei bill: base $620.01, HST $80.60, total $700.61",
+    "Brightline bill: base $413.33, HST $53.73, total $467.06",
+    "check: bases sum $1,033.34 = $1,033.34; HST of whole would be $134.33"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "two bills approved (two numbers)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 116767,
+       "cr": 0
+      },
+      {
+       "account": "OP-4000 Fee revenue",
+       "dr": 0,
+       "cr": 100001
+      },
+      {
+       "account": "OP-4010 Cost recovery revenue",
+       "dr": 0,
+       "cr": 3333
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 0,
+       "cr": 13433
+      }
+     ]
+    }
+   ],
+   "result": {
+    "payer_a": {
+     "base": 62001,
+     "hst": 8060
+    },
+    "payer_b": {
+     "base": 41333,
+     "hst": 5373
+    }
+   }
+  },
+  {
+   "id": "BIL-X-013",
+   "title": "Credit-card surcharge 2.4% on an operating bill payment, taxed like the bill (verify)",
+   "rules": [
+    "BIL-C-100",
+    "BIL-C-101",
+    "BIL-C-208",
+    "BIL-J-013"
+   ],
+   "inputs": {
+    "amount applied to bill": "$1,130.00",
+    "card": "Visa credit, Ontario billing address",
+    "firm cost of acceptance": "2.65%",
+    "surcharge setting": "2.40% (24000 ppm) = min(2.40%, 2.65%)",
+    "bill tax lines": "HST 13% only"
+   },
+   "steps": [
+    "surcharge = rhu(113000 x 24000 / 1e6) = $27.12",
+    "surcharge is extra consideration for the taxable supply (verify CRA): HST = rhu(2712 x bill tax 13000 / bill pre-tax 100000) = rhu(352.56) = $3.53, at the paid bill's tax lines (BIL-C-208)",
+    "card charged $1,160.65; same bill paid by debit, wallet, prepaid, Quebec card, or to trust: surcharge 0"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "card payment with surcharge",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1010 Processor clearing",
+       "dr": 116065,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 113000
+      },
+      {
+       "account": "OP-4030 Card surcharge revenue",
+       "dr": 0,
+       "cr": 2712
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 0,
+       "cr": 353
+      }
+     ]
+    }
+   ],
+   "result": {
+    "surcharge": 2712,
+    "surcharge_tax": 353,
+    "charged": 116065
+   }
+  },
+  {
+   "id": "BIL-X-014",
+   "title": "Write-off of an uncollectible balance with HST bad-debt adjustment",
+   "rules": [
+    "BIL-C-085",
+    "BIL-C-205",
+    "BIL-J-009"
+   ],
+   "inputs": {
+    "bill": "fees $1,000.00, HST $130.00, agency disbursement $50.00, total $1,180.00",
+    "paid": "$590.00 (fees first)"
+   },
+   "steps": [
+    "payment: tax share rhu(59000 x 13000 / 118000) = $65.00, pre-tax $525.00 to fees",
+    "open: fee $475.00, dnt $50.00, tax $65.00 = $590.00",
+    "write-off $590.00 under G-B5; HST adjustment = open tax = $65.00; check b2 BIL-T-080: rhu(13000 x 59000 / 118000) = $65.00"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "write-off approved (G-B5)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-6100 Bad debt expense",
+       "dr": 52500,
+       "cr": 0
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 6500,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 59000
+      }
+     ]
+    }
+   ],
+   "result": {
+    "written_off": 59000,
+    "hst_relief": 6500
+   }
+  },
+  {
+   "id": "BIL-X-015",
+   "title": "Refund of client credit to original card",
+   "rules": [
+    "BIL-C-064",
+    "BIL-J-011"
+   ],
+   "inputs": {
+    "client credit": "$955.00 (from BIL-X-010)",
+    "refund": "$955.00 to original card, approved G-B6 by a lawyer not the requester"
+   },
+   "steps": [
+    "refund <= client credit balance and <= captured amount of the original card payment ($2,086.76)",
+    "provider refund idempotency key = refund.id; processor fee not returned by provider stays an expense"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "refund executed",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-2200 Client credit (unapplied)",
+       "dr": 95500,
+       "cr": 0
+      },
+      {
+       "account": "OP-1010 Processor clearing",
+       "dr": 0,
+       "cr": 95500
+      }
+     ]
+    }
+   ],
+   "result": {
+    "client_credit_after": 0
+   }
+  },
+  {
+   "id": "BIL-X-016",
+   "title": "Hybrid matter: flat fee milestone, hourly out-of-scope work, soft cost with markup",
+   "rules": [
+    "BIL-C-030",
+    "BIL-C-031",
+    "BIL-C-041"
+   ],
+   "inputs": {
+    "flat fee": "$3,000.00, milestone 50% on signing",
+    "out-of-scope": "95 min at $300/h, 0.1 h up",
+    "soft cost": "in-house courier $25.00, markup 15% (150000 ppm)"
+   },
+   "steps": [
+    "milestone line = rhu(300000 x 500000 / 1e6) = $1,500.00; in-scope time lines print at $0.00",
+    "out-of-scope: 95 -> 96 min; rhu(96 x 30000 / 60) = $480.00",
+    "markup = rhu(2500 x 150000 / 1e6) = $3.75; soft-cost line = $28.75",
+    "base $2,008.75; HST $261.14; total $2,269.89"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "bill approved",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1290 WIP offset (contra)",
+       "dr": 48000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1200 WIP unbilled time",
+       "dr": 0,
+       "cr": 48000
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 226989,
+       "cr": 0
+      },
+      {
+       "account": "OP-4000 Fee revenue",
+       "dr": 0,
+       "cr": 198000
+      },
+      {
+       "account": "OP-4010 Cost recovery revenue",
+       "dr": 0,
+       "cr": 2875
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 0,
+       "cr": 26114
+      }
+     ]
+    }
+   ],
+   "result": {
+    "total": 226989
+   }
+  },
+  {
+   "id": "BIL-X-017",
+   "title": "Contingency fee on settlement, paid from trust after delivery",
+   "rules": [
+    "BIL-C-032",
+    "BIL-C-033",
+    "BIL-C-050"
+   ],
+   "inputs": {
+    "settlement": "$85,000.00 incl. costs, excl. disbursements and taxes, received into trust",
+    "fee": "25% (250000 ppm) per LSO standard-form agreement",
+    "disbursements": "$1,200.00 agency (already paid from trust)"
+   },
+   "steps": [
+    "fee = rhu(8500000 x 250000 / 1e6) = $21,250.00; cap (BIL-C-033): fee $21,250.00 <= recovery_base $85,000.00: ok",
+    "HST = $2,762.50; bill total due $24,012.50; trust-paid disbursements listed, not in amount due",
+    "trust withdrawal for fees only after delivery, G11"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "bill approved",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 2401250,
+       "cr": 0
+      },
+      {
+       "account": "OP-4000 Fee revenue",
+       "dr": 0,
+       "cr": 2125000
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 0,
+       "cr": 276250
+      }
+     ]
+    },
+    {
+     "book": "trust",
+     "event": "withdrawal for fees, posted at execution",
+     "memo": "",
+     "lines": [
+      {
+       "account": "TR-2500 Client trust ledger (client, matter)",
+       "dr": 2401250,
+       "cr": 0
+      },
+      {
+       "account": "TR-1500 Trust bank (account)",
+       "dr": 0,
+       "cr": 2401250
+      }
+     ]
+    },
+    {
+     "book": "operating",
+     "event": "trust funds received",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 2401250,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 2401250
+      }
+     ]
+    }
+   ],
+   "result": {
+    "fee": 2125000,
+    "hst": 276250
+   }
+  },
+  {
+   "id": "BIL-X-018",
+   "title": "Void of an approved, undelivered bill",
+   "rules": [
+    "BIL-C-084",
+    "BIL-I-006",
+    "BIL-J-012"
+   ],
+   "inputs": {
+    "bill": "2026-0150 approved 2026-10-06, total $1,130.00 (fees $1,000.00, HST $130.00), not delivered"
+   },
+   "steps": [
+    "void allowed: status approved and delivered_at is null; actor billing.approve, not the preparer (G-B2)",
+    "same request on a delivered bill -> 409 bill_delivered_use_credit_note",
+    "number 2026-0150 kept with status void; reversing entry dated void date; time entries back to approved"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "bill voided (reversal of approval entry)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-4000 Fee revenue",
+       "dr": 100000,
+       "cr": 0
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 13000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 113000
+      },
+      {
+       "account": "OP-1200 WIP unbilled time",
+       "dr": 100000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1290 WIP offset (contra)",
+       "dr": 0,
+       "cr": 100000
+      }
+     ]
+    }
+   ],
+   "result": {
+    "number_kept": true
+   }
+  },
+  {
+   "id": "BIL-X-019",
+   "title": "Quebec client: GST and QST as separate lines (verify place of supply)",
+   "rules": [
+    "BIL-C-206"
+   ],
+   "inputs": {
+    "fees": "$2,000.00",
+    "place of supply": "QC (confirmed by lawyer)",
+    "rates": "GST 5.0000% (50000 ppm), QST 9.9750% (99750 ppm)"
+   },
+   "steps": [
+    "GST = rhu(200000 x 0.05) = $100.00",
+    "QST = rhu(200000 x 0.09975 = 19950.0) = $199.50",
+    "total $2,299.50; QST is computed on the pre-GST base (no tax on tax)"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "bill approved",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 229950,
+       "cr": 0
+      },
+      {
+       "account": "OP-4000 Fee revenue",
+       "dr": 0,
+       "cr": 200000
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 0,
+       "cr": 10000
+      },
+      {
+       "account": "OP-2110 QST payable",
+       "dr": 0,
+       "cr": 19950
+      }
+     ]
+    }
+   ],
+   "result": {
+    "gst": 10000,
+    "qst": 19950
+   }
+  },
+  {
+   "id": "BIL-X-020",
+   "title": "Card chargeback reopens the bill; trust untouched",
+   "rules": [
+    "BIL-C-065",
+    "BIL-I-019"
+   ],
+   "inputs": {
+    "payment": "$1,500.00 card of BIL-X-007, disputed 2026-11-20",
+    "chargeback fee": "$15.00"
+   },
+   "steps": [
+    "payment status posted -> reversed; allocations reversed with the same bucket split; bill status partially_paid recomputed from balance",
+    "debit hits primary operating account; for a trust deposit see BIL-X-026 (replenish only the shortfall)"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "chargeback",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 150000,
+       "cr": 0
+      },
+      {
+       "account": "OP-6200 Payment processing fees",
+       "dr": 1500,
+       "cr": 0
+      },
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 0,
+       "cr": 151500
+      }
+     ]
+    }
+   ],
+   "result": {
+    "bill_balance_after": 208676
+   }
+  },
+  {
+   "id": "BIL-X-021",
+   "title": "Duplicate provider webhook is a no-op",
+   "rules": [
+    "BIL-I-020"
+   ],
+   "inputs": {
+    "webhook 1": "provider=stripe-like, event_id=evt_91, payment_intent=pi_7, amount 208676",
+    "webhook 2": "same event_id 30 s later"
+   },
+   "steps": [
+    "insert into payment_event(provider, event_id) unique -> second insert conflicts",
+    "handler returns 200, no new Payment, no journal, audit 'duplicate_ignored'"
+   ],
+   "journal": [],
+   "result": {
+    "payments_created": 1
+   }
+  },
+  {
+   "id": "BIL-X-022",
+   "title": "Apply existing client credit to a later bill",
+   "rules": [
+    "BIL-C-063",
+    "BIL-C-066"
+   ],
+   "inputs": {
+    "client credit": "$240.00 (BIL-X-008)",
+    "new bill": "0155 total $565.00 delivered 2026-11-03"
+   },
+   "steps": [
+    "application needs billing.payments + G-B3 approval; same client only; never across clients",
+    "bill 0155 balance $325.00; credit 0"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "client credit applied",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-2200 Client credit (unapplied)",
+       "dr": 24000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 24000
+      }
+     ]
+    }
+   ],
+   "result": {
+    "bill_balance": 32500
+   }
+  },
+  {
+   "id": "BIL-X-023",
+   "title": "Authorized trust withdrawals reserve the ledger and the bill",
+   "rules": [
+    "BIL-C-050",
+    "BIL-C-051",
+    "BIL-C-053",
+    "BIL-C-054",
+    "BIL-I-010",
+    "BIL-I-011"
+   ],
+   "inputs": {
+    "ledger": "$5,000.00 cleared, protected 0, minimum 0",
+    "request 1": "fee transfer $3,000.00 on bill total $5,086.76",
+    "request 2": "disbursement $3,000.00 authorized while request 1 is not yet executed",
+    "card payment": "$2,500.00 arrives naming the same bill"
+   },
+   "steps": [
+    "authorize request 1 under SELECT ... FOR UPDATE on client_ledger: available = 500000 - 0 - 0 - 0 = 500000 >= 300000 -> authorized",
+    "authorize request 2: available = 500000 - authorized 300000 = $2,000.00 < $3,000.00 -> 409 trust_overdraw",
+    "bill reserved_cents = 300000; card allocation capped at balance - reserved = $2,086.76; excess $413.24 to unapplied, then client credit (G-B3)",
+    "request 1 executed: trust row posted with txn_date = executed_on; bank confirmation later only matches the bank line"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "card payment, capped by reservation (G-B3)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1010 Processor clearing",
+       "dr": 250000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 208676
+      },
+      {
+       "account": "OP-2200 Client credit (unapplied)",
+       "dr": 0,
+       "cr": 41324
+      }
+     ]
+    }
+   ],
+   "result": {
+    "second_authorization": "409 trust_overdraw",
+    "card_allocated": 208676,
+    "card_excess": 41324
+   }
+  },
+  {
+   "id": "BIL-X-024",
+   "title": "Executed fee transfer larger than the bill balance at application",
+   "rules": [
+    "BIL-C-055",
+    "BIL-J-008",
+    "BIL-J-007"
+   ],
+   "inputs": {
+    "transfer": "$3,000.00 executed 2026-10-03",
+    "bill balance at application": "$2,500.00 (credit note issued after authorization)"
+   },
+   "steps": [
+    "apply $2,500.00 to the bill; excess $500.00 is trust money in operating -> OP-2300 Due to trust",
+    "G6 return-to-trust task created the same day; trust receipt from firm general account"
+   ],
+   "journal": [
+    {
+     "book": "trust",
+     "event": "fee transfer posted at execution",
+     "memo": "",
+     "lines": [
+      {
+       "account": "TR-2500 Client trust ledger (client, matter)",
+       "dr": 300000,
+       "cr": 0
+      },
+      {
+       "account": "TR-1500 Trust bank (account)",
+       "dr": 0,
+       "cr": 300000
+      }
+     ]
+    },
+    {
+     "book": "operating",
+     "event": "trust funds applied, excess due to trust",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 300000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 250000
+      },
+      {
+       "account": "OP-2300 Due to trust",
+       "dr": 0,
+       "cr": 50000
+      }
+     ]
+    },
+    {
+     "book": "operating",
+     "event": "return to trust paid",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-2300 Due to trust",
+       "dr": 50000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 0,
+       "cr": 50000
+      }
+     ]
+    },
+    {
+     "book": "trust",
+     "event": "receipt from firm general account (G6)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "TR-1500 Trust bank (account)",
+       "dr": 50000,
+       "cr": 0
+      },
+      {
+       "account": "TR-2500 Client trust ledger (client, matter)",
+       "dr": 0,
+       "cr": 50000
+      }
+     ]
+    }
+   ],
+   "result": {
+    "applied": 250000,
+    "returned_to_trust": 50000
+   }
+  },
+  {
+   "id": "BIL-X-025",
+   "title": "Client credit left untouched becomes a trust exception, then moves to trust",
+   "rules": [
+    "BIL-C-063",
+    "BIL-C-067",
+    "BIL-J-019"
+   ],
+   "inputs": {
+    "client credit": "$240.00 created 2026-10-07 (BIL-X-008)",
+    "setting": "client_credit_max_business_days = 5 (verify By-Law 9)"
+   },
+   "steps": [
+    "deadline = 5 business days after 2026-10-07 = 2026-10-14 (weekends skipped; Ontario statutory holidays also skipped)",
+    "2026-10-15 (6th business day) aging job: credit still open -> exception task 'client money in operating' to the responsible lawyer",
+    "resolution chosen: transfer to trust under G6"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "client credit moved to trust (G6)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-2200 Client credit (unapplied)",
+       "dr": 24000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 0,
+       "cr": 24000
+      }
+     ]
+    },
+    {
+     "book": "trust",
+     "event": "receipt from firm general account (G6)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "TR-1500 Trust bank (account)",
+       "dr": 24000,
+       "cr": 0
+      },
+      {
+       "account": "TR-2500 Client trust ledger (client, matter)",
+       "dr": 0,
+       "cr": 24000
+      }
+     ]
+    }
+   ],
+   "result": {
+    "deadline": "2026-10-14",
+    "exception_on": "2026-10-15"
+   }
+  },
+  {
+   "id": "BIL-X-026",
+   "title": "Bounced trust deposit: replenish only the shortfall",
+   "rules": [
+    "BIL-C-065",
+    "BIL-J-016"
+   ],
+   "inputs": {
+    "case A": "receipt $3,000.00, withdrawal $3,000.00 already posted, cheque returned NSF",
+    "case B": "same receipt, ledger still $5,000.00 (other funds)"
+   },
+   "steps": [
+    "case A: ledger after reversal = 0 - 300000 = -300000 -> in the same DB transaction insert a receipt from the firm general account for 300000 (G6); ledger 0; trust exception opened",
+    "case B: ledger after reversal = 500000 - 300000 = 200000 >= 0 -> reversal only, no replenishment; trust exception opened"
+   ],
+   "journal": [
+    {
+     "book": "trust",
+     "event": "case A: NSF reversal of receipt",
+     "memo": "",
+     "lines": [
+      {
+       "account": "TR-2500 Client trust ledger (client, matter)",
+       "dr": 300000,
+       "cr": 0
+      },
+      {
+       "account": "TR-1500 Trust bank (account)",
+       "dr": 0,
+       "cr": 300000
+      }
+     ]
+    },
+    {
+     "book": "trust",
+     "event": "case A: replenishment receipt from firm general account",
+     "memo": "",
+     "lines": [
+      {
+       "account": "TR-1500 Trust bank (account)",
+       "dr": 300000,
+       "cr": 0
+      },
+      {
+       "account": "TR-2500 Client trust ledger (client, matter)",
+       "dr": 0,
+       "cr": 300000
+      }
+     ]
+    },
+    {
+     "book": "operating",
+     "event": "case A: replenishment paid, receivable from client",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 300000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 0,
+       "cr": 300000
+      }
+     ]
+    }
+   ],
+   "result": {
+    "case_a_replenished": 300000,
+    "case_b_replenished": 0
+   }
+  },
+  {
+   "id": "BIL-X-027",
+   "title": "One-month and 30-day clocks from the Toronto delivery date",
+   "rules": [
+    "BIL-C-070",
+    "BIL-C-073",
+    "BIL-C-122"
+   ],
+   "inputs": {
+    "delivered_at": "2026-11-01T03:30Z (2026-10-31 23:30 Toronto)"
+   },
+   "steps": [
+    "months_after: 2026-01-31 -> 2026-02-28; 2026-03-31 -> 2026-04-30; 2028-01-30 -> 2028-02-29; 2028-02-29 + 12 -> 2029-02-28",
+    "delivery_local_date = delivered_at AT TIME ZONE 'America/Toronto' = 2026-10-31 (not the UTC date 2026-11-01)",
+    "interest accrues for days >= months_after(2026-10-31, 1) = 2026-11-30; suit (s.2) allowed on days > that date, i.e. from 2026-12-01",
+    "30-day windows use days_after, never months_after: 2026-05-01 + 30 = 2026-05-31"
+   ],
+   "journal": [],
+   "result": {
+    "local_date": "2026-10-31",
+    "interest_from": "2026-11-30",
+    "suit_from": "2026-12-01"
+   }
+  },
+  {
+   "id": "BIL-X-028",
+   "title": "Split remainder does not drift to the first payer",
+   "rules": [
+    "BIL-C-091",
+    "BIL-I-018"
+   ],
+   "inputs": {
+    "lines": "200 lines of $1.01",
+    "payers": "A 50% (first), B 50%"
+   },
+   "steps": [
+    "B on line k = floor(cumulative_k x 0.5) - B assigned so far: 50, 51, 50, 51, ...",
+    "totals A $101.00 / B $101.00 (old per-line floor gave $102.00 / $100.00)",
+    "three payers 40/30/30 on lines 1, 1, 1, 300 c: no portion is negative; totals 123 / 90 / 90 (B, C = floor(303 x 0.3))"
+   ],
+   "journal": [],
+   "result": {
+    "payer_a": 10100,
+    "payer_b": 10100
+   }
+  },
+  {
+   "id": "BIL-X-029",
+   "title": "Refund of part of a surcharged card payment returns surcharge and its tax pro rata",
+   "rules": [
+    "BIL-C-102",
+    "BIL-C-208",
+    "BIL-J-011"
+   ],
+   "inputs": {
+    "payment": "BIL-X-013: $1,130.00 + surcharge $27.12 + HST $3.53",
+    "refund": "$565.00 from client credit after a credit note, G-B6"
+   },
+   "steps": [
+    "surcharge refunded = rhu(2712 x 56500 / 113000) = $13.56; its HST = rhu(353 x 56500 / 113000) = rhu(176.5) = $1.77",
+    "card refund = $580.33"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "refund executed (G-B6)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-2200 Client credit (unapplied)",
+       "dr": 56500,
+       "cr": 0
+      },
+      {
+       "account": "OP-4030 Card surcharge revenue",
+       "dr": 1356,
+       "cr": 0
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 177,
+       "cr": 0
+      },
+      {
+       "account": "OP-1010 Processor clearing",
+       "dr": 0,
+       "cr": 58033
+      }
+     ]
+    }
+   ],
+   "result": {
+    "surcharge_refunded": 1356,
+    "tax_refunded": 177,
+    "card_refund": 58033
+   }
+  },
+  {
+   "id": "BIL-X-030",
+   "title": "Payment received after a write-off re-includes tax",
+   "rules": [
+    "BIL-C-086",
+    "BIL-J-018",
+    "BIL-C-205"
+   ],
+   "inputs": {
+    "bill": "BIL-X-014 written off $590.00 (bill total $1,180.00, tax $130.00)",
+    "recovery": "$118.00 received 2027-02-10"
+   },
+   "steps": [
+    "tax part = rhu(11800 x 13000 / 118000) = $13.00; pre-tax part $105.00 reduces bad debt expense",
+    "bill stays written_off; recovered_cents += 11800 (cap: written-off amount); HST report shows +$13.00 in the recovery period (b2 BIL-T-081)"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "recovery after write-off (G-B3)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-1000 Operating bank",
+       "dr": 11800,
+       "cr": 0
+      },
+      {
+       "account": "OP-6100 Bad debt expense",
+       "dr": 0,
+       "cr": 10500
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 0,
+       "cr": 1300
+      }
+     ]
+    }
+   ],
+   "result": {
+    "tax": 1300,
+    "bad_debt_credit": 10500
+   }
+  },
+  {
+   "id": "BIL-X-031",
+   "title": "Void after the bill-date period was filed",
+   "rules": [
+    "BIL-C-084",
+    "BIL-C-123",
+    "BIL-J-012"
+   ],
+   "inputs": {
+    "bill": "approved 2026-09-30, fees $1,000.00, HST $130.00, not delivered",
+    "Q3 return": "filed 2026-10-03",
+    "void": "2026-10-05"
+   },
+   "steps": [
+    "preflight at 2026-09-30 period end raised W-PERIOD-CROSS (approved, undelivered)",
+    "reversal dated 2026-10-05; HST report Q4 shows adjustment -$130.00; Q3 is not reopened",
+    "a void inside the same unfiled period nets to zero in that period"
+   ],
+   "journal": [
+    {
+     "book": "operating",
+     "event": "bill voided 2026-10-05 (reversal of approval entry)",
+     "memo": "",
+     "lines": [
+      {
+       "account": "OP-4000 Fee revenue",
+       "dr": 100000,
+       "cr": 0
+      },
+      {
+       "account": "OP-2100 GST/HST payable",
+       "dr": 13000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1100 AR fees and disbursements",
+       "dr": 0,
+       "cr": 113000
+      },
+      {
+       "account": "OP-1200 WIP unbilled time",
+       "dr": 100000,
+       "cr": 0
+      },
+      {
+       "account": "OP-1290 WIP offset (contra)",
+       "dr": 0,
+       "cr": 100000
+      }
+     ]
+    }
+   ],
+   "result": {
+    "q4_adjustment": -13000
+   }
+  }
+ ]
+}

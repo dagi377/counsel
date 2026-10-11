@@ -1,0 +1,32 @@
+===== Get Started with Grow AI https://help.clio.com/hc/en-us/articles/52130854899099-Get-Started-with-Grow-AI updated 2026-10-02T15:55:23Z
+Grow AI is a set of AI-powered features in Clio Grow that help your firm capture, screen, and convert more leads without adding to your team's workload. Grow AI responds to inquiries across website chat, phone, and email, collecting the information your firm needs. Grow AI can also screen each lead against criteria you set, and can book a consultation when the lead appears to be a good fit for your firm. Every lead Grow AI handles arrives in your Clio Grow lead inbox with a summary and a fit assessment, so your team can pick up where Grow AI left off.
+Understand Grow AI in Clio Grow
+Grow AI includes the following features to support your firm's intake process:
+- 
+24/7 website chat: Engages with leads on your firm's website, answers common questions about your firm, and gathers contact and case details.
+- 
+Email intake: Monitors your connected email inbox for lead inquiries, replies to gather any missing details, and routes each lead to your lead inbox.
+- 
+Voice agent: (Available in US) Answers inbound calls when your team is unavailable, gathers case details, and can book a consultation during the call.
+After intake, Grow AI provides context for you to assess the leads and take next actions.
+- 
+Lead assessment: Analyzes the information a lead provides and produces a fit assessment based on factors such as whether the matter falls within the practice areas your firm takes and whether the lead is located somewhere your firm serves.
+- 
+Conflict checks: Flags potential conflicts of interest for your review.
+- 
+Automated follow-ups: Follows up with leads who have outstanding items, such as an incomplete intake form, an unsigned agreement, or an unbooked consultation.
+Note: Grow AI analyzes lead information in alignment with Clio's established security frameworks and compliance protocols. 
+Grow AI billing
+Grow AI is billed based on results rather than on usage or a flat subscription fee. Your firm is charged a set amount for each matter your firm hires that Grow AI assisted with, and nothing for the leads it screens, replies to, or books that do not convert. New firms start with a free trial covering a number of hired matters, and you can set a monthly hiring target to keep costs predictable.
+Opt out of Grow AI
+Firm administrators can turn off Grow AI for the entire firm. Turning this off immediately removes Grow AI for every user, and administrators can turn access back on at any time with no additional setup. Only administrators can access this setting.
+- In Clio Grow, go to Settings > Account.
+- Click Open AI settings.
+- Toggle off Clio Grow.- Turning off Grow AI does not affect AI access in Clio Manage. Learn more about the settings shared across Clio products in AI Features in Clio Manage.
+Up next
+- 
+Manage Your Grow AI Subscription: Manage your subscription and hiring targets and view a record of everything Grow AI has worked on.
+- 
+Customize Grow AI: Set your intake criteria, appointment booking, frequently asked questions, and languages.
+
+IMGS: []

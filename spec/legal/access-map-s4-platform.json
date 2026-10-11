@@ -1,0 +1,24 @@
+{
+ "platform/email-settings": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk"
+  ],
+  "act": [
+   "owner",
+   "admin",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ }
+}

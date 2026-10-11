@@ -1,0 +1,5860 @@
+{
+ "area": "platform",
+ "title": "Platform: client portal, communications, agent control, reports, closing, settings",
+ "summary": "The firm-wide and client-facing parts of the app. Clients get a portal for messages, shared documents, bills, e-sign and secure upload. Staff get a single communications log fed by a generic mail connector, one approvals inbox for every human gate, an agent audit trail, ask-the-agent chat with citations, and automation settings. Reports, matter closing and archiving, and firm settings (roles, practice areas, integrations, Canadian data residency, export) complete the area.",
+ "screens": [
+  {
+   "id": "client-portal",
+   "name": "Client portal (matter space)",
+   "route": "/portal/:matterId",
+   "who": [
+    "client",
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "One secure place where a client can see their matter, message the firm, get shared documents, pay bills, sign and upload files.",
+   "layout": "Left: list of the client's matters. Centre: tabs for Messages, Documents, Bills, To sign, Upload. Right: a status card (stage, next step, the responsible lawyer, next client-facing date).",
+   "fields": [
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": true,
+     "note": "Only matters where this contact holds a portal role"
+    },
+    {
+     "name": "message.body",
+     "type": "text",
+     "required": true,
+     "note": "Plain text plus attachments; stored in the document store, never in the SQL DB"
+    },
+    {
+     "name": "message.audience",
+     "type": "enum",
+     "required": true,
+     "note": "client-only | client+co-client; joint clients are warned that messages are shared"
+    },
+    {
+     "name": "shared_document",
+     "type": "ref",
+     "required": false,
+     "note": "Read-only copy of a firm document that a staff member or an approved agent action has shared"
+    },
+    {
+     "name": "bill",
+     "type": "ref",
+     "required": false,
+     "note": "Issued bills only; drafts are never visible"
+    },
+    {
+     "name": "pay_method",
+     "type": "enum",
+     "required": false,
+     "note": "card | bank transfer | e-transfer instructions; a retainer request always routes to the trust account"
+    },
+    {
+     "name": "upload",
+     "type": "file",
+     "required": false,
+     "note": "Size and type limits; virus scan; goes to quarantine until it is filed"
+    },
+    {
+     "name": "upload.request",
+     "type": "ref",
+     "required": false,
+     "note": "Links the upload to a document request (for example 'photo ID front/back')"
+    },
+    {
+     "name": "status_card.stage",
+     "type": "enum",
+     "required": false,
+     "note": "Client-safe stage label taken from the stage template"
+    },
+    {
+     "name": "shared_event",
+     "type": "ref",
+     "required": false,
+     "note": "A calendar event (hearing, meeting, signing) the firm chose to show the client; private events never appear"
+    },
+    {
+     "name": "invite",
+     "type": "ref",
+     "required": true,
+     "note": "Per-contact invitation with expiry; the client sets a password and MFA on first sign-in"
+    },
+    {
+     "name": "notice_email",
+     "type": "enum",
+     "required": true,
+     "note": "The email a client gets for each new item says only 'something new is waiting' with a link; it never carries the message text, document or amount"
+    },
+    {
+     "name": "read_receipt",
+     "type": "date",
+     "required": false,
+     "note": "When the client first opened a message, document or bill; shown to staff only"
+    },
+    {
+     "name": "participants",
+     "type": "ref",
+     "required": true,
+     "note": "Every contact who can see this matter space (client, co-client, guardian, client's accountant); each one is listed so staff see the audience before sharing"
+    },
+    {
+     "name": "locale",
+     "type": "enum",
+     "required": false,
+     "note": "en | fr; drives the portal language and notice emails"
+    },
+    {
+     "name": "stage.client_label",
+     "type": "text",
+     "required": false,
+     "note": "Client-facing name and description of each matter stage, per practice area; show_to_client flag; warns when internal shorthand would be shown"
+    },
+    {
+     "name": "history_on_join",
+     "type": "enum",
+     "required": true,
+     "note": "from join date (default) | share history; a participant added later sees only items from their join date unless staff ticks share history (warning for joint or adverse parties)"
+    },
+    {
+     "name": "shared_event.visibility",
+     "type": "enum",
+     "required": false,
+     "note": "attendees_only (default for multi-client portals) | attendees_full_others_limited"
+    },
+    {
+     "name": "show_portal_events",
+     "type": "enum",
+     "required": false,
+     "note": "Staff toggle: read receipts, participant add/remove, sign-in email change, stage changes"
+    },
+    {
+     "name": "secure_link",
+     "type": "ref",
+     "required": false,
+     "note": "One-off document link without a portal account: expiry (default 7 days), optional passcode by text, download log"
+    },
+    {
+     "name": "pending_share",
+     "type": "ref",
+     "required": false,
+     "note": "A file put in a shared folder is not shared automatically; it waits as a pending share for a human (G-PM when agent-proposed)"
+    },
+    {
+     "name": "draft_visibility",
+     "type": "enum",
+     "required": true,
+     "note": "Agent drafts of client updates are visible only to the responsible lawyer and their clerk until sent"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Send message to firm",
+     "by": "human",
+     "gate": "none",
+     "note": "Client sends; the agent triages it into the matter's comms log"
+    },
+    {
+     "name": "Reply with routine status",
+     "by": "agent",
+     "gate": "none",
+     "note": "Only under a pre-approved template ('your bill was issued', 'we received your document'); the template is approved once in Automation settings"
+    },
+    {
+     "name": "Reply with substance or advice",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Drafted by the agent and queued in the Approvals inbox (G-PM)"
+    },
+    {
+     "name": "Share document",
+     "by": "human",
+     "gate": "approve",
+     "note": "If the agent proposes it, the share goes through G-PM; staff can share directly"
+    },
+    {
+     "name": "Request documents",
+     "by": "agent",
+     "gate": "none",
+     "note": "Uses a checklist template (ID, source of funds, records); due dates and polite reminders"
+    },
+    {
+     "name": "Pay bill / fund retainer",
+     "by": "human",
+     "gate": "none",
+     "note": "The payment is matched to the bill or the trust ledger; ambiguous payments go to the billing area's allocation gate"
+    },
+    {
+     "name": "Upload file",
+     "by": "human",
+     "gate": "none",
+     "note": "The agent classifies and files it; low confidence or a possible privilege issue goes to review"
+    },
+    {
+     "name": "Revoke portal access",
+     "by": "human",
+     "gate": "none",
+     "note": "Lawyer or admin; takes effect at once and is logged"
+    },
+    {
+     "name": "Invite contact to portal",
+     "by": "human",
+     "gate": "none",
+     "note": "Staff only; the agent may suggest an invite after engagement is signed"
+    },
+    {
+     "name": "Share calendar event",
+     "by": "human",
+     "gate": "none",
+     "note": "Client-safe title and location only"
+    },
+    {
+     "name": "Resend invitation",
+     "by": "human",
+     "gate": "none",
+     "note": "Old link stops working"
+    },
+    {
+     "name": "Download all shared items",
+     "by": "human",
+     "gate": "none",
+     "note": "Client gets a zip of everything shared with them on that matter"
+    },
+    {
+     "name": "Send secure link",
+     "by": "human",
+     "gate": "none",
+     "note": "Expiring link with download log; G-PM applies when the agent proposes it"
+    },
+    {
+     "name": "Export portal transcript PDF",
+     "by": "human",
+     "gate": "none",
+     "note": "Logged"
+    },
+    {
+     "name": "Confirm pending share",
+     "by": "human",
+     "gate": "approve",
+     "note": "Turns a pending share into a shared document"
+    },
+    {
+     "name": "Add time from portal thread",
+     "by": "human",
+     "gate": "approve",
+     "note": "Proposed time entry with drafted narrative, goes to the timekeeper gate"
+    }
+   ],
+   "agent": "Triages incoming client messages: it answers routine status questions from the matter brief using approved templates, drafts substantive replies for approval, and chases outstanding document requests. It classifies and files uploads, and posts a portal notice when a bill is issued or a signature is needed.",
+   "gate": "A lawyer approves any agent-drafted message that gives advice, contains new facts, or commits the firm to anything, and any agent-proposed document share (G-PM).",
+   "states": [
+    "no portal (not invited)",
+    "invited",
+    "active",
+    "message draft pending approval",
+    "upload quarantined",
+    "upload filed",
+    "access revoked",
+    "matter closed (read-only for 90 days, then hidden)",
+    "read-only (matter closed)",
+    "revoked"
+   ],
+   "edge": [
+    "Joint clients: a message to one client is visible to the other; show a warning and require the audience to be chosen explicitly",
+    "Opposing party or another third party is invited by mistake: block invitations to contacts who hold an adverse role on the matter",
+    "A client forwards their login: use MFA and a one-time link on new devices",
+    "An upload is infected or a type that is not allowed: reject it, tell the client, and store nothing",
+    "Client sends privileged content from an employer's email or device: show a privilege hint at portal sign-up (verify wording with LSO guidance)",
+    "Matter under an ethical wall: staff behind the wall cannot see portal threads",
+    "Client opens the portal from a phone or the mobile web; every tab must work at phone width",
+    "Two portal participants on one matter disagree (separating spouses); the agent flags any share that would reach both and routes it to G-PM",
+    "Notice email bounces: show 'client not notified' on the item and suggest a text or call",
+    "Matter closed: portal turns read-only for a set period, then access ends; client is told in the closing letter",
+    "Stage changes: the client gets a content-free notice; the stage text shown is the approved client label, never the internal name",
+    "A participant is added mid-matter: earlier messages and documents stay hidden unless staff choose to share history",
+    "A bill is re-issued: content-free notice to the client; staff see the bill version history",
+    "Phone-width upload: camera capture with page-edge detection, installable web app with web push and passkeys stand in for a native app"
+   ],
+   "reg": "RPC 3.3 confidentiality. Joint-retainer disclosure, RPC 3.4 (verify). PIPEDA consent and safeguards. Messages that give advice are the lawyer's responsibility (RPC 3.1, 6.1).",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "When",
+     "From",
+     "Subject",
+     "State"
+    ],
+    "rows": [
+     [
+      "2026-10-08 14:12",
+      "Selam Tadesse (client)",
+      "When is my discovery date?",
+      "Auto-answered (template: next date)"
+     ],
+     [
+      "2026-10-08 15:40",
+      "Agent (draft)",
+      "Re: Should I accept the settlement offer?",
+      "Pending approval: Linda Kassim"
+     ],
+     [
+      "2026-10-09 09:03",
+      "Selam Tadesse (client)",
+      "Uploaded: pay-stubs-2025.pdf",
+      "Filed: Financial disclosure"
+     ],
+     [
+      "2026-10-09 11:20",
+      "Ayo Ewebiyi",
+      "Bill #1042 issued",
+      "Delivered"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "esign-request",
+   "name": "E-signature request",
+   "route": "/matters/:id/documents/:docId/sign",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "client",
+    "agent"
+   ],
+   "purpose": "Send an approved document for electronic signature, track who has signed, and keep the signed copy and the signing record on the matter.",
+   "layout": "Top: the document version being signed (it is locked). Left: signers in order, each with a status. Right: an event trail (sent, viewed, signed, declined) plus reminder settings.",
+   "fields": [
+    {
+     "name": "document_version",
+     "type": "ref",
+     "required": true,
+     "note": "Must be a version that has passed its document approval gate (G8 in the lifecycle)"
+    },
+    {
+     "name": "signers",
+     "type": "ref",
+     "required": true,
+     "note": "Contacts with an email address; ordered or parallel"
+    },
+    {
+     "name": "signer.auth",
+     "type": "enum",
+     "required": true,
+     "note": "email link | email + SMS code | portal login"
+    },
+    {
+     "name": "signature_fields",
+     "type": "text",
+     "required": true,
+     "note": "Placed by the agent and checked by staff"
+    },
+    {
+     "name": "expiry",
+     "type": "date",
+     "required": false,
+     "note": "Default 14 days"
+    },
+    {
+     "name": "reminder_cadence",
+     "type": "enum",
+     "required": false,
+     "note": "none | 3 days | weekly"
+    },
+    {
+     "name": "signed_copy",
+     "type": "file",
+     "required": false,
+     "note": "Flattened PDF plus a completion certificate (hashes, timestamps, IP addresses)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Prepare signature fields",
+     "by": "agent",
+     "gate": "none",
+     "note": "Detects signature, initial and date blocks"
+    },
+    {
+     "name": "Send for signature",
+     "by": "human",
+     "gate": "approve",
+     "note": "The approved version is locked; if the content changes, the request is cancelled"
+    },
+    {
+     "name": "Send reminders",
+     "by": "agent",
+     "gate": "G-SK",
+     "note": "Only from a reminder template approved under G-SK; follows the cadence; stops when the document is signed, declined or expired"
+    },
+    {
+     "name": "Void request",
+     "by": "human",
+     "gate": "none",
+     "note": "Logged with a reason"
+    },
+    {
+     "name": "File signed copy",
+     "by": "agent",
+     "gate": "none",
+     "note": "Files the signed copy and moves the matter stage forward (for example, engagement signed lets the matter open)"
+    }
+   ],
+   "agent": "Places the signature fields, picks the signer order from the parties' roles, sends reminders, files the completed copy and certificate, and updates the matter stage or checklist item that was waiting on the signature.",
+   "gate": "A lawyer approves the final text of the document before it is sent (this reuses the document approval gate). Sending is a separate human click.",
+   "states": [
+    "draft",
+    "ready (approved version)",
+    "sent",
+    "partially signed",
+    "completed",
+    "declined",
+    "expired",
+    "voided"
+   ],
+   "edge": [
+    "The document is edited after it was sent: void the request automatically and require approval again",
+    "A signer's email bounces: alert staff and do not retry silently",
+    "A document needs a commissioner, a witness or a wet signature (for example some affidavits or wills): block e-sign and say why (verify which Ontario documents are excluded)",
+    "The client signs on behalf of a corporation: record their signing authority"
+   ],
+   "reg": "Electronic Commerce Act, 2000 (Ontario) excludes some documents, such as wills and powers of attorney (verify current exclusions). Remote commissioning rules (verify). Fee agreement signing ties to SolA and RPC 3.6.",
+   "mock": {
+    "kind": "detail",
+    "columns": [
+     "Signer",
+     "Role",
+     "Auth",
+     "Status",
+     "When"
+    ],
+    "rows": [
+     [
+      "Selam Tadesse",
+      "Client",
+      "Email + SMS",
+      "Signed",
+      "2026-10-03 10:14"
+     ],
+     [
+      "Bereket Holdings Inc. (Kaleab Bereket, CEO)",
+      "Co-client",
+      "Portal",
+      "Viewed",
+      "2026-10-04 08:02"
+     ],
+     [
+      "Linda Kassim",
+      "Lawyer",
+      "Login",
+      "Waiting",
+      ""
+     ]
+    ]
+   }
+  },
+  {
+   "id": "comms-log",
+   "name": "Communications log and mail filing",
+   "route": "/matters/:id/comms  and  /comms/unfiled",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "One timeline per matter of every email, portal message, call and note, plus a firm-wide queue of incoming mail the agent could not file with confidence.",
+   "layout": "Matter view: a filterable timeline (email, portal, call, note, agent action) with a reading pane. Firm view at /comms/unfiled: an inbox of unmatched or low-confidence items, each with the suggested matter and a one-click file action.",
+   "fields": [
+    {
+     "name": "channel",
+     "type": "enum",
+     "required": true,
+     "note": "email | portal | call | meeting | note | sms"
+    },
+    {
+     "name": "direction",
+     "type": "enum",
+     "required": true,
+     "note": "in | out | internal"
+    },
+    {
+     "name": "participants",
+     "type": "ref",
+     "required": true,
+     "note": "Contacts, resolved from addresses or phone numbers"
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": "Empty while the item is unfiled"
+    },
+    {
+     "name": "filing_confidence",
+     "type": "number",
+     "required": false,
+     "note": "Agent score from 0 to 1, with the reasons (thread, sender role, matter number in the subject)"
+    },
+    {
+     "name": "privilege_flag",
+     "type": "enum",
+     "required": false,
+     "note": "none | possible | privileged"
+    },
+    {
+     "name": "summary",
+     "type": "text",
+     "required": false,
+     "note": "Agent summary of the call or email; the user confirms it before it counts as the record"
+    },
+    {
+     "name": "extracted",
+     "type": "text",
+     "required": false,
+     "note": "Proposed deadlines, tasks and time entries; each one is routed to its own gate"
+    },
+    {
+     "name": "body_ref",
+     "type": "ref",
+     "required": true,
+     "note": "Pointer to the content in the document store; the content is never kept in SQL"
+    },
+    {
+     "name": "attachments",
+     "type": "file",
+     "required": false,
+     "note": "Saved to the matter documents with a link back to the message"
+    },
+    {
+     "name": "thread_id",
+     "type": "text",
+     "required": false,
+     "note": "Keeps replies together across email, portal and text"
+    },
+    {
+     "name": "filed_by",
+     "type": "enum",
+     "required": true,
+     "note": "agent | user | mail add-in rule"
+    },
+    {
+     "name": "outgoing_auto_file",
+     "type": "enum",
+     "required": false,
+     "note": "When a user picks a matter before sending, the sent mail files itself"
+    },
+    {
+     "name": "sync_scope",
+     "type": "enum",
+     "required": true,
+     "note": "contacts | contacts_and_staff | everyone; default contacts. Set in email-settings; never-file rules always win over scope"
+    },
+    {
+     "name": "display_subject",
+     "type": "text",
+     "required": false,
+     "note": "Staff-facing rename of a thread; the original subject is kept unchanged"
+    },
+    {
+     "name": "from_inbox",
+     "type": "ref",
+     "required": false,
+     "note": "Compose: which of the user's connected inboxes sends; replies leave through the user's own mailbox so their Sent folder stays true"
+    },
+    {
+     "name": "excluded_tombstone",
+     "type": "text",
+     "required": false,
+     "note": "Hash of the message-id of an item excluded from records, so a re-sync never imports it again"
+    },
+    {
+     "name": "log_filters",
+     "type": "enum",
+     "required": false,
+     "note": "matter | contact | channel | creator | has time | bill id"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Auto-file email to matter",
+     "by": "agent",
+     "gate": "none",
+     "note": "Only above the confidence threshold and when there is no privilege or ethical-wall flag"
+    },
+    {
+     "name": "File manually / correct filing",
+     "by": "human",
+     "gate": "none",
+     "note": "Corrections become training signal for the filing skill"
+    },
+    {
+     "name": "Draft reply",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Client-facing or substantive outbound mail goes to G-OUT"
+    },
+    {
+     "name": "Send reply",
+     "by": "human",
+     "gate": "none",
+     "note": "Before sending, the recipient domains are checked against the matter's parties to catch misdirected mail"
+    },
+    {
+     "name": "Log call",
+     "by": "human",
+     "gate": "none",
+     "note": "Manual, or from a transcript when consent was recorded"
+    },
+    {
+     "name": "Confirm summary",
+     "by": "human",
+     "gate": "approve",
+     "note": "The person who took part in the call confirms the summary is accurate"
+    },
+    {
+     "name": "Propose time entry",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Goes to the timekeeper gate G9 owned by the billing area"
+    },
+    {
+     "name": "Batch file unfiled mail",
+     "by": "human",
+     "gate": "none",
+     "note": "Select several unfiled items and file them to one matter"
+    },
+    {
+     "name": "Split thread across matters",
+     "by": "human",
+     "gate": "none",
+     "note": "One thread discussing two matters; each message filed on its own"
+    },
+    {
+     "name": "Unfile / move",
+     "by": "human",
+     "gate": "none",
+     "note": "Logged; the old matter keeps a tombstone note"
+    },
+    {
+     "name": "Send secure portal link instead",
+     "by": "human",
+     "gate": "none",
+     "note": "When the agent sees sensitive content (ID, banking) in a draft email it suggests moving it to the portal"
+    },
+    {
+     "name": "Exclude from records",
+     "by": "human",
+     "gate": "none",
+     "note": "Removes the item and its stored body from the app without touching the mailbox; keeps a tombstone; the agent proposes a never-file rule for that sender or folder"
+    },
+    {
+     "name": "Compose email",
+     "by": "human",
+     "gate": "none",
+     "note": "New mail, reply-all or forward from inside the app: to/cc/bcc, attachments from matter documents, draft autosave, misdirected-recipient check before send. Agent-drafted substance still goes through G-OUT"
+    },
+    {
+     "name": "Refile thread",
+     "by": "human",
+     "gate": "none",
+     "note": "Moves the whole thread and its attachments to another matter"
+    },
+    {
+     "name": "Export filtered log",
+     "by": "human",
+     "gate": "approve",
+     "note": "CSV of the filtered log; G-EXP above the row threshold or when sent outside the firm"
+    },
+    {
+     "name": "Print / PDF item or thread",
+     "by": "human",
+     "gate": "none",
+     "note": "Logged"
+    },
+    {
+     "name": "Forward to matter address",
+     "by": "human",
+     "gate": "none",
+     "note": "Each matter has an opaque inbound address; only registered user addresses are accepted; original .eml kept; attachments filed after virus scan"
+    }
+   ],
+   "agent": "Pulls mail through the generic mail connector (IMAP/SMTP or a mail API configured as an integration), threads it, matches it to a matter, files the attachments, extracts deadlines, tasks and time, flags possible privilege, and drafts replies. It also summarizes calls when a transcript with recorded consent exists.",
+   "gate": "Outgoing substantive or client-facing email (G-OUT). Call or meeting summaries before they become the record. Deadlines and time entries go to their own gates (G7, G9).",
+   "states": [
+    "unfiled",
+    "auto-filed",
+    "filed (manual)",
+    "draft reply",
+    "reply pending approval",
+    "sent",
+    "summary pending confirmation",
+    "confirmed",
+    "excluded (tombstone)",
+    "compose draft"
+   ],
+   "edge": [
+    "One email concerns two matters: file it to both and record why",
+    "The sender is an adverse party writing directly to the client's lawyer: flag this for the no-contact rule check (RPC 7.2-6, verify)",
+    "Reply-all includes opposing counsel or an unknown domain: hard warning before sending",
+    "The mailbox connector loses auth: banner plus an admin alert; mail that arrives in the gap is backfilled",
+    "Personal email in a lawyer's mailbox: a never-file rule by sender or folder",
+    "Call recorded without consent: the transcript is not ingested",
+    "Email filed to a matter the sender is walled from: block and alert compliance",
+    "Large attachment over the mail size limit: send a portal link instead",
+    "Same email arrives through two users' mailboxes: de-duplicate by message id",
+    "Auto-reply / out-of-office mail: file as noise, never extract deadlines from it",
+    "Sync scope widened or narrowed: the agent shows a preview (N items would be unfiled, M filed) and nothing changes until a human confirms; logged as an agent event",
+    "Attachments of filed mail land in the matter's 'Email attachments' folder with a link back to the message",
+    "Mail sent to a matter inbound address from an unregistered sender: rejected and logged, never filed"
+   ],
+   "reg": "RPC 3.3 confidentiality and misdirected communications. Privilege. One-party consent for recording calls under the Criminal Code s.184 (verify), with firm policy requiring all-party notice. PIPEDA.",
+   "mock": {
+    "kind": "timeline",
+    "columns": [
+     "When",
+     "Channel",
+     "With",
+     "Summary",
+     "Filed by"
+    ],
+    "rows": [
+     [
+      "2026-10-06 09:12",
+      "email in",
+      "R. Haile (opposing counsel)",
+      "Proposes discovery on Nov 18; attaches draft plan",
+      "Agent (0.97)"
+     ],
+     [
+      "2026-10-06 11:30",
+      "call out",
+      "Selam Tadesse",
+      "Client agrees to Nov 18; wants to discuss settlement range",
+      "Meraf Abay (confirmed)"
+     ],
+     [
+      "2026-10-07 16:02",
+      "email out",
+      "R. Haile",
+      "Confirms Nov 18 discovery; plan to follow",
+      "Approved by Linda Kassim"
+     ],
+     [
+      "2026-10-08 08:45",
+      "email in",
+      "unknown@gmail.com",
+      "Asks about a car accident claim",
+      "Unfiled: intake?"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "approvals-inbox",
+   "name": "Approvals inbox",
+   "route": "/approvals",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "Every pending human gate across the firm in one queue, so nothing the agent prepared waits unseen.",
+   "layout": "Left: filters (mine, my team, gate type, matter, due, risk). Centre: queue sorted by due time and risk. Right: a review pane with the agent's output next to its sources, a diff from the last version, and approve, edit, reject and reassign buttons.",
+   "fields": [
+    {
+     "name": "gate_type",
+     "type": "enum",
+     "required": true,
+     "note": "G1 to G14 plus G-PM, G-OUT, G-SK, G-PERM, G-INT, G-EXP"
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": "Empty for firm-level gates (settings, reconciliation)"
+    },
+    {
+     "name": "approver",
+     "type": "ref",
+     "required": true,
+     "note": "A named person; a role is resolved to a person when the item is created"
+    },
+    {
+     "name": "eligible_approvers",
+     "type": "ref",
+     "required": true,
+     "note": "From the role matrix; for example, only a licensee may approve G2, G7, G-B2, G11, G13"
+    },
+    {
+     "name": "due",
+     "type": "date",
+     "required": false,
+     "note": "From the underlying deadline or the SLA set in Automation settings"
+    },
+    {
+     "name": "risk",
+     "type": "enum",
+     "required": true,
+     "note": "low | medium | high; money movement, deadlines and conflicts are always high"
+    },
+    {
+     "name": "payload_ref",
+     "type": "ref",
+     "required": true,
+     "note": "The draft object under review (bill, letter, transfer, deadline)"
+    },
+    {
+     "name": "sources",
+     "type": "ref",
+     "required": true,
+     "note": "Citations: the documents, emails or ledger lines the agent used"
+    },
+    {
+     "name": "decision",
+     "type": "enum",
+     "required": false,
+     "note": "approved | approved with edits | rejected | reassigned"
+    },
+    {
+     "name": "reason",
+     "type": "text",
+     "required": false,
+     "note": "Required when rejecting and for high-risk approvals"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Approve",
+     "by": "human",
+     "gate": "approve",
+     "note": "Step-up re-authentication for money movement and G13/G14"
+    },
+    {
+     "name": "Approve with edits",
+     "by": "human",
+     "gate": "approve",
+     "note": "Edits are stored as a diff and feed the skill evals"
+    },
+    {
+     "name": "Reject with reason",
+     "by": "human",
+     "gate": "approve",
+     "note": "The agent revises using the reason, or the item is closed"
+    },
+    {
+     "name": "Reassign / delegate",
+     "by": "human",
+     "gate": "none",
+     "note": "Only to an eligible approver; vacation delegation is set in Users"
+    },
+    {
+     "name": "Bulk approve",
+     "by": "human",
+     "gate": "approve",
+     "note": "Allowed only for low-risk types (for example, routine time entries); never for money, deadlines or conflicts"
+    },
+    {
+     "name": "Escalate overdue item",
+     "by": "agent",
+     "gate": "none",
+     "note": "Notifies the approver, then their supervisor, as the due time approaches"
+    }
+   ],
+   "agent": "Creates each item with the evidence attached and a one-line 'what changes if you approve'. It orders the queue by deadline risk, chases overdue approvals, and after a decision either carries out the approved action or revises the draft using the rejection reason.",
+   "gate": "This screen is where every gate in the app is decided. The approver must be eligible for the gate type, and an agent can never approve.",
+   "states": [
+    "empty (all clear)",
+    "pending",
+    "in review (locked to one reviewer)",
+    "approved",
+    "approved with edits",
+    "rejected",
+    "superseded (a newer draft replaced it)",
+    "expired"
+   ],
+   "edge": [
+    "The source changed after the draft was made (for example, a new payment arrived): mark the item stale and require a re-draft",
+    "The approver is also the person who will benefit (for example, their own bill write-down): require a second approver (verify firm policy)",
+    "Two reviewers open the same item: soft lock with a takeover option",
+    "The approver leaves the firm: their items are reassigned to their supervisor automatically",
+    "Sole practitioner: the approver and the supervising licensee are the same person; allow it, but still require a reason on high-risk items"
+   ],
+   "reg": "RPC 6.1 supervision: delegated and AI work is approved by a licensee. BL9: only authorized signatories approve trust withdrawals (verify). The audit trail must show who approved what and when.",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "Due",
+     "Gate",
+     "Matter",
+     "What",
+     "Approver",
+     "Risk"
+    ],
+    "rows": [
+     [
+      "Today 17:00",
+      "G7 Deadline",
+      "Tadesse v. Ridgeview Transit",
+      "Statement of defence due 2026-10-21 (RCP 18.01)",
+      "Linda Kassim",
+      "High"
+     ],
+     [
+      "Today",
+      "G11 Trust transfer",
+      "Abay Estate",
+      "$2,486.00 trust to general against Bill #1040",
+      "Linda Kassim",
+      "High"
+     ],
+     [
+      "Tomorrow",
+      "G-OUT Email",
+      "Ewebiyi Holdings purchase",
+      "Reply to vendor's counsel re: closing date",
+      "Yonathan Degu",
+      "Medium"
+     ],
+     [
+      "Oct 14",
+      "G9 Time",
+      "Various",
+      "11 proposed time entries (3.4 h)",
+      "Meraf Abay",
+      "Low"
+     ],
+     [
+      "Oct 15",
+      "G-PERM",
+      "Firm",
+      "Grant Kaleab Bereket access to Real Estate matters",
+      "Linda Kassim",
+      "Medium"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "agent-activity",
+   "name": "Agent activity and audit",
+   "route": "/agent/activity",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "An unalterable record of everything the agent read, drafted, sent or changed, with the human decision that allowed each action.",
+   "layout": "Top: filters (matter, skill, user on whose behalf, action type, date) and a cost meter. Main: an event table. Drill-down: an event detail showing inputs (as references), the output, the tools called, the gate decision and the duration.",
+   "fields": [
+    {
+     "name": "event_id",
+     "type": "text",
+     "required": true,
+     "note": "Monotonic; hash-chained for tamper evidence"
+    },
+    {
+     "name": "at",
+     "type": "datetime",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "skill",
+     "type": "ref",
+     "required": true,
+     "note": "Which automation or skill ran, and its version"
+    },
+    {
+     "name": "on_behalf_of",
+     "type": "ref",
+     "required": true,
+     "note": "The user, or 'firm schedule'"
+    },
+    {
+     "name": "action",
+     "type": "enum",
+     "required": true,
+     "note": "read | draft | file | send | compute | propose | execute-approved"
+    },
+    {
+     "name": "gate_ref",
+     "type": "ref",
+     "required": false,
+     "note": "Approval item and decision, when the action needed one"
+    },
+    {
+     "name": "sources",
+     "type": "ref",
+     "required": false,
+     "note": "Object references only, never content"
+    },
+    {
+     "name": "cost",
+     "type": "money",
+     "required": false,
+     "note": "Model cost per event, rolled up per matter for the firm's internal reporting"
+    },
+    {
+     "name": "outcome",
+     "type": "enum",
+     "required": true,
+     "note": "ok | failed | blocked-by-policy | rolled-back"
+    },
+    {
+     "name": "actor_kind",
+     "type": "enum",
+     "required": true,
+     "note": "agent | human; the feed covers human edits too, so it doubles as the firm change log"
+    },
+    {
+     "name": "change_kind",
+     "type": "enum",
+     "required": false,
+     "note": "created | edited | deleted | exported; filters for deleted and exported"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Filter and export audit",
+     "by": "human",
+     "gate": "none",
+     "note": "CSV/JSON with the hash chain, for an insurer, LSO or an internal review"
+    },
+    {
+     "name": "Pause agent on matter",
+     "by": "human",
+     "gate": "none",
+     "note": "Kill switch per matter or firm-wide; any lawyer may use it"
+    },
+    {
+     "name": "Report a bad output",
+     "by": "human",
+     "gate": "none",
+     "note": "Links to the event and becomes an eval case for that skill"
+    }
+   ],
+   "agent": "Writes the events; it cannot edit or delete them. A daily self-check flags anomalies (an action with no gate where one was required, unusual volume, repeated failures) to the admin.",
+   "gate": "none (read-only), except a firm-wide pause, which needs an admin and is logged.",
+   "states": [
+    "live",
+    "filtered",
+    "paused (matter)",
+    "paused (firm)",
+    "export in progress"
+   ],
+   "edge": [
+    "A user sees events for a matter they are walled from: hide the event and show only its existence to admins",
+    "An event refers to a deleted document: keep the reference and show it as 'destroyed under retention'",
+    "Clock skew between the agent and the server: server time is authoritative"
+   ],
+   "reg": "RPC 6.1 supervision and 3.1 competence when using AI (verify LSO guidance on generative AI). Evidence for an LSO spot audit or a LawPRO claim. The log stores metadata only, never conversation text.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "At",
+     "Matter",
+     "Skill",
+     "Action",
+     "Gate",
+     "Outcome"
+    ],
+    "rows": [
+     [
+      "10-09 09:02",
+      "Tadesse v. Ridgeview Transit",
+      "mail-filing v4",
+      "file",
+      "-",
+      "ok"
+     ],
+     [
+      "10-09 09:03",
+      "Tadesse v. Ridgeview Transit",
+      "deadline-calc v7",
+      "propose",
+      "G7 pending",
+      "ok"
+     ],
+     [
+      "10-09 10:15",
+      "Abay Estate",
+      "trust-transfer v2",
+      "execute-approved",
+      "G11 approved by L. Kassim",
+      "ok"
+     ],
+     [
+      "10-09 11:40",
+      "Ewebiyi Holdings purchase",
+      "reply-draft v3",
+      "send",
+      "G-OUT missing",
+      "blocked-by-policy"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "ask-agent",
+   "name": "Ask the agent (matter chat)",
+   "route": "/matters/:id/ask",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal"
+   ],
+   "purpose": "Ask questions about a matter and get answers that cite the exact documents, emails and ledger lines behind them, or give the agent a goal and watch it plan and run the work step by step, with approval at every regulated step.",
+   "layout": "Chat in the centre. For a goal, a plan card lists the steps before anything runs, then a live step trace with Stop and Redirect. The right panel shows cited sources inline (document snippet, page, link). A scope chip shows what the agent can see on this matter.",
+   "fields": [
+    {
+     "name": "question",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "scope",
+     "type": "enum",
+     "required": true,
+     "note": "this matter | this matter + related matters the user may see; never crosses an ethical wall"
+    },
+    {
+     "name": "answer",
+     "type": "text",
+     "required": true,
+     "note": "Every factual claim carries a citation; unsupported claims are marked 'not found in file'"
+    },
+    {
+     "name": "citations",
+     "type": "ref",
+     "required": true,
+     "note": "Document version + page/span, email id, ledger line"
+    },
+    {
+     "name": "work_request",
+     "type": "ref",
+     "required": false,
+     "note": "When the user asks the agent to do something, a task or draft is created and routed to its gate"
+    },
+    {
+     "name": "plan",
+     "type": "ref",
+     "required": false,
+     "note": "For a goal prompt: the ordered steps the agent proposes, shown before it runs; each step marked 'needs approval' when it files, sends, or moves money"
+    },
+    {
+     "name": "step_trace",
+     "type": "ref",
+     "required": false,
+     "note": "Live list of steps: running, done, waiting for approval, stopped; each step links to its sources and its agent event"
+    },
+    {
+     "name": "step_approval",
+     "type": "enum",
+     "required": false,
+     "note": "Per step: none (internal read or draft) | gate id (G-OUT, G-PM, filing or money gates); the run pauses at that step until the approver decides"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Ask",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Answer with citations",
+     "by": "agent",
+     "gate": "none",
+     "note": "Internal answers only; nothing leaves the firm from this screen"
+    },
+    {
+     "name": "Turn into draft",
+     "by": "human",
+     "gate": "approve",
+     "note": "For example 'draft a status email to the client'; it follows the normal outbound gate"
+    },
+    {
+     "name": "Save answer as note",
+     "by": "human",
+     "gate": "none",
+     "note": "Saved to the matter notes with its citations"
+    },
+    {
+     "name": "Flag wrong answer",
+     "by": "human",
+     "gate": "none",
+     "note": "Becomes an eval case"
+    },
+    {
+     "name": "Run goal",
+     "by": "human",
+     "gate": "none",
+     "note": "User accepts the plan; the agent starts executing internal steps"
+    },
+    {
+     "name": "Approve step",
+     "by": "human",
+     "gate": "approve",
+     "note": "Only at steps marked 'needs approval'; routed to the gate's eligible approver, also visible in the approvals inbox"
+    },
+    {
+     "name": "Stop",
+     "by": "human",
+     "gate": "none",
+     "note": "Halts the run after the current step; nothing pending is sent"
+    },
+    {
+     "name": "Redirect",
+     "by": "human",
+     "gate": "none",
+     "note": "Edit the remaining plan; the agent re-plans from the current step"
+    }
+   ],
+   "agent": "Retrieves from the matter's documents, comms log, calendar and ledgers. It answers only from those sources (plus statute or rule text where the firm has enabled that), cites each claim, and refuses or says 'not in file' rather than guess. For a goal it proposes a step plan, runs internal steps, and stops at each regulated step for a human.",
+   "gate": "none for internal answers and internal steps. Every step that sends, files or moves money pauses for its own gate (G-OUT, G-PM or the area gate).",
+   "states": [
+    "empty (suggestions shown)",
+    "answering",
+    "answered",
+    "answered with gaps",
+    "refused (out of scope / walled)",
+    "plan proposed",
+    "running",
+    "waiting for step approval",
+    "stopped",
+    "completed"
+   ],
+   "edge": [
+    "The question needs facts from a walled matter: refuse without revealing that the matter exists",
+    "Conflicting sources (two different dates in the file): show both with citations and do not pick one",
+    "The user asks for legal research beyond the file: label it clearly as general research, not file fact",
+    "Answer cites a superseded document version: always cite the latest version and note that a superseded one exists",
+    "A step would send, file or move money: the run pauses there; the agent never skips or batches past a regulated step",
+    "User leaves the page mid-run: the run continues with internal steps only and the pending step waits in the approvals inbox"
+   ],
+   "reg": "RPC 3.1 competence: the lawyer verifies AI output before relying on it. Matter data is stored in the Canadian cell; where model inference runs is shown on the data residency panel (integrations-data).",
+   "mock": {
+    "kind": "doc",
+    "columns": [
+     "Q",
+     "A (abridged)",
+     "Citations"
+    ],
+    "rows": [
+     [
+      "When was the claim served?",
+      "Served on Ridgeview Transit on 2026-09-30 by courier.",
+      "Affidavit of Service p.1; email from process server 2026-10-01"
+     ],
+     [
+      "How much is in trust for this client?",
+      "$3,500.00 retainer, nothing applied yet.",
+      "Trust ledger line 2026-09-12"
+     ],
+     [
+      "Did the client approve the settlement range?",
+      "Not found in file. A call on 10-06 mentions a range but gives no figure.",
+      "Call log 2026-10-06"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "automation-settings",
+   "name": "Skills and automation settings",
+   "route": "/settings/automation",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Turn agent skills on or off, set what each may do without asking, choose the approver per gate type, and manage the pre-approved message templates.",
+   "layout": "List of skills grouped by area (intake, deadlines, billing, trust, comms, closing). Each skill opens a detail panel: autonomy level, approver rule, SLA, templates, recent eval score and error rate.",
+   "fields": [
+    {
+     "name": "skill",
+     "type": "ref",
+     "required": true,
+     "note": "For example mail-filing, deadline-calc, bill-draft, trust-match, closing-checklist"
+    },
+    {
+     "name": "enabled",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "autonomy",
+     "type": "enum",
+     "required": true,
+     "note": "suggest only | draft for approval | act within template; regulated skills (trust, conflicts, deadlines) are capped at 'draft for approval'"
+    },
+    {
+     "name": "approver_rule",
+     "type": "enum",
+     "required": true,
+     "note": "responsible lawyer | named user | any licensee in practice group"
+    },
+    {
+     "name": "sla_hours",
+     "type": "number",
+     "required": false,
+     "note": "When to escalate unapproved items"
+    },
+    {
+     "name": "templates",
+     "type": "ref",
+     "required": false,
+     "note": "Pre-approved routine messages the agent may send without a per-message gate; email templates with merge fields (contact, matter, firm), default attachments, scope personal | firm (firm scope admin-only); agent may propose new ones via G-SK"
+    },
+    {
+     "name": "schedule",
+     "type": "text",
+     "required": false,
+     "note": "For scheduled skills (daily trust match, monthly bill run)"
+    },
+    {
+     "name": "practice_areas",
+     "type": "ref",
+     "required": false,
+     "note": "Limit a skill to some practice areas"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Enable / disable skill",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-SK: a licensee approves any increase in autonomy"
+    },
+    {
+     "name": "Approve routine template",
+     "by": "human",
+     "gate": "approve",
+     "note": "Once approved, the agent can send that template without a per-message gate"
+    },
+    {
+     "name": "Recommend settings",
+     "by": "agent",
+     "gate": "approve",
+     "note": "For example, suggests auto-filing at confidence 0.95 based on correction history"
+    },
+    {
+     "name": "Run skill eval",
+     "by": "human",
+     "gate": "none",
+     "note": "Replays recent cases, including rejected drafts, to score a new skill version"
+    }
+   ],
+   "agent": "Suggests autonomy and threshold changes from the approve/reject history and flags skills whose error rate is rising. It cannot change any setting itself.",
+   "gate": "G-SK: a lawyer (or admin who is a licensee) approves enabling a skill, raising its autonomy, and each routine message template.",
+   "states": [
+    "default (all draft-for-approval)",
+    "customized",
+    "change pending approval",
+    "skill disabled",
+    "skill degraded (eval below threshold)"
+   ],
+   "edge": [
+    "A new skill version scores lower on evals: keep the old version pinned until someone approves the change",
+    "A template is edited after approval: it reverts to unapproved",
+    "Attempt to set trust or conflict skills to 'act': this is blocked in the UI and on the server"
+   ],
+   "reg": "RPC 6.1 supervision. Hard floors on autonomy for BL9 trust actions, RPC 3.4 conflicts, and limitation deadlines.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Skill",
+     "Autonomy",
+     "Approver",
+     "SLA",
+     "Eval"
+    ],
+    "rows": [
+     [
+      "Mail filing",
+      "Act (>= 0.95 confidence)",
+      "-",
+      "-",
+      "98%"
+     ],
+     [
+      "Client status replies",
+      "Act within template",
+      "Responsible lawyer (templates)",
+      "-",
+      "96%"
+     ],
+     [
+      "Deadline calculation",
+      "Draft for approval (capped)",
+      "Responsible lawyer",
+      "4 h",
+      "99%"
+     ],
+     [
+      "Trust transfer prep",
+      "Draft for approval (capped)",
+      "Linda Kassim",
+      "24 h",
+      "100%"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "reports",
+   "name": "Reports dashboard",
+   "route": "/reports",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "Firm health at a glance (money, work, deadlines, compliance, agent performance) plus plain-language questions over the firm's data.",
+   "layout": "A row of KPI tiles. A grid of charts: WIP and unbilled, aged receivables, trust exceptions, upcoming deadlines, matters by stage, agent approvals and rejection rate. A question bar ('ask about firm data'). A scheduled-digest list.",
+   "fields": [
+    {
+     "name": "period",
+     "type": "enum",
+     "required": true,
+     "note": "month | quarter | fiscal year | custom"
+    },
+    {
+     "name": "filters",
+     "type": "ref",
+     "required": false,
+     "note": "Lawyer, practice area, matter stage"
+    },
+    {
+     "name": "report",
+     "type": "enum",
+     "required": true,
+     "note": "WIP | aged AR | collections | trust listing | trust exceptions | deadlines next 30 d | matter pipeline | productivity | agent performance | LSO annual-report helper"
+    },
+    {
+     "name": "schedule",
+     "type": "ref",
+     "required": false,
+     "note": "Structured: cadence (daily | weekly on chosen days | monthly every N, 1-12), time, start date, end date (default 12 months), format, internal recipients; reminder before it expires"
+    },
+    {
+     "name": "recipients",
+     "type": "ref",
+     "required": false,
+     "note": "Internal users only; external recipients need G-EXP"
+    },
+    {
+     "name": "preset",
+     "type": "ref",
+     "required": false,
+     "note": "Saved combination of report and filters; personal or shared with the firm"
+    },
+    {
+     "name": "format",
+     "type": "enum",
+     "required": true,
+     "note": "screen | PDF | CSV | XLSX"
+    },
+    {
+     "name": "history",
+     "type": "ref",
+     "required": false,
+     "note": "Every run is kept (who, when, filters, row count) and can be re-downloaded for 90 days"
+    },
+    {
+     "name": "payment_allocation_basis",
+     "type": "enum",
+     "required": false,
+     "note": "Shows which allocation method (set in billing) the money figures use; changing it never rewrites past runs"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Ask a question",
+     "by": "human",
+     "gate": "none",
+     "note": "The agent answers with the query and the rows it used, so the result can be checked"
+    },
+    {
+     "name": "Schedule digest",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Export report",
+     "by": "human",
+     "gate": "none",
+     "note": "CSV/PDF; exports are logged"
+    },
+    {
+     "name": "Send to external (auditor, LSO, insurer)",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-EXP"
+    },
+    {
+     "name": "Weekly risk digest",
+     "by": "agent",
+     "gate": "none",
+     "note": "Covers stale matters, unapproved deadlines, trust anomalies and overdue approvals"
+    },
+    {
+     "name": "Open report catalogue",
+     "by": "human",
+     "gate": "none",
+     "note": "Full list of reports at /reports/catalogue"
+    },
+    {
+     "name": "Save preset",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Re-run from history",
+     "by": "human",
+     "gate": "none",
+     "note": "Same filters, current data; old output kept unchanged"
+    }
+   ],
+   "agent": "Builds the scheduled digests, explains changes in plain words, and answers questions with the underlying data shown. It drafts the trust and financial answers for the LSO annual report for the lawyer to review.",
+   "gate": "none for internal views. G-EXP for any report sent outside the firm, including LSO filings.",
+   "states": [
+    "loading",
+    "no data yet (new firm)",
+    "ready",
+    "stale (sync lag)",
+    "export pending approval"
+   ],
+   "edge": [
+    "Walled matters are excluded from staff totals, and the screen says that totals are partial",
+    "Figures change after a month is closed: show a restated badge",
+    "A question needs data the user may not see: answer only with permitted rows",
+    "Two reports disagree because they count differently (billed vs. collected date); every figure has a definition link",
+    "Report contains client names and is scheduled to a departed user: schedule pauses when the recipient is deactivated",
+    "A schedule reaches its end date: the owner gets a renewal reminder a week before; nothing is sent after expiry"
+   ],
+   "reg": "Trust reports support BL9 and the LSO annual report (verify the fields the current report asks for). PIPEDA: minimize personal data in exports.",
+   "mock": {
+    "kind": "dashboard",
+    "columns": [
+     "KPI",
+     "Value",
+     "Change"
+    ],
+    "rows": [
+     [
+      "Unbilled WIP",
+      "$48,320",
+      "+12% vs Sep"
+     ],
+     [
+      "AR over 60 days",
+      "$9,870",
+      "-5%"
+     ],
+     [
+      "Trust exceptions",
+      "1 (unmatched deposit $500)",
+      "new"
+     ],
+     [
+      "Deadlines next 14 days",
+      "7 (1 unconfirmed)",
+      ""
+     ],
+     [
+      "Agent drafts approved without edits",
+      "81%",
+      "+4 pts"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "matter-closing",
+   "name": "Matter closing",
+   "route": "/matters/:id/close",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Close a matter properly: final bill, trust at zero, closing letter, originals returned, and a retention date set.",
+   "layout": "A checklist on the left with blocking items marked. The right panel shows the evidence for the selected item (ledger, bill, letter draft). A 'Close matter' button stays disabled until every blocking item is green.",
+   "fields": [
+    {
+     "name": "work_complete",
+     "type": "bool",
+     "required": true,
+     "note": "Lawyer confirms; open tasks and future events are listed"
+    },
+    {
+     "name": "final_bill",
+     "type": "ref",
+     "required": true,
+     "note": "Issued, or 'no final bill' with a reason"
+    },
+    {
+     "name": "ar_balance",
+     "type": "money",
+     "required": true,
+     "note": "Must be zero or written off through the write-off gate"
+    },
+    {
+     "name": "trust_balance",
+     "type": "money",
+     "required": true,
+     "note": "BLOCKING: must be exactly $0.00 per client ledger on this matter"
+    },
+    {
+     "name": "trust_disposition",
+     "type": "enum",
+     "required": false,
+     "note": "applied to final bill | refunded to client | paid to third party per direction | unclaimed process"
+    },
+    {
+     "name": "closing_letter",
+     "type": "ref",
+     "required": true,
+     "note": "Reports the outcome, ends the retainer, returns documents and states any ongoing deadlines the client must watch"
+    },
+    {
+     "name": "originals_returned",
+     "type": "enum",
+     "required": true,
+     "note": "none held | returned (with receipt) | held at client request"
+    },
+    {
+     "name": "undertakings_open",
+     "type": "bool",
+     "required": true,
+     "note": "BLOCKING when true (for example, real estate undertakings)"
+    },
+    {
+     "name": "retention_class",
+     "type": "enum",
+     "required": true,
+     "note": "From the practice-area policy (for example, standard 7 years, minors until age of majority + limitation, wills indefinite)"
+    },
+    {
+     "name": "destroy_after",
+     "type": "date",
+     "required": true,
+     "note": "Computed from the class and the close date; the lawyer can extend it"
+    },
+    {
+     "name": "close_reason",
+     "type": "enum",
+     "required": true,
+     "note": "completed | client terminated | firm withdrew | transferred to other lawyer | no engagement"
+    },
+    {
+     "name": "open_tasks",
+     "type": "number",
+     "required": true,
+     "note": "Open work items and future calendar events; each must be done, cancelled or moved"
+    },
+    {
+     "name": "unbilled_wip",
+     "type": "money",
+     "required": true,
+     "note": "Time and expenses not yet billed; bill or write off before close"
+    },
+    {
+     "name": "recurring_bills",
+     "type": "ref",
+     "required": false,
+     "note": "Any repeating bill or payment plan; must be stopped"
+    },
+    {
+     "name": "portal_after_close",
+     "type": "enum",
+     "required": true,
+     "note": "read-only for N days | end now"
+    },
+    {
+     "name": "limitation_watch",
+     "type": "date",
+     "required": false,
+     "note": "A date that keeps running after close (appeal period, limitation on a related claim); stays on the firm calendar"
+    },
+    {
+     "name": "closed_on",
+     "type": "date",
+     "required": true,
+     "note": "Set at close; used by retention and by closed-matter reports"
+    },
+    {
+     "name": "pending_close",
+     "type": "enum",
+     "required": false,
+     "note": "Status between open and closed while the checklist runs"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Run closing checklist",
+     "by": "agent",
+     "gate": "none",
+     "note": "Pre-fills every item with evidence"
+    },
+    {
+     "name": "Prepare final bill",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Billing area gate G-B2"
+    },
+    {
+     "name": "Prepare trust refund / transfer",
+     "by": "agent",
+     "gate": "approve",
+     "note": "G11/G13; no money moves without lawyer authorization"
+    },
+    {
+     "name": "Draft closing letter",
+     "by": "agent",
+     "gate": "approve",
+     "note": "G13"
+    },
+    {
+     "name": "Set retention",
+     "by": "agent",
+     "gate": "approve",
+     "note": "G13"
+    },
+    {
+     "name": "Close matter",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Lawyer sign-off. Locks billing, disables the portal for new uploads, stops the agent's active skills"
+    },
+    {
+     "name": "Reopen matter",
+     "by": "human",
+     "gate": "approve",
+     "note": "Logged with a reason; a new conflict check is needed if the scope changes"
+    },
+    {
+     "name": "Bulk close",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Several matters at once; each still runs its checklist and any failing item blocks only that matter"
+    },
+    {
+     "name": "Move to pending close",
+     "by": "agent",
+     "gate": "none",
+     "note": "When the last stage finishes or no activity for N days"
+    },
+    {
+     "name": "Cancel future events and tasks",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Listed for the lawyer to confirm in the closing gate"
+    }
+   ],
+   "agent": "Starts the checklist when the matter reaches its 'concluded' stage or has had no activity for N days. It gathers evidence, drafts the final bill, the trust refund and the closing letter, lists open undertakings and future events, and proposes the retention class.",
+   "gate": "G13: the lawyer approves the trust disposition, the closing letter and the retention schedule, then signs off the close. The server refuses to close while any trust ledger for the matter is not $0.00 or an undertaking is open.",
+   "states": [
+    "open",
+    "closing (checklist in progress)",
+    "blocked (trust not zero / undertaking open / AR)",
+    "ready to close",
+    "closed",
+    "archived",
+    "reopened",
+    "pending close"
+   ],
+   "edge": [
+    "The client cannot be found to refund trust: use the unclaimed-trust process (Ontario has an LSO unclaimed trust fund program; verify the timing and steps)",
+    "Small residual trust balance (cents): still must be refunded or dealt with, never written off to general",
+    "Several clients on one matter: each ledger must be zero",
+    "The client disputes the final bill: the matter cannot close while an assessment under the Solicitors Act is pending (verify)",
+    "Withdrawal before completion: closing follows the RPC 3.7 steps (notice, file transfer to new counsel)",
+    "Matter has unbilled time but the client has paid in full: the lawyer chooses bill or write off, the write off is recorded with a reason",
+    "Closed matter is read-only; a late invoice from a vendor requires reopening, which is logged with a reason",
+    "Client dies or loses capacity mid-file: closing letter goes to the estate trustee or attorney (verify procedure)",
+    "Stale matters (no activity for 12 months) are listed for closing review, never closed automatically"
+   ],
+   "reg": "BL9 trust must be cleared and records kept 10 years (verify). Unclaimed trust funds go to the LSO under the Law Society Act s.59.6 (verify). RPC 3.7 withdrawal. The client owns some file contents: return originals (verify LSO file ownership guidance).",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Checklist item",
+     "Status",
+     "Evidence"
+    ],
+    "rows": [
+     [
+      "Final bill issued",
+      "Done",
+      "Bill #1051, 2026-10-02"
+     ],
+     [
+      "AR balance $0.00",
+      "Done",
+      "Paid 2026-10-07"
+     ],
+     [
+      "Trust balance $0.00",
+      "BLOCKED: $214.50",
+      "Refund to Selam Tadesse drafted (G13 pending)"
+     ],
+     [
+      "Closing letter",
+      "Draft",
+      "Awaiting Linda Kassim"
+     ],
+     [
+      "Retention",
+      "Proposed",
+      "Civil litigation: destroy after 2033-10-31"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "archive-retention",
+   "name": "Archive and retention",
+   "route": "/archive",
+   "who": [
+    "lawyer",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Find closed files, place legal holds, and approve destruction when the retention period expires.",
+   "layout": "Table of closed matters with retention class, destroy-after date and hold flag. A tab for 'Due for destruction' shows a batch list and a review pane listing what will be kept (trust records, ID records, signed retainers) versus destroyed.",
+   "fields": [
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "closed_on",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "retention_class",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "destroy_after",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "legal_hold",
+     "type": "bool",
+     "required": true,
+     "note": "Suspends destruction (for example, a claim or a complaint)"
+    },
+    {
+     "name": "keep_set",
+     "type": "text",
+     "required": true,
+     "note": "Record types kept regardless: trust records, BL7.1 ID records, conflict data, closing letter, destruction certificate"
+    },
+    {
+     "name": "destruction_certificate",
+     "type": "file",
+     "required": false,
+     "note": "Lists what was destroyed, when, how, and who approved it"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Search archive",
+     "by": "human",
+     "gate": "none",
+     "note": "Read-only; access is logged"
+    },
+    {
+     "name": "Place / lift legal hold",
+     "by": "human",
+     "gate": "approve",
+     "note": "A lawyer lifts a hold"
+    },
+    {
+     "name": "Propose destruction batch",
+     "by": "agent",
+     "gate": "approve",
+     "note": "G14; monthly"
+    },
+    {
+     "name": "Destroy",
+     "by": "agent",
+     "gate": "sign-off",
+     "note": "Runs only after G14; crypto-shreds the files, keeps the metadata and the certificate"
+    },
+    {
+     "name": "Return file to client / transfer",
+     "by": "human",
+     "gate": "approve",
+     "note": "Exports the file through the portal or a secure link"
+    }
+   ],
+   "agent": "Monthly, it lists files past their destroy-after date, checks for holds, newer related matters, minors and open claims, and drafts a destruction batch with the keep-set it will leave behind.",
+   "gate": "G14: a lawyer approves each destruction batch and may remove items from it. Lifting a legal hold also needs a lawyer.",
+   "states": [
+    "archived",
+    "on hold",
+    "due for destruction",
+    "destruction pending approval",
+    "destroyed (metadata + certificate only)"
+   ],
+   "edge": [
+    "A file is due but a related matter is still open: auto-hold and note why",
+    "The client was a minor: the retention date is pushed past the age of majority plus the limitation period (verify)",
+    "Backup copies: destruction must cover backups within the backup cycle, and the certificate states that",
+    "Trust records inside a file due for destruction: keep them for the BL9 period (verify 10 years)"
+   ],
+   "reg": "LSO has no single fixed file-retention period; firms set policy with the 15-year ultimate limitation (Limitations Act, 2002 s.15) in mind (verify). BL9 and BL7.1 record retention (verify periods). PIPEDA: do not keep personal information longer than needed.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Matter",
+     "Closed",
+     "Class",
+     "Destroy after",
+     "Hold"
+    ],
+    "rows": [
+     [
+      "Bekele residential purchase",
+      "2018-06-30",
+      "Real estate 7 y",
+      "2025-06-30",
+      "No (due)"
+     ],
+     [
+      "Mekonnen v. Brightline",
+      "2019-02-14",
+      "Civil lit. 7 y",
+      "2026-02-14",
+      "Yes: LawPRO notice"
+     ],
+     [
+      "Haile wills",
+      "2020-03-01",
+      "Wills: indefinite",
+      "-",
+      "No"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "users-roles",
+   "name": "Users, roles and permissions",
+   "route": "/settings/users",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Manage who works in the firm, what each role can see and do, which gates each person may approve, and ethical walls.",
+   "layout": "Tabs: Users (table), Roles (permission matrix: rows = permissions, columns = roles), Ethical walls (matter-to-user exclusions), Delegation (out-of-office approvers).",
+   "fields": [
+    {
+     "name": "user.name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "user.email",
+     "type": "text",
+     "required": true,
+     "note": "Sign-in via the firm's OIDC provider or password + MFA"
+    },
+    {
+     "name": "user.licence",
+     "type": "enum",
+     "required": true,
+     "note": "lawyer | paralegal licensee | non-licensee; with the LSO number (verify field format)"
+    },
+    {
+     "name": "user.role",
+     "type": "ref",
+     "required": true,
+     "note": "Built-in: Lawyer, Paralegal, Clerk, Bookkeeper, Admin; plus custom roles"
+    },
+    {
+     "name": "user.supervisor",
+     "type": "ref",
+     "required": false,
+     "note": "Required for non-licensees (RPC 6.1)"
+    },
+    {
+     "name": "role.permissions",
+     "type": "enum",
+     "required": true,
+     "note": "View/edit per module; separate rights to approve each gate type; trust signing authority is its own permission"
+    },
+    {
+     "name": "wall",
+     "type": "ref",
+     "required": false,
+     "note": "Matter + excluded users + reason + date"
+    },
+    {
+     "name": "delegate",
+     "type": "ref",
+     "required": false,
+     "note": "Approver during an absence; must be eligible"
+    },
+    {
+     "name": "mfa",
+     "type": "bool",
+     "required": true,
+     "note": "Mandatory for all users"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Invite user",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-PERM"
+    },
+    {
+     "name": "Change role / permission",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-PERM; a lawyer must approve granting trust or conflict rights"
+    },
+    {
+     "name": "Create ethical wall",
+     "by": "human",
+     "gate": "none",
+     "note": "Takes effect at once; removing one needs approval"
+    },
+    {
+     "name": "Deactivate user",
+     "by": "human",
+     "gate": "none",
+     "note": "Immediate; their approvals and tasks are reassigned"
+    },
+    {
+     "name": "Access review",
+     "by": "agent",
+     "gate": "none",
+     "note": "Quarterly report: dormant accounts, over-broad roles, non-licensees without supervisors, walls on closed matters"
+    }
+   ],
+   "agent": "Runs the quarterly access review and flags risky grants, for example a non-licensee with trust approval rights. It proposes fixes as G-PERM items and never changes access itself.",
+   "gate": "G-PERM: a lawyer (or admin who is a licensee) approves new users, role changes and the removal of an ethical wall. Trust signing authority needs approval from a lawyer who already holds it.",
+   "states": [
+    "invited",
+    "active",
+    "suspended",
+    "deactivated",
+    "change pending approval"
+   ],
+   "edge": [
+    "The last admin tries to remove themselves: blocked",
+    "A non-licensee is given approval rights for a licensee-only gate: blocked on the server",
+    "A user joins from a firm where they acted for an adverse party: they are prompted to raise a conflict and a wall (RPC 3.4 lateral hires, verify)",
+    "The agent's own service identity appears in the list as a non-human principal with fixed, non-editable rights"
+   ],
+   "reg": "RPC 6.1 supervision and delegation. RPC 3.4 lateral-hire conflicts and screens (verify). BL9 limits who can authorize trust withdrawals (verify signing authority rules).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "User",
+     "Role",
+     "Licence",
+     "Supervisor",
+     "Can approve"
+    ],
+    "rows": [
+     [
+      "Linda Kassim",
+      "Lawyer (principal)",
+      "Lawyer",
+      "-",
+      "All gates, trust signing"
+     ],
+     [
+      "Yonathan Degu",
+      "Lawyer",
+      "Lawyer",
+      "-",
+      "All except firm settings"
+     ],
+     [
+      "Meraf Abay",
+      "Paralegal",
+      "Paralegal licensee",
+      "Linda Kassim",
+      "G9 time, G-PM routine"
+     ],
+     [
+      "Ayo Ewebiyi",
+      "Clerk / Bookkeeper",
+      "Non-licensee",
+      "Linda Kassim",
+      "None (prepares only)"
+     ],
+     [
+      "Yohannes Sinke",
+      "Admin",
+      "Non-licensee",
+      "Linda Kassim",
+      "None"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "firm-profile",
+   "name": "Firm profile and practice areas",
+   "route": "/settings/firm",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Firm identity, billing and tax defaults, matter numbering, and the practice areas that drive templates, stage workflows, retention classes and skills.",
+   "layout": "Sections: Firm details, Bank and trust accounts (reference only, no credentials), Billing and tax defaults, Matter numbering, Practice areas (list, each opens its stage template, checklists, retention class, default skills).",
+   "fields": [
+    {
+     "name": "firm_name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "address",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "lso_firm_number",
+     "type": "text",
+     "required": false,
+     "note": "(verify whether the LSO issues firm-level numbers)"
+    },
+    {
+     "name": "hst_number",
+     "type": "text",
+     "required": true,
+     "note": "Shown on bills"
+    },
+    {
+     "name": "trust_accounts",
+     "type": "ref",
+     "required": true,
+     "note": "Bank, transit and last 4 digits; mixed vs separate interest-bearing"
+    },
+    {
+     "name": "general_account",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "fiscal_year_end",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "matter_number_format",
+     "type": "text",
+     "required": true,
+     "note": "For example YY-#### or client.matter"
+    },
+    {
+     "name": "default_rates",
+     "type": "money",
+     "required": false,
+     "note": "Per user and per practice area"
+    },
+    {
+     "name": "practice_area",
+     "type": "ref",
+     "required": true,
+     "note": "Name, stage template, intake questions, closing checklist, retention class, enabled skills"
+    },
+    {
+     "name": "letterhead",
+     "type": "file",
+     "required": false,
+     "note": "Used by every generated document"
+    },
+    {
+     "name": "logo",
+     "type": "file",
+     "required": false,
+     "note": "Used on bills, letters, the portal and notice emails"
+    },
+    {
+     "name": "time_zone",
+     "type": "enum",
+     "required": true,
+     "note": "Firm default; deadline maths uses it"
+    },
+    {
+     "name": "currency",
+     "type": "enum",
+     "required": true,
+     "note": "CAD; fixed in v1"
+    },
+    {
+     "name": "language_defaults",
+     "type": "enum",
+     "required": false,
+     "note": "en | fr for client-facing output"
+    },
+    {
+     "name": "custom_fields",
+     "type": "ref",
+     "required": false,
+     "note": "Firm-defined fields for matters and contacts (text, date, money, pick-list, contact ref); see matters area for use"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Edit firm details",
+     "by": "human",
+     "gate": "none",
+     "note": "Logged"
+    },
+    {
+     "name": "Add trust account",
+     "by": "human",
+     "gate": "approve",
+     "note": "A lawyer with trust signing authority approves"
+    },
+    {
+     "name": "Add / edit practice area",
+     "by": "human",
+     "gate": "none",
+     "note": "A changed retention class applies only to matters closed after the change"
+    },
+    {
+     "name": "Suggest practice area setup",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Proposes stages, checklist and retention for a new area (for example Ontario real estate)"
+    },
+    {
+     "name": "Manage custom fields",
+     "by": "human",
+     "gate": "none",
+     "note": "Add, rename, retire; a retired field keeps its history"
+    }
+   ],
+   "agent": "Drafts practice-area templates (stages, intake questions, closing checklist, retention class) from firm precedents and checks that every practice area has a retention class and closing checklist.",
+   "gate": "Adding or changing a trust account. Agent-proposed practice area templates before they apply.",
+   "states": [
+    "incomplete (onboarding)",
+    "complete",
+    "change pending approval"
+   ],
+   "edge": [
+    "Matter numbering changes mid-year: existing numbers are kept and a cut-over date is recorded",
+    "A practice area is deleted while it still has open matters: blocked; archive the area instead",
+    "Trust account closed at the bank: the account is kept read-only for the retention period"
+   ],
+   "reg": "BL9 requires trust accounts to be designated as trust (verify naming rules). HST registration shown on bills (Excise Tax Act, verify).",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Practice area",
+     "Stages",
+     "Retention",
+     "Skills on"
+    ],
+    "rows": [
+     [
+      "Civil litigation",
+      "Intake, Pleadings, Discovery, Mediation, Trial, Closed",
+      "7 y after close",
+      "deadline-calc, mail-filing, bill-draft"
+     ],
+     [
+      "Real estate",
+      "Intake, Due diligence, Closing, Post-closing, Closed",
+      "10 y (verify)",
+      "undertaking-tracker, trust-match"
+     ],
+     [
+      "Wills and estates",
+      "Intake, Drafting, Signing, Stored",
+      "Indefinite while will held",
+      "esign blocked for wills"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "integrations-data",
+   "name": "Integrations, data residency and export",
+   "route": "/settings/integrations",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Connect outside systems through generic connectors, show where the firm's data lives, and export or hand over all firm data.",
+   "layout": "Three tabs. Connectors: cards per connector type (mail, calendar, accounting, bank feed, e-sign, storage) with status and scopes. Data residency: a fixed panel showing the cell region (Canada), sub-processors and their regions. Export: full or per-matter export jobs.",
+   "fields": [
+    {
+     "name": "connector_type",
+     "type": "enum",
+     "required": true,
+     "note": "mail (IMAP/SMTP or mail API) | calendar (CalDAV or calendar API) | accounting | bank feed | storage | e-sign"
+    },
+    {
+     "name": "scopes",
+     "type": "enum",
+     "required": true,
+     "note": "What the app may read and write; least privilege by default"
+    },
+    {
+     "name": "credential",
+     "type": "secret",
+     "required": true,
+     "note": "Held in the vault; never shown, logged or exported"
+    },
+    {
+     "name": "sync_status",
+     "type": "enum",
+     "required": true,
+     "note": "ok | lagging | auth expired | error"
+    },
+    {
+     "name": "data_region",
+     "type": "enum",
+     "required": true,
+     "note": "Read-only: storage region ca-central (Canada). Inference region is a separate field and may differ"
+    },
+    {
+     "name": "sub_processors",
+     "type": "ref",
+     "required": true,
+     "note": "Name, purpose, storage region and processing region (incl. the model provider); the firm is notified of changes"
+    },
+    {
+     "name": "export_scope",
+     "type": "enum",
+     "required": true,
+     "note": "whole firm | one matter | one client"
+    },
+    {
+     "name": "export_format",
+     "type": "enum",
+     "required": true,
+     "note": "Open formats: PDF/original documents, CSV/JSON for records, ledgers as CSV with the audit chain"
+    },
+    {
+     "name": "export_entities",
+     "type": "enum",
+     "required": false,
+     "note": "Pick-list for record exports: contacts, matters, tasks, time, expenses, bills, payments, trust ledgers, communications log metadata, calendar, custom fields, contact-matter relationships"
+    },
+    {
+     "name": "export_history",
+     "type": "ref",
+     "required": false,
+     "note": "Every export with who, when, scope, size and hash; downloads logged"
+    },
+    {
+     "name": "inference_region",
+     "type": "enum",
+     "required": true,
+     "note": "Read-only, per model provider: the region where inference runs. If not Canada, the panel says 'stored in Canada, processed in <region>'; no 'all in Canada' wording until proven"
+    },
+    {
+     "name": "sender_domain",
+     "type": "text",
+     "required": false,
+     "note": "Firm sending domain with a DNS check panel (SPF, DKIM, DMARC); falls back to the platform address. Configured in email-settings"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Connect integration",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-INT: a lawyer approves the scopes and any data that would leave Canada"
+    },
+    {
+     "name": "Disconnect / rotate credential",
+     "by": "human",
+     "gate": "none",
+     "note": "Immediate"
+    },
+    {
+     "name": "Monitor sync",
+     "by": "agent",
+     "gate": "none",
+     "note": "Alerts on auth expiry, drift, and mapping errors"
+    },
+    {
+     "name": "Request full export",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-EXP: a lawyer with step-up auth; delivered through an expiring encrypted link"
+    },
+    {
+     "name": "Per-matter export (file transfer)",
+     "by": "human",
+     "gate": "approve",
+     "note": "For a client who changes lawyers or asks for their file"
+    },
+    {
+     "name": "Quick CSV per record type",
+     "by": "human",
+     "gate": "approve",
+     "note": "Spreadsheet-ready CSV per entity for admins; G-EXP and logged"
+    }
+   ],
+   "agent": "Watches connector health and fixes mapping drift by proposing new mappings. It assembles exports and verifies they are complete (counts and hashes against the source), and drafts the residency statement the firm can give clients.",
+   "gate": "G-INT for each new connection or scope increase. G-EXP for any bulk or external export.",
+   "states": [
+    "not connected",
+    "connected",
+    "degraded",
+    "auth expired",
+    "export queued",
+    "export ready",
+    "export expired"
+   ],
+   "edge": [
+    "A connector would send data outside Canada (for example, a US e-sign provider): show the region and require explicit approval with a reason",
+    "Mail connector OAuth token revoked by the mail provider: pause filing and backfill after reconnect",
+    "The firm leaves the service: a full export, then deletion of the cell after a notice period, with a deletion certificate",
+    "Export includes walled matters: only a lawyer with full access can run a full export",
+    "An admin exports contacts to move to a CRM: export is logged and the firm owner is notified",
+    "Export link forwarded to someone else: link needs sign-in plus step-up, not just the URL"
+   ],
+   "reg": "PIPEDA accountability for third-party processors and cross-border transfer notice. RPC 3.3 confidentiality when using cloud providers (verify LSO technology guidance). Storage is in Canada; inference location is disclosed per provider and must not be described as Canadian unless it is.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Connector",
+     "Type",
+     "Scopes",
+     "Region",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Firm mailbox (lkl-mail)",
+      "Mail",
+      "Read inbox/sent, send as user",
+      "Canada",
+      "OK"
+     ],
+     [
+      "Firm calendar",
+      "Calendar",
+      "Read/write events",
+      "Canada",
+      "OK"
+     ],
+     [
+      "Bookkeeping ledger",
+      "Accounting",
+      "Write general journal (no trust)",
+      "Canada",
+      "Lagging 2 h"
+     ],
+     [
+      "E-sign provider",
+      "E-sign",
+      "Send envelopes",
+      "US (approved by L. Kassim)",
+      "OK"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "report-catalogue",
+   "name": "Report catalogue",
+   "route": "/reports/catalogue",
+   "who": [
+    "lawyer",
+    "clerk",
+    "admin",
+    "agent"
+   ],
+   "purpose": "One searchable list of every report the app offers, grouped by area, with what it shows, who may run it and where it is built.",
+   "layout": "Left: groups (Money, Trust, Time, Matters, Clients, Intake, Deadlines, Work, Compliance, Agent). Centre: report cards with a one-line definition, formats and a Run button. Right: presets and recent runs.",
+   "fields": [
+    {
+     "name": "report_id",
+     "type": "enum",
+     "required": true,
+     "note": "Stable key, see catalogue rows"
+    },
+    {
+     "name": "group",
+     "type": "enum",
+     "required": true,
+     "note": "Money | Trust | Time | Matters | Clients | Intake | Deadlines | Work | Compliance | Agent"
+    },
+    {
+     "name": "definition",
+     "type": "text",
+     "required": true,
+     "note": "Exactly how each figure is counted (date basis, inclusions)"
+    },
+    {
+     "name": "filters",
+     "type": "ref",
+     "required": false,
+     "note": "Date range, lawyer, originator, practice area, client, matter, status"
+    },
+    {
+     "name": "formats",
+     "type": "enum",
+     "required": true,
+     "note": "screen | PDF | CSV | XLSX"
+    },
+    {
+     "name": "visibility",
+     "type": "enum",
+     "required": true,
+     "note": "Which roles may run it (set in roles area); trust and compliance reports default to lawyers"
+    },
+    {
+     "name": "owner_screen",
+     "type": "ref",
+     "required": true,
+     "note": "The screen that computes the report (billing-reports, utilization, lso-annual-report, ...)"
+    },
+    {
+     "name": "catalogue",
+     "type": "table",
+     "required": true,
+     "note": "The complete list is the mock rows below: 51 reports in 10 groups"
+    },
+    {
+     "name": "columns",
+     "type": "enum",
+     "required": false,
+     "note": "Hide, show and reorder columns on any run; remembered in presets"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Run report",
+     "by": "human",
+     "gate": "none",
+     "note": "Opens with last-used filters"
+    },
+    {
+     "name": "Save preset",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Schedule",
+     "by": "human",
+     "gate": "none",
+     "note": "Internal recipients only"
+    },
+    {
+     "name": "Explain this report",
+     "by": "agent",
+     "gate": "none",
+     "note": "Plain-words reading of the result with the rows behind each claim"
+    },
+    {
+     "name": "Send outside the firm",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-EXP"
+    },
+    {
+     "name": "Duplicate and customize",
+     "by": "human",
+     "gate": "none",
+     "note": "Opens the report in the custom builder as a starting view"
+    }
+   ],
+   "agent": "Keeps the catalogue honest: each report has a definition and a self-test that reconciles its totals with the ledger (for example, AR total equals unpaid issued bills). Flags reports whose totals stop reconciling.",
+   "gate": "none to run; G-EXP to send outside the firm",
+   "states": [
+    "catalogue",
+    "running",
+    "ready",
+    "failed (reconciliation mismatch)",
+    "scheduled"
+   ],
+   "edge": [
+    "A report is hidden for a role: it is not listed at all, not shown greyed out",
+    "Trust reports must use the trust ledger, never bill data; a mismatch blocks the run with an explanation",
+    "Very large firm-wide CSV: run as a background job and notify when ready",
+    "Report run on a closed month after a correction: show 'restated' and both values",
+    "Retainer coverage below threshold: the agent drafts a replenishment request; a human sends it"
+   ],
+   "reg": "Trust reports (journals, ledgers, monthly comparison, client trust listing) support BL9 record requirements (verify exact names in By-Law 9). Records retention: keep the generated reconciliation and listings for the period the by-law sets (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Group",
+     "Report",
+     "Shows"
+    ],
+    "rows": [
+     [
+      "Money",
+      "Accounts receivable",
+      "Unpaid issued bills with partial payments, interest and credits; drafts excluded"
+     ],
+     [
+      "Money",
+      "Aged receivables",
+      "Receivables in 0-30/31-60/61-90/90+ buckets"
+     ],
+     [
+      "Money",
+      "Unbilled work in progress",
+      "Approved time and expenses not on an issued bill, by matter and lawyer"
+     ],
+     [
+      "Money",
+      "Billing history",
+      "Every bill issued in the period with amounts, tax and status"
+     ],
+     [
+      "Money",
+      "Payments and refunds",
+      "Payments received, refunds and payment method, by period"
+     ],
+     [
+      "Money",
+      "Revenue (collected)",
+      "Fees collected, by lawyer, originator and practice area"
+     ],
+     [
+      "Money",
+      "Originator revenue",
+      "Collected fees credited to the originating lawyer"
+     ],
+     [
+      "Money",
+      "Fee allocation",
+      "How each payment split across fees, disbursements, tax and interest"
+     ],
+     [
+      "Money",
+      "Realization and collection rates",
+      "Worked value vs. billed vs. collected"
+     ],
+     [
+      "Money",
+      "Write-downs and write-offs",
+      "Amounts reduced or written off, with reasons"
+     ],
+     [
+      "Money",
+      "HST collected",
+      "Tax charged and collected for the filing period"
+     ],
+     [
+      "Money",
+      "Online payment transactions",
+      "Card and bank payments with processor fees and payout matching"
+     ],
+     [
+      "Money",
+      "Client balance summary",
+      "Per client: billed, paid, owing, trust held"
+     ],
+     [
+      "Trust",
+      "Trust receipts journal",
+      "Every trust deposit in date order"
+     ],
+     [
+      "Trust",
+      "Trust disbursements journal",
+      "Every trust payment in date order"
+     ],
+     [
+      "Trust",
+      "Client trust ledger",
+      "Per client/matter running balance"
+     ],
+     [
+      "Trust",
+      "Client trust listing",
+      "All client balances at a date, totalled"
+     ],
+     [
+      "Trust",
+      "Monthly trust comparison and reconciliation",
+      "Bank vs. journal vs. client listing, with differences explained"
+     ],
+     [
+      "Trust",
+      "Trust transfers",
+      "Client-to-client and trust-to-general transfers"
+     ],
+     [
+      "Trust",
+      "Dormant and unclaimed trust",
+      "Balances with no activity for a set period (verify LSO unclaimed trust rules)"
+     ],
+     [
+      "Trust",
+      "Overdrawn client ledgers",
+      "Any client ledger below zero (must be nil)"
+     ],
+     [
+      "Trust",
+      "Cash receipts",
+      "Cash received with the payer's identity record (verify BL9 cash limit)"
+     ],
+     [
+      "Time",
+      "Time entries",
+      "All time entries with narrative, rate, billable status"
+     ],
+     [
+      "Time",
+      "Utilization by user",
+      "Billable vs. target hours"
+     ],
+     [
+      "Time",
+      "Productivity by matter",
+      "Time by matter and user for the period"
+     ],
+     [
+      "Time",
+      "Missing time",
+      "Working days with little or no recorded time"
+     ],
+     [
+      "Time",
+      "Expenses",
+      "Disbursements and soft costs, billed or not"
+     ],
+     [
+      "Time",
+      "Billing rates",
+      "Rate per user, matter and fee arrangement"
+     ],
+     [
+      "Matters",
+      "Matter list",
+      "All matters with status, practice area, responsible and originating lawyer"
+     ],
+     [
+      "Matters",
+      "Matters by responsible lawyer",
+      "Open matter count and value per lawyer"
+     ],
+     [
+      "Matters",
+      "Matters opened and closed",
+      "Flow by period and practice area"
+     ],
+     [
+      "Matters",
+      "Stale matters",
+      "Open matters with no activity for N days"
+     ],
+     [
+      "Matters",
+      "Matter stage pipeline",
+      "Matters per stage with average days in stage"
+     ],
+     [
+      "Matters",
+      "Matter balance summary",
+      "Per matter: WIP, AR, trust"
+     ],
+     [
+      "Clients",
+      "Contact list",
+      "Clients and contacts with roles"
+     ],
+     [
+      "Clients",
+      "Client activity",
+      "All activity for one client across matters"
+     ],
+     [
+      "Intake",
+      "Leads by source",
+      "Leads, consultations, conversion by referral source"
+     ],
+     [
+      "Intake",
+      "Intake conversion funnel",
+      "Lead to consult to engaged, with drop-off reasons"
+     ],
+     [
+      "Deadlines",
+      "Upcoming deadlines",
+      "All deadlines in a window, with confirmation status"
+     ],
+     [
+      "Deadlines",
+      "Limitation watch",
+      "Matters with limitation dates in the next N days"
+     ],
+     [
+      "Work",
+      "Task status by user",
+      "Open, overdue and done work items per person"
+     ],
+     [
+      "Work",
+      "Task completion",
+      "Throughput and cycle time per board"
+     ],
+     [
+      "Compliance",
+      "Conflict checks run",
+      "Checks, results and who cleared them"
+     ],
+     [
+      "Compliance",
+      "Client identification status",
+      "Matters missing ID or verification (BL7.1)"
+     ],
+     [
+      "Compliance",
+      "Undertakings open",
+      "Undertakings given and not yet discharged"
+     ],
+     [
+      "Compliance",
+      "Access and wall report",
+      "Who accessed walled matters; wall exceptions"
+     ],
+     [
+      "Compliance",
+      "Retention and destruction",
+      "Files due for destruction, holds, certificates"
+     ],
+     [
+      "Compliance",
+      "LSO annual report workpaper",
+      "Draft answers for the trust and practice sections (verify current form)"
+     ],
+     [
+      "Agent",
+      "Agent approvals",
+      "Drafts approved as-is, edited, rejected, per skill"
+     ],
+     [
+      "Agent",
+      "Agent cost",
+      "Model spend per matter, skill and month"
+     ],
+     [
+      "Agent",
+      "Approval wait times",
+      "How long gates waited, by approver and gate type"
+     ],
+     [
+      "Trust",
+      "Retainer coverage",
+      "Per matter: unbilled WIP plus AR vs trust held vs the minimum trust threshold, with a top-up flag; the agent drafts the replenishment request"
+     ],
+     [
+      "Trust",
+      "Trust interest",
+      "Separate interest-bearing trust accounts only: rate, period, allocation per client (mixed trust interest goes to LFO, verify)"
+     ],
+     [
+      "Money",
+      "Bank account activity",
+      "Funds in and out and running balance per general and trust account, with bank-feed match status"
+     ],
+     [
+      "Money",
+      "Fee credit allocation",
+      "Collected fees split by originating, responsible and staff percentages"
+     ],
+     [
+      "Money",
+      "Online payment processor ledger",
+      "Charges, fees, refunds, disputes and payouts matched to bank deposits; monthly processor statement"
+     ],
+     [
+      "Intake",
+      "Revenue by lead source",
+      "Collected fees traced back to lead source or campaign"
+     ],
+     [
+      "Intake",
+      "Pipeline value",
+      "Expected value of open leads"
+     ],
+     [
+      "Intake",
+      "Referrers",
+      "Referring contacts with matter counts and fees"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "custom-report-builder",
+   "name": "Custom report builder",
+   "route": "/reports/custom/:id",
+   "who": [
+    "lawyer",
+    "admin",
+    "clerk"
+   ],
+   "purpose": "Build a report the catalogue lacks: pick a dataset, columns, filters and grouping, then save and schedule it.",
+   "layout": "Left: dataset picker and column list. Top: filters and group-by. Centre: live preview table with totals. Right: save, share, schedule.",
+   "fields": [
+    {
+     "name": "dataset",
+     "type": "enum",
+     "required": true,
+     "note": "matters | contacts | time | expenses | bills | payments | trust transactions | work items | deadlines | leads | agent events; also calendar events, credit notes, fee credit allocation, online payment transactions"
+    },
+    {
+     "name": "columns",
+     "type": "enum",
+     "required": true,
+     "note": "Chosen from the dataset; custom fields included"
+    },
+    {
+     "name": "filters",
+     "type": "text",
+     "required": false,
+     "note": "Field, operator, value; relative dates allowed ('last month')"
+    },
+    {
+     "name": "group_by",
+     "type": "enum",
+     "required": false,
+     "note": "Up to two levels"
+    },
+    {
+     "name": "totals",
+     "type": "enum",
+     "required": false,
+     "note": "sum | count | average"
+    },
+    {
+     "name": "share",
+     "type": "enum",
+     "required": true,
+     "note": "private | firm"
+    },
+    {
+     "name": "schedule",
+     "type": "text",
+     "required": false,
+     "note": "Same structured schedule as reports (cadence, time, start, end, format, recipients)"
+    },
+    {
+     "name": "views",
+     "type": "ref",
+     "required": false,
+     "note": "Saved column, filter and grouping variants of any report, including catalogue reports"
+    },
+    {
+     "name": "export_history",
+     "type": "ref",
+     "required": false,
+     "note": "Per-report history: who exported, when, format; re-download"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Describe report in words",
+     "by": "agent",
+     "gate": "none",
+     "note": "The agent turns a sentence into a dataset, columns and filters for the user to check"
+    },
+    {
+     "name": "Save",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Schedule",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Export",
+     "by": "human",
+     "gate": "none",
+     "note": "CSV, XLSX, PDF; logged"
+    }
+   ],
+   "agent": "Translates a plain request into a report definition and shows the filter logic in words so a user can verify it before saving.",
+   "gate": "none (internal); G-EXP if scheduled to anyone outside the firm",
+   "states": [
+    "new",
+    "preview",
+    "saved",
+    "scheduled",
+    "broken (field retired)"
+   ],
+   "edge": [
+    "A column a role cannot see (trust details for a clerk) is removed from that user's run, with a notice",
+    "A custom field is retired: saved reports keep running and mark the column as retired",
+    "Trust and money figures in custom reports carry a 'not the books of record' note; official reports come from the catalogue",
+    "Filter and group on custom fields are allowed (a field retired later marks the report broken)"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Responsible lawyer",
+     "Matters open",
+     "Unbilled WIP",
+     "AR 60+"
+    ],
+    "rows": [
+     [
+      "Linda Kassim",
+      "42",
+      "$21,400",
+      "$3,100"
+     ],
+     [
+      "Ayo Ewebiyi",
+      "27",
+      "$15,250",
+      "$4,770"
+     ],
+     [
+      "Yonathan Degu",
+      "19",
+      "$11,670",
+      "$2,000"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "firm-insights",
+   "name": "Firm insights",
+   "route": "/insights",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "Trend view of firm performance: utilization, realization, collection, lock-up days and intake, with each metric defined and drillable.",
+   "layout": "Top: period and user filter. Tiles with sparkline per KPI. Below: trend charts and a 'what changed' panel written by the agent.",
+   "fields": [
+    {
+     "name": "period",
+     "type": "enum",
+     "required": true,
+     "note": "month | quarter | year | custom"
+    },
+    {
+     "name": "user",
+     "type": "ref",
+     "required": false,
+     "note": "Whole firm or one lawyer"
+    },
+    {
+     "name": "kpi",
+     "type": "enum",
+     "required": true,
+     "note": "utilization | realization | collection | lock-up days (WIP + AR) | average bill | matters opened | lead conversion | effective hourly rate"
+    },
+    {
+     "name": "target",
+     "type": "number",
+     "required": false,
+     "note": "Firm-set targets per KPI and per user"
+    },
+    {
+     "name": "definition",
+     "type": "text",
+     "required": true,
+     "note": "Shown on hover; links to the source rows"
+    },
+    {
+     "name": "my_numbers",
+     "type": "ref",
+     "required": false,
+     "note": "Personal panel: billable vs target hours, fiscal year end, working days left, billed and unbilled"
+    },
+    {
+     "name": "basis",
+     "type": "enum",
+     "required": true,
+     "note": "available hours basis; activity date vs bill date; shown beside every figure"
+    },
+    {
+     "name": "target_band",
+     "type": "money",
+     "required": false,
+     "note": "Firm-entered target band instead of external benchmarks"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Drill into metric",
+     "by": "human",
+     "gate": "none",
+     "note": "Opens the catalogue report behind it"
+    },
+    {
+     "name": "Explain change",
+     "by": "agent",
+     "gate": "none",
+     "note": "Names the matters and users that moved the number"
+    },
+    {
+     "name": "Set targets",
+     "by": "human",
+     "gate": "none",
+     "note": "Lawyer or admin"
+    }
+   ],
+   "agent": "Writes a short monthly note on what moved and why, citing the matters and bills behind it.",
+   "gate": "none",
+   "states": [
+    "insufficient data (first 3 months)",
+    "ready"
+   ],
+   "edge": [
+    "Per-user view of a colleague is sensitive (compensation); visibility follows the roles area",
+    "Small firm with one lawyer: benchmarks hidden, own trends only"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "dashboard",
+    "columns": [
+     "KPI",
+     "This quarter",
+     "Target"
+    ],
+    "rows": [
+     [
+      "Utilization",
+      "68%",
+      "70%"
+     ],
+     [
+      "Realization",
+      "91%",
+      "90%"
+     ],
+     [
+      "Collection",
+      "84%",
+      "90%"
+     ],
+     [
+      "Lock-up days",
+      "74",
+      "60"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "text-messaging",
+   "name": "Client text messaging",
+   "route": "/comms/texts",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Short, non-sensitive texts with clients from a firm number, filed to the matter like any other message.",
+   "layout": "Left: conversations by contact. Centre: thread with matter tag per message. Top: consent status and a 'not for sensitive content' banner.",
+   "fields": [
+    {
+     "name": "firm_number",
+     "type": "text",
+     "required": true,
+     "note": "One Canadian number per firm; staff never use personal phones"
+    },
+    {
+     "name": "contact_phone",
+     "type": "text",
+     "required": true,
+     "note": "Verified mobile on the contact"
+    },
+    {
+     "name": "consent",
+     "type": "enum",
+     "required": true,
+     "note": "none | opted in (date, how) | opted out; texts blocked unless opted in"
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": "Each message filed to one matter"
+    },
+    {
+     "name": "body",
+     "type": "text",
+     "required": true,
+     "note": "Short text; stored in the document store, not SQL"
+    },
+    {
+     "name": "template",
+     "type": "ref",
+     "required": false,
+     "note": "Pre-approved routine texts (appointment reminder, document received)"
+    },
+    {
+     "name": "delivery_status",
+     "type": "enum",
+     "required": true,
+     "note": "queued | sent | delivered | failed"
+    },
+    {
+     "name": "failure_reason",
+     "type": "enum",
+     "required": false,
+     "note": "unreachable | carrier_rejected | temporary | unknown | carrier_error | blocked_unverified"
+    },
+    {
+     "name": "number_verification",
+     "type": "enum",
+     "required": true,
+     "note": "not submitted | verification pending | verification rejected (reason) | verified; daily and weekly caps shown while pending"
+    },
+    {
+     "name": "visibility",
+     "type": "enum",
+     "required": true,
+     "note": "Unfiled threads: comms triage role only. Filed threads: matter permissions and ethical walls"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Send text",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Send routine text",
+     "by": "agent",
+     "gate": "none",
+     "note": "Only pre-approved templates, to opted-in contacts"
+    },
+    {
+     "name": "Draft substantive reply",
+     "by": "agent",
+     "gate": "approve",
+     "note": "G-OUT; the agent suggests the portal instead when content is sensitive"
+    },
+    {
+     "name": "Send bill link by text",
+     "by": "human",
+     "gate": "none",
+     "note": "Payment page link only, no amounts in the text"
+    },
+    {
+     "name": "Turn on texting",
+     "by": "human",
+     "gate": "approve",
+     "note": "Admin enables for the firm; G-INT because a telecom provider is a sub-processor"
+    },
+    {
+     "name": "Resubmit number verification",
+     "by": "human",
+     "gate": "none",
+     "note": "After a rejection, with the stated reason fixed"
+    },
+    {
+     "name": "Export thread PDF",
+     "by": "human",
+     "gate": "none",
+     "note": "Timestamps, numbers, delivery status; G-EXP if sent outside the firm"
+    }
+   ],
+   "agent": "Files inbound texts to the right matter, answers routine questions with templates, and stops a draft that contains ID numbers, banking details or advice.",
+   "gate": "G-OUT for any non-template outbound text; G-INT to enable the channel",
+   "states": [
+    "disabled",
+    "enabled",
+    "contact not opted in",
+    "opted out",
+    "verification pending",
+    "verification rejected",
+    "delivery failed"
+   ],
+   "edge": [
+    "Client replies STOP: opt-out recorded at once, all automation stops",
+    "Text from an unknown number: goes to the unfiled queue, never auto-replied",
+    "Shared phone (family): warn before sending matter detail",
+    "SMS provider stores data outside Canada: shown on the residency panel (verify provider region)",
+    "Delivery failed: the agent suggests a fallback (portal message or call) and never re-sends substantive content on its own",
+    "Inbound picture or file (MMS): goes to upload quarantine, virus scan, then filed to the thread's matter; outbound stays text-only with the character limit enforced",
+    "Number verification pending: agent routine texts are blocked until verified"
+   ],
+   "reg": "CASL consent applies to commercial texts (verify scope for client service messages). Texts are not encrypted in transit; RPC 3.3 confidentiality means only non-sensitive content. PIPEDA.",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "Contact",
+     "Matter",
+     "Last message",
+     "Consent"
+    ],
+    "rows": [
+     [
+      "Selam Tadesse",
+      "2026-041 Tadesse purchase",
+      "Got it, see you Thursday",
+      "opted in"
+     ],
+     [
+      "Daniel Okafor",
+      "2026-033 Okafor v. Rivermark",
+      "Is the hearing still on?",
+      "opted in"
+     ],
+     [
+      "+1 416 555 0182",
+      "(unfiled)",
+      "Hi is this the law office?",
+      "unknown"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "internal-messages",
+   "name": "Internal and co-counsel messages",
+   "route": "/messages",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "Staff-to-staff messages about a matter, and a guest space for co-counsel or agents of the firm, kept on the matter instead of in personal chat.",
+   "layout": "Left: conversations (matter-tagged). Centre: thread with mentions. Right: matter context and guest list.",
+   "fields": [
+    {
+     "name": "participants",
+     "type": "ref",
+     "required": true,
+     "note": "Firm users; guests (co-counsel, agent of record) by invitation per matter"
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": "Tagging files the thread to the matter log"
+    },
+    {
+     "name": "mention",
+     "type": "ref",
+     "required": false,
+     "note": "@user creates a notification"
+    },
+    {
+     "name": "guest_expiry",
+     "type": "date",
+     "required": false,
+     "note": "Guest access ends on this date or at matter close"
+    },
+    {
+     "name": "unread_by",
+     "type": "ref",
+     "required": false,
+     "note": "Read/unread per participant; filter by unread"
+    },
+    {
+     "name": "guest_rate",
+     "type": "money",
+     "required": false,
+     "note": "Per-matter rate for co-counsel guest time entries"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Send message",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Invite guest",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer approves; guest sees only what is shared in that space"
+    },
+    {
+     "name": "Turn message into work item",
+     "by": "human",
+     "gate": "none",
+     "note": "Creates a task in the work area"
+    },
+    {
+     "name": "Summarize thread",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Archive thread",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Print thread",
+     "by": "human",
+     "gate": "none",
+     "note": "Logged"
+    },
+    {
+     "name": "Add time from thread",
+     "by": "human",
+     "gate": "approve",
+     "note": "Timer or entry, to the timekeeper gate"
+    },
+    {
+     "name": "Assign task to guest",
+     "by": "human",
+     "gate": "none",
+     "note": "Guest sees only what is shared with them (G-GUEST)"
+    }
+   ],
+   "agent": "Summarizes long threads and pulls out tasks and dates as proposals.",
+   "gate": "Lawyer approves each guest invitation",
+   "states": [
+    "active",
+    "guest pending",
+    "archived"
+   ],
+   "edge": [
+    "Mentioning a user who is walled from the matter: blocked",
+    "Guest's firm email bounces or they leave their firm: access ends",
+    "Staff with matter access can read a matter thread, but only participants can reply",
+    "Guest time entries are billed at the guest rate and go through the normal billing gate"
+   ],
+   "reg": "Sharing with co-counsel must respect client consent and confidentiality (RPC 3.3).",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "Thread",
+     "Matter",
+     "Last"
+    ],
+    "rows": [
+     [
+      "Motion record pages",
+      "2026-033 Okafor v. Rivermark",
+      "Meraf: tabs 1-6 done"
+     ],
+     [
+      "Closing funds",
+      "2026-041 Tadesse purchase",
+      "Kaleab: wire confirmed"
+     ],
+     [
+      "Co-counsel: costs outline",
+      "2026-019 Bekele estate",
+      "Guest: draft attached"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "mail-add-in",
+   "name": "Mail sidebar (Outlook / Gmail add-in)",
+   "route": "(side panel inside the user's mail client)",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal"
+   ],
+   "purpose": "File mail, see matter context and log time without leaving the mail client; complements the server-side mail connector.",
+   "layout": "Narrow panel: suggested matter with confidence, file buttons, time entry box, matter card (next deadline, trust balance, open tasks).",
+   "fields": [
+    {
+     "name": "suggested_matter",
+     "type": "ref",
+     "required": false,
+     "note": "From the agent, with the reason"
+    },
+    {
+     "name": "file_scope",
+     "type": "enum",
+     "required": true,
+     "note": "this message | whole thread | attachments only"
+    },
+    {
+     "name": "filed_tag",
+     "type": "enum",
+     "required": false,
+     "note": "Shown on filed mail in the mail client"
+    },
+    {
+     "name": "time_entry",
+     "type": "number",
+     "required": false,
+     "note": "Duration with a drafted narrative"
+    },
+    {
+     "name": "pre_send_matter",
+     "type": "ref",
+     "required": false,
+     "note": "Pick a matter before sending; the sent message files itself"
+    }
+   ],
+   "actions": [
+    {
+     "name": "File to matter",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "File all unfiled in folder",
+     "by": "human",
+     "gate": "none",
+     "note": "Batch"
+    },
+    {
+     "name": "Add time",
+     "by": "human",
+     "gate": "approve",
+     "note": "Proposed entry goes to the timekeeper gate"
+    },
+    {
+     "name": "Create contact from sender",
+     "by": "human",
+     "gate": "none",
+     "note": "Conflict-relevant roles go to the conflicts area"
+    },
+    {
+     "name": "Suggest reply",
+     "by": "agent",
+     "gate": "none",
+     "note": "Sidebar tab with tone and length controls and matter context; inserted into compose only by the human; cites the matter documents used; substantive replies sent from the app still go through G-OUT"
+    }
+   ],
+   "agent": "Suggests the matter, drafts the time narrative and warns when a recipient looks wrong for the matter.",
+   "gate": "Time entries follow the timekeeper gate",
+   "states": [
+    "not connected",
+    "connected",
+    "token expired"
+   ],
+   "edge": [
+    "Mail client on a phone app where add-ins are not supported: rely on the server connector",
+    "User files to a matter they cannot see: blocked"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Field",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Suggested matter",
+      "2026-033 Okafor v. Rivermark (0.94)"
+     ],
+     [
+      "File",
+      "Whole thread"
+     ],
+     [
+      "Time",
+      "0.3 h - Review opposing counsel's scheduling proposal"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "notification-settings",
+   "name": "Notification settings",
+   "route": "/settings/notifications",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "Each person chooses which events reach them and how; the admin sets firm defaults and what must always be delivered.",
+   "layout": "Grid: event types down, channels across (in-app, email, daily digest, mobile push, text). Firm-locked rows shown with a lock. Quiet hours and delegation at the bottom.",
+   "fields": [
+    {
+     "name": "event",
+     "type": "enum",
+     "required": true,
+     "note": "approval waiting | approval overdue | deadline approaching | deadline changed | client message | client upload | payment received | trust exception | mention | work item assigned | sync failure | export done | agent paused"
+    },
+    {
+     "name": "channel",
+     "type": "enum",
+     "required": true,
+     "note": "in-app | email | digest | push | text"
+    },
+    {
+     "name": "locked",
+     "type": "enum",
+     "required": false,
+     "note": "Firm default the user cannot turn off (deadlines, trust exceptions, overdue approvals)"
+    },
+    {
+     "name": "quiet_hours",
+     "type": "text",
+     "required": false,
+     "note": "Non-urgent items wait; deadlines inside 48 h still go through"
+    },
+    {
+     "name": "out_of_office",
+     "type": "date",
+     "required": false,
+     "note": "Routes the user's approvals to the named delegate"
+    },
+    {
+     "name": "email_content",
+     "type": "enum",
+     "required": true,
+     "note": "Notification emails never contain client content, only a link"
+    },
+    {
+     "name": "follows",
+     "type": "ref",
+     "required": false,
+     "note": "Items the user follows (matter, note, call log, text thread, internal thread); updates notify the follower"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Change my settings",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Set firm defaults",
+     "by": "human",
+     "gate": "none",
+     "note": "Admin"
+    },
+    {
+     "name": "Set out-of-office delegate",
+     "by": "human",
+     "gate": "none",
+     "note": "Delegate must be eligible for the same gates"
+    },
+    {
+     "name": "Follow / unfollow item",
+     "by": "human",
+     "gate": "none",
+     "note": "Available on every followable item; the agent auto-follows the responsible lawyer and anyone who replied"
+    }
+   ],
+   "agent": "Notices ignored notification types and suggests a digest instead; never turns off a locked event.",
+   "gate": "none",
+   "states": [
+    "default",
+    "customized"
+   ],
+   "edge": [
+    "User turns off email and has no app open: locked events still go by email",
+    "Delegate is on leave too: escalate to the firm owner",
+    "New event types: co-counsel upload, e-signature completed, connector filing failure, text failed, stage changed"
+   ],
+   "reg": "Deadline reminders support the firm's duty of competence and diligence (RPC 3.1); keep them non-optional.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Event",
+     "In-app",
+     "Email",
+     "Digest"
+    ],
+    "rows": [
+     [
+      "Approval waiting",
+      "on",
+      "on",
+      "off"
+     ],
+     [
+      "Deadline approaching",
+      "locked",
+      "locked",
+      "on"
+     ],
+     [
+      "Client message",
+      "on",
+      "off",
+      "on"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "portal-settings",
+   "name": "Client portal settings",
+   "route": "/settings/portal",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Firm-wide portal behaviour: branding, sign-in rules, what clients may do, notice email wording and access after close.",
+   "layout": "Sections: Branding, Sign-in, Client permissions, Notices, After close.",
+   "fields": [
+    {
+     "name": "branding",
+     "type": "file",
+     "required": false,
+     "note": "Logo, colour, firm name on the portal"
+    },
+    {
+     "name": "client_mfa",
+     "type": "enum",
+     "required": true,
+     "note": "required | optional; default required"
+    },
+    {
+     "name": "client_can",
+     "type": "enum",
+     "required": true,
+     "note": "message | upload | pay | sign | see calendar | see stage"
+    },
+    {
+     "name": "upload_limits",
+     "type": "text",
+     "required": true,
+     "note": "Size and file types"
+    },
+    {
+     "name": "notice_template",
+     "type": "ref",
+     "required": true,
+     "note": "Wording of the 'new item' email; content-free"
+    },
+    {
+     "name": "after_close_days",
+     "type": "number",
+     "required": true,
+     "note": "Read-only window after closing"
+    },
+    {
+     "name": "auto_reply_hours",
+     "type": "text",
+     "required": false,
+     "note": "Office hours message on client messages"
+    },
+    {
+     "name": "client_idle_timeout_minutes",
+     "type": "number",
+     "required": true,
+     "note": "Default 15; plus an absolute session lifetime"
+    },
+    {
+     "name": "session_max_hours",
+     "type": "number",
+     "required": true,
+     "note": "Absolute lifetime of a client session"
+    },
+    {
+     "name": "sign_in_method",
+     "type": "enum",
+     "required": true,
+     "note": "password_mfa (default) | magic_link_plus_device (link valid 60 min, plus device trust and passkey)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Save settings",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Preview as client",
+     "by": "human",
+     "gate": "none",
+     "note": "Shows the portal with sample data"
+    }
+   ],
+   "agent": "none",
+   "gate": "none",
+   "states": [
+    "default",
+    "customized"
+   ],
+   "edge": [
+    "Turning off MFA when walled or sensitive matters exist: warn",
+    "Client leaves the portal open on a shared computer: idle timeout signs them out; unsent message drafts are not kept"
+   ],
+   "reg": "Confidentiality (RPC 3.3); PIPEDA safeguards.",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Setting",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Client MFA",
+      "required"
+     ],
+     [
+      "Read-only after close",
+      "90 days"
+     ],
+     [
+      "Uploads",
+      "PDF, JPG, PNG, DOCX up to 50 MB"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "api-and-webhooks",
+   "name": "API access and webhooks",
+   "route": "/settings/api",
+   "who": [
+    "admin"
+   ],
+   "purpose": "Let the firm's own tools read or write data through scoped API keys or OAuth apps and receive event webhooks, with every grant visible and revocable. Phased: v1 keys + webhooks, later OAuth apps and wider write scopes.",
+   "layout": "Tabs: Connected apps (grants with scopes and last use), API keys, Webhooks (model, events, fields, delivery log), Docs (OpenAPI spec). A phase banner shows which parts are live.",
+   "fields": [
+    {
+     "name": "app",
+     "type": "text",
+     "required": true,
+     "note": "Name and owner"
+    },
+    {
+     "name": "scopes",
+     "type": "enum",
+     "required": true,
+     "note": "Per data area, read or write; trust write is never offered"
+    },
+    {
+     "name": "key",
+     "type": "secret",
+     "required": true,
+     "note": "Shown once at creation; stored hashed"
+    },
+    {
+     "name": "expires",
+     "type": "date",
+     "required": true,
+     "note": "Keys and webhooks expire; max set by firm"
+    },
+    {
+     "name": "webhook_url",
+     "type": "text",
+     "required": false,
+     "note": "HTTPS only"
+    },
+    {
+     "name": "events",
+     "type": "enum",
+     "required": false,
+     "note": "created | updated | deleted per model, plus matter opened / pending / closed. v1 ships a narrower set (matter created/closed, bill issued, payment received, document filed); Clio's set is broader, so this is not parity yet"
+    },
+    {
+     "name": "delivery_log",
+     "type": "ref",
+     "required": false,
+     "note": "Status per delivery, retries"
+    },
+    {
+     "name": "phase",
+     "type": "enum",
+     "required": true,
+     "note": "v1: API keys (read scopes, plus write for leads, tasks, notes, documents upload), webhooks with ids-only payloads | v1.1: OAuth app registration, wider write scopes, field selection, ETags | later: reports API. Resolves readiness 'open API later': the screen ships in v1 with the narrow phase"
+    },
+    {
+     "name": "oauth_app",
+     "type": "ref",
+     "required": false,
+     "note": "Phase v1.1: redirect URIs, deauthorization callback; per-area read or read-write scopes fixed at grant time; records the grant cannot see come back redacted"
+    },
+    {
+     "name": "webhook_model",
+     "type": "enum",
+     "required": false,
+     "note": "matter | contact | activity | bill | payment | document | folder | task | calendar_entry | communication"
+    },
+    {
+     "name": "webhook_fields",
+     "type": "enum",
+     "required": false,
+     "note": "Selected attributes; ids only by default. 'updated' fires only when a selected field changes"
+    },
+    {
+     "name": "webhook_secret",
+     "type": "secret",
+     "required": false,
+     "note": "Set through a verification handshake; deliveries carry an HMAC-SHA256 signature header"
+    },
+    {
+     "name": "webhook_status",
+     "type": "enum",
+     "required": false,
+     "note": "pending | enabled | suspended; a 410 response disables the hook"
+    },
+    {
+     "name": "openapi_spec",
+     "type": "file",
+     "required": false,
+     "note": "Published spec: matters, contacts, relationships, tasks, calendar, time and expenses, bills (with allowed state transitions), payments, payment links, documents and folders, custom fields, notes, communications, reports. Trust: read ledgers only; may create a trust request, never a trust entry"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Create key",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-INT"
+    },
+    {
+     "name": "Revoke",
+     "by": "human",
+     "gate": "none",
+     "note": "Immediate"
+    },
+    {
+     "name": "Add webhook",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-INT; payloads carry ids, not document content"
+    },
+    {
+     "name": "Replay failed delivery",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Register OAuth app",
+     "by": "human",
+     "gate": "approve",
+     "note": "Phase v1.1; G-INT"
+    },
+    {
+     "name": "Renew webhook",
+     "by": "human",
+     "gate": "none",
+     "note": "Before expiry; the hygiene job flags hooks near their expiry"
+    }
+   ],
+   "agent": "Flags unused keys, over-broad scopes and failing webhooks.",
+   "gate": "G-INT for each key or webhook",
+   "states": [
+    "none",
+    "active",
+    "expiring",
+    "revoked",
+    "failing",
+    "pending handshake",
+    "suspended"
+   ],
+   "edge": [
+    "Webhook endpoint outside Canada: residency warning in G-INT",
+    "Key used from a new country: alert and suspend pending review",
+    "Handshake not completed: hook stays pending and receives nothing",
+    "An OAuth grant asks for a record on a walled matter: the record is returned redacted, never with content"
+   ],
+   "reg": "PIPEDA accountability for transfers to third parties.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "App",
+     "Scopes",
+     "Last used",
+     "Expires"
+    ],
+    "rows": [
+     [
+      "Firm accounting sync",
+      "bills:read, payments:read",
+      "2026-10-09",
+      "2027-01-01"
+     ],
+     [
+      "Intake website",
+      "leads:write",
+      "2026-10-10",
+      "2026-12-31"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "account-subscription",
+   "name": "Subscription and usage",
+   "route": "/settings/subscription",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "The firm's own account with the service: plan, seats, invoices from us, payment method, and agent usage against budget.",
+   "layout": "Plan card, seat list, usage chart (agent cost per month vs. budget), invoices table.",
+   "fields": [
+    {
+     "name": "plan",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "seats",
+     "type": "number",
+     "required": true,
+     "note": "Active users"
+    },
+    {
+     "name": "agent_budget",
+     "type": "money",
+     "required": false,
+     "note": "Monthly cap; above it the agent asks before costly jobs"
+    },
+    {
+     "name": "usage",
+     "type": "money",
+     "required": true,
+     "note": "By skill and by matter"
+    },
+    {
+     "name": "payment_method",
+     "type": "ref",
+     "required": true,
+     "note": "Held by the payment processor; never stored by us"
+    },
+    {
+     "name": "invoices",
+     "type": "ref",
+     "required": true,
+     "note": "With HST"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Change plan",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Set agent budget",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Download invoice",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Cancel service",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Starts the exit flow: full export, notice period, deletion certificate"
+    }
+   ],
+   "agent": "Warns before the budget is reached and names the jobs driving cost.",
+   "gate": "Firm owner signs off on cancellation",
+   "states": [
+    "trial",
+    "active",
+    "past due",
+    "cancelling",
+    "closed"
+   ],
+   "edge": [
+    "Payment fails: read-only after a grace period; never block access to trust records or exports"
+   ],
+   "reg": "Firm must keep trust and client records for the by-law periods even after leaving (verify); export before deletion.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Month",
+     "Agent cost",
+     "Budget"
+    ],
+    "rows": [
+     [
+      "Aug 2026",
+      "$412",
+      "$600"
+     ],
+     [
+      "Sep 2026",
+      "$538",
+      "$600"
+     ],
+     [
+      "Oct 2026 (to date)",
+      "$171",
+      "$600"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "research-workspace",
+   "name": "Legal research workspace",
+   "route": "/matters/:id/research",
+   "who": [
+    "lawyer",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Ask a legal question in the context of a matter and get a memo grounded in cited Canadian authority, with each citation checked before it is used.",
+   "layout": "Left: question and jurisdiction. Centre: answer memo with inline citations. Right: sources list with treatment status and links.",
+   "fields": [
+    {
+     "name": "question",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "jurisdiction",
+     "type": "enum",
+     "required": true,
+     "note": "Ontario | federal | other province"
+    },
+    {
+     "name": "sources_allowed",
+     "type": "enum",
+     "required": true,
+     "note": "Licensed or public sources configured as connectors (e.g. public case law sites)"
+    },
+    {
+     "name": "citations",
+     "type": "ref",
+     "required": true,
+     "note": "Each with pinpoint and a check status: verified | not found | negative treatment (verify)"
+    },
+    {
+     "name": "matter_memory",
+     "type": "text",
+     "required": false,
+     "note": "Facts and positions the agent should assume, editable by the lawyer"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Research",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Check citations",
+     "by": "agent",
+     "gate": "none",
+     "note": "Every cited case is fetched and the quoted passage matched"
+    },
+    {
+     "name": "Save memo to matter",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer approves before it counts as work product"
+    },
+    {
+     "name": "Use in draft",
+     "by": "human",
+     "gate": "none",
+     "note": "Sends to the drafting workspace"
+    }
+   ],
+   "agent": "Searches the configured sources, drafts a memo, and refuses to include any citation it could not retrieve.",
+   "gate": "Lawyer approves the memo before it is filed or relied on",
+   "states": [
+    "asking",
+    "drafting",
+    "needs review",
+    "approved"
+   ],
+   "edge": [
+    "Source not retrievable: citation dropped and listed as unverified",
+    "Question outside the configured jurisdictions: answer flagged as lower confidence"
+   ],
+   "reg": "Competence and supervision when using AI (RPC 3.1, 6.1; verify LSO guidance on generative AI). Courts may require AI-use disclosure (verify Ontario practice directions).",
+   "mock": {
+    "kind": "doc",
+    "columns": [
+     "Citation",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Example v. Sample, 2021 ONCA 000",
+      "verified"
+     ],
+     [
+      "Placeholder v. Test, 2019 ONSC 0000",
+      "not found - dropped"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "email-settings",
+   "name": "Email filing and sending settings",
+   "route": "/settings/email",
+   "who": [
+    "owner",
+    "admin",
+    "lawyer",
+    "associate",
+    "paralegal",
+    "clerk"
+   ],
+   "purpose": "Choose which mail is filed, which inboxes and addresses send, and the signatures and firm templates used, with a preview before any filing change applies.",
+   "layout": "Tabs: Filing (sync scope, never-file rules, matter inbound addresses), Sending (connected inboxes per user, firm sender domain with DNS status), Signatures and templates.",
+   "fields": [
+    {
+     "name": "sync_scope",
+     "type": "enum",
+     "required": true,
+     "note": "contacts | contacts_and_staff | everyone; firm default plus per-user override"
+    },
+    {
+     "name": "never_file_rules",
+     "type": "ref",
+     "required": false,
+     "note": "Senders, domains or folders never filed; always win over scope"
+    },
+    {
+     "name": "connected_inboxes",
+     "type": "ref",
+     "required": false,
+     "note": "Per user, several allowed, each through the generic mail connector"
+    },
+    {
+     "name": "sender_domain",
+     "type": "text",
+     "required": false,
+     "note": "Firm domain; DNS panel shows SPF, DKIM, DMARC status; otherwise the platform address is used"
+    },
+    {
+     "name": "sender_address",
+     "type": "text",
+     "required": false,
+     "note": "Per user; table shows which email types (bill share, reminders, template mail) use which sender"
+    },
+    {
+     "name": "mail_aliases",
+     "type": "text",
+     "required": false,
+     "note": "Registered addresses allowed to forward to matter inbound addresses"
+    },
+    {
+     "name": "signature",
+     "type": "text",
+     "required": false,
+     "note": "Per user, with an 'apply to' list"
+    },
+    {
+     "name": "firm_templates",
+     "type": "ref",
+     "required": false,
+     "note": "Email templates with merge fields; firm scope edited by admin only"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Change sync scope",
+     "by": "human",
+     "gate": "approve",
+     "note": "Agent shows a preview diff of items that would be filed or unfiled; applies only after confirm"
+    },
+    {
+     "name": "Check DNS",
+     "by": "agent",
+     "gate": "none",
+     "note": "Re-checks SPF, DKIM, DMARC daily and flags breakage"
+    },
+    {
+     "name": "Connect inbox",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-INT"
+    },
+    {
+     "name": "Edit signature",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Propose template",
+     "by": "agent",
+     "gate": "approve",
+     "note": "G-SK"
+    }
+   ],
+   "agent": "Previews the effect of a scope change, proposes never-file rules from exclusions, and monitors sender DNS health.",
+   "gate": "Scope change confirmation (owner or lawyer); G-INT for new inboxes; G-SK for firm templates.",
+   "states": [
+    "default",
+    "scope change previewed",
+    "applied",
+    "DNS failing (fallback sender in use)"
+   ],
+   "edge": [
+    "DKIM breaks after a DNS change: system mail falls back to the platform address; content-free notices keep working",
+    "User widens their own scope to 'everyone': personal mail from non-contacts would be filed; preview shows counts and a warning",
+    "Admin edits firm templates but never sees filed mail content"
+   ],
+   "reg": "RPC 3.3 confidentiality: filing scope decides which mail enters the matter record; keep the default narrow.",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Setting",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Sync scope (firm)",
+      "Contacts only"
+     ],
+     [
+      "Sender domain",
+      "lindakklaw.example: SPF ok, DKIM ok, DMARC pending"
+     ],
+     [
+      "Ayo Ewebiyi inboxes",
+      "ayo@lindakklaw.example"
+     ],
+     [
+      "Matter inbound address",
+      "m-7Q2K@in.lindakklaw.example"
+     ]
+    ]
+   }
+  }
+ ],
+ "entities": [
+  {
+   "name": "PortalAccess",
+   "fields": [
+    "id",
+    "contact_id",
+    "matter_id",
+    "role",
+    "invited_at",
+    "last_login",
+    "mfa",
+    "revoked_at"
+   ],
+   "relations": [
+    "Contact many-to-many Matter via PortalAccess"
+   ]
+  },
+  {
+   "name": "PortalMessage",
+   "fields": [
+    "id",
+    "matter_id",
+    "author (contact|user|agent)",
+    "audience",
+    "body_ref",
+    "approval_id",
+    "sent_at"
+   ],
+   "relations": [
+    "Matter 1-many PortalMessage",
+    "ApprovalItem 0..1"
+   ]
+  },
+  {
+   "name": "DocumentShare",
+   "fields": [
+    "id",
+    "document_version_id",
+    "matter_id",
+    "shared_by",
+    "shared_at",
+    "revoked_at"
+   ],
+   "relations": [
+    "DocumentVersion 1-many DocumentShare"
+   ]
+  },
+  {
+   "name": "Upload",
+   "fields": [
+    "id",
+    "matter_id",
+    "contact_id",
+    "request_id",
+    "file_ref",
+    "scan_status",
+    "filed_document_id"
+   ],
+   "relations": [
+    "DocumentRequest 0..1",
+    "Document 0..1"
+   ]
+  },
+  {
+   "name": "DocumentRequest",
+   "fields": [
+    "id",
+    "matter_id",
+    "items",
+    "due",
+    "status",
+    "reminders_sent"
+   ],
+   "relations": [
+    "Matter 1-many DocumentRequest"
+   ]
+  },
+  {
+   "name": "SignatureRequest",
+   "fields": [
+    "id",
+    "document_version_id",
+    "status",
+    "expiry",
+    "reminder_cadence",
+    "certificate_ref"
+   ],
+   "relations": [
+    "Signer 1-many",
+    "DocumentVersion 1"
+   ]
+  },
+  {
+   "name": "Signer",
+   "fields": [
+    "id",
+    "signature_request_id",
+    "contact_id",
+    "order",
+    "auth_method",
+    "status",
+    "signed_at",
+    "ip"
+   ],
+   "relations": [
+    "Contact"
+   ]
+  },
+  {
+   "name": "CommItem",
+   "fields": [
+    "id",
+    "channel",
+    "direction",
+    "participants",
+    "matter_ids",
+    "filing_confidence",
+    "filed_by",
+    "privilege_flag",
+    "summary_ref",
+    "summary_confirmed_by",
+    "body_ref",
+    "external_id",
+    "display_subject",
+    "delivery_status",
+    "failure_reason",
+    "excluded_hash"
+   ],
+   "relations": [
+    "Matter many-to-many CommItem",
+    "Connector 1-many CommItem"
+   ]
+  },
+  {
+   "name": "ApprovalItem",
+   "fields": [
+    "id",
+    "gate_type",
+    "matter_id",
+    "payload_type",
+    "payload_id",
+    "approver_id",
+    "eligible_role",
+    "due",
+    "risk",
+    "sources",
+    "decision",
+    "reason",
+    "decided_at",
+    "diff_ref"
+   ],
+   "relations": [
+    "User (approver)",
+    "AgentEvent 1-many"
+   ]
+  },
+  {
+   "name": "AgentEvent",
+   "fields": [
+    "id",
+    "prev_hash",
+    "hash",
+    "at",
+    "matter_id",
+    "skill_id",
+    "skill_version",
+    "on_behalf_of",
+    "action",
+    "approval_id",
+    "source_refs",
+    "cost",
+    "outcome"
+   ],
+   "relations": [
+    "Skill",
+    "ApprovalItem 0..1"
+   ]
+  },
+  {
+   "name": "Skill",
+   "fields": [
+    "id",
+    "name",
+    "area",
+    "version",
+    "enabled",
+    "autonomy",
+    "autonomy_cap",
+    "approver_rule",
+    "sla_hours",
+    "schedule",
+    "eval_score"
+   ],
+   "relations": [
+    "MessageTemplate 1-many",
+    "PracticeArea many-to-many"
+   ]
+  },
+  {
+   "name": "MessageTemplate",
+   "fields": [
+    "id",
+    "skill_id",
+    "channel",
+    "text",
+    "approved_by",
+    "approved_at",
+    "version"
+   ],
+   "relations": [
+    "Skill"
+   ]
+  },
+  {
+   "name": "ReportSchedule",
+   "fields": [
+    "id",
+    "report",
+    "filters",
+    "cadence",
+    "recipients",
+    "time",
+    "starts_on",
+    "ends_on",
+    "format"
+   ],
+   "relations": [
+    "User many"
+   ]
+  },
+  {
+   "name": "ClosingChecklist",
+   "fields": [
+    "id",
+    "matter_id",
+    "items",
+    "trust_zero_verified_at",
+    "closing_letter_id",
+    "retention_class",
+    "destroy_after",
+    "closed_by",
+    "closed_at"
+   ],
+   "relations": [
+    "Matter 1-1"
+   ]
+  },
+  {
+   "name": "RetentionRecord",
+   "fields": [
+    "matter_id",
+    "retention_class",
+    "destroy_after",
+    "legal_hold",
+    "hold_reason",
+    "destroyed_at",
+    "certificate_ref",
+    "keep_set"
+   ],
+   "relations": [
+    "Matter 1-1"
+   ]
+  },
+  {
+   "name": "User",
+   "fields": [
+    "id",
+    "name",
+    "email",
+    "licence_type",
+    "lso_number",
+    "role_id",
+    "supervisor_id",
+    "mfa",
+    "status"
+   ],
+   "relations": [
+    "Role",
+    "User (supervisor)"
+   ]
+  },
+  {
+   "name": "Role",
+   "fields": [
+    "id",
+    "name",
+    "permissions",
+    "approvable_gates",
+    "trust_signing"
+   ],
+   "relations": [
+    "User 1-many"
+   ]
+  },
+  {
+   "name": "EthicalWall",
+   "fields": [
+    "id",
+    "matter_id",
+    "excluded_user_ids",
+    "reason",
+    "created_by",
+    "created_at",
+    "removed_at"
+   ],
+   "relations": [
+    "Matter",
+    "User many"
+   ]
+  },
+  {
+   "name": "Firm",
+   "fields": [
+    "id",
+    "name",
+    "address",
+    "hst_number",
+    "fiscal_year_end",
+    "matter_number_format",
+    "letterhead_ref",
+    "region"
+   ],
+   "relations": [
+    "PracticeArea 1-many",
+    "BankAccount 1-many"
+   ]
+  },
+  {
+   "name": "PracticeArea",
+   "fields": [
+    "id",
+    "name",
+    "stage_template",
+    "intake_questions",
+    "closing_checklist_template",
+    "retention_class",
+    "default_skills"
+   ],
+   "relations": [
+    "Matter 1-many"
+   ]
+  },
+  {
+   "name": "Connector",
+   "fields": [
+    "id",
+    "type",
+    "scopes",
+    "credential_ref",
+    "region",
+    "status",
+    "approved_by"
+   ],
+   "relations": [
+    "CommItem 1-many"
+   ]
+  },
+  {
+   "name": "ExportJob",
+   "fields": [
+    "id",
+    "scope",
+    "requested_by",
+    "approval_id",
+    "status",
+    "manifest_hash",
+    "link_expires_at"
+   ],
+   "relations": [
+    "ApprovalItem"
+   ]
+  },
+  {
+   "name": "ReportDefinition",
+   "fields": [
+    "id",
+    "group",
+    "name",
+    "definition",
+    "dataset",
+    "columns",
+    "filters",
+    "visibility",
+    "owner_screen"
+   ],
+   "relations": [
+    "ReportPreset many-to-one",
+    "ReportRun one-to-many"
+   ]
+  },
+  {
+   "name": "ReportRun",
+   "fields": [
+    "id",
+    "report_id",
+    "run_by",
+    "at",
+    "filters",
+    "row_count",
+    "format",
+    "file_ref",
+    "hash"
+   ],
+   "relations": [
+    "ReportDefinition many-to-one"
+   ]
+  },
+  {
+   "name": "TextConversation",
+   "fields": [
+    "id",
+    "contact_id",
+    "firm_number",
+    "consent_state",
+    "consent_at",
+    "consent_method"
+   ],
+   "relations": [
+    "CommItem one-to-many (channel sms)"
+   ]
+  },
+  {
+   "name": "InternalThread",
+   "fields": [
+    "id",
+    "matter_id",
+    "participants",
+    "guests",
+    "guest_expiry"
+   ],
+   "relations": [
+    "Matter many-to-one"
+   ]
+  },
+  {
+   "name": "NotificationPreference",
+   "fields": [
+    "user_id",
+    "event",
+    "channel",
+    "enabled",
+    "locked",
+    "quiet_hours",
+    "delegate_id"
+   ],
+   "relations": [
+    "User many-to-one"
+   ]
+  },
+  {
+   "name": "ApiKey",
+   "fields": [
+    "id",
+    "app",
+    "scopes",
+    "hash",
+    "created_by",
+    "expires",
+    "last_used"
+   ],
+   "relations": [
+    "Firm many-to-one"
+   ]
+  },
+  {
+   "name": "Webhook",
+   "fields": [
+    "id",
+    "url",
+    "events",
+    "secret_ref",
+    "expires",
+    "status",
+    "model",
+    "fields",
+    "expires_at"
+   ],
+   "relations": [
+    "WebhookDelivery one-to-many"
+   ]
+  },
+  {
+   "name": "Subscription",
+   "fields": [
+    "firm_id",
+    "plan",
+    "seats",
+    "agent_budget",
+    "status",
+    "user_id",
+    "target_type",
+    "target_id"
+   ],
+   "relations": [
+    "Firm one-to-one"
+   ]
+  },
+  {
+   "name": "ResearchMemo",
+   "fields": [
+    "id",
+    "matter_id",
+    "question",
+    "jurisdiction",
+    "citations",
+    "status",
+    "approved_by"
+   ],
+   "relations": [
+    "Matter many-to-one"
+   ]
+  },
+  {
+   "name": "AgentRun",
+   "fields": [
+    "id",
+    "matter_id",
+    "goal",
+    "plan_steps",
+    "status",
+    "started_by",
+    "stopped_by"
+   ],
+   "relations": [
+    "AgentRun has many AgentEvent; a step may reference ApprovalItem"
+   ]
+  },
+  {
+   "name": "SecureLink",
+   "fields": [
+    "id",
+    "document_version_id",
+    "expires_at",
+    "passcode_hash",
+    "downloads"
+   ],
+   "relations": [
+    "SecureLink belongs to DocumentShare"
+   ]
+  },
+  {
+   "name": "OAuthApp",
+   "fields": [
+    "id",
+    "name",
+    "redirect_uris",
+    "deauth_url",
+    "scopes",
+    "phase"
+   ],
+   "relations": [
+    "OAuthApp has many grants (ApiKey-like)"
+   ]
+  },
+  {
+   "name": "EmailSettings",
+   "fields": [
+    "firm_id",
+    "user_id",
+    "sync_scope",
+    "sender_domain",
+    "sender_address",
+    "signature"
+   ],
+   "relations": [
+    "Firm has one; User may override"
+   ]
+  },
+  {
+   "name": "BankAccount",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by platform relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "ReportPreset",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by platform relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "WebhookDelivery",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by platform relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  }
+ ],
+ "gates": [
+  {
+   "id": "G-PM",
+   "name": "Portal message or share with substance",
+   "approver": "responsible lawyer (or paralegal licensee within scope)",
+   "blocks": "Agent-drafted advice or new-substance messages and agent-proposed document shares reaching the client"
+  },
+  {
+   "id": "G-OUT",
+   "name": "Outgoing substantive email",
+   "approver": "responsible lawyer",
+   "blocks": "Sending an agent-drafted client-facing or third-party email"
+  },
+  {
+   "id": "G-SUM",
+   "name": "Call or meeting summary accuracy",
+   "approver": "participant who was on the call",
+   "blocks": "The summary becoming the matter record"
+  },
+  {
+   "id": "G13",
+   "name": "Closing approval",
+   "approver": "responsible lawyer",
+   "blocks": "Trust refund or transfer, sending the closing letter, retention schedule, and the matter close itself (also blocked by server until trust is $0.00 and no undertakings are open)"
+  },
+  {
+   "id": "G14",
+   "name": "File destruction",
+   "approver": "lawyer",
+   "blocks": "Destroying any archived file contents"
+  },
+  {
+   "id": "G-SK",
+   "name": "Skill autonomy change and routine templates",
+   "approver": "lawyer (licensee)",
+   "blocks": "Enabling a skill, raising its autonomy, and the agent sending a template message without a per-message gate"
+  },
+  {
+   "id": "G-PERM",
+   "name": "Access change",
+   "approver": "lawyer; trust signing authority is granted only by a lawyer who holds it",
+   "blocks": "New users, role and permission changes, removal of an ethical wall"
+  },
+  {
+   "id": "G-INT",
+   "name": "New integration or scope",
+   "approver": "lawyer or admin-licensee",
+   "blocks": "Connecting a system or widening its scopes; any data flow outside Canada"
+  },
+  {
+   "id": "G-EXP",
+   "name": "External report or bulk export",
+   "approver": "lawyer with step-up auth",
+   "blocks": "Reports sent outside the firm (auditor, LSO, insurer), full firm export, client file transfer"
+  },
+  {
+   "id": "G-GUEST",
+   "name": "Guest (co-counsel) access to a matter space",
+   "approver": "responsible lawyer",
+   "blocks": "An outside person seeing any matter message or file"
+  },
+  {
+   "id": "G-RES",
+   "name": "Research memo approval",
+   "approver": "lawyer",
+   "blocks": "A research memo being filed as work product or used in an outgoing draft"
+  }
+ ],
+ "agent_jobs": [
+  {
+   "name": "Portal triage",
+   "trigger": "event: client portal message",
+   "does": "Classifies the message, answers routine status questions with approved templates, and drafts substantive replies",
+   "output": "Sent template reply, or a draft reply for G-PM"
+  },
+  {
+   "name": "Document request chaser",
+   "trigger": "schedule: daily",
+   "does": "Sends reminders for outstanding document requests and files uploads",
+   "output": "Reminder messages (template); filed documents"
+  },
+  {
+   "name": "Mail filing",
+   "trigger": "event: new mail via connector",
+   "does": "Threads mail, matches it to matters, files attachments, flags privilege, and extracts deadlines, tasks and time",
+   "output": "Filed CommItems; G7 deadlines, G9 time entries, unfiled queue items"
+  },
+  {
+   "name": "Reply drafter",
+   "trigger": "event: inbound email needing a response",
+   "does": "Drafts a reply using matter context and cites sources",
+   "output": "Draft email for G-OUT"
+  },
+  {
+   "name": "Call summarizer",
+   "trigger": "event: transcript with recorded consent",
+   "does": "Summarizes the call and pulls out commitments and time",
+   "output": "Summary for G-SUM; tasks; G9 time"
+  },
+  {
+   "name": "Approval chaser",
+   "trigger": "schedule: hourly",
+   "does": "Escalates overdue approvals, marks stale ones, and re-drafts after a rejection",
+   "output": "Notifications; refreshed approval items"
+  },
+  {
+   "name": "Audit self-check",
+   "trigger": "schedule: daily",
+   "does": "Verifies the hash chain and finds actions taken without a required gate, as well as volume anomalies",
+   "output": "Admin alert"
+  },
+  {
+   "name": "Risk digest",
+   "trigger": "schedule: weekly",
+   "does": "Stale matters, unconfirmed deadlines, trust exceptions, overdue approvals, AR",
+   "output": "Internal digest (no gate)"
+  },
+  {
+   "name": "Closing starter",
+   "trigger": "event: matter reaches concluded stage, or N days with no activity",
+   "does": "Builds the closing checklist with evidence and drafts the final bill, trust disposition and closing letter",
+   "output": "Drafts for G-B2, G11 and G13"
+  },
+  {
+   "name": "Destruction batch",
+   "trigger": "schedule: monthly",
+   "does": "Lists files past destroy-after, checks holds and related matters, and computes the keep-set",
+   "output": "Destruction batch for G14"
+  },
+  {
+   "name": "Access review",
+   "trigger": "schedule: quarterly",
+   "does": "Finds dormant accounts, over-broad roles, unsupervised non-licensees and stale walls",
+   "output": "Fix proposals for G-PERM"
+  },
+  {
+   "name": "Connector health",
+   "trigger": "schedule: every 15 min",
+   "does": "Checks auth, sync lag and mapping drift",
+   "output": "Alerts; proposed mapping fixes"
+  },
+  {
+   "name": "Export assembler",
+   "trigger": "event: G-EXP approved",
+   "does": "Builds the export, verifies counts and hashes, and issues an expiring link",
+   "output": "Export package + manifest"
+  },
+  {
+   "name": "Report self-check",
+   "trigger": "schedule (nightly)",
+   "does": "Reconciles report totals with ledgers and flags mismatches",
+   "output": "alert on report-catalogue"
+  },
+  {
+   "name": "Insights note",
+   "trigger": "schedule (month end)",
+   "does": "Explains KPI movement with cited matters",
+   "output": "note on firm-insights"
+  },
+  {
+   "name": "Text triage",
+   "trigger": "event (inbound text)",
+   "does": "Files the text, replies with a template when allowed, blocks sensitive drafts",
+   "output": "draft reply for G-OUT"
+  },
+  {
+   "name": "Stale matter sweep",
+   "trigger": "schedule (weekly)",
+   "does": "Lists matters with no activity for N days for closing review",
+   "output": "list on matter-closing / reports"
+  },
+  {
+   "name": "Citation checker",
+   "trigger": "event (memo drafted)",
+   "does": "Retrieves every cited authority and matches quotes",
+   "output": "memo for G-RES"
+  },
+  {
+   "name": "Key and webhook hygiene",
+   "trigger": "schedule (weekly)",
+   "does": "Flags unused keys, expiring grants, failing deliveries",
+   "output": "alert on api-and-webhooks"
+  },
+  {
+   "name": "Filing scope re-evaluation",
+   "trigger": "event: sync scope changed",
+   "does": "Computes which items would be filed or unfiled under the new scope",
+   "output": "Preview diff for human confirmation on email-settings"
+  },
+  {
+   "name": "Goal runner",
+   "trigger": "event: goal accepted in ask-agent",
+   "does": "Runs plan steps, pausing at each regulated step",
+   "output": "Step trace; ApprovalItem per regulated step"
+  },
+  {
+   "name": "Text delivery fallback",
+   "trigger": "event: text delivery failed",
+   "does": "Suggests portal message or call",
+   "output": "Suggestion to the sender; never an automatic resend"
+  },
+  {
+   "name": "Retainer coverage watch",
+   "trigger": "schedule: daily",
+   "does": "Compares WIP + AR with trust held and the minimum threshold",
+   "output": "Draft replenishment request for a lawyer to send"
+  }
+ ],
+ "open_questions": [
+  "Routine portal replies under pre-approved templates: is the owner comfortable with no per-message gate, or must every client message be approved in v1?",
+  "Generic mail connector: IMAP/SMTP only at first, or also the mail APIs of the two big providers (connected through connectors, never named in core)?",
+  "E-sign: build our own signing flow (data stays in Canada), or connect to an outside provider and accept non-Canadian processing with disclosure?",
+  "Call recording and transcription: in scope for v1, and what consent policy (all-party notice) does the firm want?",
+  "Default retention classes per practice area: does the owner want to set them, or ship conservative defaults (for example 15 years for litigation) with an LSO verification pass?",
+  "Unclaimed trust: does the app prepare the LSO unclaimed trust funds application, or only flag the matter?",
+  "Can a non-licensee admin approve G-INT and G-PERM in a sole-practitioner firm, or must the lawyer always approve?",
+  "Should the agent activity log show model cost per matter to lawyers, or only to the admin?",
+  "Does the LSO annual-report helper fall in v1 scope?",
+  "Text messaging in v1? It needs a Canadian SMS provider and CASL review; portal-only is safer.",
+  "Which research sources can we license (CanLII API terms, commercial publishers)? Without them research-workspace is limited to public sources.",
+  "Is a mail-client add-in in v1, or is the server-side mail connector enough?",
+  "Default read-only portal window after close (30/90/365 days)?",
+  "Should firm-insights show per-lawyer figures to all lawyers or only to the firm owner?",
+  "Custom actions (partner links opening with signed ids from matter, contact or document pages): add later? (r11, could)",
+  "Ship a Zapier/Make app on the public API, or rely on plain-language routines in automation-settings? (r11, could)",
+  "Mail add-in: mirror matter folders and auto-file mail dragged into them (connector-side watcher)? (r04/r11, could)",
+  "Mail add-in: per-user default time template and an include-closed-matters toggle when filing? (r04/r11, could)",
+  "Telephony connector to log calls automatically from a VoIP provider? (r04, could)",
+  "Suggested short and long replies to texts for human review? (r04, could)",
+  "Client upload: choose destination folder and batch multi-file upload? (r04, could)",
+  "Stale client-update drafts: auto-expire after how many days? (r04, could)",
+  "Research: show a 'what the agent remembers' list with per-item delete? (r08, could)",
+  "Reports API (list catalogue, run with filters, fetch output, manage presets) in which API phase? (r10, could)",
+  "Leave-us export preset matching a competitor's import format? (r11, could)",
+  "Multi-currency: if ever added, a foreign exchange gain/loss report (CAD-only assumed now). (r10, could)",
+  "Personal injury damages and liens reports, only if PI becomes a supported practice area. (r10, could)"
+ ],
+ "sources": [
+  "https://help.clio.com/hc/articles/9043484357147",
+  "https://www.clio.com/products/manage/",
+  "https://clio.com/features/legal-ai-software/",
+  "https://www.practicepanther.com/features/",
+  "https://www.mycase.com/features/client-portal/",
+  "https://www.smokeball.com/features",
+  "https://lso.ca/about-lso/legislation-rules/by-laws",
+  "https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct",
+  "https://www.ontario.ca/laws/statute/02l24",
+  "https://www.ontario.ca/laws/statute/00e17",
+  "https://www.ontario.ca/laws/statute/90s15",
+  "https://www.priv.gc.ca/en/privacy-topics/privacy-laws-in-canada/the-personal-information-protection-and-electronic-documents-act-pipeda/",
+  "https://www.lawsociety.bc.ca/docs/practice/resources/guidelines-cloud.pdf",
+  "https://lawsociety.mb.ca/?p=4681",
+  "https://canadianlawyermag.com/article/law-firms-need-document-retention-policies-too-1776/",
+  "https://learningcentre.lawsociety.ab.ca/mod/page/view.php?id=389",
+  "https://help.clio.com/hc/en-us/articles/14330519112987",
+  "https://help.clio.com/hc/en-us/articles/14349646533787",
+  "https://help.clio.com/hc/en-us/articles/14344842681115",
+  "https://help.clio.com/hc/en-us/articles/14352051388827",
+  "https://help.clio.com/hc/articles/37685184870299",
+  "https://help.clio.com/hc/articles/54824841490075",
+  "https://help.clio.com/hc/en-au/articles/19199218407835",
+  "https://help.clio.com/hc/articles/50633368921243",
+  "https://help.clio.com/hc/articles/9286043395867",
+  "https://help.clio.com/hc/articles/9286056633115",
+  "https://help.clio.com/hc/articles/9125220988827",
+  "https://help.clio.com/hc/en-150/articles/9125264015259",
+  "https://help.clio.com/hc/en-us/articles/9125228224539",
+  "https://help.clio.com/hc/en-us/articles/9125226343579",
+  "https://www.clio.com/wp-content/uploads/2025/04/Clio-for-Clients-Best-Practice-Guide.pdf",
+  "https://www.clio.com/ca/features/law-firm-communications/",
+  "https://www.clio.com/features/law-firm-insights/",
+  "https://www.clio.com/uk/blog/manage-ai/",
+  "https://help.clio.com/hc/articles/48791655710235-Understand-Clio-Work",
+  "https://www.lawnext.com/2026/04/clio-work-clios-ai-workspace-is-now-available-to-solo-and-smaller-law-firms-as-a-standalone-product.html",
+  "https://docs.developers.clio.com/guides/clio-manage/webhooks/",
+  "https://docs.developers.clio.com/api-docs/applications",
+  "https://crtc.gc.ca/eng/internet/anti.htm",
+  "https://help.clio.com/hc/en-us/articles/9125264015259-Internal-Messages",
+  "https://help.clio.com/hc/en-us/articles/9290191798683-Clio-for-Co-Counsel-Law-Firm-Setup",
+  "https://help.clio.com/hc/en-us/articles/9289644630811-Mobile-App-Communications",
+  "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in",
+  "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing",
+  "https://www.clio.com/blog/clio-this-month-outlook-add-in/",
+  "https://help.clio.com/hc/en-us/articles/56518455237403-Set-Up-Sender-Email-Address",
+  "https://help.clio.com/hc/en-us/articles/56535059875483-Set-Up-Email-Signatures-and-Templates",
+  "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions",
+  "https://help.clio.com/hc/en-us/articles/9290346939547-Set-Up-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/15083241879195-Create-and-Manage-Matter-Stages",
+  "https://help.clio.com/hc/en-us/articles/56487431247259-Send-and-Reply-to-Emails",
+  "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports",
+  "https://help.clio.com/hc/en-us/articles/37685184870299-Custom-Reports-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/9290390462875-Navigate-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/50633368921243-Export-Data-From-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History",
+  "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report",
+  "https://web.archive.org/web/20261005050315/https://www.clio.com/app-directory/",
+  "https://help.clio.com/hc/en-au/articles/16439278772635-Clio-App-Directory",
+  "https://docs.developers.clio.com/api-docs/clio-manage/applications/",
+  "https://docs.developers.clio.com/openapi.json",
+  "https://web.archive.org/web/20260827203348/https://www.clio.com/features/mobile-app/",
+  "https://web.archive.org/web/20200517133042/https://www.clio.com/app-directory/outlook-365-add-in/",
+  "https://web.archive.org/web/20240705062236/https://help.clio.com/hc/en-us/articles/9125226343579-Clio-for-Gmail",
+  "https://help.clio.com/hc/en-us/articles/29764998990491",
+  "https://www.clio.com/about/press/clio-work-agentic-mode-small-law-firms/"
+ ],
+ "clio_gaps": [
+  {
+   "clio_feature": "Client portal: messages, documents, bills",
+   "where_in_clio": "Matter > Client portal / Clio for Clients",
+   "status": "already covered",
+   "note": "client-portal"
+  },
+  {
+   "clio_feature": "Sharing calendar events with clients",
+   "where_in_clio": "Calendar event > share to portal",
+   "status": "added",
+   "note": "client-portal shared_event"
+  },
+  {
+   "clio_feature": "Portal notice emails with link only",
+   "where_in_clio": "Clio for Clients notifications",
+   "status": "deliberately different",
+   "note": "client-portal notice_email is content-free by design; Clio bill notices can carry the firm's free-text message (r04)"
+  },
+  {
+   "clio_feature": "Portal mobile app",
+   "where_in_clio": "Clio for Clients app",
+   "status": "deliberately different",
+   "note": "Responsive web portal only in v1 | Merged duplicate 'Client portal mobile app': Responsive web with install, web push, passkeys and camera upload (r04)"
+  },
+  {
+   "clio_feature": "Portal branding and settings",
+   "where_in_clio": "No documented portal settings page; firm logo/name on the invitation email; staff options under Settings > Notifications; stage visibility in matter stage settings",
+   "status": "added",
+   "note": "portal-settings is ours; Clio equivalent unproven (r04)"
+  },
+  {
+   "clio_feature": "Text messaging with firm number",
+   "where_in_clio": "Communications > Text messages; Settings > Text messaging",
+   "status": "deliberately different",
+   "note": "text-messaging: filed per matter, unfiled threads visible to triage only; Clio files texts at contact level and all firm users see all texts (r04)"
+  },
+  {
+   "clio_feature": "Bills sent by text",
+   "where_in_clio": "Bill > send > text",
+   "status": "added",
+   "note": "text-messaging: link only, no amounts"
+  },
+  {
+   "clio_feature": "Internal messages and co-counsel portal",
+   "where_in_clio": "Communications > New > Internal message; Clio for Co-Counsel",
+   "status": "added",
+   "note": "internal-messages + G-GUEST (r04: current name is Internal message; 'Secure messages'/'Clio Connect' are older names)"
+  },
+  {
+   "clio_feature": "Outlook add-in",
+   "where_in_clio": "Outlook ribbon > Clio",
+   "status": "added",
+   "note": "mail-add-in; Clio also files mail server-side now, so our server-side connector is parity, not a differentiator (r04)"
+  },
+  {
+   "clio_feature": "Gmail add-on",
+   "where_in_clio": "Gmail side panel > Clio",
+   "status": "added",
+   "note": "mail-add-in"
+  },
+  {
+   "clio_feature": "Batch file unfiled emails",
+   "where_in_clio": "Communications > Emails > Unfiled (automated email filing); add-in bulk filing by moving mail into mirrored matter folders",
+   "status": "added",
+   "note": "comms-log + mail-add-in (r04: the add-in inbox scan was a 2018 feature, not current)"
+  },
+  {
+   "clio_feature": "Auto-file outgoing email when matter picked",
+   "where_in_clio": "Outlook add-in compose",
+   "status": "added",
+   "note": "mail-add-in pre_send_matter"
+  },
+  {
+   "clio_feature": "Communications log (emails, calls, notes)",
+   "where_in_clio": "Matter > Communications",
+   "status": "already covered",
+   "note": "comms-log; Clio now has automated server-side filing and in-app compose/reply (r04)"
+  },
+  {
+   "clio_feature": "Phone call logging",
+   "where_in_clio": "Communications > New > Phone log",
+   "status": "already covered",
+   "note": "comms-log Log call"
+  },
+  {
+   "clio_feature": "Classic reports with filters",
+   "where_in_clio": "Reports > Classic reports > Reports subtab > Categories (Billing, Client, Matter, Productivity, Revenue, Task, Online payments, Personal injury, Compliance)",
+   "status": "added",
+   "note": "report-catalogue lists every report (r10)"
+  },
+  {
+   "clio_feature": "Billing reports (AR, billing history, payments, WIP)",
+   "where_in_clio": "Reports > Classic reports > Billing",
+   "status": "added",
+   "note": "report-catalogue Money group; computed in billing-reports"
+  },
+  {
+   "clio_feature": "Client reports (balances, ledgers, trust)",
+   "where_in_clio": "Reports > Classic reports > Client",
+   "status": "added",
+   "note": "report-catalogue Clients and Trust"
+  },
+  {
+   "clio_feature": "Matter reports (listing, by responsible attorney, rates)",
+   "where_in_clio": "Reports > Classic reports > Matter",
+   "status": "added",
+   "note": "report-catalogue Matters"
+  },
+  {
+   "clio_feature": "Productivity reports (by user, by matter)",
+   "where_in_clio": "Reports > Classic reports > Productivity",
+   "status": "added",
+   "note": "report-catalogue Time; utilization screen"
+  },
+  {
+   "clio_feature": "Revenue and originating attorney revenue",
+   "where_in_clio": "Reports > Classic reports > Revenue",
+   "status": "added",
+   "note": "report-catalogue Money"
+  },
+  {
+   "clio_feature": "Task reports (progress, productivity by user)",
+   "where_in_clio": "Reports > Classic reports > Task",
+   "status": "added",
+   "note": "report-catalogue Work"
+  },
+  {
+   "clio_feature": "Trust reports (client ledger, trust ledger, trust listing, trust management, trust interest)",
+   "where_in_clio": "Reports > Classic reports > Client category (non-AU); dedicated trust reports article is AU-only",
+   "status": "added",
+   "note": "report-catalogue Trust; no Clio help article found for dormant/unclaimed trust or receipts/disbursements journals, those are ours (r10) | Merged duplicate 'Trust management report (WIP vs trust vs minimum)': report-catalogue Retainer coverage (r10) | Merged duplicate 'Trust interest calculation report': report-catalogue Trust interest (r10)"
+  },
+  {
+   "clio_feature": "Reconciliation reports kept for 10 years",
+   "where_in_clio": "Accounts > trust account > Reconciliations",
+   "status": "already covered",
+   "note": "trust area monthly-reconciliation"
+  },
+  {
+   "clio_feature": "Report presets",
+   "where_in_clio": "Reports > save preset",
+   "status": "added",
+   "note": "reports preset field"
+  },
+  {
+   "clio_feature": "Scheduled reports",
+   "where_in_clio": "Reports > schedule; Reports > Presets > Schedule",
+   "status": "added",
+   "note": "reports schedule now structured (cadence, time, start, end, format, recipients); was free text (r10) | Merged duplicate 'Structured report schedules': reports schedule (r10)"
+  },
+  {
+   "clio_feature": "Report history",
+   "where_in_clio": "Reports > History",
+   "status": "added",
+   "note": "reports history; ReportRun entity"
+  },
+  {
+   "clio_feature": "Custom reports (datasets, filters, grouping)",
+   "where_in_clio": "Reports > Reports Beta (still Beta; CA Advanced/Expand tiers to create)",
+   "status": "added",
+   "note": "custom-report-builder; ours also filters and groups on custom fields, Clio's does not (r10) Plan names Advanced/Expand are the 2025-early 2026 CA tiers (Complete renamed Expand 1 Jan 2026, r02); since about Sept 2026 CA plans are Starter/Core/Signature/Elite (r12), so the tier mapping needs re-checking."
+  },
+  {
+   "clio_feature": "Firm dashboard (utilization, realization, collection)",
+   "where_in_clio": "Dashboard > Firm Dashboard (three metrics, activity date); benchmarks appear in marketing only",
+   "status": "added",
+   "note": "firm-insights with basis shown; external benchmarks deliberately out (r10)"
+  },
+  {
+   "clio_feature": "Close and reopen matter, bulk status update",
+   "where_in_clio": "Matters > select > Update status",
+   "status": "added",
+   "note": "matter-closing Bulk close, pending close, reopen"
+  },
+  {
+   "clio_feature": "Pending matter status",
+   "where_in_clio": "Matter form > status",
+   "status": "added",
+   "note": "matter-closing pending_close"
+  },
+  {
+   "clio_feature": "Closed matter read-only",
+   "where_in_clio": "Closed matters",
+   "status": "added",
+   "note": "matter-closing edge"
+  },
+  {
+   "clio_feature": "Data export to CSV per data type",
+   "where_in_clio": "Admin-only Exports page (ca.app.clio.com/export), outside Settings; 10 record types, no bills, trust ledgers or documents",
+   "status": "added",
+   "note": "integrations-data export_entities, export_history; ours also covers bills, payments, trust ledgers and documents (r10, r11)"
+  },
+  {
+   "clio_feature": "App Directory / connected apps",
+   "where_in_clio": "Settings > Apps / App Directory",
+   "status": "already covered",
+   "note": "integrations-data connectors; no public app store in v1"
+  },
+  {
+   "clio_feature": "Developer API, OAuth apps, webhooks",
+   "where_in_clio": "Separate Developer Portal (developers.clio.com; ca.developers.clio.com for Canada); firm users authorize apps by OAuth; Developer Portal > Webhooks",
+   "status": "added",
+   "note": "api-and-webhooks, phased: v1 keys + webhooks, v1.1 OAuth apps; Clio webhooks cover 10 models with handshake, HMAC and 31-day max expiry, ours is narrower in v1 (r11) | Merged duplicate 'Webhook handshake, HMAC signature, expiry, field selection': api-and-webhooks webhook_secret, webhook_fields, webhook_status (r11)"
+  },
+  {
+   "clio_feature": "Email integration settings",
+   "where_in_clio": "Settings > Communications (inbox filing, signatures, templates); Settings > Apps > Google/Microsoft > Email integrations (send as user)",
+   "status": "added",
+   "note": "email-settings + integrations-data mail connector (r04)"
+  },
+  {
+   "clio_feature": "Notification preferences",
+   "where_in_clio": "Settings > Notifications / profile",
+   "status": "added",
+   "note": "notification-settings"
+  },
+  {
+   "clio_feature": "Account billing (subscription)",
+   "where_in_clio": "Settings > Account / Billing",
+   "status": "added",
+   "note": "account-subscription incl. agent budget"
+  },
+  {
+   "clio_feature": "Firm settings (name, logo, time zone, custom fields)",
+   "where_in_clio": "Settings > Firm / Custom fields",
+   "status": "added",
+   "note": "firm-profile logo, time_zone, custom_fields"
+  },
+  {
+   "clio_feature": "Users, roles, permissions",
+   "where_in_clio": "Settings > Users / Roles",
+   "status": "deliberately different",
+   "note": "Owned by the roles/permissions spec, not this file"
+  },
+  {
+   "clio_feature": "Manage AI: deadline extraction from documents",
+   "where_in_clio": "Matter documents > AI",
+   "status": "deliberately different",
+   "note": "deadlines area extraction-review Clio's AI Scheduling applies no local court rules when counting days; ours computes and cites each date under G7/G7b, a real difference, not parity (r02 correction; matches deadlines.json)."
+  },
+  {
+   "clio_feature": "Manage AI: matter and document summaries",
+   "where_in_clio": "Matter dashboard > AI",
+   "status": "already covered",
+   "note": "ask-agent and documents area"
+  },
+  {
+   "clio_feature": "Manage AI: draft bills and flag errors",
+   "where_in_clio": "Billing > AI",
+   "status": "already covered",
+   "note": "billing area pre-bill-review"
+  },
+  {
+   "clio_feature": "Manage AI: suggested client updates",
+   "where_in_clio": "Matter > AI action cards",
+   "status": "already covered",
+   "note": "client-portal routine replies + G-PM"
+  },
+  {
+   "clio_feature": "Manage AI: AI event log",
+   "where_in_clio": "AI activity log",
+   "status": "already covered",
+   "note": "agent-activity; we keep it permanently; Clio's 90-day figure is low confidence (r08)"
+  },
+  {
+   "clio_feature": "Manage AI: file naming clean-up",
+   "where_in_clio": "Documents > AI",
+   "status": "already covered",
+   "note": "documents area"
+  },
+  {
+   "clio_feature": "Clio Work: cited legal research",
+   "where_in_clio": "Clio Work > research",
+   "status": "partial",
+   "note": "research-workspace, citation checker, G-RES. Clio Work has a licensed corpus (Canadian case law since 23 Jul 2026), citator and agentic mode; research is a Clio edge, not 'added' (r08 correction; matches documents#16, readiness#10)."
+  },
+  {
+   "clio_feature": "Clio Work: multi-document tables",
+   "where_in_clio": "Clio Work > tables",
+   "status": "already covered",
+   "note": "Covered by documents multi-document-analysis table mode with cell citations and a stated limit (documents.json). Clio's Vincent Tables handle large sets (reported up to 500 documents) with templates (r08)."
+  },
+  {
+   "clio_feature": "Clio Work: matter memory",
+   "where_in_clio": "Clio Work > memory",
+   "status": "added",
+   "note": "research-workspace matter_memory (lawyer-editable)"
+  },
+  {
+   "clio_feature": "Clio Work: citator treatment",
+   "where_in_clio": "Clio Work > citator",
+   "status": "deliberately different",
+   "note": "Depends on licensed sources; we verify retrieval and quotes, treatment marked (verify) | Merged duplicate 'Citator treatment badge': research-workspace: 'not checked for subsequent treatment' until a licensed Canadian noter-up exists (r08)"
+  },
+  {
+   "clio_feature": "Bundled e-sign",
+   "where_in_clio": "Documents > send for signature",
+   "status": "already covered",
+   "note": "esign-request / documents area"
+  },
+  {
+   "clio_feature": "Online payments",
+   "where_in_clio": "Clio Payments",
+   "status": "already covered",
+   "note": "billing area online-payment-page"
+  },
+  {
+   "clio_feature": "Scheduler (consult booking)",
+   "where_in_clio": "Clio Scheduler",
+   "status": "already covered",
+   "note": "intake area consultation-booking"
+  },
+  {
+   "clio_feature": "Automated server-side email filing (Gmail, Outlook, Exchange)",
+   "where_in_clio": "Settings > Communications",
+   "status": "already covered",
+   "note": "comms-log Mail filing job + email-settings sync_scope (r04)"
+  },
+  {
+   "clio_feature": "Email sync scope with retroactive re-evaluation",
+   "where_in_clio": "Settings > Communications",
+   "status": "added",
+   "note": "email-settings sync_scope with preview diff before applying (r04)"
+  },
+  {
+   "clio_feature": "Do not file and remove synced email",
+   "where_in_clio": "Communications > email > Do not file",
+   "status": "added",
+   "note": "comms-log Exclude from records with tombstone (r04)"
+  },
+  {
+   "clio_feature": "Compose, reply-all and forward inside the app from connected inboxes",
+   "where_in_clio": "Communications > Emails > New / Reply",
+   "status": "added",
+   "note": "comms-log Compose email; agent drafts still G-OUT (r04)"
+  },
+  {
+   "clio_feature": "Thread rename and email attachments folder",
+   "where_in_clio": "Communications > email thread",
+   "status": "added",
+   "note": "comms-log display_subject, Refile thread (r04)"
+  },
+  {
+   "clio_feature": "Sender email address (send as user/firm)",
+   "where_in_clio": "Settings > Apps > Email integrations",
+   "status": "added",
+   "note": "email-settings sender_domain with DNS check (r04)"
+  },
+  {
+   "clio_feature": "Email signatures and templates",
+   "where_in_clio": "Settings > Communications > Signatures / Templates",
+   "status": "added",
+   "note": "email-settings + automation-settings templates (r04)"
+  },
+  {
+   "clio_feature": "Matter forwarding address (Maildrop)",
+   "where_in_clio": "Matter > Maildrop address",
+   "status": "added",
+   "note": "comms-log Forward to matter address; we also file attachments after virus scan (r04)"
+  },
+  {
+   "clio_feature": "Email and phone log export and print",
+   "where_in_clio": "Communications > export",
+   "status": "added",
+   "note": "comms-log Export filtered log (G-EXP) and Print (r04)"
+  },
+  {
+   "clio_feature": "Subscribers on communications",
+   "where_in_clio": "Communications item > subscribers",
+   "status": "added",
+   "note": "notification-settings follows (r04)"
+  },
+  {
+   "clio_feature": "AI suggested reply in mail sidebar",
+   "where_in_clio": "Outlook add-in > AI reply",
+   "status": "added",
+   "note": "mail-add-in Suggest reply (r04)"
+  },
+  {
+   "clio_feature": "Text number verification and send caps",
+   "where_in_clio": "Settings > Text messaging",
+   "status": "added",
+   "note": "text-messaging number_verification (r04)"
+  },
+  {
+   "clio_feature": "Text delivery status and failure reasons",
+   "where_in_clio": "Communications > Text messages",
+   "status": "added",
+   "note": "text-messaging delivery_status, failure_reason (r04)"
+  },
+  {
+   "clio_feature": "Inbound MMS",
+   "where_in_clio": "Communications > Text messages",
+   "status": "added",
+   "note": "text-messaging: quarantine then file (r04)"
+  },
+  {
+   "clio_feature": "Internal thread archive, unread filter, print, time",
+   "where_in_clio": "Communications > Internal messages",
+   "status": "added",
+   "note": "internal-messages (r04)"
+  },
+  {
+   "clio_feature": "Co-counsel tasks, time and notes",
+   "where_in_clio": "Clio for Co-Counsel",
+   "status": "added",
+   "note": "internal-messages guest_rate, Assign task to guest (r04)"
+  },
+  {
+   "clio_feature": "Matter stage client-facing names and stage notices",
+   "where_in_clio": "Settings > Matter stages",
+   "status": "added",
+   "note": "client-portal stage.client_label (r04)"
+  },
+  {
+   "clio_feature": "Portal event trail and transcript",
+   "where_in_clio": "Matter > Clio for Clients",
+   "status": "added",
+   "note": "client-portal show_portal_events, Export portal transcript PDF (r04)"
+  },
+  {
+   "clio_feature": "Client sign-in by email link",
+   "where_in_clio": "Clio for Clients sign-in",
+   "status": "deliberately different",
+   "note": "portal-settings sign_in_method: password+MFA default, magic link plus device trust and passkey optional (r04)"
+  },
+  {
+   "clio_feature": "Client idle session timeout",
+   "where_in_clio": "Clio for Clients",
+   "status": "added",
+   "note": "portal-settings client_idle_timeout_minutes (r04)"
+  },
+  {
+   "clio_feature": "Shared folder auto-shares new documents",
+   "where_in_clio": "Matter > Documents > shared folder",
+   "status": "deliberately different",
+   "note": "client-portal pending_share: nothing auto-shares (r04)"
+  },
+  {
+   "clio_feature": "New participant sees full prior history",
+   "where_in_clio": "Clio for Clients > add participant",
+   "status": "deliberately different",
+   "note": "client-portal history_on_join, default from join date (r04)"
+  },
+  {
+   "clio_feature": "Shared event visibility (invitee vs other clients)",
+   "where_in_clio": "Calendar > share event",
+   "status": "added",
+   "note": "client-portal shared_event.visibility (r04)"
+  },
+  {
+   "clio_feature": "Secure document link without portal account",
+   "where_in_clio": "Documents > share link",
+   "status": "added",
+   "note": "client-portal Send secure link (r04)"
+  },
+  {
+   "clio_feature": "Agentic multi-step tasks from one goal prompt",
+   "where_in_clio": "Clio Work > agentic mode",
+   "status": "added",
+   "note": "ask-agent plan, live step trace, Stop/Redirect, per-step approval at regulated steps; Clio describes no approval gates for these runs (r08)"
+  },
+  {
+   "clio_feature": "AI inference location disclosure",
+   "where_in_clio": "Clio trust/security pages",
+   "status": "added",
+   "note": "integrations-data inference_region: 'stored in Canada, processed in <region>' unless inference is Canadian (r08) Clio stores Canadian data in Canada; its help articles say AI processing may temporarily occur outside the region (its Canadian security page claims in-region processing) (r03, r08, r12)."
+  },
+  {
+   "clio_feature": "Drafted client updates visible to responsible lawyer only",
+   "where_in_clio": "Matter > AI action cards",
+   "status": "already covered",
+   "note": "client-portal draft_visibility + G-PM (r08)"
+  },
+  {
+   "clio_feature": "Report views and per-report export history",
+   "where_in_clio": "Reports > Reports Beta > views / History",
+   "status": "added",
+   "note": "custom-report-builder views, export_history; Duplicate and customize on catalogue (r10)"
+  },
+  {
+   "clio_feature": "Bank account activity report",
+   "where_in_clio": "Reports > Classic reports > Billing",
+   "status": "added",
+   "note": "report-catalogue Bank account activity (r10)"
+  },
+  {
+   "clio_feature": "Fee allocation report",
+   "where_in_clio": "Reports > Classic reports > Revenue",
+   "status": "added",
+   "note": "report-catalogue Fee credit allocation (r10)"
+  },
+  {
+   "clio_feature": "Online payments reports",
+   "where_in_clio": "Reports > Classic reports > Online payments",
+   "status": "added",
+   "note": "report-catalogue processor ledger (r10)"
+  },
+  {
+   "clio_feature": "Clio Grow reports (lead source revenue, pipeline, referrals)",
+   "where_in_clio": "Clio Grow > Reports",
+   "status": "added",
+   "note": "report-catalogue Intake rows (r10)"
+  },
+  {
+   "clio_feature": "Personal dashboard and targets",
+   "where_in_clio": "Dashboard > My dashboard",
+   "status": "added",
+   "note": "firm-insights my_numbers (r10)"
+  },
+  {
+   "clio_feature": "Firm Feed (firm-wide change log)",
+   "where_in_clio": "Firm Feed",
+   "status": "added",
+   "note": "agent-activity actor_kind human|agent, change_kind deleted/exported filters (r10)"
+  },
+  {
+   "clio_feature": "Per-report permissions",
+   "where_in_clio": "Settings > Permissions > Reports",
+   "status": "deliberately different",
+   "note": "Ours is per report and role; Clio has one all-reports permission (r10)"
+  },
+  {
+   "clio_feature": "AI report building / ask a question",
+   "where_in_clio": "Reports > Reports Beta > AI",
+   "status": "already covered",
+   "note": "custom-report-builder Describe report in words; reports Ask a question (r10)"
+  },
+  {
+   "clio_feature": "Column chooser on standard reports",
+   "where_in_clio": "Reports > report > columns",
+   "status": "added",
+   "note": "report-catalogue columns (r10)"
+  },
+  {
+   "clio_feature": "Forex gains and losses report",
+   "where_in_clio": "Reports > Classic reports > Billing",
+   "status": "deliberately different",
+   "note": "CAD-only firm assumed (r10)"
+  },
+  {
+   "clio_feature": "Personal injury reports",
+   "where_in_clio": "Reports > Classic reports > Personal injury",
+   "status": "deliberately different",
+   "note": "Only if PI becomes a supported practice area (r10)"
+  },
+  {
+   "clio_feature": "Accounting reports (P&L, GL, balance sheet)",
+   "where_in_clio": "Clio Accounting > Reports",
+   "status": "deliberately different",
+   "note": "General books live in the connected accounting system (r10)"
+  },
+  {
+   "clio_feature": "Public API resource breadth (OpenAPI)",
+   "where_in_clio": "Developer Portal > API reference",
+   "status": "added",
+   "note": "api-and-webhooks openapi_spec; trust read-only (r11)"
+  },
+  {
+   "clio_feature": "Custom Actions (partner links in UI)",
+   "where_in_clio": "Developer Portal > Custom Actions",
+   "status": "deliberately different",
+   "note": "Not in v1; open question (r11)"
+  },
+  {
+   "clio_feature": "Zapier integration",
+   "where_in_clio": "App Directory > Zapier",
+   "status": "deliberately different",
+   "note": "Not in v1: plain-language routines in automation-settings; open question (r11)"
+  },
+  {
+   "clio_feature": "Gmail add-on per-user time defaults",
+   "where_in_clio": "Gmail side panel > settings",
+   "status": "deliberately different",
+   "note": "Open question; we are Canada-only, so the add-in shows the residency note instead of region choice (r11)"
+  },
+  {
+   "clio_feature": "Reports API",
+   "where_in_clio": "Developer Portal > Reports",
+   "status": "deliberately different",
+   "note": "Later API phase; open question (r10)"
+  }
+ ]
+}

@@ -1,0 +1,83 @@
+===== Customize Grow AI https://help.clio.com/hc/en-us/articles/55843648105627-Customize-Grow-AI updated 2026-09-15T16:58:18Z
+Before Grow AI starts working on your leads, administrators can set the firm's practice areas, specify the information to collect from each lead and the questions to ask leads, and the languages you want Grow AI to respond in. These settings apply to every Grow AI lead intake channel.
+You manage all of this in Clio Grow under Settings > Grow AI.
+Important: Add your intake criteria before you connect a channel. Until you do, Grow AI does not know which matters your firm takes or what to ask leads about. 
+Import your firm's details from your website
+Rather than building your intake criteria from scratch, you can have Grow AI read your firm's website and suggest criteria based on what it finds.
+- In Clio Grow, go to Settings > Grow AI.
+- In the notice at the top of the page, click Import from website.
+- Follow the prompts, then review what Grow AI suggests.
+Review the imported criteria carefully and adjust anything that does not reflect the matters your firm currently takes.
+Set your intake criteria
+Your intake criteria tell Grow AI which matters your firm takes and what to collect from a lead before booking them. Grow AI screens each lead against these criteria to produce a fit assessment.
+Note: Leads that do not match your criteria are not turned away. They arrive in your lead inbox marked for review, so your team can decide how to proceed. 
+Add a practice area
+- In Clio Grow, go to Settings > Grow AI.
+- Click Intake criteria.
+- Click Add practice area.
+- Select the practice area, then click Save.
+Repeat for each practice area your firm takes. To change a practice area, click the edit (pencil) icon next to it. To remove one, click the delete (bin) icon.
+Choose the information to collect
+For each practice area, you can choose what Grow AI collects from a lead during the conversation.
+- In Clio Grow, go to Settings > Grow AI.
+- Click Intake criteria.
+- Click a practice area to open it.
+- Review the fields under Information to collect. Some fields are always collected and cannot be removed:
+- Contact details: full name, email address, and phone number
+- A brief summary of the lead's situation
+- The location of the legal matter, which Grow AI uses to determine whether the lead qualifies
+- To remove an optional field, click the delete (bin) icon next to it.
+- To add a field, click Add field, then select a field from the list. The available fields depend on the practice area. For example, a divorce practice area offers fields such as date of marriage, date of separation, and whether children are involved.
+- Click Save.
+Tip: Collect only what you need to decide whether a lead is a good fit. Grow AI gathers these details conversationally, so a long list makes for a longer conversation and more chances for a lead to drop off. 
+Set the locations you serve
+For each practice area, add the locations where your firm offers that service. Grow AI compares a lead's location against this list when assessing fit.
+- In Clio Grow, go to Settings > Grow AI.
+- Click Intake criteria.
+- Click a practice area to open it.
+- Under Locations where this service is offered, select a location. You can add up to 10 locations.
+- Click Save.
+Set up appointment booking
+When appointment booking is on, Grow AI offers a consultation to leads whose location and practice area match your criteria and who raise no conflicts.
+- In Clio Grow, go to Settings > Grow AI.
+- Click Intake criteria.
+- Click a practice area to open it.
+- Toggle Appointment booking on.
+- Select an Appointment type. This determines the length of the consultation and whose calendar it books into.
+- 
+Optional: Next to After booking, click Edit to change what happens to the lead once the consultation is booked.
+- Click Save.
+Note: Appointment types come from your Clio Scheduler settings. To add or change one, see Clio Grow Appointments and Scheduler settings. 
+Set your frequently asked questions
+Grow AI answers common questions from leads using the FAQ you set here, so leads get your firm's answers rather than generic ones. Clio provides a starting set of questions and answers that you can edit, remove, or add to.
+- In Clio Grow, go to Settings > Grow AI.
+- Click FAQ.
+- To edit an existing question, click the arrow next to it, update the Question or Answer, then click Save.
+- To remove a question, click the delete (bin) icon next to it.
+- To add a question, click Add question, enter the Question and Answer, then click Save.
+- Click Done.
+Set your languages
+Grow AI replies to leads in the languages you select.
+- In Clio Grow, go to Settings > Grow AI.
+- Click Languages.
+- Select a Primary language. Grow AI uses this for the first message in a conversation, and for any lead whose language you have not added.
+- 
+Optional: Under Additional languages, add any other languages you want to support. Leads who write in one of these languages get a reply in the same language.
+- Click Save.
+Test how Grow AI responds
+Before you connect a channel, you can hold a conversation with Grow AI as though you were a lead, to check that your criteria, questions, and booking work the way you expect.
+- In Clio Grow, go to Settings > Grow AI.
+- In the test panel on the right, select the Email, Phone, or Web chat tab.
+- For email and web chat, describe a situation as a lead would and send the message.
+- For phone, click Call now to hear the voice agent and test the conversation out loud.
+Work through a realistic inquiry for each practice area you take, and check that Grow AI asks for the details you expect, answers questions the way your firm would, and offers a consultation when the lead qualifies.
+Up next
+Once Grow AI is set up for your firm, connect a channel so it can start working on real leads:
+- 
+Grow AI's Website Chat Tool: Add the chat widget to your firm's website.
+- 
+Set Up the Voice Agent: Forward your firm's calls to the voice agent.
+- 
+Grow AI's Email Agent: Connect an inbox so Grow AI can reply to lead emails.
+
+IMGS: []

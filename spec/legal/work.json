@@ -1,0 +1,2997 @@
+{
+ "area": "work",
+ "title": "Work management (tasks, boards, workflows)",
+ "summary": "Task and workflow tracking inside the legal app: work items linked to matters, shown as boards, lists and matter checklists, driven by configurable workflows, practice-area templates and automation rules, with team availability feeding workload. Its Clio counterparts are Manage tasks, task lists and Automated Workflows (and enterprise Clio Operate); Clio Work is an AI research and drafting workspace and maps to our documents and platform areas, not here. The agent is a first-class assignee that picks up items, shows its steps live, posts results and parks them in Needs approval; nothing it does reaches Done without a named human approval. Optional two-way sync with an external tracker through a generic connector.",
+ "screens": [
+  {
+   "id": "work-board",
+   "name": "Board",
+   "route": "/work/boards/:boardId",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Kanban view of work items in columns mapped to workflow statuses, scoped by a saved filter (one matter, a practice area, or the whole firm).",
+   "layout": "Top: board name, scope filter chips, quick filters (Mine, Agent, Overdue, Needs approval), group-by (none, assignee, matter, priority). Body: columns per status group with WIP counts and limits; optional swimlanes. Right drawer: item preview on click.",
+   "fields": [
+    {
+     "name": "scope filter",
+     "type": "ref",
+     "required": true,
+     "note": "saved filter defines which items appear; a board is a view over a filter"
+    },
+    {
+     "name": "columns",
+     "type": "list",
+     "required": true,
+     "note": "each column maps one or more workflow statuses; unmapped statuses listed in a warning strip"
+    },
+    {
+     "name": "WIP limit",
+     "type": "number",
+     "required": false,
+     "note": "per column; column header turns amber when exceeded"
+    },
+    {
+     "name": "swimlane",
+     "type": "enum",
+     "required": false,
+     "note": "none|assignee|matter|priority|practice area"
+    },
+    {
+     "name": "card",
+     "type": "ref",
+     "required": true,
+     "note": "key, title, matter number, type icon, priority, due/SLA chip, assignee avatar (agent avatar distinct), sub-task progress, approval badge"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Drag card to another column",
+     "by": "human",
+     "gate": "none",
+     "note": "runs the workflow transition; blocked if no transition exists or a guard fails, card snaps back with reason"
+    },
+    {
+     "name": "Move card into Done from Needs approval",
+     "by": "human",
+     "gate": "approve",
+     "note": "only a user with the approver role for that item type; recorded as gate G-W1"
+    },
+    {
+     "name": "Quick create in column",
+     "by": "human",
+     "gate": "none",
+     "note": "title only, inherits board scope (matter, type)"
+    },
+    {
+     "name": "Pick up item",
+     "by": "agent",
+     "gate": "none",
+     "note": "agent moves an Agent-ready card to In progress (agent) and sets itself as assignee"
+    },
+    {
+     "name": "Post result and move to Needs approval",
+     "by": "agent",
+     "gate": "none",
+     "note": "agent cannot move past Needs approval"
+    },
+    {
+     "name": "Bulk move / assign",
+     "by": "human",
+     "gate": "none",
+     "note": "multi-select cards"
+    }
+   ],
+   "agent": "Picks up items assigned to the agent or in an Agent-ready column, shows a live 'working' indicator on the card, attaches its output, moves the card to Needs approval, and flags cards that will breach SLA within 24h.",
+   "gate": "Transition out of Needs approval (approve to Done, or send back with comments) by the named approver; agent output never reaches Done without it.",
+   "states": [
+    "empty (no items match filter)",
+    "loading",
+    "normal",
+    "WIP exceeded",
+    "unmapped status warning",
+    "read-only (viewer)",
+    "offline/sync conflict"
+   ],
+   "edge": [
+    "Two users drag the same card at once: second gets 'item changed, reload' and the move is not applied",
+    "Card's matter is closed: card is read-only and shown greyed with 'matter closed'",
+    "User lacks access to a matter (ethical wall): its cards are hidden, column counts exclude them",
+    "Transition requires a field (e.g. resolution): modal asks for it before move completes",
+    "Agent run fails mid-task: card returns to Agent-ready with failure note and a 'needs human' flag after 2 retries",
+    "Board filter returns >500 items: paginate per column, show 'load more'"
+   ],
+   "reg": "RPC 6.1 supervision of delegated work (verify exact Ontario rule numbers): agent and non-lawyer outputs on legal work stay in Needs approval until a lawyer approves. Ethical walls (conflict screens) must hide items, not just disable them.",
+   "mock": {
+    "kind": "board",
+    "columns": [
+     "To do",
+     "Agent-ready",
+     "In progress",
+     "Needs approval",
+     "Done"
+    ],
+    "rows": [
+     [
+      "WRK-112 Order title search - 14 Birchmount Rd (RE-2026-031) - Yonathan Degu - due Oct 14",
+      "WRK-118 Draft requisition letter - RE-2026-031 - Agent",
+      "WRK-120 Review lease amendments - Abara Holdings - Meraf Abay",
+      "WRK-121 Draft statement of adjustments - RE-2026-031 - Agent - approver Linda Kassim",
+      "WRK-099 Conflict check - Tesfaye v. Norbridge - Ayo Ewebiyi"
+     ],
+     [
+      "WRK-115 Collect ID verification - Hana Gebre - Kaleab Bereket - SLA 2d",
+      "WRK-122 Summarize discovery transcript - Tesfaye v. Norbridge - Agent",
+      "",
+      "WRK-117 Client update email - Abara Holdings - Agent - approver Ayo Ewebiyi",
+      ""
+     ]
+    ]
+   }
+  },
+  {
+   "id": "work-list",
+   "name": "Backlog / list",
+   "route": "/work/list",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "Dense, sortable table of work items for triage, bulk edit and planning; the backlog is items not yet scheduled or started.",
+   "layout": "Top: search box, filter builder (structured fields plus text query), saved filter picker, column chooser, export. Body: table grouped optionally by matter or status, inline edit cells. Bottom: bulk action bar when rows selected.",
+   "fields": [
+    {
+     "name": "key",
+     "type": "text",
+     "required": true,
+     "note": "WRK-<n>, firm-unique"
+    },
+    {
+     "name": "title",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "type",
+     "type": "enum",
+     "required": true,
+     "note": "task|issue|request|sub-task"
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": "most items link to a matter; firm-internal items (e.g. trust reconciliation) may not"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "priority",
+     "type": "enum",
+     "required": true,
+     "note": "urgent|high|normal|low"
+    },
+    {
+     "name": "assignee",
+     "type": "ref",
+     "required": false,
+     "note": "user or agent"
+    },
+    {
+     "name": "approver",
+     "type": "ref",
+     "required": false,
+     "note": "required when assignee is agent or non-lawyer on legal work"
+    },
+    {
+     "name": "due",
+     "type": "date",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "SLA",
+     "type": "duration",
+     "required": false,
+     "note": "time left / breached"
+    },
+    {
+     "name": "practice area",
+     "type": "enum",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "labels",
+     "type": "list",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "updated",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "category",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "estimate",
+     "type": "duration",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "private",
+     "type": "bool",
+     "required": false,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Inline edit field",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Bulk assign / change priority / due",
+     "by": "human",
+     "gate": "none",
+     "note": "bulk transition only where every selected item allows it"
+    },
+    {
+     "name": "Rank (drag order) in backlog",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Save current filter",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Export CSV",
+     "by": "human",
+     "gate": "none",
+     "note": "respects ethical walls; logged"
+    },
+    {
+     "name": "Triage suggestions",
+     "by": "agent",
+     "gate": "none",
+     "note": "agent proposes assignee, priority and due for untriaged items; human accepts per row or all"
+    },
+    {
+     "name": "Bulk complete",
+     "by": "human",
+     "gate": "approve",
+     "note": "Only for items without an approval requirement; approval items must pass the approval queue."
+    },
+    {
+     "name": "Bulk delete or cancel",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    },
+    {
+     "name": "Filter: assigned by, assigned to, status, priority, category, private",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Proposes triage (type, matter link, assignee, priority, due date) for new untriaged items, detects duplicates, and suggests which items it can do itself.",
+   "gate": "none (triage suggestions are applied only when a human accepts them)",
+   "states": [
+    "empty",
+    "loading",
+    "results",
+    "no results for filter",
+    "bulk edit in progress",
+    "partial bulk failure"
+   ],
+   "edge": [
+    "Bulk change hits items user cannot edit: apply to the rest, list skipped keys",
+    "Filter query invalid: inline error, last good result kept",
+    "Export skips items on walled matters and shows how many rows were excluded",
+    "Bulk complete selection includes items needing approval: those are skipped with a count."
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Key",
+     "Title",
+     "Type",
+     "Matter",
+     "Status",
+     "Priority",
+     "Assignee",
+     "Due"
+    ],
+    "rows": [
+     [
+      "WRK-131",
+      "Prepare affidavit of service",
+      "task",
+      "LIT-2026-044 Tesfaye v. Norbridge",
+      "To do",
+      "high",
+      "Kaleab Bereket",
+      "2026-10-15"
+     ],
+     [
+      "WRK-132",
+      "Client asks for copy of will",
+      "request",
+      "EST-2026-009 Estate of M. Alemu",
+      "Untriaged",
+      "normal",
+      "-",
+      "-"
+     ],
+     [
+      "WRK-133",
+      "Lender instructions missing HST clause",
+      "issue",
+      "RE-2026-031 Gebre purchase",
+      "In progress",
+      "urgent",
+      "Yonathan Degu",
+      "2026-10-11"
+     ],
+     [
+      "WRK-134",
+      "Draft corporate minute book update",
+      "task",
+      "CORP-2026-012 Abara Holdings",
+      "Agent-ready",
+      "low",
+      "Agent",
+      "2026-10-30"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "work-item",
+   "name": "Work item detail",
+   "route": "/work/items/:key",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin",
+    "agent",
+    "client"
+   ],
+   "purpose": "Single place to read, discuss, do and approve one work item, including agent runs and their output.",
+   "layout": "Left main: title, description, sub-tasks checklist, linked items, agent output panel (when agent-run) with the step plan and a live step trace while running, activity tabs (comments, history, agent log). Right sidebar: status button with available transitions, assignee, approver, reporter, matter, priority, due/SLA, watchers, labels, time logged, external link (synced Jira key).",
+   "fields": [
+    {
+     "name": "title",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "description",
+     "type": "richtext",
+     "required": false,
+     "note": "supports @mentions and matter document links"
+    },
+    {
+     "name": "type",
+     "type": "enum",
+     "required": true,
+     "note": "task|issue|request|sub-task"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "from the item's workflow"
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "assignee",
+     "type": "ref",
+     "required": false,
+     "note": "user or agent; agent shows which skill/playbook it will use"
+    },
+    {
+     "name": "approver",
+     "type": "ref",
+     "required": false,
+     "note": "defaults from workflow template (e.g. responsible lawyer)"
+    },
+    {
+     "name": "reporter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "priority",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "due",
+     "type": "date",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "SLA policy",
+     "type": "ref",
+     "required": false,
+     "note": "e.g. client request: first response 1 business day"
+    },
+    {
+     "name": "sub-tasks",
+     "type": "list",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "links",
+     "type": "list",
+     "required": false,
+     "note": "blocks / is blocked by / relates to / duplicates"
+    },
+    {
+     "name": "watchers",
+     "type": "list",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "attachments",
+     "type": "file",
+     "required": false,
+     "note": "stored in matter documents, not on the item"
+    },
+    {
+     "name": "client visible",
+     "type": "bool",
+     "required": false,
+     "note": "default off; request-type items raised from the portal are visible to that client"
+    },
+    {
+     "name": "time entries",
+     "type": "list",
+     "required": false,
+     "note": "links to time module; agent work proposes entries"
+    },
+    {
+     "name": "agent output",
+     "type": "ref",
+     "required": false,
+     "note": "draft document/email/summary + sources + run log"
+    },
+    {
+     "name": "external key",
+     "type": "text",
+     "required": false,
+     "note": "read-only, e.g. linked external tracker key"
+    },
+    {
+     "name": "category",
+     "type": "ref",
+     "required": false,
+     "note": "Firm-defined item category (e.g. filing, research, client follow-up); one per item; used in reports."
+    },
+    {
+     "name": "estimate",
+     "type": "duration",
+     "required": false,
+     "note": "Time estimate; compared to logged time in work-reports."
+    },
+    {
+     "name": "private",
+     "type": "bool",
+     "required": false,
+     "note": "Visible only to creator, assignee, approver and admins; never in the firm feed or matter timeline."
+    },
+    {
+     "name": "notify_assignee",
+     "type": "bool",
+     "required": false,
+     "note": "Default on; off for bulk-applied template items so people are not flooded."
+    },
+    {
+     "name": "reminders",
+     "type": "list",
+     "required": false,
+     "note": "Offset before due + channel."
+    },
+    {
+     "name": "recurrence",
+     "type": "object",
+     "required": false,
+     "note": "Repeat on completion or on a fixed schedule (e.g. monthly trust-ledger review); next item created when this one closes."
+    },
+    {
+     "name": "due_rule",
+     "type": "object",
+     "required": false,
+     "note": "Read-only when set by a template: 'closing -5 business days' or '3 days after item X done'; shows whether the date was overridden."
+    },
+    {
+     "name": "agent_step_plan",
+     "type": "list",
+     "required": false,
+     "note": "Steps the agent intends to take, shown before the run starts; steps that produce regulated output (send, file, money) carry a 'needs approval' marker."
+    },
+    {
+     "name": "agent_step_trace",
+     "type": "list",
+     "required": false,
+     "note": "Live per-step status (queued, running, done, stopped), sources read and partial results."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Transition status",
+     "by": "human",
+     "gate": "none",
+     "note": "buttons show only valid transitions; guards explained on hover"
+    },
+    {
+     "name": "Assign to agent",
+     "by": "human",
+     "gate": "none",
+     "note": "requires an approver; agent confirms it has a playbook for this type, else declines with reason"
+    },
+    {
+     "name": "Comment / @mention",
+     "by": "human",
+     "gate": "none",
+     "note": "mention notifies and auto-adds watcher; mentions of users behind an ethical wall are blocked"
+    },
+    {
+     "name": "Approve output",
+     "by": "human",
+     "gate": "approve",
+     "note": "approver only; approval stamps name, time, version of output; moves to Done or next status"
+    },
+    {
+     "name": "Request changes",
+     "by": "human",
+     "gate": "none",
+     "note": "comment required; item returns to agent or assignee"
+    },
+    {
+     "name": "Run agent now / re-run",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Post result",
+     "by": "agent",
+     "gate": "none",
+     "note": "attaches output, writes summary comment, moves to Needs approval"
+    },
+    {
+     "name": "Ask a question",
+     "by": "agent",
+     "gate": "none",
+     "note": "agent posts a comment @mentioning assignee/approver and moves item to Blocked (waiting on human)"
+    },
+    {
+     "name": "Log time",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Convert to sub-task / move to matter",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Watch / unwatch",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Duplicate item",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Override template due date",
+     "by": "human",
+     "gate": "none",
+     "note": "Breaks the link to the key date; marked as overridden."
+    },
+    {
+     "name": "Delete item",
+     "by": "human",
+     "gate": "approve",
+     "note": "Only items never started; anything with output or time is cancelled, not deleted."
+    },
+    {
+     "name": "Stop agent run",
+     "by": "human",
+     "gate": "none",
+     "note": "Stops after the current step; partial output is kept and marked incomplete."
+    },
+    {
+     "name": "Redirect agent run",
+     "by": "human",
+     "gate": "none",
+     "note": "Assignee or approver adds an instruction; the agent revises the remaining plan and shows it before continuing."
+    },
+    {
+     "name": "Ask a colleague to verify",
+     "by": "human",
+     "gate": "none",
+     "note": "Routes the agent output to a named firm lawyer with the question, answer and citations; the verdict is stored on the item."
+    }
+   ],
+   "agent": "When assigned: reads matter context, does the work, streams a run log, posts output with cited sources, proposes a time entry, moves the item to Needs approval. On any item: summarizes long comment threads and suggests next step. Shows its step plan before running and a live step trace while running; can be stopped or redirected at any step.",
+   "gate": "Approver approves the agent's (or delegate's) output version; approval of outward-facing outputs (letters, filings, client emails) also triggers that module's own send/file gate.",
+   "states": [
+    "new",
+    "to do",
+    "agent-ready",
+    "in progress (human)",
+    "in progress (agent, live)",
+    "blocked / waiting on human",
+    "waiting on client",
+    "needs approval",
+    "changes requested",
+    "done",
+    "cancelled",
+    "agent running",
+    "agent stopped (partial)"
+   ],
+   "edge": [
+    "Output edited by approver before approving: store both versions, approval refers to edited version",
+    "Approver is the assignee (self-approval): blocked for agent items and for items whose template requires a second person",
+    "Matter reassigned to a new lawyer: open approvals re-route to the new responsible lawyer with a notice",
+    "Agent run exceeds budget/time: stops, posts partial output marked incomplete",
+    "Synced external item changed remotely while editing: field-level conflict banner",
+    "Client-visible item: internal comments never shown to the client; separate 'reply to client' composer",
+    "Recurring item completed late: next occurrence dates from the schedule, not from completion, unless set otherwise.",
+    "Private item assigned to the agent: agent output inherits privacy.",
+    "Category disabled: existing items keep it; it cannot be chosen again.",
+    "Assignee deactivated: open items move to the matter's responsible lawyer for reassignment.",
+    "Run stopped mid-step: no partial external action is taken; anything already drafted stays a draft.",
+    "Redirect changes a step into a regulated action: that step gets the 'needs approval' marker and waits at G-W1."
+   ],
+   "reg": "Supervision of delegated work (RPC ch. 6, verify). Privilege: comments are part of the matter file; client-visible flag must never leak internal notes. Records retention follows the matter.",
+   "mock": {
+    "kind": "detail",
+    "columns": [
+     "Field",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Key / title",
+      "WRK-121 Draft statement of adjustments"
+     ],
+     [
+      "Matter",
+      "RE-2026-031 Gebre purchase, 14 Birchmount Rd"
+     ],
+     [
+      "Status",
+      "Needs approval (agent finished 09:42)"
+     ],
+     [
+      "Assignee / approver",
+      "Agent / Linda Kassim"
+     ],
+     [
+      "Agent output",
+      "Statement of adjustments v1 (taxes, water, HST rebate) - 3 sources cited"
+     ],
+     [
+      "Watchers",
+      "Yonathan Degu, Meraf Abay"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "work-item-create",
+   "name": "Create work item",
+   "route": "/work/items/new",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin",
+    "client",
+    "agent"
+   ],
+   "purpose": "Fast create of a task, issue or request from anywhere (global shortcut, matter, email, portal).",
+   "layout": "Modal: type selector, title, matter picker, assignee (people + agent), due, priority, description; collapsible 'more' for approver, labels, watchers, parent. Footer: Create, Create another.",
+   "fields": [
+    {
+     "name": "type",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "title",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": "prefilled from context"
+    },
+    {
+     "name": "assignee",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "approver",
+     "type": "ref",
+     "required": false,
+     "note": "required if assignee is agent"
+    },
+    {
+     "name": "due",
+     "type": "date",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "priority",
+     "type": "enum",
+     "required": true,
+     "note": "default normal"
+    },
+    {
+     "name": "description",
+     "type": "richtext",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "parent",
+     "type": "ref",
+     "required": false,
+     "note": "makes it a sub-task"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Create",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Create from email / call note",
+     "by": "agent",
+     "gate": "none",
+     "note": "agent drafts item(s) from commitments found; user confirms"
+    },
+    {
+     "name": "Client raises request (portal)",
+     "by": "human",
+     "gate": "none",
+     "note": "client form is reduced: title, description, attachments; lands untriaged on the firm side"
+    }
+   ],
+   "agent": "Suggests matter, type, assignee, due date from text; warns on likely duplicates.",
+   "gate": "none",
+   "states": [
+    "blank",
+    "prefilled from context",
+    "validation error",
+    "created"
+   ],
+   "edge": [
+    "Matter picked is behind a wall for the creator: not listed",
+    "Due date on a weekend/holiday: warn and offer next business day"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Field",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Type",
+      "request"
+     ],
+     [
+      "Title",
+      "Send signed APS to lender"
+     ],
+     [
+      "Matter",
+      "RE-2026-031"
+     ],
+     [
+      "Assignee",
+      "Kaleab Bereket"
+     ],
+     [
+      "Due",
+      "2026-10-13"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "my-work",
+   "name": "My work",
+   "route": "/work/me",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal"
+   ],
+   "purpose": "Personal inbox: items assigned to me, waiting on my approval, mentioning me, or watched, ordered by urgency.",
+   "layout": "Tabs: Assigned, To approve, Mentions, Watching. List grouped by Overdue / Today / This week / Later, with SLA chips. Right: daily summary card from the agent.",
+   "fields": [
+    {
+     "name": "item",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "reason",
+     "type": "enum",
+     "required": true,
+     "note": "assigned|approver|mentioned|watcher"
+    },
+    {
+     "name": "due / SLA",
+     "type": "date",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Approve / request changes inline",
+     "by": "human",
+     "gate": "approve",
+     "note": "opens side-by-side output preview"
+    },
+    {
+     "name": "Snooze notification",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Mark mention read",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Delegate to agent",
+     "by": "human",
+     "gate": "none",
+     "note": "only for item types with an agent playbook"
+    }
+   ],
+   "agent": "Writes a morning plan: what's overdue, what it already finished for you, what it can take off your plate.",
+   "gate": "Approvals done here are the same gate as on the item detail.",
+   "states": [
+    "empty (inbox zero)",
+    "normal",
+    "overdue present"
+   ],
+   "edge": [
+    "User on leave: show banner with delegate; items to approve forward to delegate approver if set"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "Reason",
+     "Item",
+     "Matter",
+     "Due"
+    ],
+    "rows": [
+     [
+      "To approve",
+      "WRK-121 Statement of adjustments (agent)",
+      "RE-2026-031",
+      "today"
+     ],
+     [
+      "Mentioned",
+      "WRK-133 Lender instructions missing HST clause",
+      "RE-2026-031",
+      "overdue 1d"
+     ],
+     [
+      "Assigned",
+      "WRK-140 Prepare closing book",
+      "RE-2026-031",
+      "Oct 16"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "approval-queue",
+   "name": "Needs approval queue",
+   "route": "/work/approvals",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "Firm-wide or per-lawyer queue of outputs waiting on a human, mostly agent-produced, with fast side-by-side review.",
+   "layout": "Left: queue list (age, matter, type, producer). Center: output preview with diff vs prior version and cited sources. Right: approve, request changes, reassign approver.",
+   "fields": [
+    {
+     "name": "item",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "producer",
+     "type": "ref",
+     "required": true,
+     "note": "agent or person"
+    },
+    {
+     "name": "output version",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "age",
+     "type": "duration",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "risk",
+     "type": "enum",
+     "required": false,
+     "note": "agent-assigned: routine|review closely"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Approve",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    },
+    {
+     "name": "Request changes",
+     "by": "human",
+     "gate": "none",
+     "note": "comment required"
+    },
+    {
+     "name": "Reassign approver",
+     "by": "human",
+     "gate": "none",
+     "note": "admin or current approver"
+    },
+    {
+     "name": "Approve batch",
+     "by": "human",
+     "gate": "approve",
+     "note": "only for item types the firm marks as routine (e.g. internal summaries); never for outgoing documents"
+    }
+   ],
+   "agent": "Ranks the queue by deadline risk; adds a self-check note (what it is unsure of) to each output.",
+   "gate": "Each approval is a recorded gate event (who, when, output hash).",
+   "states": [
+    "empty",
+    "normal",
+    "aged items (>2 business days) highlighted"
+   ],
+   "edge": [
+    "Approver leaves firm: items auto-route to matter's responsible lawyer",
+    "Output changed after approval opened: reload required"
+   ],
+   "reg": "Supervision record evidences that a lawyer reviewed delegated/agent work (verify LSO expectations on AI use).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Age",
+     "Item",
+     "Matter",
+     "Producer",
+     "Risk"
+    ],
+    "rows": [
+     [
+      "2h",
+      "WRK-121 Statement of adjustments",
+      "RE-2026-031",
+      "Agent",
+      "review closely"
+     ],
+     [
+      "5h",
+      "WRK-117 Client update email",
+      "CORP-2026-012",
+      "Agent",
+      "routine"
+     ],
+     [
+      "1d",
+      "WRK-126 Affidavit of documents draft",
+      "LIT-2026-044",
+      "Meraf Abay",
+      "review closely"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "workload",
+   "name": "Workload",
+   "route": "/work/workload",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "See who is over or under capacity over the next weeks, net of approved leave, court days and part days, including agent queue depth, and rebalance.",
+   "layout": "Rows per person (plus one Agent row), columns per day/week; cells show item count or estimated hours colored by load vs capacity. Click cell to see items; drag items between people. Absent days are hatched with the absence type and named delegate; capacity in those cells drops to the remaining hours.",
+   "fields": [
+    {
+     "name": "person",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "capacity",
+     "type": "number",
+     "required": true,
+     "note": "hours/week, set per person"
+    },
+    {
+     "name": "estimate",
+     "type": "number",
+     "required": false,
+     "note": "per item, hours"
+    },
+    {
+     "name": "period",
+     "type": "enum",
+     "required": true,
+     "note": "day|week"
+    },
+    {
+     "name": "estimate_vs_actual",
+     "type": "number",
+     "required": false,
+     "note": "Per person over the period, from estimates and logged time."
+    },
+    {
+     "name": "availability",
+     "type": "ref",
+     "required": false,
+     "note": "Availability records (leave, part day, court, other) from team-availability; reduce capacity for their dates."
+    },
+    {
+     "name": "delegate",
+     "type": "ref",
+     "required": false,
+     "note": "Shown on absent cells; who covers the person's items and deadlines."
+    },
+    {
+     "name": "net_capacity",
+     "type": "number",
+     "required": true,
+     "note": "capacity minus availability hours for the period; the load colour uses this."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Reassign by drag",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Set capacity / out of office",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Suggest rebalance",
+     "by": "agent",
+     "gate": "none",
+     "note": "proposal list; human applies"
+    },
+    {
+     "name": "Propose cover for an absence",
+     "by": "agent",
+     "gate": "none",
+     "note": "For each open item and deadline owned by an absent person in the window, suggests the delegate or another team member with reason; a human applies."
+    }
+   ],
+   "agent": "Estimates effort for unestimated items from history and proposes reassignments to clear overloads. Reduces capacity for recorded absences and proposes cover for items falling inside them.",
+   "gate": "none",
+   "states": [
+    "normal",
+    "overloaded person highlighted",
+    "no estimates (count mode)"
+   ],
+   "edge": [
+    "Items without due date are listed in an unscheduled column",
+    "Agent row shows queue and average turnaround, not hours",
+    "Person is away on a deadline's due date or reminder window: the agent warns on workload and on the deadline, and proposes the delegate (deadline ownership changes still follow the deadlines area rules).",
+    "Delegate is also away or lacks matter access: proposal skips them and says why."
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "dashboard",
+    "columns": [
+     "Person",
+     "Wk Oct 12",
+     "Wk Oct 19",
+     "Wk Oct 26"
+    ],
+    "rows": [
+     [
+      "Linda Kassim",
+      "38h / 35",
+      "30h / 35",
+      "12h / 35"
+     ],
+     [
+      "Yonathan Degu",
+      "41h / 37.5",
+      "22h / 37.5",
+      "8h / 37.5"
+     ],
+     [
+      "Kaleab Bereket",
+      "20h / 37.5",
+      "25h / 37.5",
+      "10h / 37.5"
+     ],
+     [
+      "Agent",
+      "14 queued, avg 6 min",
+      "-",
+      "-"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "saved-filters",
+   "name": "Saved filters",
+   "route": "/work/filters",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "Create, share and subscribe to saved queries that drive lists, boards and digest emails.",
+   "layout": "Table of filters (mine, shared with me, firm); editor with structured builder plus text query; subscription settings.",
+   "fields": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "query",
+     "type": "text",
+     "required": true,
+     "note": "field:value grammar, e.g. status:'Needs approval' matter.area:real-estate due<+3d"
+    },
+    {
+     "name": "visibility",
+     "type": "enum",
+     "required": true,
+     "note": "private|team|firm"
+    },
+    {
+     "name": "subscription",
+     "type": "enum",
+     "required": false,
+     "note": "none|daily|weekly digest"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Save / share",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Create board from filter",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Ask in plain language",
+     "by": "agent",
+     "gate": "none",
+     "note": "agent turns a sentence into a query; user sees and can edit the query"
+    }
+   ],
+   "agent": "Translates natural language to filter queries.",
+   "gate": "none",
+   "states": [
+    "empty",
+    "list",
+    "editing",
+    "invalid query"
+   ],
+   "edge": [
+    "Shared filter references a matter some viewers cannot see: results are per-viewer"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Name",
+     "Query",
+     "Visibility"
+    ],
+    "rows": [
+     [
+      "Closings this week",
+      "area:real-estate due<+7d status!=Done",
+      "firm"
+     ],
+     [
+      "My agent approvals",
+      "approver:me status:'Needs approval'",
+      "private"
+     ],
+     [
+      "Overdue client requests",
+      "type:request sla:breached",
+      "team"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "matter-work-tab",
+   "name": "Matter work tab",
+   "route": "/matters/:id/work",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "client"
+   ],
+   "purpose": "Work items for one matter as checklist (template progress), board or list; the main daily view inside a matter.",
+   "layout": "Header: template name and progress bar by phase. Toggle: checklist | board | list. Checklist groups items by template phase with dependencies shown.",
+   "fields": [
+    {
+     "name": "template",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "phase",
+     "type": "enum",
+     "required": false,
+     "note": "from template, e.g. Pre-closing, Closing, Post-closing"
+    },
+    {
+     "name": "progress",
+     "type": "percent",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Apply template",
+     "by": "human",
+     "gate": "none",
+     "note": "agent pre-fills dates relative to key matter dates"
+    },
+    {
+     "name": "Add item",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Hide template item (not applicable)",
+     "by": "human",
+     "gate": "none",
+     "note": "reason required"
+    },
+    {
+     "name": "Apply a second template mid-matter",
+     "by": "human",
+     "gate": "none",
+     "note": "e.g. add 'Motion' list during litigation; due dates resolve from that moment or a chosen key date."
+    },
+    {
+     "name": "Remove an applied template",
+     "by": "human",
+     "gate": "approve",
+     "note": "Removes not-started items only; started ones remain."
+    }
+   ],
+   "agent": "On matter open, proposes the work plan from the practice-area template with due dates computed from the matter's key dates and marks which items it will do.",
+   "gate": "Responsible lawyer accepts the generated plan (once per matter) before agent starts work on it.",
+   "states": [
+    "no plan",
+    "plan proposed",
+    "plan active",
+    "all done",
+    "matter closed (read-only)"
+   ],
+   "edge": [
+    "Key date changes (closing date moved): agent proposes date shifts for dependent items; human accepts",
+    "Client view shows only client-visible items",
+    "Template applied twice by an automation and a person: second apply detected, offered as 'add missing items only'.",
+    "Role on the template (e.g. clerk) has no person on this matter: items go to the responsible lawyer with a flag."
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Phase",
+     "Item",
+     "Assignee",
+     "Due",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Pre-closing",
+      "Title search",
+      "Yonathan Degu",
+      "Oct 14",
+      "Done"
+     ],
+     [
+      "Pre-closing",
+      "Requisition letter",
+      "Agent",
+      "Oct 15",
+      "Needs approval"
+     ],
+     [
+      "Closing",
+      "Statement of adjustments",
+      "Agent",
+      "Oct 20",
+      "In progress"
+     ],
+     [
+      "Post-closing",
+      "Reporting letter to client",
+      "Agent",
+      "Oct 30",
+      "To do"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "workflow-editor",
+   "name": "Workflow editor",
+   "route": "/settings/work/workflows/:id",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Define statuses, status groups and transitions (with guards and actions) for item types.",
+   "layout": "Canvas diagram of statuses and transition arrows, plus a table view. Side panel: selected status/transition properties.",
+   "fields": [
+    {
+     "name": "status",
+     "type": "text",
+     "required": true,
+     "note": "name + group: to-do|in-progress|approval|done"
+    },
+    {
+     "name": "transition",
+     "type": "ref",
+     "required": true,
+     "note": "from, to, name"
+    },
+    {
+     "name": "guard",
+     "type": "enum",
+     "required": false,
+     "note": "required fields|role|all sub-tasks done|approval recorded"
+    },
+    {
+     "name": "post action",
+     "type": "enum",
+     "required": false,
+     "note": "notify|set field|start agent|create follow-up item"
+    },
+    {
+     "name": "applies to",
+     "type": "list",
+     "required": true,
+     "note": "item types / practice areas"
+    },
+    {
+     "name": "import_status_map",
+     "type": "map",
+     "required": false,
+     "note": "Mapping used when importing tasks from another system; default for Clio: pending -> To do, in progress -> In progress, in review -> Needs approval, complete -> Done, draft -> Backlog."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Add status / transition",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Publish new version",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "firm admin publishes; existing items migrate with a status mapping step"
+    },
+    {
+     "name": "Lint workflow",
+     "by": "agent",
+     "gate": "none",
+     "note": "flags dead-end statuses, unreachable statuses, agent paths that skip approval"
+    }
+   ],
+   "agent": "Validates that every path from an agent-assigned status to Done passes through an approval status.",
+   "gate": "Admin sign-off to publish a workflow version; system blocks publishing any workflow where agent work can reach Done without approval.",
+   "states": [
+    "draft",
+    "published",
+    "migration pending"
+   ],
+   "edge": [
+    "Removing a status in use: requires mapping to another status",
+    "Two admins editing: draft locked to one",
+    "Imported task has a status with no mapping: imported into the workflow's first status and listed in the import report."
+   ],
+   "reg": "Approval-before-done is a product invariant reflecting supervision duties.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "From",
+     "Transition",
+     "To",
+     "Guard"
+    ],
+    "rows": [
+     [
+      "To do",
+      "Hand to agent",
+      "Agent-ready",
+      "approver set"
+     ],
+     [
+      "In progress",
+      "Submit",
+      "Needs approval",
+      "output attached"
+     ],
+     [
+      "Needs approval",
+      "Approve",
+      "Done",
+      "role: approver"
+     ],
+     [
+      "Needs approval",
+      "Request changes",
+      "In progress",
+      "comment required"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "workflow-templates",
+   "name": "Practice-area templates",
+   "route": "/settings/work/templates",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Reusable checklists of work items per practice area / matter type, with relative due dates, dependencies, default assignees and agent playbooks.",
+   "layout": "Left: template list by practice area. Main: phases with items; each item row shows offset, role, agent-doable flag, approver role.",
+   "fields": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "practice area",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "phases",
+     "type": "list",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "item",
+     "type": "object",
+     "required": true,
+     "note": "title, type, offset from key date (e.g. closing -10 business days), default role, agent playbook, approver role, depends on, client-visible"
+    },
+    {
+     "name": "key dates used",
+     "type": "list",
+     "required": true,
+     "note": "e.g. closing date, limitation date, hearing date"
+    },
+    {
+     "name": "item.relative_to",
+     "type": "enum",
+     "required": false,
+     "note": "Due date relative to: date applied | a key date | another item's completion."
+    },
+    {
+     "name": "item.assignee_rule",
+     "type": "enum",
+     "required": false,
+     "note": "Named person | matter role (resolved when applied) | agent."
+    },
+    {
+     "name": "item.category",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "item.estimate",
+     "type": "duration",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "item.private",
+     "type": "bool",
+     "required": false,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Create / edit template",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Publish template",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "lawyer signs off once; later edits republish"
+    },
+    {
+     "name": "Draft template from past matters",
+     "by": "agent",
+     "gate": "none",
+     "note": "agent mines completed matters of this type"
+    },
+    {
+     "name": "Copy template",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Import template from file",
+     "by": "human",
+     "gate": "none",
+     "note": "CSV of items; validated before save."
+    }
+   ],
+   "agent": "Proposes a template from past matters and suggests which items it can perform.",
+   "gate": "Lawyer sign-off to publish a template (approve the plan once, per inventory #11).",
+   "states": [
+    "draft",
+    "published",
+    "archived"
+   ],
+   "edge": [
+    "Template edited while matters use it: existing plans unchanged unless lawyer chooses 'update open matters'",
+    "Circular dependency between items: publish blocked with the cycle shown."
+   ],
+   "reg": "Real estate closing items reference Ontario e-registration and LSO real estate practice rules (verify specifics, e.g. title insurance and lawyer-only tasks).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Phase",
+     "Item",
+     "Offset",
+     "Role",
+     "Agent?"
+    ],
+    "rows": [
+     [
+      "Opening",
+      "Conflict check + ID verification",
+      "open +1d",
+      "clerk",
+      "partly"
+     ],
+     [
+      "Pre-closing",
+      "Title search and requisitions",
+      "closing -15d",
+      "clerk",
+      "yes (draft)"
+     ],
+     [
+      "Pre-closing",
+      "Statement of adjustments",
+      "closing -5d",
+      "clerk",
+      "yes (draft)"
+     ],
+     [
+      "Closing",
+      "Registration of transfer",
+      "closing 0d",
+      "lawyer",
+      "no"
+     ],
+     [
+      "Post-closing",
+      "Reporting letter",
+      "closing +14d",
+      "lawyer",
+      "yes (draft)"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "external-sync",
+   "name": "External tracker sync",
+   "route": "/settings/work/sync",
+   "who": [
+    "admin"
+   ],
+   "purpose": "Optional two-way sync with an external issue tracker through a generic connector (Jira as first connector), for firms or clients that already track work there.",
+   "layout": "Connection card (connector, auth status), scope (which projects map to which matters/boards), field and status mapping tables, direction per field, conflict policy, sync log.",
+   "fields": [
+    {
+     "name": "connector",
+     "type": "enum",
+     "required": true,
+     "note": "from installed connectors; e.g. Jira Cloud"
+    },
+    {
+     "name": "credentials",
+     "type": "secret",
+     "required": true,
+     "note": "stored in vault, never shown"
+    },
+    {
+     "name": "scope mapping",
+     "type": "list",
+     "required": true,
+     "note": "external project/query <-> matter or board"
+    },
+    {
+     "name": "status mapping",
+     "type": "list",
+     "required": true,
+     "note": "external status <-> our status"
+    },
+    {
+     "name": "field mapping",
+     "type": "list",
+     "required": true,
+     "note": "with direction: in|out|both"
+    },
+    {
+     "name": "conflict policy",
+     "type": "enum",
+     "required": true,
+     "note": "last-write-wins|ours|theirs|ask"
+    },
+    {
+     "name": "privileged content",
+     "type": "enum",
+     "required": true,
+     "note": "never-sync (default)|titles only|full"
+    },
+    {
+     "name": "frequency",
+     "type": "enum",
+     "required": true,
+     "note": "webhook|5 min poll"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Connect / test",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Enable sync",
+     "by": "human",
+     "gate": "approve",
+     "note": "responsible lawyer approves pushing matter work outside the firm system"
+    },
+    {
+     "name": "Resolve conflict",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Pause / disconnect",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Suggests status and field mappings by matching names and sample data; summarizes sync errors.",
+   "gate": "Lawyer approval before any outbound sync of matter data (confidentiality); default sends nothing privileged.",
+   "states": [
+    "not connected",
+    "connected, paused",
+    "syncing",
+    "errors",
+    "conflicts waiting"
+   ],
+   "edge": [
+    "External status has no mapping: item synced in, parked in 'Unmapped' and flagged",
+    "External tool rate-limits: back off, show lag",
+    "Item deleted remotely: unlink, keep ours",
+    "Agent comments synced out are labeled as agent-authored"
+   ],
+   "reg": "Confidentiality (RPC 3.3, verify) and data residency: outbound sync may move data outside Canada; warn and record client consent where needed (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Our status",
+     "External status",
+     "Direction"
+    ],
+    "rows": [
+     [
+      "To do",
+      "To Do",
+      "both"
+     ],
+     [
+      "In progress",
+      "In Progress",
+      "both"
+     ],
+     [
+      "Needs approval",
+      "In Review",
+      "out"
+     ],
+     [
+      "Done",
+      "Done",
+      "both"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "work-automations",
+   "name": "Work automation rules",
+   "route": "/settings/work/automations",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Event rules that act on work without anyone clicking: when a matter opens, changes stage, a field or key date changes, or a document is signed, then apply a template, create an item, request a document draft, or notify.",
+   "layout": "List of rules with on/off, last fired and fire count. Rule editor: When (event), If (conditions), Then (actions), and a dry-run panel against recent matters. Run history tab: one row per firing with outcome; failed or skipped runs carry a one-line agent explanation and a link to the fix.",
+   "fields": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "when",
+     "type": "enum",
+     "required": true,
+     "note": "matter opened | stage entered | stage left | field changed | key date set or changed | document signed | item done | bill paid"
+    },
+    {
+     "name": "conditions",
+     "type": "list",
+     "required": false,
+     "note": "practice area, matter template, stage, field value, responsible lawyer"
+    },
+    {
+     "name": "then",
+     "type": "list",
+     "required": true,
+     "note": "apply work template | create item | ask agent to draft document (documents area gate) | notify role | set item field"
+    },
+    {
+     "name": "run_as",
+     "type": "enum",
+     "required": true,
+     "note": "system on behalf of the rule's owner; shown in the activity"
+    },
+    {
+     "name": "enabled",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "owner",
+     "type": "ref",
+     "required": true,
+     "note": "lawyer accountable for the rule"
+    },
+    {
+     "name": "run_history",
+     "type": "table",
+     "required": false,
+     "note": "Per firing: time, event, matter, rule version, actions taken, items created, skipped reason, error, explanation."
+    },
+    {
+     "name": "unassignable_fallback",
+     "type": "enum",
+     "required": true,
+     "note": "matter owner's queue (default) | rule owner; used when the resolved assignee cannot see the matter."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Create rule",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Dry run",
+     "by": "human",
+     "gate": "none",
+     "note": "Shows which of the last 50 matching events would have fired and what they would have made."
+    },
+    {
+     "name": "Enable rule",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Lawyer sign-off; the rule only creates items or drafts, never sends or files anything."
+    },
+    {
+     "name": "Disable rule",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Suggest rules",
+     "by": "agent",
+     "gate": "none",
+     "note": "From repeated manual patterns (e.g. same template applied after every 'Discovery' stage move)."
+    },
+    {
+     "name": "Open run history",
+     "by": "human",
+     "gate": "none",
+     "note": "Filter by rule, matter, outcome (done, skipped, failed)."
+    },
+    {
+     "name": "Explain failed or skipped run",
+     "by": "agent",
+     "gate": "none",
+     "note": "One line on why, plus a link to the rule, template or access setting to fix."
+    },
+    {
+     "name": "Re-run a failed firing",
+     "by": "human",
+     "gate": "none",
+     "note": "Idempotent; already created items are not duplicated."
+    }
+   ],
+   "agent": "Suggests rules from repeated manual actions and warns of rules that overlap or fire in loops. Explains every failed or skipped run in run history.",
+   "gate": "Lawyer sign-off to enable a rule. Every output the rule creates still passes its own gate.",
+   "states": [
+    "draft",
+    "enabled",
+    "disabled",
+    "erroring",
+    "run failed (needs attention)"
+   ],
+   "edge": [
+    "Two rules apply the same template on one event: second is skipped and logged.",
+    "Rule fires on a walled matter: still runs; created items respect the wall.",
+    "Rule A creates an item whose completion triggers rule B, which triggers A: loop detected at save and blocked.",
+    "Stage moved back and forward: rule fires only on the first entry unless set to 'every time'.",
+    "Rule owner leaves: rule disabled until a new owner accepts.",
+    "Role-resolved assignee lacks access to the matter (ethical wall or not on the team) when the rule fires: the item is created unassigned in the fallback queue and flagged 'assignee lacks access'; dry run shows this before enabling.",
+    "Rule edited after firing: run history keeps the rule version each run used."
+   ],
+   "reg": "Supervision of delegated and automated work (RPC 6.1) (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Rule",
+     "When",
+     "Then",
+     "Last fired"
+    ],
+    "rows": [
+     [
+      "Purchase opened",
+      "matter opened, area = Real estate",
+      "apply 'Residential purchase' template",
+      "today 09:14"
+     ],
+     [
+      "Discovery begins",
+      "stage entered = Discovery",
+      "apply 'Affidavit of documents' list",
+      "2026-10-07"
+     ],
+     [
+      "Signed retainer",
+      "document signed = engagement letter",
+      "create item 'Request retainer deposit'",
+      "2026-10-09"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "work-categories",
+   "name": "Item categories and priorities",
+   "route": "/settings/work/categories",
+   "who": [
+    "admin"
+   ],
+   "purpose": "Firm list of item categories, priority levels and default estimates used for filtering and reports.",
+   "layout": "Table of categories with active flag and usage; priority list; default estimate per category.",
+   "fields": [
+    {
+     "name": "category",
+     "type": "object",
+     "required": true,
+     "note": "name, colour, default estimate, default approver role, active"
+    },
+    {
+     "name": "priority_levels",
+     "type": "list",
+     "required": true,
+     "note": "Default: urgent | high | normal | low."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Add category",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Disable category",
+     "by": "human",
+     "gate": "none",
+     "note": "Categories are disabled, never deleted, so reports stay intact."
+    },
+    {
+     "name": "Suggest categories",
+     "by": "agent",
+     "gate": "none",
+     "note": "From item titles."
+    }
+   ],
+   "agent": "Proposes categories by clustering existing item titles.",
+   "gate": "none",
+   "states": [
+    "active",
+    "disabled"
+   ],
+   "edge": [
+    "Renaming a category: reports show the new name for all history."
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Category",
+     "Default estimate",
+     "Active",
+     "Used"
+    ],
+    "rows": [
+     [
+      "Court filing",
+      "0.5h",
+      "yes",
+      "88"
+     ],
+     [
+      "Client follow-up",
+      "0.2h",
+      "yes",
+      "140"
+     ],
+     [
+      "Title search",
+      "1.0h",
+      "yes",
+      "37"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "work-reports",
+   "name": "Work reports",
+   "route": "/work/reports",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "How work is moving: completion by person and category, overdue counts, estimate versus actual, approval turnaround and agent share of work.",
+   "layout": "Filter bar (period, person, practice area, category). Cards then tables; each number drills to work-list.",
+   "fields": [
+    {
+     "name": "period",
+     "type": "daterange",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "group_by",
+     "type": "enum",
+     "required": true,
+     "note": "person | category | practice area | matter"
+    },
+    {
+     "name": "metrics",
+     "type": "list",
+     "required": true,
+     "note": "done, overdue, avg cycle time, estimate vs actual, approval wait, agent-done share"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Export CSV",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Schedule email",
+     "by": "human",
+     "gate": "none",
+     "note": "Weekly to a lawyer."
+    },
+    {
+     "name": "Explain this number",
+     "by": "agent",
+     "gate": "none",
+     "note": "Narrative with links to the items behind it."
+    }
+   ],
+   "agent": "Writes a short weekly narrative of bottlenecks (e.g. approvals waiting over 2 days).",
+   "gate": "none",
+   "states": [
+    "empty",
+    "loaded"
+   ],
+   "edge": [
+    "Private items are counted but not listed for viewers who cannot see them.",
+    "Agent and human counts are never merged into one 'person'."
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Person",
+     "Done",
+     "Overdue",
+     "Est vs actual"
+    ],
+    "rows": [
+     [
+      "Meraf Abay",
+      "41",
+      "2",
+      "+12%"
+     ],
+     [
+      "Yohannes Sinke",
+      "29",
+      "5",
+      "+31%"
+     ],
+     [
+      "Agent",
+      "63",
+      "0",
+      "n/a"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "team-availability",
+   "name": "Team availability",
+   "route": "/work/availability",
+   "who": [
+    "lawyer",
+    "associate",
+    "paralegal",
+    "clerk",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Record leave, part days, court days and other absences with a delegate, so workload, time targets and deadline coverage use real capacity.",
+   "layout": "Top: month strip per person with absences as bars. Right: form to add or edit an absence. Bottom: 'coverage gaps' list of items and deadlines due while their owner is away without a delegate.",
+   "fields": [
+    {
+     "name": "person",
+     "type": "ref",
+     "required": true,
+     "note": "Staff member; the agent has no availability."
+    },
+    {
+     "name": "from",
+     "type": "date",
+     "required": true,
+     "note": "Start date (and time for part days)."
+    },
+    {
+     "name": "to",
+     "type": "date",
+     "required": true,
+     "note": "End date (and time for part days)."
+    },
+    {
+     "name": "type",
+     "type": "enum",
+     "required": true,
+     "note": "leave | part day | court | other"
+    },
+    {
+     "name": "hours_unavailable",
+     "type": "number",
+     "required": false,
+     "note": "For part days; full days use the standard day length."
+    },
+    {
+     "name": "delegate",
+     "type": "ref",
+     "required": false,
+     "note": "Covers items and deadline reminders during the absence; must have access to the affected matters."
+    },
+    {
+     "name": "note",
+     "type": "text",
+     "required": false,
+     "note": "Free text, visible to the team; no medical or personal detail expected."
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "requested | approved | cancelled"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Add absence",
+     "by": "human",
+     "gate": "none",
+     "note": "Own absence by anyone; others' by their supervising lawyer or admin."
+    },
+    {
+     "name": "Approve absence",
+     "by": "human",
+     "gate": "approve",
+     "note": "Supervising lawyer or owner; only approved absences reduce capacity and time-target pro-rating."
+    },
+    {
+     "name": "Cancel absence",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Propose cover",
+     "by": "agent",
+     "gate": "none",
+     "note": "Lists affected items and deadlines and suggests the delegate per item; a human accepts."
+    },
+    {
+     "name": "Warn on coverage gap",
+     "by": "agent",
+     "gate": "none",
+     "note": "Flags deadlines and approval-required items due while the owner and delegate are both away."
+    }
+   ],
+   "agent": "Builds the coverage-gap list, proposes delegates from team and workload, and warns deadline owners and responsible lawyers before an absence starts.",
+   "gate": "Supervising lawyer (or owner) approves an absence before it changes capacity, targets or coverage.",
+   "states": [
+    "empty",
+    "requested",
+    "approved",
+    "cancelled",
+    "coverage gap open"
+   ],
+   "edge": [
+    "Absence overlaps a critical deadline with no delegate: blocked from approval until a delegate is named or the lawyer accepts the risk with a reason.",
+    "Delegate lacks access to a walled matter: that matter's items fall back to its responsible lawyer.",
+    "Absence approved after items were reassigned manually: manual choices are kept.",
+    "Person deactivated: future absences are cancelled; offboarding is handled in the access area.",
+    "Admin sees absences and delegates only; the coverage-gaps list (item titles, matters, deadlines) is hidden from admin."
+   ],
+   "reg": "Coverage of a lawyer's practice during absence and supervision of delegated work (LSO) (verify).",
+   "mock": {
+    "kind": "calendar",
+    "columns": [
+     "Person",
+     "From",
+     "To",
+     "Type",
+     "Delegate",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Linda Kassim",
+      "2026-10-19",
+      "2026-10-23",
+      "leave",
+      "Ayo Ewebiyi",
+      "approved"
+     ],
+     [
+      "Yonathan Degu",
+      "2026-10-14",
+      "2026-10-14",
+      "court",
+      "Meraf Abay",
+      "approved"
+     ],
+     [
+      "Kaleab Bereket",
+      "2026-10-16",
+      "2026-10-16",
+      "part day (3h)",
+      "-",
+      "requested"
+     ]
+    ]
+   }
+  }
+ ],
+ "entities": [
+  {
+   "name": "WorkItem",
+   "fields": [
+    "id",
+    "key",
+    "type",
+    "title",
+    "description",
+    "status_id",
+    "workflow_version_id",
+    "matter_id?",
+    "parent_id?",
+    "assignee_id?(user|agent)",
+    "approver_id?",
+    "reporter_id",
+    "priority",
+    "due_at?",
+    "sla_policy_id?",
+    "practice_area",
+    "labels",
+    "client_visible",
+    "estimate_h?",
+    "rank",
+    "template_item_id?",
+    "external_ref?",
+    "created_at",
+    "updated_at"
+   ],
+   "relations": [
+    "Matter one-to-many",
+    "WorkItem parent/sub-task",
+    "WorkItemLink many-to-many",
+    "Watcher many-to-many User",
+    "Comment one-to-many",
+    "AgentRun one-to-many",
+    "Approval one-to-many",
+    "TimeEntry one-to-many"
+   ]
+  },
+  {
+   "name": "Workflow",
+   "fields": [
+    "id",
+    "name",
+    "version",
+    "statuses[]",
+    "transitions[]",
+    "applies_to"
+   ],
+   "relations": [
+    "Status one-to-many",
+    "Transition one-to-many"
+   ]
+  },
+  {
+   "name": "Status",
+   "fields": [
+    "id",
+    "name",
+    "group(todo|in_progress|approval|done)",
+    "is_agent_ready"
+   ],
+   "relations": [
+    "Workflow"
+   ]
+  },
+  {
+   "name": "Transition",
+   "fields": [
+    "id",
+    "from_status",
+    "to_status",
+    "name",
+    "guards[]",
+    "post_actions[]"
+   ],
+   "relations": [
+    "Workflow"
+   ]
+  },
+  {
+   "name": "AgentRun",
+   "fields": [
+    "id",
+    "work_item_id",
+    "playbook",
+    "started_at",
+    "ended_at",
+    "state",
+    "output_ref",
+    "sources[]",
+    "cost",
+    "log_ref",
+    "step_plan[]",
+    "step_trace[]",
+    "stopped_by?",
+    "redirects[]"
+   ],
+   "relations": [
+    "WorkItem",
+    "Document (output)"
+   ]
+  },
+  {
+   "name": "Approval",
+   "fields": [
+    "id",
+    "work_item_id",
+    "approver_id",
+    "decision(approved|changes)",
+    "output_version_hash",
+    "comment",
+    "at"
+   ],
+   "relations": [
+    "WorkItem",
+    "User"
+   ]
+  },
+  {
+   "name": "Comment",
+   "fields": [
+    "id",
+    "work_item_id",
+    "author(user|agent|client)",
+    "body",
+    "mentions[]",
+    "internal",
+    "external_ref?",
+    "at"
+   ],
+   "relations": [
+    "WorkItem"
+   ]
+  },
+  {
+   "name": "SavedFilter",
+   "fields": [
+    "id",
+    "name",
+    "query",
+    "owner_id",
+    "visibility",
+    "subscription"
+   ],
+   "relations": [
+    "Board one-to-many"
+   ]
+  },
+  {
+   "name": "Board",
+   "fields": [
+    "id",
+    "name",
+    "filter_id",
+    "columns[{name,status_ids,wip_limit}]",
+    "swimlane"
+   ],
+   "relations": [
+    "SavedFilter"
+   ]
+  },
+  {
+   "name": "WorkTemplate",
+   "fields": [
+    "id",
+    "name",
+    "practice_area",
+    "version",
+    "phases[]",
+    "items[{title,type,offset,key_date,role,playbook,approver_role,depends_on,client_visible}]"
+   ],
+   "relations": [
+    "Matter (applied plan)"
+   ]
+  },
+  {
+   "name": "SlaPolicy",
+   "fields": [
+    "id",
+    "name",
+    "applies_to",
+    "target(first_response|resolution)",
+    "duration",
+    "calendar(business days, Ontario holidays)"
+   ],
+   "relations": [
+    "WorkItem"
+   ]
+  },
+  {
+   "name": "SyncConnection",
+   "fields": [
+    "id",
+    "connector",
+    "credential_ref",
+    "scope_map",
+    "status_map",
+    "field_map",
+    "conflict_policy",
+    "privileged_policy",
+    "state"
+   ],
+   "relations": [
+    "WorkItem via external_ref"
+   ]
+  },
+  {
+   "name": "AutomationRule",
+   "fields": [
+    "id",
+    "name",
+    "when_event",
+    "conditions",
+    "actions",
+    "owner",
+    "enabled",
+    "last_fired_at",
+    "fire_count"
+   ],
+   "relations": [
+    "WorkTemplate many-to-one (optional)",
+    "AutomationRun one-to-many"
+   ]
+  },
+  {
+   "name": "ItemCategory",
+   "fields": [
+    "id",
+    "name",
+    "colour",
+    "default_estimate",
+    "default_approver_role",
+    "active"
+   ],
+   "relations": [
+    "WorkItem one-to-many"
+   ]
+  },
+  {
+   "name": "Recurrence",
+   "fields": [
+    "id",
+    "work_item_id",
+    "pattern",
+    "basis",
+    "ends_on"
+   ],
+   "relations": [
+    "WorkItem one-to-one"
+   ]
+  },
+  {
+   "name": "Availability",
+   "fields": [
+    "id",
+    "person_id",
+    "from",
+    "to",
+    "type",
+    "hours_unavailable",
+    "delegate_id?",
+    "note",
+    "status",
+    "approved_by?",
+    "approved_at?"
+   ],
+   "relations": [
+    "User many-to-one (person)",
+    "User many-to-one (delegate)",
+    "feeds Workload capacity, time targets and deadline coverage"
+   ]
+  },
+  {
+   "name": "AutomationRun",
+   "fields": [
+    "id",
+    "rule_id",
+    "rule_version",
+    "event",
+    "matter_id?",
+    "fired_at",
+    "outcome",
+    "actions_taken[]",
+    "items_created[]",
+    "skipped_reason?",
+    "error?",
+    "agent_explanation?"
+   ],
+   "relations": [
+    "AutomationRule many-to-one",
+    "WorkItem one-to-many (created)"
+   ]
+  },
+  {
+   "name": "Watcher",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by work relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "WorkItemLink",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by work relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  }
+ ],
+ "gates": [
+  {
+   "id": "G-W1",
+   "name": "Approve work output",
+   "approver": "item approver (lawyer for legal work)",
+   "blocks": "Item cannot move to Done; output cannot be released to its outbound module"
+  },
+  {
+   "id": "G-W2",
+   "name": "Accept matter work plan",
+   "approver": "responsible lawyer",
+   "blocks": "Agent cannot start template items on the matter"
+  },
+  {
+   "id": "G-W3",
+   "name": "Publish workflow / template",
+   "approver": "firm admin (workflow), lawyer (practice template)",
+   "blocks": "New workflow or template version cannot be used"
+  },
+  {
+   "id": "G-W4",
+   "name": "Enable external sync",
+   "approver": "responsible lawyer + admin",
+   "blocks": "No matter data leaves to the external tracker"
+  },
+  {
+   "id": "G-AR",
+   "name": "Enable automation rule",
+   "approver": "lawyer",
+   "blocks": "An event rule creating items or drafts automatically."
+  },
+  {
+   "id": "G-W5",
+   "name": "Approve absence",
+   "approver": "supervising lawyer or owner",
+   "blocks": "An absence reducing capacity, pro-rating time targets or re-routing deadline reminders"
+  }
+ ],
+ "agent_jobs": [
+  {
+   "name": "Pick up agent-ready items",
+   "trigger": "event: item enters Agent-ready or assigned to agent",
+   "does": "Runs the item's playbook with matter context, posts output + sources + proposed time entry",
+   "output": "draft output for G-W1"
+  },
+  {
+   "name": "Propose matter plan",
+   "trigger": "event: matter opened or template applied",
+   "does": "Instantiates template with computed due dates and assignees",
+   "output": "draft plan for G-W2"
+  },
+  {
+   "name": "Triage new items",
+   "trigger": "event: item created untriaged (incl. client portal requests)",
+   "does": "Suggests type, matter, assignee, priority, due, duplicates",
+   "output": "suggestions accepted by a human (no gate)"
+  },
+  {
+   "name": "SLA watch",
+   "trigger": "schedule: every 15 min",
+   "does": "Flags items breaching within 24h, notifies assignee and approver, escalates breached to responsible lawyer",
+   "output": "notifications"
+  },
+  {
+   "name": "Date-shift on key date change",
+   "trigger": "event: matter key date changed",
+   "does": "Recomputes dependent item due dates",
+   "output": "proposed changes accepted by lawyer"
+  },
+  {
+   "name": "Daily work digest",
+   "trigger": "schedule: weekdays 07:30",
+   "does": "Per-person plan and saved-filter subscriptions",
+   "output": "digest (no gate)"
+  },
+  {
+   "name": "External sync",
+   "trigger": "event: webhook / schedule",
+   "does": "Two-way sync per mapping; queues conflicts",
+   "output": "sync log; conflicts for human"
+  },
+  {
+   "name": "Workflow lint",
+   "trigger": "event: workflow draft saved",
+   "does": "Checks no agent path skips approval, no dead ends",
+   "output": "lint report for G-W3"
+  },
+  {
+   "name": "Automation runner",
+   "trigger": "event: matter, stage, field, document or item events",
+   "does": "Evaluates enabled rules and applies their actions idempotently",
+   "output": "items and draft requests, each under its own gate"
+  },
+  {
+   "name": "Rule suggester",
+   "trigger": "schedule: weekly",
+   "does": "Finds repeated manual patterns that a rule could do",
+   "output": "draft rules on work-automations"
+  },
+  {
+   "name": "Recurring item spawner",
+   "trigger": "event: recurring item done, or schedule",
+   "does": "Creates the next occurrence",
+   "output": "new work item"
+  },
+  {
+   "name": "Explain automation runs",
+   "trigger": "event: automation run failed or skipped",
+   "does": "Writes a one-line reason and links the fix (rule, template, access)",
+   "output": "explanation on run history (no gate)"
+  },
+  {
+   "name": "Absence cover planner",
+   "trigger": "event: absence requested or approved; schedule: daily",
+   "does": "Finds items and deadlines due while their owner is away, proposes delegates, flags gaps",
+   "output": "cover proposals accepted by a human; gap warnings"
+  }
+ ],
+ "open_questions": [
+  "Should clients see and raise requests in the portal from day one, or staff-only in v1?",
+  "Is batch approval acceptable for routine internal items (summaries), or must every agent output be approved one by one?",
+  "Capacity unit for workload: hours (needs estimates) or item counts?",
+  "Is two-way external tracker sync in v1, or one-way export only? Which firms actually use Jira?",
+  "Do sub-tasks get their own approvals, or does the parent approval cover them?",
+  "Should time logged by the agent create proposed (unbilled) time entries by default, and at what rate?",
+  "SLA calendars: Ontario statutory holidays only, or firm-defined closures too?",
+  "Should automation rules be allowed to trigger the agent directly (e.g. 'draft reporting letter on stage Closed'), or only create items the agent then picks up? Current spec: only via items.",
+  "Is a firm-wide cap on automation rules needed for small firms, or just loop detection?",
+  "Allocation rules (queue per practice area, auto-assign by capacity and competency, human confirms for client work): worth adding to workload? (r09-people)",
+  "Should 'Ask a colleague to verify' also allow an opt-in external reviewer outside the firm? (r14-rivals)",
+  "Should imported Clio priorities High/Normal/Low map one-to-one to our default priorities? (r02-tasks-calendar)",
+  "Should work-reports show per-person upcoming/overdue/completed counts, with money productivity kept in time/utilization? (r09-people)",
+  "Canadian research content: CanLII link-out or a licence? Owned by platform/readiness research; listed here because research flagged it against work. (r14-rivals)"
+ ],
+ "sources": [
+  "https://support.atlassian.com/jira-software-cloud/docs/what-is-a-jira-software-board/",
+  "https://support.atlassian.com/jira-software-cloud/docs/use-your-scrum-backlog/",
+  "https://support.atlassian.com/jira-cloud-administration/docs/work-with-issue-workflows/",
+  "https://support.atlassian.com/jira-software-cloud/docs/save-your-search-as-a-filter/",
+  "https://support.atlassian.com/jira-service-management-cloud/docs/create-service-level-agreements-slas/",
+  "https://ones.com/blog/designing-a-project-board-in-jira-columns-filters-quick-filters/",
+  "https://www.resumelens.org/blog/jira/jira-agile-boards-and-sprints",
+  "https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct/chapter-6",
+  "https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct/chapter-3",
+  "https://support.clio.com/hc/en-us/articles/203093140-Tasks",
+  "https://help.clio.com/hc/articles/35132279298843",
+  "https://www.clio.com/wp-content/uploads/2025/05/Automated-Workflows-Best-Practice-Guide.pdf",
+  "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf",
+  "https://help.clio.com/hc/en-us/articles/9289684213659-Mobile-App-Tasks",
+  "https://help.clio.com/hc/articles/9204917906971",
+  "https://www.clio.com/resources/ai-for-lawyers/ai-matter-management/",
+  "https://help.clio.com/hc/en-us/articles/9204917906971-Manage-Tasks-in-Clio-Manage",
+  "https://help.clio.com/hc/articles/15083241879195",
+  "https://help.clio.com/hc/en-us/articles/48791655710235-Understand-Clio-Work",
+  "https://www.clio.com/about/press/clio-work-agentic-mode-small-law-firms/"
+ ],
+ "clio_gaps": [
+  {
+   "clio_feature": "Tasks with name, description, assignee, due date, priority, status, reminders",
+   "where_in_clio": "Tasks > New task",
+   "status": "already covered",
+   "note": "work-item; added reminders."
+  },
+  {
+   "clio_feature": "Task statuses pending / in progress / in review / complete",
+   "where_in_clio": "Tasks > filter by status",
+   "status": "already covered",
+   "note": "Configurable workflow statuses in workflow-editor; 'in review' maps to Needs approval. Import map: Clio draft/pending/in_progress/in_review/complete -> our default statuses (workflow-editor import_status_map). Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Private tasks hidden from timeline and firm feed",
+   "where_in_clio": "Task form > Private",
+   "status": "added",
+   "note": "private flag on work-item, list and template items."
+  },
+  {
+   "clio_feature": "Task types (admin-made, one per task, disable not delete)",
+   "where_in_clio": "Settings > Tasks > Task types",
+   "status": "added",
+   "note": "New work-categories screen; categories disabled, never deleted."
+  },
+  {
+   "clio_feature": "Time estimates and task progress / productivity reports",
+   "where_in_clio": "Tasks (advanced tasks) and Reports; Reports > Tasks",
+   "status": "added",
+   "note": "estimate field and new work-reports screen. | Merged duplicate 'Task progress report by user (status counts, estimate vs tracked)': work-reports and workload estimate_vs_actual. Source: r02-tasks-calendar, r09-people"
+  },
+  {
+   "clio_feature": "Notify assignee on assignment checkbox",
+   "where_in_clio": "Task form",
+   "status": "added",
+   "note": "notify_assignee, default off for template-applied items."
+  },
+  {
+   "clio_feature": "Task lists per practice area with relative due dates",
+   "where_in_clio": "Settings > Task lists; Matter > Tasks > Assign task list",
+   "status": "already covered",
+   "note": "workflow-templates; added relative_to (applied date, key date, other item) and role-based assignee. | Merged duplicate 'Task list due dates: one trigger date or relative to list start / another task': workflow-templates relative_to (applied date, key date, other item). Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Assign task list to a matter",
+   "where_in_clio": "Matter > Tasks > Assign task list",
+   "status": "already covered",
+   "note": "matter-work-tab Apply template; added second template mid-matter and removal."
+  },
+  {
+   "clio_feature": "Automated workflows: matter created or stage changed -> assign task list",
+   "where_in_clio": "Settings > Automated Workflows > Made by Clio / My Automations / Automation history",
+   "status": "added",
+   "note": "Clio offers three fixed pairings only (assign task list, generate document, apply matter template on Grow conversion), no custom trigger/condition builder; new pairings are requested from Clio; Advanced and Expand plans. Our work-automations is a full rule builder with dry run, loop detection and run history. Source: r02-tasks-calendar Plan names Advanced/Expand are the 2025-early 2026 CA tiers (Complete renamed Expand 1 Jan 2026, r02); since about Sept 2026 CA plans are Starter/Core/Signature/Elite (r12), so the tier mapping needs re-checking."
+  },
+  {
+   "clio_feature": "Automated workflows: generate a document on matter create or stage change",
+   "where_in_clio": "Settings > Automated Workflows",
+   "status": "added",
+   "note": "Rule action 'ask agent to draft document'; document stays under documents-area gate, never auto-sent."
+  },
+  {
+   "clio_feature": "Apply a matter template when an intake converts to a matter",
+   "where_in_clio": "Automated Workflows (Grow to Manage)",
+   "status": "already covered",
+   "note": "matter-open-wizard pre-fill and matter-templates in matters.json."
+  },
+  {
+   "clio_feature": "Track time against a task",
+   "where_in_clio": "Task > Add time entry",
+   "status": "already covered",
+   "note": "work-item Log time."
+  },
+  {
+   "clio_feature": "Bulk edit / complete / delete tasks",
+   "where_in_clio": "Tasks tab > select > bulk actions",
+   "status": "added",
+   "note": "Bulk complete (approval items excluded) and bulk cancel on work-list."
+  },
+  {
+   "clio_feature": "Filter by assigned by / assigned to / priority / type / visibility",
+   "where_in_clio": "Tasks tab filters",
+   "status": "added",
+   "note": "Filters on work-list."
+  },
+  {
+   "clio_feature": "Recurring tasks",
+   "where_in_clio": "None found; Clio suggests duplicating a task (recurrence exists on calendar events only)",
+   "status": "added",
+   "note": "Our advantage, not parity: recurrence on work-item with a spawner job. Low-medium confidence that Clio lacks it. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Tasks shown on calendar",
+   "where_in_clio": "Calendar > Tasks calendar",
+   "status": "already covered",
+   "note": "task_overlay in deadlines firm-calendar."
+  },
+  {
+   "clio_feature": "AI-proposed task plan and next steps for a matter",
+   "where_in_clio": "Manage AI matter management",
+   "status": "already covered",
+   "note": "'Propose matter plan' agent job and template drafting."
+  },
+  {
+   "clio_feature": "AI creates tasks from plain language",
+   "where_in_clio": "Manage AI launchpad",
+   "status": "already covered",
+   "note": "work-item-create from email/call note and the agent."
+  },
+  {
+   "clio_feature": "Kanban for tasks",
+   "where_in_clio": "(Clio has kanban for matter stages, not tasks)",
+   "status": "deliberately different",
+   "note": "We give work items a full board with WIP limits. Clio has no task kanban but does have a matter kanban by stage (Matters > Stages) that can fire automated workflows; the versus page must not say Clio has no kanban. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Clio Work (AI legal research, analysis and drafting workspace)",
+   "where_in_clio": "Clio Work / Vincent",
+   "status": "deliberately different",
+   "note": "Not a task tracker. Maps to documents/ai-draft-workspace, platform/research-workspace and documents/multi-document-analysis, not to work/*. Our work area's Clio analogs are Manage tasks, task lists, Automated Workflows and Clio Operate. Source: r08-ai"
+  },
+  {
+   "clio_feature": "Automation history (log of workflow runs)",
+   "where_in_clio": "Settings > Automated Workflows > Automation history",
+   "status": "added",
+   "note": "Run history tab on work-automations with agent explanation of failed or skipped runs. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Workflow-created tasks appear only for assignees with matter access",
+   "where_in_clio": "Automated Workflows",
+   "status": "added",
+   "note": "work-automations edge: unassignable items go to a fallback queue flagged 'assignee lacks access'; dry run shows it. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Task list duplicate; templates cannot be reordered",
+   "where_in_clio": "Tasks > Task lists",
+   "status": "already covered",
+   "note": "workflow-templates supports copy and ordering by phase. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Assign a single task template alone",
+   "where_in_clio": "Task list > Edit > Assign task template",
+   "status": "already covered",
+   "note": "work-item-create from template item or matter-work-tab. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Task feeds (one-way calendar feed of tasks)",
+   "where_in_clio": "Tasks > Task lists > Task feeds",
+   "status": "deliberately different",
+   "note": "Behaviour only inferred from the name (low confidence); per-user ICS feeds are an open question in deadlines/calendar-sync. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Intake-side tasks that do not sync with Manage tasks",
+   "where_in_clio": "Clio Grow > Tasks",
+   "status": "deliberately different",
+   "note": "One work system across intake and matters; no separate intake task list. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Enterprise work management with phases and visual workflow designer",
+   "where_in_clio": "Clio Operate > Workflow Designer",
+   "status": "already covered",
+   "note": "workflow-editor, workflow-templates and work-automations; Operate is enterprise-only (low confidence on details). Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Leave / out-of-office / capacity",
+   "where_in_clio": "None found in Clio Manage",
+   "status": "added",
+   "note": "New team-availability screen and Availability entity feeding workload and deadline coverage. Source: r09-people"
+  },
+  {
+   "clio_feature": "Agent multi-step runs with live trace and interrupt",
+   "where_in_clio": "Clio Work agentic mode (Apr 2026)",
+   "status": "added",
+   "note": "Step plan, live step trace, Stop and Redirect on work-item agent runs, with 'needs approval' markers on regulated steps. Clio describes watch-and-interrupt control; ours also gates regulated steps. Source: r08-ai, r14-rivals"
+  },
+  {
+   "clio_feature": "Escalate an AI answer to a human expert",
+   "where_in_clio": "LEAP LawY (rival, not Clio)",
+   "status": "added",
+   "note": "'Ask a colleague to verify' on work-item routes to a named firm lawyer; external reviewers are an open question. Source: r14-rivals"
+  },
+  {
+   "clio_feature": "Canadian legal research content",
+   "where_in_clio": "Clio Work / Vincent (Canadian case law since Jul 2026)",
+   "status": "deliberately different",
+   "note": "Research belongs to platform research-workspace and readiness, not work; Clio has a clear edge here. Source: r14-rivals, r08-ai"
+  }
+ ]
+}

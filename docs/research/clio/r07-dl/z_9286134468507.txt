@@ -1,0 +1,27 @@
+===== Clio Grow Pipeline https://help.clio.com/hc/en-us/articles/9286134468507-Clio-Grow-Pipeline updated 2026-09-28T23:25:48Z
+In Clio Grow, the matter Pipeline provides an overview of all your matters by matter status. The three matter status categories are: Intake, Hired, or Not hired. You can also use filters to view matters in the Pipeline based on specific parameters, like who the matter is assigned to, the practice area (matter type), when the matter was created, and more.
+Tip: Newly created matters will have a New label in the Pipeline. When you change the matter's status, the label will be removed.
+Edit pipeline columns and matter cards
+When viewing the matter Pipeline, you can rearrange Pipeline columns. The columns in your Pipeline correspond to matter statuses, which you can create and modify in your settings. The matter cards automatically appear in the relevant Pipeline column according to their matter statuses. You can change a matter status when adding or editing a matter or by dragging and dropping the matter card between Pipeline columns.
+Tip: Click Quick view on a matter card in the Pipeline to view essential matter information directly from the Pipeline.
+Rearrange Pipeline columns Move matter cards between columns
+- Go to Pipeline.
+- Select one of the Intake, Hired, or Not hired subtabs.
+- Drag and drop a matter status column to a new location.
+- Go to Pipeline.
+- Select one of the Intake, Hired, or Not hired subtabs.
+- 
+Drag and drop a matter card from one matter status column to another.
+Note: In the Intake subtab, you can also use the checkmark and x icons on a matter card to move a card into the Hired and Not hired Pipeline categories, respectively. Click the relevant icon, then choose the matter status.
+Filter and sort Pipeline
+You can filter the Pipeline view by the user assigned to a matter, the matter type, marketing source (first touch), matter value—if specified when creating the matter, and creation date. You can also view only matters that need your firm's immediate attention. Finally, you can sort matters in a single column alphabetically by contact name or date created.
+- Go to Pipeline.
+- Click Filters.
+- Select the appropriate filters.- If you toggle on Matters that need the firm's attention, only matters with an automated workflow error or New label will be visible.
+- Click Filter view.
+View only your own matters in Pipeline
+You can choose to view matters in the Pipeline for all firm users or only your own matters. The default setting shows all users’ matters. If you need to create and modify the statuses, you can do so in your matter settings. To view only your own matters, change this setting:
+- Go to Settings > Pipeline.
+- Check the box for Default the pipeline to show only matters assigned to you.
+
+IMGS: []

@@ -1,0 +1,137 @@
+{
+ "owner": "f1-billing-engine",
+ "items": [
+  {
+   "finding": "RV1-002",
+   "status": "fixed",
+   "change": "TrustFeeTransfer states now proposed->pending_authorization->authorized->executed->applied->confirmed; trust row + BIL-J-008 post at execution (txn_date=executed_on), bank confirmation only matches. New BIL-C-053 available_cents (cleared - protected - minimum - authorized), BIL-C-054 bill.reserved_cents caps new transfers and payment allocation, BIL-C-055 excess at application -> OP-2300 + same-day G6 task. BIL-C-050/051, BIL-I-010/011 updated. Examples BIL-X-023 (second 300000 auth -> 409; card capped 208676) and BIL-X-024.",
+   "left_for": "a4-data-model.sql (available_cents fn, withdrawal statuses, reservation); a2-interfaces.openapi.yaml (trust_overdraw on authorize)"
+  },
+  {
+   "finding": "RV1-003",
+   "status": "partial",
+   "change": "b3 part: BIL-C-053 excludes uncleared receipts (cleared_on) and protected/minimum balances; test for uncleared_funds added.",
+   "left_for": "a4-data-model.sql (cleared_on column, DM-056 trigger); ../legal-spec/trust.json open question"
+  },
+  {
+   "finding": "RV1-005",
+   "status": "fixed",
+   "change": "BIL-C-033: '(verify exact cap formula)' removed; formula = b1 BIL-L-020, 409 CFA_FEE_EXCEEDS_RECOVERY, test 3000000/costs 500000/disb 200000 -> base 2800000. BIL-C-032: recovery_base is a stored field used by both rules.",
+   "left_for": "b1-ontario-billing-law.json (BIL-L-020 test)"
+  },
+  {
+   "finding": "RV1-006",
+   "status": "fixed",
+   "change": "BIL-C-063/081: 'Never to trust' removed; client credit is client money. New BIL-C-067 (apply/refund/transfer to trust within 5 business days default, verify By-Law 9; aging job opens trust exception), new BIL-J-019 credit->trust. BIL-X-008/010 text updated; new BIL-X-025.",
+   "left_for": "b1-ontario-billing-law.json (BIL-L-042)"
+  },
+  {
+   "finding": "RV1-007",
+   "status": "fixed",
+   "change": "BIL-C-204 now interest only (cites ETA s.161 per f2). New BIL-C-208 surcharge taxable at the paid bill's tax lines (= b2 BIL-T-044, verify); BIL-C-102 refund pro rata; BIL-C-101 flag surcharge_enabled off; BIL-J-013 adds Cr OP-2100; BIL-X-013 surcharge 2712, HST 353, charged 116065; new BIL-X-029 refund (1356 + 177).",
+   "left_for": "b2-sales-tax.json (done by f2 as BIL-T-044); o1-tasks.json CF-18"
+  },
+  {
+   "finding": "RV1-008",
+   "status": "partial",
+   "change": "b3 part: BIL-C-122 delivered_at set only by delivery effect on evidence, null->value<=now() once, correction via audited delivery_correction; BIL-I-006 freezes due_date, approver, signature, interest_rate_ppm, place of supply; void only while delivered_at null.",
+   "left_for": "a4-data-model.sql (bill_guard); a2-interfaces.openapi.yaml (deliverBill)"
+  },
+  {
+   "finding": "RV1-009",
+   "status": "fixed",
+   "change": "BIL-C-084, Bill state machine and BIL-X-018: void only status approved and delivered_at null, G-B2 by billing.approve not preparer, no credit note; delivered -> 409 bill_delivered_use_credit_note.",
+   "left_for": "a2-interfaces.openapi.yaml/.json (voidBill); o1-tasks.json new CF"
+  },
+  {
+   "finding": "RV1-010",
+   "status": "partial",
+   "change": "b3 part: new BIL-I-026 (per-bucket allocation columns summing to amount, zero on non-bill rows, per-bucket caps); BIL-I-005 bill allocations only from deposit_to=operating and balance >= 0 DB-enforced; BIL-I-019 reversal = -1 x original per bucket.",
+   "left_for": "a4-data-model.sql (payment_allocation columns, DM-046/047 triggers)"
+  },
+  {
+   "finding": "RV1-011",
+   "status": "partial",
+   "change": "BIL-I-021 sole-practitioner exception defined: core.firm.sole_practitioner=true, audit event sod_solo_exception with gate id.",
+   "left_for": "a4-data-model.sql (replace CHECKs with triggers); a2-interfaces.json ARC-I-027"
+  },
+  {
+   "finding": "RV1-012",
+   "status": "partial",
+   "change": "BIL-C-065 and BIL-J-016: replenish only the shortfall in the same transaction, always a trust exception. New BIL-X-026 (case A replenish 300000, case B none).",
+   "left_for": "a4-data-model.sql (DM-052 ordering inside one tx)"
+  },
+  {
+   "finding": "RV1-014",
+   "status": "fixed",
+   "change": "Kept b3 formula: reviewer shows b2's rate x credit wrong (3 x 335 c credits on base 1005 -> 132 c > bill tax 131 c; base-5 bill: 0 vs 1). Per f2 handoff b2 BIL-T-070 now equals BIL-C-203 (per tax line rhu(credit x line_tax / bill_base), last credit takes remainder). Base-5 test added to BIL-C-203 and BIL-X-011.",
+   "left_for": "b2-sales-tax.json (done by f2)"
+  },
+  {
+   "finding": "RV1-015",
+   "status": "fixed",
+   "change": "BIL-C-002 wording: half away from zero, tax once per bill per tax line on the summed base; 333/333/334 test. Conventions updated.",
+   "left_for": "b1-ontario-billing-law.json BIL-L-047"
+  },
+  {
+   "finding": "RV1-016",
+   "status": "fixed",
+   "change": "New BIL-C-073: delivery_local_date in America/Toronto, months_after (clamp) vs days_after, interest days >= months_after(d,1), suit days > months_after(d,1). engine.months_after/days_after/local_date; BIL-C-070 uses them. New BIL-X-027 with all reviewer test dates (incl. 2026-11-01T03:30Z -> 2026-10-31 -> 2026-11-30).",
+   "left_for": "b1-ontario-billing-law.json (months_after definition)"
+  },
+  {
+   "finding": "RV1-017",
+   "status": "fixed",
+   "change": "BIL-C-072 cumulative method; engine.interest_cumulative; BIL-X-009 now posts 995 at 2026-11-30 and 480 at payoff, total exactly 1475.",
+   "left_for": ""
+  },
+  {
+   "finding": "RV1-018",
+   "status": "fixed",
+   "change": "Bill transition written_off->written_off (recovery, G-B3), new BIL-C-086 and BIL-J-018; new BIL-X-030 (11800 -> tax 1300, OP-6100 credit 10500).",
+   "left_for": ""
+  },
+  {
+   "finding": "RV1-019",
+   "status": "partial",
+   "change": "b3 is the source of state names; BIL-C-003 now lists the 8 rate_source values; TrustFeeTransfer states renamed per RV1-002.",
+   "left_for": "a4-data-model.sql CHECK lists; o1-tasks.json CF-19"
+  },
+  {
+   "finding": "RV1-021",
+   "status": "fixed",
+   "change": "New BIL-C-123 (void after filed period = negative adjustment in void period; W-PERIOD-CROSS warning); BIL-J-012 note; new BIL-X-031 (Q4 -13000).",
+   "left_for": "b2-sales-tax.json BIL-T-090"
+  },
+  {
+   "finding": "RV1-022",
+   "status": "partial",
+   "change": "New BIL-C-068 (dedup on (provider,event_id), re-fetch, state precedence); Payment state machine note.",
+   "left_for": "a2-interfaces.openapi.yaml (inbound route); a4-data-model.sql (payment_event)"
+  },
+  {
+   "finding": "RV1-024",
+   "status": "fixed",
+   "change": "BIL-C-091 rewritten: cumulative floor for non-first payers with carry, negative-guard; engine.split_lines; BIL-X-012 unchanged result (60001/40000, 2000/1333); new BIL-X-028 (200 x 101 at 50/50 -> 10100/10100; 3-payer tiny lines no negatives).",
+   "left_for": ""
+  },
+  {
+   "finding": "CF-01",
+   "status": "fixed",
+   "change": "All b3 percentages now ppm (discount, markup, split share, surcharge, contingency, interest_rate_ppm; 1% = 10000). BIL-C-001, BIL-I-024, conventions, all examples restated; amounts unchanged. Note: CF-01's written resolution (commercial % in bp) is superseded by FIX.md's ppm rule.",
+   "left_for": "a4-data-model.sql (*_ppm already); a2-interfaces.json ARC-I-028; o1-tasks.json CF-01/CF-09 (interest_rate_bp -> interest_rate_ppm)"
+  },
+  {
+   "finding": "CF-13",
+   "status": "fixed",
+   "change": "BIL-C-063 states unapplied allocation while G-B3 pending, then client credit.",
+   "left_for": ""
+  },
+  {
+   "finding": "CF-18",
+   "status": "fixed",
+   "change": "Surcharge behind feature flag surcharge_enabled=false (BIL-C-101).",
+   "left_for": "o1-tasks.json CF-18 text"
+  }
+ ]
+}

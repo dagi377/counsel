@@ -1,0 +1,68 @@
+<h2>o2 spec lint: Counsel product spec</h2>
+<p>Script: <code>eng-spec/o2_lint.py</code> (run <code>python3 -I o2_lint.py [--spec DIR] [--json out] [--fix] [--strict [--baseline FILE]] [--write-baseline]</code>). Scope: 12 area JSON files, <code>access-map*.json</code>, <code>access.json</code> (201 screens, 66 capabilities, 10 roles). <code>build.py</code> after fixes: <code>areas=12 screens=201 missing=[]</code>.</p>
+<h3>Using it as a CI gate</h3><p>The spec directory is <code>--spec DIR</code>, else <code>$COUNSEL_SPEC_DIR</code>, else <code>../spec</code> (the Counsel repo layout), else <code>../legal-spec</code>. Without <code>--strict</code> the script only reports and exits 0. With <code>--strict</code> it exits 1 when any mechanical finding exists, when any judgment check count is above the checked-in baseline <code>o2_lint.baseline.json</code> (missing baseline means every count must be 0), or when the spec directory is missing. The baseline can only shrink: after an owner resolves findings, run <code>--write-baseline</code> and commit the smaller counts. In the Counsel repo, T-001 wires <code>python3 -I tools/o2_lint.py --spec spec --strict</code> into <code>make check</code>. Current baseline: entity-conflict 12, gate-dup 3, gate-no-approver 9; strict run exits 0.</p>
+<h3>Findings before and after</h3><div class="scroll"><table class="ftable"><tr><th>Check</th><th>What it flags</th><th>Before</th><th>After</th></tr>
+<tr><td><code>screen-dup</code></td><td>Duplicate screen id in an area</td><td>0</td><td>0</td></tr>
+<tr><td><code>access-missing</code></td><td>Screen with no access-map entry</td><td>0</td><td>0</td></tr>
+<tr><td><code>access-role</code></td><td>Access map names unknown role</td><td>0</td><td>0</td></tr>
+<tr><td><code>approve-forbidden</code></td><td>agent/admin in an approve list</td><td>0</td><td>0</td></tr>
+<tr><td><code>cap-unknown</code></td><td>Capability id not in access.json matrix</td><td>0</td><td>0</td></tr>
+<tr><td><code>gate-undefined</code></td><td>Gate id referenced but defined nowhere</td><td>4</td><td>0</td></tr>
+<tr><td><code>gate-dup</code></td><td>Same gate id defined in several areas</td><td>5</td><td>3</td></tr>
+<tr><td><code>entity-ref</code></td><td>Relation names an undefined entity</td><td>34</td><td>0</td></tr>
+<tr><td><code>entity-conflict</code></td><td>Same entity, different field lists across areas</td><td>12</td><td>12</td></tr>
+<tr><td><code>gate-no-approver</code></td><td>Screen gate but no approve-capable role mapped</td><td>9</td><td>9</td></tr>
+<tr><td><code>agent-ungated-external</code></td><td>Agent action, gate=none, external-effect verb</td><td>3</td><td>0</td></tr>
+<tr><td><code>money-type</code></td><td>Money-named field not typed money</td><td>0</td><td>0</td></tr>
+<tr><td><code>date-type</code></td><td>Date-named field typed text</td><td>0</td><td>0</td></tr>
+<tr><td><code>empty-section</code></td><td>Empty required section</td><td>0</td><td>0</td></tr>
+<tr><td><b>total</b></td><td></td><td><b>67</b></td><td><b>24</b></td></tr></table></div>
+<p>Clean from the start: unique screen ids, every screen mapped in the access map, no agent/admin in any approve list, every capability id cited in screens exists in the matrix, no money field typed number/text, no date-named field typed text, no empty required section.</p>
+<h3>"(verify)" markers per area</h3><div class="scroll"><table class="ftable"><tr><th>intake</th><th>conflicts</th><th>documents</th><th>matters</th><th>deadlines</th><th>work</th><th>time</th><th>billing</th><th>trust</th><th>platform</th><th>readiness</th><th>access</th><th>total</th></tr><tr><td>13</td><td>21</td><td>4</td><td>8</td><td>16</td><td>3</td><td>4</td><td>18</td><td>29</td><td>15</td><td>11</td><td>5</td><td>147</td></tr></table></div>
+<h3>Mechanical fixes applied</h3><ul>
+<li><b>G10 -> G-B2</b> (4 screens: matters/matter-financial-summary, time/matter-wip, platform/approvals-inbox, platform/matter-closing). Every citation calls G10 "bill approval in the billing area"; billing defines that gate as <code>G-B2</code>. No area defined G10.</li>
+<li><b>trust GA1 -> G-TSIG, GA2 -> G-TREL</b> (definitions plus all references inside trust.json). They collided with access.json GA1 "Role change" and GA2 "User activation", which mean different things.</li>
+<li><b>Entity aliases</b> in relation text: <code>MatterMember -> TeamMember</code> (matters; access defines TeamMember Matter-User), <code>TrustTransaction -> TrustJournalLine</code> (time; trust ledger entity).</li>
+<li><b>29 entity stubs</b> added to the referencing area (fields <code>["id"]</code>, note "stub added by spec lint"): Breach (access), EnforcementTest (access), ReviewItem (access), Undertaking (access), Refund (billing), AccessAttempt (conflicts), MatterParty (conflicts), ThirdParty (conflicts), Attendee (deadlines), AuditEvent (documents), Clause (documents), DocumentSet (documents), SequenceRun (intake), Group (matters), IdVerification (matters), BankAccount (platform), ReportPreset (platform), WebhookDelivery (platform), AgentAction (readiness), AuditEntry (readiness), OperatingAccount (readiness), BankImport (trust), ClientListingSnapshot (trust), Evidence (trust), GateDecision (trust), Match (trust), ReconcilingItem (trust), Watcher (work), WorkItemLink (work).</li>
+<li>Nothing deleted; access.json matrix grants untouched; file indentation preserved.</li></ul>
+<h3>Remaining judgment items for the owner</h3>
+<p><b>gate-dup</b> (3): Pick one owning area per id; the others cite it. G2: conflicts owns it (intake already says so); matters G2 for late-added parties is either the same gate or needs its own id. G14: conflicts cites "shared with closing", so platform G14 is likely canonical with ID records as a scope; G-INT: approvers differ (owner vs lawyer or admin-licensee).</p><div class="scroll"><table class="ftable"><tr><th>Area</th><th>Item</th><th>Detail</th></tr>
+<tr><td>intake,conflicts,matters</td><td>G2</td><td>G2 defined in 3 areas: intake: Conflict cleared (owned by conflicts area) | conflicts: Conflict clearance | matters: Conflict sign-off for a new conflict-relevant party</td></tr>
+<tr><td>conflicts,platform</td><td>G14</td><td>G14 defined in 2 areas: conflicts: ID record destruction | platform: File destruction</td></tr>
+<tr><td>platform,readiness</td><td>G-INT</td><td>G-INT defined in 2 areas: platform: New integration or scope | readiness: Connector that sends data out</td></tr>
+</table></div>
+<p><b>entity-conflict</b> (12): Choose one canonical field list per entity (owning area), and have other areas reference it. Also decide whether access <code>Wall</code> and conflicts/matters/platform <code>EthicalWall</code> are the same entity (likely yes).</p><div class="scroll"><table class="ftable"><tr><th>Area</th><th>Item</th><th>Detail</th></tr>
+<tr><td>intake,matters</td><td>Contact</td><td>Contact defined in [&#x27;intake&#x27;, &#x27;matters&#x27;] with different field lists (shared: 1; intake: 10 fields; matters: 16 fields)</td></tr>
+<tr><td>conflicts,matters,platform</td><td>EthicalWall</td><td>EthicalWall defined in [&#x27;conflicts&#x27;, &#x27;matters&#x27;, &#x27;platform&#x27;] with different field lists (shared: 2; conflicts: 9 fields; matters: 6 fields; platform: 7 fields)</td></tr>
+<tr><td>documents,platform</td><td>SignatureRequest</td><td>SignatureRequest defined in [&#x27;documents&#x27;, &#x27;platform&#x27;] with different field lists (shared: 2; documents: 8 fields; platform: 6 fields)</td></tr>
+<tr><td>documents,platform</td><td>Signer</td><td>Signer defined in [&#x27;documents&#x27;, &#x27;platform&#x27;] with different field lists (shared: 6; documents: 10 fields; platform: 8 fields)</td></tr>
+<tr><td>matters,platform</td><td>PracticeArea</td><td>PracticeArea defined in [&#x27;matters&#x27;, &#x27;platform&#x27;] with different field lists (shared: 2; matters: 7 fields; platform: 7 fields)</td></tr>
+<tr><td>deadlines,readiness</td><td>RulePack</td><td>RulePack defined in [&#x27;deadlines&#x27;, &#x27;readiness&#x27;] with different field lists (shared: 3; deadlines: 9 fields; readiness: 6 fields)</td></tr>
+<tr><td>work,platform</td><td>AgentRun</td><td>AgentRun defined in [&#x27;work&#x27;, &#x27;platform&#x27;] with different field lists (shared: 1; work: 14 fields; platform: 7 fields)</td></tr>
+<tr><td>platform,access</td><td>User</td><td>User defined in [&#x27;platform&#x27;, &#x27;access&#x27;] with different field lists (shared: 5; platform: 9 fields; access: 13 fields)</td></tr>
+<tr><td>platform,access</td><td>Role</td><td>Role defined in [&#x27;platform&#x27;, &#x27;access&#x27;] with different field lists (shared: 2; platform: 5 fields; access: 6 fields)</td></tr>
+<tr><td>platform,readiness</td><td>Connector</td><td>Connector defined in [&#x27;platform&#x27;, &#x27;readiness&#x27;] with different field lists (shared: 3; platform: 7 fields; readiness: 9 fields)</td></tr>
+<tr><td>platform,readiness</td><td>ResearchMemo</td><td>ResearchMemo defined in [&#x27;platform&#x27;, &#x27;readiness&#x27;] with different field lists (shared: 4; platform: 7 fields; readiness: 8 fields)</td></tr>
+<tr><td>readiness,access</td><td>SupportGrant</td><td>SupportGrant defined in [&#x27;readiness&#x27;, &#x27;access&#x27;] with different field lists (shared: 3; readiness: 6 fields; access: 8 fields)</td></tr>
+</table></div>
+<p><b>gate-no-approver</b> (9): Screen text names a gate but its access-map approve list is empty. Either add the approver roles in the access map (owner decision; grants not changed by this lint) or change the screen gate text to name the gate owned elsewhere.</p><div class="scroll"><table class="ftable"><tr><th>Area</th><th>Item</th><th>Detail</th></tr>
+<tr><td>intake</td><td>intake/consultation-booking</td><td>screen has a gate but no approve-capable role mapped</td></tr>
+<tr><td>matters</td><td>matters/matter-list</td><td>screen has a gate but no approve-capable role mapped</td></tr>
+<tr><td>matters</td><td>matters/matter-financial-summary</td><td>screen has a gate but no approve-capable role mapped</td></tr>
+<tr><td>matters</td><td>matters/contact-list</td><td>screen has a gate but no approve-capable role mapped</td></tr>
+<tr><td>matters</td><td>matters/contact-detail</td><td>screen has a gate but no approve-capable role mapped</td></tr>
+<tr><td>time</td><td>time/suggested-entries</td><td>screen has a gate but no approve-capable role mapped</td></tr>
+<tr><td>billing</td><td>billing/payments-inbox</td><td>screen has a gate but no approve-capable role mapped</td></tr>
+<tr><td>billing</td><td>billing/billing-reports</td><td>screen has a gate but no approve-capable role mapped</td></tr>
+<tr><td>trust</td><td>trust/trust-audit-trail</td><td>screen has a gate but no approve-capable role mapped</td></tr>
+</table></div>
+<p><b>agent-ungated-external</b> (3, now 0, CF-16 resolved in the fix phase): Auto-purge now proposes a purge list and destroys nothing until G14; e-sign and intake reminders and the receptionist warm transfer run only from templates or transfer lists approved under G-SK. The three rows below are the original findings.</p><div class="scroll"><table class="ftable"><tr><th>Area</th><th>Item</th><th>Detail</th></tr>
+<tr><td>intake</td><td>intake/ai-receptionist</td><td>agent action &#x27;Warm transfer&#x27; gate=none with external-effect word &#x27;transfer&#x27;</td></tr>
+<tr><td>documents</td><td>documents/document-trash</td><td>agent action &#x27;Auto-purge&#x27; gate=none with external-effect word &#x27;purge&#x27;</td></tr>
+<tr><td>platform</td><td>platform/esign-request</td><td>agent action &#x27;Send reminders&#x27; gate=none with external-effect word &#x27;Send&#x27;</td></tr>
+</table></div>
+<p><b>Also for the owner:</b></p><ul>
+<li>Fill the fields of the entity stubs above; until then coding agents must not invent columns for them.</li>
+<li>conflicts/conflict-check-new field <code>parties[].dob_or_number</code> is <code>text</code> mixing a date and an identifier; split into a date and a text field.</li>
+<li>trust G-TSIG (signing authority change, approver responsible lawyer) overlaps access GA6 (trust signatory, approver owner with signing authority plus a second signatory). Pick one.</li>
+<li>147 "(verify)" markers remain, highest in trust (29), conflicts (21), billing (18), deadlines (16).</li></ul>

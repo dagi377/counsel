@@ -1,0 +1,821 @@
+{
+ "id": "r06-money",
+ "scope": "Clio Payments (Canada methods, links, surcharging, plans), Clio Accounting (GL, bank feeds, Canada availability), trust accounting in Clio Manage (requests, ledgers, transfers, protected funds, reconciliation, law society reports) vs legal-spec trust.json/billing.json and versus-clio",
+ "clio_products": [
+  "Clio Manage",
+  "Clio Payments",
+  "Clio Accounting"
+ ],
+ "features": [
+  {
+   "name": "Clio Payments availability and methods in Canada",
+   "product": "Clio Payments",
+   "where": "Online payments (main nav); Settings > Online payments",
+   "what": "Built-in processor for US and Canada. Canadian firms take credit and debit cards (Visa, Mastercard, Amex) plus Apple Pay / Google Pay. eCheck and Direct ACH are US only; no Canadian EFT or pre-authorized debit is documented.",
+   "plan_tier": "all current plans (add-on processing fees); quickstart brochure cites 2.95% flat CA card rate (2025)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9285740132379-Get-Started-with-Clio-Payments",
+    "https://help.clio.com/hc/en-us/articles/41863402264091-Review-Accepted-Payment-Methods",
+    "https://www.clio.com/wp-content/uploads/2025/06/Brochure-Quickstart-PDF-Getting-Paid-Quickly-and-Reliably.pdf",
+    "https://www.clio.com/about/press/clio-payments-now-available-in-canada/"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/9285740132379-Get-Started-with-Clio-Payments"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Two-stage activation (application, then map payout accounts to ledger accounts)",
+   "product": "Clio Payments",
+   "where": "Online payments > Activate today",
+   "what": "Firm submits business (BN/NEQ in Canada), ownership and banking data; after approval (1-2 days) each real payout account is linked to a Clio Manage operating or trust account.",
+   "plan_tier": "admins / primary subscriber",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/52403818005787-Activate-Clio-Payments",
+    "https://help.clio.com/hc/en-us/articles/48321937507099-Manage-Clio-Payments-Settings"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/52403818005787-Activate-Clio-Payments"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Payout accounts, primary operating account, statement descriptor",
+   "product": "Clio Payments",
+   "where": "Settings > Online payments > Payment Settings > Manage banking",
+   "what": "Firm sets which real bank accounts receive payouts, which one is primary operating (fees, chargebacks and shortfalls are debited there) and the 5-22 char text clients see on card statements.",
+   "plan_tier": "all Clio Payments users",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/48321937507099-Manage-Clio-Payments-Settings"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/48321937507099-Manage-Clio-Payments-Settings"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Trust deposits in full; fees always from operating; daily or monthly fee schedule",
+   "product": "Clio Payments",
+   "where": "Settings > Online payments > Payment Settings > Fee Schedule",
+   "what": "Trust payments land in trust gross; processing fees are taken from the operating account, either daily or once a month. Only successful transactions are charged.",
+   "plan_tier": "all Clio Payments users",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9285813698075-Set-Transaction-Fee-Schedule"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/9285813698075-Set-Transaction-Fee-Schedule"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Surcharging in Canada",
+   "product": "Clio Payments",
+   "where": "Settings > Online payments (enabled by Clio Support on request)",
+   "what": "Optional credit-card surcharge shown as its own line, capped at 2.4% and at cost of acceptance. Not on debit, prepaid, wallets or trust payments; not in Quebec. Visa notice handled by Clio, Mastercard form filed by firm 30 days ahead; a surcharge-free method must be offered.",
+   "plan_tier": "request-only; list pricing; not with free-processing offer",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/51846753939483-Set-Up-Surcharging-in-Canada"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/51846753939483-Set-Up-Surcharging-in-Canada"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Bill payment links, bank-account links and QR codes",
+   "product": "Clio Payments",
+   "where": "Billing > Send (down arrow) > Copy link to pay client balance; Online payments > New charge",
+   "what": "Link tied to a bill applies payment automatically; link/QR tied to an operating or trust bank account has no amount and must be linked to a contact/matter after payment; links not tied to a bill cannot be cancelled. QR can be embedded on downloaded bills.",
+   "plan_tier": "all Clio Payments users",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9285635476251-Secure-Payment-Links-and-QR-Codes",
+    "https://help.clio.com/hc/en-au/articles/9285635476251-Secure-Payment-Links-and-QR-Codes"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/9285635476251-Secure-Payment-Links-and-QR-Codes"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Pay Later (Affirm)",
+   "product": "Clio Payments",
+   "where": "Settings > Online payments > Payment Settings (client payment options)",
+   "what": "Client finances a bill or trust request; firm is paid in full, pays a 4.95% fee from operating. Limits CAD 50-20,000. Help article lists it in methods but one page says US only, so Canadian availability is ambiguous.",
+   "plan_tier": "Clio Payments",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/41863402264091-Review-Accepted-Payment-Methods",
+    "https://help.clio.com/hc/en-us/articles/9285740132379-Get-Started-with-Clio-Payments"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/41863402264091-Review-Accepted-Payment-Methods"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Payment plans",
+   "product": "Clio Payments",
+   "where": "Contact > Payment plans (billing permission)",
+   "what": "Scheduled recurring charges toward the outstanding balance (oldest due first), toward trust (held at client level) or ongoing. Canadian plans are credit card only. Bill reminders pause while a plan is active.",
+   "plan_tier": "admins and billing users",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9285735777819-Set-Up-and-Manage-Payment-Plans"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/9285735777819-Set-Up-and-Manage-Payment-Plans"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Autocharge schedules",
+   "product": "Clio Payments",
+   "where": "Settings > Billing > Autocharge",
+   "what": "Stored payment method charged on bill/trust-request approval, on due date, or N days after issue; schedule can cover operating bills, trust requests or both.",
+   "plan_tier": "admins and billing users",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/49144641966235-Autocharge-Contacts"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/49144641966235-Autocharge-Contacts"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Online payment reports and deposit report",
+   "product": "Clio Payments",
+   "where": "Reports > Online payments",
+   "what": "Transaction, fee and payout reports used to reconcile Clio Payments deposits and fee deductions against the bank.",
+   "plan_tier": "all Clio Payments users",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14351266745755-Clio-Manage-Online-Payments-Reports",
+    "https://help.clio.com/hc/en-us/articles/9285813698075-Set-Transaction-Fee-Schedule"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/14351266745755-Clio-Manage-Online-Payments-Reports"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "LawPay integration retired",
+   "product": "Clio Payments",
+   "where": "n/a",
+   "what": "LawPay integration ended 31 Aug 2026; old LawPay transactions remain read-only in Clio Manage. Clio Payments is now the only built-in processor.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/52403818005787-Activate-Clio-Payments"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/52403818005787-Activate-Clio-Payments"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Payment data transferred to the US",
+   "product": "Clio Payments",
+   "where": "Terms (Get Started article)",
+   "what": "Using Clio Payments sends firm business, bank and client payment data to the US for processing, including for Canadian firms.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9285740132379-Get-Started-with-Clio-Payments"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/9285740132379-Get-Started-with-Clio-Payments"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Bank accounts in Manage are internal records only",
+   "product": "Clio Manage",
+   "where": "Accounts tab",
+   "what": "Operating and trust accounts in Manage are ledgers only; Manage itself imports nothing from the bank. Currency fixed after first transaction.",
+   "plan_tier": "accounts or admin permission",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9285631748507-Create-and-Manage-Bank-Accounts"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/9285631748507-Create-and-Manage-Bank-Accounts"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Trust requests with approval workflow",
+   "product": "Clio Manage",
+   "where": "Contact/Matter > New trust request; Create new + > Trust request; Billing > Draft / Pending approval / Unpaid",
+   "what": "Request for a retainer or top-up stored at client or matter level; optional approval by named firm members (skipping approval locks the request); sent with a trust bill template; client pays from email by card if Clio Payments is on.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/51554190645659-Create-Trust-Requests",
+    "https://help.clio.com/hc/en-us/articles/51583621176603-Approve-and-Send-Trust-Requests",
+    "https://help.clio.com/hc/en-us/articles/9285403397915-Record-Payments-on-Trust-Requests"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/51554190645659-Create-Trust-Requests"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Evergreen retainer and low balance notification",
+   "product": "Clio Manage",
+   "where": "Matter > Billing preferences > Minimum required amount / Enable evergreen trust",
+   "what": "Applying trust to a bill that drops the balance below the minimum auto-creates a draft trust request; low-balance alert optional; autofill computes the top-up amount.",
+   "plan_tier": "current plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/25386185645595-Set-Up-Evergreen-Retainers",
+    "https://help.clio.com/hc/en-us/articles/51554190645659-Create-Trust-Requests"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/25386185645595-Set-Up-Evergreen-Retainers"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Record trust transactions (deposit, interest, bank charge)",
+   "product": "Clio Manage",
+   "where": "Contact/Matter > Transactions > New transaction; Accounts > account > New transaction",
+   "what": "Direct ledger entry without a request, with source/destination, payer/payee, type and description.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/51583730389915-Record-Trust-Transactions"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/51583730389915-Record-Trust-Transactions"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Disburse trust funds (record only)",
+   "product": "Clio Manage",
+   "where": "Contact/Matter > Transactions > Disburse funds",
+   "what": "Records money leaving trust by cheque/cash/transfer with payee, method and description. No built-in second-person approval is described; Clio does not move the money.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/52224795936539-Disburse-Trust-Funds"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/52224795936539-Disburse-Trust-Funds"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Refund trust funds electronically",
+   "product": "Clio Payments",
+   "where": "Online payments > Refund; Billing > trust request > Online payments subtab",
+   "what": "Refunds a card/eCheck trust payment back to the original method, capped at the original charge per matter; multi-matter refunds go newest matter first.",
+   "plan_tier": "admin / Accounts+Billing permission",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/52880615234331-Refund-Trust-Funds"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/52880615234331-Refund-Trust-Funds"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Transfers between bank accounts and between matters",
+   "product": "Clio Manage",
+   "where": "Contact/Matter > Transactions > Transfer funds",
+   "what": "Ledger-only transfer trust<->operating or client balance<->matter or matter<->matter for the same client; Clio advises keeping written client authorization; real money must be moved at the bank.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/48339146800923-Transfer-Funds-Between-Accounts"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/48339146800923-Transfer-Funds-Between-Accounts"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Protected (reserved) trust funds",
+   "product": "Clio Manage",
+   "where": "Settings > Billing > Protected funds; Matter > Dashboard > Matter trust funds",
+   "what": "Admin-enabled; users with Accounts permission reserve named amounts on a matter for a purpose; others can only request release; changes logged on matter Timeline.",
+   "plan_tier": "current plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/51583795486363-Protect-Client-Trust-Funds"
+   ],
+   "screenshots": [
+    "https://brand.clio.com/m/49ea92b2d2e060c0/original/Add-protect-matter-funds-accounts-permissions.png",
+    "https://brand.clio.com/m/22f86dd528f858c4/original/Edit-and-delete-protected-matter-funds-accounts-permissions.png",
+    "https://brand.clio.com/m/554f4d7592b4c178/original/View-protected-matter-funds-non-accounts-permission.png"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Trust reconciliation in Clio Manage (manual matching)",
+   "product": "Clio Manage",
+   "where": "Accounts > trust account > Reconcile account; Save for later / Continue reconciliation",
+   "what": "Admin enters statement ending date/balance, ticks Match on each ledger line, adds missing entries or an adjustment (Clio warns not to force $0), finishes only at $0 difference; uncleared items listed. Any period length; monthly recommended.",
+   "plan_tier": "current (non-legacy) plans; admins only",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290138047899-Trust-Reconciliation-in-Clio"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/9290138047899-Trust-Reconciliation-in-Clio"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Reconciliation reports, locking and chained void",
+   "product": "Clio Manage",
+   "where": "Accounts > account > Reconciliations subtab > View report / Void",
+   "what": "Each completed reconciliation is locked and produces a 3-tab report (summary, transaction detail incl. interest/charges/adjustments, per-client ledger effect), exportable to PDF, kept 10 years. Voiding a period requires voiding all newer ones first.",
+   "plan_tier": "current plans; admins",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/54824841490075-View-Reconciliation-Reports",
+    "https://help.clio.com/hc/en-us/articles/54824936256027-Void-or-delete-a-reconciliation"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/54824841490075-View-Reconciliation-Reports"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Client and trust reports",
+   "product": "Clio Manage",
+   "where": "Reports > Client reports",
+   "what": "Client ledger, trust ledger (described as suitable for regulators), trust listing (balances with last activity date, opening/closing), trust management (unbilled work vs trust vs minimum), client funds interest; multi-client matters supported on several.",
+   "plan_tier": "varies by plan",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Law Society of Alberta trust report",
+   "product": "Clio Manage",
+   "where": "Reports > Compliance (LSA Trust); enabled automatically for Canadian mailing address",
+   "what": "Clio is an LSA-approved vendor; enabling makes institution, payment method and deposit type mandatory and produces the annual Trust Safety Accounting Upload file.",
+   "plan_tier": "Canadian accounts",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report",
+    "https://documents.lawsociety.ab.ca/wp-content/uploads/2017/01/26224330/Clio-and-SFTP-Software-User-Guide.pdf"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "LSBC Trust Administration Fee automation",
+   "product": "Clio Manage",
+   "where": "Settings > Firm Preferences > Compliance",
+   "what": "For BC: auto-adds the $20+GST TAF once per matter when cumulative trust deposits exceed $10,000, per-matter control and quarterly remittance report.",
+   "plan_tier": "accounts with Canada billing country",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/52126240002843-Manage-Trust-Administration-Fee"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/52126240002843-Manage-Trust-Administration-Fee"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "No Law Society of Ontario-specific report found",
+   "product": "Clio Manage",
+   "where": "n/a",
+   "what": "Help centre search for Ontario/LSO returns no LSO report, Form 9A or Form 9C/9D support. Clio Canada page points to a third party (CloudAct) for Ontario/AB/BC law society reports.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report",
+    "https://www.clio.com/ca/features/trust-account-management-software/"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Trust applied to a bill is capped at the available balance",
+   "product": "Clio Manage",
+   "where": "Bill > Apply trust funds",
+   "what": "Clio only lets the firm apply up to the client's trust balance to an invoice (blog example). Whether disbursements can overdraw a matter ledger is not documented.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://www.clio.com/blog/quickbooks-trust-accounting/"
+   ],
+   "screenshots": [
+    "https://www.clio.com/blog/quickbooks-trust-accounting/"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Accounting: what it is",
+   "product": "Clio Accounting",
+   "where": "Clio Manage header > switch to Clio Accounting",
+   "what": "Separate legal GL app tied to Manage: setup wizard, legal chart of accounts (or CSV import), journal entries auto-created from Manage invoices/payments, manual journal entries, users without Manage seats.",
+   "plan_tier": "paid add-on / higher tier (exact Canadian tier not confirmed)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/47397952204315-Set-Up-Clio-Accounting",
+    "https://help.clio.com/hc/en-us/articles/20965581497627-Set-up-Chart-of-Accounts",
+    "https://help.clio.com/hc/en-us/articles/53088512573851-Manage-Accounts-and-Journal-Entries"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/47397952204315-Set-Up-Clio-Accounting"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Accounting availability in Canada",
+   "product": "Clio Accounting",
+   "where": "n/a",
+   "what": "Clio announced legal accounting for Canadian firms on 23 Sep 2026, with CAD bank feeds, Canadian cheques and three-way reconciliation; help articles updated that day carry US/Canada tabs.",
+   "plan_tier": "not confirmed",
+   "sources": [
+    "https://www.clio.com/?p=63101",
+    "https://help.clio.com/hc/en-us/articles/47397952204315-Set-Up-Clio-Accounting"
+   ],
+   "screenshots": [
+    "https://www.clio.com/?p=63101"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Bank feeds (Plaid) and bank file upload",
+   "product": "Clio Accounting",
+   "where": "Banking > Sync transactions via Plaid / Add account; bank file upload",
+   "what": "Feeds sync almost in real time and auto-suggest matches to ledger entries. In Canada Plaid signs in with the firm's credentials (screen scraping), so connections need frequent re-auth and may fail; file upload is the fallback with undo.",
+   "plan_tier": "Clio Accounting",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/21004158222235-Clio-Accounting-Banking"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/21004158222235-Clio-Accounting-Banking"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Accounting automation rules and Clio Payments auto-match",
+   "product": "Clio Accounting",
+   "where": "Banking > Accounting automation > Create rule",
+   "what": "If/then rules on funds in/out per bank account to categorize or match transactions; Clio Payments deposits can be matched to the feed automatically.",
+   "plan_tier": "Clio Accounting",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/41922722162843-Automations",
+    "https://help.clio.com/hc/en-us/articles/21004158222235-Clio-Accounting-Banking"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/41922722162843-Automations"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Operating (two-way) and trust (three-way) reconciliation in Clio Accounting",
+   "product": "Clio Accounting",
+   "where": "Banking > more > Reconcile now; Reports > Reconciliation",
+   "what": "Two-way for operating, three-way (bank, client ledgers, trust ledger) for trust; check/uncheck lines to $0; bank statement file can be attached to the report; locked when done; chained void. Firms with Accounting must reconcile there, not in Manage.",
+   "plan_tier": "Clio Accounting",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/21058568234267-Operating-and-Trust-Reconciliation"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/21058568234267-Operating-and-Trust-Reconciliation"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Accounting reports",
+   "product": "Clio Accounting",
+   "where": "Reports",
+   "what": "P&L, balance sheet, trial balance, general ledger, tax summary, reconciliation; accrual or cash basis; web, PDF or CSV.",
+   "plan_tier": "Clio Accounting",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/21249768099355-Accounting-Reports",
+    "https://www.clio.com/?p=63101"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/21249768099355-Accounting-Reports"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Cheque printing",
+   "product": "Clio Accounting",
+   "where": "Add transaction > Check; check templates",
+   "what": "Print single or batched cheques from trust disbursements, withdrawals, hard costs and expenses, with templates and alignment test; Canadian cheques announced for the CA launch.",
+   "plan_tier": "Clio Accounting",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/36518880678171-Checks",
+    "https://www.clio.com/?p=63101"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/36518880678171-Checks"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Funds out: expenses, vendors, hard costs; dashboard",
+   "product": "Clio Accounting",
+   "where": "Funds out; Dashboard",
+   "what": "Records operating expenses and hard costs; dashboard shows AR, expenses and P&L.",
+   "plan_tier": "Clio Accounting",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/48689921038107-Funds-Out-Expenses",
+    "https://help.clio.com/hc/en-us/articles/21254364296219-Accounting-Dashboard"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/48689921038107-Funds-Out-Expenses"
+   ],
+   "confidence": "medium"
+  }
+ ],
+ "gaps": [
+  {
+   "feature": "Canadian online payment methods (Clio: card/debit only, no EFT/PAD in Canada)",
+   "our_area": "billing",
+   "our_screen": "payment-settings",
+   "status": "covered",
+   "proposal": "Keep EFT/pre-authorized debit (Payments Canada Rule H1 PAD agreement) and Interac e-Transfer as first-class methods; add a field 'PAD agreement on file' with the H1 waiting period and a rule that PAD into trust needs an agreement naming the trust account. Market this: Clio Payments Canada has no bank-debit option.",
+   "priority": "should"
+  },
+  {
+   "feature": "Surcharging rules in Canada",
+   "our_area": "billing",
+   "our_screen": "payment-settings",
+   "status": "partial",
+   "proposal": "Replace the '(verify)' text with concrete rules: credit card only; cap min(2.4%, cost of acceptance); never on debit, prepaid, wallets or trust deposits; blocked for Quebec firm or Quebec card billing address; Visa/Mastercard 30-day notice date field; surcharge shown as its own line with percent; require a surcharge-free method to be offered; agent checks LSO rule before enabling.",
+   "priority": "must"
+  },
+  {
+   "feature": "Processor fee schedule and fee-from-operating",
+   "our_area": "billing",
+   "our_screen": "payment-settings",
+   "status": "partial",
+   "proposal": "Add field fee_schedule (daily|monthly), primary operating account (debited for fees, chargebacks, shortfalls), and statement descriptor (5-22 Latin chars). Rule: trust deposits post gross; fee and chargeback lines post to general account only.",
+   "priority": "should"
+  },
+  {
+   "feature": "Account-level payment links / QR with no amount",
+   "our_area": "billing",
+   "our_screen": "payments-inbox",
+   "status": "partial",
+   "proposal": "Allow an operating-account link/QR; for trust, only matter-bound links (BL9 requires the receipt to be credited to a client). Unallocated link payments land in payments-inbox as 'needs client', with the agent proposing the client from payer name/email; trust receipts cannot stay unallocated past the posting deadline.",
+   "priority": "could"
+  },
+  {
+   "feature": "Pay Later / consumer financing (Affirm)",
+   "our_area": "billing",
+   "our_screen": "online-payment-page",
+   "status": "missing",
+   "proposal": "Deliberately leave out of v1; add an open question on whether financing into trust is acceptable to LSO. If added: firm-paid fee from general account, client-visible disclosure.",
+   "priority": "could"
+  },
+  {
+   "feature": "Payment plans toward trust and autocharge on trust requests",
+   "our_area": "billing",
+   "our_screen": "payment-plans",
+   "status": "deliberately different",
+   "proposal": "Keep 'destination operating only' for plans, but allow autocharge of a stored card on an approved retainer request (trust) with consent record; reminders pause while a plan is active (Clio behaviour, cheap to copy).",
+   "priority": "could"
+  },
+  {
+   "feature": "Trust disbursement approval",
+   "our_area": "trust",
+   "our_screen": "withdrawal-request",
+   "status": "covered",
+   "proposal": "Ours is stronger (Clio records disbursements with no approval step). Say this explicitly on the versus page: every trust withdrawal is authorized by a named licensee before money moves.",
+   "priority": "should"
+  },
+  {
+   "feature": "Client-level vs matter-level trust balance",
+   "our_area": "trust",
+   "our_screen": "client-trust-ledger",
+   "status": "partial",
+   "proposal": "Add field holding_level (client|matter) on receipts and a 'client unallocated' sub-ledger, plus a transfer type client->matter, so firms migrating from Clio keep their structure; BL9 client ledger rolls up all matters for the client.",
+   "priority": "should"
+  },
+  {
+   "feature": "Matter-to-matter transfer authorization",
+   "our_area": "trust",
+   "our_screen": "trust-transfers",
+   "status": "covered",
+   "proposal": "Ensure 'client authorization' is a required file/ref on inter-matter transfers (Clio only advises it).",
+   "priority": "could"
+  },
+  {
+   "feature": "Reconciliation report with 3 tabs, PDF export, attached statement, 10-year history",
+   "our_area": "trust",
+   "our_screen": "monthly-reconciliation",
+   "status": "partial",
+   "proposal": "Add: required bank statement attachment; export package = summary + transaction detail (in/out/interest/charges/adjustments, cleared and uncleared) + per-client ledger effect; keep packages for the BL9 retention period (10 years for journals/ledgers, verify).",
+   "priority": "must"
+  },
+  {
+   "feature": "Chained reopen of reconciliations",
+   "our_area": "trust",
+   "our_screen": "monthly-reconciliation",
+   "status": "partial",
+   "proposal": "Rule: reopening month N reopens (or blocks until reopened) every later month for that account, because start balances chain; show which later months are affected and require a reason + licensee approval.",
+   "priority": "should"
+  },
+  {
+   "feature": "Bank feed in Canada (Plaid scraping is fragile)",
+   "our_area": "trust",
+   "our_screen": "bank-feed-import",
+   "status": "covered",
+   "proposal": "Keep statement upload as the primary path, add bank-specific CSV/OFX profiles for RBC, TD, BMO, Scotiabank, CIBC, Desjardins; show feed health and last successful sync; undo for an upload batch (Clio has it).",
+   "priority": "should"
+  },
+  {
+   "feature": "Cheque printing for trust withdrawals",
+   "our_area": "trust",
+   "our_screen": "withdrawal-request",
+   "status": "missing",
+   "proposal": "Add action 'Print cheque' after authorization: cheque templates per account with alignment test, cheque number sequence, void cheque tracking; Canadian cheque layout (CPA Standard 006).",
+   "priority": "should"
+  },
+  {
+   "feature": "Law society report packs (AB, BC TAF) beyond Ontario",
+   "our_area": "trust",
+   "our_screen": "trust-reports",
+   "status": "deliberately different",
+   "proposal": "Ontario only in v1; record AB/BC packs as later. Our LSO annual report trust section + Form 9A/9C/9D is a real differentiator because Clio has no LSO report.",
+   "priority": "could"
+  },
+  {
+   "feature": "Trust management report (unbilled work vs trust vs minimum)",
+   "our_area": "trust",
+   "our_screen": "trust-reports",
+   "status": "partial",
+   "proposal": "Add report: per matter unbilled WIP, trust balance, protected amount, minimum, shortfall; agent proposes retainer top-ups from it.",
+   "priority": "should"
+  },
+  {
+   "feature": "Clio Accounting general ledger",
+   "our_area": "trust",
+   "our_screen": "general-account-books",
+   "status": "deliberately different",
+   "proposal": "Keep category mapping + export, but note Clio now has a full GL in Canada (Sep 2026). Add export targets QuickBooks Online, Xero, and a GL journal CSV; at least a trial-balance-by-category view.",
+   "priority": "should"
+  },
+  {
+   "feature": "Payment data residency",
+   "our_area": "billing",
+   "our_screen": "payment-settings",
+   "status": "missing",
+   "proposal": "Add field processor_data_region and prefer a processor that keeps Canadian payer data in Canada; show it in the PIPEDA notice. Clio Payments sends Canadian data to the US.",
+   "priority": "could"
+  }
+ ],
+ "corrections": [
+  {
+   "our_claim": "versus-clio: Clio trust = 'Monthly manual reconciliation'",
+   "truth": "Partly true, overstated. In Clio Manage alone, reconciliation is manual: the admin ticks each ledger line against the statement, for any period length (monthly only recommended). But Clio Accounting, launched for Canadian firms 23 Sep 2026, adds Plaid bank feeds syncing almost in real time (fragile in Canada), automatic match suggestions, automation rules, auto-matching of Clio Payments deposits, and a three-way trust reconciliation that locks when done. Suggested wording: 'Reconciliation is a manual monthly matching step in Clio Manage; bank-feed matching needs the separate Clio Accounting product (new in Canada, Sept 2026).'",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290138047899-Trust-Reconciliation-in-Clio",
+    "https://help.clio.com/hc/en-us/articles/21004158222235-Clio-Accounting-Banking",
+    "https://help.clio.com/hc/en-us/articles/41922722162843-Automations",
+    "https://help.clio.com/hc/en-us/articles/21058568234267-Operating-and-Trust-Reconciliation",
+    "https://www.clio.com/?p=63101"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: our 'month locks, no overdraws' implied as differentiators",
+   "truth": "Clio also locks completed reconciliations (void needed, chained) and caps trust applied to a bill at the available balance. Our real differences are licensee-authorized withdrawals (Clio disbursements have no approval step), daily exception matching, and Ontario BL9 forms. Reword the row to those.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/54824936256027-Void-or-delete-a-reconciliation",
+    "https://help.clio.com/hc/en-us/articles/52224795936539-Disburse-Trust-Funds",
+    "https://www.clio.com/blog/quickbooks-trust-accounting/"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: 'Trust reconciliation 4-8 h' for Clio",
+   "truth": "No source found for this time figure. Mark it as an estimate or remove.",
+   "sources": []
+  },
+  {
+   "our_claim": "billing.json clio_gaps: 'Clio Payments online card/eCheck'",
+   "truth": "In Canada Clio Payments takes credit and debit cards plus Apple/Google Pay only; eCheck and Direct ACH are US only. Payment plans in Canada are credit card only.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9285740132379-Get-Started-with-Clio-Payments",
+    "https://help.clio.com/hc/en-us/articles/41863402264091-Review-Accepted-Payment-Methods",
+    "https://help.clio.com/hc/en-us/articles/9285735777819-Set-Up-and-Manage-Payment-Plans"
+   ]
+  },
+  {
+   "our_claim": "billing.json payment-settings reg: 'Surcharging card fees to clients may be restricted by card network rules (verify)'",
+   "truth": "Clio documents the Canadian rules: 2.4% cap and at or below cost of acceptance, credit cards only, never on trust payments, not in Quebec, Visa/Mastercard 30-day notice, surcharge-free alternative required.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/51846753939483-Set-Up-Surcharging-in-Canada"
+   ]
+  },
+  {
+   "our_claim": "trust.json clio_gaps: Clio Accounting is not relevant for a Canadian comparison (implied by treating it as US-only GL)",
+   "truth": "Clio Accounting (GL, bank feeds, cheques, reconciliation) is available to Canadian firms from 23 Sep 2026; firms using it must reconcile there, not in Manage.",
+   "sources": [
+    "https://www.clio.com/?p=63101",
+    "https://help.clio.com/hc/en-us/articles/47397952204315-Set-Up-Clio-Accounting",
+    "https://help.clio.com/hc/en-us/articles/9290138047899-Trust-Reconciliation-in-Clio"
+   ]
+  },
+  {
+   "our_claim": "trust.json clio_gaps: 'Trust requests with approval, card pay, QR, portal'",
+   "truth": "Approval and card pay are confirmed. QR/links on a trust account exist but carry no amount and must be linked to a client after payment (in Australia they are blocked for trust). Canadian behaviour for trust QR is not documented.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/51583621176603-Approve-and-Send-Trust-Requests",
+    "https://help.clio.com/hc/en-us/articles/9285635476251-Secure-Payment-Links-and-QR-Codes",
+    "https://help.clio.com/hc/en-au/articles/9285635476251-Secure-Payment-Links-and-QR-Codes"
+   ]
+  }
+ ],
+ "screenshots_index": [
+  {
+   "area": "payments",
+   "url": "https://help.clio.com/hc/en-us/articles/51846753939483-Set-Up-Surcharging-in-Canada",
+   "shows": "Canadian surcharge rules (text only)"
+  },
+  {
+   "area": "trust",
+   "url": "https://brand.clio.com/m/49ea92b2d2e060c0/original/Add-protect-matter-funds-accounts-permissions.png",
+   "shows": "Add protected funds modal on matter dashboard"
+  },
+  {
+   "area": "trust",
+   "url": "https://brand.clio.com/m/22f86dd528f858c4/original/Edit-and-delete-protected-matter-funds-accounts-permissions.png",
+   "shows": "Edit/delete protected funds"
+  },
+  {
+   "area": "trust",
+   "url": "https://brand.clio.com/m/554f4d7592b4c178/original/View-protected-matter-funds-non-accounts-permission.png",
+   "shows": "Protected funds view for users without Accounts permission"
+  },
+  {
+   "area": "trust",
+   "url": "https://help.clio.com/hc/en-us/articles/9290138047899-Trust-Reconciliation-in-Clio",
+   "shows": "Clio Manage trust reconciliation steps (images not exposed via API)"
+  },
+  {
+   "area": "accounting",
+   "url": "https://help.clio.com/hc/en-us/articles/21058568234267-Operating-and-Trust-Reconciliation",
+   "shows": "Clio Accounting operating and three-way trust reconciliation"
+  },
+  {
+   "area": "accounting",
+   "url": "https://help.clio.com/hc/en-us/articles/21004158222235-Clio-Accounting-Banking",
+   "shows": "Banking tab, Plaid connect, bank file upload, match suggestions"
+  },
+  {
+   "area": "payments",
+   "url": "https://www.clio.com/wp-content/uploads/2025/06/Brochure-Quickstart-PDF-Getting-Paid-Quickly-and-Reliably.pdf",
+   "shows": "Clio brochure on getting paid (screens of payment flows)"
+  }
+ ],
+ "open_questions": [
+  "Is Pay Later (Affirm) actually offered to Canadian firms? The methods article lists CAD limits but Get Started says US only.",
+  "Which Clio plan includes Clio Accounting in Canada, and at what CAD price? Pricing page snippet showed only EasyStart/Essentials.",
+  "Can a Clio trust disbursement or transfer overdraw a matter/client ledger, or is it blocked? Only bill application cap is documented.",
+  "Does Clio allow trust-account payment links/QR in Canada, given BL9 requires receipts credited to a client?",
+  "LSO BL9 reconciliation deadline (25 days after month end) and retention periods are marked '(verify)' in our spec; confirm against By-Law 9 text.",
+  "Is Clio's current Canadian card rate still 2.95% flat (2025 brochure) or changed with list pricing in 2026?"
+ ],
+ "sources": [
+  "https://documents.lawsociety.ab.ca/wp-content/uploads/2017/01/26224330/Clio-and-SFTP-Software-User-Guide.pdf",
+  "https://help.clio.com/hc/en-au/articles/9285635476251-Secure-Payment-Links-and-QR-Codes",
+  "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports",
+  "https://help.clio.com/hc/en-us/articles/14351266745755-Clio-Manage-Online-Payments-Reports",
+  "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report",
+  "https://help.clio.com/hc/en-us/articles/20965581497627-Set-up-Chart-of-Accounts",
+  "https://help.clio.com/hc/en-us/articles/21004158222235-Clio-Accounting-Banking",
+  "https://help.clio.com/hc/en-us/articles/21058568234267-Operating-and-Trust-Reconciliation",
+  "https://help.clio.com/hc/en-us/articles/21249768099355-Accounting-Reports",
+  "https://help.clio.com/hc/en-us/articles/21254364296219-Accounting-Dashboard",
+  "https://help.clio.com/hc/en-us/articles/25386185645595-Set-Up-Evergreen-Retainers",
+  "https://help.clio.com/hc/en-us/articles/36518880678171-Checks",
+  "https://help.clio.com/hc/en-us/articles/41863402264091-Review-Accepted-Payment-Methods",
+  "https://help.clio.com/hc/en-us/articles/41922722162843-Automations",
+  "https://help.clio.com/hc/en-us/articles/47397952204315-Set-Up-Clio-Accounting",
+  "https://help.clio.com/hc/en-us/articles/48321937507099-Manage-Clio-Payments-Settings",
+  "https://help.clio.com/hc/en-us/articles/48339146800923-Transfer-Funds-Between-Accounts",
+  "https://help.clio.com/hc/en-us/articles/48689921038107-Funds-Out-Expenses",
+  "https://help.clio.com/hc/en-us/articles/49144641966235-Autocharge-Contacts",
+  "https://help.clio.com/hc/en-us/articles/51554190645659-Create-Trust-Requests",
+  "https://help.clio.com/hc/en-us/articles/51583621176603-Approve-and-Send-Trust-Requests",
+  "https://help.clio.com/hc/en-us/articles/51583730389915-Record-Trust-Transactions",
+  "https://help.clio.com/hc/en-us/articles/51583795486363-Protect-Client-Trust-Funds",
+  "https://help.clio.com/hc/en-us/articles/51846753939483-Set-Up-Surcharging-in-Canada",
+  "https://help.clio.com/hc/en-us/articles/52126240002843-Manage-Trust-Administration-Fee",
+  "https://help.clio.com/hc/en-us/articles/52224795936539-Disburse-Trust-Funds",
+  "https://help.clio.com/hc/en-us/articles/52403818005787-Activate-Clio-Payments",
+  "https://help.clio.com/hc/en-us/articles/52880615234331-Refund-Trust-Funds",
+  "https://help.clio.com/hc/en-us/articles/53088512573851-Manage-Accounts-and-Journal-Entries",
+  "https://help.clio.com/hc/en-us/articles/54824841490075-View-Reconciliation-Reports",
+  "https://help.clio.com/hc/en-us/articles/54824936256027-Void-or-delete-a-reconciliation",
+  "https://help.clio.com/hc/en-us/articles/9285403397915-Record-Payments-on-Trust-Requests",
+  "https://help.clio.com/hc/en-us/articles/9285631748507-Create-and-Manage-Bank-Accounts",
+  "https://help.clio.com/hc/en-us/articles/9285635476251-Secure-Payment-Links-and-QR-Codes",
+  "https://help.clio.com/hc/en-us/articles/9285641955355-Record-and-Manage-Online-Bill-Payments",
+  "https://help.clio.com/hc/en-us/articles/9285735777819-Set-Up-and-Manage-Payment-Plans",
+  "https://help.clio.com/hc/en-us/articles/9285740132379-Get-Started-with-Clio-Payments",
+  "https://help.clio.com/hc/en-us/articles/9285813698075-Set-Transaction-Fee-Schedule",
+  "https://help.clio.com/hc/en-us/articles/9290138047899-Trust-Reconciliation-in-Clio",
+  "https://www.clio.com/?p=63101",
+  "https://www.clio.com/about/press/clio-payments-now-available-in-canada/",
+  "https://www.clio.com/blog/quickbooks-trust-accounting/",
+  "https://www.clio.com/ca/features/trust-account-management-software/",
+  "https://www.clio.com/ca/pricing/",
+  "https://www.clio.com/wp-content/uploads/2025/06/Brochure-Quickstart-PDF-Getting-Paid-Quickly-and-Reliably.pdf",
+  "https://www.lawnext.com/2022/11/clio-launches-e-payments-solution-for-canadian-legal-market-plans-to-expand-payments-to-other-countries.html"
+ ],
+ "method_note": "Official help text read via help.clio.com Zendesk API (articles updated Aug-Sep 2026) and one Wayback copy (9290138047899); clio.com pages 403, used search snippets for them (medium)."
+}

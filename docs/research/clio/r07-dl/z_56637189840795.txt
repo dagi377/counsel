@@ -1,0 +1,90 @@
+===== Clio Mobile: Leads https://help.clio.com/hc/en-us/articles/56637189840795-Clio-Mobile-Leads updated 2026-10-03T00:55:49Z
+Clio's mobile app with Clio Grow is designed to allow your firm to triage leads on the go. You can record each decision while the inquiry is still fresh, rather than holding it until you return to a desk.
+Access leads with Clio's mobile app
+To use Clio Grow in Clio's mobile app, you will need a Clio Manage account with Clio Grow connected and a Clio Grow license on your user account. With both in place, the Leads tab opens from the home screen. Without an active Clio Grow account, you reach a prompt to set one up. Firms on a standalone Clio Grow account continue to work in Clio Grow on the web.
+Tip: Clio Grow in Clio's mobile app requires a Clio Manage account with Clio Grow connected, and a Clio Grow license on your user account. To download the app and sign in, refer to Set Up Clio's Mobile App.
+Navigate lead inbox
+The lead inbox groups leads that need a decision and separates them from those you have already set aside. Leads include the prospective client's name, the time the lead arrived, and the first few sentences of the inquiry. With Grow AI, each lead also carries a fit assessment pill reading Good fit, Possible fit, or Poor fit, and a line from the Grow AI summary in place of the inquiry text.
+Note: The count on the Leads tab is the total number of leads in the inbox, not the number you have not yet opened.
+- Go to Home > Leads.
+- Select For review for leads awaiting a decision, or Ignored for leads you have set aside.
+- 
+Priority leads: Appointments booked in your own calendar for today or tomorrow, ordered by appointment date.
+- 
+Others: Remaining leads, ordered by recency. Applying a filter replaces both groups with a single filtered list.
+- 
+Optional: To check for new leads, pull down on the list.
+- Select a lead to open its details.
+Filter and sort leads
+Filters narrow the inbox to the leads you want to work through in one sitting, which helps when a single inquiry source produces a high volume. Filter settings apply to the list until you reset them. Select Reset to defaults to clear every field at once.
+Tip: The lead inbox in Clio's mobile app has no search field. To search for one named lead, open the lead inbox in Clio Grow on the web. Refer to Manage Leads in Clio Grow.
+- Go to Home > Leads.
+- Select the filter icon.
+- Set any of the fields below.
+- 
+Sort by: Orders the list by the date the lead arrived.
+- 
+Appointment: Limits the list to leads with or without an appointment.
+- 
+Booked with: Limits the list to appointments booked with at least one firm user. The default covers every firm user.
+- Select Save.
+Review leads screened by Grow AI
+Grow AI screens each lead before you open it, so triage starts from an assessment rather than a raw inquiry. This section covers what Grow AI adds to the lead inbox and to lead details. Firms without Grow AI work from the inquiry text and can move on to the next article.
+In the lead inbox, Grow AI adds the following.
+- A fit assessment pill on each lead, reading Good fit, Possible fit, or Poor fit.
+- A line from the Grow AI summary in place of the inquiry extract.
+- Leads assessed as a good fit in Priority leads, following any appointments.
+- Additional lists covering leads under assessment and leads recorded as spam.
+- Additional Sort by options that order the list by lead score.
+On a lead, the Assessment section opens at the top of the details, covering the lead score, the proportion of matching records already in Clio, and the result of a conflict check. A lead still under assessment carries To be determined as the lead score, and Needs determination on each fit criterion. The conflict check completes separately, so its result updates when you return to the screen.
+Important: Taking over screening from Grow AI is permanent for that lead. Grow AI does not resume screening it afterward.
+- Go to Home > Leads.
+- Select a lead.
+- 
+Optional: To change the assessment, select the lead score, then select Good fit, Possible fit, or Poor fit.
+- 
+Optional: To assess this lead yourself from here on, select Take over screening from AI, then select Confirm.
+Review lead details
+Lead details carry everything the decision rests on, so that you can accept or remove a lead without opening Clio Grow on the web. Any section with no data for a given lead is omitted.
+- Go to Home > Leads.
+- Select a lead.
+- 
+Message: View the lead description in the prospective client's own words. A lead that arrived without a message carries a statement to that effect instead.
+- 
+Appointment: Leads booked through Clio Scheduler carry an Appointment section with the consultation length, the date and time with time zone, and the calendar the appointment sits on. Select it to open the calendar event. Where the event was deleted from the calendar, the appointment details remain as a record of the original booking.
+- 
+Contact details: View the prospective client's contact information, the lead's origin, and the date the lead arrived. Each item supports an action.
+- Select the email address to open a new message in your default email app.
+- Select the phone number to place a call.
+- Select the message icon beside the phone number to send a text message.
+- Select the entry under Source notes to open the origin of the lead in your browser.
+Accept or remove a lead
+Accepting a lead starts intake and creates the records in Clio Grow. Removing a lead takes it out of For review and records why. Both actions return you to the lead inbox and confirm the outcome.
+Accept leads Remove leads Restore leads
+- Open a lead from Home > Leads.
+- Select Accept.
+- Select Add contact to create a contact on its own, or Quick intake to create a contact together with an opportunity. For a lead with an appointment, Accept opens the quick intake form directly, because an appointment requires an opportunity.
+- Complete the form, then select Save.
+Lead details carry Remove where more than one removal option applies, and Ignore where ignoring is the only option.
+- Open a lead from Home > Leads.
+- Select Remove.
+- Select an option from the menu. The menu options depend on the lead.
+- 
+Ignore: Moves the lead to Ignored. Available for every lead.
+- 
+Ignore and cancel appointment: Moves the lead to Ignored and cancels the booked appointment. Replaces Ignore for leads with an appointment.
+- 
+Mark as spam: Moves the lead out of For review and records it as spam. Available for leads screened by Grow AI.
+- 
+Already added: Closes the lead because the prospective client already exists in Clio Grow. Available for leads from email, web chat, voice, and Google Local Services Ads.
+A removed lead keeps the same information, with a header description recording how it was removed: Ignored lead, Marked as spam, Marked as already added, or Marked as not a lead. Restoring the lead clears the description and returns the Remove and Accept buttons.
+- Go to Home > Leads.
+- Select Ignored.
+- Select a lead, then select Restore.
+Up next
+- 
+Mobile App: Quick Intake: Create a contact and an opportunity from Clio's mobile app.
+- 
+Mobile App: Opportunities: Track an accepted lead through the intake pipeline.
+
+IMGS: []

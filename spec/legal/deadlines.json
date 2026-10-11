@@ -1,0 +1,2508 @@
+{
+ "area": "deadlines",
+ "title": "Calendar, court deadlines and limitation periods",
+ "summary": "The firm and user calendars, plus a deadline engine for Ontario. The agent reads documents and computes Rules of Civil Procedure and Limitations Act dates, citing the rule and the source page for each. No date counts until a lawyer has confirmed it against its source, and a second person checks the critical ones. Reminders escalate until a deadline is met by proof (a filing or service record) or a lawyer releases it with a reason.",
+ "screens": [
+  {
+   "id": "deadline-dashboard",
+   "name": "Deadline dashboard",
+   "route": "/deadlines",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "Firm-wide view of every open deadline by risk and due date, with a lane for each status, so nothing ages unseen.",
+   "layout": "Top: counters (overdue, due in 7 days, awaiting confirm, awaiting second check, unassigned limitation). Left: filters (responsible lawyer, matter, type, critical only). Main: table grouped by week, with a right drawer showing the selected deadline's source preview and its history.",
+   "fields": [
+    {
+     "name": "due_date",
+     "type": "date",
+     "required": true,
+     "note": "Shown with the weekday. Red when the due date is within the critical window."
+    },
+    {
+     "name": "title",
+     "type": "text",
+     "required": true,
+     "note": "Example: 'Serve statement of defence'."
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": true,
+     "note": "Matter number and short name."
+    },
+    {
+     "name": "kind",
+     "type": "enum",
+     "required": true,
+     "note": "limitation | ultimate-limitation | statutory-notice | court-rule | court-order | contractual | internal"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "proposed | confirmed | second-checked | met | released | missed"
+    },
+    {
+     "name": "critical",
+     "type": "bool",
+     "required": true,
+     "note": "True for limitation, notice and court-ordered dates, and for anything a lawyer flags."
+    },
+    {
+     "name": "responsible",
+     "type": "ref",
+     "required": true,
+     "note": "Responsible lawyer (User)."
+    },
+    {
+     "name": "rule_cite",
+     "type": "text",
+     "required": false,
+     "note": "Example: 'RCP r. 18.01(a); r. 3.01'."
+    },
+    {
+     "name": "next_reminder",
+     "type": "datetime",
+     "required": false,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Open review queue",
+     "by": "human",
+     "gate": "none",
+     "note": "Goes to the extraction review for proposed dates."
+    },
+    {
+     "name": "Reassign responsible lawyer",
+     "by": "human",
+     "gate": "approve",
+     "note": "The new lawyer must accept. Until they do, both lawyers get reminders."
+    },
+    {
+     "name": "Export weekly deadline report",
+     "by": "human",
+     "gate": "none",
+     "note": "PDF or CSV for the Monday meeting."
+    },
+    {
+     "name": "Post daily digest",
+     "by": "agent",
+     "gate": "none",
+     "note": "Sends each user their own due list at 07:30 local time."
+    },
+    {
+     "name": "Bulk reassign deadlines when a lawyer is away",
+     "by": "human",
+     "gate": "approve",
+     "note": "Uses absence rule; supervising lawyer approves."
+    }
+   ],
+   "agent": "Rebuilds the counters, flags confirmed deadlines that no one owns, flags limitation dates on open matters where no claim has been issued, and drafts the weekly deadline report.",
+   "gate": "none (read view). Changing who is responsible needs the receiving lawyer to accept.",
+   "states": [
+    "empty",
+    "loading",
+    "populated",
+    "has overdue",
+    "sync degraded (external calendar out of date)"
+   ],
+   "edge": [
+    "A matter has no responsible lawyer: its deadlines go to the firm's default supervising lawyer and show as 'unowned'.",
+    "A deadline falls on a court holiday that was added after it was computed: it is recomputed, shown as 'changed by holiday table', and needs reconfirming.",
+    "A user's timezone is not America/Toronto: dates display as court dates (Toronto), never shifted by timezone.",
+    "Deadline on a closed matter still open: shown in red until released or met."
+   ],
+   "reg": "LawPRO names missed limitation periods and deadlines as a leading cause of claims, and a firm must have a working reminder system. RPC 3.1 (competence) and RPC 6.1 (supervision of non-lawyers) both apply.",
+   "mock": {
+    "kind": "dashboard",
+    "columns": [
+     "Due",
+     "Deadline",
+     "Matter",
+     "Kind",
+     "Status",
+     "Responsible",
+     "Rule"
+    ],
+    "rows": [
+     [
+      "Tue 2026-10-13",
+      "Serve and file statement of defence",
+      "2026-0412 Tesfaye v. Northgate Storage",
+      "court-rule",
+      "second-checked",
+      "Linda Kassim",
+      "RCP r. 18.01(a)"
+     ],
+     [
+      "Mon 2026-10-19",
+      "Notice to municipality (slip and fall)",
+      "2026-0431 Hailu v. City of Brampton",
+      "statutory-notice",
+      "confirmed",
+      "Ayo Ewebiyi",
+      "Municipal Act, 2001 s. 44(10) (verify)"
+     ],
+     [
+      "Fri 2026-11-06",
+      "Attend case conference",
+      "2025-0188 Mekonnen Holdings v. Brightline",
+      "court-order",
+      "met",
+      "Linda Kassim",
+      "Endorsement 2026-09-02, p. 2"
+     ],
+     [
+      "Wed 2027-03-17",
+      "Basic limitation expires",
+      "2026-0450 Abera (intake)",
+      "limitation",
+      "proposed",
+      "Ayo Ewebiyi",
+      "Limitations Act, 2002 s. 4"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "firm-calendar",
+   "name": "Firm and personal calendar",
+   "route": "/calendar",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "Day, week, month and agenda views of events and deadlines for one user, a group of users or the whole firm.",
+   "layout": "Left: mini month and a calendar list (mine, firm, each lawyer, court holidays). Main: time grid. Deadlines appear as all-day bars that look different from events. Right: details of the selected item.",
+   "fields": [
+    {
+     "name": "title",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "type",
+     "type": "enum",
+     "required": true,
+     "note": "event | deadline | hearing | consultation | reminder"
+    },
+    {
+     "name": "start",
+     "type": "datetime",
+     "required": true,
+     "note": "All-day for deadlines."
+    },
+    {
+     "name": "end",
+     "type": "datetime",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": "Required for type deadline or hearing."
+    },
+    {
+     "name": "attendees",
+     "type": "ref[]",
+     "required": false,
+     "note": "Users and contacts."
+    },
+    {
+     "name": "location",
+     "type": "text",
+     "required": false,
+     "note": "Courthouse and room, or a video link."
+    },
+    {
+     "name": "visibility",
+     "type": "enum",
+     "required": true,
+     "note": "private | firm | matter-team. Private events show only as 'busy' to others."
+    },
+    {
+     "name": "external_sync",
+     "type": "enum",
+     "required": false,
+     "note": "none | google | outlook"
+    },
+    {
+     "name": "event_category",
+     "type": "ref",
+     "required": false,
+     "note": "Firm-defined categories with colour (hearing, discovery, client meeting, internal), see calendar-settings."
+    },
+    {
+     "name": "all_day",
+     "type": "bool",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "recurrence",
+     "type": "object",
+     "required": false,
+     "note": "Daily, weekly, monthly, yearly, custom; end by date or count."
+    },
+    {
+     "name": "reminders",
+     "type": "list",
+     "required": false,
+     "note": "Several per event: offset + channel (in-app, email, chat). Ordinary events only; deadlines use reminder-policy."
+    },
+    {
+     "name": "video_link",
+     "type": "url",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "calendar",
+     "type": "ref",
+     "required": true,
+     "note": "Which calendar the event belongs to (personal, firm, shared, matter)."
+    },
+    {
+     "name": "task_overlay",
+     "type": "bool",
+     "required": false,
+     "note": "Show work items due on the calendar as a separate layer."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Create event",
+     "by": "human",
+     "gate": "none",
+     "note": "Ordinary events need no gate."
+    },
+    {
+     "name": "Drag a deadline to a new date",
+     "by": "human",
+     "gate": "approve",
+     "note": "This is not a plain move. It opens a change request with a reason, and the lawyer must approve it (gate G7c)."
+    },
+    {
+     "name": "Propose meeting time",
+     "by": "agent",
+     "gate": "none",
+     "note": "Finds free time for the matter team."
+    },
+    {
+     "name": "Overlay court holidays",
+     "by": "human",
+     "gate": "none",
+     "note": "A toggle."
+    },
+    {
+     "name": "Edit a recurring series",
+     "by": "human",
+     "gate": "none",
+     "note": "Choose: this occurrence, this and following, or all."
+    },
+    {
+     "name": "Invite external attendees",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer approves invites to clients or opposing counsel since the title and location leave the firm; the agent proposes a neutral title."
+    },
+    {
+     "name": "Create time entry from event",
+     "by": "human",
+     "gate": "none",
+     "note": "Duration pre-filled; time module approval applies."
+    },
+    {
+     "name": "Print or PDF the visible range",
+     "by": "human",
+     "gate": "none",
+     "note": "Daily docket print for court days."
+    },
+    {
+     "name": "Find a time for the matter team",
+     "by": "agent",
+     "gate": "none",
+     "note": "Already partly in 'Propose meeting time'; also checks court holidays."
+    },
+    {
+     "name": "Copy event to another matter",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Detects conflicts, such as two hearings for one lawyer or a hearing on a court holiday. It suggests prep blocks before hearings and adds travel time for in-person courthouse attendances.",
+   "gate": "Moving or deleting any deadline-type item needs the responsible lawyer's approval. Ordinary events need none.",
+   "states": [
+    "empty",
+    "populated",
+    "conflict shown",
+    "external sync paused"
+   ],
+   "edge": [
+    "An event edited in Outlook or Google conflicts with the app copy: the app wins for deadlines, and the external calendar wins for ordinary events.",
+    "A recurring event crosses a daylight-saving change: times are stored with the timezone.",
+    "Someone deletes a deadline in the external calendar: the app ignores the delete, restores the item and logs a warning.",
+    "Deleting one occurrence of a recurring hearing series: only that date, and any reminders for it, go.",
+    "Event moved into a court holiday or closure date: warn, not block (events are not deadlines).",
+    "Attendee is a contact without email: invite skipped with notice.",
+    "Event on a walled matter seen in a shared calendar: shows as 'busy' only.",
+    "Time zone: a hearing in another province shows in its local zone plus the viewer's."
+   ],
+   "reg": "The client's name in an event title is confidential. An external calendar shows only the matter number unless the firm turns on full titles.",
+   "mock": {
+    "kind": "calendar",
+    "columns": [
+     "Date",
+     "Time",
+     "Item",
+     "Who"
+    ],
+    "rows": [
+     [
+      "2026-10-13",
+      "all day",
+      "DEADLINE: Statement of defence, Tesfaye",
+      "Linda Kassim"
+     ],
+     [
+      "2026-10-14",
+      "10:00-11:00",
+      "Consultation: Selam Abera",
+      "Ayo Ewebiyi"
+     ],
+     [
+      "2026-10-15",
+      "09:30",
+      "Motion, 393 University Ave, Rm 4 (verify location)",
+      "Linda Kassim, Meraf Abay"
+     ],
+     [
+      "2026-10-12",
+      "all day",
+      "Thanksgiving: court holiday",
+      "firm"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "matter-deadlines",
+   "name": "Matter deadlines tab",
+   "route": "/matters/:id/deadlines",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Every deadline, trigger and limitation for one matter, shown as a dependency chain.",
+   "layout": "Top: limitation banner (the basic and ultimate dates and whether a claim has been issued). Main: a timeline of triggers, each with the deadlines that follow from it. Side: documents still waiting for extraction.",
+   "fields": [
+    {
+     "name": "trigger_event",
+     "type": "ref",
+     "required": false,
+     "note": "Example: 'Statement of claim served 2026-09-23 (personal service)'."
+    },
+    {
+     "name": "deadlines",
+     "type": "ref[]",
+     "required": true,
+     "note": "Each one shows its rule, source page and status."
+    },
+    {
+     "name": "limitation_summary",
+     "type": "ref",
+     "required": false,
+     "note": "Links to the limitation assessment."
+    },
+    {
+     "name": "claim_issued_on",
+     "type": "date",
+     "required": false,
+     "note": "Once set, the limitation deadline is marked met."
+    },
+    {
+     "name": "chain_attendees",
+     "type": "ref[]",
+     "required": false,
+     "note": "Users auto-added to every event generated by a trigger, with one place to change them for the whole chain."
+    },
+    {
+     "name": "window_kind",
+     "type": "enum",
+     "required": false,
+     "note": "Per generated deadline: last day to act | first day allowed | window. Shown as a label, not a code."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Add trigger (rule chain)",
+     "by": "human",
+     "gate": "none",
+     "note": "Opens the rule-trigger wizard."
+    },
+    {
+     "name": "Extract from document",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Produces proposed deadlines for confirmation (gate G7)."
+    },
+    {
+     "name": "Change trigger date",
+     "by": "human",
+     "gate": "approve",
+     "note": "Every dependent deadline is recomputed, and each needs reconfirming."
+    },
+    {
+     "name": "Mark met",
+     "by": "human",
+     "gate": "approve",
+     "note": "Needs evidence: the filing receipt, an affidavit of service or the issued claim (gate G7d)."
+    },
+    {
+     "name": "Delete trigger and its chain",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer approves; met deadlines and their proof are kept, open ones are cancelled with reason."
+    },
+    {
+     "name": "Bulk edit chain attendees",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Watches new documents filed to the matter, such as orders, endorsements, pleadings, notices and correspondence, and proposes deadlines from them. It keeps dependent dates in step when a trigger changes, and warns when a step in a chain is missing (for example, a defence was served but no reply date exists).",
+   "gate": "Each proposed deadline is confirmed by a lawyer (G7). Changes to triggers and 'met' status are approved (G7c, G7d).",
+   "states": [
+    "no deadlines",
+    "proposed only",
+    "active",
+    "all met",
+    "matter closed (read only)"
+   ],
+   "edge": [
+    "A trigger date changes after the dependent dates were confirmed: those dates revert to 'proposed (recomputed)', and the old dates keep reminding until the new ones are confirmed.",
+    "A court order overrides a rule-based date: the order wins, and the rule-based date is released with a link to the order.",
+    "The parties agree to an extension in a letter: a contractual or consent deadline is created, and the rule-based deadline is kept and shown as 'superseded by consent (verify r. 3.02(4))'.",
+    "Trigger date changed after some deadlines were met: only future, unmet deadlines are recalculated; met ones stay with their proof.",
+    "Two triggers in one matter produce the same deadline: shown once with both sources.",
+    "Rule pack updated while a chain is live: chain is not changed silently; a recompute proposal goes to review."
+   ],
+   "reg": "RCP r. 3.02 lets time be extended or abridged by court order or, in some cases, by the parties' consent (verify which periods consent can change). Some deadlines cannot be extended by consent.",
+   "mock": {
+    "kind": "timeline",
+    "columns": [
+     "Trigger / deadline",
+     "Date",
+     "Rule",
+     "Source",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Statement of claim served (personal)",
+      "2026-09-23",
+      "",
+      "Affidavit of service p. 1",
+      "confirmed"
+     ],
+     [
+      "→ Notice of intent to defend (optional)",
+      "2026-10-13",
+      "RCP r. 18.02 (verify)",
+      "computed",
+      "confirmed"
+     ],
+     [
+      "→ Statement of defence due",
+      "2026-10-13",
+      "RCP r. 18.01(a), r. 3.01",
+      "computed",
+      "second-checked"
+     ],
+     [
+      "→ Reply due (if defence served 2026-10-13)",
+      "2026-10-23",
+      "RCP r. 25.04(1) (verify)",
+      "computed",
+      "proposed"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "extraction-review",
+   "name": "Deadline review and confirm (side by side)",
+   "route": "/deadlines/review/:batchId",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal"
+   ],
+   "purpose": "Gate G7. A lawyer checks each date the agent proposed against the highlighted source passage and the computation steps, then confirms, edits or rejects it.",
+   "layout": "Left: the source document, scrolled to the cited page with the passage highlighted. Right: one card per proposed deadline (date, rule, computation steps, confidence, assumptions). Footer: confirm the selected cards or move to the next document.",
+   "fields": [
+    {
+     "name": "source_doc",
+     "type": "file",
+     "required": true,
+     "note": "With the page number and the passage's position on the page."
+    },
+    {
+     "name": "trigger_date",
+     "type": "date",
+     "required": true,
+     "note": "The date the agent read from the source, with the passage quoted."
+    },
+    {
+     "name": "service_method",
+     "type": "enum",
+     "required": false,
+     "note": "personal | alternative | mail | courier | email | fax | lawyer-accepted. The method affects when service takes effect (RCP r. 16.06 and related rules; verify)."
+    },
+    {
+     "name": "computation",
+     "type": "text",
+     "required": true,
+     "note": "Each step: the period, the rule, the days excluded, the holiday roll-forward, and the result."
+    },
+    {
+     "name": "proposed_date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "rule_cite",
+     "type": "text",
+     "required": true,
+     "note": "Every computed date must cite a rule. A date read straight from an order cites the order and its page."
+    },
+    {
+     "name": "confidence",
+     "type": "enum",
+     "required": true,
+     "note": "high | medium | low. Low confidence always needs an edit or a reason before it can be confirmed."
+    },
+    {
+     "name": "assumptions",
+     "type": "text[]",
+     "required": false,
+     "note": "Example: 'Assumed served in Ontario', 'Assumed no notice of intent to defend'."
+    },
+    {
+     "name": "critical",
+     "type": "bool",
+     "required": true,
+     "note": "Set by the agent from the deadline kind. The lawyer may raise it but cannot lower it for limitation, notice or court-order dates."
+    },
+    {
+     "name": "reviewer_note",
+     "type": "text",
+     "required": false,
+     "note": "Required when the lawyer changes the date."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Confirm",
+     "by": "human",
+     "gate": "approve",
+     "note": "Must be a lawyer, or a clerk the firm has authorized for non-critical dates. The lawyer's name and time are recorded."
+    },
+    {
+     "name": "Edit and confirm",
+     "by": "human",
+     "gate": "approve",
+     "note": "A note is required. The edit is fed back to the agent's evaluation set."
+    },
+    {
+     "name": "Reject",
+     "by": "human",
+     "gate": "approve",
+     "note": "A reason is required: not a deadline, duplicate, wrong trigger or wrong rule."
+    },
+    {
+     "name": "Ask agent to recompute with a different assumption",
+     "by": "human",
+     "gate": "none",
+     "note": "Example: 'Served outside Ontario'."
+    },
+    {
+     "name": "Bulk confirm",
+     "by": "human",
+     "gate": "approve",
+     "note": "Allowed only for non-critical, high-confidence cards. Each critical card must be confirmed on its own."
+    }
+   ],
+   "agent": "Classifies the document, finds triggers and explicit dates, computes rule-based dates with the Ontario rule pack (holidays, the short-period rule, the service-effective rule), quotes the passage and page, states its assumptions, and checks for duplicates against existing deadlines.",
+   "gate": "G7: no deadline starts reminders, shows as confirmed or enters the external calendar until a person with the right role confirms it here. Critical deadlines also go to G7b (second check).",
+   "states": [
+    "queued",
+    "extracting",
+    "pending approval",
+    "partially confirmed",
+    "confirmed",
+    "rejected",
+    "extraction failed (unreadable scan)"
+   ],
+   "edge": [
+    "A scanned order with a handwritten endorsement gives low OCR confidence: the agent shows the image crop and never auto-fills the date.",
+    "A document has two possible triggers (date signed and date served): the agent proposes both and asks which one applies.",
+    "A proposed date sits unconfirmed for more than 1 business day: it escalates to the responsible lawyer, and after 2 days to the supervising lawyer. In the meantime a provisional reminder fires anyway, marked 'UNCONFIRMED'.",
+    "The source is in French: the agent still extracts, and the card states the language."
+   ],
+   "reg": "The firm stays responsible for the agent's work (RPC 3.1, 6.1; the LSO has issued guidance on generative AI, verify). The record of who confirmed a date, when, and against which source is the firm's evidence of a reasonable system.",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Proposed deadline",
+     "Date",
+     "Rule",
+     "Source",
+     "Confidence",
+     "Decision"
+    ],
+    "rows": [
+     [
+      "Statement of defence",
+      "2026-10-13",
+      "RCP r. 18.01(a); r. 3.01(1)",
+      "Affidavit of service, p. 1 ¶2",
+      "high",
+      "Confirm"
+     ],
+     [
+      "Case conference brief",
+      "2026-11-02",
+      "Endorsement of Justice (fictional) p. 2",
+      "Endorsement 2026-09-02 p. 2 line 14",
+      "medium",
+      "Edit"
+     ],
+     [
+      "Undertakings answered",
+      "2026-12-01",
+      "Order ¶4",
+      "Order 2026-09-30 p. 1",
+      "high",
+      "Confirm"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "second-check-queue",
+   "name": "Second check (two-person) queue",
+   "route": "/deadlines/second-check",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal"
+   ],
+   "purpose": "Gate G7b. A second person recomputes each critical date on their own before it counts as fully verified.",
+   "layout": "Table of critical deadlines that one person has confirmed. Opening one shows the source and the trigger, while the first person's date and rule stay hidden until the second person has entered their own.",
+   "fields": [
+    {
+     "name": "deadline",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "first_confirmer",
+     "type": "ref",
+     "required": true,
+     "note": "Shown. This person cannot do the second check."
+    },
+    {
+     "name": "independent_date",
+     "type": "date",
+     "required": true,
+     "note": "The second checker enters this before the first date is shown."
+    },
+    {
+     "name": "independent_rule",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "match",
+     "type": "enum",
+     "required": true,
+     "note": "match | mismatch. Computed by the system."
+    },
+    {
+     "name": "resolution_note",
+     "type": "text",
+     "required": false,
+     "note": "Required on a mismatch."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Submit independent computation",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "If it matches, the status becomes 'second-checked'."
+    },
+    {
+     "name": "Resolve mismatch",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "The responsible lawyer decides. The earlier of the two dates stays active until then."
+    },
+    {
+     "name": "Assign second checker",
+     "by": "agent",
+     "gate": "none",
+     "note": "Round robin among eligible users, skipping the first confirmer and anyone away."
+    }
+   ],
+   "agent": "Routes each item to an eligible second checker and chases them. It shows its own computation only after the second checker submits, as a third opinion.",
+   "gate": "G7b: a critical deadline is 'fully verified' only after two different people agree on the date. Until then the dashboard shows it as single-checked, and reminders use the earliest date proposed.",
+   "states": [
+    "empty",
+    "awaiting second check",
+    "matched",
+    "mismatch: awaiting lawyer",
+    "resolved"
+   ],
+   "edge": [
+    "A sole practitioner has no second person: the firm can name an outside agent lawyer or a trained clerk. Otherwise the app makes the lawyer recompute after a 24-hour cooling-off period and logs 'single-person firm'.",
+    "The second checker repeats the agent's mistake by trusting a wrong trigger date: the trigger must be re-read from the source page, which is shown with the passage highlighted but no answer.",
+    "Due in less than 48 hours: the item goes to the top of the queue and pages the responsible lawyer."
+   ],
+   "reg": "LawPRO practice-management guidance recommends a double-entry or double-check system for limitation dates (verify the exact wording).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Deadline",
+     "Matter",
+     "First check",
+     "Second checker",
+     "Result"
+    ],
+    "rows": [
+     [
+      "Basic limitation",
+      "2026-0450 Abera",
+      "Ayo Ewebiyi",
+      "Meraf Abay",
+      "awaiting"
+     ],
+     [
+      "Municipal notice",
+      "2026-0431 Hailu",
+      "Ayo Ewebiyi",
+      "Yonathan Degu",
+      "matched"
+     ],
+     [
+      "Statement of defence",
+      "2026-0412 Tesfaye",
+      "Linda Kassim",
+      "Kaleab Bereket",
+      "mismatch: awaiting lawyer"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "limitation-assessment",
+   "name": "Limitation assessment",
+   "route": "/matters/:id/limitations",
+   "who": [
+    "lawyer",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Records the discovery analysis for a claim and sets the basic limitation date, the ultimate limitation date and any statutory notice periods, so each one is confirmed at intake.",
+   "layout": "Top: claim summary from intake. Middle: a worksheet (act or omission date, discovery date with the facts and when each was learned, factors that suspend time). Bottom: the dates that result, each with its statutory cite and status.",
+   "fields": [
+    {
+     "name": "claim_type",
+     "type": "enum",
+     "required": true,
+     "note": "Example: tort-personal-injury, contract, municipal-road, crown, motor-vehicle, defamation-media, employment, real-property, judgment-enforcement, other."
+    },
+    {
+     "name": "act_or_omission_date",
+     "type": "date",
+     "required": true,
+     "note": "Starts the ultimate period (Limitations Act, 2002 s. 15)."
+    },
+    {
+     "name": "discovery_date",
+     "type": "date",
+     "required": true,
+     "note": "Under s. 5(1) and the presumption in s. 5(2), discovery is presumed to be the day of the act unless the contrary is proved (verify the text of s. 5(2))."
+    },
+    {
+     "name": "discovery_facts",
+     "type": "text",
+     "required": true,
+     "note": "Which of the s. 5(1)(a) factors became known, and when."
+    },
+    {
+     "name": "claimant_minor_or_incapable",
+     "type": "bool",
+     "required": true,
+     "note": "Time does not run while the claimant is a minor or incapable and not represented by a litigation guardian (ss. 6, 7; verify the details)."
+    },
+    {
+     "name": "wilful_concealment",
+     "type": "bool",
+     "required": false,
+     "note": "Suspends the ultimate period (s. 15(4)(c))."
+    },
+    {
+     "name": "tolling_agreement",
+     "type": "file",
+     "required": false,
+     "note": "Agreements to suspend or extend time, s. 22 (verify the limits for business agreements)."
+    },
+    {
+     "name": "basic_limitation_date",
+     "type": "date",
+     "required": true,
+     "note": "2 years after discovery (s. 4), unless a schedule or another Act sets a different period."
+    },
+    {
+     "name": "ultimate_limitation_date",
+     "type": "date",
+     "required": true,
+     "note": "15 years after the act or omission (s. 15(2))."
+    },
+    {
+     "name": "notice_periods",
+     "type": "ref[]",
+     "required": false,
+     "note": "Statutory notices that come before the claim. See the reg note."
+    },
+    {
+     "name": "no_limitation",
+     "type": "bool",
+     "required": false,
+     "note": "Some claims have no limitation period (s. 16, for example certain declarations, verify). Choosing this needs a lawyer's reason."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Draft assessment from intake",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Fills the worksheet from the intake notes and documents, and quotes each date's source."
+    },
+    {
+     "name": "Confirm limitation dates",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Lawyer only (G7), then a second check (G7b)."
+    },
+    {
+     "name": "Mark claim issued",
+     "by": "human",
+     "gate": "approve",
+     "note": "Upload the issued claim. The limitation is then marked met (G7d)."
+    },
+    {
+     "name": "Send limitation warning to non-client",
+     "by": "agent",
+     "gate": "approve",
+     "note": "On a declined or ended retainer, the agent drafts a non-engagement letter that names the possible limitation date in general terms (G-intake)."
+    }
+   ],
+   "agent": "Picks the claim type, computes the basic and ultimate dates, lists the special statutes that may apply with their notice periods (each one '(verify)' until the rule pack is reviewed), and flags matters where the date is under 90 days away and no claim has been issued.",
+   "gate": "A lawyer signs off the discovery date, the claim type, and the resulting dates. The discovery date is a legal judgment, so the agent can only propose it.",
+   "states": [
+    "not started",
+    "draft (agent)",
+    "pending approval",
+    "confirmed",
+    "second-checked",
+    "claim issued (met)",
+    "expired"
+   ],
+   "edge": [
+    "Discovery is unclear: the app records the earliest arguable date and uses it for reminders. A later date chosen as the 'working date' needs a written reason.",
+    "Several defendants with different discovery dates: each defendant gets its own limitation.",
+    "A claim against the Crown or a municipality: the notice deadline usually comes well before the limitation date, so it is shown first and marked critical.",
+    "The intake is declined: the limitation stays on record (it is not a matter deadline), and the non-engagement letter is the control.",
+    "Imported Clio task flagged as a statute of limitations date: becomes a proposed limitation deadline in extraction-review (G7), never a task and never confirmed on import."
+   ],
+   "reg": "Limitations Act, 2002, S.O. 2002, c. 24, Sched. B: basic period of 2 years from discovery (s. 4, s. 5); ultimate period of 15 years from the act or omission (s. 15), suspended for minority, incapacity and wilful concealment (s. 15(4)); claims with no limitation (s. 16); Schedule periods; agreements (s. 22). Notice periods, all (verify): Municipal Act, 2001 s. 44(10), written notice of road-repair injury within 10 days (some reports of a change, verify current text); Crown Liability and Proceedings Act, 2019 s. 18, notice to the Crown at least 60 days before a proceeding (verify); Libel and Slander Act, notice within 6 weeks for newspaper or broadcast libel, action within 3 months (verify); Insurance Act / SABS accident-benefit notice and application periods (verify).",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Item",
+     "Date",
+     "Basis",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Act / omission (fall on sidewalk)",
+      "2026-09-28",
+      "Intake notes, call 2026-10-02",
+      "confirmed"
+     ],
+     [
+      "Discovery",
+      "2026-09-28",
+      "s. 5(2) presumption",
+      "pending approval"
+     ],
+     [
+      "Notice to municipality",
+      "2026-10-08",
+      "Municipal Act, 2001 s. 44(10) (verify)",
+      "met (notice served 2026-10-06)"
+     ],
+     [
+      "Basic limitation",
+      "2028-09-28",
+      "Limitations Act, 2002 s. 4",
+      "proposed"
+     ],
+     [
+      "Ultimate limitation",
+      "2041-09-28",
+      "Limitations Act, 2002 s. 15(2)",
+      "proposed"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "rule-trigger-wizard",
+   "name": "Rule-based deadline wizard",
+   "route": "/matters/:id/deadlines/new",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal"
+   ],
+   "purpose": "Pick a trigger event and the service details, and get the full chain of Ontario RCP deadlines with each step's computation shown.",
+   "layout": "Step 1: pick the trigger (served statement of claim, order made, motion record served, and so on). Step 2: date and service details. Step 3: a preview of the resulting chain, with the computation, before it is saved as proposed.",
+   "fields": [
+    {
+     "name": "trigger",
+     "type": "enum",
+     "required": true,
+     "note": "From the active rule pack, for example: 'Statement of claim served on defendant'."
+    },
+    {
+     "name": "trigger_date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "service_method",
+     "type": "enum",
+     "required": true,
+     "note": "Affects when service takes effect (verify r. 16.06 mail, which takes effect on the fifth day after mailing, and r. 16.05 / 16.06.1 email service)."
+    },
+    {
+     "name": "served_where",
+     "type": "enum",
+     "required": true,
+     "note": "Ontario | elsewhere in Canada or the US | elsewhere. Sets the 20, 40 or 60 days under r. 18.01 (verify)."
+    },
+    {
+     "name": "party_side",
+     "type": "enum",
+     "required": true,
+     "note": "We act for the plaintiff or the defendant. This decides which deadlines are ours."
+    },
+    {
+     "name": "include_optional",
+     "type": "bool",
+     "required": false,
+     "note": "For example a notice of intent to defend, which extends time by 10 days (r. 18.02, verify)."
+    },
+    {
+     "name": "jurisdiction",
+     "type": "ref",
+     "required": true,
+     "note": "Province + court + rule set. Ontario first; others greyed until a rule pack exists."
+    },
+    {
+     "name": "trigger_time",
+     "type": "time",
+     "required": false,
+     "note": "Some chains run from a time (e.g. 'by 4 p.m.'); default reminder before it."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Preview chain",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Save as proposed",
+     "by": "human",
+     "gate": "none",
+     "note": "Saved dates go into the G7 review. A lawyer who enters a date can confirm it in the same step, and the confirmation is logged."
+    },
+    {
+     "name": "Explain step",
+     "by": "agent",
+     "gate": "none",
+     "note": "Explains in plain words which rule applies and why each excluded day was excluded."
+    }
+   ],
+   "agent": "Runs the date engine. RCP r. 3.01 rules (verify the exact text): count clear days, excluding the first day and including the last; when the period is 7 days or less, leave out holidays; if the last day is a holiday, the deadline rolls to the next day that is not a holiday. Holidays come from the RCP r. 1.03 definition (Saturdays, Sundays, statutory holidays, and 26 December to 6 January for some purposes, verify). It flags 'summer and winter holiday' effects where they apply (verify r. 3.01(1)(c) / (d)). Pre-fills court, pack, service method and attendees from the matter's court and the firm defaults.",
+   "gate": "Same as G7. The wizard output is proposed until it is confirmed.",
+   "states": [
+    "choose trigger",
+    "enter facts",
+    "preview",
+    "saved (proposed)"
+   ],
+   "edge": [
+    "The rule pack is out of date (rules amended): the wizard blocks saving and shows the amendment note until an admin publishes the updated pack.",
+    "The trigger falls on a holiday (for example, service on a Saturday): the rule on when service takes effect is applied and explained (verify r. 16.06 / 3.01).",
+    "Simplified procedure (r. 76) or a Small Claims Court matter: the wizard uses a different rule pack, or says that pack is not supported.",
+    "Jurisdiction without a rule pack: wizard offers manual deadline entry with mandatory second check instead.",
+    "Matter has no court set: the wizard pre-fills from the firm defaults on rule-pack-admin and says so."
+   ],
+   "reg": "Rules of Civil Procedure, R.R.O. 1990, Reg. 194: r. 1.03 (holiday), r. 3.01 (computing time), r. 3.02 (extension), r. 16 (service), r. 18.01 (time for defence). Rules for the Small Claims Court and Family Law Rules are separate packs (verify).",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Step",
+     "Computation",
+     "Result"
+    ],
+    "rows": [
+     [
+      "Trigger: claim served personally in Ontario",
+      "2026-09-23",
+      "day 0"
+     ],
+     [
+      "r. 18.01(a): 20 days",
+      "2026-09-23 + 20 days = 2026-10-13 (Tue)",
+      "2026-10-13"
+     ],
+     [
+      "r. 3.01 holiday check",
+      "2026-10-12 is Thanksgiving, but it is not the last day",
+      "no change"
+     ],
+     [
+      "Result",
+      "Defence due",
+      "2026-10-13"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "deadline-detail",
+   "name": "Deadline detail and history",
+   "route": "/deadlines/:id",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "One deadline's full record: source, computation, confirmations, reminders sent, changes and proof that it was met.",
+   "layout": "Header: date, status and critical flag. Tabs: Source (page preview), Computation, Reminders (sent and upcoming), History (audit) and Evidence.",
+   "fields": [
+    {
+     "name": "date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "time_of_day",
+     "type": "time",
+     "required": false,
+     "note": "For example a filing cut-off. Court-office and e-filing cut-off times vary (verify)."
+    },
+    {
+     "name": "source",
+     "type": "ref",
+     "required": true,
+     "note": "Document, page and passage, or 'manual entry by X'."
+    },
+    {
+     "name": "computation_trail",
+     "type": "json",
+     "required": false,
+     "note": "The engine steps and the rule-pack version."
+    },
+    {
+     "name": "confirmations",
+     "type": "ref[]",
+     "required": true,
+     "note": "The G7 and G7b records."
+    },
+    {
+     "name": "reminder_plan",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "evidence_of_compliance",
+     "type": "file",
+     "required": false,
+     "note": "Filing confirmation, affidavit of service, or issued claim."
+    },
+    {
+     "name": "release_reason",
+     "type": "enum",
+     "required": false,
+     "note": "settled | extended by order | extended by consent | not our deadline | duplicate | matter transferred"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Request change of date",
+     "by": "human",
+     "gate": "approve",
+     "note": "G7c. A reason is required. A critical date needs a second check again."
+    },
+    {
+     "name": "Mark met with evidence",
+     "by": "human",
+     "gate": "approve",
+     "note": "G7d. The agent may suggest this when it sees a filing receipt."
+    },
+    {
+     "name": "Release",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Lawyer only. A reason is required."
+    },
+    {
+     "name": "Snooze reminder",
+     "by": "human",
+     "gate": "none",
+     "note": "Reminders can be snoozed for at most 1 day. Escalations cannot be snoozed."
+    }
+   ],
+   "agent": "Links incoming documents that look like proof the deadline was met (for example an e-filing receipt by email) and proposes 'met'. Spots duplicates.",
+   "gate": "Changes, releases and 'met' each need lawyer approval. Nothing is ever deleted; a deadline can only be released, with a reason.",
+   "states": [
+    "proposed",
+    "confirmed",
+    "second-checked",
+    "met",
+    "released",
+    "missed"
+   ],
+   "edge": [
+    "A deadline passed without evidence or a release: it becomes 'missed', the responsible and supervising lawyers get an alert, and an incident task is opened (consider notice to LawPRO, verify the duty).",
+    "Responsible person has an approved absence covering the due date or reminder window (work/team-availability): the agent warns and proposes the absence delegate as cover; moving responsibility still follows normal deadline rules."
+   ],
+   "reg": "Audit trail kept for the life of the file and its retention period. LawPRO policy terms on reporting a potential claim promptly (verify).",
+   "mock": {
+    "kind": "detail",
+    "columns": [
+     "When",
+     "Who",
+     "Event"
+    ],
+    "rows": [
+     [
+      "2026-09-24 09:12",
+      "agent",
+      "Proposed 2026-10-13 from affidavit of service p. 1"
+     ],
+     [
+      "2026-09-24 11:40",
+      "Linda Kassim",
+      "Confirmed (G7)"
+     ],
+     [
+      "2026-09-25 08:55",
+      "Kaleab Bereket",
+      "Second check: matched (G7b)"
+     ],
+     [
+      "2026-10-06 07:30",
+      "system",
+      "Reminder 7 days sent to Linda Kassim, Meraf Abay"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "reminder-policy",
+   "name": "Reminders and escalation settings",
+   "route": "/settings/deadlines/reminders",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Firm policy for reminder timing, channels and the escalation ladder, set for each deadline kind.",
+   "layout": "A table of policies by deadline kind. Selecting one opens an editor with the ladder (offsets, recipients, channel) and a test-send button.",
+   "fields": [
+    {
+     "name": "deadline_kind",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "offsets",
+     "type": "text[]",
+     "required": true,
+     "note": "Default for critical deadlines: 90, 30, 14, 7, 3, 1 and 0 days before. Non-critical: 7, 1 and 0."
+    },
+    {
+     "name": "recipients",
+     "type": "enum[]",
+     "required": true,
+     "note": "responsible | assistant | matter team | supervising lawyer | managing lawyer"
+    },
+    {
+     "name": "channels",
+     "type": "enum[]",
+     "required": true,
+     "note": "in-app | email | Slack/Teams | SMS (critical only)"
+    },
+    {
+     "name": "ack_required",
+     "type": "bool",
+     "required": true,
+     "note": "If a critical reminder is not acknowledged within N hours, it escalates one level."
+    },
+    {
+     "name": "escalation_hours",
+     "type": "int",
+     "required": true,
+     "note": "Default 4 business hours."
+    },
+    {
+     "name": "absence_rule",
+     "type": "enum",
+     "required": true,
+     "note": "When the responsible person is away: send to their designated back-up."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Edit policy",
+     "by": "human",
+     "gate": "approve",
+     "note": "Weakening a policy for critical deadlines needs managing lawyer approval."
+    },
+    {
+     "name": "Send test",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Sends the reminders, tracks acknowledgements and escalates. It also warns when a user's away period overlaps a critical deadline and no back-up is set.",
+   "gate": "Policy changes that remove or delay critical reminders need managing lawyer approval.",
+   "states": [
+    "default",
+    "customised",
+    "pending approval"
+   ],
+   "edge": [
+    "The email provider is down: in-app plus another channel, and the escalation timer keeps running.",
+    "Everyone on the ladder is away: the agent alerts the managing lawyer and the admin."
+   ],
+   "reg": "Supervision (RPC 6.1). LawPRO risk guidance on reminder and tickler systems.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Kind",
+     "Offsets (days)",
+     "Recipients",
+     "Ack / escalate"
+    ],
+    "rows": [
+     [
+      "limitation",
+      "90,30,14,7,3,1,0",
+      "responsible, supervising",
+      "yes / 4h"
+     ],
+     [
+      "court-rule",
+      "14,7,3,1,0",
+      "responsible, assistant",
+      "yes / 4h"
+     ],
+     [
+      "internal",
+      "1,0",
+      "responsible",
+      "no"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "rule-pack-admin",
+   "name": "Rule packs and court holidays",
+   "route": "/settings/deadlines/rules",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Manage the versioned Ontario rule packs (RCP, Limitations Act, notice statutes) and the holiday calendar that the date engine uses.",
+   "layout": "Left: list of packs with version, status and effective date. Main: the rules in a pack (trigger, period, unit, cite, verified-by). Tab: holiday calendar by year.",
+   "fields": [
+    {
+     "name": "pack",
+     "type": "enum",
+     "required": true,
+     "note": "Example: ON-RCP, ON-LimA, ON-notices, ON-SmallClaims (later)."
+    },
+    {
+     "name": "version",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "effective_from",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "rule",
+     "type": "text",
+     "required": true,
+     "note": "Trigger, period, unit (days, clear days, months, years), holiday handling and cite."
+    },
+    {
+     "name": "verified_by",
+     "type": "ref",
+     "required": true,
+     "note": "A lawyer who checked the rule against e-Laws."
+    },
+    {
+     "name": "verified_on",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "holidays",
+     "type": "date[]",
+     "required": true,
+     "note": "Ontario statutory holidays and the RCP r. 1.03 holidays (verify), plus any court closures that are announced."
+    },
+    {
+     "name": "origin",
+     "type": "enum",
+     "required": true,
+     "note": "vendor | firm-made. Firm-made packs (a judge's practice direction, a scheduling order template) carry a 'firm-made' badge and are excluded from vendor verification claims."
+    },
+    {
+     "name": "default_pack",
+     "type": "ref",
+     "required": false,
+     "note": "Firm default court and rule pack for the wizard when the matter has no court set."
+    },
+    {
+     "name": "default_service_method",
+     "type": "enum",
+     "required": false,
+     "note": "Pre-fills service_method in rule-trigger-wizard."
+    },
+    {
+     "name": "default_calendar",
+     "type": "ref",
+     "required": false,
+     "note": "Calendar that generated deadline events land on."
+    },
+    {
+     "name": "default_chain_attendees",
+     "type": "list",
+     "required": false,
+     "note": "Roles added as attendees on every generated chain (e.g. responsible lawyer, clerk)."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Publish pack version",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "G7e. A lawyer signs off. The platform (vendor) also reviews central packs."
+    },
+    {
+     "name": "Impact preview",
+     "by": "agent",
+     "gate": "none",
+     "note": "Lists the open deadlines that would change under the new version."
+    },
+    {
+     "name": "Add court closure",
+     "by": "human",
+     "gate": "approve",
+     "note": "For example a closure ordered by the Chief Justice (verify whether it extends time)."
+    },
+    {
+     "name": "Create firm-made pack",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Lawyer signs off each version (G7e); vendor packs are never edited in place."
+    },
+    {
+     "name": "Set firm defaults",
+     "by": "human",
+     "gate": "none",
+     "note": "Admin or lawyer; used to pre-fill the wizard."
+    }
+   ],
+   "agent": "Watches for amendments (e-Laws change notes, Notices to the Profession) and drafts a pack update with a diff. Re-runs the golden test cases before a pack can be published.",
+   "gate": "G7e: no new rule-pack version is used for calculations until a lawyer signs off. Open deadlines that change are sent back to G7.",
+   "states": [
+    "draft",
+    "pending sign-off",
+    "active",
+    "superseded"
+   ],
+   "edge": [
+    "A rule changes partway through a matter: the transitional provisions decide which version applies. The engine defaults to the version in force on the trigger date, and the lawyer can override it.",
+    "A holiday is announced late: the impact preview runs and a notice goes out.",
+    "Firm-made pack conflicts with a vendor rule for the same trigger: the wizard shows both and the lawyer picks, with a reason stored."
+   ],
+   "reg": "Rule text from ontario.ca/laws (e-Laws). Notices to the Profession from the Superior Court of Justice (verify the URL). The vendor publishes central packs, but each firm stays responsible for its own deadlines.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Pack",
+     "Version",
+     "Effective",
+     "Verified by",
+     "Status"
+    ],
+    "rows": [
+     [
+      "ON-RCP",
+      "2026.2",
+      "2026-07-01",
+      "Linda Kassim",
+      "active"
+     ],
+     [
+      "ON-LimA",
+      "2026.1",
+      "2026-01-01",
+      "Linda Kassim",
+      "active"
+     ],
+     [
+      "ON-notices",
+      "2026.2-draft",
+      "2026-11-01",
+      "",
+      "pending sign-off"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "calendar-sync",
+   "name": "External calendar sync",
+   "route": "/settings/calendar-sync",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "Connect a Google or Microsoft calendar, choose what syncs each way, and see the health of the sync.",
+   "layout": "Cards for each account. A rules table (which calendars and which item types, one-way or two-way). Health panel with the last sync time and any errors.",
+   "fields": [
+    {
+     "name": "provider",
+     "type": "enum",
+     "required": true,
+     "note": "google | microsoft; a user may connect both at once, with per-calendar routing."
+    },
+    {
+     "name": "direction",
+     "type": "enum",
+     "required": true,
+     "note": "Deadlines are always one-way, from the app out. Events may sync both ways."
+    },
+    {
+     "name": "title_privacy",
+     "type": "enum",
+     "required": true,
+     "note": "matter number only | matter number and short title | full title"
+    },
+    {
+     "name": "last_sync",
+     "type": "datetime",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "calendars_synced",
+     "type": "list",
+     "required": true,
+     "note": "Which of the user's calendars go out, and which outside calendar comes in."
+    },
+    {
+     "name": "deadline_handling",
+     "type": "enum",
+     "required": true,
+     "note": "Deadlines go out read-only; edits made outside come back as change requests, never as moves."
+    },
+    {
+     "name": "sync_target",
+     "type": "text",
+     "required": true,
+     "note": "Stated target: changes reach the outside calendar within 5 minutes via push notifications; health panel shows actual lag."
+    },
+    {
+     "name": "routing",
+     "type": "map",
+     "required": false,
+     "note": "Which app calendar goes to which provider calendar when both are connected."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Connect account",
+     "by": "human",
+     "gate": "none",
+     "note": "OAuth. Tokens are kept in the vault."
+    },
+    {
+     "name": "Re-sync",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Disconnect",
+     "by": "human",
+     "gate": "none",
+     "note": "Removes the app-created items from the external calendar."
+    }
+   ],
+   "agent": "Reports a sync that has failed or fallen behind, and warns when a critical deadline has not appeared on the user's external calendar.",
+   "gate": "none",
+   "states": [
+    "not connected",
+    "connected",
+    "degraded",
+    "token expired"
+   ],
+   "edge": [
+    "An expired token goes unnoticed for days: in-app reminders still fire. The external calendar is a convenience and never the system of record.",
+    "Event deleted in the outside calendar: becomes a 'removed externally' flag, never deletes a deadline.",
+    "Sync token expired: banner on the calendar and an email to the user; no silent gap.",
+    "Outside event has no matter: lands in personal calendar only.",
+    "Both providers connected and the same event routed to both: sent once per route; edits from either come back as proposals, last one shown with its source.",
+    "Sync lag over target: health panel turns amber and names the oldest unsynced change."
+   ],
+   "reg": "Data residency: event details sent to Google or Microsoft leave the Canadian cell. The firm consents to this, and the default is to send the matter number only.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "User",
+     "Provider",
+     "Direction",
+     "Last sync",
+     "State"
+    ],
+    "rows": [
+     [
+      "Linda Kassim",
+      "microsoft",
+      "deadlines out, events both ways",
+      "2026-10-10 08:02",
+      "connected"
+     ],
+     [
+      "Meraf Abay",
+      "google",
+      "deadlines out",
+      "2026-10-07 17:40",
+      "token expired"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "calendar-settings",
+   "name": "Calendars, sharing and categories",
+   "route": "/settings/calendars",
+   "who": [
+    "admin",
+    "lawyer",
+    "clerk",
+    "paralegal"
+   ],
+   "purpose": "Manage the calendars that exist (personal, firm, limitation dates, work due dates, custom), who can see or edit each, and event categories.",
+   "layout": "Left: my calendars and calendars shared with me. Main: selected calendar's sharing table. Tab: categories with colours.",
+   "fields": [
+    {
+     "name": "calendar",
+     "type": "object",
+     "required": true,
+     "note": "name, owner, colour, kind: personal | firm | limitations | work due | court holidays | custom"
+    },
+    {
+     "name": "share",
+     "type": "list",
+     "required": false,
+     "note": "user or group + level: free/busy | view | edit"
+    },
+    {
+     "name": "default_event_visibility",
+     "type": "enum",
+     "required": true,
+     "note": "private | firm | matter-team"
+    },
+    {
+     "name": "category",
+     "type": "object",
+     "required": false,
+     "note": "name, colour, default duration, default reminders, counts toward 'court day' print"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Create calendar",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Share calendar",
+     "by": "human",
+     "gate": "none",
+     "note": "Free/busy and view are ungated; edit on a lawyer's calendar needs that lawyer's consent."
+    },
+    {
+     "name": "Delegate assistant access",
+     "by": "human",
+     "gate": "approve",
+     "note": "The lawyer approves a clerk or assistant to manage events on their behalf."
+    },
+    {
+     "name": "Add or retire category",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Subscribe to a feed link",
+     "by": "human",
+     "gate": "approve",
+     "note": "Feeds expose only time and 'busy' unless the owner approves titles; links are revocable."
+    }
+   ],
+   "agent": "Suggests categories from existing event titles and flags calendars shared wider than the owner's default.",
+   "gate": "Lawyer approves delegated edit access and any feed that exposes event titles.",
+   "states": [
+    "active",
+    "shared",
+    "archived"
+   ],
+   "edge": [
+    "Limitations and court holiday calendars are system calendars: cannot be deleted or edited directly.",
+    "User deactivated: their calendars transfer to the supervisor, shares revoked.",
+    "Category retired: existing events keep it, it cannot be picked again."
+   ],
+   "reg": "Confidentiality: calendar titles often reveal client names (RPC 3.3) (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Calendar",
+     "Owner",
+     "Shared with",
+     "Level"
+    ],
+    "rows": [
+     [
+      "Linda Kassim",
+      "Linda Kassim",
+      "Meraf Abay",
+      "edit"
+     ],
+     [
+      "Firm",
+      "Firm",
+      "all users",
+      "view"
+     ],
+     [
+      "Limitation dates",
+      "System",
+      "lawyers",
+      "view"
+     ],
+     [
+      "Court holidays",
+      "System",
+      "all users",
+      "view"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "event-detail",
+   "name": "Event detail",
+   "route": "/calendar/events/:id",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Create or edit one ordinary event (meeting, hearing attendance, call) with attendees, reminders, recurrence and matter link.",
+   "layout": "Form: title, when, recurrence, calendar, category, matter, location or video link, attendees with response status, reminders, description, visibility. Footer: linked deadline (if this event attends a deadline) and time entry.",
+   "fields": [
+    {
+     "name": "title",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "start",
+     "type": "datetime",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "end",
+     "type": "datetime",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "all_day",
+     "type": "bool",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "recurrence",
+     "type": "object",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "calendar",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "category",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "location",
+     "type": "text",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "video_link",
+     "type": "url",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "attendees",
+     "type": "list",
+     "required": false,
+     "note": "user or contact + response: pending | accepted | declined"
+    },
+    {
+     "name": "reminders",
+     "type": "list",
+     "required": false,
+     "note": "offset + channel"
+    },
+    {
+     "name": "description",
+     "type": "richtext",
+     "required": false,
+     "note": "Kept off external invites by default."
+    },
+    {
+     "name": "visibility",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "linked_deadline",
+     "type": "ref",
+     "required": false,
+     "note": "Read-only; deadlines are edited only on deadline-detail."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Save",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Send invites",
+     "by": "human",
+     "gate": "approve",
+     "note": "External attendees only."
+    },
+    {
+     "name": "Draft agenda",
+     "by": "agent",
+     "gate": "none",
+     "note": "From the matter brief and open work items."
+    },
+    {
+     "name": "Draft follow-up note after the event",
+     "by": "agent",
+     "gate": "none",
+     "note": "Goes to G-NT."
+    },
+    {
+     "name": "Log time",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Cancel event",
+     "by": "human",
+     "gate": "none",
+     "note": "Notifies attendees."
+    }
+   ],
+   "agent": "Pre-fills title and attendees from the matter, drafts an agenda, and after the event proposes a note and a time entry.",
+   "gate": "External invites; nothing else on ordinary events.",
+   "states": [
+    "draft",
+    "scheduled",
+    "cancelled",
+    "past"
+   ],
+   "edge": [
+    "User tries to turn an event into a deadline: refused; they must use the trigger wizard or extraction so the date is reviewed.",
+    "Hearing adjourned: agent proposes moving the attendance event and asks whether any deadline depends on it."
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Field",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Title",
+      "Case conference: Bekele v. Northlake"
+     ],
+     [
+      "When",
+      "2026-11-04 10:00-11:00"
+     ],
+     [
+      "Attendees",
+      "Linda Kassim, Kaleab Bereket, client (pending)"
+     ],
+     [
+      "Reminders",
+      "1 day email, 1 hour in-app"
+     ]
+    ]
+   }
+  }
+ ],
+ "entities": [
+  {
+   "name": "CalendarEvent",
+   "fields": [
+    "id",
+    "firm_id",
+    "title",
+    "type",
+    "start",
+    "end",
+    "all_day",
+    "tz",
+    "location",
+    "visibility",
+    "matter_id?",
+    "deadline_id?",
+    "external_refs[]"
+   ],
+   "relations": [
+    "User many-to-many via Attendee",
+    "Matter optional",
+    "Deadline optional (one to one when type = deadline)"
+   ]
+  },
+  {
+   "name": "Trigger",
+   "fields": [
+    "id",
+    "matter_id",
+    "kind",
+    "date",
+    "service_method",
+    "served_where",
+    "source_doc_id",
+    "source_page",
+    "source_quote",
+    "status"
+   ],
+   "relations": [
+    "Matter",
+    "Deadline one-to-many (dependants)"
+   ]
+  },
+  {
+   "name": "Deadline",
+   "fields": [
+    "id",
+    "matter_id",
+    "trigger_id?",
+    "title",
+    "kind",
+    "due_date",
+    "due_time?",
+    "critical",
+    "status",
+    "responsible_user_id",
+    "rule_cite",
+    "rule_pack_version",
+    "computation_trail",
+    "source_doc_id",
+    "source_page",
+    "source_quote",
+    "confidence",
+    "assumptions[]",
+    "evidence_doc_id?",
+    "release_reason?",
+    "superseded_by?"
+   ],
+   "relations": [
+    "Matter",
+    "Trigger",
+    "Confirmation one-to-many",
+    "ReminderPlan",
+    "Document (source, evidence)"
+   ]
+  },
+  {
+   "name": "Confirmation",
+   "fields": [
+    "id",
+    "deadline_id",
+    "kind (confirm|second_check|change|met|release)",
+    "user_id",
+    "independent_date?",
+    "result",
+    "note",
+    "at"
+   ],
+   "relations": [
+    "Deadline",
+    "User"
+   ]
+  },
+  {
+   "name": "LimitationAssessment",
+   "fields": [
+    "id",
+    "matter_or_intake_id",
+    "claim_type",
+    "act_date",
+    "discovery_date",
+    "discovery_facts",
+    "suspensions",
+    "tolling_agreement_doc_id?",
+    "basic_deadline_id",
+    "ultimate_deadline_id",
+    "notice_deadline_ids[]",
+    "per_defendant"
+   ],
+   "relations": [
+    "Matter or Intake",
+    "Deadline (basic, ultimate, notices)",
+    "Contact (defendant)"
+   ]
+  },
+  {
+   "name": "RulePack",
+   "fields": [
+    "id",
+    "code",
+    "version",
+    "effective_from",
+    "status",
+    "rules[]",
+    "verified_by",
+    "verified_on",
+    "golden_cases[]"
+   ],
+   "relations": [
+    "Deadline (pinned version)"
+   ]
+  },
+  {
+   "name": "HolidayCalendar",
+   "fields": [
+    "year",
+    "dates[]",
+    "source",
+    "court_closures[]"
+   ],
+   "relations": [
+    "RulePack"
+   ]
+  },
+  {
+   "name": "ReminderPlan",
+   "fields": [
+    "id",
+    "deadline_id",
+    "policy_id",
+    "steps[] (offset, recipients, channel)",
+    "sent[] (at, to, ack_at)"
+   ],
+   "relations": [
+    "Deadline",
+    "ReminderPolicy"
+   ]
+  },
+  {
+   "name": "ReminderPolicy",
+   "fields": [
+    "id",
+    "deadline_kind",
+    "offsets",
+    "recipients",
+    "channels",
+    "ack_required",
+    "escalation_hours",
+    "absence_rule"
+   ],
+   "relations": [
+    "Firm"
+   ]
+  },
+  {
+   "name": "CalendarConnection",
+   "fields": [
+    "id",
+    "user_id",
+    "provider",
+    "direction",
+    "title_privacy",
+    "token_ref (vault)",
+    "last_sync",
+    "state"
+   ],
+   "relations": [
+    "User"
+   ]
+  },
+  {
+   "name": "Calendar",
+   "fields": [
+    "id",
+    "name",
+    "owner",
+    "kind",
+    "colour",
+    "default_visibility"
+   ],
+   "relations": [
+    "CalendarEvent one-to-many",
+    "CalendarShare one-to-many"
+   ]
+  },
+  {
+   "name": "CalendarShare",
+   "fields": [
+    "calendar_id",
+    "principal",
+    "level",
+    "granted_by"
+   ],
+   "relations": [
+    "Calendar many-to-one"
+   ]
+  },
+  {
+   "name": "EventCategory",
+   "fields": [
+    "id",
+    "name",
+    "colour",
+    "default_duration",
+    "default_reminders",
+    "active"
+   ],
+   "relations": [
+    "CalendarEvent many-to-one"
+   ]
+  },
+  {
+   "name": "Attendee",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by deadlines relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  }
+ ],
+ "gates": [
+  {
+   "id": "G7",
+   "name": "Confirm deadline against source",
+   "approver": "lawyer (a clerk the firm authorizes may confirm non-critical court-rule dates)",
+   "blocks": "The deadline counting as authoritative, external calendar sync, and the normal reminder plan. Only the provisional 'UNCONFIRMED' reminders run."
+  },
+  {
+   "id": "G7b",
+   "name": "Second check of a critical date",
+   "approver": "a second person who is not the first confirmer (lawyer or trained clerk)",
+   "blocks": "The 'fully verified' status on a critical deadline. Until a mismatch is resolved, reminders use the earliest proposed date."
+  },
+  {
+   "id": "G7c",
+   "name": "Change, extend or move a confirmed deadline",
+   "approver": "responsible lawyer (for critical dates: then G7b again)",
+   "blocks": "Any change to the active date. The old date stays active until approval."
+  },
+  {
+   "id": "G7d",
+   "name": "Mark deadline met",
+   "approver": "lawyer, or a clerk with the evidence attached",
+   "blocks": "Stopping reminders. Evidence must be attached."
+  },
+  {
+   "id": "G7r",
+   "name": "Release deadline",
+   "approver": "responsible lawyer",
+   "blocks": "Removing a deadline from the active set (it is never deleted)."
+  },
+  {
+   "id": "G7e",
+   "name": "Publish rule-pack version",
+   "approver": "lawyer (a firm lawyer; vendor counsel for central packs)",
+   "blocks": "The date engine using a new rule or holiday set. Affected open deadlines go back to G7."
+  },
+  {
+   "id": "G-CAL",
+   "name": "Delegated calendar edit or title-exposing feed",
+   "approver": "calendar owner (lawyer)",
+   "blocks": "Another user editing a lawyer's calendar, or an external feed showing event titles."
+  }
+ ],
+ "agent_jobs": [
+  {
+   "name": "Extract deadlines from document",
+   "trigger": "event: document filed to matter (order, endorsement, pleading, affidavit of service, notice, correspondence, email)",
+   "does": "Classify the document, find triggers and explicit dates, compute rule-based dates, and quote the page and passage with assumptions and confidence. Removes duplicates.",
+   "output": "Proposed deadlines for G7 in the extraction review."
+  },
+  {
+   "name": "Draft limitation assessment",
+   "trigger": "event: intake created or claim facts updated",
+   "does": "Pick the claim type, propose the act and discovery dates from the sources, compute the basic and ultimate dates, and list statutory notice periods.",
+   "output": "Draft assessment for lawyer sign-off (G7), then G7b."
+  },
+  {
+   "name": "Recompute dependants",
+   "trigger": "event: trigger date changed, rule pack published, or holiday added",
+   "does": "Recompute dependent deadlines and diff them against the active dates.",
+   "output": "Changed deadlines sent back to G7. The old dates stay active."
+  },
+  {
+   "name": "Reminder and escalation runner",
+   "trigger": "schedule: every 15 minutes",
+   "does": "Send due reminders, track acknowledgements and climb the escalation ladder, covering for people who are away.",
+   "output": "Notifications and an audit trail. No gate."
+  },
+  {
+   "name": "Unconfirmed sweeper",
+   "trigger": "schedule: business-hourly",
+   "does": "Find proposed dates older than 1 business day and second checks still pending, then escalate.",
+   "output": "Escalation notifications."
+  },
+  {
+   "name": "Compliance evidence matcher",
+   "trigger": "event: e-filing receipt, issued claim or affidavit of service received",
+   "does": "Match it to an open deadline and propose 'met'.",
+   "output": "Proposal for G7d."
+  },
+  {
+   "name": "Missed deadline watch",
+   "trigger": "schedule: daily 00:05 Toronto",
+   "does": "Mark past-due deadlines that have no evidence and no release as missed, and open an incident task.",
+   "output": "Alert to the responsible and supervising lawyers, and an incident task."
+  },
+  {
+   "name": "Daily digest and weekly report",
+   "trigger": "schedule: weekdays 07:30, Mondays 07:00",
+   "does": "Build each user's due list and the firm's weekly deadline report.",
+   "output": "Digest messages and a report PDF. No gate."
+  },
+  {
+   "name": "Rule watch",
+   "trigger": "schedule: weekly",
+   "does": "Check for amendments to the RCP, the Limitations Act and notice statutes, and court Notices to the Profession. Draft a rule-pack diff and run the golden cases.",
+   "output": "Draft rule-pack version for G7e."
+  },
+  {
+   "name": "Post-event follow-up",
+   "trigger": "event: event end time passes",
+   "does": "Drafts a note and time entry for the attendees",
+   "output": "draft note for G-NT, suggested time entry"
+  },
+  {
+   "name": "Adjournment watcher",
+   "trigger": "event: hearing event moved or cancelled",
+   "does": "Checks whether any deadline in the chain depends on the hearing date",
+   "output": "recompute proposal to extraction-review"
+  },
+  {
+   "name": "Absence coverage check",
+   "trigger": "event: absence approved in work/team-availability; schedule: daily",
+   "does": "Finds deadlines whose responsible person is away on the due date or during critical reminders and proposes the delegate",
+   "output": "cover proposal accepted by the responsible or supervising lawyer; warning when no delegate exists"
+  }
+ ],
+ "open_questions": [
+  "Who may confirm (G7) non-critical court-rule dates: lawyers only, or can the firm authorize named clerks and paralegals?",
+  "Does the vendor publish and maintain central Ontario rule packs (with outside counsel sign-off), or does each firm verify its own? This affects liability and the sales message.",
+  "For a sole practitioner, is an outside second checker acceptable for G7b, or is the 24-hour cooling-off recompute enough?",
+  "Which courts and tribunals are in scope for v1: Superior Court (RCP) only, or also Small Claims, Family Law Rules, Court of Appeal, LTB and HRTO?",
+  "Do we compute provisional reminders for UNCONFIRMED dates (safer), or wait for G7 (less noise)? The proposal is provisional reminders that are clearly labelled.",
+  "Should a missed deadline open a LawPRO-notification task automatically, or only alert the lawyer?",
+  "SMS for critical escalations: does the firm accept a Canadian SMS provider under the data residency promise?",
+  "Should the limitation assessment run for declined intakes (non-clients), and how long is that kept?",
+  "Do we need a public per-user booking page (Clio Scheduler-style) for consultations, or does intake's consultation-booking cover it?",
+  "Should we ship non-Ontario rule packs (federal courts, Tax Court) in year one, or is manual entry with a second check enough?",
+  "Per-user read-only ICS feeds (personal calendar, work due dates) with title_privacy and revocable tokens, off by default: worth adding to calendar-sync? (r02-tasks-calendar)",
+  "Ontario court-activity connector (Courts Portal or e-filing notice emails) turning new orders and hearing notices into extraction-review items: later phase? (r02-tasks-calendar)"
+ ],
+ "sources": [
+  "https://www.ontario.ca/laws/statute/02l24",
+  "https://www.ontario.ca/laws/regulation/900194",
+  "https://www.ontario.ca/laws/statute/01m25",
+  "https://www.ontario.ca/laws/statute/19c07",
+  "https://www.blg.com/insights/2023/05/claims-from-minors-and-the-15-year-ultimate-limitation-period-in-ontario",
+  "https://www.mondaq.com/canada/workforce-management/25467/limitations-act-2002",
+  "https://www.siskinds.com/liability-of-municipalities-for-injuries-as-a-result-of-icy-or-snowy-road-conditions/",
+  "https://www.ola.org/en/legislative-business/bills/parliament-41/session-2/bill-68",
+  "https://www.practicepro.ca/",
+  "https://help.clio.com/hc/en-us/articles/9289840995867",
+  "https://lawyerist.com/news/clio-court-rules-enhancements/",
+  "https://help.clio.com/hc/en-us/articles/9290016489883",
+  "https://www.clio.com/ca/features/legal-calendaring-software/",
+  "https://www.clio.com/blog/rules-based-calendaring-software-law-firms/",
+  "https://help.clio.com/hc/en-us/articles/29658207678107",
+  "https://help.clio.com/hc/articles/9289960611355",
+  "https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules",
+  "https://help.clio.com/hc/articles/42019952139035"
+ ],
+ "clio_gaps": [
+  {
+   "clio_feature": "Court rules: pick a jurisdiction, enter a trigger date and time, events generated",
+   "where_in_clio": "Calendar > Add court rule (or matter > Calendar)",
+   "status": "already covered",
+   "note": "rule-trigger-wizard; added jurisdiction and trigger_time fields."
+  },
+  {
+   "clio_feature": "Recalculate future court rule events when the trigger moves",
+   "where_in_clio": "Calendar > court rule > Edit trigger",
+   "status": "already covered",
+   "note": "'Change trigger date' plus new edge: met deadlines keep their proof."
+  },
+  {
+   "clio_feature": "Delete a court rule removes its events",
+   "where_in_clio": "Calendar > court rule > Delete",
+   "status": "added",
+   "note": "'Delete trigger and its chain' with a lawyer gate. (unverified)"
+  },
+  {
+   "clio_feature": "Court rule attendees and default trigger-time reminder",
+   "where_in_clio": "Court rule dialog",
+   "status": "added",
+   "note": "chain_attendees and trigger_time reminder."
+  },
+  {
+   "clio_feature": "Last-day / first-day markers on generated events",
+   "where_in_clio": "Court rule events (L/D, F/D prefixes)",
+   "status": "deliberately different",
+   "note": "We show window_kind as a plain label rather than an abbreviation prefix in the title. (unverified)"
+  },
+  {
+   "clio_feature": "Hundreds of US court rule sets",
+   "where_in_clio": "Court rules subscription",
+   "status": "deliberately different",
+   "note": "Ontario rule packs we version and verify ourselves. Clio states US coverage of about 2,200 jurisdictions and, for Canada, two provincial courts plus the Federal Court; which provinces is not public, so do not claim Ontario is absent (verify). Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Statute of limitations calendar",
+   "where_in_clio": "Calendar > My calendars > Statute of Limitations",
+   "status": "already covered",
+   "note": "limitation-assessment plus the system 'limitation dates' calendar in calendar-settings."
+  },
+  {
+   "clio_feature": "Default calendars (personal, firm, tasks, limitations) and custom calendars",
+   "where_in_clio": "Calendar > My calendars",
+   "status": "added",
+   "note": "New calendar-settings screen."
+  },
+  {
+   "clio_feature": "Sharing calendars with other users",
+   "where_in_clio": "Calendar > Other calendars / Calendar settings; Calendar > calendar menu > share",
+   "status": "added",
+   "note": "Sharing levels free/busy, view, edit; delegated edit gated. | Merged duplicate 'Calendar sharing with users or groups at three permission levels': calendar-settings share levels free/busy, view, edit (Clio level names not confirmed). Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Event privacy: private, public, invitees only",
+   "where_in_clio": "Event form > Privacy",
+   "status": "already covered",
+   "note": "visibility on firm-calendar and event-detail."
+  },
+  {
+   "clio_feature": "Multiple reminders per event",
+   "where_in_clio": "Event form > Reminders",
+   "status": "added",
+   "note": "reminders list on events; deadlines keep reminder-policy."
+  },
+  {
+   "clio_feature": "Recurring events",
+   "where_in_clio": "Event form > Repeats",
+   "status": "added",
+   "note": "recurrence with this / following / all edits."
+  },
+  {
+   "clio_feature": "Event types / colour categories",
+   "where_in_clio": "Settings > Calendar > event types",
+   "status": "added",
+   "note": "EventCategory in calendar-settings."
+  },
+  {
+   "clio_feature": "Task due dates on the calendar",
+   "where_in_clio": "Calendar > Tasks calendar",
+   "status": "added",
+   "note": "task_overlay layer on firm-calendar."
+  },
+  {
+   "clio_feature": "Google or Microsoft 365 two-way calendar sync (one provider at a time) plus one-way ICS feeds",
+   "where_in_clio": "Settings > Contact and Calendar Sync",
+   "status": "already covered",
+   "note": "Corrected: no current source for Outlook desktop calendar sync (the Outlook add-in is for email filing and time). Clio sync can take up to 24 hours. Ours: calendar-sync with both providers at once, per-calendar routing and a 5-minute target. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Share events with clients via the portal",
+   "where_in_clio": "Event > share with client portal",
+   "status": "deliberately different",
+   "note": "We send invites only after lawyer approval; portal sharing is owned by platform client-portal."
+  },
+  {
+   "clio_feature": "AI scheduling: extract deadlines from a court document with source shown beside each date",
+   "where_in_clio": "Manage AI > AI Scheduling",
+   "status": "deliberately different",
+   "note": "Clio classifies the document, extracts dates for user confirmation, and states it does not apply local court rules when counting days. Ours computes each date with the Ontario rule pack, shows each step and cites page and passage, then G7 and G7b. A real difference, not parity. Source: r02-tasks-calendar, r08-ai, r14-rivals Side-by-side source view reported by r02 and r14; r08 did not confirm it."
+  },
+  {
+   "clio_feature": "Create events from plain language",
+   "where_in_clio": "Manage AI launchpad",
+   "status": "already covered",
+   "note": "Agent drafts events; deadlines still go through review."
+  },
+  {
+   "clio_feature": "Time entry from calendar event",
+   "where_in_clio": "Event > Add time entry",
+   "status": "added",
+   "note": "'Create time entry from event'."
+  },
+  {
+   "clio_feature": "Online booking pages for consultations",
+   "where_in_clio": "Clio Scheduler; Clio Grow > Scheduler",
+   "status": "deliberately different",
+   "note": "Owned by intake consultation-booking; open question logged. | Merged duplicate 'Online booking pages (availability, buffers, minimum notice, SMS reminders, prepayment)': Owned by intake consultation-booking. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Statute of limitations flag on a task",
+   "where_in_clio": "Task form (API field statute_of_limitations)",
+   "status": "deliberately different",
+   "note": "Limitations are Deadline records with an assessment, not task flags; imported flagged tasks become proposed limitation deadlines under G7. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Custom court rules with firm-built triggers and actions",
+   "where_in_clio": "Settings > Court Rules",
+   "status": "added",
+   "note": "Firm-made rule packs on rule-pack-admin with lawyer sign-off (G7e), badged and excluded from vendor verification. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Court rule defaults per firm (jurisdiction, service type, calendar, attendees)",
+   "where_in_clio": "Settings > Court Rules > Jurisdictions",
+   "status": "added",
+   "note": "Firm defaults on rule-pack-admin pre-fill rule-trigger-wizard. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "ICS subscription feeds (calendars, task feeds)",
+   "where_in_clio": "Calendar settings > feeds; Tasks > Task feeds",
+   "status": "deliberately different",
+   "note": "Not in v1; open question. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Docket monitoring feeding deadlines (US only, from Aug 2026)",
+   "where_in_clio": "Matter dashboard > attach docket",
+   "status": "deliberately different",
+   "note": "No Ontario equivalent in v1; a generic court-activity connector is an open question. Source: r02-tasks-calendar"
+  },
+  {
+   "clio_feature": "Leave / out-of-office affecting deadline coverage",
+   "where_in_clio": "None found in Clio Manage",
+   "status": "added",
+   "note": "Absence coverage check job and deadline-detail edge, fed by work/team-availability; reminder-policy absence_rule. Source: r09-people"
+  }
+ ]
+}

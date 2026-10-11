@@ -1,0 +1,629 @@
+{
+ "id": "r11-platform",
+ "scope": "Clio App Directory, API v4, webhooks, Zapier, mobile apps, Outlook/Gmail add-ins, data export; compared with readiness.json and platform.json",
+ "clio_products": [
+  "Clio Manage",
+  "Clio Manage API v4",
+  "Clio App Directory",
+  "Clio mobile app (iOS/Android)",
+  "Clio for Clients",
+  "Clio Outlook add-in",
+  "Clio for Gmail",
+  "Clio Payments",
+  "Zapier (third party)"
+ ],
+ "features": [
+  {
+   "name": "App Directory: size",
+   "product": "Clio App Directory",
+   "where": "clio.com/app-directory (public site); Clio Manage nav 'Apps & Integrations'",
+   "what": "Public marketplace of third-party and Clio-built integrations. The site nav says 300+ integrations; the directory paginates to 41 pages (Oct 2026 snapshot). The help centre's older figure is 250+; 2017 launch had 70+.",
+   "plan_tier": "Directory is free to browse; each app priced by its vendor (some free)",
+   "sources": [
+    "https://web.archive.org/web/20261005050315/https://www.clio.com/app-directory/",
+    "https://www.clio.com/app-directory/",
+    "https://help.clio.com/hc/en-au/articles/16439278772635-Clio-App-Directory",
+    "https://www.clio.com/about/press/twelve-new-apps-join-clios-rapidly-expanding-reinvented-platform/",
+    "https://help.clio.com/hc/en-us/articles/16439278772635-Clio-App-Directory"
+   ],
+   "screenshots": [
+    "https://web.archive.org/web/20261005050315/https://www.clio.com/app-directory/"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "App Directory: categories, regions and collections",
+   "product": "Clio App Directory",
+   "where": "clio.com/app-directory > Search by category / region / keyword",
+   "what": "56 category filters (e.g. Accounting, AI and Automation, Docketing, E-filing, eSignature, Intake, Payments, Real Estate, Research, Text, Time Tracking, Virtual Reception, Wills and Estates). Region filter: Australia, Canada, Europe, New Zealand, United States. Collections: Featured, Integration Awards, Built by Clio, Clio Certified Apps, Free, Working Remotely, Works with Clio Matters, ClioCon partner tiers. Vendors pick up to 2 categories, 3 practice areas, 5 keywords and their regions.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://web.archive.org/web/20261005050315/https://www.clio.com/app-directory/",
+    "https://docs.developers.clio.com/handbook/launch-your-app/app-directory-listing-guidelines/"
+   ],
+   "screenshots": [
+    "https://web.archive.org/web/20261005050315/https://www.clio.com/app-directory/"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "App Directory: Canadian-available integrations (confirmed)",
+   "product": "Clio App Directory",
+   "where": "App listing > Regions: Canada",
+   "what": "Confirmed listed for Canada: QuickBooks Online (syncs contacts, bills, payments, trust and operating transactions; CA/US/EU/AU), Divorcepath (Canadian family-law calculations, court forms, agreements; listed CAD $60/user/month), Clio's Outlook add-in (CA/EU/US). Founded (Canadian minute books/incorporation) reported integrating with Clio by an OBA newsletter. Dye & Durham Unity / Do Process, Teraview, DivorceMate, ESILAW, Moneris: no Clio integration found.",
+   "plan_tier": "Vendor-priced",
+   "sources": [
+    "https://www.clio.com/app-directory/quickbooks-online/",
+    "https://www.clio.com/app-directory/divorcepath/",
+    "https://web.archive.org/web/20200517133042/https://www.clio.com/app-directory/outlook-365-add-in/",
+    "https://oba.org/Innovator-in-Residence/Newsletter/WINTER-2020-EDITION/SPOTLIGHT-FOUNDED"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "In-product App Integrations page",
+   "product": "Clio Manage",
+   "where": "Clio Manage > Apps / App Integrations",
+   "what": "Users can browse and add App Directory apps from inside Clio Manage rather than the public site; 'Add to Clio' flow for partners.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://developers.support.clio.com/hc/en-us/articles/9410485343259",
+    "https://docs.developers.clio.com/guides/add-to-clio/overview-add-to-clio/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Manage API v4: coverage",
+   "product": "Clio Manage API",
+   "where": "Developer Portal (developers.clio.com; ca.developers.clio.com for Canada)",
+   "what": "REST/JSON API, OpenAPI 'Clio API Documentation v4': 177 paths, 92 resource groups, 434 schemas. Groups: Activities, Activity Descriptions, Activity Rates, Allocations, Bank Accounts, Bank Transactions, Bank Transfers, Bill Themes, Billable Clients, Billable Matters, Billing Settings, Bills, Calendar Entries, Calendar Entry Event Types, Calendar Visibilities, Calendars, Civil Certificated Rates, Civil Controlled Rates, Clients, Clio Payments Links, Clio Payments Payments, Comments, Communications, Contacts, Conversation Messages, Conversations, Credit Memos, Criminal Controlled Rates, Currencies, Custom Actions, Custom Field Sets, Custom Fields, Damages, Document Archives, Document Automations, Document Categories, Document Templates, Document Versions, Documents, Email Addresses, Event Metrics, Expense Categories, Folders, Grant Funding Sources, Grants, Groups, Interest Charges, Jurisdictions, Jurisdictions To Triggers, Line Items, Log Entries, Matter Contacts, Matter Dockets, Matter Protected Funds, Matter Stages, Matter Transfers, Matters, Medical Bills, Medical Records, Medical Records Details, My Events, Notes, Outstanding Client Balances, Phone Numbers, Practice Areas, Rate Table Assignments, Rate Table Categories, Rate Table Timekeepers, Rate Tables, Related Contacts, Relationships, Reminders, Report Presets, Report Schedules, Reports, Safe Custody Packet Locations, Safe Custody Packets, Safe Custody Records, Service Types, Task Template Lists, Task Templates, Task Types, Tasks, Tax Rate Configurations, Text Snippets, Timers, Trust Line Items, Trust Requests, Users, Utbms Codes, Utbms Sets, Webhooks. Includes UK legal-aid, US medical-records/damages and AU safe-custody resources, so not all apply to Canada.",
+   "plan_tier": "Available to all Clio Manage accounts (app registration free; partner listing separate)",
+   "sources": [
+    "https://docs.developers.clio.com/openapi.json",
+    "https://docs.developers.clio.com/clio-manage/api-reference/",
+    "https://docs.developers.clio.com/"
+   ],
+   "screenshots": [
+    "https://docs.developers.clio.com/clio-manage/api-reference/"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "API: regions incl. Canada",
+   "product": "Clio Manage API",
+   "where": "Base URL per region",
+   "what": "Four data regions with separate base URLs and separate developer apps: app.clio.com (US), ca.app.clio.com (Canada), eu.app.clio.com, au.app.clio.com. An app serving several regions needs a developer application in each.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://docs.developers.clio.com/openapi.json",
+    "https://docs.developers.clio.com/api-docs/clio-manage/applications/",
+    "https://web.archive.org/web/20240705062236/https://help.clio.com/hc/en-us/articles/9125226343579-Clio-for-Gmail"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "API: key object fields (real)",
+   "product": "Clio Manage API",
+   "where": "OpenAPI schemas",
+   "what": "Matter: number, display_number, custom_number, status Pending|Open|Closed, billing_method flat|contingency|hourly, open/pending/close dates, client_reference, maildrop_address, matter_stage. Contact: type Person|Company, is_client, is_co_counsel, is_bill_recipient, sales_tax_number, ledes_client_id, Clio for Clients permission. Bill: state draft|awaiting_approval|awaiting_payment|paid|void|deleted, kind incl. trust_kind, two tax rates (HST/GST style), available_state_transitions. Also MatterBudget (budget, notification_threshold), EvergreenRetainer (minimum_threshold), MatterProtectedFund (amount, reason), KycFieldValue, TextSnippet, TaxRateConfiguration (e.g. HST, GST; per province).",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://docs.developers.clio.com/openapi.json",
+    "https://docs.developers.clio.com/clio-manage/api-reference/"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "API: Reports and report schedules",
+   "product": "Clio Manage API",
+   "where": "/reports, /report_presets, /report_schedules",
+   "what": "Generate reports via API in csv|html|json|pdf|xlsx|zip and download; schedules daily/weekly/monthly. Report kinds include trust_ledger, trust_listing, client_ledger, potential_trust_to_office, general_ledger, work_in_progress, accounts_receivable_aging, and five Law Society of Alberta trust reports (no Ontario LSO-specific kind found).",
+   "plan_tier": "Reports features vary by plan (unverified)",
+   "sources": [
+    "https://docs.developers.clio.com/openapi.json",
+    "https://docs.developers.clio.com/clio-manage/api-reference/"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "API: Document archives (bulk document download)",
+   "product": "Clio Manage API",
+   "where": "/document_archives (POST, then download)",
+   "what": "Create a zip archive of documents asynchronously, poll state not_started..completed, then download.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://docs.developers.clio.com/openapi.json",
+    "https://docs.developers.clio.com/clio-manage/api-reference/"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "API: Custom Actions (UI extension)",
+   "product": "Clio Manage API",
+   "where": "/custom_actions",
+   "what": "A partner app adds a labelled link into Clio pages (activities, documents, contacts, matters, folders show pages) that opens the partner's target_url with context.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://docs.developers.clio.com/openapi.json",
+    "https://docs.developers.clio.com/clio-manage/api-reference/"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "API: Clio Payments links and payments",
+   "product": "Clio Manage API",
+   "where": "/clio_payments/links, /clio_payments/payments",
+   "what": "Create expiring payment links (amount, currency, email, redirect_url) and read payments; webhook model clio_payments_payment.",
+   "plan_tier": "Requires Clio Payments",
+   "sources": [
+    "https://docs.developers.clio.com/openapi.json",
+    "https://docs.developers.clio.com/guides/clio-manage/webhooks/"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "API: trust requests",
+   "product": "Clio Manage API",
+   "where": "/trust_requests (POST only)",
+   "what": "Create a trust request (request client funds into trust) by API; no list/read endpoint in the spec.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://docs.developers.clio.com/openapi.json"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "API: auth, scopes, versions, limits",
+   "product": "Clio Manage API",
+   "where": "Developer Portal > app permissions",
+   "what": "OAuth 2.0 authorization-code apps with redirect URIs and optional deauthorization callback. Per-area permissions, read or read/write; fixed at authorization; unreadable related records returned with redacted:true. Minor versions 4.X.Y via X-API-VERSION header; field selection via fields param; ETags; cursor paging. Rate limit 50 requests/minute per token at peak (US/CA Mon-Fri 04:00-19:00 PT), higher off-peak; 429 with Retry-After; no custom increases.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://docs.developers.clio.com/api-docs/clio-manage/applications/",
+    "https://docs.developers.clio.com/api-docs/clio-manage/permissions/",
+    "https://docs.developers.clio.com/api-docs/clio-manage/rate-limits/",
+    "https://docs.developers.clio.com/openapi.json"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Webhooks",
+   "product": "Clio Manage API",
+   "where": "POST /api/v4/webhooks",
+   "what": "Subscriptions per model: matter, activity, bill, calendar_entry, communication, contact, task, document, folder, clio_payments_payment. Events created/updated/deleted, plus matter_opened/pended/closed. Handshake via X-Hook-Secret; deliveries signed HMAC-SHA256 in X-Hook-Signature. Payload carries only the fields you choose (default id+etag). Expire after 3 days by default, max 31 days, renew with PATCH. Retries with backoff, then suspended; 410 disables at once. 'updated' fires only when a selected field changes.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://docs.developers.clio.com/guides/clio-manage/webhooks/",
+    "https://docs.developers.clio.com/openapi.json",
+    "https://hookdeck.com/webhooks/platforms/guide-to-clio-webhooks-features-and-best-practices"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Zapier app",
+   "product": "Clio Manage (via Zapier)",
+   "where": "zapier.com/apps/clio",
+   "what": "12 triggers (new activity, bill, bill state updated, calendar entry, communication, contact, document, matter, matter status updated, matter note, task, task status updated), 17 actions (create matter/contact/task/time/expense/note/calendar entry/communication/folder, upload document, document from template, assign task template list, updates), 8 searches and 3 find-or-create. Zaps are firm-wide; Clio Grow not supported.",
+   "plan_tier": "Zapier plan required; Clio side all plans (unverified)",
+   "sources": [
+    "https://zapier.com/apps/clio/integrations",
+    "https://help.zapier.com/hc/en-us/articles/40860500158221-How-to-get-started-with-Clio-on-Zapier",
+    "https://help.clio.com/hc/en-us/articles/16186400854171"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio mobile app (iOS/Android)",
+   "product": "Clio Manage mobile",
+   "where": "App Store / Google Play 'Clio'",
+   "what": "Native app: view matters, documents (fullscreen), bills, calendar (day/month/agenda incl. statutes of limitations); in-app timer with categories, UTBMS, duplicate entries; create matters, events, notes, tasks; add documents; scan paper to PDF and file; AI document summaries; voice start/stop timers and dictation; texting and client-portal replies with AI drafts; internal messages; push notifications; tap-to-pay card acceptance; sign-in with PIN or Face ID, MFA. Requires iOS 11+/Android 8+ (older help text). Help articles: app locks after 3 minutes idle, 4-digit PIN or Face/Touch ID; lost device is deauthorized at Settings > Clio Mobile Apps. Bills and trust requests can be viewed and filtered but not generated or sent on mobile. Tap to pay deposits to the primary operating account in US dollars, including client retainers taken without a bill. (official help article text read via help.clio.com Zendesk API)",
+   "plan_tier": "All Clio Manage plans (unverified); tap to pay needs Clio Payments and appears US-only (deposits in USD)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9289640943643-Set-Up-Clio-s-Mobile-App",
+    "https://help.clio.com/hc/en-us/articles/9289699372699-Mobile-App-User-Security",
+    "https://help.clio.com/hc/en-us/articles/18563257786139-Mobile-App-Billing-and-Payments",
+    "https://web.archive.org/web/20260827203348/https://www.clio.com/features/mobile-app/",
+    "https://www.clio.com/features/mobile-app/",
+    "https://help.clio.com/hc/en-us/articles/9289640943643"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Mobile_Simplified-UI_Case-Management_Clio-Mobil-550x577.png",
+    "https://www.clio.com/wp-content/uploads/2023/10/Tap-to-Pay-Invoice-crop-550x671.png",
+    "https://www.clio.com/wp-content/uploads/2023/11/Mobile-Communication.png",
+    "https://www.clio.com/wp-content/uploads/2025/11/Masthead-Graphic@2x-750x575.png"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio for Clients app",
+   "product": "Clio Manage client portal",
+   "where": "Clio Manage > Communications > New > New client portal",
+   "what": "Secure client app (iOS/Android and web): one client portal per matter created from Communications; firm sends messages, shares files and folders, can add time entries from portal work, and can show the matter stage to the client; clients scan and share documents and chat with anyone at the firm; messages can be printed to PDF. (official help article text read via help.clio.com Zendesk API)",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9043484357147-Clio-for-Clients-Law-Firm-Setup"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Outlook add-in",
+   "product": "Clio Manage",
+   "where": "Outlook ribbon / pinned pane > Clio",
+   "what": "File single emails, whole threads and attachments to matters; scan inbox and bulk-file unfiled mail; Outlook folders mirror Clio matter folders; file without first creating the contact; built-in timer and optional automatic time entry on each file. Needs Microsoft 365 (Outlook 2016+) with Microsoft-hosted mail; not on-prem Exchange. Region: available in Canada. Official article (updated 2026-10-02): 'Filed to Clio' tag on filed mail; installed from Microsoft AppSource; does not work on shared inboxes; Firefox/Safari need enhanced cookie protection disabled. (official help article text read via help.clio.com Zendesk API)",
+   "plan_tier": "Included in subscription (2020 listing named Boutique/Elite; current tiers unverified)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in",
+    "https://web.archive.org/web/20200517133042/https://www.clio.com/app-directory/outlook-365-add-in/",
+    "https://www.clio.com/app-directory/outlook-365-add-in/",
+    "https://help.clio.com/hc/en-us/articles/9125228224539",
+    "https://marketplace.microsoft.com/en-us/product/saas/wa200003566"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2018/02/Outlook-365-add-in-File-750x422.png",
+    "https://www.clio.com/wp-content/uploads/2018/02/Outlook-365-add-in-Timer-750x422.png",
+    "https://www.clio.com/wp-content/uploads/2018/02/Outlook-365-add-in-WebFile-750x422.png",
+    "https://www.clio.com/wp-content/uploads/2018/02/Outlook-365-add-in-WebTimer-750x422.png"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Gmail add-on (Clio for Gmail)",
+   "product": "Clio Manage",
+   "where": "Gmail right panel > Clio",
+   "what": "File emails, threads and attachments to matters (stored in Communications and Documents), create time entries with default duration and category, add contacts from senders. Pick region at connect (ca.app.clio.com for Canada). Not supported in the Gmail iPhone/iPad app; works on Android once installed via browser.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://web.archive.org/web/20240705062236/https://help.clio.com/hc/en-us/articles/9125226343579-Clio-for-Gmail",
+    "https://help.clio.com/hc/en-us/articles/9125226343579",
+    "https://workspace.google.com/marketplace/app/clio_for_gmail/259969685083"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Data export (Exports page)",
+   "product": "Clio Manage",
+   "where": "Exports page: app.clio.com/export (Canada: ca.app.clio.com/export); admin only",
+   "what": "Admins download 'Excel ready CSV' per type: calendar entries, communications, contact notes, contact related matters, contacts, expense entries, matter notes, matters, tasks, time entries. Outstanding balances via Reports > Accounts receivable (CSV); trust balances via the trust management report. Purpose stated: record keeping or moving to another Clio account via migration templates. No documents, bills or trust ledgers in the export page; documents come from Documents download or the Document Archives API. (official help article text read via help.clio.com Zendesk API)",
+   "plan_tier": "All plans (unverified)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/50633368921243-Export-Data-From-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/50633368921243",
+    "https://support.caretlegal.com/hc/en-us/articles/25418384542612-How-Do-I-Export-My-Data-From-Clio",
+    "https://support.casefox.com/portal/en/kb/articles/how-to-export-data-from-clio",
+    "https://docs.developers.clio.com/openapi.json"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  }
+ ],
+ "gaps": [
+  {
+   "feature": "App marketplace size (300+ apps)",
+   "our_area": "readiness",
+   "our_screen": "integrations-hub",
+   "status": "deliberately different",
+   "proposal": "Keep a focused launch set but make breadth cheap: add a 'Request a connector' action on integrations-hub that the agent turns into a scoped connector spec (data flow, scopes, region) for admin review; track requests as a demand list.",
+   "priority": "should"
+  },
+  {
+   "feature": "Directory filters by region and practice area",
+   "our_area": "readiness",
+   "our_screen": "integrations-hub",
+   "status": "missing",
+   "proposal": "Add fields to Connector: practice_areas[], regions_available[] (CA provinces), category (match Clio's: accounting, payments, e-sign, e-filing, conveyancing, family, docketing, research, text). Filter chips on integrations-hub; default to 'available in Ontario'.",
+   "priority": "could"
+  },
+  {
+   "feature": "QuickBooks Online sync (Canada)",
+   "our_area": "readiness",
+   "our_screen": "integrations-hub",
+   "status": "partial",
+   "proposal": "Upgrade 'Accounting export (file)' to a two-way QuickBooks Online Canada and Xero connector: push bills, payments, operating transactions; never post client trust detail beyond the firm's trust GL summary; GST/HST tax codes mapped. Gate G-INT.",
+   "priority": "must"
+  },
+  {
+   "feature": "Canadian practice-area integrations (conveyancing, family)",
+   "our_area": "readiness",
+   "our_screen": "integrations-hub",
+   "status": "missing",
+   "proposal": "Add connector cards (phase v1.1+) for Ontario real estate (Teraview / Unity / Do Process style export of parties and closing figures) and family (Divorcepath / DivorceMate data exchange). Agent maps matter data to the target format; human approves each push.",
+   "priority": "should"
+  },
+  {
+   "feature": "Public API with OAuth apps",
+   "our_area": "platform",
+   "our_screen": "api-and-webhooks",
+   "status": "partial",
+   "proposal": "Add OAuth 2.0 app registration (redirect URIs, deauthorization callback) alongside API keys; per-area read|read-write scopes fixed at grant time; related records the grant cannot see returned redacted; field selection (?fields=); ETags; minor versioning header. Also resolve the readiness note 'open API later'.",
+   "priority": "should"
+  },
+  {
+   "feature": "API resource breadth",
+   "our_area": "platform",
+   "our_screen": "api-and-webhooks",
+   "status": "partial",
+   "proposal": "Publish an OpenAPI spec covering at least: matters, contacts, relationships, tasks, calendar, time and expense activities, bills (with state machine and available transitions), payments, payment links, documents and folders (upload, versions, download), document archives (zip job), custom fields, notes, communications, reports (run + download csv/pdf/xlsx) and report schedules. Trust: read ledgers only; creating a trust request allowed, never writing trust entries.",
+   "priority": "should"
+  },
+  {
+   "feature": "Webhook handshake, signature, expiry, field selection",
+   "our_area": "platform",
+   "our_screen": "api-and-webhooks",
+   "status": "partial",
+   "proposal": "Webhook fields: model (matter, contact, activity, bill, payment, document, folder, task, calendar_entry, communication), events (created, updated, deleted, matter_opened/pending/closed), fields (selected attributes, ids by default), shared secret via verification handshake, HMAC-SHA256 signature header, expires_at (firm max), status pending|enabled|suspended, 410 = disable. 'updated' fires only when a selected field changes. Agent job 'Key and webhook hygiene' renews or flags expiring hooks.",
+   "priority": "should"
+  },
+  {
+   "feature": "Custom Actions (partner links inside our UI)",
+   "our_area": "platform",
+   "our_screen": "api-and-webhooks",
+   "status": "missing",
+   "proposal": "Entity CustomAction {label, target_url (https), placement: matter|contact|document|folder|activity page}; opens target with signed context (ids only). G-INT on create.",
+   "priority": "could"
+  },
+  {
+   "feature": "Zapier / no-code automation",
+   "our_area": "platform",
+   "our_screen": "automation-settings",
+   "status": "missing",
+   "proposal": "Ship a Zapier (and Make) app built on our public API/webhooks with triggers mirroring our webhook events and actions create matter/contact/task/time/note/upload document; same G-INT gate and residency warning. AI-native alternative: let the agent build a 'routine' from a plain-language rule inside automation-settings so most firms never need Zapier.",
+   "priority": "could"
+  },
+  {
+   "feature": "Native mobile apps",
+   "our_area": "readiness",
+   "our_screen": "mobile-app",
+   "status": "deliberately different",
+   "proposal": "Keep installable web app for v1 but add: document scan (camera to PDF, OCR, file to matter), calendar view with limitation dates, create matter/task/note/event, push notifications, biometric unlock, client text/portal replies through G-OUT drafts. Decide native wrapper if push on iOS PWA proves unreliable.",
+   "priority": "should"
+  },
+  {
+   "feature": "Mobile document scanning",
+   "our_area": "readiness",
+   "our_screen": "mobile-app",
+   "status": "missing",
+   "proposal": "Action 'Scan to matter' (human): camera capture, page crop, PDF+OCR, agent proposes matter and document category; no gate.",
+   "priority": "should"
+  },
+  {
+   "feature": "Mobile tap-to-pay",
+   "our_area": "readiness",
+   "our_screen": "payments-setup",
+   "status": "missing",
+   "proposal": "Could: in-person card acceptance via provider SDK on phone, landing in operating unless the bill is a retainer and the trust merchant account is chosen; same G-PAY mapping rules. Verify provider support in Canada first. Clio's tap to pay deposits in USD to operating, so it looks US-only today; low urgency for Canadian firms.",
+   "priority": "could"
+  },
+  {
+   "feature": "Outlook add-in parity",
+   "our_area": "platform",
+   "our_screen": "mail-add-in",
+   "status": "covered",
+   "proposal": "Add: Outlook folders mirroring matter folders (optional), file before the contact exists (creates contact draft), timer in the pane, and 'auto time entry on file' toggle per user. Requirements note: Microsoft 365 hosted mail only.",
+   "priority": "could"
+  },
+  {
+   "feature": "Gmail add-on parity",
+   "our_area": "platform",
+   "our_screen": "mail-add-in",
+   "status": "covered",
+   "proposal": "Add per-user defaults for time entries from mail (duration, activity category) and region selection at connect (we are Canada only, so show the residency note instead).",
+   "priority": "could"
+  },
+  {
+   "feature": "Data export",
+   "our_area": "platform",
+   "our_screen": "integrations-data",
+   "status": "covered",
+   "proposal": "Ours already exceeds Clio (whole firm, documents, ledgers with audit chain, hashes). Add: per-entity 'spreadsheet-ready CSV' quick links like Clio for admins, and a 'Leave us' export preset that matches Clio's import formats so firms can switch both ways.",
+   "priority": "could"
+  },
+  {
+   "feature": "Clio import using Clio API (Canadian region)",
+   "our_area": "readiness",
+   "our_screen": "clio-import",
+   "status": "partial",
+   "proposal": "Source = Clio API connection must target ca.app.clio.com and register a Canada-region developer app; respect 50 req/min peak limit (schedule bulk pulls off-peak, after 19:00 PT); use Document Archives for documents and Reports API (trust_listing, client_ledger, trust_ledger) for trust reconciliation; 'alongside' mode uses Clio webhooks (renew every <=31 days).",
+   "priority": "must"
+  },
+  {
+   "feature": "Mobile tap-to-pay deposits retainers to operating (Clio)",
+   "our_area": "readiness",
+   "our_screen": "payments-setup",
+   "status": "deliberately different",
+   "proposal": "If we ever add in-person payments, a retainer must route to the trust merchant account; payments-setup edge case already blocks retainers landing in operating. Keep that rule and cite it in the versus page as a trust-safety difference.",
+   "priority": "should"
+  }
+ ],
+ "corrections": [
+  {
+   "our_claim": "readiness clio_gaps: 'Hundreds of integrations' / 'App directory'",
+   "truth": "Clio's own site now says 300+ integrations; the directory paginates to 41 pages with 56 category filters and a Canada region filter. Use '300+' and note that only a subset is available in Canada.",
+   "sources": [
+    "https://web.archive.org/web/20261005050315/https://www.clio.com/app-directory/",
+    "https://help.clio.com/hc/en-au/articles/16439278772635-Clio-App-Directory"
+   ]
+  },
+  {
+   "our_claim": "readiness integrations-hub note: 'open API later' (status added)",
+   "truth": "Contradicts platform.json api-and-webhooks, which already specifies API keys and webhooks. Pick one: either API is in scope (platform) or later (readiness).",
+   "sources": []
+  },
+  {
+   "our_claim": "platform clio_gaps: Clio developer API lives at 'Settings > Developer applications'",
+   "truth": "Clio developer apps are registered in the separate Developer Portal (developers.clio.com, or ca.developers.clio.com for Canada), not a Clio Manage settings page; firm users authorize them by OAuth.",
+   "sources": [
+    "https://docs.developers.clio.com/api-docs/clio-manage/applications/",
+    "https://docs.developers.clio.com/openapi.json"
+   ]
+  },
+  {
+   "our_claim": "platform clio_gaps: Clio data export at 'Settings > Data export', CSV per data type",
+   "truth": "CSV per data type is right, but the place is an admin-only Exports page at app.clio.com/export (ca.app.clio.com/export in Canada), not Settings. It covers 10 record types only; balances come from Reports; documents are not included.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/50633368921243-Export-Data-From-Clio-Manage"
+   ]
+  },
+  {
+   "our_claim": "versus page: Clio 'Mobile apps, Outlook and Gmail add-ins' vs ours 'Web only'",
+   "truth": "Accurate as a gap, but readiness.json marks it 'added' (installable web app + add-ins). The versus page and spec disagree about status; versus should say 'planned' until built.",
+   "sources": [
+    "https://web.archive.org/web/20260827203348/https://www.clio.com/features/mobile-app/",
+    "https://web.archive.org/web/20200517133042/https://www.clio.com/app-directory/outlook-365-add-in/",
+    "https://web.archive.org/web/20240705062236/https://help.clio.com/hc/en-us/articles/9125226343579-Clio-for-Gmail"
+   ]
+  },
+  {
+   "our_claim": "platform api-and-webhooks events: 'matter created/closed, bill issued, payment received, document filed' (implied Clio parity)",
+   "truth": "Clio's webhooks cover 10 models with created/updated/deleted plus matter opened/pended/closed, choose payload fields, use a handshake + HMAC signature, and expire after at most 31 days. Ours is narrower; fine as v1 but not parity.",
+   "sources": [
+    "https://docs.developers.clio.com/guides/clio-manage/webhooks/",
+    "https://docs.developers.clio.com/openapi.json"
+   ]
+  }
+ ],
+ "screenshots_index": [
+  {
+   "area": "App Directory",
+   "url": "https://web.archive.org/web/20261005050315/https://www.clio.com/app-directory/",
+   "shows": "Directory landing: category, region and keyword filters, collections, 41 pages"
+  },
+  {
+   "area": "Mobile app",
+   "url": "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Mobile_Simplified-UI_Case-Management_Clio-Mobil-550x577.png",
+   "shows": "Mobile case-management screen"
+  },
+  {
+   "area": "Mobile app",
+   "url": "https://www.clio.com/wp-content/uploads/2023/10/Tap-to-Pay-Invoice-crop-550x671.png",
+   "shows": "Tap to pay on an invoice"
+  },
+  {
+   "area": "Mobile app",
+   "url": "https://www.clio.com/wp-content/uploads/2023/11/Mobile-Communication.png",
+   "shows": "Mobile client communication / messages"
+  },
+  {
+   "area": "Mobile app",
+   "url": "https://www.clio.com/wp-content/uploads/2025/11/Masthead-Graphic@2x-750x575.png",
+   "shows": "Mobile app hero graphic (2025)"
+  },
+  {
+   "area": "Mobile app",
+   "url": "https://web.archive.org/web/20260827203348/https://www.clio.com/features/mobile-app/",
+   "shows": "Feature page listing mobile capabilities"
+  },
+  {
+   "area": "Outlook add-in",
+   "url": "https://www.clio.com/wp-content/uploads/2018/02/Outlook-365-add-in-File-750x422.png",
+   "shows": "Filing an email to a matter (desktop Outlook)"
+  },
+  {
+   "area": "Outlook add-in",
+   "url": "https://www.clio.com/wp-content/uploads/2018/02/Outlook-365-add-in-Timer-750x422.png",
+   "shows": "Timer in the add-in pane"
+  },
+  {
+   "area": "Outlook add-in",
+   "url": "https://www.clio.com/wp-content/uploads/2018/02/Outlook-365-add-in-WebFile-750x422.png",
+   "shows": "Filing in Outlook on the web"
+  },
+  {
+   "area": "Outlook add-in",
+   "url": "https://www.clio.com/wp-content/uploads/2018/02/Outlook-365-add-in-WebTimer-750x422.png",
+   "shows": "Timer in Outlook on the web"
+  },
+  {
+   "area": "Gmail add-on",
+   "url": "https://workspace.google.com/marketplace/app/clio_for_gmail/259969685083",
+   "shows": "Google Workspace Marketplace listing with screenshots"
+  },
+  {
+   "area": "Outlook add-in",
+   "url": "https://marketplace.microsoft.com/en-us/product/saas/wa200003566",
+   "shows": "Microsoft marketplace listing with screenshots"
+  },
+  {
+   "area": "API",
+   "url": "https://docs.developers.clio.com/clio-manage/api-reference/",
+   "shows": "Full API reference with every endpoint and schema"
+  },
+  {
+   "area": "Zapier",
+   "url": "https://zapier.com/apps/clio/integrations",
+   "shows": "Zapier trigger/action list for Clio"
+  }
+ ],
+ "open_questions": [
+  "Exact current App Directory count and which apps carry the Canada region tag: needs a live browse of clio.com/app-directory filtered by Canada (site returns 403 to fetch; the Wayback snapshot does not expose the region filter result).",
+  "Do Dye & Durham (Unity/Do Process/Teraview), DivorceMate, ESILAW or Moneris have Clio integrations? None found; confirm on vendor sites.",
+  "Does the Clio mobile app work offline? No source found.",
+  "Current plan tiers that include the Outlook add-in, Zapier and API access (2020 listing used old Boutique/Elite names).",
+  "Is there an Ontario/LSO-specific trust report in Clio? The API only lists Law Society of Alberta report kinds; Ontario reports may exist in the UI under generic names.",
+  "Tap to pay in Canada: help text says deposits are in US dollars; confirm whether Canadian Clio Payments accounts have it."
+ ],
+ "sources": [
+  "https://developers.support.clio.com/hc/en-us/articles/9410485343259",
+  "https://docs.developers.clio.com/",
+  "https://docs.developers.clio.com/api-docs/clio-manage/applications/",
+  "https://docs.developers.clio.com/api-docs/clio-manage/permissions/",
+  "https://docs.developers.clio.com/api-docs/clio-manage/rate-limits/",
+  "https://docs.developers.clio.com/clio-manage/api-reference/",
+  "https://docs.developers.clio.com/guides/add-to-clio/overview-add-to-clio/",
+  "https://docs.developers.clio.com/guides/clio-manage/webhooks/",
+  "https://docs.developers.clio.com/handbook/launch-your-app/app-directory-listing-guidelines/",
+  "https://docs.developers.clio.com/openapi.json",
+  "https://help.clio.com/hc/en-au/articles/16439278772635-Clio-App-Directory",
+  "https://help.clio.com/hc/en-us/articles/16186400854171",
+  "https://help.clio.com/hc/en-us/articles/16439278772635-Clio-App-Directory",
+  "https://help.clio.com/hc/en-us/articles/18563257786139-Mobile-App-Billing-and-Payments",
+  "https://help.clio.com/hc/en-us/articles/50633368921243",
+  "https://help.clio.com/hc/en-us/articles/50633368921243-Export-Data-From-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/9043484357147-Clio-for-Clients-Law-Firm-Setup",
+  "https://help.clio.com/hc/en-us/articles/9125226343579",
+  "https://help.clio.com/hc/en-us/articles/9125228224539",
+  "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in",
+  "https://help.clio.com/hc/en-us/articles/9289640943643",
+  "https://help.clio.com/hc/en-us/articles/9289640943643-Set-Up-Clio-s-Mobile-App",
+  "https://help.clio.com/hc/en-us/articles/9289699372699-Mobile-App-User-Security",
+  "https://help.zapier.com/hc/en-us/articles/40860500158221-How-to-get-started-with-Clio-on-Zapier",
+  "https://hookdeck.com/webhooks/platforms/guide-to-clio-webhooks-features-and-best-practices",
+  "https://marketplace.microsoft.com/en-us/product/saas/wa200003566",
+  "https://oba.org/Innovator-in-Residence/Newsletter/WINTER-2020-EDITION/SPOTLIGHT-FOUNDED",
+  "https://support.caretlegal.com/hc/en-us/articles/25418384542612-How-Do-I-Export-My-Data-From-Clio",
+  "https://support.casefox.com/portal/en/kb/articles/how-to-export-data-from-clio",
+  "https://web.archive.org/web/20200517133042/https://www.clio.com/app-directory/outlook-365-add-in/",
+  "https://web.archive.org/web/20240705062236/https://help.clio.com/hc/en-us/articles/9125226343579-Clio-for-Gmail",
+  "https://web.archive.org/web/20260827203348/https://www.clio.com/features/mobile-app/",
+  "https://web.archive.org/web/20261005050315/https://www.clio.com/app-directory/",
+  "https://workspace.google.com/marketplace/app/clio_for_gmail/259969685083",
+  "https://www.clio.com/about/press/twelve-new-apps-join-clios-rapidly-expanding-reinvented-platform/",
+  "https://www.clio.com/app-directory/",
+  "https://www.clio.com/app-directory/divorcepath/",
+  "https://www.clio.com/app-directory/outlook-365-add-in/",
+  "https://www.clio.com/app-directory/quickbooks-online/",
+  "https://www.clio.com/features/mobile-app/",
+  "https://www.clio.com/wp-content/uploads/2018/02/Outlook-365-add-in-File-750x422.png",
+  "https://www.clio.com/wp-content/uploads/2018/02/Outlook-365-add-in-Timer-750x422.png",
+  "https://www.clio.com/wp-content/uploads/2018/02/Outlook-365-add-in-WebFile-750x422.png",
+  "https://www.clio.com/wp-content/uploads/2018/02/Outlook-365-add-in-WebTimer-750x422.png",
+  "https://www.clio.com/wp-content/uploads/2021/03/Clio_Manage_Mobile_Simplified-UI_Case-Management_Clio-Mobil-550x577.png",
+  "https://www.clio.com/wp-content/uploads/2023/10/Tap-to-Pay-Invoice-crop-550x671.png",
+  "https://www.clio.com/wp-content/uploads/2023/11/Mobile-Communication.png",
+  "https://www.clio.com/wp-content/uploads/2025/11/Masthead-Graphic@2x-750x575.png",
+  "https://zapier.com/apps/clio/integrations"
+ ]
+}

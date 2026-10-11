@@ -1,0 +1,64 @@
+===== Manage Your Grow AI Subscription https://help.clio.com/hc/en-us/articles/52131731711003-Manage-Your-Grow-AI-Subscription updated 2026-09-28T22:03:19Z
+Grow AI assists with your lead intake process by engaging with leads and collecting lead information, analyzing them, and producing fit assessments, helping you prioritize which leads to pursue. Grow AI is billed based on results in that your firm is charged for each lead that turns into an actual client. You can set a monthly hiring target to manage your workload and control your Grow AI costs. This article covers your free trial, how to set a hiring target, where to review what Grow AI has worked on, and how Grow AI charges appear on your Clio invoice.
+Grow AI free trial
+You can start Grow AI as a free trial. During the trial, your firm can hire a set number of matters with Grow AI's help at no cost. While you are in the trial period, a Free trial label appears where you manage your Grow AI subscription on the Billing tab along with the number of free hires you have remaining. The hiring target you set during the trial takes effect when your trial period ends.
+Set a hiring target
+A hiring target is the number of matters per month you want Grow AI to help you hire. Setting one helps you manage both your team's workload and your Grow AI costs, because Grow AI pauses once the target is met. When your next billing cycle begins, Grow AI resumes automatically.
+Tip: Consider a target based on your firm's hiring history over the last 12 months.
+Set target Edit target
+- In Clio Grow, go to Settings > Subscription.
+- Click the Billing tab.
+- In the Hiring target section, click Set hiring target.
+- Enter your target number of matters per month. The Estimated costs will update.
+- Click Save target.
+Your Grow AI panel will show a summary of your current performance relative to your target.
+- In Clio Grow, go to Settings > Subscription.
+- Click the Billing tab.
+- In the Hiring target section, click the edit (pencil) icon next to your current target.
+- Update the target amount. The Estimated costs will update.
+- Click Save target.
+Once saved, the Hiring target section shows your target, your estimated costs, and the date your target resets. Under Progress, you can see how many matters Grow AI has helped you hire against your target for the current period.
+Important: A hiring target is not a billing cap. Matters already in your pipeline that Grow AI assisted with may still be hired and charged after your target is reached.
+Track Grow AI's lead intake metrics
+You can track what Grow AI has done for your firm in a given billing cycle, so you can see the work behind your charges.
+- In Clio Grow, go to Settings > Subscription.
+- Click the Activity tab.
+- 
+Optional: Use the Billing cycle dropdown to review a different period.
+The Activity tab shows the following:
+- 
+Matters and leads worked: The total number of leads and matters Grow AI took action on during the billing cycle. Not all of these result in a charge.
+- 
+Matters hired: The number of matters your firm hired that Grow AI assisted with during the billing cycle. These are the matters you are charged for.
+- 
+Activity history: A record of the individual actions Grow AI took.
+Understand cost controls
+Grow AI includes two controls to help prevent unexpected costs, both in the Cost controls section of the Billing tab.
+- 
+Usage alerts: Clio alerts you when Grow AI predicts that your current usage will cause you to meet your hiring target, in case you want to adjust your target before Grow AI pauses.
+- 
+Target cap: Once your hiring target is met, Grow AI pauses. It completes activities already in progress but does not take new actions. You are still charged for any matters hired during this time that Grow AI assisted with. Refer to Understand Grow AI billing's scenario to understand how in-progress activities may be added to the next month's allotment.
+Understand Grow AI billing
+A charge is created when a matter's status is set to Hired in Clio Grow, and only when Grow AI assisted with that lead (e.g., responding to a website chat, handling a phone call, or replying to an email). 
+Note: If Grow AI extracted a lead from a third-party source (such as a Facebook or Instagram notification) but could not engage because no reply-to address was available, a charge will not apply.Your Grow AI charges appear on your Clio invoice in one of two ways:
+- 
+Billing threshold invoice: Clio sets a billing threshold, which is a dollar amount of unbilled Grow AI usage. When your accrued usage reaches this threshold within your billing cycle, an invoice is generated automatically for that amount and your usage tracking resets to zero.
+- 
+Regular billing cycle invoice: Any usage not already captured by a threshold invoice is included on your regular Clio bill date, alongside your standard subscription fees. Your usage tracking resets to zero at the start of each new billing cycle.
+Note: The billing threshold is set by Clio and may vary by region and currency. Contact Clio's support team if you have questions about your threshold. Your accrued Grow AI usage is invoiced immediately if you cancel your Clio Grow subscription or change your billing cycle.
+Example
+Consider a customer on a monthly billing cycle (Jan 15 – Feb 14) with a $1,000 billing threshold:
+- On Jan 25, the customer's accrued Grow AI usage reaches $1,000. An invoice for $1,000 is generated immediately and their usage tracking resets to zero.
+- Between Jan 25 and Feb 14, the customer accrues an additional $500 in Grow AI usage. 
+- On Feb 14, the $500 is included on the same invoice as their regular subscription fees. Their usage tracking resets to zero for the new billing cycle.
+Deactivate or reactivate Grow AI
+If you no longer want Grow AI working on your leads, you can deactivate it. Deactivating stops Grow AI from taking new actions across all channels.
+- In Clio Grow, go to Settings > Subscription.
+- Click the Billing tab.
+- In the Cost controls section, click Deactivate Grow AI or Reactivate Grow AI.
+- In the modal, confirm your choice.
+Important: Deactivating Grow AI does not cancel charges already accrued. Any unbilled usage at the time you deactivate is still invoiced. (light orange) 
+Up next
+- Customize Grow AI: Set your intake criteria, appointment booking, frequently asked questions, and languages.
+
+IMGS: []

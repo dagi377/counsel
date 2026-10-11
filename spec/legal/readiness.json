@@ -1,0 +1,1767 @@
+{
+ "area": "readiness",
+ "title": "Readiness (closing Clio gaps)",
+ "summary": "What a firm needs before it trusts a new practice app with its files and trust money: security proof (SOC 2, SOC 1, SLA, status page), provable Canadian residency for storage and model calls, integrations (two-way QuickBooks Online Canada and Xero), payments, mobile web, mail add-ins, research, and a safe move from Clio. French is a possible edge (no French Clio interface found), not a gap.",
+ "screens": [
+  {
+   "id": "trust-center",
+   "name": "Security & trust center",
+   "route": "/settings/security",
+   "who": [
+    "owner",
+    "admin",
+    "auditor"
+   ],
+   "purpose": "Show the firm, and its insurer, how its data is protected, with evidence rather than claims.",
+   "layout": "Top: certification status cards. Middle: controls checklist with evidence links. Bottom: uptime history, incident log and sub-processor list.",
+   "fields": [
+    {
+     "name": "Certification",
+     "type": "enum",
+     "required": true,
+     "note": "SOC 2 Type I, SOC 2 Type II, SOC 1 Type II (financial controls, matters for trust money), ISO 27001; status planned | in audit | issued"
+    },
+    {
+     "name": "Data location",
+     "type": "text",
+     "required": true,
+     "note": "Canadian region for data at rest and backups; model calls listed separately below"
+    },
+    {
+     "name": "Encryption",
+     "type": "text",
+     "required": true,
+     "note": "At rest and in transit; per-firm keys"
+    },
+    {
+     "name": "Uptime (90 days)",
+     "type": "number",
+     "required": false,
+     "note": "From the status page"
+    },
+    {
+     "name": "Sub-processors",
+     "type": "ref",
+     "required": true,
+     "note": "Every outside service that touches firm data, with its country"
+    },
+    {
+     "name": "Pen test report",
+     "type": "file",
+     "required": false,
+     "note": "Shared under NDA"
+    },
+    {
+     "name": "AI inference location",
+     "type": "text",
+     "required": true,
+     "note": "Model provider and inference region, read from platform integrations-data inference_region. If not Canada, show 'stored in Canada, processed in <region>' and drop any 'all in Canada' claim"
+    },
+    {
+     "name": "Per-call residency log",
+     "type": "ref",
+     "required": true,
+     "note": "Every agent model call logged with provider, region and time; exportable for the firm and its insurer"
+    },
+    {
+     "name": "Backup region",
+     "type": "text",
+     "required": true,
+     "note": "Canadian region of backups and their retention"
+    },
+    {
+     "name": "SLA target",
+     "type": "number",
+     "required": true,
+     "note": "Monthly uptime commitment, e.g. 99.9%"
+    },
+    {
+     "name": "Service credit policy",
+     "type": "text",
+     "required": true,
+     "note": "Credit as a share of the monthly fee when uptime falls below target"
+    },
+    {
+     "name": "Status page",
+     "type": "text",
+     "required": true,
+     "note": "Public per-cell status page, 90-day history, incident subscription by email"
+    },
+    {
+     "name": "Support access default",
+     "type": "enum",
+     "required": true,
+     "note": "None; vendor support needs a firm grant (see support access screen)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Download security pack",
+     "by": "human",
+     "gate": "none",
+     "note": "Questionnaire answers, policies, latest report"
+    },
+    {
+     "name": "Request audit report",
+     "by": "human",
+     "gate": "approve",
+     "note": "NDA click-through; SOC 2 or SOC 1 report released by our security lead"
+    },
+    {
+     "name": "Draft insurer questionnaire answers",
+     "by": "agent",
+     "gate": "approve",
+     "note": "From the controls list; owner reviews before sending"
+    },
+    {
+     "name": "Draft service credit note",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Monthly uptime computed from the status page; below target the agent drafts the credit, owner approves"
+    },
+    {
+     "name": "Export residency log",
+     "by": "human",
+     "gate": "none",
+     "note": "Per-call region log for a date range, CSV"
+    }
+   ],
+   "agent": "Fills security questionnaires (insurers, clients) from the controls list and cites the policy behind each answer. Computes monthly uptime against the SLA and drafts any service credit.",
+   "gate": "Owner approves any questionnaire answer before it leaves the firm.",
+   "states": [
+    "planned",
+    "in audit",
+    "certified",
+    "incident open"
+   ],
+   "edge": [
+    "A sub-processor moves data outside Canada: firm is told 30 days ahead and can refuse",
+    "Incident affecting the firm: notice within the time set by PIPEDA breach rules (verify)",
+    "Canadian-region inference unavailable for the chosen model: calls blocked or marked 'processed outside Canada' per firm setting; never silent",
+    "Status page down with the app: hosted outside the firm cell so it stays reachable"
+   ],
+   "reg": "PIPEDA breach reporting and record keeping (verify); LSO technology competence guidance (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Control",
+     "Status",
+     "Evidence"
+    ],
+    "rows": [
+     [
+      "SOC 2 Type I",
+      "In audit",
+      "Auditor engaged, report Q2"
+     ],
+     [
+      "SOC 2 Type II",
+      "Planned",
+      "6-month observation after Type I"
+     ],
+     [
+      "SOC 1 Type II",
+      "Planned",
+      "Trust and billing controls"
+     ],
+     [
+      "Data at rest in Canada",
+      "Done",
+      "Region pinned, backups in-country"
+     ],
+     [
+      "Model inference in Canada",
+      "Pending contract",
+      "Canadian-region endpoint to be confirmed"
+     ],
+     [
+      "Uptime SLA 99.9%",
+      "Draft",
+      "Credit policy with owner"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "integrations-hub",
+   "name": "Integrations hub",
+   "route": "/settings/integrations",
+   "who": [
+    "owner",
+    "admin"
+   ],
+   "purpose": "Connect the services a firm already uses, with clear data flow and approval for anything that sends data out.",
+   "layout": "Grid of connectors by category (email, calendar, bank feed, payments, e-sign, accounting, storage, research, task tracker). Each card: status, what data flows which way, data location.",
+   "fields": [
+    {
+     "name": "Connector",
+     "type": "enum",
+     "required": true,
+     "note": "Launch set: Microsoft 365, Google Workspace, bank feed, payments, e-sign, QuickBooks Online Canada, Xero, Jira. Later: Ontario conveyancing and family exchanges"
+    },
+    {
+     "name": "Direction",
+     "type": "enum",
+     "required": true,
+     "note": "Read only | two-way | send only"
+    },
+    {
+     "name": "Data location",
+     "type": "text",
+     "required": true,
+     "note": "Shown before connecting; outside Canada needs owner approval"
+    },
+    {
+     "name": "Scopes",
+     "type": "text",
+     "required": true,
+     "note": "Least privilege; listed in plain words"
+    },
+    {
+     "name": "Accounting sync",
+     "type": "enum",
+     "required": false,
+     "note": "QuickBooks Online Canada | Xero; two-way: bills, payments, operating transactions out; payments status back. Trust detail never posted, only the trust GL summary"
+    },
+    {
+     "name": "Tax code mapping",
+     "type": "text",
+     "required": false,
+     "note": "GST/HST codes mapped per province before first sync"
+    },
+    {
+     "name": "Requested connectors",
+     "type": "ref",
+     "required": false,
+     "note": "Demand list from 'Request a connector'"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Connect",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner approves any connector that sends data out"
+    },
+    {
+     "name": "Test connection",
+     "by": "agent",
+     "gate": "none",
+     "note": "Read-only probe, result logged"
+    },
+    {
+     "name": "Disconnect",
+     "by": "human",
+     "gate": "none",
+     "note": "Tokens revoked at once"
+    },
+    {
+     "name": "Request a connector",
+     "by": "human",
+     "gate": "none",
+     "note": "Agent turns the request into a scoped spec (data flow, scopes, region) for owner review; tallied as demand"
+    },
+    {
+     "name": "Run accounting sync",
+     "by": "agent",
+     "gate": "approve",
+     "note": "First sync and any re-map approved by owner; later syncs run on schedule"
+    }
+   ],
+   "agent": "Watches connector health and explains failures in plain words; proposes the minimum scopes for each connector.",
+   "gate": "Owner approves connectors that send data outside the firm or outside Canada.",
+   "states": [
+    "available",
+    "connected",
+    "needs attention",
+    "disconnected"
+   ],
+   "edge": [
+    "Token expires: work queues, nothing lost, admin told",
+    "Connector vendor changes its terms or region: flagged for re-approval",
+    "Accounting sync would post client-level trust detail: blocked, only trust GL summary allowed",
+    "Bill edited in QuickBooks after sync: conflict shown, our ledger wins until a person resolves it",
+    "API phased; see platform api-and-webhooks (v1 API keys + id-only webhooks; v1.1 OAuth apps; reports API later); this hub lists firm-facing connectors only"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Connector",
+     "Category",
+     "Phase",
+     "Data location"
+    ],
+    "rows": [
+     [
+      "Microsoft 365 mail and calendar",
+      "Email",
+      "Pilot",
+      "Canada"
+     ],
+     [
+      "Google Workspace",
+      "Email",
+      "Pilot",
+      "Canada"
+     ],
+     [
+      "Bank feed (read only)",
+      "Trust",
+      "v1",
+      "Canada"
+     ],
+     [
+      "Payments provider (card, PAD, Interac)",
+      "Payments",
+      "v1",
+      "Canada"
+     ],
+     [
+      "QuickBooks Online Canada (two-way)",
+      "Books",
+      "v1",
+      "Canada (verify)"
+     ],
+     [
+      "Xero (two-way)",
+      "Books",
+      "v1",
+      "Per vendor (verify)"
+     ],
+     [
+      "Ontario conveyancing / family exchange",
+      "Practice",
+      "v1.1",
+      "Canada"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "payments-setup",
+   "name": "Payments setup",
+   "route": "/settings/payments",
+   "who": [
+    "owner",
+    "bookkeeper"
+   ],
+   "purpose": "Take card and bank payments through a payment provider, with trust and operating money kept apart.",
+   "layout": "Two merchant accounts side by side (trust, operating), fee settings, payout schedule, test payment.",
+   "fields": [
+    {
+     "name": "Trust merchant account",
+     "type": "ref",
+     "required": true,
+     "note": "Deposits only to the trust bank account"
+    },
+    {
+     "name": "Operating merchant account",
+     "type": "ref",
+     "required": true,
+     "note": "Fees and disbursements"
+    },
+    {
+     "name": "Processing fees charged to",
+     "type": "enum",
+     "required": true,
+     "note": "Always operating, never trust"
+    },
+    {
+     "name": "Methods",
+     "type": "enum",
+     "required": true,
+     "note": "Card, pre-authorized debit (PAD agreement on file), EFT, Interac e-Transfer request"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Connect provider",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner approves"
+    },
+    {
+     "name": "Send test payment",
+     "by": "human",
+     "gate": "none",
+     "note": "$1 into operating, refunded"
+    }
+   ],
+   "agent": "Matches incoming payments to bills and retainers and proposes allocations for approval.",
+   "gate": "Owner approves the provider; ambiguous or trust allocations go to the billing gate.",
+   "states": [
+    "not connected",
+    "testing",
+    "live"
+   ],
+   "edge": [
+    "Card payment for a retainer lands in operating by mistake: blocked by account mapping",
+    "Chargeback on trust funds: client ledger flagged, lawyer told at once",
+    "In-person or mobile card payment for a retainer: must route to the trust merchant account, never operating"
+   ],
+   "reg": "Processor fees never charged to trust; trust receipts recorded per By-Law 9 (verify).",
+   "mock": {
+    "kind": "detail",
+    "columns": [
+     "Setting",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Trust account",
+      "Mixed trust #1 (receive only)"
+     ],
+     [
+      "Operating account",
+      "General account"
+     ],
+     [
+      "Fees charged to",
+      "Operating"
+     ],
+     [
+      "Methods",
+      "Card, pre-authorized debit"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "mobile-app",
+   "name": "Mobile app",
+   "route": "(installable web app)",
+   "who": [
+    "lawyer",
+    "associate",
+    "paralegal",
+    "clerk"
+   ],
+   "purpose": "Approve, check deadlines, record time, scan documents and ask the agent from a phone (installable web app; native apps only if push proves unreliable).",
+   "layout": "Five tabs: Approvals, Today (calendar with limitation dates), Ask, Time, Scan. Push notices for critical deadlines and approvals.",
+   "fields": [
+    {
+     "name": "Notification rules",
+     "type": "enum",
+     "required": false,
+     "note": "Critical deadlines, approvals waiting, trust exceptions"
+    },
+    {
+     "name": "Device lock",
+     "type": "boolean",
+     "required": true,
+     "note": "Biometric or PIN before opening"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Approve",
+     "by": "human",
+     "gate": "approve",
+     "note": "Same rules as the web; trust authorizations need a fresh sign-in"
+    },
+    {
+     "name": "Voice note to time entry",
+     "by": "agent",
+     "gate": "none",
+     "note": "Becomes a suggested entry"
+    },
+    {
+     "name": "Scan to matter",
+     "by": "human",
+     "gate": "none",
+     "note": "Camera capture, crop, PDF plus OCR; agent proposes matter and category"
+    },
+    {
+     "name": "Create matter, task, note or event",
+     "by": "human",
+     "gate": "none",
+     "note": "Matter opening still goes through its normal gate"
+    },
+    {
+     "name": "Reply to client text or portal message",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Drafts only; sent after the same send gate as the web"
+    }
+   ],
+   "agent": "Turns voice notes into suggested time entries and tasks; answers questions with citations.",
+   "gate": "Same gates as the web app; nothing extra is allowed on mobile.",
+   "states": [
+    "planned",
+    "installed",
+    "signed out",
+    "offline"
+   ],
+   "edge": [
+    "Lost phone: admin revokes the device session",
+    "Offline: read-only cache of today's deadlines, no approvals",
+    "iOS web push unreliable: decide on a native wrapper (open question)"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "Time",
+     "Item",
+     "Kind"
+    ],
+    "rows": [
+     [
+      "08:02",
+      "Defence due Tue 13 Oct (Tesfaye)",
+      "Deadline"
+     ],
+     [
+      "08:15",
+      "Bill 2026-0113 ready to approve",
+      "Approval"
+     ],
+     [
+      "09:40",
+      "Trust withdrawal $1,695 needs authorization",
+      "Trust"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "mail-add-ins",
+   "name": "Outlook and Gmail add-ins",
+   "route": "(inside the mail app)",
+   "who": [
+    "lawyer",
+    "associate",
+    "paralegal",
+    "clerk"
+   ],
+   "purpose": "File emails to matters, record time and draft replies without leaving the inbox.",
+   "layout": "Side panel in the mail app: suggested matter, File, Suggested time, Draft reply.",
+   "fields": [
+    {
+     "name": "Matter",
+     "type": "ref",
+     "required": true,
+     "note": "Agent suggests from sender, subject and thread"
+    },
+    {
+     "name": "File attachments",
+     "type": "boolean",
+     "required": false,
+     "note": "Saved to the matter's documents"
+    }
+   ],
+   "actions": [
+    {
+     "name": "File to matter",
+     "by": "human",
+     "gate": "none",
+     "note": "One click; agent pre-selects the matter"
+    },
+    {
+     "name": "Draft reply",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Goes to the documents release gate before sending"
+    }
+   ],
+   "agent": "Suggests the matter, extracts deadlines and proposes a time entry for each email.",
+   "gate": "Any reply drafted by the agent is approved before it is sent.",
+   "states": [
+    "not installed",
+    "signed in",
+    "filed"
+   ],
+   "edge": [
+    "Email matches two matters: user picks; never auto-filed",
+    "Sender is on a walled matter the user cannot see: no suggestion shown"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "detail",
+    "columns": [
+     "Field",
+     "Value"
+    ],
+    "rows": [
+     [
+      "From",
+      "Daniel Osei"
+     ],
+     [
+      "Suggested matter",
+      "2026-0142 Tesfaye v. Northgate (98%)"
+     ],
+     [
+      "Deadline found",
+      "Extension request: 30 days"
+     ],
+     [
+      "Suggested time",
+      "0.2 h review"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "research",
+   "name": "Legal research",
+   "route": "/research",
+   "who": [
+    "lawyer",
+    "associate",
+    "paralegal"
+   ],
+   "purpose": "Find Canadian law and cite it, with every citation checked. Clio Work has a licensed Canadian case-law corpus since Jul 2026; ours starts on public sources, so this is a Clio edge to narrow, not a win.",
+   "layout": "Question box, answer with cited cases and statutes, each linked to the public source; 'check citations' panel.",
+   "fields": [
+    {
+     "name": "Question",
+     "type": "text",
+     "required": true,
+     "note": "Tied to a matter"
+    },
+    {
+     "name": "Jurisdiction",
+     "type": "enum",
+     "required": true,
+     "note": "Ontario first, then federal"
+    },
+    {
+     "name": "Source",
+     "type": "enum",
+     "required": true,
+     "note": "Public sources (CanLII, e-Laws) first; licensed content later"
+    },
+    {
+     "name": "Corpus source",
+     "type": "enum",
+     "required": true,
+     "note": "CanLII link-out, e-Laws, firm documents; licensed corpus only after a licensing decision"
+    },
+    {
+     "name": "Coverage",
+     "type": "text",
+     "required": true,
+     "note": "Courts, provinces and statutes covered, stated on screen"
+    },
+    {
+     "name": "Update cadence",
+     "type": "text",
+     "required": true,
+     "note": "How fresh the sources are"
+    },
+    {
+     "name": "Treatment status",
+     "type": "enum",
+     "required": true,
+     "note": "'Not checked for subsequent treatment' badge on every case until a licensed noter-up exists"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Ask",
+     "by": "agent",
+     "gate": "none",
+     "note": "Answer with citations"
+    },
+    {
+     "name": "Check citations",
+     "by": "agent",
+     "gate": "none",
+     "note": "Each case and section opened and confirmed to exist"
+    },
+    {
+     "name": "Save memo to matter",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer approves the research memo"
+    }
+   ],
+   "agent": "Searches public Canadian sources, drafts a short memo and checks every citation exists and says what is claimed.",
+   "gate": "A lawyer approves a research memo before it is saved or used in a document.",
+   "states": [
+    "draft",
+    "citations checked",
+    "approved"
+   ],
+   "edge": [
+    "Citation cannot be confirmed: marked 'not verified' and blocked from documents",
+    "Licensed content not available: link out instead",
+    "Answer would rely on an uncited source: refused; only CanLII URLs, statutes or firm documents may be cited"
+   ],
+   "reg": "Courts' practice directions on AI use in filings (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Authority",
+     "Says",
+     "Check"
+    ],
+    "rows": [
+     [
+      "Bardal v. Globe & Mail (1960)",
+      "Factors for reasonable notice",
+      "Confirmed"
+     ],
+     [
+      "Employment Standards Act, 2000 s.57",
+      "Statutory notice",
+      "Confirmed"
+     ],
+     [
+      "Limitations Act, 2002 s.4",
+      "Basic two-year period",
+      "Confirmed"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "clio-import",
+   "name": "Move from Clio",
+   "route": "/settings/import",
+   "who": [
+    "owner",
+    "admin",
+    "bookkeeper"
+   ],
+   "purpose": "Bring a firm's history across safely, or run alongside Clio during a pilot.",
+   "layout": "Stepper: connect or upload export, map fields, dry run report, reconcile trust balances, import, verify.",
+   "fields": [
+    {
+     "name": "Source",
+     "type": "enum",
+     "required": true,
+     "note": "Clio API on the Canada region (ca.app.clio.com, Canada developer app at ca.developers.clio.com) or the admin Exports page (CSV, 10 record types, no documents)"
+    },
+    {
+     "name": "What to import",
+     "type": "enum",
+     "required": true,
+     "note": "Contacts, matters, documents, notes, calendar, time, bills, trust ledgers"
+    },
+    {
+     "name": "Cut-over date",
+     "type": "date",
+     "required": true,
+     "note": "Trust balances must match the bank on this date"
+    },
+    {
+     "name": "Mode",
+     "type": "enum",
+     "required": true,
+     "note": "Full move | alongside (read-only sync)"
+    },
+    {
+     "name": "Rate plan",
+     "type": "text",
+     "required": true,
+     "note": "Respect Clio's peak limit (about 50 requests/min); bulk pulls scheduled off-peak"
+    },
+    {
+     "name": "Documents route",
+     "type": "enum",
+     "required": true,
+     "note": "Clio Document Archives (zip jobs) per matter"
+    },
+    {
+     "name": "Trust evidence",
+     "type": "enum",
+     "required": true,
+     "note": "Clio Reports API: trust listing, client ledger, trust ledger as of cut-over"
+    },
+    {
+     "name": "Webhook expiry",
+     "type": "date",
+     "required": false,
+     "note": "Alongside mode only: Clio webhooks last at most 31 days; renewal date shown"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Dry run",
+     "by": "agent",
+     "gate": "none",
+     "note": "Counts, mismatches, unmapped fields"
+    },
+    {
+     "name": "Approve trust opening balances",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Lawyer and bookkeeper sign; must match the bank"
+    },
+    {
+     "name": "Import",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner approves after the dry run"
+    },
+    {
+     "name": "Renew Clio webhooks",
+     "by": "agent",
+     "gate": "none",
+     "note": "Alongside mode: renewed before expiry; failure alerts the admin"
+    }
+   ],
+   "agent": "Maps Clio fields to ours, flags duplicates and missing data, and reconciles every client trust balance to the cut-over bank statement.",
+   "gate": "Owner approves the import; trust opening balances are signed off before any trust activity.",
+   "states": [
+    "not started",
+    "dry run",
+    "awaiting sign-off",
+    "imported",
+    "verified"
+   ],
+   "edge": [
+    "Trust ledgers don't match the bank: import blocked until explained",
+    "Documents too large: imported in the background, matter usable at once",
+    "Firm is on Clio's US instance: API app must target that region; data passes through our Canadian cell only",
+    "Webhook lapses during alongside mode: gap detected, back-filled by a re-read of changed records"
+   ],
+   "reg": "Trust records must stay complete and continuous across the move; 10-year retention (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Item",
+     "Found",
+     "Ready",
+     "Issues"
+    ],
+    "rows": [
+     [
+      "Contacts",
+      "1,284",
+      "1,240",
+      "44 duplicates"
+     ],
+     [
+      "Matters",
+      "412",
+      "412",
+      "0"
+     ],
+     [
+      "Documents",
+      "18,930",
+      "18,902",
+      "28 too large"
+     ],
+     [
+      "Trust ledgers",
+      "37",
+      "36",
+      "1 off by $12.50"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "provinces-languages",
+   "name": "Provinces and languages",
+   "route": "/settings/rules",
+   "who": [
+    "owner",
+    "admin"
+   ],
+   "purpose": "Add rule packs for other provinces and offer a French interface; French is a possible edge (no French Clio interface found), not a gap to close.",
+   "layout": "Rule pack list (court rules, limitation periods, law society trust and ID rules) by province with version and status; language setting.",
+   "fields": [
+    {
+     "name": "Province",
+     "type": "enum",
+     "required": true,
+     "note": "Ontario at launch; BC and Alberta next (verify order)"
+    },
+    {
+     "name": "Rule pack version",
+     "type": "text",
+     "required": true,
+     "note": "Every deadline is pinned to a version"
+    },
+    {
+     "name": "Interface language",
+     "type": "enum",
+     "required": true,
+     "note": "English; French for Ontario francophone firms"
+    },
+    {
+     "name": "Document language",
+     "type": "enum",
+     "required": false,
+     "note": "Templates and agent drafts in English or French"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Enable province",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner approves; shows what changes"
+    },
+    {
+     "name": "Publish rule pack update",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Reviewed by a licensed lawyer in that province"
+    }
+   ],
+   "agent": "Explains what a rule-pack update changes for open matters and proposes recomputed deadlines for approval.",
+   "gate": "A lawyer licensed in that province signs off each rule-pack version.",
+   "states": [
+    "available",
+    "enabled",
+    "update pending"
+   ],
+   "edge": [
+    "Quebec uses civil law: separate product decision, not just a rule pack",
+    "Rule change mid-matter: existing deadlines keep their version until re-confirmed"
+   ],
+   "reg": "Each law society's trust and client ID rules differ (verify per province).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Province",
+     "Court rules",
+     "Trust rules",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Ontario",
+      "v2026.3",
+      "By-Law 9",
+      "Live"
+     ],
+     [
+      "British Columbia",
+      "Planned",
+      "Law Society Rules Part 3",
+      "Planned"
+     ],
+     [
+      "Alberta",
+      "Planned",
+      "Rules ch. 9",
+      "Planned"
+     ],
+     [
+      "French interface",
+      "n/a",
+      "n/a",
+      "v1.1"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "support-access",
+   "name": "Support access grants",
+   "route": "/settings/support-access",
+   "who": [
+    "owner",
+    "admin",
+    "auditor"
+   ],
+   "purpose": "Vendor support can see a firm's data only with an explicit, time-limited, logged grant from the owner.",
+   "layout": "Active grants with scope and expiry; request inbox from support; log of every support action.",
+   "fields": [
+    {
+     "name": "Scope",
+     "type": "enum",
+     "required": true,
+     "note": "Settings only | one matter | metadata only; never trust actions"
+    },
+    {
+     "name": "Expiry",
+     "type": "date",
+     "required": true,
+     "note": "Default 24 h, max 7 days"
+    },
+    {
+     "name": "Reason",
+     "type": "text",
+     "required": true,
+     "note": "Support ticket reference"
+    },
+    {
+     "name": "Granted by",
+     "type": "ref",
+     "required": true,
+     "note": "Owner only"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Request access",
+     "by": "human",
+     "gate": "none",
+     "note": "Raised by our support staff, shows in the inbox"
+    },
+    {
+     "name": "Grant access",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner grants scope and expiry"
+    },
+    {
+     "name": "Revoke",
+     "by": "human",
+     "gate": "none",
+     "note": "Owner or admin, at once"
+    }
+   ],
+   "agent": "Summarizes each request in plain words and lists what the grant would expose.",
+   "gate": "Owner approves every support grant; default is no access.",
+   "states": [
+    "none",
+    "requested",
+    "granted",
+    "expired",
+    "revoked"
+   ],
+   "edge": [
+    "Grant expires mid-session: support session ends at once",
+    "Support asks for trust data: scope not offered"
+   ],
+   "reg": "Solicitor-client privilege and PIPEDA safeguards (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Requested",
+     "Scope",
+     "Expiry",
+     "Status"
+    ],
+    "rows": [
+     [
+      "2026-10-02",
+      "Settings only",
+      "24 h",
+      "Expired"
+     ],
+     [
+      "2026-10-09",
+      "Matter 2026-041 metadata",
+      "48 h",
+      "Granted by Linda Kassim"
+     ],
+     [
+      "2026-10-10",
+      "Settings only",
+      "24 h",
+      "Requested"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "data-escrow",
+   "name": "Data escrow",
+   "route": "/settings/escrow",
+   "who": [
+    "owner",
+    "admin",
+    "auditor"
+   ],
+   "purpose": "Scheduled encrypted export of the whole firm to storage the firm owns in Canada, with restore-test evidence.",
+   "layout": "Destination, schedule, last runs with size and hash, last restore test.",
+   "fields": [
+    {
+     "name": "Destination",
+     "type": "text",
+     "required": true,
+     "note": "Firm-owned bucket in a Canadian region"
+    },
+    {
+     "name": "Schedule",
+     "type": "enum",
+     "required": true,
+     "note": "Daily | weekly"
+    },
+    {
+     "name": "Encryption key",
+     "type": "ref",
+     "required": true,
+     "note": "Held by the firm"
+    },
+    {
+     "name": "Last restore test",
+     "type": "date",
+     "required": false,
+     "note": "With evidence link, shown in trust center"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Set destination",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner approves where firm data goes"
+    },
+    {
+     "name": "Run now",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Restore test",
+     "by": "agent",
+     "gate": "none",
+     "note": "Restores into a scratch cell, compares counts and hashes"
+    }
+   ],
+   "agent": "Runs the export, verifies hashes, and runs a quarterly restore test.",
+   "gate": "Owner approves the escrow destination.",
+   "states": [
+    "off",
+    "scheduled",
+    "failed",
+    "healthy"
+   ],
+   "edge": [
+    "Destination outside Canada: refused",
+    "Export fails twice: owner told, trust center shows the gap"
+   ],
+   "reg": "Trust and file record retention (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Run",
+     "Size",
+     "Hash check",
+     "Status"
+    ],
+    "rows": [
+     [
+      "2026-10-09 02:00",
+      "38 GB",
+      "Match",
+      "OK"
+     ],
+     [
+      "2026-10-08 02:00",
+      "38 GB",
+      "Match",
+      "OK"
+     ],
+     [
+      "Restore test 2026-09-30",
+      "38 GB",
+      "Match",
+      "Passed"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "status-page",
+   "name": "Status page",
+   "route": "status.<firm cell> (public)",
+   "who": [
+    "owner",
+    "admin",
+    "lawyer",
+    "associate",
+    "paralegal",
+    "clerk",
+    "bookkeeper",
+    "auditor"
+   ],
+   "purpose": "Public uptime and incident history per firm cell, with email subscription.",
+   "layout": "Current status per component, 90-day uptime bars, incident list with updates.",
+   "fields": [
+    {
+     "name": "Component",
+     "type": "enum",
+     "required": true,
+     "note": "App, agent, email, bank feed, payments"
+    },
+    {
+     "name": "Uptime 90 days",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Incident",
+     "type": "text",
+     "required": false,
+     "note": "Start, end, impact, update notes"
+    },
+    {
+     "name": "Subscribers",
+     "type": "ref",
+     "required": false,
+     "note": "Email list"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Subscribe",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Post incident update",
+     "by": "human",
+     "gate": "none",
+     "note": "Our on-call; agent drafts the wording"
+    }
+   ],
+   "agent": "Drafts incident updates from monitoring; flags incidents that may be privacy breaches for the PIPEDA review.",
+   "gate": "none",
+   "states": [
+    "operational",
+    "degraded",
+    "outage",
+    "maintenance"
+   ],
+   "edge": [
+    "Incident touches firm data: becomes a breach review with the firm owner"
+   ],
+   "reg": "PIPEDA breach reporting (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Component",
+     "90-day uptime",
+     "Status"
+    ],
+    "rows": [
+     [
+      "App",
+      "99.96%",
+      "Operational"
+     ],
+     [
+      "Agent",
+      "99.90%",
+      "Operational"
+     ],
+     [
+      "Bank feed",
+      "99.70%",
+      "Degraded"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "pricing-plan",
+   "name": "Plan and pricing",
+   "route": "/pricing (public)",
+   "who": [
+    "owner",
+    "admin"
+   ],
+   "purpose": "Publish one CAD price per firm with AI included, so firms can compare with Clio's quote-only AI tiers.",
+   "layout": "Price per firm size in CAD, what is included, pilot terms, comparison note with sources and date.",
+   "fields": [
+    {
+     "name": "Price",
+     "type": "money",
+     "required": true,
+     "note": "CAD per firm per month, AI included (to set)"
+    },
+    {
+     "name": "Included",
+     "type": "text",
+     "required": true,
+     "note": "All areas, agent use within budget, support"
+    },
+    {
+     "name": "Comparison",
+     "type": "text",
+     "required": false,
+     "note": "Clio Starter from CA$69/user/mo; Core and above quote-only; dated and sourced"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Publish price change",
+     "by": "human",
+     "gate": "approve",
+     "note": "Owner approves; existing firms told 60 days ahead"
+    }
+   ],
+   "agent": "Keeps the comparison note's sources current and flags stale figures.",
+   "gate": "Owner approves any published price.",
+   "states": [
+    "draft",
+    "published"
+   ],
+   "edge": [
+    "Competitor price unverifiable: shown as 'quote only', never guessed"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Firm size",
+     "CAD / month",
+     "AI"
+    ],
+    "rows": [
+     [
+      "1-2 lawyers",
+      "to set",
+      "Included"
+     ],
+     [
+      "3-5 lawyers",
+      "to set",
+      "Included"
+     ],
+     [
+      "6-10 lawyers",
+      "to set",
+      "Included"
+     ]
+    ]
+   }
+  }
+ ],
+ "entities": [
+  {
+   "name": "Certification",
+   "fields": [
+    "id",
+    "kind",
+    "status",
+    "issued",
+    "expires",
+    "report",
+    "ndaAccepted"
+   ],
+   "relations": []
+  },
+  {
+   "name": "SubProcessor",
+   "fields": [
+    "id",
+    "name",
+    "purpose",
+    "country",
+    "since"
+   ],
+   "relations": []
+  },
+  {
+   "name": "Connector",
+   "fields": [
+    "id",
+    "kind",
+    "direction",
+    "scopes",
+    "dataLocation",
+    "status",
+    "approvedBy",
+    "taxCodeMap",
+    "regionsAvailable"
+   ],
+   "relations": [
+    "Firm one-to-many"
+   ]
+  },
+  {
+   "name": "MerchantAccount",
+   "fields": [
+    "id",
+    "purpose(trust|operating)",
+    "provider",
+    "bankAccount",
+    "status"
+   ],
+   "relations": [
+    "TrustAccount or OperatingAccount"
+   ]
+  },
+  {
+   "name": "DeviceSession",
+   "fields": [
+    "id",
+    "userId",
+    "platform",
+    "lastSeen",
+    "revoked"
+   ],
+   "relations": [
+    "User one-to-many"
+   ]
+  },
+  {
+   "name": "ResearchMemo",
+   "fields": [
+    "id",
+    "matterId",
+    "question",
+    "answer",
+    "citations",
+    "status",
+    "corpusSource",
+    "treatmentChecked"
+   ],
+   "relations": [
+    "Matter one-to-many"
+   ]
+  },
+  {
+   "name": "ImportJob",
+   "fields": [
+    "id",
+    "source",
+    "mode",
+    "cutover",
+    "counts",
+    "issues",
+    "status",
+    "clioRegion",
+    "webhookExpiresAt",
+    "trustEvidence"
+   ],
+   "relations": [
+    "Firm one-to-many"
+   ]
+  },
+  {
+   "name": "RulePack",
+   "fields": [
+    "id",
+    "province",
+    "kind",
+    "version",
+    "signedOffBy",
+    "status"
+   ],
+   "relations": [
+    "Deadline many-to-one"
+   ]
+  },
+  {
+   "name": "SupportGrant",
+   "fields": [
+    "id",
+    "scope",
+    "expiresAt",
+    "reason",
+    "grantedBy",
+    "status"
+   ],
+   "relations": [
+    "Firm one-to-many",
+    "AuditEntry one-to-many"
+   ]
+  },
+  {
+   "name": "EscrowRun",
+   "fields": [
+    "id",
+    "destination",
+    "startedAt",
+    "bytes",
+    "hash",
+    "restoreTested"
+   ],
+   "relations": [
+    "Firm one-to-many"
+   ]
+  },
+  {
+   "name": "ResidencyLogEntry",
+   "fields": [
+    "id",
+    "agentCallId",
+    "provider",
+    "region",
+    "at"
+   ],
+   "relations": [
+    "AgentAction one-to-one"
+   ]
+  },
+  {
+   "name": "ServiceCredit",
+   "fields": [
+    "id",
+    "month",
+    "uptime",
+    "credit",
+    "approvedBy"
+   ],
+   "relations": [
+    "Firm one-to-many"
+   ]
+  },
+  {
+   "name": "AgentAction",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by readiness relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "AuditEntry",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by readiness relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "OperatingAccount",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by readiness relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  }
+ ],
+ "gates": [
+  {
+   "id": "G-SEC",
+   "name": "Security questionnaire answer released",
+   "approver": "owner",
+   "blocks": "Sending answers to an insurer or client"
+  },
+  {
+   "id": "G-INT",
+   "name": "Connector that sends data out",
+   "approver": "owner",
+   "blocks": "Any data leaving the firm or Canada"
+  },
+  {
+   "id": "G-PAY",
+   "name": "Payment provider connected",
+   "approver": "owner",
+   "blocks": "Taking online payments"
+  },
+  {
+   "id": "G-IMP",
+   "name": "Import and trust opening balances",
+   "approver": "owner + lawyer + bookkeeper",
+   "blocks": "Trust activity after a move from Clio"
+  },
+  {
+   "id": "G-RULE",
+   "name": "Province rule pack version",
+   "approver": "licensed lawyer in that province",
+   "blocks": "Deadlines computed with that pack"
+  },
+  {
+   "id": "G-SUP",
+   "name": "Vendor support access grant",
+   "approver": "owner",
+   "blocks": "Any support staff access to firm data"
+  },
+  {
+   "id": "G-ESC",
+   "name": "Escrow destination",
+   "approver": "owner",
+   "blocks": "Firm data export to firm-owned storage"
+  },
+  {
+   "id": "G-SLA",
+   "name": "Service credit note",
+   "approver": "owner",
+   "blocks": "Issuing an SLA credit"
+  },
+  {
+   "id": "G-PRICE",
+   "name": "Published price",
+   "approver": "owner",
+   "blocks": "Price changes on the public page"
+  }
+ ],
+ "agent_jobs": [
+  {
+   "name": "Questionnaire filler",
+   "trigger": "event",
+   "does": "Answers security questionnaires from the controls list",
+   "output": "Draft for G-SEC"
+  },
+  {
+   "name": "Connector health",
+   "trigger": "schedule",
+   "does": "Probes each connector read-only",
+   "output": "Alert when broken"
+  },
+  {
+   "name": "Import dry run",
+   "trigger": "event",
+   "does": "Maps, counts and reconciles a Clio export",
+   "output": "Report for G-IMP"
+  },
+  {
+   "name": "Citation checker",
+   "trigger": "event",
+   "does": "Opens each cited authority and confirms it",
+   "output": "Checked memo for lawyer approval"
+  },
+  {
+   "name": "Rule pack impact",
+   "trigger": "event",
+   "does": "Finds open matters affected by a rule change",
+   "output": "Recomputed deadlines for approval"
+  },
+  {
+   "name": "Residency log",
+   "trigger": "event",
+   "does": "Records provider and region for every model call; alerts if a call leaves Canada",
+   "output": "Log in trust center"
+  },
+  {
+   "name": "Uptime and credits",
+   "trigger": "schedule",
+   "does": "Monthly uptime per firm against the SLA",
+   "output": "Draft credit for G-SLA"
+  },
+  {
+   "name": "Clio webhook renewal",
+   "trigger": "schedule",
+   "does": "Renews alongside-mode webhooks before their 31-day expiry",
+   "output": "Alert when renewal fails"
+  },
+  {
+   "name": "Escrow and restore test",
+   "trigger": "schedule",
+   "does": "Exports, hashes, and quarterly restores into a scratch cell",
+   "output": "Evidence row in trust center"
+  },
+  {
+   "name": "Accounting sync",
+   "trigger": "schedule",
+   "does": "Two-way sync with QuickBooks Online Canada or Xero, trust summary only",
+   "output": "Conflicts for owner review"
+  }
+ ],
+ "open_questions": [
+  "Order of work: security certification and the Clio importer first (needed to win any firm), then integrations?",
+  "Payments: which Canadian-capable provider for card, PAD, EFT and Interac, and do we hold merchant accounts or the firm does?",
+  "Mobile: installable web app first, or native apps?",
+  "Research: public sources only at launch, or license content (CanLII API terms vs commercial)?",
+  "Second province after Ontario: BC or Alberta?",
+  "French interface in v1 or v1.1? (Possible edge: no French Clio UI found.)",
+  "Inference: can every model call run in a Canadian region (e.g. a Canada-region endpoint)? If not, drop 'all in Canada' wording.",
+  "Could: directory filters on integrations-hub by province, practice area and category.",
+  "Could: mobile tap-to-pay (verify provider support in Canada; retainers to trust only).",
+  "Could: 'ask the agent' and document upload in the mobile web app (Clio has a native Vincent app).",
+  "Could: quarterly restore-test row in trust center beyond the escrow screen.",
+  "Could: seek FOLA / county law association member listing (go-to-market, no screen)."
+ ],
+ "clio_gaps": [
+  {
+   "clio_feature": "Years of track record, large customer base",
+   "where_in_clio": "Company",
+   "status": "deliberately different",
+   "note": "Pilot alongside Clio, measured hours saved, first reference firm."
+  },
+  {
+   "clio_feature": "SOC 2 Type II and SOC 1 Type II, annual pen tests, bug bounty",
+   "where_in_clio": "trust.clio.com",
+   "status": "added",
+   "note": "trust-center: SOC 2 Type I then II, SOC 1 Type II for trust controls, report request with NDA. Source r12 (clio.com/ca/security, Wayback May 2026)."
+  },
+  {
+   "clio_feature": "99.9% uptime guarantee with service credits",
+   "where_in_clio": "Pricing page, service-level commitments",
+   "status": "added",
+   "note": "trust-center SLA fields, status-page, G-SLA credit note. Source r12."
+  },
+  {
+   "clio_feature": "Canadian data region (opt-in, ca.app.clio.com); Clio help says AI processing may temporarily leave the region",
+   "where_in_clio": "Chosen at account creation",
+   "status": "deliberately different",
+   "note": "Canada only for every firm, with model inference region and a per-call residency log; claim held until Canadian inference is contracted. Source r12, r08 (help 53337803186715). Clio stores Canadian data in Canada; its help articles say AI processing may temporarily occur outside the region (its Canadian security page claims in-region processing) (r03, r08, r12)."
+  },
+  {
+   "clio_feature": "Vendor support access",
+   "where_in_clio": "In-app permission prompt (time-limited, logged, revocable)",
+   "status": "added",
+   "note": "support-access: owner grant, scope, expiry, logged. Clio already requires explicit in-app firm consent for support access (r12), so this is parity plus scope, not a gap; consistent with access.json support-access."
+  },
+  {
+   "clio_feature": "300+ integrations (subset available in Canada)",
+   "where_in_clio": "App directory",
+   "status": "deliberately different",
+   "note": "Focused launch set plus 'Request a connector'; API phased; see platform api-and-webhooks (v1 API keys + id-only webhooks; v1.1 OAuth apps; reports API later). Source r11 (app directory, Oct 2026)."
+  },
+  {
+   "clio_feature": "QuickBooks Online and Xero sync",
+   "where_in_clio": "App directory",
+   "status": "added",
+   "note": "integrations-hub two-way QBO Canada / Xero, trust summary only. Source r11."
+  },
+  {
+   "clio_feature": "Clio Payments (Canada: cards, Apple Pay, Google Pay; no EFT/PAD)",
+   "where_in_clio": "Online payments",
+   "status": "deliberately different",
+   "note": "payments-setup adds PAD, EFT, Interac e-Transfer; fees never from trust. Source r06 (help 41863402264091)."
+  },
+  {
+   "clio_feature": "Clio Accounting for Canada (Sept 2026): bank feeds, auto-match, locking reconciliation",
+   "where_in_clio": "Clio Accounting",
+   "status": "already covered",
+   "note": "Trust area daily matching and locked months; not a unique edge. Source r06, r12."
+  },
+  {
+   "clio_feature": "Mobile apps, Outlook add-in, server-side email filing",
+   "where_in_clio": "Mobile, add-ins, Automated Email Filing",
+   "status": "added",
+   "note": "Planned, not built: installable web app with scan, mail add-ins. Server-side filing is parity, not an edge. Source r04, r11."
+  },
+  {
+   "clio_feature": "Clio Work: AI research and drafting, Canadian case law (Jul 2026), agentic mode (Apr 2026), US$199/user/mo at launch",
+   "where_in_clio": "Clio Work / Vincent",
+   "status": "partial",
+   "note": "Partial: research on public sources with checked citations; Clio has the deeper corpus. Our difference is approval gates on agent runs. Source r08, r12, r14."
+  },
+  {
+   "clio_feature": "Migration and onboarding",
+   "where_in_clio": "Onboarding; Exports page; API",
+   "status": "added",
+   "note": "clio-import via Canada-region API, Document Archives, Reports API, webhook renewal. Source r11."
+  },
+  {
+   "clio_feature": "Canadian provinces: Alberta trust report, BC trust fee, few Canadian court-rule sets",
+   "where_in_clio": "Reports > Compliance; Court Rules",
+   "status": "deliberately different",
+   "note": "Ontario first with LSO By-Law 9 / Form 9A and Ontario court rules; other provinces as rule packs. Source r12 (help 9289840995867, 14353332840603)."
+  },
+  {
+   "clio_feature": "French interface",
+   "where_in_clio": "Not found",
+   "status": "deliberately different",
+   "note": "No French Clio UI found (third-party review); French is a possible edge for us. Source r12."
+  },
+  {
+   "clio_feature": "Pricing: Starter from CA$69/user/mo; Core, Signature, Elite quote-only, AI from Core",
+   "where_in_clio": "clio.com/ca/pricing",
+   "status": "added",
+   "note": "pricing-plan: public CAD per-firm price with AI included. Source r12 (Wayback Sept 2026)."
+  }
+ ],
+ "sources": [
+  "https://www.canlii.org/",
+  "https://www.ontario.ca/laws",
+  "https://www.priv.gc.ca/en/privacy-topics/business-privacy/breaches-and-safeguards/",
+  "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2",
+  "https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/",
+  "https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/",
+  "https://help.clio.com/hc/en-us/articles/53337803186715",
+  "https://help.clio.com/hc/en-us/articles/9289840995867",
+  "https://docs.developers.clio.com/guides/clio-manage/webhooks/",
+  "https://help.clio.com/hc/en-us/articles/50633368921243-Export-Data-From-Clio-Manage",
+  "https://lawnext.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada.html",
+  "https://help.clio.com/hc/en-us/articles/41863402264091-Review-Accepted-Payment-Methods"
+ ]
+}

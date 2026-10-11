@@ -1,0 +1,159 @@
+
+Customize Conflict Check Search Settings – Home
+ Clio customers get a $250 gift card when referring a law firm to Clio (North American Based Firms)
+ or Refer a Friend in Europe & the UK & 
+ Earn £200/€200
+ -->
+Earn $250 when you refer friends to Clio. 
+ Refer now 
+ -->
+See Clio’s newest features in this quarterly webinar, including a new way to get more five-star reviews. 
+ Reserve your spot today. 
+Skip to main content
+ All Categories
+ English (United States)
+ English (Europe)
+ English (Australia)
+ Home
+ All Categories
+ Contacts
+Customize Conflict Check Search Settings
+ Updated 
+April 08, 2026 00:30
+Have more questions? Submit a request
+-->
+Refer a Friend to Clio
+Clio customers get a $250 gift card when referring a law firm to Clio (North American Based Firms) 
+ $250 gift card
+Refer a Friend in Europe & the UK & Earn £200/€200
+ Earn £200/€200
+ -->
+Refer a Friend to Clio
+Earn $250 when you refer friends to Clio. 
+ Refer now
+ -->
+What’s New in Clio
+See our latest features, and get a sneak peak at what’s coming next.
+ Reserve your spot
+The parameters for conflict checks are flexible, allowing you to tailor the search to suit your firm's unique needs. You can adjust your search to be as broad or specific as needed and save your preference for future searches. The search settings for conflict searches are set by firm users with Administrator or General Access permission and apply to conflict checks across the entire firm.
+Note: This feature is available to firms with Essentials, Advanced, and Expand subscriptions. If you need to upgrade your firm’s plan, ask a firm administrator. Learn more about your plan's features.
+Set your search preference
+Conflict check search preferences apply to all firm user accounts. Flex search will default search parameters to allow variations to your original search. This is a great way to catch possible spelling errors or similar names. 
+Tip: When you are ready to perform conflict checks, refer to Conflict Checks in Clio Manage and Clio Grow for help.
+Navigate to the Conflict check summary page.
+Click Conflict check preferences in the top right.
+Select your preferred Subject type (Person, Company, Keyword).
+Select the Search type you use most often (Flex search or Exact search). 
+Select your default Search categories.
+Click Save preference.
+Use advanced search options
+After you fill in basic identifying information for a person or company, you can select advanced options to fine-tune your search.
+Adjust search criteria
+You can adjust the following criteria to broaden or narrow your search:
+Person, company, or keyword search: Select whether you are searching for a person, a company, or a general keyword.
+Name variations: You can add variations for a person's first, middle, or last name, or for a company name. For a person search, select the Search matches for full name checkbox to require all provided names to match exactly. If you deselect this box, results will return when even one of the names you provide matches.
+Label: Add a label to help identify the search on the results report. The label is not part of the search.
+Access more details
+Click More details to select advanced search options:
+Additional contact information: Include details such as middle name, contact information (including email addresses and phone numbers), address, and date of birth (D.O.B.).
+Flex search or Exact search:
+Flex search allows for results that are similar to your search parameters.
+Exact search limits results to exact matches.
+Select search categories
+Use the checkboxes to indicate where Clio should search for conflicts within Clio Manage and Clio Grow.
+Specific categories: Search specific categories such as calendar events, notes, document names, and communication logs.
+Note: If your firm is on an Advanced plan or higher, selecting document categories will search the full content of documents and calendar event descriptions, not just their names or titles.
+Run multiple searches at once
+You can run up to ten individual searches before generating your results. This is useful for running variations of a single search (by adding or removing information) or for including known adverse parties in the conflict check.
+To add another search, click Add another search.
+Need more help?
+ Ask The Law Community
+ Get answers from fellow Clio customers
+ Contact us
+ Tell us more and get personalized support
+Was this article helpful?
+ Yes
+ No
+ 0 out of 0 found this helpful
+ Still have questions?
+For immediate answers, connect with our new AI Support Agent, available 24/7 directly in our in-app chat. Learn more here.
+You can also get personalized support from the largest and most experienced team in the industry. Our experts are available 24 hours a day, 5 days a week. Find out how to get in touch here.
+-->
+PRODUCTS
+Clio Manage
+Clio Grow
+Clio Draft
+Clio Work
+Clio for Clients
+Integrations
+Pricing
+FEATURES
+Client Intake
+Billing and Collections
+Case Management
+Document Management
+Task Management
+What’s New
+See All Features
+RESOURCES
+All Upcoming Events
+Customer Stories
+Clio Cloud Conference
+Legal Trends Report
+Compare Clio
+Blog
+Start a Law Firm
+COMMUNITY
+Customer Community
+Bar Associations
+Incubator Program
+Referrals
+Academic Access
+Certified Consultants
+COMPANY
+About Us
+Our Mission
+Leadership
+Careers
+News & Press
+SUPPORT
+Developer Hub
+Find a Consultant
+Clio Academy
+Sitemap
+Subscribe
+Support Login
+ -->
+ Clio - Legal Software
+ Terms
+ Privacy Policy
+ Legal Service
+ -->
+©2008 - 2025 Themis Solutions 
+ Clio - Legal Software
+ Terms
+ Privacy Policy
+ Legal Service
+ Facebook
+ Twitter
+ YouTube
+ LinkedIn
+ Instagram
+Return to top
+ https://www.clio.com/resources/quick-start-sessions/
+/hc/theming_assets/01JN4H56SP898G5WMRKWP3STQG
+ Live Training Sessions
+ Learn Clio faster with live, interactive training. Get the essential skills to manage your practice efficiently—whether you’re just starting or refining your workflow.
+custom
+ https://community.clio.com/?utm_source=help-center&utm_medium=home-link
+/hc/theming_assets/01HZPMA8VBT023Z0NJK5MF4X8W
+ Customer Community
+ Connect with fellow Clio users, get answers to your questions, and stay informed about new features and pilot programs.
+custom
+ https://clioacademy.learnupon.com/catalog
+/hc/theming_assets/01JN4RBVN31EN2CCM1D4TVHZ5J
+ Clio Certification
+ Build expertise in legal practice management with courses designed to enhance your skills, improve efficiency, and deepen your understanding of Clio.
+ billing, client portal, write off
+
+IMGS: []

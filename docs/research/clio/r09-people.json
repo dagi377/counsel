@@ -1,0 +1,682 @@
+{
+ "id": "r09-people",
+ "scope": "People management: users, roles/permissions, groups, admin rights, targets, productivity/utilization, user rates, on/offboarding, MFA/SSO, audit logs, Clio for Enterprise/Operate, HR-like capacity/leave",
+ "clio_products": [
+  "Clio Manage",
+  "Clio Grow",
+  "Clio Admin Console",
+  "Manage AI",
+  "Clio Operate (ShareDo)",
+  "Clio for Enterprise"
+ ],
+ "features": [
+  {
+   "name": "Five standard roles plus custom roles",
+   "product": "Clio Manage",
+   "where": "Settings > Roles and Permissions (or Clio Admin > Roles & Permissions)",
+   "what": "Every user must hold a role. Five built-in roles act as templates; custom roles are built by picking a template then toggling permissions per area. Built-in roles carry some permissions that cannot be switched off.",
+   "plan_tier": "Custom roles: top tier only per CA/AU plan pages (CA 'Signature': unlimited custom roles; AU table hints a cap of 2 on a middle tier); Starter has none. US tier mapping unconfirmed.",
+   "sources": [
+    "https://help.clio.com/hc/articles/9200279456667",
+    "https://help.clio.com/hc/en-au/articles/39985426283163",
+    "https://help.clio.com/hc/en-us/articles/40062980685467",
+    "https://www.clio.com/ca/?p=339",
+    "https://www.clio.com/au/?p=32"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-au/articles/39985426283163"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Administrator role",
+   "product": "Clio Manage",
+   "where": "Settings > Roles and Permissions",
+   "what": "Full access to firm settings, user and role management and firm data; non-configurable powers include bank and trust account actions (view/create/edit/delete/export/manage transactions). Only admins change other users' permissions.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9200279456667",
+    "https://help.clio.com/hc/en-us/articles/9285360193819"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Multiple roles per user, most permissive wins",
+   "product": "Clio Manage",
+   "where": "Clio Admin > Users > Edit > Roles",
+   "what": "A user can hold several roles; effective rights are the union (most permissive role wins). Custom role edits apply immediately.",
+   "plan_tier": "Plans with custom roles",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/55127945337883-Assign-and-Unassign-Roles",
+    "https://help.clio.com/hc/en-au/articles/39985426283163"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Timekeeping permission scope (all / accessible matters / own)",
+   "product": "Clio Manage",
+   "where": "Custom role > Timekeeping",
+   "what": "View and manage rights for activities each scoped to all activities, activities on matters the user can access, or only their own.",
+   "plan_tier": "Plans with custom roles",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9289781023771",
+    "https://help.clio.com/hc/en-us/articles/40062980685467"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Billing rate visibility per user",
+   "product": "Clio Manage",
+   "where": "Settings > Manage Users > user > Billing rate visibility",
+   "what": "Per-user setting All / Own / None controlling whose hourly rates a user sees when entering time; only admins can set it for others.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9285360193819"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Billing, Accounts and Reports permissions",
+   "product": "Clio Manage",
+   "where": "Settings > Manage Users / role permissions",
+   "what": "Separate permissions gate bills, bank/trust accounts and reports; financial permissions decide whether Transactions and Bills subtabs show on matters and contacts. Reports permission is a single checkbox.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9285360193819",
+    "https://help.clio.com/hc/en-us/articles/9290095965211",
+    "https://help.clio.com/hc/en-us/articles/40062980685467"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Firm Feed restricted to administrators by default",
+   "product": "Clio Manage",
+   "where": "Firm Feed tab; custom role > Firm Settings > view firm feed",
+   "what": "A firm-wide activity stream; only admins see it unless a custom role grants the feed permission.",
+   "plan_tier": "Plans with custom roles to delegate",
+   "sources": [
+    "https://help.clio.com/hc/articles/9200279456667",
+    "https://help.clio.com/hc/en-us/articles/9290390462875"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Groups",
+   "product": "Clio Manage",
+   "where": "Settings > Groups (older path: Groups, Permissions, and Job Titles > Groups)",
+   "what": "Admin-defined sets of users used for matter permissions, calendar sharing and client custom rates. Archiving a group does not remove it from matters, calendar shares or contact rates.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9285959663131",
+    "https://help.clio.com/hc/articles/9289973325467"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Matter permissions (everyone vs specific users/groups, max 20)",
+   "product": "Clio Manage",
+   "where": "Matter > Edit > Matter permissions > Firm users with access",
+   "what": "Matter open to everyone by default or limited to specific users/groups, capped at 20 entries combined. Any user can set it while creating or editing a matter.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9286062516123",
+    "https://help.clio.com/hc/articles/9289973325467"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Admin view of restricted matters and bulk permission update",
+   "product": "Clio Manage",
+   "where": "Matters table filters; bulk actions > Update matter permissions",
+   "what": "Admins can list matters they are restricted from and bulk-change matter permissions; bulk edit can be delegated through a custom role (needs Edit matter properties).",
+   "plan_tier": "Bulk delegation needs custom roles",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9286062516123"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Admin Console (Clio Admin) across products",
+   "product": "Clio Manage / Clio Grow",
+   "where": "Settings > Admin Console",
+   "what": "Central page for users, licences and roles across Clio products; bulk invite several emails with the same roles, groups and licences; bulk allocate/remove product licences. Being rolled out in phases.",
+   "plan_tier": "Rolling out; all plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/55127426462619-Manage-Clio-Licenses-and-Users",
+    "https://help.clio.com/hc/en-us/articles/55127945337883-Assign-and-Unassign-Roles",
+    "https://help.clio.com/hc/articles/9199060880411"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Invite and bulk import users",
+   "product": "Clio Manage",
+   "where": "Settings > Manage Users > Invite / Bulk Import; Invited tab to resend",
+   "what": "Invite by email with attorney or non-attorney type, roles and groups; CSV import with email, first/last name and subscription_type (Attorney/Non-attorney).",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9199060880411",
+    "https://help.clio.com/hc/articles/40025305701659"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Deactivate user and licence handling",
+   "product": "Clio Manage",
+   "where": "Settings > Manage Users > Deactivate",
+   "what": "Deactivation keeps past activities and tasks and the user stays on matters until reassigned; calendar entries hidden. The licence stays billed until removed; reactivation does not restore add-on licences (e.g. personal injury).",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9201286624923"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Reassign work from a user",
+   "product": "Clio Manage",
+   "where": "Settings > Manage Users > Reassign Work",
+   "what": "Admin bulk-moves tasks (and per the deactivation article, matters and calendar events) from one user to another; only open/pending matters and not-past-due tasks; work on closed matters cannot move.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9204917906971",
+    "https://help.clio.com/hc/articles/9201286624923"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Grow separate permission layer",
+   "product": "Clio Grow",
+   "where": "Grow > Settings > Account > User settings",
+   "what": "Grow users are Normal or Admin, separate from Manage roles; Grow licence removal needs Clio Support; Manage licence changes mirror to Grow.",
+   "plan_tier": "Grow plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/40025305701659",
+    "https://help.clio.com/hc/en-us/articles/55127426462619-Manage-Clio-Licenses-and-Users"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Multi-factor authentication administration",
+   "product": "Clio Manage",
+   "where": "Settings > Security & Compliance > Firm Security",
+   "what": "Admins see each user's MFA status, require MFA per user, invite users to enable it, and reset a user's MFA (not the primary subscriber's). Help text says MFA became mandatory in January 2026 for remaining users at next login.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9284724578715",
+    "https://help.clio.com/hc/en-us/articles/9284653811739-User-Security-Settings-for-Administrators"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Single sign-on (SAML)",
+   "product": "Clio Manage / Clio Grow",
+   "where": "Manage: Settings > Security & Compliance > Firm Security > Single Sign-on; Grow: Settings > Account",
+   "what": "Verify the firm's email domain (minutes to 72h), add an IdP configuration (e.g. Okta with step-by-step SAML setup) and mark a default configuration.",
+   "plan_tier": "Unknown; check plan table",
+   "sources": [
+    "https://help.clio.com/hc/articles/41135505613339-Single-Sign-On",
+    "https://developers.support.clio.com/hc/en-us/articles/4405288237723"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Login activity and device sessions",
+   "product": "Clio Manage",
+   "where": "Settings > Security & Compliance > Log In Activity / Sessions",
+   "what": "Admins review sign-ins of all users (IP, last access, last active, session length) filtered by user/date; users see their own sessions and can force log out all; email alert on unrecognised device.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9284653811739-User-Security-Settings-for-Administrators",
+    "https://help.clio.com/hc/en-us/articles/20588040616219-Device-Sessions"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Personal performance target",
+   "product": "Clio Manage",
+   "where": "Settings > Profile > Personal Performance",
+   "what": "Each user sets default billing rate, annual billings target, working days per year and fiscal year end (per currency); drives the dashboard's target-vs-actual billable bar and utilization denominator.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290091783323",
+    "https://www.clio.com/blog/clio-month-dashboard-update-task-notifications-new-integration-partners/",
+    "https://help.clio.com/hc/en-us/articles/9290390462875"
+   ],
+   "screenshots": [
+    "https://www.clio.com/blog/clio-month-dashboard-update-task-notifications-new-integration-partners/"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Firm Dashboard utilization / realization / collection",
+   "product": "Clio Manage",
+   "where": "Dashboard > Firm",
+   "what": "Firm KPIs for managers/admins/users with reports permission: utilization = billable hours / available hours (8h day, working days from personal target), realization, collection; by activity date; LTR benchmarks shown.",
+   "plan_tier": "All plans (detail unconfirmed)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290390462875",
+    "https://www.clio.com/ca/features/law-firm-insights/",
+    "https://www.clio.com/features/law-firm-insights/"
+   ],
+   "screenshots": [
+    "https://www.clio.com/ca/features/law-firm-insights/"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Productivity by user and by client reports",
+   "product": "Clio Manage",
+   "where": "Reports > Productivity",
+   "what": "Per user time and expense amounts split unbilled/billed/total including discounts (lawyer productivity report); by-client share of billed activity.",
+   "plan_tier": "Some reports plan-limited",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14351524759707-Clio-Manage-Productivity-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Detailed Annual Report (target vs actual)",
+   "product": "Clio Manage",
+   "where": "Reports > Detailed Annual",
+   "what": "Compares a user's yearly target with billed+unbilled billable time (flat/contingency included, non-billable and expenses excluded); needs billing and reports permissions and unrestricted rate visibility.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290091783323"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Task productivity report",
+   "product": "Clio Manage",
+   "where": "Reports > Task reports",
+   "what": "Counts each user's upcoming, overdue and completed tasks.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14352051388827-Clio-Manage-Task-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "User default rate and rate tables",
+   "product": "Clio Manage",
+   "where": "Settings > Manage Users (rate); Settings > Billing > Rate tables",
+   "what": "User default rate is lowest in the hierarchy (custom > flat > matter > client > activity custom > user). Rate tables group per-user rates by segment and attach to matters/contacts.",
+   "plan_tier": "Rate tables: higher plans (unconfirmed)",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289801180187",
+    "https://help.clio.com/hc/articles/54119093950747",
+    "https://help.clio.com/hc/en-us/articles/9285360193819"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Manage AI personal metrics and AI reports",
+   "product": "Clio Manage",
+   "where": "Reports > Manage AI gem; AI Launchpad > Ask a Question",
+   "what": "Natural-language report building and questions about personal targets; respects existing permissions; admin enables it. A secondary review cites a 90-day AI event log.",
+   "plan_tier": "Paid add-on (Essentials/Advanced/Expand)",
+   "sources": [
+    "https://help.clio.com/hc/articles/29658606211483"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Third-party app authorization as the user",
+   "product": "Clio Manage",
+   "where": "Developer portal; user authorizes app",
+   "what": "Apps use OAuth 2.0 auth code; access = app scopes intersected with the authorizing user's own role permissions.",
+   "plan_tier": "API",
+   "sources": [
+    "https://developers.support.clio.com/hc/en-us/articles/360004640953-What-methods-of-authorization-does-Clio-s-API-v4-support",
+    "https://docs.developers.clio.com/api-docs/clio-manage/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio for Enterprise division",
+   "product": "Clio for Enterprise (Operate, Vincent, Library, Docket)",
+   "where": "Separate enterprise products",
+   "what": "Launched Oct 2025 for large firms and legal departments; Clio Operate is the renamed ShareDo (acquired March 2025), launched in North America in 2026.",
+   "plan_tier": "Enterprise, quoted",
+   "sources": [
+    "https://www.clio.com/about/press/clio-introduces-a-new-enterprise-division-and-ai-suite-built-for-the-worlds-largest-legal-teams/",
+    "https://www.clio.com/uk/enterprise/sharedo-is-clio-operate/",
+    "https://www.clio.com/enterprise/blog/clio-introduces-clio-operate-to-the-north-american-legal-market/",
+    "https://www.oaklins.com/be/en/deals/110828/",
+    "https://betakit.com/clio-caps-off-year-of-big-acquisitions-by-launching-new-enterprise-division/"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Operate permission sets, teams and work-type roles",
+   "product": "Clio Operate (ShareDo)",
+   "where": "Admin > Security > Global Permissions; Modeller > Participant Roles",
+   "what": "Global permission sets (what a user can do) assigned to users or teams with inheritance; per work-type participant-role permissions; access to work and personal data lockable and audited; Active Directory integration.",
+   "plan_tier": "Enterprise",
+   "sources": [
+    "https://help.sharedo.co.uk/global_permissions_and_role_based_permissions/create-a-permission-set",
+    "https://sharedo.helpjuice.com/en_US/global_permissions_and_role_based_permissions/assign-permissions-to-a-team",
+    "https://help.sharedo.co.uk/en_US/platform-basics/what-is-sharedosummary"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Operate workload allocation and availability",
+   "product": "Clio Operate (ShareDo)",
+   "where": "Work allocation, queues; People > Availability",
+   "what": "Shows how busy people and teams are; automated, queue or decision-supported manual allocation; approvals tied to user competencies and authority limits; user availability records.",
+   "plan_tier": "Enterprise",
+   "sources": [
+    "https://help.sharedo.co.uk/en_US/platform-basics/what-is-sharedosummary",
+    "https://help.sharedo.co.uk/global_permissions_and_role_based_permissions/create-a-permission-set"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  }
+ ],
+ "gaps": [
+  {
+   "feature": "Bulk invite / CSV import with attorney vs non-attorney type",
+   "our_area": "access",
+   "our_screen": "user-list",
+   "status": "partial",
+   "proposal": "Add 'Invite users' action accepting a pasted list or CSV (email, name, role, licensee number, supervising licensee); agent pre-fills licence status from the law society directory and flags non-licensees needing a supervisor before the invite is sent; owner approves.",
+   "priority": "should"
+  },
+  {
+   "feature": "Offboarding: reassign work then deactivate",
+   "our_area": "access",
+   "our_screen": "user-detail",
+   "status": "partial",
+   "proposal": "Add 'Offboard' action on user-detail: wizard lists open matters (responsible/team), work items, timers, unsubmitted time, trust signatory status, calendar events; agent proposes successor per item from team and workload; requires responsible-lawyer approval for matter handover and owner approval for signatory removal; ends sessions and revokes tokens immediately; keeps history and rates. Include closed matters (Clio cannot move them).",
+   "priority": "must"
+  },
+  {
+   "feature": "Licence / seat counts and billing per user type",
+   "our_area": "platform",
+   "our_screen": null,
+   "status": "deliberately different",
+   "proposal": "We price per firm; keep a 'seats in use' read-only counter on user-list but no per-seat billing. State this in versus page.",
+   "priority": "could"
+  },
+  {
+   "feature": "MFA status, require, reset",
+   "our_area": "access",
+   "our_screen": "user-list",
+   "status": "partial",
+   "proposal": "Make MFA mandatory for all users (no off switch); user-list shows MFA method and last verification; 'Reset MFA' action needs a second admin or owner approval and is written to access-audit; owner MFA reset never by admin alone.",
+   "priority": "must"
+  },
+  {
+   "feature": "SAML/OIDC single sign-on with domain verification",
+   "our_area": "access",
+   "our_screen": null,
+   "status": "missing",
+   "proposal": "Add screen 'sign-in-settings' (/settings/sign-in): IdP config (OIDC first, SAML later), verified domains, enforce SSO toggle with owner break-glass local login, session lifetime and idle timeout, IP allowlist (optional). Changes gated by owner approval.",
+   "priority": "should"
+  },
+  {
+   "feature": "Login activity and device sessions",
+   "our_area": "access",
+   "our_screen": "user-detail",
+   "status": "covered",
+   "proposal": "Already shows sessions; add firm-wide 'Sign-ins' tab on access-audit (IP, device, time, result) with filters and CSV, plus unrecognised-device email to the user.",
+   "priority": "should"
+  },
+  {
+   "feature": "Groups used across matters, calendars and client rates",
+   "our_area": "access",
+   "our_screen": "matter-access",
+   "status": "partial",
+   "proposal": "Add 'Teams' entity (named groups, e.g. 'Real estate team') usable in matter team, calendar sharing and rate tables; archiving a team prompts to replace it everywhere it is used (fix Clio's leftover-group problem).",
+   "priority": "should"
+  },
+  {
+   "feature": "Per-user billing rate visibility (all/own/none)",
+   "our_area": "access",
+   "our_screen": "role-editor",
+   "status": "partial",
+   "proposal": "Add capability 'rates.view' with levels none/own/all in the matrix, so reports and time entry hide others' rates unless granted; Clio leaks rates through the reports permission.",
+   "priority": "must"
+  },
+  {
+   "feature": "Personal performance target incl. annual billings target and working days",
+   "our_area": "time",
+   "our_screen": "timekeeper-targets",
+   "status": "covered",
+   "proposal": "Add fields: fiscal year end, currency, standard day length (default 7.5h for Ontario practice, configurable), and let a timekeeper propose their own target that the managing lawyer approves.",
+   "priority": "could"
+  },
+  {
+   "feature": "Firm Dashboard utilization/realization/collection with benchmarks",
+   "our_area": "time",
+   "our_screen": "utilization",
+   "status": "covered",
+   "proposal": "Define utilization denominator explicitly (working days x day length minus approved leave) and show it; add optional benchmark line, never a fabricated benchmark.",
+   "priority": "could"
+  },
+  {
+   "feature": "Productivity by user / client and task productivity reports",
+   "our_area": "work",
+   "our_screen": "work-reports",
+   "status": "covered",
+   "proposal": "Ensure per-person task counts (upcoming/overdue/completed) appear on work-reports; dollar productivity sits on time/utilization.",
+   "priority": "could"
+  },
+  {
+   "feature": "Leave / out-of-office / capacity",
+   "our_area": "work",
+   "our_screen": "workload",
+   "status": "partial",
+   "proposal": "Clio Manage has no leave feature (none found). Add 'Availability' entity (person, from, to, type: leave/part-day/court, delegate) feeding workload capacity, timekeeper target pro-rating and deadline coverage; agent warns when a deadline owner is away and proposes the delegate.",
+   "priority": "should"
+  },
+  {
+   "feature": "Approvals tied to competencies and authority limits (Clio Operate)",
+   "our_area": "access",
+   "our_screen": "role-editor",
+   "status": "partial",
+   "proposal": "Add per-person authority limits (e.g. max write-down %, max trust withdrawal, practice areas cleared to approve) on user-detail; gates check them in addition to role.",
+   "priority": "should"
+  },
+  {
+   "feature": "Automated / queue-based work allocation (Clio Operate)",
+   "our_area": "work",
+   "our_screen": "workload",
+   "status": "partial",
+   "proposal": "Add allocation rules: queue per practice area, auto-assign by capacity and competency, agent proposes assignee with reason; human confirms for client work.",
+   "priority": "could"
+  },
+  {
+   "feature": "AI report questions about personal targets (Manage AI)",
+   "our_area": "time",
+   "our_screen": "timekeeper-targets",
+   "status": "covered",
+   "proposal": "'Explain shortfall' covers it; ensure answers respect the rates.view capability.",
+   "priority": "could"
+  },
+  {
+   "feature": "Multiple roles, most permissive wins",
+   "our_area": "access",
+   "our_screen": "user-detail",
+   "status": "deliberately different",
+   "proposal": "Keep one role plus time-boxed extra grants; show effective rights with source of each on user-detail (already in spec).",
+   "priority": "could"
+  }
+ ],
+ "corrections": [
+  {
+   "our_claim": "access.json clio_compare 'Firm feed': 'Firm-wide activity feed visible to administrators by default; others need a custom role permission.'",
+   "truth": "Supported by Clio help snippet. Keep, cite help.clio.com/hc/articles/9200279456667.",
+   "sources": [
+    "https://help.clio.com/hc/articles/9200279456667"
+   ]
+  },
+  {
+   "our_claim": "access.json clio_compare 'Permission model': custom roles 'on higher plans'",
+   "truth": "Supported for CA/AU: CA top tier (Signature) advertises unlimited custom roles; AU table suggests a capped number on a middle tier; Starter has none. US tier mapping unverified, so say 'top tiers (CA: Signature/Elite)'.",
+   "sources": [
+    "https://www.clio.com/ca/?p=339",
+    "https://www.clio.com/au/?p=32",
+    "https://www.usecarly.com/blog/clio-pricing/"
+   ]
+  },
+  {
+   "our_claim": "access.json clio_compare 'Intake CRM users': 'Grow has its own user permissions separate from Manage (verify current model)'",
+   "truth": "Confirmed: Grow users are Normal or Admin, separate from Manage roles, though the new Admin Console manages roles and licences across products and Manage licence changes mirror to Grow.",
+   "sources": [
+    "https://help.clio.com/hc/articles/40025305701659",
+    "https://help.clio.com/hc/en-us/articles/55127426462619-Manage-Clio-Licenses-and-Users"
+   ]
+  },
+  {
+   "our_claim": "access.json clio_compare 'Apps and API': apps 'act as the user who connected them (verify)'",
+   "truth": "Confirmed in substance: OAuth 2.0 authorization-code; access is the app's scopes combined with the authorizing user's role permissions.",
+   "sources": [
+    "https://developers.support.clio.com/hc/en-us/articles/360004640953-What-methods-of-authorization-does-Clio-s-API-v4-support"
+   ]
+  },
+  {
+   "our_claim": "access.json clio_compare 'Break-glass and reviews': 'No built-in emergency access or periodic access certification found (verify)'",
+   "truth": "Still none found; but admins can list matters they are restricted from and bulk-change matter permissions, which is a de facto override. Phrase as 'admin can re-grant themselves access; no logged break-glass or review'.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9286062516123"
+   ]
+  },
+  {
+   "our_claim": "versus page: 'Admin access: Admin sees almost everything'",
+   "truth": "Mostly right but imprecise: Clio admin has full settings/user/data rights and non-configurable bank/trust account powers; admins can be removed from a matter's permission list but can see and bulk-change permissions of matters they are restricted from. Suggest 'Admin holds every right and can re-grant themselves any matter'.",
+   "sources": [
+    "https://help.clio.com/hc/articles/9200279456667",
+    "https://help.clio.com/hc/en-us/articles/9286062516123"
+   ]
+  },
+  {
+   "our_claim": "access.json clio_compare 'Reports': reports permission exposes colleagues' productivity and rates even without billing permission",
+   "truth": "Partly unproven: Detailed Annual Report needs billing AND reports permissions and unrestricted rate visibility; Firm Dashboard is visible to users with reporting permission. Keep claim only for dashboard/productivity reports and mark 'verify' for rates.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290091783323",
+    "https://help.clio.com/hc/en-us/articles/9290390462875",
+    "https://help.clio.com/hc/en-us/articles/9285360193819"
+   ]
+  },
+  {
+   "our_claim": "time.json clio_gaps 'Billable hour goals / productivity dashboard' path 'Dashboard > billable hours target'",
+   "truth": "Target is set per user at Settings > Profile > Personal Performance (also via the gear on the dashboard target); includes annual billings target, working days and fiscal year end; utilization assumes an 8-hour day.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290091783323",
+    "https://www.clio.com/blog/clio-month-dashboard-update-task-notifications-new-integration-partners/",
+    "https://help.clio.com/hc/en-us/articles/9290390462875"
+   ]
+  }
+ ],
+ "screenshots_index": [
+  {
+   "area": "roles",
+   "url": "https://help.clio.com/hc/en-au/articles/39985426283163",
+   "shows": "Custom role creation steps (help article with screenshots)"
+  },
+  {
+   "area": "targets",
+   "url": "https://www.clio.com/blog/clio-month-dashboard-update-task-notifications-new-integration-partners/",
+   "shows": "Dashboard billable hours target with working-days gear (blog with images)"
+  },
+  {
+   "area": "insights",
+   "url": "https://www.clio.com/ca/features/law-firm-insights/",
+   "shows": "Firm Dashboard marketing page with KPI imagery"
+  },
+  {
+   "area": "enterprise",
+   "url": "https://www.clio.com/uk/enterprise/sharedo-is-clio-operate/",
+   "shows": "Clio Operate product page"
+  },
+  {
+   "area": "security",
+   "url": "https://help.clio.com/hc/en-us/articles/9284724578715",
+   "shows": "MFA admin settings help article"
+  }
+ ],
+ "open_questions": [
+  "Exact names of Clio Manage's five standard roles (only Administrator confirmed; help pages 403).",
+  "US plan tiers (EasyStart/Essentials/Advanced/Complete vs new Starter/Core/Signature/Elite) that include custom roles, SSO and rate tables.",
+  "Whether Clio can enforce SSO-only login, idle timeout or IP allowlists (no evidence found).",
+  "Whether Clio has a true audit log of permission/setting changes beyond Firm Feed and login activity, and whether it exports.",
+  "Whether Reassign Work moves matters and calendar events or only tasks (sources disagree).",
+  "Clio Operate availability/capacity detail (only article titles seen).",
+  "Is there any Clio Manage leave/out-of-office feature? None found."
+ ],
+ "sources": [
+  "https://betakit.com/clio-caps-off-year-of-big-acquisitions-by-launching-new-enterprise-division/",
+  "https://developers.support.clio.com/hc/en-us/articles/360004640953-What-methods-of-authorization-does-Clio-s-API-v4-support",
+  "https://developers.support.clio.com/hc/en-us/articles/4405288237723",
+  "https://docs.developers.clio.com/api-docs/clio-manage/",
+  "https://help.clio.com/hc/articles/29658606211483",
+  "https://help.clio.com/hc/articles/40025305701659",
+  "https://help.clio.com/hc/articles/41135505613339-Single-Sign-On",
+  "https://help.clio.com/hc/articles/54119093950747",
+  "https://help.clio.com/hc/articles/9199060880411",
+  "https://help.clio.com/hc/articles/9200279456667",
+  "https://help.clio.com/hc/articles/9201286624923",
+  "https://help.clio.com/hc/articles/9204917906971",
+  "https://help.clio.com/hc/articles/9285959663131",
+  "https://help.clio.com/hc/articles/9289801180187",
+  "https://help.clio.com/hc/articles/9289973325467",
+  "https://help.clio.com/hc/en-au/articles/39985426283163",
+  "https://help.clio.com/hc/en-us/articles/14351524759707-Clio-Manage-Productivity-Reports",
+  "https://help.clio.com/hc/en-us/articles/14352051388827-Clio-Manage-Task-Reports",
+  "https://help.clio.com/hc/en-us/articles/20588040616219-Device-Sessions",
+  "https://help.clio.com/hc/en-us/articles/40062980685467",
+  "https://help.clio.com/hc/en-us/articles/55127426462619-Manage-Clio-Licenses-and-Users",
+  "https://help.clio.com/hc/en-us/articles/55127945337883-Assign-and-Unassign-Roles",
+  "https://help.clio.com/hc/en-us/articles/9284653811739-User-Security-Settings-for-Administrators",
+  "https://help.clio.com/hc/en-us/articles/9284724578715",
+  "https://help.clio.com/hc/en-us/articles/9285360193819",
+  "https://help.clio.com/hc/en-us/articles/9286062516123",
+  "https://help.clio.com/hc/en-us/articles/9289781023771",
+  "https://help.clio.com/hc/en-us/articles/9290091783323",
+  "https://help.clio.com/hc/en-us/articles/9290095965211",
+  "https://help.clio.com/hc/en-us/articles/9290390462875",
+  "https://help.clio.com/hc/en-us/articles/9290560623771",
+  "https://help.sharedo.co.uk/en_US/platform-basics/what-is-sharedosummary",
+  "https://help.sharedo.co.uk/global_permissions_and_role_based_permissions/create-a-permission-set",
+  "https://sharedo.helpjuice.com/en_US/global_permissions_and_role_based_permissions/assign-permissions-to-a-team",
+  "https://www.clio.com/about/press/clio-introduces-a-new-enterprise-division-and-ai-suite-built-for-the-worlds-largest-legal-teams/",
+  "https://www.clio.com/au/?p=32",
+  "https://www.clio.com/blog/clio-month-dashboard-update-task-notifications-new-integration-partners/",
+  "https://www.clio.com/ca/?p=339",
+  "https://www.clio.com/ca/features/law-firm-insights/",
+  "https://www.clio.com/ca/pricing/",
+  "https://www.clio.com/enterprise/blog/clio-introduces-clio-operate-to-the-north-american-legal-market/",
+  "https://www.clio.com/enterprise/blog/weightmans-firmwide-rollout-clio-operate-uk/",
+  "https://www.clio.com/features/law-firm-insights/",
+  "https://www.clio.com/uk/enterprise/sharedo-is-clio-operate/",
+  "https://www.oaklins.com/be/en/deals/110828/",
+  "https://www.usecarly.com/blog/clio-pricing/"
+ ]
+}

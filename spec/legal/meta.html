@@ -1,0 +1,85 @@
+<!--decisions-->
+<h2>Decisions</h2>
+<p class="muted">The calls the rest of the spec rests on. "Counsel" is a working name.</p>
+<div class="callout reg" style="margin:10px 0 16px">Regulatory facts marked <b>(verify)</b> came from secondary sources: the Law Society of Ontario website blocked automated reads. A licensed lawyer must check each one against the official text before it is built into a rule.</div>
+<div class="grid2">
+  <div class="box"><h4>1. Separate product, built on Paploo</h4><p>Own repo, own releases, own database. Paploo supplies the agent runtime: per-firm containers, credentials, egress control, audit, approvals, Slack and web chat. No legal code goes into Paploo.</p><span class="chip ok" style="background:var(--ok-soft);color:var(--ok);border-color:transparent">Decided</span></div>
+  <div class="box"><h4>2. Agent works, a person approves</h4><p>Every action that reaches a client, a court, a bank or the trust ledger stops at a gate. The agent prepares and cites its sources; a named person approves, and the approval is logged.</p><span class="chip ok" style="background:var(--ok-soft);color:var(--ok);border-color:transparent">Decided</span></div>
+  <div class="box"><h4>3. One isolated cell per firm</h4><p>Each firm gets its own namespace, database, keys and agent containers. Privileged data never shares a table with another firm. Fine at tens of firms; revisit at hundreds.</p><span class="chip gate">Needs your OK</span></div>
+  <div class="box"><h4>4. Data stays in Canada</h4><p>Hosting, backups and every model call in Canadian regions for every firm, with the inference region logged per call. Clio also offers a Canadian region (opt-in), so the edge is "always, including AI processing, provable". We claim it only once Canadian-region inference is contracted.</p><span class="chip gate">Needs your OK</span></div>
+  <div class="box"><h4>5. Own design, Clio-level coverage</h4><p>We match what Clio does, screen by screen, but with our own layout and words. Copying their pages or branding is a legal risk.</p><span class="chip ok" style="background:var(--ok-soft);color:var(--ok);border-color:transparent">Decided</span></div>
+  <div class="box"><h4>6. Work tracking built in, Jira optional</h4><p>Firms track work as items on boards inside the app. A connector can mirror items to an external Jira for firms that already use it. Note: Clio Work is an AI research and drafting workspace, not a task tracker; our Work area compares with Clio Manage tasks and workflows.</p><span class="chip gate">Needs your OK</span></div>
+  <div class="box"><h4>7. Ontario first</h4><p>LSO by-laws, Ontario court rules and limitation periods are built in. Other provinces later, as rule packs.</p><span class="chip gate">Needs your OK</span></div>
+  <div class="box"><h4>8. Admins run the system, not the files</h4><p>Firm admin manages users, roles and settings but does not automatically see privileged matters or move trust money. Matter access follows the team; trust authority belongs only to named licensees; nobody approves their own work; the agent never approves.</p><span class="chip gate">Needs your OK</span></div>
+  <div class="box"><h4>9. Paploo gets a generic "apps" hook</h4><p>An app declares its gates, skills and data access; Paploo runs the agent, shows the gate and keeps the audit trail. Counsel is the first app. Designed separately, nothing built yet.</p><span class="chip gate">Needs your OK</span></div>
+</div>
+<!--architecture-->
+<h2>Architecture</h2>
+<p class="muted">Two products, one agent runtime. Each firm is a sealed cell.</p>
+<div class="box" style="font:12.5px/1.5 var(--f-mono);overflow-x:auto;white-space:pre">  People                Counsel (new repo)                     Paploo (this repo)
+  ──────                ──────────────────                     ─────────────────
+  Lawyers, clerks  ──▶  Web app (matters, intake,  ──calls──▶  Agent runtime
+  Clients (portal)      deadlines, work, billing,              · one container per user
+  Slack                 trust, documents)                      · credentials the agent never sees
+                        │                                      · egress allow-list
+                        ├─ API + gate engine ◀──approvals────  · approvals + audit log
+                        ├─ Postgres (firm's own)               · skills (legal skill pack)
+                        └─ Document store (firm's own)         · Slack / web chat
+
+  One cell per firm:  namespace · database · document bucket · keys · agent containers  (Canada region)</div>
+<h3>What lives where</h3>
+<div class="grid2">
+  <div class="box"><h4>Counsel</h4><ul><li>Legal data model: matters, contacts, time, invoices, trust ledgers</li><li>Screens in this spec</li><li>Gate engine: who may approve what, and the record of it</li><li>Ontario rule packs: deadlines, trust, ID checks</li><li>Legal skills the agent uses</li></ul></div>
+  <div class="box"><h4>Paploo</h4><ul><li>Runs the agent safely, per user</li><li>Holds connection secrets (email, bank feed, Jira, e-sign)</li><li>Egress control and audit of every agent action</li><li>Chat surfaces: Slack and web</li><li>Budgets and cost per firm</li></ul></div>
+  <div class="box"><h4>Outside services (via connectors)</h4><ul><li>Email (Microsoft 365 or Google)</li><li>E-signature</li><li>Payments and bank feeds</li><li>Jira (optional)</li><li>QuickBooks Online Canada or Xero (two-way, trust summary only)</li><li>Model provider (Canadian-region inference)</li></ul></div>
+</div>
+<h3>Rules that do not bend</h3>
+<ul>
+  <li>No money moves, no document is filed or sent, and no deadline is trusted without a person's approval.</li>
+  <li>Every agent answer cites its source: document, page and line.</li>
+  <li>Trust withdrawals need an authorized lawyer; the ledger can never go below zero.</li>
+  <li>Firm data never leaves the firm's cell or Canada; every model call records its provider and region.</li>
+  <li>Vendor support sees firm data only under a time-limited grant from the owner.</li>
+</ul>
+<!--lifecycle-->
+<div class="grid2" style="margin:10px 0 4px">
+  <div class="box"><h4>Intake</h4><p class="note">Lead → triage → consult → conflict check ◆ → ID verified ◆ → engagement signed ◆</p></div>
+  <div class="box"><h4>Matter</h4><p class="note">Open ◆ → deadlines confirmed ◆ → work items → documents reviewed ◆ → filings ◆</p></div>
+  <div class="box"><h4>Money</h4><p class="note">Time accepted ◆ → bill approved ◆ → payment → trust withdrawal ◆ → monthly reconciliation ◆</p></div>
+  <div class="box"><h4>Close</h4><p class="note">Trust at zero → closing letter ◆ → archive with retention date</p></div>
+</div>
+<!--gaps-->
+<h2>Closing Clio gaps</h2>
+<p class="muted">What Clio has that we don't (checked against public sources, Oct 2026), and how we close each gap. Screens are in the Readiness area. French is not listed: no French Clio interface was found, so it is a possible edge.</p>
+<div class="scroll"><table class="ftable"><thead><tr><th>Gap</th><th>How we close it</th><th>When</th><th>Build or partner</th></tr></thead><tbody>
+<tr><td><b>Track record, customers</b></td><td>Pilot alongside Clio at Linda K Law; measure hours saved; first reference firm</td><td>Pilot</td><td>Us</td></tr>
+<tr><td><b>SOC 2 Type II, SOC 1 Type II, 99.9% SLA</b></td><td>Trust center: SOC 2 Type I then II, SOC 1 Type II for trust controls, SLA with service credits, public status page, support access only by owner grant, data escrow to firm-owned storage</td><td>Type I, status page, support grants before v1; Type II and SOC 1 ~6 months later</td><td>Partner auditor</td></tr>
+<tr><td><b>Canadian residency, provable</b></td><td>Inference region shown and logged per model call; claim held until Canadian-region inference is contracted</td><td>Before pilot</td><td>Us + model provider</td></tr>
+<tr><td><b>300+ integrations</b></td><td>Focused launch set: Microsoft 365, Google, bank feed, payments, e-sign, two-way QuickBooks Online Canada and Xero, Jira; API phased (platform api-and-webhooks: v1 API keys and id-only webhooks, v1.1 OAuth apps, reports API later); "Request a connector" demand list</td><td>Email in pilot; rest v1</td><td>Connectors</td></tr>
+<tr><td><b>Payments</b></td><td>Provider with separate trust and operating accounts; card, PAD, EFT, Interac; fees never from trust</td><td>v1</td><td>Partner</td></tr>
+<tr><td><b>Clio Accounting (CA, Sept 2026)</b></td><td>Daily trust matching and locked months in the trust area; books sync to QBO or Xero</td><td>v1</td><td>Us</td></tr>
+<tr><td><b>Mobile, mail add-ins</b></td><td>Installable web app (approvals, deadlines, time, ask, scan to matter); Outlook and Gmail add-ins. Clio's server-side email filing is parity, not an edge</td><td>Add-ins v1; mobile v1.1</td><td>Us</td></tr>
+<tr><td><b>Legal research (Clio Work)</b></td><td>Public Canadian sources (CanLII, e-Laws) with every citation checked and a "treatment not checked" badge; licensing decision later. Clio keeps the deeper Canadian corpus</td><td>v1.1</td><td>Us, license later</td></tr>
+<tr><td><b>Migration</b></td><td>Move from Clio via the Canada-region API: Document Archives for files, Reports API for trust evidence, webhooks renewed within 31 days in alongside mode</td><td>Before pilot go-live</td><td>Us</td></tr>
+<tr><td><b>Other provinces</b></td><td>Rule packs per province signed off by a local lawyer (Clio has Alberta and BC trust tools)</td><td>BC or Alberta v2</td><td>Us + local counsel</td></tr>
+<tr><td><b>Pricing</b></td><td>Public CAD per-firm price with AI included, against Clio Starter CA$69/user/mo and quote-only AI tiers</td><td>Before pilot</td><td>Us</td></tr>
+</tbody></table></div>
+<h3>Order of work</h3>
+<ol>
+<li><b>Before the pilot:</b> Clio import in alongside mode, Microsoft 365 or Google email, Canadian inference confirmed, status page, support access grants, CAD price.</li>
+<li><b>v1:</b> SOC 2 Type I, bank feed, payments (card, PAD, EFT, Interac), e-sign, QuickBooks Online Canada and Xero, mail add-ins, data escrow.</li>
+<li><b>v1.1:</b> mobile web app, research, French, Jira sync, SOC 2 Type II, SOC 1 Type II.</li>
+<li><b>v2:</b> second province.</li>
+</ol>
+<!--questions-->
+<ul>
+  <li>Product name: keep "Counsel" as a working name?</li>
+  <li>Which practice areas does Linda K Law need on day one?</li>
+  <li>Which email system does the firm use (Microsoft 365 or Google)?</li>
+  <li>Does the firm already use Jira or another task tool?</li>
+  <li>Which bank holds the trust account, and does it offer a feed?</li>
+  <li>Does the firm use QuickBooks Online, Xero, or another ledger?</li>
+  <li>Can we contract Canadian-region model inference for every call? If not, the "all in Canada" claim must carry Clio's caveat.</li>
+  <li>Research: CanLII link-out only, or license a Canadian corpus to answer Clio Work?</li>
+  <li>French interface in v1 or v1.1, given it may be an edge over Clio?</li>
+</ul>

@@ -1,0 +1,61 @@
+===== Clio Grow Tasks and Checklists https://help.clio.com/hc/en-us/articles/9207009137051-Clio-Grow-Tasks-and-Checklists updated 2026-09-04T22:38:34Z
+Tasks are an essential component of the Clio Grow intake process that are used for tracking intake-related actions. In Clio Grow, you can create and edit tasks, mark tasks as complete, get an overview of upcoming task due dates, and use checklist templates to create a customizable list of actionable items. Checklist templates are similar to Clio Manage task lists.
+Note: Tasks do not sync between Clio Grow and Clio Manage, but you can allow your Clio Grow tasks to appear in your Clio Manage calendar.
+Tip: View all tasks and intake process items for yourself and other users in the Agenda. Learn more here.
+Create tasks
+When you create a new task, the task will appear in the Intake process section, under the matter Timeline, and in the Agenda. Tasks that have not been completed yet will show a Pending status tag. When creating tasks, you cannot assign contacts to task. You can, however, assign multiple firm users to tasks.
+Note: While tasks in checklists cannot be automated or dependent on other tasks, tasks in automated workflows can be automatically assigned. Learn more about automated workflows here.
+- Go to the matter's Intake process section.
+- Select the box under Add single item, and click Create Task.
+- Complete the task details. You can assign multiple users to a task and set task reminders.
+- Click Add task.
+Edit tasks
+When modifying a task, you can change the description, the assigned user(s), the due date, and you can add or remove reminders.
+- Go to the matter.
+- Find the task in the Intake process section.
+- Click the Options dropdown and select Edit Task.
+- Make your changes and click Update Task.
+Mark tasks complete
+- Go to the matter.
+- Find the task in the Intake process section.
+- Click the box next to the task. The Pending status tag will be replaced with a Complete status tag.
+- 
+Optional: Uncheck the box to mark the task incomplete.
+Delete tasks
+Important: Deleting is a permanent action.
+You can delete a task from the matter or from the Agenda.
+Within matter Agenda
+- Go to the matter.
+- Find the task in the Intake process section.
+- Click the Options dropdown and select Delete Task.
+- When the warning prompt appears, select Delete Task.
+- Go to Agenda.
+- Find the task in the appropriate column.
+- Click the Options dropdown and select Delete.
+- When the warning prompt appears, select Delete.
+Enable task notifications
+When creating or editing a task, you can set a reminder for when a task is assigned to you. If you turn this setting on, you will receive an email when someone assigns a task to you.
+Note: You will not receive a notification if a task is overdue.
+- Go to Settings > Personal.
+- Scroll down to the Notification settings section.
+- Check or uncheck the box for Email me when I am assigned to a task.
+Show tasks in Clio Manage calendar
+While Clio Grow and Clio Manage tasks do not sync, you can view your Clio Grow tasks with due dates in your Clio Manage calendar. You can turn this setting on or off in Clio Grow:
+- Go to Settings > Calendar & appointments.
+- Scroll down to the Send events to Clio Manage calendar section.
+- Check or uncheck the box for Add task due dates to my calendar.
+Create and apply checklist templates
+Checklist templates are groups of actionable items, including tasks, that you can add to a matter’s intake process. When you add a checklist template to a matter, the template items will appear as a block of items, differentiating them from individually added intake process items. 
+Create checklist template:
+Before adding a checklist template to a matter, you need to create the template. When creating a new checklist template, you can add appointments, tasks, forms, documents, and emails to the template. 
+- Go to Settings > Checklists & campaigns.
+- Click New Template.
+- Name the checklist template and add any appointments, tasks, forms, documents, or emails.
+- When you are finished, click Create Checklist Template.
+- You can edit a checklist template by clicking the template name and selecting Edit.
+Add checklist template to a matter:
+Once checklist template items are added to a matter, you can edit, delete, and mark them complete like regular intake process items.
+- Go to the matter's Intake process section.
+- Select the Add checklist, automated workflow, email campaign box, and then select a template.
+
+IMGS: []

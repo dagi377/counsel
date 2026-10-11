@@ -1,0 +1,172 @@
+<title>Counsel versus Clio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one narrow column of four short comparison tables, read top to bottom. Teal = our edge, red = their edge. */
+:root{
+  --bg:#f4f5f4; --panel:#fff; --ink:#18201f; --muted:#5f6b69; --line:#dfe3e1; --soft:#eef1ef;
+  --us:#0d6b63; --us-soft:#e1f0ee; --them:#a72a2a; --them-soft:#f8e4e2;
+  --f:"Geist",-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101615; --panel:#161e1d; --ink:#e4ebe9; --muted:#97a6a3; --line:#27322f; --soft:#1c2624;
+  --us:#4cc2b5; --us-soft:#16302d; --them:#f08a80; --them-soft:#3a1f1d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101615; --panel:#161e1d; --ink:#e4ebe9; --muted:#97a6a3; --line:#27322f; --soft:#1c2624;
+  --us:#4cc2b5; --us-soft:#16302d; --them:#f08a80; --them-soft:#3a1f1d; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--f);padding-inline:16px;padding-block:28px 48px}
+main{max-width:880px;margin:0 auto;display:grid;gap:26px}
+h1{margin:0;font-size:26px;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.lede{margin:6px 0 0;color:var(--muted);max-width:68ch}
+h2{margin:0 0 8px;font-size:16px;font-weight:650;display:flex;gap:8px;align-items:center}
+.tag{font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;letter-spacing:.02em}
+.tag.us{background:var(--us-soft);color:var(--us)}.tag.them{background:var(--them-soft);color:var(--them)}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{text-align:left;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;background:var(--soft);padding:8px 12px;border-bottom:1px solid var(--line)}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td:first-child{font-weight:600;white-space:nowrap}
+td.us{color:var(--us)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.box ol{margin:0;padding-left:18px;display:grid;gap:4px}
+.box.us{border-top:3px solid var(--us)}.box.them{border-top:3px solid var(--them)}
+.call{background:var(--us-soft);border-radius:10px;padding:12px 16px}
+.note{color:var(--muted);font-size:12px}
+sup a{color:var(--muted);text-decoration:none;font-size:10px;margin-left:1px}sup a:hover{color:var(--us)}
+.src{color:var(--muted);font-size:12px;margin:0;padding-left:22px;display:grid;gap:2px}.src a{color:inherit;word-break:break-all}
+td:first-child{white-space:normal;min-width:120px}
+.mc{color:var(--muted);font-size:11px;white-space:nowrap}
+</style>
+
+<main>
+  <header>
+    <h1>Counsel versus Clio</h1>
+    <p class="lede">How the proposed AI-native practice app for Linda K Law compares with Clio in Canada, as of October 2026. Everything in the Counsel column is a plan or commitment from the spec and prototype, not shipped software. Savings are estimates to prove in a pilot. <span class="mc">(medium confidence)</span> marks Clio facts that rest on one or on secondary sources.</p>
+  </header>
+
+  <section>
+    <h2>Where we plan to win <span class="tag us">our edge</span></h2>
+    <div class="wrap"><table>
+      <thead><tr><th>Area</th><th>Clio</th><th>Counsel (planned)</th></tr></thead>
+      <tbody>
+        <tr><td>Approvals</td><td>Per feature: AI bill drafts go to named approvers<sup><a href="#s2">2</a></sup>; AI-drafted events and entries open for review before saving<sup><a href="#s5">5</a></sup>. Clio Work agentic mode runs multi-step tasks you watch and interrupt; no approval gate is described<sup><a href="#s1">1</a></sup> <span class="mc">(medium confidence)</span></td><td class="us">Will show its plan and live steps, with Stop; each regulated step will wait in one queue; the preparer will not be able to approve their own work; every decision logged</td></tr>
+        <tr><td>Trust withdrawals</td><td>Disbursements are recorded after the cheque, cash or transfer, with no approval step described<sup><a href="#s3">3</a></sup></td><td class="us">A named licensee will authorize each withdrawal before money moves</td></tr>
+        <tr><td>Ontario deadlines</td><td>Court rules cover two provincial courts and the Federal Court in Canada<sup><a href="#s4">4</a></sup>; AI deadline extraction does not apply local court rules for counting days<sup><a href="#s5">5</a></sup></td><td class="us">Planned: Ontario court-rule computation, rule cited, plus a blind second check</td></tr>
+        <tr><td>Ontario trust reports</td><td>Alberta trust report and BC trust fee built in<sup><a href="#s6">6</a></sup><sup><a href="#s7">7</a></sup>; no built-in LSO By-Law 9 or Form 9A report found, and Clio's Canada page points to a third-party add-on for Ontario reports <span class="mc">(medium confidence)</span></td><td class="us">Planned: By-Law 9 records and Form 9A built in</td></tr>
+        <tr><td>Canadian payments</td><td>Clio Payments in Canada: cards and wallets; eCheck and ACH are US only, and no Canadian EFT or pre-authorized debit is documented<sup><a href="#s8">8</a></sup></td><td class="us">Planned: EFT, pre-authorized debit, Interac e-Transfer and cards</td></tr>
+        <tr><td>Texts and portal</td><td>Texts use one shared firm number and every firm user can see every text<sup><a href="#s9">9</a></sup></td><td class="us">Planned: texts and portal messages scoped to matter permissions</td></tr>
+        <tr><td>Admin access</td><td>Administrator role has full access to settings, users and data<sup><a href="#s26">26</a></sup>; admins can list matters they are restricted from and bulk-change matter permissions<sup><a href="#s28">28</a></sup></td><td class="us">Planned: admin runs settings and sees no matter files or money</td></tr>
+        <tr><td>Data in Canada</td><td>Canadian server is opt-in<sup><a href="#s11">11</a></sup>; generating a Clio Work AI response may involve temporary processing outside the account's region<sup><a href="#s10">10</a></sup></td><td class="us"><b>Commitment:</b> storage and every model call in Canada for every firm, logged per call. Claimed only once Canadian-region inference is contracted.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Not edges: Clio also suggests unlogged time<sup><a href="#s25">25</a></sup>, locks completed reconciliations <span class="mc">(medium confidence)</span> and cites authority in Clio Work<sup><a href="#s16">16</a></sup>. Our citation rule (every claim, to page and line) is a prototype claim to prove.</p>
+  </section>
+
+  <section>
+    <h2>What the firm could save <span class="tag us">estimate</span></h2>
+    <div class="wrap"><table>
+      <thead><tr><th>Task</th><th>Manual firm today</th><th>With Counsel (target)</th></tr></thead>
+      <tbody>
+        <tr><td>New client intake</td><td>1–2 h staff time</td><td class="us">~15 min review</td></tr>
+        <tr><td>Billable time</td><td>10–20% never recorded</td><td class="us">+5–10 h per lawyer per month</td></tr>
+        <tr><td>Monthly billing</td><td>Days (Clio Manage AI can already draft bills on a schedule<sup><a href="#s2">2</a></sup>)</td><td class="us">~1 day</td></tr>
+        <tr><td>Trust reconciliation</td><td>Hours</td><td class="us">&lt;1 h sign-off</td></tr>
+        <tr><td>Software</td><td>Clio Starter from CA$69/user/mo; Core, Signature, Elite quote-only, AI from Core<sup><a href="#s14">14</a></sup>. 2025 list CA$69/129/179/219 (annual billing)<sup><a href="#s13">13</a></sup>. Clio Work priced separately: US$199/user/mo at its Oct 2025 launch<sup><a href="#s17">17</a></sup>; CAD price not found</td><td class="us">One CAD price per firm, AI included (to set)</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Time and percentage figures are our working estimates with no external source; the pilot must measure them.</p>
+  </section>
+
+  <section>
+    <h2>What Clio has that we don't <span class="tag them">their edge</span></h2>
+    <div class="wrap"><table>
+      <thead><tr><th>Clio has</th><th>Our gap</th></tr></thead>
+      <tbody>
+        <tr><td>Established vendor; the firm's records already live in Clio</td><td>New, no customers; Clio importer (Canada-region API) to build</td></tr>
+        <tr><td>SOC 2 Type II and SOC 1 Type II, 99.9% uptime SLA with credits, Canadian data region<sup><a href="#s12">12</a></sup><sup><a href="#s11">11</a></sup></td><td>None yet; SOC 2 Type I, then II and SOC 1; SLA and status page planned</td></tr>
+        <tr><td>300+ integrations, filterable by region including Canada<sup><a href="#s19">19</a></sup></td><td>Focused launch set; two-way QuickBooks Online Canada and Xero planned</td></tr>
+        <tr><td>Clio Accounting: bank feeds and match suggestions<sup><a href="#s15">15</a></sup>; Canadian launch Sept 2026 with three-way trust reconciliation <span class="mc">(medium confidence)</span></td><td>Daily trust matching specified, not built</td></tr>
+        <tr><td>Manage AI: suggests time, drafts bills on a schedule<sup><a href="#s25">25</a></sup><sup><a href="#s2">2</a></sup></td><td>Same idea in spec; parity, not an edge</td></tr>
+        <tr><td>Clio Work: AI research and drafting (Vincent), Canadian case law since Jul 2026<sup><a href="#s16">16</a></sup>; agentic mode since Apr 2026<sup><a href="#s1">1</a></sup> <span class="mc">(medium confidence)</span></td><td>No licensed corpus; plan is public sources (CanLII, e-Laws) with checked citations</td></tr>
+        <tr><td>Native mobile apps, Outlook add-in, server-side email filing<sup><a href="#s20">20</a></sup><sup><a href="#s18">18</a></sup></td><td>Mobile web app and Outlook/Gmail add-ins planned, not built</td></tr>
+        <tr><td>Clio Grow: email marketing, review requests, AI intake<sup><a href="#s24">24</a></sup></td><td>AI intake specified; marketing out of scope</td></tr>
+        <tr><td>Sold across Canada; Alberta and BC trust tools<sup><a href="#s6">6</a></sup><sup><a href="#s7">7</a></sup></td><td>Ontario first; other provinces as rule packs</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="two">
+    <div class="box us"><h2>Why they'd choose us</h2><ol>
+      <li>Every regulated step would wait in one queue for a named approver.</li>
+      <li>Ontario court rules, By-Law 9 and Form 9A planned out of the box.</li>
+      <li>Canadian bank payments (EFT, PAD, Interac) planned, not cards only.</li>
+      <li>Storage and AI in Canada, logged per call (once contracted).</li>
+      <li>One CAD price with AI included (price to set).</li>
+    </ol></div>
+    <div class="box them"><h2>Why they wouldn't yet</h2><ol>
+      <li>Moving years of records out of Clio is risky.</li>
+      <li>No certifications, SLA, customers or support yet.</li>
+      <li>Clio Work's Canadian research corpus and Clio Accounting.</li>
+      <li>Missing day-to-day integrations and native mobile.</li>
+    </ol></div>
+  </section>
+
+  <section>
+    <h2>Other rivals <span class="tag them">watch</span></h2>
+    <div class="wrap"><table>
+      <tbody>
+        <tr><td>LEAP</td><td>AI rival sold in Canada: Matter AI answers over a matter's documents with cited sources<sup><a href="#s21">21</a></sup>; LawY lawyer-verified answers and AI prompts for Ontario and BC court forms<sup><a href="#s22">22</a></sup> <span class="mc">(medium confidence)</span>. Ontario court-form help is not our edge.</td></tr>
+        <tr><td>Smokeball</td><td>Archie agentic assistant creates tasks, memos and events with user approval<sup><a href="#s23">23</a></sup>; not sold in Canada. Per-action approval exists elsewhere; our planned claim is one firm-wide queue with preparer/approver separation.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <p class="call"><b>Entry plan:</b> run alongside Clio first, starting with intake, deadlines and time recovery. Add billing and trust once the firm trusts us.</p>
+
+  <section>
+    <h2>To confirm</h2>
+    <ul class="src">
+      <li>French: no French Clio interface found; one third-party review says English-only<sup><a href="#s27">27</a></sup> (low confidence). If true, French could be ours.</li>
+      <li>Ontario court forms in Clio Draft: Clio's own help articles disagree (Ontario and BC vs BC only).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Sources</h2>
+    <ol class="src">
+      <li id="s1"><a href="https://www.clio.com/about/press/clio-work-agentic-mode-small-law-firms/">Clio Work agentic mode (press, Apr 2026)</a></li>
+      <li id="s2"><a href="https://help.clio.com/hc/en-us/articles/29764998990491">Manage AI automated billing (help)</a></li>
+      <li id="s3"><a href="https://help.clio.com/hc/en-us/articles/52224795936539-Disburse-Trust-Funds">Disburse trust funds (help)</a></li>
+      <li id="s4"><a href="https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules">Court Rules coverage (help, Oct 2026)</a></li>
+      <li id="s5"><a href="https://help.clio.com/hc/en-us/articles/42019952139035-Schedule-Events-From-Documents-Using-Clio-s-AI-Features">Schedule events from documents with AI (help)</a></li>
+      <li id="s6"><a href="https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report">Law Society of Alberta trust report (help)</a></li>
+      <li id="s7"><a href="https://help.clio.com/hc/en-us/articles/52126240002843-Manage-Trust-Administration-Fee">BC Trust Administration Fee (help)</a></li>
+      <li id="s8"><a href="https://help.clio.com/hc/en-us/articles/41863402264091-Review-Accepted-Payment-Methods">Clio Payments accepted methods (help)</a></li>
+      <li id="s9"><a href="https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage">Text messaging in Clio Manage (help)</a></li>
+      <li id="s10"><a href="https://help.clio.com/hc/en-us/articles/53337803186715-Understand-Clio-Work-Data-Residency-in-Canada">Clio Work data residency in Canada (help)</a></li>
+      <li id="s11"><a href="https://docs.developers.clio.com/handbook/getting-started/regions">Clio regions (developer handbook)</a></li>
+      <li id="s12"><a href="https://web.archive.org/web/20260516032243/https://www.clio.com/ca/security/">Clio Canada security page (Wayback, May 2026)</a></li>
+      <li id="s13"><a href="https://web.archive.org/web/20250805044607/https://www.clio.com/ca/pricing/">Clio Canada pricing (Wayback, Aug 2025)</a></li>
+      <li id="s14"><a href="https://web.archive.org/web/20260930074535/https://www.clio.com/ca/pricing/">Clio Canada pricing (Wayback, Sept 2026)</a></li>
+      <li id="s15"><a href="https://help.clio.com/hc/en-us/articles/21004158222235-Clio-Accounting-Banking">Clio Accounting banking (help)</a></li>
+      <li id="s16"><a href="https://lawnext.com/2026/07/bringing-home-the-bacon-clio-launches-clio-work-ai-in-its-home-country-of-canada.html">Clio Work launches in Canada (LawNext, Jul 2026)</a></li>
+      <li id="s17"><a href="https://www.lawnext.com/2025/10/to-a-sometimes-shell-shocked-cliocon-audience-jack-newton-presented-clios-vision-for-a-new-era-of-ai-driven-legal-work.html">Clio Work at ClioCon, US$199 (LawNext, Oct 2025)</a></li>
+      <li id="s18"><a href="https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing">Automated email filing (help)</a></li>
+      <li id="s19"><a href="https://web.archive.org/web/20261005050315/https://www.clio.com/app-directory/">Clio App Directory (Wayback, Oct 2026)</a></li>
+      <li id="s20"><a href="https://web.archive.org/web/20260827203348/https://www.clio.com/features/mobile-app/">Clio mobile app (Wayback, Aug 2026)</a></li>
+      <li id="s21"><a href="https://www.leaplegalsoftware.com/au/features/matterai">LEAP Matter AI</a></li>
+      <li id="s22"><a href="https://www.canadianlawyermag.com/news/general/legal-ai-innovations-how-leap-is-reshaping-legal-research-and-practice-management/386055">LEAP LawY in Canada (Canadian Lawyer)</a></li>
+      <li id="s23"><a href="https://lawnext.com/2026/07/two-years-after-launching-its-ai-assistant-archie-smokeball-rolls-out-the-next-generation-built-on-agentic-ai-and-embedded-in-word-and-outlook.html">Smokeball Archie agentic (LawNext, Jul 2026)</a></li>
+      <li id="s24"><a href="https://help.clio.com/hc/en-us/articles/39242840782107-Email-Marketing-in-Clio-Grow">Clio Grow email marketing (help)</a></li>
+      <li id="s25"><a href="https://help.clio.com/hc/articles/29765932267675">Manage AI suggested time (help)</a></li>
+      <li id="s26"><a href="https://help.clio.com/hc/articles/9200279456667">Clio admin permissions (help)</a></li>
+      <li id="s27"><a href="https://www.clubic.com/telecharger-fiche540860-clio.html">French: Clio review (Clubic)</a></li>
+      <li id="s28"><a href="https://help.clio.com/hc/en-us/articles/9286062516123">Matter permissions and admin view (help)</a></li>
+    </ol>
+    <p class="note" style="margin-top:8px">Clio facts from public sources read Oct 2026; Clio changes often. Check prices and features before sharing.</p>
+  </section>
+  <p class="note">Last checked: 2026-10-10</p>
+</main>

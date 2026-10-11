@@ -1,0 +1,427 @@
+<title>Counsel App Spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: spec console. Left = navigation (overview + areas + screens), centre = live mock of the screen
+   inside an app frame, right = the spec for that screen. Red-tape oxblood marks gates; teal marks agent work. */
+:root{
+  --bg:#f5f6f7; --panel:#ffffff; --ink:#1b2128; --muted:#5d6874; --line:#dde1e6; --soft:#eef0f3;
+  --accent:#8b2f2f; --accent-soft:#f6e9e7; --agent:#0f6e6a; --agent-soft:#e3f2f1;
+  --gate:#9a5b00; --gate-soft:#fbf0dc; --ok:#2f6b34; --ok-soft:#e5f1e5; --bad:#a32020;
+  --f-display:"Newsreader",Georgia,"Times New Roman",serif;
+  --f-body:"Instrument Sans",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#13171b; --panel:#1a1f25; --ink:#e7eaee; --muted:#9aa5b1; --line:#2c333b; --soft:#20262d;
+  --accent:#e08a80; --accent-soft:#3a2321; --agent:#5cc4bd; --agent-soft:#173331;
+  --gate:#e4ad55; --gate-soft:#3a2d16; --ok:#86c58b; --ok-soft:#1d311f; --bad:#f08080; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#13171b; --panel:#1a1f25; --ink:#e7eaee; --muted:#9aa5b1; --line:#2c333b; --soft:#20262d;
+  --accent:#e08a80; --accent-soft:#3a2321; --agent:#5cc4bd; --agent-soft:#173331;
+  --gate:#e4ad55; --gate-soft:#3a2d16; --ok:#86c58b; --ok-soft:#1d311f; --bad:#f08080; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--f-body);padding-inline:16px;padding-block:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding-block:14px;border-bottom:1px solid var(--line)}
+.brand{font:600 20px/1.2 var(--f-display);letter-spacing:.01em}
+.brand small{display:block;font:500 11px var(--f-body);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.stats{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.stats b{color:var(--ink);font-weight:600}
+.search{margin-left:auto;min-width:0;flex:0 1 260px}
+.search input{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit}
+.viewas{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.viewas select{padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.locked{border:1px dashed var(--line);border-radius:8px;padding:28px;text-align:center;color:var(--muted)}
+.locked b{display:block;color:var(--ink);font:600 16px var(--f-display);margin-bottom:4px}
+.mx td,.mx th{white-space:nowrap;text-align:center;padding:5px 7px}
+.mx td:first-child,.mx th:first-child{text-align:left;position:sticky;left:0;background:var(--panel)}
+.lv{display:inline-block;min-width:44px;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600}
+.lv-none{color:var(--muted)}
+.lv-view{background:var(--soft)}
+.lv-own{background:var(--agent-soft);color:var(--agent)}
+.lv-all{background:var(--ok-soft);color:var(--ok)}
+.lv-approve{background:var(--gate-soft);color:var(--gate)}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.shell{display:grid;grid-template-columns:240px minmax(0,1fr) 380px;gap:16px;padding-block:16px;align-items:start}
+@media (max-width:1180px){.shell{grid-template-columns:220px minmax(0,1fr)}.spec{grid-column:1/-1}}
+@media (max-width:760px){.shell{grid-template-columns:minmax(0,1fr)}}
+nav.side{position:sticky;top:env(safe-area-inset-top,0px);max-height:calc(100vh - 20px);overflow:auto;padding-right:4px}
+@media (max-width:760px){nav.side{position:static;max-height:none}}
+.navgrp{margin-bottom:14px}
+.navgrp h4{margin:0 0 4px;font:600 11px var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;justify-content:space-between;cursor:pointer}
+.navgrp h4 span{font-variant-numeric:tabular-nums}
+.navitem{display:block;width:100%;text-align:left;border:0;background:none;padding:4px 8px;border-radius:5px;cursor:pointer;font-size:13px;color:var(--ink)}
+.navitem:hover{background:var(--soft)}
+.navitem.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.navitem .g{color:var(--gate);font-size:11px;margin-left:4px}
+.frame{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0}
+.chrome{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--soft);font:12px var(--f-mono);color:var(--muted);flex-wrap:wrap}
+.dots{display:flex;gap:5px}.dots i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
+.appbar{display:flex;gap:2px;padding:6px 8px;border-bottom:1px solid var(--line);overflow-x:auto}
+.appbar button{border:0;background:none;padding:5px 9px;border-radius:5px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.appbar button.on{background:var(--ink);color:var(--panel)}
+.stage{padding:18px;min-width:0}
+.stage h2{margin:0;font:600 24px/1.2 var(--f-display);text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid var(--line);color:var(--muted);background:var(--panel)}
+.chip.agent{background:var(--agent-soft);color:var(--agent);border-color:transparent}
+.chip.gate{background:var(--gate-soft);color:var(--gate);border-color:transparent}
+.chip.reg{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.chip.state{cursor:pointer}.chip.state.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.banner{margin:12px 0;padding:8px 12px;border-radius:6px;background:var(--soft);font-size:13px}
+.banner.agent{background:var(--agent-soft);color:var(--agent)}
+.banner.gate{background:var(--gate-soft);color:var(--gate)}
+.actions{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.btn{border:1px solid var(--line);background:var(--panel);padding:5px 11px;border-radius:6px;cursor:pointer;font-size:12.5px}
+.btn:hover{border-color:var(--muted)}
+.btn.agent{border-color:var(--agent);color:var(--agent)}
+.btn.gate{border-color:var(--gate);color:var(--gate)}
+.btn.primary{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.approval{border:1px solid var(--gate);background:var(--gate-soft);border-radius:8px;padding:12px;margin:10px 0}
+.approval h5{margin:0 0 4px;color:var(--gate);font-size:13px}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-weight:600;color:var(--muted);background:var(--soft);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+tr:last-child td{border-bottom:0}
+td.num{text-align:right}
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(170px,1fr);gap:10px;overflow-x:auto;padding-bottom:4px}
+.lane{background:var(--soft);border-radius:8px;padding:8px;min-height:120px}
+.lane h6{margin:0 0 6px;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 9px;margin-bottom:6px;font-size:12.5px}
+.card small{display:block;color:var(--muted)}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px 14px}
+.form label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);min-width:0}
+.form label b{color:var(--accent);font-weight:600}
+.form input,.form select,.form textarea{padding:6px 8px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--ink);font:13px var(--f-body);min-width:0}
+.kv{display:grid;grid-template-columns:minmax(120px,max-content) minmax(0,1fr);gap:6px 16px;font-size:13px}
+.kv dt{color:var(--muted)}.kv dd{margin:0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.tile small{color:var(--muted);font-size:11.5px;display:block}
+.tile b{font:600 20px var(--f-display);font-variant-numeric:tabular-nums}
+.tile span{font-size:11.5px;color:var(--muted)}
+.tl{list-style:none;margin:0;padding:0;border-left:2px solid var(--line)}
+.tl li{position:relative;padding:4px 0 10px 14px;font-size:13px}
+.tl li::before{content:"";position:absolute;left:-6px;top:9px;width:10px;height:10px;border-radius:50%;background:var(--panel);border:2px solid var(--muted)}
+.tl li small{color:var(--muted);display:block}
+.inbox .msg{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.inbox .msg:last-child{border-bottom:0}
+.inbox .msg small{color:var(--muted);grid-column:1/-1}
+.doc{max-width:66ch;margin:0 auto;padding:22px 26px;border:1px solid var(--line);border-radius:4px;font:15px/1.65 var(--f-display);background:var(--panel)}
+.doc p{margin:0 0 10px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;font-size:11.5px}
+.cal .d{min-height:64px;border:1px solid var(--line);border-radius:5px;padding:4px;min-width:0}
+.cal .d i{font-style:normal;color:var(--muted)}
+.cal .ev{display:block;margin-top:3px;padding:1px 4px;border-radius:3px;background:var(--accent-soft);color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+aside.spec{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.spec h3{margin:0 0 2px;font:600 18px var(--f-display)}
+.spec .route{font:12px var(--f-mono);color:var(--muted);word-break:break-all}
+.sec{margin-top:14px}
+.sec h6{margin:0 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.sec p,.sec li{font-size:13px;margin:0}
+.sec ul{margin:0;padding-left:18px;display:grid;gap:3px}
+.ftable td,.ftable th{white-space:normal}
+.callout{border-left:3px solid var(--agent);background:var(--agent-soft);padding:8px 10px;border-radius:0 6px 6px 0;font-size:13px}
+.callout.gate{border-color:var(--gate);background:var(--gate-soft)}
+.callout.reg{border-color:var(--accent);background:var(--accent-soft)}
+.doc-page{max-width:900px}
+.doc-page h2{font:600 26px var(--f-display);margin:0 0 6px}
+.doc-page h3{font:600 18px var(--f-display);margin:22px 0 8px}
+.doc-page p,.doc-page li{max-width:72ch}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.box{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--panel);min-width:0}
+.box h4{margin:0 0 6px;font-size:14px}
+.gates{counter-reset:g;display:grid;gap:8px}
+.gaterow{display:grid;grid-template-columns:56px minmax(0,1fr) minmax(0,1.2fr) 120px;gap:12px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+@media (max-width:760px){.gaterow{grid-template-columns:48px minmax(0,1fr)}}
+.gaterow b.id{font:600 13px var(--f-mono);color:var(--gate)}
+.muted{color:var(--muted)}
+pre.mermaid{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;overflow-x:auto}
+.note{font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top">
+  <div class="brand">Counsel<small>AI-native practice app · full spec for review</small></div>
+  <div class="stats" id="stats"></div>
+  <div class="legend"><span class="chip agent">Agent does</span><span class="chip gate">Human approves</span><span class="chip reg">Regulated</span></div>
+  <label class="viewas" for="role">Viewing as <select id="role"></select></label>
+  <div class="search"><input id="q" type="search" placeholder="Find a screen…" aria-label="Find a screen"></div>
+</header>
+<div class="shell">
+  <nav class="side" id="nav" aria-label="Spec navigation"></nav>
+  <main id="main" style="min-width:0"></main>
+  <aside class="spec" id="spec"></aside>
+</div>
+
+<script>
+window.SPEC = /*DATA*/null;
+</script>
+<script>
+(function(){
+const S = window.SPEC || {areas:[],meta:{}};
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const arr = v => Array.isArray(v) ? v : (v == null || v === "" ? [] : [v]);
+const isMoney = v => /^-?\$?\s?-?[\d,]+(\.\d\d)?$/.test(String(v).trim()) && /[\d]/.test(String(v));
+const screens = [];
+S.areas.forEach(a => arr(a.screens).forEach(s => screens.push({...s, _area:a})));
+
+let cur = null, curState = null;
+const ACCA = S.areas.find(a => a.area === "access") || {};
+const ROLES = arr(ACCA.roles);
+const AMAP = S.accessMap || {};
+let role = (ROLES.find(r => /lawyer/i.test(r.id)) || ROLES[0] || {}).id || "";
+try { const r = localStorage.getItem("spec-role"); if (r && ROLES.some(x => x.id === r)) role = r; } catch(e){}
+const roleName = id => (ROLES.find(r => r.id === id) || {name:id}).name;
+function can(s){
+  const m = AMAP[s._area.area + "/" + s.id];
+  if (!m || !role) return {mapped:false, view:true, act:true, approve:true};
+  const has = k => arr(m[k]).includes(role);
+  return {mapped:true, view: has("view")||has("act")||has("approve"), act: has("act"), approve: has("approve"), m};
+}
+const OVER = [
+  {id:"ov-why", name:"Decisions"},
+  {id:"ov-arch", name:"Architecture"},
+  {id:"ov-life", name:"Lifecycle & gates"},
+  {id:"ov-data", name:"Data model"},
+  {id:"ov-jobs", name:"Agent jobs"},
+  {id:"ov-gaps", name:"Closing Clio gaps"},
+  {id:"ov-research", name:"Clio research"},
+  {id:"ov-shots", name:"Clio screenshots"},
+  {id:"ov-access", name:"Access levels"},
+  {id:"ov-clio", name:"Clio coverage"},
+  {id:"ov-q", name:"Open questions"},
+  {id:"ov-src", name:"Sources"},
+];
+
+function stats(){
+  const gates = screens.filter(s => s.gate && !/^none$/i.test(String(s.gate).trim())).length;
+  const reg = screens.filter(s => s.reg).length;
+  $("#stats").innerHTML = `<span><b>${S.areas.length}</b> areas</span><span><b>${screens.length}</b> screens</span><span><b>${gates}</b> with a human gate</span><span><b>${reg}</b> regulated</span>`;
+}
+
+function nav(filter=""){
+  const f = filter.trim().toLowerCase();
+  let h = `<div class="navgrp"><h4>Overview</h4>${OVER.map(o=>`<button class="navitem ${cur===o.id?"on":""}" data-go="${o.id}">${esc(o.name)}</button>`).join("")}</div>`;
+  if (arr(S.eng).length) h += `<div class="navgrp"><h4>Engineering</h4>${arr(S.eng).map(e=>`<button class="navitem ${cur==="eng-"+e.id?"on":""}" data-go="eng-${esc(e.id)}">${esc(e.title)}</button>`).join("")}</div>`;
+  S.areas.forEach(a => {
+    const list = arr(a.screens).filter(s => !f || (s.name+" "+s.purpose+" "+a.title).toLowerCase().includes(f));
+    if (f && !list.length) return;
+    h += `<div class="navgrp"><h4>${esc(a.title)} <span>${list.length}</span></h4>` +
+      list.map(s => {
+        const g = s.gate && !/^none$/i.test(String(s.gate).trim());
+        return `<button class="navitem ${cur===a.area+"/"+s.id?"on":""}" data-go="${esc(a.area)}/${esc(s.id)}">${esc(s.name)}${g?'<span class="g" title="Human gate">◆</span>':""}</button>`;
+      }).join("") + `</div>`;
+  });
+  $("#nav").innerHTML = h;
+}
+
+function appbar(areaId){
+  return `<div class="appbar">${S.areas.map(a=>`<button class="${a.area===areaId?"on":""}" data-go="${esc(a.area)}/${esc((arr(a.screens)[0]||{}).id||"")}">${esc(a.title)}</button>`).join("")}</div>`;
+}
+
+function cell(v){ return isMoney(v) ? `<td class="num">${esc(v)}</td>` : `<td>${esc(v)}</td>`; }
+
+function mock(s){
+  const m = s.mock || {}; const kind = m.kind || "table";
+  const cols = arr(m.columns), rows = arr(m.rows).map(r => Array.isArray(r) ? r : [r]);
+  const table = () => cols.length || rows.length ? `<div class="scroll"><table><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(cell).join("")}</tr>`).join("")}</tbody></table></div>` : "";
+  switch(kind){
+    case "board": {
+      const lanes = cols.length ? cols : ["To do","In progress","Needs approval","Done"];
+      const skip = v => v == null || /^\s*[-–]?\s*$/.test(String(v));
+      return `<div class="board">${lanes.map((l,i)=>`<div class="lane"><h6>${esc(l)}</h6>${rows.map(r=>r[i]).filter(v=>!skip(v)).map(v=>{const parts=String(v).split(/ - | \(/);return `<div class="card">${esc(parts[0])}${parts.length>1?`<small>${esc(String(v).slice(parts[0].length).replace(/^ - /,""))}</small>`:""}</div>`}).join("")}</div>`).join("")}</div>`;
+    }
+    case "form": {
+      const fs = arr(s.fields);
+      const lc = cols.map(c=>String(c).toLowerCase());
+      return `<form class="form" onsubmit="return false">${fs.map((f,i)=>{
+        const id = `f-${esc(s.id)}-${i}`, t = String(f.type||"text").toLowerCase();
+        const ci = lc.indexOf(String(f.name).toLowerCase());
+        const sample = ci>=0 && rows[0] ? rows[0][ci] : "";
+        let input = `<input id="${id}" value="${esc(sample)}" placeholder="${esc(f.note||"")}">`;
+        if (t.includes("date")) input = `<input id="${id}" type="date">`;
+        else if (t.includes("enum") || t.includes("select")) input = `<select id="${id}"><option>${esc(sample || "Select…")}</option></select>`;
+        else if (t.includes("long") || t.includes("textarea") || t.includes("rich")) input = `<textarea id="${id}" rows="2">${esc(sample)}</textarea>`;
+        else if (t.includes("file")) input = `<input id="${id}" type="file">`;
+        return `<label for="${id}">${esc(f.name)}${f.required?" <b>*</b>":""}${input}</label>`;
+      }).join("")}</form>${rows.length?`<div class="sec"><h6>Sample records</h6>${table()}</div>`:""}`;
+    }
+    case "detail":
+      if (cols.length > 3) return table();
+      return `<dl class="kv">${rows.map(r=>`<dt>${esc(r[0])}</dt><dd>${esc(r.slice(1).filter(x=>x!=="").join(" · "))}</dd>`).join("")}</dl>`;
+    case "dashboard": {
+      if (cols.length > 3) return table();
+      const tiles = rows.map(r => `<div class="tile"><small>${esc(r[0])}</small><b>${esc(r[1]??"")}</b>${r[2]?`<span>${esc(cols[2]?cols[2]+": ":"")}${esc(r.slice(2).join(" · "))}</span>`:""}</div>`).join("");
+      return `<div class="tiles">${tiles}</div>`;
+    }
+    case "timeline":
+      return `<ul class="tl">${rows.map(r=>`<li>${esc(r.slice(1).filter(x=>x!=="").join(" · ") || r[0])}<small>${esc(r.length>1?r[0]:"")}</small></li>`).join("")}</ul>`;
+    case "inbox":
+      return `<div class="scroll inbox">${rows.map(r=>`<div class="msg"><b>${esc(r[1]??r[0])}</b><span class="muted">${esc(r.length>1?r[0]:"")}</span><small>${r.slice(2).map((x,i)=>x===""?"":`${esc(cols[i+2]||"")}: ${esc(x)}`).filter(Boolean).join(" · ")}</small></div>`).join("")}</div>`;
+    case "doc":
+      return `<article class="doc">${rows.map(r=>`<p><strong>${esc(r[0])}</strong>${r[1]!=null?` ${esc(r[1])}`:""}${r.length>2?` <span class="note">[${esc(r.slice(2).join(" · "))}]</span>`:""}</p>`).join("")}</article>`;
+    case "calendar": {
+      const MON = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+      const dayOf = v => { const s=String(v); let m=s.match(/\d{4}-(\d{2})-(\d{2})/); if(m) return [+m[1],+m[2]]; m=s.match(/\b([A-Z][a-z]{2})\w* (\d{1,2})\b/); if(m&&MON[m[1]]) return [MON[m[1]],+m[2]]; return null; };
+      const label = r => r.find((x,i)=>i>0 && /[A-Za-z]{4}/.test(String(x)) && !/^\d/.test(String(x))) ?? r[1];
+      let h = `<div class="note" style="margin-bottom:6px">October 2026</div><div class="cal">${["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=>`<div class="muted" style="font-weight:600">${d}</div>`).join("")}`;
+      for (let i=0;i<3;i++) h += `<div></div>`;
+      for (let d=1; d<=31; d++){ const evs = rows.filter(r => { const x=dayOf(r[0]); return x && x[0]===10 && x[1]===d; });
+        h += `<div class="d"><i>${d}</i>${evs.map(r=>`<span class="ev" title="${esc(r.join(" · "))}">${esc(label(r))}</span>`).join("")}</div>`; }
+      return h + `</div><div class="sec"><h6>Entries</h6>${table()}</div>`;
+    }
+    default: return table();
+  }
+}
+
+function actions(s, c){
+  c = c || {act:true, approve:true};
+  const as = arr(s.actions);
+  if (!as.length) return "";
+  return `<div class="actions">${as.map((a,i)=>{
+    const gated = a.gate && !/^none$/i.test(a.gate);
+    const cls = gated ? "gate" : (a.by==="agent" ? "agent" : "");
+    const off = a.by==="agent" ? false : (gated ? !c.approve : !c.act);
+    return `<button class="btn ${cls}" data-act="${i}" ${off?`disabled title="${esc(roleName(role))} cannot ${gated?"approve":"do"} this"`:`title="${esc(a.note||"")}"`}>${a.by==="agent"?"✦ ":""}${esc(a.name)}${gated?" ◆":""}</button>`;
+  }).join("")}</div><div id="actout"></div>`;
+}
+
+function screen(s){
+  const a = s._area;
+  const sts = arr(s.states);
+  curState = curState && sts.includes(curState) ? curState : sts[0];
+  const c = can(s);
+  const ban = /approv|review|pending|sign/i.test(curState||"") ? "gate" : (/agent|draft|suggest|running/i.test(curState||"") ? "agent" : "");
+  $("#main").innerHTML = `<div class="frame">
+    <div class="chrome"><span class="dots"><i></i><i></i><i></i></span><span>lindalaw.counsel.local${esc(s.route||"")}</span></div>
+    ${appbar(a.area)}
+    <div class="stage">
+      <div class="row">${arr(s.who).map(w=>`<span class="chip ${w==="agent"?"agent":""}">${esc(w)}</span>`).join("")}</div>
+      <h2 style="margin-top:8px">${esc(s.name)}</h2>
+      <p class="sub">${esc(s.purpose)}</p>
+      ${sts.length?`<div class="row" role="tablist" aria-label="Screen state">${sts.map(x=>`<button class="chip state ${x===curState?"on":""}" data-state="${esc(x)}">${esc(x)}</button>`).join("")}</div>`:""}
+      ${curState?`<div class="banner ${ban}">Showing state: <b>${esc(curState)}</b>${ban==="gate"?" · waiting on a person":""}${ban==="agent"?" · agent working":""}</div>`:""}
+      ${c.mapped?`<div class="banner">As <b>${esc(roleName(role))}</b>: ${c.view?"can view":"<b>no access</b>"} · ${c.act?"can act":"cannot act"} · ${c.approve?"can approve":"cannot approve"}</div>`:""}
+      ${!c.view?`<div class="locked"><b>No access</b>${esc(roleName(role))} cannot open this screen. The menu item is hidden; a direct link shows this page and the attempt is logged.</div>`:`
+      ${s.agent?`<div class="banner agent">✦ ${esc(s.agent)}</div>`:""}
+      ${actions(s, c)}
+      ${mock(s)}`}
+    </div></div>`;
+  $("#main").querySelectorAll("[data-state]").forEach(b => b.onclick = () => { curState = b.dataset.state; screen(s); });
+  $("#main").querySelectorAll("[data-act]").forEach(b => b.onclick = () => {
+    if (b.disabled) return;
+    const act = arr(s.actions)[+b.dataset.act];
+    const gated = act.gate && !/^none$/i.test(act.gate);
+    const out = $("#actout");
+    if (gated) {
+      out.innerHTML = `<div class="approval"><h5>◆ ${esc(act.gate)} required</h5><div>${esc(act.name)}${act.note?` — ${esc(act.note)}`:""}</div><div class="note" style="margin:6px 0">${esc(s.gate||"")}</div><div class="row"><button class="btn primary" id="ap-yes">Approve</button><button class="btn" id="ap-no">Send back with note</button></div></div>`;
+      $("#ap-yes").onclick = () => out.innerHTML = `<div class="banner" style="background:var(--ok-soft);color:var(--ok)">Approved. Recorded in the audit log with your name and time.</div>`;
+      $("#ap-no").onclick = () => out.innerHTML = `<div class="banner">Sent back. The ${act.by==="agent"?"agent":"preparer"} revises and resubmits.</div>`;
+    } else {
+      out.innerHTML = `<div class="banner ${act.by==="agent"?"agent":""}">${act.by==="agent"?"✦ Agent: ":""}${esc(act.name)}${act.note?` — ${esc(act.note)}`:""}</div>`;
+    }
+  });
+  spec(s);
+}
+
+function spec(s){
+  const a = s._area;
+  const fs = arr(s.fields);
+  $("#spec").innerHTML = `<h3>${esc(s.name)}</h3><div class="route">${esc(s.route||"")}</div>
+    <div class="sec"><h6>Layout</h6><p>${esc(s.layout)}</p></div>
+    ${(()=>{const m=AMAP[s._area.area+"/"+s.id]; if(!m) return ""; return `<div class="sec"><h6>Access</h6><ul>${["view","act","approve"].map(k=>`<li><b>${k}</b>: ${arr(m[k]).map(r=>`<span class="chip">${esc(roleName(r))}</span>`).join(" ")||"<span class=muted>nobody</span>"}</li>`).join("")}</ul></div>`})()}
+    ${s.agent?`<div class="sec"><h6>Agent</h6><div class="callout">${esc(s.agent)}</div></div>`:""}
+    <div class="sec"><h6>Human gate</h6><div class="callout gate">${esc(s.gate||"none")}</div></div>
+    ${s.reg?`<div class="sec"><h6>Regulatory</h6><div class="callout reg">${esc(s.reg)}</div></div>`:""}
+    ${fs.length?`<div class="sec"><h6>Fields (${fs.length})</h6><div class="scroll"><table class="ftable"><thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead><tbody>${fs.map(f=>`<tr><td>${esc(f.name)}${f.required?" *":""}</td><td class="muted">${esc(f.type)}</td><td class="muted">${esc(f.note||"")}</td></tr>`).join("")}</tbody></table></div></div>`:""}
+    ${arr(s.actions).length?`<div class="sec"><h6>Actions</h6><ul>${arr(s.actions).map(x=>`<li><b>${esc(x.name)}</b> <span class="muted">· ${esc(x.by)}${x.gate&&!/^none$/i.test(x.gate)?" · "+esc(x.gate):""}</span>${x.note?` — ${esc(x.note)}`:""}</li>`).join("")}</ul></div>`:""}
+    ${arr(s.edge).length?`<div class="sec"><h6>Edge cases</h6><ul>${arr(s.edge).map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:""}
+    <div class="sec"><h6>Area</h6><p>${esc(a.title)} — ${esc(a.summary)}</p></div>`;
+}
+
+function page(html){ $("#main").innerHTML = `<div class="doc-page">${html}</div>`; }
+function overview(id){
+  const M = S.meta || {};
+  $("#spec").innerHTML = `<h3>How to review</h3><div class="sec"><p>Click any screen on the left. The centre shows a working mock; click state chips and buttons. Buttons marked ◆ open the approval a person would see.</p></div><div class="sec"><p>Leave comments on this page; I read every thread and update the spec. Nothing gets built until you approve.</p></div><div class="sec"><h6>Legend</h6><ul><li>✦ the agent does this</li><li>◆ a person approves</li><li>(verify) regulatory fact to confirm against the official text</li></ul></div>`;
+  if (id==="ov-why") return page(M.decisions || "");
+  if (id==="ov-arch") return page(M.architecture || "");
+  if (id==="ov-life") {
+    const gs = []; const seen = new Set();
+    S.areas.forEach(a => arr(a.gates).forEach(g => { const k=(g.name||"").toLowerCase(); if(!seen.has(k)){seen.add(k); gs.push({...g,_a:a.title});} }));
+    return page(`<h2>Lifecycle & gates</h2><p class="muted">Every point where work stops until a named person approves. Intake to close, then the recurring ones.</p>${M.lifecycle||""}<h3>All gates (${gs.length})</h3><div class="gates">${gs.map(g=>`<div class="gaterow"><b class="id">${esc(g.id)}</b><div><b>${esc(g.name)}</b><div class="note">${esc(g._a)}</div></div><div class="muted">Blocks: ${esc(g.blocks)}</div><div><span class="chip gate">${esc(g.approver)}</span></div></div>`).join("")}</div>`);
+  }
+  if (id==="ov-data") {
+    const ents = {};
+    S.areas.forEach(a => arr(a.entities).forEach(e => { const k=e.name; ents[k] = ents[k] || {name:k,fields:new Set(),relations:new Set(),areas:new Set()};
+      arr(e.fields).forEach(f=>ents[k].fields.add(f)); arr(e.relations).forEach(r=>ents[k].relations.add(r)); ents[k].areas.add(a.title); }));
+    const list = Object.values(ents).sort((x,y)=>x.name.localeCompare(y.name));
+    return page(`<h2>Data model</h2><p class="muted">${list.length} entities, merged across areas. One Postgres database per firm.</p><div class="grid2">${list.map(e=>`<div class="box"><h4>${esc(e.name)}</h4><div class="note">${esc([...e.areas].join(", "))}</div><p style="font:12px var(--f-mono);margin:6px 0">${esc([...e.fields].join(", "))}</p>${e.relations.size?`<ul class="note" style="padding-left:16px;margin:0">${[...e.relations].map(r=>`<li>${esc(r)}</li>`).join("")}</ul>`:""}</div>`).join("")}</div>`);
+  }
+  if (id==="ov-jobs") {
+    return page(`<h2>Agent jobs</h2><p class="muted">What runs without being asked. Every output lands at a gate, never straight to a client, court or bank.</p><div class="scroll"><table class="ftable"><thead><tr><th>Job</th><th>Area</th><th>Trigger</th><th>Does</th><th>Output</th></tr></thead><tbody>${S.areas.flatMap(a=>arr(a.agent_jobs).map(j=>`<tr><td><b>${esc(j.name)}</b></td><td class="muted">${esc(a.title)}</td><td>${esc(j.trigger)}</td><td>${esc(j.does)}</td><td>${esc(j.output)}</td></tr>`)).join("")}</tbody></table></div>`);
+  }
+  if (id==="ov-gaps") return page(M.gaps || "");
+  if (id==="ov-research") {
+    const R = arr(S.research);
+    const feats = R.flatMap(r => arr(r.features).map(f => ({...f, _r:r.scope})));
+    const corr = R.flatMap(r => arr(r.corrections));
+    const conf = k => feats.filter(f => f.confidence===k).length;
+    const link = u => `<a href="${esc(u)}" target="_blank" rel="noopener">source</a>`;
+    return page(`<h2>Clio research</h2><p class="muted">${R.length} research passes, ${feats.length} Clio features with sources. Confidence: ${conf("high")} high, ${conf("medium")} medium, ${conf("low")} low.</p>
+      ${corr.length?`<h3>Corrections to our own claims (${corr.length})</h3><div class="scroll"><table class="ftable"><thead><tr><th>We said</th><th>What is true</th><th>Source</th></tr></thead><tbody>${corr.map(c=>`<tr><td>${esc(c.our_claim)}</td><td>${esc(c.truth)}</td><td>${arr(c.sources).slice(0,2).map(link).join(" ")}</td></tr>`).join("")}</tbody></table></div>`:""}
+      <h3>Feature inventory</h3><div class="row" style="margin-bottom:8px"><input id="rq" class="" placeholder="Filter features…" style="padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);min-width:0;flex:1"></div>
+      <div class="scroll"><table class="ftable" id="rt"><thead><tr><th>Feature</th><th>Product · where</th><th>What it does</th><th>Plan</th><th>Conf.</th><th>Sources</th></tr></thead><tbody>${feats.map(f=>`<tr data-t="${esc((f.name+" "+f.product+" "+f.what+" "+f.where).toLowerCase())}"><td><b>${esc(f.name)}</b></td><td class="muted">${esc(f.product)} · ${esc(f.where)}</td><td>${esc(f.what)}</td><td class="muted">${esc(f.plan_tier||"")}</td><td><span class="chip ${f.confidence==="high"?"agent":f.confidence==="low"?"reg":""}">${esc(f.confidence)}</span></td><td>${arr(f.sources).slice(0,2).map(link).join(" ")}${arr(f.screenshots).slice(0,1).map(u=>` <a href="${esc(u)}" target="_blank" rel="noopener">screen</a>`).join("")}</td></tr>`).join("")}</tbody></table></div>`);
+  }
+  if (id==="ov-shots") {
+    const shots = arr(S.research).flatMap(r => arr(r.screenshots_index));
+    const by = {}; shots.forEach(s => (by[s.area] = by[s.area] || []).push(s));
+    return page(`<h2>Clio screenshots</h2><p class="muted">${shots.length} links to public Clio screens and videos, by area. Reference only: our design is our own.</p>${Object.keys(by).sort().map(a=>`<h3>${esc(a)} <span class="note">${by[a].length}</span></h3><ul>${by[a].map(s=>`<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.shows||s.url)}</a></li>`).join("")}</ul>`).join("")}`);
+  }
+  if (id==="ov-access") {
+    const mx = ACCA.matrix || {}; const caps = arr(mx.capabilities); const g = mx.grants || {};
+    const rids = ROLES.map(r=>r.id);
+    return page(`<h2>Access levels</h2><p class="muted">Firm roles, what each may see and do, and the separation-of-duties rules. Use "Viewing as" at the top to walk any screen as that role.</p>
+      <div class="grid2">${ROLES.map(r=>`<div class="box"><h4>${esc(r.name)} ${r.licensee?'<span class="chip reg">licensee</span>':""}</h4><p class="note">${esc(r.desc)}</p></div>`).join("")}</div>
+      <h3>Separation of duties</h3><ul>${arr(ACCA.sod).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+      <h3>Permission matrix (${caps.length} capabilities)</h3>
+      <p class="note"><span class="lv lv-none">none</span> <span class="lv lv-view">view</span> <span class="lv lv-own">own</span> <span class="lv lv-all">all</span> <span class="lv lv-approve">approve</span> · "own" means only matters the person is on.</p>
+      <div class="scroll"><table class="mx"><thead><tr><th>Capability</th>${rids.map(r=>`<th>${esc(roleName(r))}</th>`).join("")}</tr></thead><tbody>${caps.map(c=>`<tr><td>${esc(c.name)} <span class="note">${esc(c.area||"")}</span></td>${rids.map(r=>{const v=(g[r]||{})[c.id]||"none";return `<td><span class="lv lv-${esc(v)}">${esc(v)}</span></td>`}).join("")}</tr>`).join("")}</tbody></table></div>
+      <h3>Compared with Clio</h3><div class="scroll"><table class="ftable"><thead><tr><th>Topic</th><th>Clio</th><th>Ours</th></tr></thead><tbody>${arr(ACCA.clio_compare).map(x=>`<tr><td><b>${esc(x.topic)}</b></td><td>${esc(x.clio)}</td><td>${esc(x.ours)}</td></tr>`).join("")}</tbody></table></div>`);
+  }
+  if (id==="ov-clio") {
+    const rows = S.areas.flatMap(a => arr(a.clio_gaps).map(x => ({...x, _a:a.title})));
+    const cnt = k => rows.filter(r => String(r.status).startsWith(k)).length;
+    return page(`<h2>Clio coverage</h2><p class="muted">Every Clio feature found in the deep research, and what this spec does about it.</p>
+      <div class="row" style="margin-bottom:10px"><span class="chip">${rows.length} features checked</span><span class="chip agent">${cnt("added")} added to spec</span><span class="chip">${cnt("already")} already covered</span><span class="chip gate">${cnt("deliberately")} deliberately different</span></div>
+      <div class="scroll"><table class="ftable"><thead><tr><th>Clio feature</th><th>Where in Clio</th><th>Our area</th><th>Status</th><th>Note</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.clio_feature)}</b></td><td class="muted">${esc(r.where_in_clio)}</td><td>${esc(r._a)}</td><td><span class="chip ${/^added/.test(r.status)?"agent":/^delib/.test(r.status)?"gate":""}">${esc(r.status)}</span></td><td>${esc(r.note)}</td></tr>`).join("")}</tbody></table></div>`);
+  }
+  if (id==="ov-q") return page(`<h2>Open questions</h2><p class="muted">Answer these in comments.</p>${(M.questions||"")}${S.areas.map(a=>arr(a.open_questions).length?`<h3>${esc(a.title)}</h3><ul>${arr(a.open_questions).map(q=>`<li>${esc(q)}</li>`).join("")}</ul>`:"").join("")}`);
+  if (id==="ov-src") return page(`<h2>Sources</h2><p class="muted">Public sources only. Wording in this spec is our own.</p>${S.areas.map(a=>`<h3>${esc(a.title)}</h3><ul>${arr(a.sources).map(u=>`<li style="word-break:break-all"><a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a></li>`).join("")}</ul>`).join("")}`);
+}
+
+function go(id){
+  cur = id;
+  if (id.startsWith("eng-")) { const e = arr(S.eng).find(x => "eng-"+x.id === id); if (e) { page(e.html); $("#spec").innerHTML = `<h3>${esc(e.title)}</h3><div class="sec"><p>Engineering spec for implementers. Rule ids (e.g. BIL-C-012) are referenced by tasks and tests.</p></div>`; } }
+  else if (id.startsWith("ov-")) overview(id);
+  else { const [ar, sc] = id.split("/"); const s = screens.find(x=>x._area.area===ar && x.id===sc) || screens.find(x=>x._area.area===ar); if (s){ cur = ar+"/"+s.id; screen(s);} }
+  nav($("#q").value);
+  try{ localStorage.setItem("spec-cur", cur); }catch(e){}
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b){ curState=null; go(b.dataset.go); if (window.innerWidth<760) $("#main").scrollIntoView(); } });
+$("#q").addEventListener("input", e => nav(e.target.value));
+document.addEventListener("input", e => { if (e.target.id !== "rq") return; const t = e.target.value.toLowerCase(); document.querySelectorAll("#rt tbody tr").forEach(r => r.hidden = !!t && !r.dataset.t.includes(t)); });
+$("#role").innerHTML = ROLES.length ? ROLES.map(r=>`<option value="${esc(r.id)}" ${r.id===role?"selected":""}>${esc(r.name)}</option>`).join("") : `<option>All roles</option>`;
+$("#role").addEventListener("change", e => { role = e.target.value; try{localStorage.setItem("spec-role", role)}catch(_){}; go(cur); });
+stats();
+let start = "ov-why"; try{ start = localStorage.getItem("spec-cur") || start; }catch(e){}
+go(start);
+})();
+</script>

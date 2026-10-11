@@ -1,0 +1,96 @@
+===== Grow AI's Website Chat Tool https://help.clio.com/hc/en-us/articles/52131068035995-Grow-AI-s-Website-Chat-Tool updated 2026-09-15T17:39:57Z
+Grow AI's website chat is a 24/7 AI-powered chat widget that you can add to your firm's website to engage with prospects even outside of business hours. It collects contact and case details, answers common questions about your firm, and—if the lead qualifies—can offer them the opportunity to book a consultation. The information collected via chat is sent directly to your Clio Grow lead inbox where Grow AI continues to assist by providing a chat summary and lead assessment to help you decide how to proceed.
+Note: You need Clio Grow administrator access and administrative access to your firm's website to complete this setup. If you manage the software but not the website, work with your website administrator.
+Important: If your website already has a chatbot, disable it before adding the Grow AI website chat.Make sure to set your intake criteria, frequently asked questions, and languages before you add the chat to your website.
+Add the website chat to your website
+The instructions for adding the website chat to your website depends on how your website is built.
+Your website was built with Clio Grow
+If your website was created using Clio Grow, you can add the website chat tool to it as follows:
+- In Clio Grow, go to Settings > Grow AI.
+- Click Go live.
+- Click Web chat.
+- Click the Clio Grow website tab.
+- Toggle Clio Grow website on.
+- Click Done.
+Your website was built with another platform
+Important: GoDaddy's website builder does not allow header editing and cannot be used with the Grow AI website chat tool.
+To manually add the website chat tool to your existing website not created using Clio Grow, follow the instructions below.
+- In Clio Grow, go to Settings > Grow AI.
+- Click Go live.
+- Click Web chat.
+- Click the Custom website tab.
+- Paste your website URL, then click Save website.
+- Click Add website, then paste your website URL and save.
+- Click Get code snippet, then copy the snippet.
+- Log into your website builder or content management system.
+- Paste the copied snippet into your website. Do not add the code more than once.
+- If you built your pages from scratch, paste the snippet inside the <body> tag, as high up in the page hierarchy as possible so the chat loads quickly.
+- If you use a content management system like WordPress, use your platform's existing functionality or extensions to add the snippet to your header.
+- Preview your changes, then publish your website to enable the chat widget.
+If you experience issues with setting up the Website chat tool, refer to the troubleshooting guide below.
+Your website runs on WordPress
+- In Clio Grow, go to Settings > Grow AI.
+- Click Go live.
+- Click Web chat.
+- Click the Get plugin tab.
+- Take note of the subdomain shown for your firm. You need it to configure the plugin.
+- Click Add website, then paste your website URL,
+- Click Save website.
+- In WordPress, install the Clio Grow plugin from the WordPress plugin directory.
+- Go to the plugin and click Settings.
+- Enter your subdomain, then click Save settings.
+If you experience any issues, refer to the troubleshooting guide below.
+Customize the website chat tool
+To customize the information your website chat collects from prospective clients, follow these steps:
+- In Clio Grow, go to Settings > Grow AI.
+- In the right-side test panel, click the Web chat tab.
+- Click Web chat settings.
+- Update any of the following:
+- 
+Web chat display name: Click Edit display name to change the firm name that appears at the top of the chat.
+- 
+AI disclosure: Toggle on to tell leads that the chat is AI assisted.
+- 
+Privacy policy: Toggle on to show a privacy policy link in the chat header. You can change the privacy policy link to your own URL.
+- Close the dialog or click Done to save your changes.
+Important: Your firm may be required to disclose the use of AI to prospective clients, or to make your privacy policy available to them. Check the rules that apply in your jurisdiction before turning these settings off. 
+Set up Google Analytics for website chat
+To track how leads are using your website chat, you can connect a Google Analytics integration. This lets you measure lead attribution from chat interactions and, if you run Google Ads, connect leads back to your ad spend.
+Note: Ad blockers may prevent events from being sent to Google Analytics.
+- In Clio Grow, go to Settings > Grow AI.
+- Click Go live.
+- Click Web chat.
+- Under Track, click Add integration next to Google analytics.
+- Fill in the modal. Refer to Google's documentation to find your Measurement ID and API secret.
+- Click Save integration.
+Once connected, the following events are tracked in Google Analytics:
+- 
+chatStarted: Triggered when a visitor initiates a conversation with the website chat.
+- 
+chatLead: Triggered when a Clio Grow lead is created from the website chat. If you run Google Ads, this event automatically connects the lead back to the originating ad click.
+To edit the integration:
+- In Clio Grow, go to Settings > Grow AI.
+- Click Go live.
+- Click Web chat.
+- In the Google Analytics integration section, click the edit (pencil) icon.
+- Update the details, then click Save integration.
+Troubleshoot the website chat tool
+Chat does not appear on the website
+This is typically caused by one of the following:
+Your browser has cached an older version of the page. Hard refresh your browser to reload the latest version:
+- Windows or Linux: Ctrl + Shift + R
+- Mac: Cmd + Shift + R
+Your server needs time to rebuild updated pages. Wait a few minutes, or clear the cache on your server. Search "Clear cache [your content management tool]" for platform-specific instructions.
+Chat icon overlaps another element on the page
+Use the zIndex property in the embed code to control layering. In the copied code, find:
+script.onload = function GrowChatbotInit() { GrowChatbot.init({ growSubdomain: growSubdomain });
+Add the zIndex parameter, for example:
+script.onload = function GrowChatbotInit() { GrowChatbot.init({ growSubdomain: growSubdomain, zIndex: "5" });
+A higher zIndex value places the element in front of others. Adjust the value as needed.
+Up next
+- 
+Customize Grow AI: Change what the chat asks leads and how it answers their questions.
+- 
+Manage Leads in Clio Grow: Review the leads your website chat captures.
+
+IMGS: []

@@ -1,0 +1,3178 @@
+{
+ "area": "billing",
+ "title": "Billing, payments and receivables",
+ "summary": "Turns approved time and disbursements into signed Ontario accounts with HST, collects payment by card, EFT or trust application, allocates every dollar, and chases what is owed. The agent drafts the bills, checks them, matches payments and writes reminders. A lawyer approves each bill, write-off, credit note and trust application before it takes effect.",
+ "screens": [
+  {
+   "id": "billing-home",
+   "name": "Billing desk",
+   "route": "/billing",
+   "who": [
+    "lawyer",
+    "clerk",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Shows each person the billing work waiting for them: drafts to review, bills to approve, payments to allocate and accounts to chase.",
+   "layout": "Top: KPI strip (unbilled WIP, drafts awaiting review, bills awaiting approval, AR over 60 days, unallocated payments). Middle: my queue grouped by gate. Right: agent activity feed with links to each draft.",
+   "fields": [
+    {
+     "name": "Unbilled WIP",
+     "type": "money",
+     "required": true,
+     "note": "Approved time plus approved disbursements not yet on a bill"
+    },
+    {
+     "name": "Queue item",
+     "type": "ref",
+     "required": true,
+     "note": "Links to a draft bill, payment, credit note or reminder"
+    },
+    {
+     "name": "Gate",
+     "type": "enum",
+     "required": true,
+     "note": "G-B1..G-B7"
+    },
+    {
+     "name": "Age in queue",
+     "type": "duration",
+     "required": true,
+     "note": "Turns amber after 3 business days"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Open item",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Run billing cycle now",
+     "by": "human",
+     "gate": "none",
+     "note": "Asks the agent for drafts outside the schedule"
+    },
+    {
+     "name": "Reassign approver",
+     "by": "human",
+     "gate": "none",
+     "note": "Only to another licensee on the matter"
+    }
+   ],
+   "agent": "Builds the queue, groups items by gate, and writes one line per item on why it needs attention (for example 'draft has 2 possible block-billed entries').",
+   "gate": "none",
+   "states": [
+    "empty",
+    "items waiting",
+    "all clear"
+   ],
+   "edge": [
+    "Approver on leave: items route to the backup licensee set in firm settings",
+    "A paralegal's queue must never show the approve action for bills"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "dashboard",
+    "columns": [
+     "Item",
+     "Matter",
+     "Gate",
+     "Owner",
+     "Waiting"
+    ],
+    "rows": [
+     [
+      "Draft bill #2026-0147",
+      "Okafor v. Lakeshore Condo Corp",
+      "Pre-bill review",
+      "Linda Kassim",
+      "1 d"
+     ],
+     [
+      "Payment $2,260.00 unallocated",
+      "-",
+      "Allocation",
+      "Meraf Abay",
+      "4 h"
+     ],
+     [
+      "Write-off $412.50",
+      "Tesfaye estate",
+      "Write-off",
+      "Linda Kassim",
+      "2 d"
+     ],
+     [
+      "Reminder (2nd) Harbourview Bakery Inc.",
+      "Lease renewal",
+      "Reminder send",
+      "Ayo Ewebiyi",
+      "today"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "pre-bill-review",
+   "name": "Pre-bill review",
+   "route": "/billing/drafts/:billId/review",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Lets the responsible lawyer check every proposed line before a bill exists, with the agent's flags next to each line.",
+   "layout": "Left: line items (time, then disbursements) with inline edit and a flag column. Right: matter money panel (WIP, trust balance, AR, fee agreement terms, budget or estimate used). Bottom: proposed totals with HST.",
+   "fields": [
+    {
+     "name": "Matter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Bill period",
+     "type": "daterange",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Line: date, timekeeper, narrative, hours, rate, amount",
+     "type": "row",
+     "required": true,
+     "note": "Only entries already approved by the timekeeper"
+    },
+    {
+     "name": "Line action",
+     "type": "enum",
+     "required": true,
+     "note": "bill | hold | write down | write off | no charge (show at $0)"
+    },
+    {
+     "name": "Write-down amount or %",
+     "type": "money",
+     "required": false,
+     "note": "Needs a reason code"
+    },
+    {
+     "name": "Agent flags",
+     "type": "list",
+     "required": false,
+     "note": "block billing, duplicate, vague narrative, over estimate, rate mismatch with fee agreement, entry older than 90 days, minimum-increment anomaly, clerical work billed at lawyer rate"
+    },
+    {
+     "name": "Fee arrangement",
+     "type": "enum",
+     "required": true,
+     "note": "hourly | flat | capped | contingency | mixed; read from the engagement letter"
+    },
+    {
+     "name": "Estimate used to date",
+     "type": "money",
+     "required": false,
+     "note": "Against the estimate in the engagement letter"
+    },
+    {
+     "name": "Anomalies panel",
+     "type": "list",
+     "required": false,
+     "note": "agent flags: duplicate entries, unusual durations or rates, entries outside engagement scope"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Edit narrative / hours",
+     "by": "human",
+     "gate": "none",
+     "note": "Change is logged; original kept"
+    },
+    {
+     "name": "Accept agent rewrite of narrative",
+     "by": "human",
+     "gate": "none",
+     "note": "Agent proposes clearer wording; it cannot change hours"
+    },
+    {
+     "name": "Write down / write off line",
+     "by": "human",
+     "gate": "approve",
+     "note": "Above firm threshold goes to G-B5"
+    },
+    {
+     "name": "Hold line to next bill",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Mark reviewed, generate bill",
+     "by": "human",
+     "gate": "approve",
+     "note": "Closes G-B1 and creates the draft invoice"
+    }
+   ],
+   "agent": "Collects approved entries for the period, applies the fee agreement (rates, caps, flat fees), runs the checks listed in Agent flags, proposes narrative rewrites, compares totals with the estimate and warns when a client is close to or over it.",
+   "gate": "G-B1: responsible lawyer confirms the lines, holds and write-downs that will go on the bill.",
+   "states": [
+    "empty (no WIP)",
+    "agent preparing",
+    "ready for review",
+    "in review",
+    "reviewed",
+    "returned to timekeeper"
+   ],
+   "edge": [
+    "Entry edited by the timekeeper after the draft was built: show a stale banner and rebuild",
+    "Contingency matters: no interim fee bill unless the agreement allows it",
+    "Entries on a matter covered by an ethical wall must not appear to walled users",
+    "Two lawyers on one matter: only the responsible lawyer can close the review"
+   ],
+   "reg": "RPC 3.6-1: a fee must be fair and reasonable and disclosed in a timely way. Charging for time not spent, or billing clerical work as legal work, is a fee complaint risk. Notify the client when fees are about to exceed an estimate (RPC 3.6 commentary, verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Date",
+     "Who",
+     "Narrative",
+     "Hrs",
+     "Rate",
+     "Amount",
+     "Flag",
+     "Action"
+    ],
+    "rows": [
+     [
+      "2026-09-03",
+      "Linda Kassim",
+      "Review statement of claim; call client re: facts; draft defence outline",
+      "3.4",
+      "$425",
+      "$1,445.00",
+      "block billing",
+      "bill"
+     ],
+     [
+      "2026-09-04",
+      "Yonathan Degu",
+      "Prepare affidavit of documents",
+      "2.0",
+      "$180",
+      "$360.00",
+      "",
+      "bill"
+     ],
+     [
+      "2026-09-04",
+      "Yonathan Degu",
+      "Prepare affidavit of documents",
+      "2.0",
+      "$180",
+      "$360.00",
+      "duplicate?",
+      "hold"
+     ],
+     [
+      "2026-09-10",
+      "Meraf Abay",
+      "Photocopy and courier brief",
+      "0.8",
+      "$425",
+      "$340.00",
+      "clerical at lawyer rate",
+      "write off"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "invoice-editor",
+   "name": "Bill draft and approval",
+   "route": "/billing/bills/:billId",
+   "who": [
+    "lawyer",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Shows the bill exactly as the client will see it, with taxes, trust application and terms, for the lawyer to approve and sign.",
+   "layout": "Centre: rendered bill preview (header, fee lines, disbursements split into taxable and non-taxable, HST, totals, trust applied, balance due, payment instructions). Right: pre-flight checklist and the approval panel with the e-signature.",
+   "fields": [
+    {
+     "name": "Bill number",
+     "type": "text",
+     "required": true,
+     "note": "Sequential per firm, assigned only at approval; no gaps"
+    },
+    {
+     "name": "Bill date",
+     "type": "date",
+     "required": true,
+     "note": "Date of approval"
+    },
+    {
+     "name": "Client and billing contact",
+     "type": "ref",
+     "required": true,
+     "note": "Address needed for delivery"
+    },
+    {
+     "name": "Firm HST/GST registration number",
+     "type": "text",
+     "required": true,
+     "note": "From firm settings; shown on every bill"
+    },
+    {
+     "name": "Fees subtotal",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Taxable disbursements",
+     "type": "money",
+     "required": false,
+     "note": "Firm's own costs re-billed (copies, courier, mileage); HST applies"
+    },
+    {
+     "name": "Non-taxable disbursements",
+     "type": "money",
+     "required": false,
+     "note": "Paid as the client's agent (court filing fees, land transfer tax); no HST (verify per item)"
+    },
+    {
+     "name": "HST rate",
+     "type": "percent",
+     "required": true,
+     "note": "13% for Ontario place of supply; rate set by the client's location for out-of-province clients (verify place-of-supply rules)"
+    },
+    {
+     "name": "HST amount",
+     "type": "money",
+     "required": true,
+     "note": "Rounded per bill, not per line"
+    },
+    {
+     "name": "Discount",
+     "type": "money",
+     "required": false,
+     "note": "Shown as a line; applied before tax"
+    },
+    {
+     "name": "Trust to apply",
+     "type": "money",
+     "required": false,
+     "note": "Proposed only; the transfer happens only after delivery (G-B4), for at most the lesser of the bill balance (less amounts already reserved) and the cleared, unprotected trust balance"
+    },
+    {
+     "name": "Previous balance and payments",
+     "type": "money",
+     "required": false,
+     "note": "Statement of account section"
+    },
+    {
+     "name": "Terms",
+     "type": "text",
+     "required": true,
+     "note": "Due date, interest wording per Solicitors Act s.33 and the retainer, right to assessment notice"
+    },
+    {
+     "name": "Template",
+     "type": "ref",
+     "required": true,
+     "note": "Firm-designed bill layout"
+    },
+    {
+     "name": "Split",
+     "type": "list",
+     "required": false,
+     "note": "Percent split among payers (insurer, co-clients); each gets its own bill number"
+    },
+    {
+     "name": "Signature",
+     "type": "signature",
+     "required": true,
+     "note": "Lawyer's name, or electronic authorization by the lawyer"
+    },
+    {
+     "name": "Discount kind",
+     "type": "enum",
+     "required": false,
+     "note": "percent or fixed; on whole bill, fees only, or one line"
+    },
+    {
+     "name": "Interest line",
+     "type": "money",
+     "required": false,
+     "note": "accrued interest per payment profile, shown separately and not HST-able (verify)"
+    },
+    {
+     "name": "Bill state",
+     "type": "enum",
+     "required": true,
+     "note": "draft | pending approval | approved (awaiting payment) | paid | void"
+    },
+    {
+     "name": "Theme",
+     "type": "ref",
+     "required": true,
+     "note": "bill-themes entry; per-client default"
+    },
+    {
+     "name": "Currency",
+     "type": "enum",
+     "required": true,
+     "note": "CAD in v1"
+    },
+    {
+     "name": "Place of supply",
+     "type": "enum",
+     "required": true,
+     "note": "province that sets the tax: agent proposes it from client address with a one-line rationale; human confirms"
+    },
+    {
+     "name": "Tax lines",
+     "type": "list",
+     "required": true,
+     "note": "HST, or GST 5% plus a separate PST or QST line for out-of-province clients; each line named with its rate (up to 4 decimals)"
+    },
+    {
+     "name": "Discount order",
+     "type": "note",
+     "required": false,
+     "note": "applied after credit notes and before tax; a whole-bill discount is spread across lines in proportion for tax and realization reports; payments and discounts reduce principal before interest"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Edit header, terms, discount",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Return to pre-bill",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Approve and sign",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "G-B2: assigns bill number, locks content, writes audit record"
+    },
+    {
+     "name": "Void approved bill",
+     "by": "human",
+     "gate": "approve",
+     "note": "Only before delivery; after delivery use a credit note"
+    }
+   ],
+   "agent": "Renders the bill, computes HST and totals, runs the pre-flight checklist (registration number present, address complete, fee agreement terms match, trust proposal does not exceed the client's trust balance, no lines older than the retainer date, totals reconcile with pre-bill), and drafts the cover email.",
+   "gate": "G-B2: responsible lawyer approves and signs the final bill. Nothing is numbered or sent before this.",
+   "states": [
+    "draft",
+    "pre-flight failed",
+    "pending approval",
+    "approved",
+    "voided"
+   ],
+   "edge": [
+    "HST registration missing in firm settings: block approval",
+    "Client in another province or outside Canada: agent flags place-of-supply question, lawyer picks the rate",
+    "Bill total zero after write-offs: allow a no-charge bill for the record",
+    "Bill numbering collision after concurrent approvals: number assigned in a single transaction",
+    "discount requested after approval: only via credit note (deliberate; Clio optionally allows editing approved bills)",
+    "partial payment then discount: allocation order fees > disbursements > interest made explicit on the bill",
+    "Quebec client: GST and QST shown as two lines, QST rate 9.975% (verify with Revenu Quebec)",
+    "BC, Manitoba or Saskatchewan client: PST on legal services per that province's rules (verify per province)",
+    "place of supply changed after approval: an approved bill is immutable and never returns to draft. Before delivery: void it (keeps its number, exact reversal) and approve a new bill; after delivery: full credit note and a new bill (BIL-C-207, BIL-C-084)"
+   ],
+   "reg": "Solicitors Act s.2: no action to recover fees until one month after a bill signed by the lawyer (or accompanied by a signed letter) is delivered; delivery by hand, mail or at the client's office or residence (verify electronic delivery practice). Excise Tax Act invoice information: supplier name, registration number, date, amount paid or payable, tax charged (rules vary by invoice amount, verify). RPC 3.6: fees and disbursements shown separately (verify). Out-of-Ontario clients: GST plus provincial PST/QST, or another province's HST, per the Excise Tax Act place-of-supply rules (verify).",
+   "mock": {
+    "kind": "doc",
+    "columns": [
+     "Section",
+     "Amount"
+    ],
+    "rows": [
+     [
+      "Professional fees (Okafor v. Lakeshore Condo Corp, Sept 2026)",
+      "$4,212.50"
+     ],
+     [
+      "Taxable disbursements (courier, copies)",
+      "$86.40"
+     ],
+     [
+      "HST 13% on $4,298.90",
+      "$558.86"
+     ],
+     [
+      "Non-taxable disbursements (court filing fee)",
+      "$229.00"
+     ],
+     [
+      "Total this bill / trust to apply / balance due",
+      "$5,086.76 / $3,000.00 / $2,086.76"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "bill-delivery",
+   "name": "Send and delivery log",
+   "route": "/billing/bills/:billId/send",
+   "who": [
+    "lawyer",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Delivers approved bills to clients and keeps proof of delivery, which drives the trust and collection timelines.",
+   "layout": "Top: channel choice per recipient (portal, email with PDF, mail). Middle: cover message editor. Bottom: delivery log with timestamps, opens and bounces.",
+   "fields": [
+    {
+     "name": "Recipients",
+     "type": "ref",
+     "required": true,
+     "note": "Billing contacts; split-bill payers"
+    },
+    {
+     "name": "Channel",
+     "type": "enum",
+     "required": true,
+     "note": "portal | email | mail | hand"
+    },
+    {
+     "name": "Cover message",
+     "type": "richtext",
+     "required": true,
+     "note": "Agent draft"
+    },
+    {
+     "name": "Payment link",
+     "type": "url",
+     "required": false,
+     "note": "Operating-account link only for fee balances"
+    },
+    {
+     "name": "Delivered at",
+     "type": "datetime",
+     "required": true,
+     "note": "System stamp; for mail, the clerk records the mailing date"
+    },
+    {
+     "name": "Delivery evidence",
+     "type": "file",
+     "required": false,
+     "note": "Email receipt, portal view, mailing record"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Send now",
+     "by": "human",
+     "gate": "none",
+     "note": "Allowed only for G-B2 approved bills; firm may let the agent send approved bills in a batch"
+    },
+    {
+     "name": "Batch send approved bills",
+     "by": "agent",
+     "gate": "none",
+     "note": "Only when the firm policy is on and the bill is signed"
+    },
+    {
+     "name": "Record mailed / hand delivered",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Resend",
+     "by": "human",
+     "gate": "none",
+     "note": "Does not change the original delivery date"
+    }
+   ],
+   "agent": "Drafts the cover message in the client's language preference, attaches the PDF, adds the right payment link, sends approved bills in the batch window if allowed, and watches for bounces or unread portal bills and re-routes them.",
+   "gate": "none (content already approved at G-B2; cover message changes that add advice need the lawyer)",
+   "states": [
+    "approved, not sent",
+    "sending",
+    "delivered",
+    "bounced",
+    "viewed"
+   ],
+   "edge": [
+    "Email bounce: bill is not delivered; trust withdrawal stays blocked",
+    "Client asked for paper only",
+    "Portal user lost access",
+    "Client disputes receipt: log is the evidence"
+   ],
+   "reg": "Delivery date starts the Solicitors Act clocks: one month before suing or charging interest, and the client's one-month window to seek assessment without special circumstances (verify). Trust may be applied to fees only after the bill is delivered (BL9, verify section).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Bill",
+     "Client",
+     "Channel",
+     "Delivered",
+     "Status"
+    ],
+    "rows": [
+     [
+      "2026-0147",
+      "Grace Okafor",
+      "portal",
+      "2026-10-02 09:14",
+      "viewed"
+     ],
+     [
+      "2026-0148",
+      "Harbourview Bakery Inc.",
+      "email",
+      "2026-10-02 09:15",
+      "bounced"
+     ],
+     [
+      "2026-0149",
+      "Estate of Abebe Tesfaye",
+      "mail",
+      "2026-10-03",
+      "delivered"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "trust-to-fees",
+   "name": "Pay fees from trust",
+   "route": "/billing/bills/:billId/apply-trust",
+   "who": [
+    "lawyer",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Prepares the transfer from the client's trust ledger to the operating account against a delivered bill, for a lawyer to authorize.",
+   "layout": "Left: the delivered bill and its balance. Right: client trust ledger (balance, held-for-purpose amounts, uncleared deposits). Bottom: proposed transfer and authorization panel. Handed to the trust area for execution.",
+   "fields": [
+    {
+     "name": "Bill",
+     "type": "ref",
+     "required": true,
+     "note": "Must be delivered"
+    },
+    {
+     "name": "Client trust balance",
+     "type": "money",
+     "required": true,
+     "note": "Cleared, unprotected funds only; amount <= min(bill balance less reserved transfers, available trust balance); only after the bill is delivered"
+    },
+    {
+     "name": "Restricted funds",
+     "type": "money",
+     "required": false,
+     "note": "Held for a specific purpose (settlement, closing) and not available for fees"
+    },
+    {
+     "name": "Amount to transfer",
+     "type": "money",
+     "required": true,
+     "note": "Not more than bill balance and not more than available trust"
+    },
+    {
+     "name": "Method",
+     "type": "enum",
+     "required": true,
+     "note": "electronic trust transfer | cheque to firm"
+    },
+    {
+     "name": "Authorizing lawyer",
+     "type": "ref",
+     "required": true,
+     "note": "Licensee with signing authority on the trust account"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Propose transfer",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Authorize withdrawal",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "G-B4; executed by the trust area's transfer flow"
+    },
+    {
+     "name": "Reduce amount",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "On delivery of a bill whose retainer allows trust application, proposes the transfer for the lesser of the balance and the free trust balance, checks for uncleared deposits and restricted holds, and refuses to propose anything that would overdraw the client ledger.",
+   "gate": "G-B4: a lawyer authorizes each withdrawal of trust money for fees. No agent action moves money.",
+   "states": [
+    "not eligible (bill not delivered)",
+    "proposed",
+    "pending authorization",
+    "authorized",
+    "executed (trust area)",
+    "rejected"
+   ],
+   "edge": [
+    "Deposit not yet cleared",
+    "Client instructed in writing not to use trust for fees",
+    "Money held for a specific purpose",
+    "Bill later reduced by credit note after transfer: excess must go back to trust",
+    "Partial transfer leaves a fee balance in AR"
+   ],
+   "reg": "BL9: money may be withdrawn from trust for fees only for services already performed and only after a bill has been delivered to the client; no client ledger may go into overdraft; electronic transfers need the authorization and record set out in BL9 (verify all section numbers). Cross-ref trust area.",
+   "mock": {
+    "kind": "ledger",
+    "columns": [
+     "Date",
+     "Description",
+     "In",
+     "Out",
+     "Balance"
+    ],
+    "rows": [
+     [
+      "2026-08-15",
+      "Retainer received (EFT)",
+      "$5,000.00",
+      "",
+      "$5,000.00"
+     ],
+     [
+      "2026-10-02",
+      "Bill 2026-0147 delivered",
+      "",
+      "",
+      "$5,000.00"
+     ],
+     [
+      "2026-10-03",
+      "Proposed: fees for bill 2026-0147 (pending Linda Kassim)",
+      "",
+      "$3,000.00",
+      "$2,000.00"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "payments-inbox",
+   "name": "Payments and allocation",
+   "route": "/billing/payments",
+   "who": [
+    "clerk",
+    "lawyer",
+    "agent"
+   ],
+   "purpose": "Lists every incoming payment (online, EFT, cheque, cash) and allocates it to bills, to trust or to unapplied credit.",
+   "layout": "Top: filters (source, status, account). Main: payments table with the agent's suggested match and confidence. Side panel: allocation editor for the selected payment.",
+   "fields": [
+    {
+     "name": "Received at",
+     "type": "datetime",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Payer",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Amount",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Method",
+     "type": "enum",
+     "required": true,
+     "note": "card | EFT/pre-authorized debit | e-transfer | cheque | cash | wire"
+    },
+    {
+     "name": "Destination account",
+     "type": "enum",
+     "required": true,
+     "note": "operating | trust; set by the link or the deposit account"
+    },
+    {
+     "name": "Processor reference",
+     "type": "text",
+     "required": false,
+     "note": "From the payment provider adapter"
+    },
+    {
+     "name": "Processor fee",
+     "type": "money",
+     "required": false,
+     "note": "Must be charged to operating, never trust"
+    },
+    {
+     "name": "Allocation lines",
+     "type": "list",
+     "required": true,
+     "note": "bill and amount, or trust ledger and purpose, or unapplied credit"
+    },
+    {
+     "name": "Match confidence",
+     "type": "percent",
+     "required": false,
+     "note": "Agent"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Accept suggested allocation",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-B3 when the payment is ambiguous or touches trust; clear matches can auto-post under firm policy"
+    },
+    {
+     "name": "Split across bills",
+     "by": "human",
+     "gate": "none",
+     "note": "Default oldest first"
+    },
+    {
+     "name": "Move to trust",
+     "by": "human",
+     "gate": "approve",
+     "note": "Deposit went to wrong account; handled by the trust area"
+    },
+    {
+     "name": "Refund",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-B6"
+    },
+    {
+     "name": "Record cheque / cash",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Pulls payments from the provider adapter and bank feed, matches by bill number, amount, payer and memo, posts exact matches if policy allows, flags overpayments, unknown payers and fee money that landed in trust or retainer money that landed in operating.",
+   "gate": "G-B3: a clerk or lawyer confirms ambiguous allocations and anything involving trust.",
+   "states": [
+    "new",
+    "suggested",
+    "posted",
+    "unallocated",
+    "on hold",
+    "refunded",
+    "failed / reversed"
+   ],
+   "edge": [
+    "Overpayment: held as unapplied client credit for at most N business days (firm setting, default 5; verify against By-Law 9), then applied to a delivered bill of the same client with client direction (G-B3), refunded (G-B6) or paid into trust (G6); an exception is raised at N days. Never moved silently, never to another client",
+    "Chargeback or NSF: reverse allocation and reopen the bill",
+    "Cash at or above the BL9 cash limit: refuse and alert the lawyer",
+    "Payment for a matter the clerk is walled from",
+    "Duplicate webhook from the provider"
+   ],
+   "reg": "BL9: cash received on one client file aggregating $7,500 or more is refused, counting trust and operating (fee) cash together, unless an exception is recorded (G6c; ss.4-6, verify); processor fees and chargebacks may not be paid out of trust (verify); retainer money must be deposited to trust. BL7.1: verification of identity when funds move (verify trigger).",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "Received",
+     "Payer",
+     "Amount",
+     "Method",
+     "Account",
+     "Suggested",
+     "Conf."
+    ],
+    "rows": [
+     [
+      "2026-10-05",
+      "G. Okafor",
+      "$2,086.76",
+      "card",
+      "operating",
+      "Bill 2026-0147",
+      "99%"
+     ],
+     [
+      "2026-10-06",
+      "Harbourview Bakery",
+      "$2,260.00",
+      "EFT",
+      "operating",
+      "Bills 0131 + 0148?",
+      "62%"
+     ],
+     [
+      "2026-10-07",
+      "K. Bereket",
+      "$4,000.00",
+      "e-transfer",
+      "trust",
+      "Retainer request RR-0032",
+      "95%"
+     ],
+     [
+      "2026-10-08",
+      "Unknown",
+      "$350.00",
+      "e-transfer",
+      "operating",
+      "-",
+      "-"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "online-payment-page",
+   "name": "Client payment page",
+   "route": "/pay/:token",
+   "who": [
+    "client",
+    "agent"
+   ],
+   "purpose": "Lets a client pay a bill or a retainer request by card or bank debit through a generic payment provider.",
+   "layout": "Firm header, what is being paid (bill or retainer request), amount (editable for partial payment if allowed), method choice, provider-hosted card or bank form, receipt.",
+   "fields": [
+    {
+     "name": "Purpose",
+     "type": "enum",
+     "required": true,
+     "note": "bill | retainer (trust) | consultation fee"
+    },
+    {
+     "name": "Amount",
+     "type": "money",
+     "required": true,
+     "note": "Full or partial per firm setting"
+    },
+    {
+     "name": "Method",
+     "type": "enum",
+     "required": true,
+     "note": "card | bank debit (PAD) | e-transfer instructions"
+    },
+    {
+     "name": "Payer name and email",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Card or bank details",
+     "type": "provider",
+     "required": true,
+     "note": "Collected only by the provider's hosted fields; never stored by the app"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Pay",
+     "by": "human",
+     "gate": "none",
+     "note": "By the client"
+    },
+    {
+     "name": "Download receipt",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Generates the link with the right deposit account (operating for bills, trust for retainers), expires it when the bill is paid or credited, and posts the result to Payments.",
+   "gate": "none",
+   "states": [
+    "open",
+    "processing",
+    "paid",
+    "partially paid",
+    "failed",
+    "expired"
+   ],
+   "edge": [
+    "Client pays an old link after a credit note: show the current balance",
+    "Bank debit fails days later: reversal flows to Payments",
+    "Client pays a fee bill into the trust link"
+   ],
+   "reg": "Retainer links must deposit to trust and processor fees must be drawn from operating (BL9, verify). Surcharging card fees to clients may be restricted by card network rules (verify). A surcharge is taxable at the paid bill's tax codes, pro rata, and is refunded with its tax pro rata (BIL-T-044, verify); off by default. PIPEDA for payer data.",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Field",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Paying",
+      "Bill 2026-0147, Linda K Law"
+     ],
+     [
+      "Balance due",
+      "$2,086.76"
+     ],
+     [
+      "Method",
+      "Card"
+     ],
+     [
+      "Status",
+      "Paid 2026-10-05, receipt R-8812"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "retainer-requests",
+   "name": "Retainer requests",
+   "route": "/billing/retainers",
+   "who": [
+    "lawyer",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Asks clients for money into trust (initial or top-up) and tracks each request until it is funded.",
+   "layout": "Table of requests with status; detail drawer with amount, reason, due date, link and evergreen rule.",
+   "fields": [
+    {
+     "name": "Matter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Amount",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Kind",
+     "type": "enum",
+     "required": true,
+     "note": "initial | top-up | evergreen replenish | for disbursement"
+    },
+    {
+     "name": "Reason",
+     "type": "text",
+     "required": true,
+     "note": "Shown to the client"
+    },
+    {
+     "name": "Due date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Evergreen minimum",
+     "type": "money",
+     "required": false,
+     "note": "From the engagement letter"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Draft request",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Approve and send",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer approves amount and wording"
+    },
+    {
+     "name": "Cancel",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Drafts the initial request from the signed engagement letter, watches trust balances against the evergreen minimum and upcoming disbursements, drafts top-ups, matches the deposit when it lands, and reminds the client if unpaid.",
+   "gate": "Lawyer approves the amount and message of each retainer request before it goes to the client.",
+   "states": [
+    "draft",
+    "pending approval",
+    "sent",
+    "partially funded",
+    "funded",
+    "cancelled"
+   ],
+   "edge": [
+    "Client pays more than requested: excess stays in trust and is noted",
+    "Funds paid to operating by mistake: must move to trust promptly",
+    "No ID verification yet: block receipt instructions until verified (cross-ref intake)"
+   ],
+   "reg": "Money received in advance for fees not yet earned is trust money and must go to trust (BL9, verify). BL7.1 verification when receiving funds (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Request",
+     "Matter",
+     "Kind",
+     "Amount",
+     "Due",
+     "Status"
+    ],
+    "rows": [
+     [
+      "RR-0031",
+      "Okafor v. Lakeshore Condo Corp",
+      "top-up",
+      "$3,000.00",
+      "2026-10-20",
+      "sent"
+     ],
+     [
+      "RR-0032",
+      "Bereket purchase of 14 Elm St",
+      "initial",
+      "$4,000.00",
+      "2026-10-09",
+      "funded"
+     ],
+     [
+      "RR-0033",
+      "Harbourview Bakery lease",
+      "evergreen",
+      "$1,500.00",
+      "-",
+      "pending approval"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "receivables-aging",
+   "name": "Receivables and aging",
+   "route": "/billing/receivables",
+   "who": [
+    "lawyer",
+    "clerk",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Shows what each client owes by age bucket and drives the collections plan.",
+   "layout": "Top: aging totals (current, 1-30, 31-60, 61-90, 90+). Main: client/matter rows with buckets, last payment, next agent step. Drawer: account history and statement of account.",
+   "fields": [
+    {
+     "name": "Client / matter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Buckets",
+     "type": "money",
+     "required": true,
+     "note": "Aged from delivery date, not bill date"
+    },
+    {
+     "name": "Interest accrued",
+     "type": "money",
+     "required": false,
+     "note": "Only if the retainer and bill state a rate; starts one month after delivery"
+    },
+    {
+     "name": "Trust available",
+     "type": "money",
+     "required": false,
+     "note": "Flag when trust could pay the balance"
+    },
+    {
+     "name": "Collections stage",
+     "type": "enum",
+     "required": true,
+     "note": "none | reminder 1 | reminder 2 | lawyer call | final notice | payment plan | assessment / action"
+    },
+    {
+     "name": "Payment plan",
+     "type": "ref",
+     "required": false,
+     "note": "Instalments and due dates"
+    },
+    {
+     "name": "Unapplied credit",
+     "type": "money",
+     "required": false,
+     "note": "client overpayments held as credit, not yet applied; short-lived (apply, refund or pay into trust within N business days)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Send statement",
+     "by": "agent",
+     "gate": "none",
+     "note": "Policy-approved template"
+    },
+    {
+     "name": "Set payment plan",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    },
+    {
+     "name": "Pause collections",
+     "by": "human",
+     "gate": "none",
+     "note": "For example dispute or hardship"
+    },
+    {
+     "name": "Propose write-off",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-B5"
+    },
+    {
+     "name": "Apply client credit to a bill",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    }
+   ],
+   "agent": "Recomputes aging daily, adds interest only where allowed, points out balances that trust could cover (a proposal for G-B4, never automatic), and plans the next collections step per account.",
+   "gate": "none to view; payment plans and write-offs need approval.",
+   "states": [
+    "current",
+    "overdue",
+    "in collections",
+    "on plan",
+    "disputed",
+    "written off"
+   ],
+   "edge": [
+    "Client asks for assessment: pause collections and flag the lawyer",
+    "Matter closed with a balance",
+    "Client is also an opposing party in another matter (do not send to wrong contact)"
+   ],
+   "reg": "Solicitors Act: interest from one month after delivery (s.33) and suit only after one month (s.2); client can seek assessment within one month as of right, later with conditions (verify). RPC 3.6 on fees; withdrawal for non-payment is governed by RPC 3.7 (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Client",
+     "Current",
+     "31-60",
+     "61-90",
+     "90+",
+     "Stage"
+    ],
+    "rows": [
+     [
+      "Harbourview Bakery Inc.",
+      "$0.00",
+      "$2,260.00",
+      "$1,130.00",
+      "$0.00",
+      "reminder 2"
+     ],
+     [
+      "Estate of Abebe Tesfaye",
+      "$1,845.50",
+      "$0.00",
+      "$0.00",
+      "$0.00",
+      "none"
+     ],
+     [
+      "Nile Coffee Roasters Ltd.",
+      "$0.00",
+      "$0.00",
+      "$0.00",
+      "$6,402.75",
+      "lawyer call"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "collections-reminders",
+   "name": "Collection reminders",
+   "route": "/billing/collections",
+   "who": [
+    "lawyer",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Runs the reminder schedule and lets the lawyer approve anything firm-worded.",
+   "layout": "Left: schedule designer (day offsets, tone, channel). Right: outbox of agent-drafted reminders awaiting send or approval.",
+   "fields": [
+    {
+     "name": "Step",
+     "type": "enum",
+     "required": true,
+     "note": "friendly | firm | final notice"
+    },
+    {
+     "name": "Offset from delivery",
+     "type": "duration",
+     "required": true,
+     "note": "e.g. 30, 45, 60 days"
+    },
+    {
+     "name": "Template",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Needs approval",
+     "type": "bool",
+     "required": true,
+     "note": "Always true for final notices"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Send friendly reminder",
+     "by": "agent",
+     "gate": "none",
+     "note": "Under approved template"
+    },
+    {
+     "name": "Approve firm / final notice",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer"
+    },
+    {
+     "name": "Skip for this client",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Drafts each reminder with the current balance and a fresh payment link, stops when payment, dispute or assessment is recorded, and never threatens withdrawal or legal action without lawyer approval.",
+   "gate": "Lawyer approves any final notice or message that mentions interest, withdrawal of services or legal action.",
+   "states": [
+    "scheduled",
+    "drafted",
+    "pending approval",
+    "sent",
+    "stopped"
+   ],
+   "edge": [
+    "Payment arrived after draft: cancel the send",
+    "Vulnerable client or estate: tone override",
+    "Client represented by other counsel on the fee dispute: stop direct contact"
+   ],
+   "reg": "Courteous communication (RPC 5.1/7.2, verify). Threats tied to withdrawing must follow RPC 3.7 (verify).",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "Client",
+     "Step",
+     "Balance",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Harbourview Bakery Inc.",
+      "firm (45 d)",
+      "$3,390.00",
+      "pending approval (Ayo Ewebiyi)"
+     ],
+     [
+      "Nile Coffee Roasters Ltd.",
+      "final notice",
+      "$6,402.75",
+      "pending approval (Linda Kassim)"
+     ],
+     [
+      "Grace Okafor",
+      "friendly (30 d)",
+      "$0.00",
+      "stopped (paid)"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "credit-notes",
+   "name": "Credit notes and write-offs",
+   "route": "/billing/credits",
+   "who": [
+    "lawyer",
+    "clerk",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Reduces a delivered bill through a numbered credit note with HST reversed, or writes off an uncollectible balance.",
+   "layout": "List of credit notes and write-off requests; detail form with the source bill, lines affected and tax effect.",
+   "fields": [
+    {
+     "name": "Credit note number",
+     "type": "text",
+     "required": true,
+     "note": "Own sequence; references the bill"
+    },
+    {
+     "name": "Source bill",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Kind",
+     "type": "enum",
+     "required": true,
+     "note": "fee reduction | billing error | write-off of bad debt | refund"
+    },
+    {
+     "name": "Amount before tax",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "HST adjustment",
+     "type": "money",
+     "required": true,
+     "note": "Credit note shows the tax reversed per tax line at the source bill's rate: -rhu(credit pre-tax x line tax / bill taxable base); the credit that exhausts the base takes the exact remaining tax (BIL-T-070, BIL-C-203)"
+    },
+    {
+     "name": "Reason",
+     "type": "text",
+     "required": true,
+     "note": "Kept in audit"
+    },
+    {
+     "name": "Trust effect",
+     "type": "money",
+     "required": false,
+     "note": "If fees were already paid from trust, amount owed back to trust"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Draft credit note",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Approve credit note / write-off",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-B5"
+    },
+    {
+     "name": "Refund overpayment",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-B6; refunds of trust-paid fees go back to trust first"
+    }
+   ],
+   "agent": "Drafts the credit note with tax reversed, works out whether money must return to trust or to the client, and posts the AR change after approval.",
+   "gate": "G-B5: responsible lawyer approves every credit note and write-off; above a firm threshold the managing lawyer also approves.",
+   "states": [
+    "draft",
+    "pending approval",
+    "issued",
+    "refund pending",
+    "closed"
+   ],
+   "edge": [
+    "Credit larger than the open balance creates a credit or refund",
+    "Bad-debt write-off and HST bad-debt adjustment timing (verify)",
+    "Credit on a split bill affects only one payer"
+   ],
+   "reg": "Excise Tax Act credit note requirements and HST bad-debt relief (verify). Excess fees taken from trust must be returned (BL9, verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "No.",
+     "Bill",
+     "Kind",
+     "Pre-tax",
+     "HST",
+     "Status"
+    ],
+    "rows": [
+     [
+      "CN-0009",
+      "2026-0131",
+      "fee reduction",
+      "$400.00",
+      "$52.00",
+      "issued"
+     ],
+     [
+      "CN-0010",
+      "2026-0098",
+      "write-off",
+      "$1,200.00",
+      "$156.00",
+      "pending approval"
+     ],
+     [
+      "CN-0011",
+      "2026-0147",
+      "billing error",
+      "$85.00",
+      "$11.05",
+      "draft"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "billing-reports",
+   "name": "Billing reports",
+   "route": "/billing/reports",
+   "who": [
+    "lawyer",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Standard and plain-language financial reports for the firm and for HST filing.",
+   "layout": "Report picker on the left; result table with export (CSV, PDF); 'ask a question' bar that runs a report query and shows the query used.",
+   "fields": [
+    {
+     "name": "Report",
+     "type": "enum",
+     "required": true,
+     "note": "WIP, billed vs collected, realization by timekeeper, aged AR, HST collected by period, fees book / billings journal, write-offs and credits, trust applied to fees, payment provider reconciliation"
+    },
+    {
+     "name": "Period",
+     "type": "daterange",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Filters",
+     "type": "list",
+     "required": false,
+     "note": "Lawyer, practice area, client"
+    },
+    {
+     "name": "Report catalogue",
+     "type": "list",
+     "required": true,
+     "note": "AR aging; billing history; payments received; revenue by timekeeper and by originator; fee allocation (who gets credit for collected fees); matter balance summary; WIP; write-off and discount report; HST collected (for return); split-bill contributions; payment plan status; processor fees"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Run / export",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Schedule digest",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Send to accountant",
+     "by": "human",
+     "gate": "approve",
+     "note": "External sharing approved by a lawyer"
+    }
+   ],
+   "agent": "Answers questions in plain language with the numbers and the report used, produces the monthly billing digest, reconciles provider payouts to posted payments and flags differences.",
+   "gate": "Approval only when a report leaves the firm (accountant, auditor, LSO).",
+   "states": [
+    "idle",
+    "running",
+    "ready",
+    "scheduled"
+   ],
+   "edge": [
+    "Report crosses an ethical wall: exclude walled matters",
+    "HST report period does not match bill dates of credit notes"
+   ],
+   "reg": "BL9 requires a fees book or chronological file of bills (verify). HST return figures from billed amounts.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Timekeeper",
+     "Worked",
+     "Billed",
+     "Collected",
+     "Realization"
+    ],
+    "rows": [
+     [
+      "Linda Kassim",
+      "$38,250",
+      "$34,100",
+      "$29,800",
+      "78%"
+     ],
+     [
+      "Ayo Ewebiyi",
+      "$21,600",
+      "$20,900",
+      "$18,750",
+      "87%"
+     ],
+     [
+      "Yonathan Degu",
+      "$9,720",
+      "$8,640",
+      "$8,100",
+      "83%"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "bill-settings",
+   "name": "Billing settings",
+   "route": "/settings/billing",
+   "who": [
+    "admin"
+   ],
+   "purpose": "Firm-wide rules for numbering, approval, terms, interest and delivery of bills.",
+   "layout": "Sectioned form: Numbering, Approval workflow, Terms and interest, Taxes, Trust application, Delivery, Notifications, E-billing.",
+   "fields": [
+    {
+     "name": "Bill number format",
+     "type": "text",
+     "required": true,
+     "note": "prefix + year + sequence; never reused, voids keep their number"
+    },
+    {
+     "name": "Approval workflow",
+     "type": "enum",
+     "required": true,
+     "note": "single lawyer | responsible lawyer then billing partner"
+    },
+    {
+     "name": "Default terms",
+     "type": "enum",
+     "required": true,
+     "note": "due on receipt | net 15 | net 30"
+    },
+    {
+     "name": "Payment profiles",
+     "type": "list",
+     "required": false,
+     "note": "named profiles: grace period, interest rate, simple only; assigned to clients"
+    },
+    {
+     "name": "Interest rate source",
+     "type": "enum",
+     "required": false,
+     "note": "fixed % agreed in retainer, or Courts of Justice Act prejudgment rate for the quarter (verify)"
+    },
+    {
+     "name": "Auto-apply trust on approval",
+     "type": "bool",
+     "required": false,
+     "note": "if on, agent proposes trust application at approval; still gated by G-B4"
+    },
+    {
+     "name": "Default delivery",
+     "type": "enum",
+     "required": true,
+     "note": "email PDF | portal | both"
+    },
+    {
+     "name": "PDF page size",
+     "type": "enum",
+     "required": true,
+     "note": "Letter | Legal | A4"
+    },
+    {
+     "name": "Show on bill",
+     "type": "list",
+     "required": false,
+     "note": "trust balance, previous balance, aging summary, timekeeper summary, payment link"
+    },
+    {
+     "name": "Owner notifications",
+     "type": "list",
+     "required": false,
+     "note": "bill approved, paid, overdue, payment failed"
+    },
+    {
+     "name": "LEDES enabled",
+     "type": "bool",
+     "required": false,
+     "note": "turns on UTBMS coding and LEDES export"
+    },
+    {
+     "name": "Firm HST number",
+     "type": "text",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Save settings",
+     "by": "human",
+     "gate": "approve",
+     "note": "changes to numbering, interest or approval workflow need managing lawyer"
+    },
+    {
+     "name": "Add payment profile",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Preview a bill with these settings",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Checks settings against Ontario rules: warns if interest is set but retainer letters lack an interest clause.",
+   "gate": "Managing lawyer approves changes to numbering, interest and approval workflow.",
+   "states": [
+    "default",
+    "changed pending approval"
+   ],
+   "edge": [
+    "numbering changed mid-year: new prefix, no gaps or collisions allowed",
+    "interest profile changed: applies to bills issued after change only"
+   ],
+   "reg": "Solicitors Act s.33: interest may run on unpaid fees from one month after delivery, at the rate set by the CJA unless agreed otherwise (verify).",
+   "mock": {
+    "kind": "form",
+    "columns": [],
+    "rows": []
+   }
+  },
+  {
+   "id": "bill-themes",
+   "name": "Bill layouts",
+   "route": "/settings/billing/layouts",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Design how a bill looks: branding, which columns show, grouping and order, footer text.",
+   "layout": "Left: layout list. Centre: live preview with fictional data. Right: options panel (header, columns, grouping, summaries, footer).",
+   "fields": [
+    {
+     "name": "Name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Logo and letterhead",
+     "type": "file",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "Columns shown",
+     "type": "list",
+     "required": true,
+     "note": "date, timekeeper, narrative, hours, rate, amount, split portion, tax"
+    },
+    {
+     "name": "Grouping",
+     "type": "enum",
+     "required": true,
+     "note": "chronological | by timekeeper | by task | fees then disbursements"
+    },
+    {
+     "name": "Summaries",
+     "type": "list",
+     "required": false,
+     "note": "timekeeper hours summary, trust statement, aging"
+    },
+    {
+     "name": "Footer and remittance text",
+     "type": "text",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "Payment link / QR",
+     "type": "bool",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "Default for clients",
+     "type": "list",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "Line grouping",
+     "type": "enum",
+     "required": true,
+     "note": "itemized | fees and disbursements totals only | fees totals only | disbursements totals only | by timekeeper | by UTBMS phase"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Create / duplicate layout",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Set as firm default",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    },
+    {
+     "name": "Assign to client",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Renders preview and flags missing mandatory content (HST number, signature block).",
+   "gate": "Billing admin approves a change of firm default layout.",
+   "states": [
+    "draft",
+    "active",
+    "archived"
+   ],
+   "edge": [
+    "layout lacks HST number: cannot be activated",
+    "split-portion column on a non-split bill stays hidden"
+   ],
+   "reg": "Bill must show firm GST/HST registration number and tax totals (verify CRA invoice requirements).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Layout",
+     "Grouping",
+     "Default for",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Standard",
+      "chronological",
+      "firm",
+      "active"
+     ],
+     [
+      "Insurer detailed",
+      "by task",
+      "Lakeshore Mutual",
+      "active"
+     ],
+     [
+      "Estates simple",
+      "fees then disbursements",
+      "-",
+      "draft"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "batch-billing",
+   "name": "Generate bills",
+   "route": "/billing/generate",
+   "who": [
+    "lawyer",
+    "clerk",
+    "admin"
+   ],
+   "purpose": "Pick many matters with unbilled work and generate draft bills in one run.",
+   "layout": "Top: filters. Centre: matter list with unbilled fees, disbursements, trust available, last billed date. Bottom: issue date, due terms, layout; Generate button.",
+   "fields": [
+    {
+     "name": "Filters",
+     "type": "list",
+     "required": false,
+     "note": "client, responsible lawyer, practice area, date range of work, minimum unbilled amount, billing frequency due"
+    },
+    {
+     "name": "One bill per",
+     "type": "enum",
+     "required": true,
+     "note": "matter | client (combined matters)"
+    },
+    {
+     "name": "Issue date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Work through date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Include",
+     "type": "list",
+     "required": true,
+     "note": "fees, disbursements, interest, flat/recurring fees"
+    },
+    {
+     "name": "Run frequency",
+     "type": "enum",
+     "required": false,
+     "note": "one-off | weekly | monthly | per matter cycle"
+    },
+    {
+     "name": "Cut-off rule",
+     "type": "enum",
+     "required": true,
+     "note": "entries dated on or before cut-off | entries created on or before cut-off"
+    },
+    {
+     "name": "Minimum bill amount",
+     "type": "money",
+     "required": false,
+     "note": "matters below it are skipped and listed"
+    },
+    {
+     "name": "Include flat and contingency matters",
+     "type": "bool",
+     "required": false,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Generate drafts",
+     "by": "human",
+     "gate": "none",
+     "note": "creates drafts that go to pre-bill review; never auto-approves"
+    },
+    {
+     "name": "Run on schedule",
+     "by": "agent",
+     "gate": "none",
+     "note": "monthly cycle per matter billing frequency"
+    },
+    {
+     "name": "Skip matter this cycle",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Pre-selects matters due by frequency or over threshold; explains each pick.",
+   "gate": "none here; each draft still passes G-B1 and G-B2.",
+   "states": [
+    "selecting",
+    "generating",
+    "done with errors"
+   ],
+   "edge": [
+    "matter with entries missing codes on LEDES client: generated but flagged",
+    "combined client bill across matters with different layouts: matter layout ignored, client layout used"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Matter",
+     "Unbilled fees",
+     "Disb.",
+     "Trust",
+     "Last billed"
+    ],
+    "rows": [
+     [
+      "Osei v. Brightline",
+      "$6,420.00",
+      "$312.40",
+      "$5,000.00",
+      "2026-09-01"
+     ],
+     [
+      "Tadesse Estate",
+      "$1,850.00",
+      "$0.00",
+      "$0.00",
+      "never"
+     ],
+     [
+      "Harbourview Lease",
+      "$3,300.00",
+      "$45.00",
+      "$1,200.00",
+      "2026-08-15"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "split-billing",
+   "name": "Split billing",
+   "route": "/matters/:id/billing/split",
+   "who": [
+    "lawyer",
+    "clerk"
+   ],
+   "purpose": "Share one matter's charges among several payers by percentage; each payer gets their own bill.",
+   "layout": "Payer table with percentages summing to 100; preview of each payer's share of the next bill.",
+   "fields": [
+    {
+     "name": "Payer",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Share %",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Billing contact",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Applies to",
+     "type": "enum",
+     "required": true,
+     "note": "all lines | fees only | disbursements only"
+    },
+    {
+     "name": "Effective from",
+     "type": "date",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Set split",
+     "by": "human",
+     "gate": "approve",
+     "note": "needs written payer consent on file"
+    },
+    {
+     "name": "Override split for one bill",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Payer contribution report",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Checks percentages sum to 100 and that each payer has consent and contact; drafts the per-payer bills.",
+   "gate": "Responsible lawyer approves the split and any per-bill override.",
+   "states": [
+    "no split",
+    "active",
+    "changed"
+   ],
+   "edge": [
+    "rounding cents across payers: remainder to first payer",
+    "one payer pays, other does not: aging per payer; trust of one payer never used for another",
+    "third-party payer (e.g. employer, insurer): confidentiality of narratives, option for summary-only bill"
+   ],
+   "reg": "Payer who is not the client: duty of confidentiality and conflicts (RPC 3.3 and 3.4, verify); client consent to share bill detail.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Payer",
+     "Share",
+     "Billing contact"
+    ],
+    "rows": [
+     [
+      "Kofi Osei",
+      "60%",
+      "Kofi Osei"
+     ],
+     [
+      "Brightline Staffing Ltd.",
+      "40%",
+      "Accounts payable"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "ledes-export",
+   "name": "E-billing export",
+   "route": "/billing/bills/:billId/ledes",
+   "who": [
+    "clerk",
+    "admin"
+   ],
+   "purpose": "Export an approved bill in LEDES format for clients that require e-billing.",
+   "layout": "Bill header, client e-billing IDs, validation results list, download / submit history.",
+   "fields": [
+    {
+     "name": "Format",
+     "type": "enum",
+     "required": true,
+     "note": "LEDES 1998B (v1); LEDES 1998B | LEDES 1998BI (adds currency, tax rate, firm and client addresses)"
+    },
+    {
+     "name": "Client matter ID",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Law firm ID",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Validation results",
+     "type": "list",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Submission status",
+     "type": "enum",
+     "required": false,
+     "note": "exported | accepted | rejected with reason"
+    },
+    {
+     "name": "Timekeeper classification",
+     "type": "enum",
+     "required": true,
+     "note": "per user: PT | AS | PL | LA | OT"
+    },
+    {
+     "name": "Client LEDES ID",
+     "type": "text",
+     "required": true,
+     "note": "stored on the client contact"
+    },
+    {
+     "name": "Tax and currency fields",
+     "type": "group",
+     "required": false,
+     "note": "1998BI only: currency code, tax rate, tax type"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Validate",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Export file",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Record rejection and reopen",
+     "by": "human",
+     "gate": "approve",
+     "note": "reopen means credit note + re-bill"
+    }
+   ],
+   "agent": "Validates codes, totals and tax lines; maps rejection reasons back to lines.",
+   "gate": "none to export; correcting a rejected bill goes through credit note (G-B5) and new bill.",
+   "states": [
+    "not applicable",
+    "valid",
+    "invalid",
+    "exported",
+    "rejected"
+   ],
+   "edge": [
+    "client rejects for block billing: agent splits narratives on re-bill",
+    "time or expense lines missing UTBMS codes: export refused with the list of lines",
+    "download does not mark the bill as sent; sending is a separate step"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "detail",
+    "columns": [],
+    "rows": []
+   }
+  },
+  {
+   "id": "payment-plans",
+   "name": "Payment plans and autopay",
+   "route": "/billing/payment-plans",
+   "who": [
+    "lawyer",
+    "clerk",
+    "client"
+   ],
+   "purpose": "Let a client pay a balance in instalments, or pay bills automatically from a stored card or bank account.",
+   "layout": "List of plans with next charge; detail shows schedule, consent record, history of charges and failures.",
+   "fields": [
+    {
+     "name": "Client / matter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Balance covered",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Frequency",
+     "type": "enum",
+     "required": true,
+     "note": "weekly | every 2 weeks | monthly"
+    },
+    {
+     "name": "Instalment amount",
+     "type": "money",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Start date",
+     "type": "date",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Stored method",
+     "type": "ref",
+     "required": false,
+     "note": "tokenized by processor; never stored by us"
+    },
+    {
+     "name": "Autopay new bills",
+     "type": "bool",
+     "required": false,
+     "note": "charge each new approved bill on its due date"
+    },
+    {
+     "name": "Client authorization",
+     "type": "file",
+     "required": true,
+     "note": "pre-authorized debit agreement or card-on-file consent"
+    },
+    {
+     "name": "Destination",
+     "type": "enum",
+     "required": true,
+     "note": "operating only; a plan never pays into trust unless set up as a trust request"
+    },
+    {
+     "name": "Autopay trigger",
+     "type": "enum",
+     "required": false,
+     "note": "on approval | on due date | N days after delivery; never before the account is delivered; per client under G-B9"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Create plan",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    },
+    {
+     "name": "Pause / cancel",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Retry failed charge",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Notify client before charge",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Sends reminders before each charge, retries once on failure, alerts lawyer after second failure.",
+   "gate": "Lawyer approves plan terms; client authorizes in portal.",
+   "states": [
+    "draft",
+    "awaiting client authorization",
+    "active",
+    "paused",
+    "completed",
+    "failed"
+   ],
+   "edge": [
+    "card expires mid-plan",
+    "new bill raises the balance: plan not changed without consent",
+    "client revokes PAD authorization"
+   ],
+   "reg": "Pre-authorized debits follow Payments Canada Rule H1 (notice and cancellation rights) (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Client",
+     "Balance",
+     "Plan",
+     "Next charge",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Selam Tesfaye",
+      "$4,800.00",
+      "$400/month",
+      "2026-11-01",
+      "active"
+     ],
+     [
+      "Brightline Staffing",
+      "$2,100.00",
+      "$700/2 weeks",
+      "-",
+      "awaiting authorization"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "payment-settings",
+   "name": "Online payment settings",
+   "route": "/settings/payments",
+   "who": [
+    "admin"
+   ],
+   "purpose": "Connect the payment processor, map payouts to real bank accounts, and set methods, fees and surcharge rules.",
+   "layout": "Processor connection card; accounts mapping; methods; fees and surcharge; receipt template.",
+   "fields": [
+    {
+     "name": "Processor account",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Operating deposit account",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Trust deposit account",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "Fee source",
+     "type": "enum",
+     "required": true,
+     "note": "processor fees always charged to operating, never to trust"
+    },
+    {
+     "name": "Methods",
+     "type": "list",
+     "required": true,
+     "note": "card, debit, Interac e-Transfer, EFT/PAD (bank debit is our addition: Clio Payments Canada documents cards and Apple/Google Pay only)"
+    },
+    {
+     "name": "Card surcharge",
+     "type": "bool",
+     "required": false,
+     "note": "off by default; credit cards only; never on debit, prepaid, digital wallets or trust payments; blocked for a Quebec firm or a card with a Quebec billing address"
+    },
+    {
+     "name": "Receipt email",
+     "type": "text",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "Surcharge rate",
+     "type": "percent",
+     "required": false,
+     "note": "capped at the lower of 2.4% and the firm's cost of acceptance; shown as its own line with the percent"
+    },
+    {
+     "name": "Surcharge notice date",
+     "type": "date",
+     "required": false,
+     "note": "card-network notice filed 30 days before surcharging starts (Mastercard form by firm; Visa notice via processor)"
+    },
+    {
+     "name": "Surcharge-free method offered",
+     "type": "bool",
+     "required": false,
+     "note": "required true before surcharge can be enabled"
+    },
+    {
+     "name": "PAD agreement on file",
+     "type": "file",
+     "required": false,
+     "note": "per payer; Payments Canada Rule H1 agreement and waiting period; PAD into trust needs an agreement naming the trust account"
+    },
+    {
+     "name": "Fee schedule",
+     "type": "enum",
+     "required": true,
+     "note": "daily | monthly: when processor fees are debited"
+    },
+    {
+     "name": "Primary operating account",
+     "type": "ref",
+     "required": true,
+     "note": "debited for processing fees, chargebacks and shortfalls; never a trust account"
+    },
+    {
+     "name": "Statement descriptor",
+     "type": "text",
+     "required": true,
+     "note": "5-22 Latin characters the client sees on the card statement"
+    },
+    {
+     "name": "Processor data region",
+     "type": "enum",
+     "required": false,
+     "note": "where payer data is processed; prefer Canada and show it in the privacy notice"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Connect processor",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    },
+    {
+     "name": "Change deposit accounts",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "trust account mapping change needs a licensee sign-off"
+    },
+    {
+     "name": "Test payment",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Enable surcharge",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "blocked until notice date passed, surcharge-free method on, and agent's law society rule check attached"
+    }
+   ],
+   "agent": "Watches for fees debited from trust or chargebacks against trust and raises a trust exception. Before surcharge is enabled, checks the province's law society position and the card-network notice date and attaches the result.",
+   "gate": "Licensee signs off any change to where payments land.",
+   "states": [
+    "not connected",
+    "connected",
+    "suspended"
+   ],
+   "edge": [
+    "chargeback on a card payment already in trust: shortage risk, trust exception",
+    "refund to card after trust funds were spent",
+    "card with a Quebec billing address at checkout: surcharge line removed before charge",
+    "client pays a surcharged bill with a debit card: no surcharge",
+    "payment toward a retainer request (trust): surcharge never applied; on a bill payment the surcharge carries HST at the bill's tax codes (BIL-T-044, verify)",
+    "processor reports a chargeback on a trust deposit: shortfall debited from primary operating account, trust ledger untouched, exception raised"
+   ],
+   "reg": "Trust deposits must arrive in full; processor fees must not be taken from trust (BL9, verify). Canadian card surcharging (per the processor's published Canada rules): credit cards only, capped at the lower of 2.4% and cost of acceptance, not on debit, prepaid, wallets or trust payments, not for Quebec firms or Quebec cardholders, 30-day network notice, and a surcharge-free payment option must be offered. Whether the LSO permits passing card fees to clients on fee accounts is a separate check (verify).",
+   "mock": {
+    "kind": "form",
+    "columns": [],
+    "rows": []
+   }
+  }
+ ],
+ "entities": [
+  {
+   "name": "Bill",
+   "fields": [
+    "id",
+    "number",
+    "matter_id",
+    "client_id",
+    "status",
+    "period_from",
+    "period_to",
+    "fees",
+    "taxable_disb",
+    "nontaxable_disb",
+    "hst_rate",
+    "hst",
+    "discount",
+    "total",
+    "trust_applied",
+    "balance",
+    "approved_by",
+    "approved_at",
+    "signature_ref",
+    "delivered_at",
+    "delivery_channel",
+    "template_id",
+    "split_parent_id"
+   ],
+   "relations": [
+    "Matter one-to-many",
+    "BillLine one-to-many",
+    "PaymentAllocation one-to-many",
+    "CreditNote one-to-many",
+    "TrustTransfer (trust area) one-to-many"
+   ]
+  },
+  {
+   "name": "BillLine",
+   "fields": [
+    "id",
+    "bill_id",
+    "source_type (time|expense|flat|adjustment)",
+    "source_id",
+    "narrative",
+    "qty",
+    "rate",
+    "amount",
+    "taxable",
+    "action (bill|hold|write_down|write_off|no_charge)",
+    "write_down_amount",
+    "reason_code",
+    "agent_flags"
+   ],
+   "relations": [
+    "TimeEntry or Expense one-to-one"
+   ]
+  },
+  {
+   "name": "Payment",
+   "fields": [
+    "id",
+    "received_at",
+    "payer",
+    "amount",
+    "method",
+    "account (operating|trust)",
+    "provider",
+    "provider_ref",
+    "processor_fee",
+    "status"
+   ],
+   "relations": [
+    "PaymentAllocation one-to-many",
+    "Refund one-to-many"
+   ]
+  },
+  {
+   "name": "PaymentAllocation",
+   "fields": [
+    "id",
+    "payment_id",
+    "target_type (bill|trust_ledger|unapplied)",
+    "target_id",
+    "amount",
+    "allocated_by",
+    "approved_by"
+   ],
+   "relations": [
+    "Payment many-to-one",
+    "Bill many-to-one"
+   ]
+  },
+  {
+   "name": "PaymentLink",
+   "fields": [
+    "token",
+    "purpose",
+    "target_id",
+    "amount",
+    "deposit_account",
+    "expires_at",
+    "status"
+   ],
+   "relations": [
+    "Bill or RetainerRequest"
+   ]
+  },
+  {
+   "name": "CreditNote",
+   "fields": [
+    "id",
+    "number",
+    "bill_id",
+    "kind",
+    "amount",
+    "hst",
+    "reason",
+    "trust_effect",
+    "approved_by",
+    "status"
+   ],
+   "relations": [
+    "Bill many-to-one",
+    "Refund optional"
+   ]
+  },
+  {
+   "name": "RetainerRequest",
+   "fields": [
+    "id",
+    "matter_id",
+    "kind",
+    "amount",
+    "reason",
+    "due_date",
+    "status",
+    "approved_by",
+    "funded_amount"
+   ],
+   "relations": [
+    "Matter many-to-one",
+    "Payment via allocation"
+   ]
+  },
+  {
+   "name": "CollectionsCase",
+   "fields": [
+    "id",
+    "client_id",
+    "stage",
+    "next_step_at",
+    "paused_reason",
+    "payment_plan_id"
+   ],
+   "relations": [
+    "Bill many-to-many",
+    "Reminder one-to-many"
+   ]
+  },
+  {
+   "name": "Reminder",
+   "fields": [
+    "id",
+    "case_id",
+    "step",
+    "body_ref",
+    "status",
+    "approved_by",
+    "sent_at"
+   ],
+   "relations": [
+    "CollectionsCase many-to-one"
+   ]
+  },
+  {
+   "name": "PaymentPlan",
+   "fields": [
+    "id",
+    "client_id",
+    "instalments",
+    "status",
+    "approved_by"
+   ],
+   "relations": [
+    "Bill many-to-many"
+   ]
+  },
+  {
+   "name": "TaxProfile",
+   "fields": [
+    "firm_registration_no",
+    "default_rate",
+    "province_rates",
+    "disbursement_tax_codes",
+    "place_of_supply_rule",
+    "tax_lines (name, rate, kind: HST|GST|PST|QST)",
+    "rate_precision (4 decimals)"
+   ],
+   "relations": [
+    "Firm one-to-one"
+   ]
+  },
+  {
+   "name": "PaymentProfile",
+   "fields": [
+    "id",
+    "name",
+    "terms_days",
+    "grace_days",
+    "interest_rate",
+    "rate_source"
+   ],
+   "relations": [
+    "Contact many-to-one"
+   ]
+  },
+  {
+   "name": "BillLayout",
+   "fields": [
+    "id",
+    "name",
+    "logo",
+    "columns",
+    "grouping",
+    "summaries",
+    "footer",
+    "is_default"
+   ],
+   "relations": [
+    "Bill many-to-one",
+    "Contact default"
+   ]
+  },
+  {
+   "name": "BillSplit",
+   "fields": [
+    "id",
+    "matter_id",
+    "payer_id",
+    "share_pct",
+    "applies_to",
+    "effective_from"
+   ],
+   "relations": [
+    "Matter many-to-one",
+    "Contact (payer)"
+   ]
+  },
+  {
+   "name": "ClientCredit",
+   "fields": [
+    "id",
+    "client_id",
+    "amount",
+    "source_payment_id",
+    "applied_to"
+   ],
+   "relations": [
+    "Payment",
+    "Bill"
+   ]
+  },
+  {
+   "name": "Refund",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by billing relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  }
+ ],
+ "gates": [
+  {
+   "id": "G-B1",
+   "name": "Pre-bill review",
+   "approver": "responsible lawyer",
+   "blocks": "Creation of the bill draft from WIP lines"
+  },
+  {
+   "id": "G-B2",
+   "name": "Bill approval and signature",
+   "approver": "responsible lawyer (licensee)",
+   "blocks": "Bill numbering, delivery to client, any trust application"
+  },
+  {
+   "id": "G-B3",
+   "name": "Ambiguous or trust-touching payment allocation",
+   "approver": "clerk or lawyer; lawyer if trust involved",
+   "blocks": "Posting the payment to bills or ledgers"
+  },
+  {
+   "id": "G-B4",
+   "name": "Trust withdrawal for fees",
+   "approver": "lawyer with trust signing authority",
+   "blocks": "Any transfer from client trust ledger to operating (executed by trust area)"
+  },
+  {
+   "id": "G-B5",
+   "name": "Credit note or write-off",
+   "approver": "responsible lawyer; plus managing lawyer above threshold",
+   "blocks": "Reduction of a delivered bill or AR balance"
+  },
+  {
+   "id": "G-B6",
+   "name": "Refund",
+   "approver": "lawyer",
+   "blocks": "Money returned to the payer"
+  },
+  {
+   "id": "G-B7",
+   "name": "Firm-worded collections message",
+   "approver": "responsible lawyer",
+   "blocks": "Final notices, interest demands, mentions of withdrawal or legal action"
+  },
+  {
+   "id": "G-B8",
+   "name": "Billing settings change",
+   "approver": "managing lawyer",
+   "blocks": "new numbering, interest or approval rules taking effect"
+  },
+  {
+   "id": "G-B9",
+   "name": "Payment plan or autopay",
+   "approver": "responsible lawyer and client authorization",
+   "blocks": "any scheduled charge"
+  }
+ ],
+ "agent_jobs": [
+  {
+   "name": "Billing cycle drafts",
+   "trigger": "schedule (firm billing day per matter) or manual",
+   "does": "Collects approved time and expenses, applies fee agreement, runs pre-bill checks and narrative rewrites",
+   "output": "draft pre-bill for G-B1"
+  },
+  {
+   "name": "Bill render and pre-flight",
+   "trigger": "event: G-B1 closed",
+   "does": "Computes HST, statement of account, trust proposal; checks registration number, address, totals",
+   "output": "draft bill for G-B2"
+  },
+  {
+   "name": "Delivery",
+   "trigger": "event: G-B2 approved",
+   "does": "Sends by the client's channel, records delivery evidence, handles bounces",
+   "output": "delivery record (starts Solicitors Act clocks)"
+  },
+  {
+   "name": "Trust application proposal",
+   "trigger": "event: bill delivered and retainer permits",
+   "does": "Proposes transfer within free trust balance",
+   "output": "transfer proposal for G-B4"
+  },
+  {
+   "name": "Payment matching",
+   "trigger": "event: provider webhook or bank feed line",
+   "does": "Matches to bills, retainer requests or trust; posts clear operating matches per policy",
+   "output": "allocation for G-B3 when ambiguous"
+  },
+  {
+   "name": "Evergreen watch",
+   "trigger": "schedule daily",
+   "does": "Compares trust balances to evergreen minimum and upcoming disbursements",
+   "output": "retainer request draft for lawyer approval"
+  },
+  {
+   "name": "Aging and collections",
+   "trigger": "schedule daily",
+   "does": "Recomputes aging and interest, sends friendly reminders under template, drafts firm notices",
+   "output": "reminder drafts for G-B7"
+  },
+  {
+   "name": "Provider payout reconciliation",
+   "trigger": "schedule daily",
+   "does": "Matches provider payouts and fees to posted payments; checks no fee hit trust",
+   "output": "exceptions list for clerk"
+  },
+  {
+   "name": "Monthly billing digest",
+   "trigger": "schedule monthly",
+   "does": "WIP, billed, collected, realization, AR over 60, HST by period",
+   "output": "report for lawyers (internal, no gate)"
+  },
+  {
+   "name": "Payment plan runner",
+   "trigger": "schedule",
+   "does": "notifies, charges and retries instalments, records payments",
+   "output": "payment records; failure alerts"
+  },
+  {
+   "name": "Interest accrual",
+   "trigger": "schedule",
+   "does": "computes interest on overdue bills per payment profile",
+   "output": "interest line on next bill or statement for G-B2"
+  }
+ ],
+ "open_questions": [
+  "Which payment provider(s) first, and do we hold separate merchant accounts for trust and operating per firm?",
+  "May the agent auto-send approved bills and auto-post exact-match payments, or must a human click each one?",
+  "Is electronic delivery (portal or email) enough for Solicitors Act delivery at our firms, or should the bill always also carry a signed cover letter? (verify with counsel)",
+  "Write-off threshold that needs the managing lawyer's second approval.",
+  "Do we support LEDES / insurer e-billing in v1, or only PDF bills?",
+  "Do we charge interest on overdue accounts by default, and at what rate? It must be in the retainer.",
+  "Out-of-province and non-resident clients: do we compute the HST/GST place of supply ourselves or let the lawyer choose the rate?",
+  "Is QuickBooks/Xero export needed in v1 for operating-side accounting?",
+  "Do we allow card surcharging at all in v1?",
+  "LEDES export in v1, or later when an insurer-client firm signs up?",
+  "Combined bills across a client's matters: allowed, given trust is per matter?",
+  "Could: early-payment discount % and valid days on payment profiles, removed by the agent on expiry, pre-tax?",
+  "Could: when a draft bill line is edited, update the source time entry by default before approval?",
+  "Could: SMS bill reminders with amount and pay link only, with per-contact consent?",
+  "Could: let a firm override payment plan allocation (default oldest due bill first)?",
+  "Could: live preview with a sample bill on bill-themes (no drag-and-drop designer in v1)?",
+  "Could: show 'approved by / at' on bills and on the versus page as a difference from Clio?",
+  "Could: operating-account payment link/QR with no amount, landing in payments-inbox as 'needs client'?",
+  "Could: autocharge a stored card on an approved retainer request (trust) with a consent record?",
+  "Could: consumer financing (Pay Later) - would LSO accept financed funds into trust?",
+  "Could: require a processor that keeps Canadian payer data in Canada?"
+ ],
+ "sources": [
+  "https://www.ontario.ca/laws/statute/90s15 (Solicitors Act; ss. 2, 3, 33)",
+  "https://ctdj.ca/en/jurisprudence/walker-taylor-v-boers-1996-46-o-r-3d-372-c-a/ (interest one month after delivery)",
+  "https://canadianlawyermag.com/cl-plus/cases/download/6155/2246/Crosslink%20Bridge%20Corp.%20v.%20Fogler,%20Rubinoff%20LLP.pdf (assessment between 1 and 12 months)",
+  "https://lso.ca/about-lso/legislation-rules/by-laws/by-law-9 (BL9; not reachable during research, verify)",
+  "https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct (RPC 3.6, 3.7)",
+  "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/charge-collect-which-rate/calculator.html (HST rates)",
+  "https://lawsociety.mb.ca/?p=4670 (comparable rule: bill before trust withdrawal)",
+  "https://lawsociety.bc.ca/for-lawyers/discipline-advisories/december-7,-2011 (comparable rule)",
+  "https://www.clio.com/ca/features/trust-account-management-software/ (function reference only)",
+  "https://clio.com/features/legal-accounting-software (function reference only)",
+  "https://help.clio.com/hc/en-us/articles/14078692470427 (bill settings)",
+  "https://help.clio.com/hc/en-us/articles/53171753582619 (bill layouts)",
+  "https://help.clio.com/hc/en-us/articles/25704317136155 (split billing)",
+  "https://help.clio.com/hc/en-us/articles/9285279237787 (interest / payment profiles)",
+  "https://help.clio.com/hc/en-us/articles/9285277478171 (discounts)",
+  "https://help.clio.com/hc/en-us/articles/49144641966235-Autocharge-Contacts",
+  "https://help.clio.com/hc/en-us/articles/37426909898139-Get-Started-with-Surcharging",
+  "https://help.clio.com/hc/en-us/articles/47992609093147-Start-Billing-With-Clio-Manage",
+  "https://www.payments.ca/rule-h1-pre-authorized-debits-pads (verify)",
+  "https://help.clio.com/hc/en-us/articles/51846753939483-Set-Up-Surcharging-in-Canada",
+  "https://help.clio.com/hc/en-us/articles/41863402264091-Review-Accepted-Payment-Methods",
+  "https://help.clio.com/hc/en-us/articles/9285740132379-Get-Started-with-Clio-Payments",
+  "https://help.clio.com/hc/en-us/articles/48321937507099-Manage-Clio-Payments-Settings",
+  "https://help.clio.com/hc/en-us/articles/9285813698075-Set-Transaction-Fee-Schedule",
+  "https://help.clio.com/hc/articles/9285437408667-Tax",
+  "https://help.clio.com/hc/articles/14078113389723",
+  "https://help.clio.com/hc/en-us/articles/29764998990491",
+  "https://help.clio.com/hc/articles/9285717159707",
+  "https://help.clio.com/hc/en-us/articles/9285279237787",
+  "https://help.clio.com/hc/articles/49144641966235-Autocharge-Contacts",
+  "https://help.clio.com/hc/en-us/articles/9285735777819-Set-Up-and-Manage-Payment-Plans"
+ ],
+ "clio_gaps": [
+  {
+   "clio_feature": "Bill themes (layout, columns, logo, payment link)",
+   "where_in_clio": "Settings > Billing > Bill themes",
+   "status": "added",
+   "note": "new screen bill-themes"
+  },
+  {
+   "clio_feature": "General bill settings (page size, numbering, rounding, states, notifications, delivery)",
+   "where_in_clio": "Settings > Billing > General",
+   "status": "added",
+   "note": "new screen bill-settings"
+  },
+  {
+   "clio_feature": "Batch bill generation with filters",
+   "where_in_clio": "Billing > Create bills",
+   "status": "added",
+   "note": "new screen batch-billing"
+  },
+  {
+   "clio_feature": "Split billing among payers by percent",
+   "where_in_clio": "Matter billing preferences + bill theme columns",
+   "status": "added",
+   "note": "new screen split-billing"
+  },
+  {
+   "clio_feature": "LEDES / UTBMS e-billing",
+   "where_in_clio": "Bill > download LEDES (single or bulk); needs Settings > Billing > UTBMS Codes",
+   "status": "added",
+   "note": "r05-time-billing: 1998B and 1998BI; firm ID in settings, client ID on contact; download does not mark sent. ledes-export updated."
+  },
+  {
+   "clio_feature": "Interest via payment profiles (grace period, rate, accrual interval)",
+   "where_in_clio": "Settings > Billing > Payment profiles",
+   "status": "added",
+   "note": "r05-time-billing: interest is a bill line from the day after grace on the whole unpaid bill until paid or void; only attaches at bill generation. Ours accrues per Solicitors Act s.33."
+  },
+  {
+   "clio_feature": "Discounts on draft/pending bills, optionally approved",
+   "where_in_clio": "Billing > Draft / Pending approval > Edit; Billing > Edit > Discount; payment profile",
+   "status": "added",
+   "note": "discount kind on invoice-editor; post-approval only via credit note (deliberately different) | Merged duplicate 'Discounts: whole-bill spread proportionally, before tax, after credit notes; early-payment discount': r05-time-billing: ordering rule on invoice-editor; early-payment discount in open questions"
+  },
+  {
+   "clio_feature": "Bill states draft / pending approval / awaiting payment / paid / void",
+   "where_in_clio": "Billing tab quick filters",
+   "status": "added",
+   "note": "bill state field; approval workflow in bill-settings"
+  },
+  {
+   "clio_feature": "Clio Payments: cards, links, QR (Canada: credit/debit cards and Apple/Google Pay only)",
+   "where_in_clio": "Settings > Online payments",
+   "status": "already covered",
+   "note": "r06-money: eCheck and ACH are US only; Canadian payment plans are card only. We add Interac e-Transfer and EFT/PAD."
+  },
+  {
+   "clio_feature": "Payment plans (weekly, bi-weekly, monthly)",
+   "where_in_clio": "Clio Payments > payment plans",
+   "status": "added",
+   "note": "new screen payment-plans"
+  },
+  {
+   "clio_feature": "Autocharge schedules for stored methods",
+   "where_in_clio": "Settings > Billing > Autocharge",
+   "status": "added",
+   "note": "autopay option in payment-plans | Merged duplicate 'Autocharge on approval, due date or N days after issue': r05-time-billing/r06-money: payment-plans Autopay trigger; never before delivery"
+  },
+  {
+   "clio_feature": "Surcharging card payments",
+   "where_in_clio": "Settings > Online payments > Surcharge",
+   "status": "added",
+   "note": "r06-money/r05-time-billing: Canada rules sourced (credit only, 2.4% and cost-of-acceptance cap, no trust, not Quebec, 30-day notice, surcharge-free option). payment-settings now enforces them."
+  },
+  {
+   "clio_feature": "Payment allocation order settings (proportional by default)",
+   "where_in_clio": "Settings > Billing > report allocation",
+   "status": "added",
+   "note": "r05-time-billing: not confirmed by any source; unverified Clio claim. Ours: allocation order is a setting. (unverified)"
+  },
+  {
+   "clio_feature": "Unapplied client credit",
+   "where_in_clio": "Contact > Transactions > Credit",
+   "status": "added",
+   "note": "receivables-aging unapplied credit (unverified)"
+  },
+  {
+   "clio_feature": "Credit notes and write-offs",
+   "where_in_clio": "Bill > Actions",
+   "status": "already covered",
+   "note": "credit-notes"
+  },
+  {
+   "clio_feature": "Trust applied to bills automatically on approval",
+   "where_in_clio": "Settings > Billing (trust funds)",
+   "status": "deliberately different",
+   "note": "r05-time-billing: not confirmed by any source (only card autocharge is); unverified. Ours: agent proposes, lawyer approves (G-B5). (unverified)"
+  },
+  {
+   "clio_feature": "Billing reports (AR aging, revenue, fee allocation, matter balance, invoice history)",
+   "where_in_clio": "Reports > Billing / Revenue",
+   "status": "added",
+   "note": "catalogue listed on billing-reports | Merged duplicate 'Matter balance summary and AR reports': r10-reports: billing-reports and receivables-aging"
+  },
+  {
+   "clio_feature": "Bill delivery via client portal, email, secure link",
+   "where_in_clio": "Bill > Send",
+   "status": "already covered",
+   "note": "bill-delivery"
+  },
+  {
+   "clio_feature": "Edit approved bill when setting allows",
+   "where_in_clio": "Settings > Billing",
+   "status": "deliberately different",
+   "note": "approved bills immutable; corrections by credit note"
+  },
+  {
+   "clio_feature": "Multi-currency bills",
+   "where_in_clio": "Settings > Billing > Currencies",
+   "status": "deliberately different",
+   "note": "CAD only v1 | Merged duplicate 'Multi-currency billing': r05-time-billing: CAD only in v1"
+  },
+  {
+   "clio_feature": "Manage AI automated billing (scheduled draft bills, duplicate flags)",
+   "where_in_clio": "Billing > Automated Billing",
+   "status": "added",
+   "note": "r05-time-billing: batch-billing gains frequency, cut-off rule, minimum amount; pre-bill-review anomalies panel"
+  },
+  {
+   "clio_feature": "Bill approval without approver record",
+   "where_in_clio": "Bill > Submit for approval / Approve bill",
+   "status": "deliberately different",
+   "note": "r05-time-billing: Clio does not record who approved or when; our G-B2 logs approver and time"
+  },
+  {
+   "clio_feature": "Edit bill pushes changes back to activities ('update records')",
+   "where_in_clio": "Bill > Edit",
+   "status": "already covered",
+   "note": "r05-time-billing: see open question on source-entry propagation"
+  },
+  {
+   "clio_feature": "Taxes: up to 15 named rates, primary and secondary tax",
+   "where_in_clio": "Settings > Billing > Taxes",
+   "status": "added",
+   "note": "r05-time-billing: Clio has no province logic; ours: place of supply + HST or GST+PST/QST lines"
+  },
+  {
+   "clio_feature": "Bill aggregation options (by type, services only, expenses only)",
+   "where_in_clio": "Billing > Create bills",
+   "status": "added",
+   "note": "r05-time-billing: Line grouping on bill-themes"
+  },
+  {
+   "clio_feature": "Billing templates drag-and-drop designer (early access)",
+   "where_in_clio": "Settings > Billing > Billing templates",
+   "status": "deliberately different",
+   "note": "r05-time-billing: live preview only in v1"
+  },
+  {
+   "clio_feature": "Bill reminders by email or SMS, anchored on issue date",
+   "where_in_clio": "Billing > Outstanding balances > Reminders",
+   "status": "deliberately different",
+   "note": "r05-time-billing: we anchor on delivery date (Solicitors Act); SMS in open questions"
+  },
+  {
+   "clio_feature": "Payment plans pay oldest due bill first; reminders pause while active",
+   "where_in_clio": "Contact > Payment plans",
+   "status": "already covered",
+   "note": "r06-money: Canada card only; allocation override in open questions"
+  },
+  {
+   "clio_feature": "Two-stage processor activation and payout-to-ledger mapping",
+   "where_in_clio": "Online payments > Activate",
+   "status": "already covered",
+   "note": "r06-money: payment-settings deposit accounts mapping"
+  },
+  {
+   "clio_feature": "Primary operating account, fee schedule daily/monthly, statement descriptor",
+   "where_in_clio": "Settings > Online payments > Payment Settings",
+   "status": "added",
+   "note": "r06-money: new fields on payment-settings"
+  },
+  {
+   "clio_feature": "Payment links and QR with no amount on operating or trust account",
+   "where_in_clio": "Online payments > New charge",
+   "status": "deliberately different",
+   "note": "r06-money: trust links stay matter-bound (BL9 receipts credited to a client); see open questions"
+  },
+  {
+   "clio_feature": "Pay Later consumer financing (Affirm)",
+   "where_in_clio": "Settings > Online payments",
+   "status": "deliberately different",
+   "note": "r06-money: left out of v1; Canadian availability ambiguous"
+  },
+  {
+   "clio_feature": "Payment data processed in the US",
+   "where_in_clio": "Get Started terms",
+   "status": "deliberately different",
+   "note": "r06-money: we record processor data region; see open questions"
+  },
+  {
+   "clio_feature": "LawPay integration retired 31 Aug 2026",
+   "where_in_clio": "n/a",
+   "status": "already covered",
+   "note": "r06-money: processor-neutral connection on payment-settings"
+  },
+  {
+   "clio_feature": "Online payment transaction, fee and payout reports",
+   "where_in_clio": "Reports > Online payments",
+   "status": "already covered",
+   "note": "r06-money: Provider payout reconciliation job"
+  },
+  {
+   "clio_feature": "Collections automation via third-party apps",
+   "where_in_clio": "App Directory",
+   "status": "already covered",
+   "note": "r05-time-billing: native collections-reminders and CollectionsCase"
+  }
+ ]
+}

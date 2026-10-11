@@ -1,0 +1,76 @@
+===== Clio Grow Dashboard https://help.clio.com/hc/en-us/articles/14353490331035-Clio-Grow-Dashboard updated 2026-04-08T01:42:31Z
+A key part of intaking new clients and growing your business is tracking performance data on your leads and reporting on matter status and value for new clients. Clio Grow offers a dashboard that can help you understand the performance of your marketing efforts. All channels show where your leads are coming from and how to assign value from all your marketing channels, while Local Services Ads shows data for your Local Services Ads account. 
+Note: Google's Local Services Ads is currently only available for law firms located in the US for the following practice areas: bankruptcy, business law, contract law, criminal law, disability law, DUI, estate law, family law, immigration, IP, labor law, litigation, personal injury, real estate, tax law, and traffic law.
+Tip: Learn more about how to create a digital marketing strategy for your firm and grow your business here.
+View all channels
+Your Clio Grow dashboard gives you an immediate overview of your digital marketing metrics. These metrics are organized to help you understand which requires immediate action, how to set benchmarks for your firm, and how to evaluate outcomes over time. 
+Note: The Local Services Ads dashboard will only contain data if you set up Google's Local Services Ads for Clio. Learn more here.
+This dashboard shows key actionable metrics for leads captured through all of your digital marketing channels, including leads from appointments booked via Clio Scheduler. It is broken down as follows:
+Pipeline health
+This section shows leads as they progress through your sales Pipeline over the selected date range.
+To review
+This shows leads that you need to review.
+Ignored
+This shows the total ignored leads for the selected date range
+Leads accepted rate
+This is the percentage of leads that were converted into matters. It is calculated by the total number of leads converted into matters divided by the total number of leads received.
+Matters
+To review
+This shows leads that you need to review.
+Ignored
+This shows the total ignored leads for the selected date range
+Leads accepted rate
+This is the percentage of leads that were converted into matters. It is calculated by the total number of leads converted into matters divided by the total number of leads received.
+Performance
+This section shows the total number of leads and their value over a specific period of time
+Leads
+This shows leads received during the selected date range.
+Estimated value
+This shows the estimated value of your leads during the selected date range.
+Revenue potential
+Leads
+This shows leads received during the selected date range.
+Estimated value
+This shows the estimated value of your leads during the selected date range.
+Local Service Ads
+This dashboard shows key actionable metrics for leads captured through your Local Services Ads account. It is broken down as follows:
+Pipeline health
+This section shows leads as they progress through your sales Pipeline over a specific period of time. 
+Leads:
+- 
+To review: This shows leads that you need to review.
+- 
+Ignored: This shows the leads that you ignored.
+- 
+In dispute: This shows leads that you disputed.
+- 
+Leads qualified rate: This is the percentage of leads that were converted into matters. It is calculated by the total leads converted into matters divided by the total leads received. 
+- 
+Responsiveness rating: This percentage shows you how often your firm answers a lead's initial call through the ad. It is calculated by calls answered divided by total calls. This information is received directly from Google.
+Matters:
+- 
+Intake: This shows the leads that were converted into matters in Clio Grow.
+- 
+Not hired: This shows the converted matters that you did not hire.
+- 
+Hired: This shows the converted matters that you did hire.
+- 
+Matters conversion rate: This is the percentage of matters that were converted to hired. It is calculated by the total matters converted to hired divided by the total matters created. 
+Performance
+This section shows the total number of leads and their value over a specific period of time
+- 
+Leads: This shows the leads received during the selected date range.
+- 
+Ad spend: This shows the amount you spent on your ad campaign during the selected date range.
+- 
+Estimated value: This shows the estimated value of your leads during the selected date range.
+- 
+Overall conversion rate: This is the percentage of leads that were converted into hired matters. It is calculated by the total leads hired divided by the total leads received. 
+Revenue potential
+This section shows the estimated value of the matters in your Pipeline over a specific period of time.
+Intake value
+This shows the estimated value of the leads that were converted into matters over a specific period of time
+Hired value
+This shows the estimated value of the leads that were converted into matters and then hired over a specific period of time.
+
+IMGS: []

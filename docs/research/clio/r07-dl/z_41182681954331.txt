@@ -1,0 +1,70 @@
+===== Run Conflict Checks in Clio Manage and Clio Grow https://help.clio.com/hc/en-us/articles/41182681954331-Run-Conflict-Checks-in-Clio-Manage-and-Clio-Grow updated 2026-09-03T00:15:42Z
+In Clio Manage and Clio Grow, you can run a conflict check against your existing contacts and matters as you take on new work. A conflict check searches the names, contact details, and other identifying information you provide, and lets you mark each result with a conflict status. Closing the check generates a report that your firm can share, download, and associate with a matter, providing a record of the diligence you performed.
+Administrators can run conflict checks and view conflict check reports. Users with the General Access role can run conflict checks. To set who holds each of these abilities, create or update a custom role and assign it to your account users. Refer to Roles and Permissions in Clio Manage.
+Note: This feature is available to select plans. Learn more about your plan's features. If you need to upgrade your firm’s plan, ask a firm administrator.
+Run conflict checks
+Note: If your firm uses both products, conflict checks sync between Clio Manage and Clio Grow. A check you run in one product is available in the other.
+- Open the conflict check page using one of the routes below. Four routes work in both products, and one is specific to Clio Grow.
+- Click the global search bar to open the Search panel, then click Run conflict check. A search term you enter before you click carries into the relevant fields.
+- Click Contacts, select the Conflict checks subtab, then click Run conflict check.
+- Click Matters, click a matter name, scroll to the Conflicts check section, then click Run conflict check.
+- While creating a matter, after adding the matter details, click Save and run the conflict check instead of Save matter.
+- 
+Clio Grow only: Start a conflict check while you intake a lead. Refer to Manage Leads in Clio Grow.
+- On the details page, complete or update the identifying information you hold for the new contact, such as names, email addresses, phone numbers, and addresses. Select how to search, either Flex search or Exact search, and select where to search in Clio Grow, Clio Manage, or both. Refer to the parameters section below.
+- 
+Optional: Click Add another search to run several searches at once. Click Remove on a search to take it out.
+- Click Generate results.
+- Review your results. Use the individual search tabs to move between searches. For each result, click the Mark conflict status dropdown, then choose the relevant option. Click Add note on a result to record information about it.
+- Click Close and generate report.
+- In the modal, review the Conflict status for the report and add any comments.
+- Click Close and generate report.
+Tip: Use Add another search to include adverse parties in the same conflict check. Click Share at any point to copy a link to the results for another member of your firm.
+What happens as you work through a check
+As you assign statuses to results, the results move into subtabs that match their statuses. You can select multiple results using the checkboxes and assign a status in bulk. You can also navigate away from your results and return later to continue.
+A conflict check closes automatically after 3 days, keeping the information in your reports current. Once a check closes, you can duplicate it, adjust the parameters, and run it again. A closed check stays in your account as a record, so duplicating preserves the original.
+The Conflict status on the report follows the statuses you assigned to the individual results. Changing that status requires you to acknowledge the disclaimer before you continue.
+What the summary page gives you
+The summary page includes the search parameters you used, a Share option to copy a link to another member of your firm, a download link for the PDF report, and the matter association for the check.
+Understand conflict check parameters
+Conflict check parameters adapt to your firm's needs, and you can add or remove details to broaden or narrow a check. A result returns when any one piece of information you provide appears anywhere in Clio. The name fields of a person search work differently, because you choose whether a result requires every name to match or any one name to match.
+You can adjust any of the prefilled details as needed. You can add up to 10 individual searches before generating your results, which is useful for running variations of a single search or combining related searches. All of them form part of one conflict check report. For each search, you can set the following.
+Person, company, or keyword search
+Sets whether the search looks for a person, a company, or a keyword.
+Name variations
+Holds variations of a person's first, middle, or last name, or of a company name. For a person search, select the Search matches for full name check box to limit results to those where every name you provide matches. Clear the check box to return results where any one name matches.
+Label
+Names the search so you can identify it in the conflict check results. A label stays out of the search itself.
+Additional details
+Holds email addresses, phone numbers, physical addresses, a date of birth, additional names, and any other useful information.
+Search type
+Choose Flex search for results similar to your parameters, or Exact search to limit results to exact matches.
+Search categories
+Sets where the check searches for conflicts using the checkboxes.
+View and export previous conflict checks
+In Clio Manage, the Contacts tab lists the previous conflict checks your firm ran under the Conflict checks subtab. The list includes information about each check, the associated matter, if any, the firm user who ran it, when they ran it, and the status they assigned.
+- In Clio Manage, click Contacts > Conflict checks.
+- Click View report to download a PDF of the report generated when the check closed.
+- 
+Optional: Click Export to download the conflict check table as a CSV file.
+Manage the association between conflict checks and matters
+Associating a conflict check with a matter keeps the diligence record attached to the work it covers. You can create, change, or end an association from the conflict checklist or from a matter dashboard.
+From the conflict checklist
+- In Clio Manage or Clio Grow, click Contacts > Conflict checks.
+- In the Actions column for the relevant check, click the more icon, shown as three vertical dots.
+- Click Edit associated matter.
+- To add or change the matter, click the down arrow and select the matter. To end the association, click the X for the matter.
+- Click Save.
+From a matter dashboard
+- In Clio Manage, click Matters, then select a matter.
+- In the Conflict Checks section, click Link conflict check.
+- Search for the check, or click the down arrow and select it.
+- Click Save.
+Tip: You can add the Conflict Checks section to your matter dashboard by selecting it when customizing it.
+Up next
+- 
+Create Contacts: Add the contact once the conflict check comes back clear.
+- 
+Create Matters: Open the matter you ran the conflict check for.
+
+IMGS: []

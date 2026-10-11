@@ -1,0 +1,31 @@
+===== Appointment Reminders https://help.clio.com/hc/en-us/articles/9192970741403-Appointment-Reminders updated 2026-07-09T19:44:34Z
+Appointment reminders are great way of reminding your clients of their upcoming appointments and avoiding no-shows for consultations. In Clio Grow, you can send automated text and email reminders and manual email reminders for appointments booked through Clio Scheduler. And, you can also send automated text and email reminders for appointments that you manually booked in Clio Grow. 
+Note: You can only send email reminders if your clients have valid email addresses on file, and you can only send text reminders if your clients have North American phone numbers on file that can receive texts.
+Add automated reminders to appointments
+You can add up to five automated appointment reminders to any appointment that has been booked in Clio Grow. You can set the number of reminders and the cadence when creating a manual appointment or when editing an existing appointment booked through Clio Scheduler.
+New appointment Existing appointment
+- Go to the matter’s Intake process section.
+- Click the Add single item box and select Create New Appointment.
+- Complete the appointment details.
+- Under Automated reminders, click Add a reminder.
+- Click Create appointment.
+- Go to the matter.
+- Under Intake process, find the appointment booking.
+- Click the Options dropdown and select Edit appointment.
+- Under Automated reminders, click Add a reminder.
+- Click Update appointment.
+Set default automated reminders
+You can set five default automated reminders that will automatically be added to all new appointments, including appointments that you create and appointments that prospective clients book using your Clio Scheduler booking link. For appointments that you book, you can always change the reminder cadence and settings when creating the appointments.
+- Go to Settings > Calendar & appointments.
+- In the Automated reminders section, click Update reminders.
+- Click Add a reminder, then set when you want the reminder to be sent. You can add up to five automated reminders.
+- Click Save reminders.
+Note: Learn how to personalize the reminder template. The appointment time and date will automatically be inserted at the end of your email. 
+Send manual reminders
+For any appointment booked through Clio Scheduler, you can send the prospective client a manual email reminder about their upcoming appointment once you have added the prospective client as a contact.
+- Go to the matter.
+- Under Intake process, find the appointment booking.
+- Click the Options dropdown and select Send manual reminder.
+- Enter the reminder details and select Send Email.
+
+IMGS: []

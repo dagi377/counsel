@@ -1,0 +1,886 @@
+{
+ "id": "r05-time-billing",
+ "scope": "Clio activities (time, timers, expenses, categories, UTBMS, rates and precedence), billing (generation, themes, batch/split, discounts, interest, LEDES, approval, collections, payment plans, settings, Canadian taxes)",
+ "clio_products": [
+  "Clio Manage",
+  "Manage AI (formerly Clio Duo)",
+  "Clio Timekeeping",
+  "Clio Payments",
+  "Clio Accounting"
+ ],
+ "features": [
+  {
+   "name": "Time entries (manual)",
+   "product": "Clio Manage",
+   "where": "Activities > New time entry; global Create new; matter dashboard",
+   "what": "Time entry with user, matter, date, duration, activity category, description, rate; save, save and create another, save and duplicate.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289741706779"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/9289741706779"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Timer",
+   "product": "Clio Manage",
+   "where": "Header timer; timer icon on a time entry",
+   "what": "Start/pause timer tied to an activity; API exposes start_time and elapsed hours. Whether several timers can be paused at once could not be confirmed from sources.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://apis.io/apis/clio/clio-timers-api/",
+    "https://help.clio.com/hc/articles/9289741706779"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/9289741706779"
+   ],
+   "confidence": "low"
+  },
+  {
+   "name": "Non-billable entries shown on bill",
+   "product": "Clio Manage",
+   "where": "Time entry modal: Non-billable + Show the entry on the bill",
+   "what": "Mark time non-billable and optionally still print it on the bill.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289741706779"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Time entries from communications/calendar",
+   "product": "Clio Manage",
+   "where": "Matter Communications / Calendar",
+   "what": "Creating time from a logged communication carries its subject into the description.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeos2qBH6A%3A%3AqgpBZissQMibSRLbLo5xmQ/md",
+    "https://help.clio.com/hc/articles/9289741706779"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Text snippets",
+   "product": "Clio Manage",
+   "where": "Settings > Text snippets (path inferred)",
+   "what": "Abbreviation that expands to a longer phrase in descriptions; optional trailing-space trigger. Seen only via API connector docs.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeos2qBH6A%3A%3AqgpBZissQMibSRLbLo5xmQ/md"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Mobile time and expense entry",
+   "product": "Clio Manage",
+   "where": "Clio mobile app > Activities",
+   "what": "Create, duplicate (swipe) time and expense entries on mobile.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289702013083-Mobile-App-Time-and-Expense-Activities"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Activity categories",
+   "product": "Clio Manage",
+   "where": "Settings > Activity categories (Activities > categories)",
+   "what": "Firm-wide labels for time/expense with billing method: user default rate, custom rate, or flat rate; no-charge = flat 0.00.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289744400667"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/9289744400667"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Rate hierarchy",
+   "product": "Clio Manage",
+   "where": "Rates resolve automatically on entry",
+   "what": "Precedence: custom on entry > flat fee > matter rate > client rate > activity-category custom rate > user default. Changing matter or category on an entry drops a typed custom rate.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289801180187"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/9289801180187"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Client (contact) rates per user or group",
+   "product": "Clio Manage",
+   "where": "Contact > Edit > Rates",
+   "what": "Contact-level rates for individual users or groups; multiple client rates per matter.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290560623771",
+    "https://help.clio.com/hc/articles/9289801180187"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Billing rate report",
+   "product": "Clio Manage",
+   "where": "Reports > Matter reports > Billing rate",
+   "what": "Shows effective user rate per matter: matter rate > client rate > default.",
+   "plan_tier": "reports plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14349646533787-Clio-Manage-Matter-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Flat fee matters",
+   "product": "Clio Manage",
+   "where": "Matter > Billing method: Flat",
+   "what": "Auto-creates the flat fee entry; time tracked at 0.00/hr.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289801180187"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Expense entries",
+   "product": "Clio Manage",
+   "where": "Activities > New expense; matter Activities subtab",
+   "what": "Expense with amount, date, category, receipt attachment; soft costs to 4 decimals.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289745356571"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/9289745356571"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Hard / soft cost tracking",
+   "product": "Clio Manage",
+   "where": "Settings > Billing > Expenses (US); General (UK: disbursements vs expense recoveries)",
+   "what": "Optional toggle to classify expenses as hard (paid to third party) or soft (internal); hard costs sync to Clio Accounting Funds out.",
+   "plan_tier": "all plans; Clio Accounting for sync",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289745356571",
+    "https://help.clio.com/hc/en-us/articles/30954162649115-Clio-Accounting-Hard-Costs"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Receipt autofill",
+   "product": "Clio Manage",
+   "where": "Expense entry > upload receipt (pilot) / Manage AI",
+   "what": "AI reads uploaded receipt and fills amount, date, reference, description; only fills empty fields.",
+   "plan_tier": "pilot / Manage AI plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289745356571",
+    "https://help.clio.com/hc/en-us/articles/29764998990491"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "UTBMS codes",
+   "product": "Clio Manage",
+   "where": "Settings > Billing > UTBMS Codes",
+   "what": "Enable standard code sets (task, activity, expense) on time and expense entries; cannot be required; no custom codes.",
+   "plan_tier": "all plans (verify)",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289762435099",
+    "https://www.clio.com/blog/what-is-ledes-billing/"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/9289762435099"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Manage AI time entry suggestions",
+   "product": "Clio Manage (Manage AI, formerly Clio Duo)",
+   "where": "Matter dashboard AI Actions card; AI Launchpad",
+   "what": "Proactively suggests time entries for unlogged calls, notes, emails, completed tasks; user accepts.",
+   "plan_tier": "Manage AI plans (tier unconfirmed)",
+   "sources": [
+    "https://help.clio.com/hc/articles/29765932267675",
+    "https://help.clio.com/hc/en-au/articles/29658207678107-Manage-AI-Create-Activities-Events-Notes-and-Tasks",
+    "https://www.clio.com/events/deep-dive-into-clio-duo-june-2025/"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/29765932267675"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Timekeeping (passive capture)",
+   "product": "Clio Timekeeping",
+   "where": "Outlook/OneDrive integration; desktop app",
+   "what": "Background capture of email/document time in 1-minute increments for review and logging; desktop app suggests entries for work outside Clio; user chooses capture hours. Pilot.",
+   "plan_tier": "pilot",
+   "sources": [
+    "https://help.clio.com/hc/articles/50852535786139-Clio-Timekeeping"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/50852535786139-Clio-Timekeeping"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Personal billable target",
+   "product": "Clio Manage",
+   "where": "Settings > Profile > Personal Performance; Dashboard > Personal Dashboard",
+   "what": "User sets default rate, annual target billings, working days, fiscal year end; dashboard compares target with logged billable time.",
+   "plan_tier": "plans with reports",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290091783323"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/9290091783323"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Productivity report",
+   "product": "Clio Manage",
+   "where": "Reports > Productivity",
+   "what": "CSV tracing time from recorded to discounted/written-off, billed, collected, outstanding (realization).",
+   "plan_tier": "plans with reports",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14351524759707-Clio-Manage-Productivity-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "AI metrics Q&A",
+   "product": "Clio Manage (Manage AI)",
+   "where": "Ask Duo / Manage AI chat",
+   "what": "Ask billed/unbilled hours and utilization in chat.",
+   "plan_tier": "Manage AI plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29658606211483-Clio-Duo-View-Reports-and-Performance-Metrics"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Bill generation: quick bill and bulk billing",
+   "product": "Clio Manage",
+   "where": "Billing > Create bills; matter > Quick bill",
+   "what": "Generate one or many bills across matters/clients, or a combined bill per client; aggregation options (by type, services only, expenses only); excluded activities stay unbilled.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9285169278747"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/9285169278747"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Manage AI automated billing",
+   "product": "Clio Manage (Manage AI)",
+   "where": "Gem icon > Automate your bills; Billing > Automated Billing",
+   "what": "Scheduled AI-generated draft bills with frequency, minimum amount, include flat/contingency matters, cut-off rule; drafts land in Pending approval, flagged duplicates/unusual entries, auto routing and internal reminders.",
+   "plan_tier": "help: Essentials/Advanced/Expand; AU page: add-on (conflict)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29764998990491",
+    "https://www.clio.com/customer-resources/welcome-kit/duo/"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/29764998990491"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Bill states and approval",
+   "product": "Clio Manage",
+   "where": "Billing > quick filters; Edit > Submit for approval / Approve bill",
+   "what": "Draft > pending approval (assigned firm user) > unpaid/awaiting payment > paid; void. Approval can be skipped. Clio does not record who approved or when.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/17284937823387"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/17284937823387"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Edit bills, edit approved bills setting",
+   "product": "Clio Manage",
+   "where": "Bill > Edit; Settings > Billing > General > Bill States",
+   "what": "Full edit in draft/pending; approved bills limited unless setting enabled; 'Update records' pushes edits back to activities; paid bills need payment deleted first.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9285222010395"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Discounts",
+   "product": "Clio Manage",
+   "where": "Billing > Draft/Pending > Edit > Discount",
+   "what": "Whole-bill (percent or amount, spread proportionally) or per-line discounts with note; applied before tax, after credit notes; early-payment discount via payment profile auto-expires.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9285279237787"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Interest via payment profiles",
+   "product": "Clio Manage",
+   "where": "Settings > Billing > Payment profiles; assign to contact",
+   "what": "Profile sets grace period, rate, interval; interest accrues from day after grace, on whole unpaid bill, as line items, until paid/void; only applied at bill generation.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9285717159707",
+    "https://help.clio.com/hc/en-us/articles/9285279237787"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Taxes (primary/secondary, up to 15 rates)",
+   "product": "Clio Manage",
+   "where": "Settings > Billing > Taxes (or General)",
+   "what": "Up to 15 named tax rates (4 decimals) usable on expenses and bills; primary + secondary tax, each optionally default on all bills; trust requests carry no tax. No built-in Canadian province logic found.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9285437408667-Tax"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/9285437408667-Tax"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Bill themes",
+   "product": "Clio Manage",
+   "where": "Settings > Billing > Bill Themes",
+   "what": "Unlimited themes: page setup, localization, watermark, header, invoice info, columns, fonts, logo, payment link; live preview; admin/billing permission.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9285055886235",
+    "https://help.clio.com/hc/en-us/articles/53171753582619"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/53171753582619"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Billing templates (drag-and-drop)",
+   "product": "Clio Manage",
+   "where": "Settings > Billing > Billing templates",
+   "what": "Single-canvas visual bill designer; early access.",
+   "plan_tier": "early access",
+   "sources": [
+    "https://help.clio.com/hc/articles/48926867354907"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/48926867354907"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Split billing",
+   "product": "Clio Manage",
+   "where": "Matter > Edit > Billing preference > Split invoice",
+   "what": "Payers with percentage portions totaling 100%; hourly/flat only; split columns on theme; 'Split invoice' pill.",
+   "plan_tier": "select plans (Advanced/Expand per one version)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/25704317136155"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/en-us/articles/25704317136155"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "LEDES export",
+   "product": "Clio Manage",
+   "where": "Bill > download LEDES; Settings for firm ID; contact LEDES client ID",
+   "what": "Individual or bulk LEDES 1998B and 1998BI; firm ID/tax ID, client ID, timekeeper classification; requires UTBMS; download does not mark sent.",
+   "plan_tier": "all plans (verify)",
+   "sources": [
+    "https://help.clio.com/hc/articles/14078113389723",
+    "https://www.clio.com/blog/what-is-ledes-billing/"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/articles/14078113389723"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Multi-currency",
+   "product": "Clio Manage",
+   "where": "Settings > Billing > Currencies",
+   "what": "Add currencies; matter billing currency; expense conversion at expense date, bill date or manual rate; default currency locked once others added; not compatible with Clio Accounting.",
+   "plan_tier": "all plans (verify)",
+   "sources": [
+    "https://help.clio.com/hc/articles/53408534657179",
+    "https://help.clio.com/hc/articles/14078692470427-Bill-Settings"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Bill filters and exports",
+   "product": "Clio Manage",
+   "where": "Billing > filters",
+   "what": "Filter bills by client, matter, originating/responsible attorney, sent date, due/issue date, overdue, type, currency, custom fields.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9285331482779"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Bill reminders (manual and automated)",
+   "product": "Clio Manage",
+   "where": "Billing > Outstanding Balances > Send / Reminders toggle",
+   "what": "One-off or scheduled reminders for unpaid approved bills, keyed from issue date; email with secure PDF link, optional SMS with pay link; logged to Communications.",
+   "plan_tier": "all plans (SMS needs texting)",
+   "sources": [
+    "https://help.clio.com/hc/articles/9285345945243"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Payments",
+   "product": "Clio Manage / Clio Payments",
+   "where": "Settings > Online payments",
+   "what": "Card + Apple/Google Pay; Canada: Visa, MC, Amex, debit (some restricted); eCheck/ACH US only; payouts in local currency in ~2 business days; one stored method per client in Canada.",
+   "plan_tier": "add-on payments",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/41863402264091-Review-Accepted-Payment-Methods",
+    "https://help.clio.com/hc/en-us/articles/9285731098267",
+    "https://www.clio.com/app-directory/clio-payments/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Payment plans",
+   "product": "Clio Manage / Clio Payments",
+   "where": "Contact/matter > Payment plans",
+   "what": "Recurring card payments to balance, trust, or ongoing services; weekly/bi-weekly/monthly; pays oldest due bill first (fixed); Canada card only.",
+   "plan_tier": "Clio Payments",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9285735777819",
+    "https://www.clio.com/au/welcome/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Autocharge",
+   "product": "Clio Manage / Clio Payments",
+   "where": "Settings > Billing > Autocharge",
+   "what": "Named schedules charging stored method on approval, on due date, or N days after issue; applied per client; phased rollout.",
+   "plan_tier": "Clio Payments; phased",
+   "sources": [
+    "https://help.clio.com/hc/articles/49144641966235-Autocharge-Contacts"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Surcharging in Canada",
+   "product": "Clio Manage / Clio Payments",
+   "where": "Settings > Online payments > Surcharge (request-only)",
+   "what": "Credit only, cap 2.4% and cost of acceptance, not debit/wallet/trust, not Quebec firms or Quebec cardholders, needs surcharge-free option, line item shown.",
+   "plan_tier": "Clio Payments list pricing",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/51846753939483-Get-Started-With-Surcharging-in-Canada"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Collections integrations",
+   "product": "Clio Manage App Directory",
+   "where": "App Directory",
+   "what": "Third-party collections automation (e.g. Kolleno); no native collections case management found.",
+   "plan_tier": "integration",
+   "sources": [
+    "https://www.clio.com/app-directory/kolleno/"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  }
+ ],
+ "gaps": [
+  {
+   "feature": "LEDES 1998BI (international, currency, tax fields)",
+   "our_area": "billing",
+   "our_screen": "ledes-export",
+   "status": "partial",
+   "proposal": "Add format enum value 'LEDES 1998BI' with currency, tax rate and firm/client address fields; timekeeper classification code on users (PT/AS/PL/LA/OT) and LEDES client ID on contacts; validation refuses export when UTBMS codes missing; export does not set 'sent'.",
+   "priority": "should"
+  },
+  {
+   "feature": "Early-payment discount via payment profile",
+   "our_area": "billing",
+   "our_screen": "bill-settings",
+   "status": "missing",
+   "proposal": "Payment profile gains 'early payment discount %' and 'valid days'; bill shows discounted amount due until expiry; agent removes the discount line on expiry and logs it; discount is pre-HST.",
+   "priority": "could"
+  },
+  {
+   "feature": "Discount ordering rule (after credit notes, before tax; spread proportionally)",
+   "our_area": "billing",
+   "our_screen": "invoice-editor",
+   "status": "partial",
+   "proposal": "State rule on invoice-editor: whole-bill discount spread proportionally across lines for HST and realization reporting; applied after credit notes, before HST; when interest exists, payments/discount hit principal before interest (Ontario s.33 check).",
+   "priority": "should"
+  },
+  {
+   "feature": "Secondary tax / province-of-supply (GST+PST/QST)",
+   "our_area": "billing",
+   "our_screen": "invoice-editor",
+   "status": "partial",
+   "proposal": "TaxProfile supports GST 5% + provincial PST/QST as separate lines for out-of-province clients (QC 9.975% QST, BC/MB/SK PST rules for legal services), not only HST; agent proposes place-of-supply with rationale; up to 4-decimal rates.",
+   "priority": "should"
+  },
+  {
+   "feature": "Automated scheduled bill drafts (Manage AI automated billing)",
+   "our_area": "billing",
+   "our_screen": "batch-billing",
+   "status": "covered",
+   "proposal": "Billing cycle drafts job already exists; add explicit settings: frequency, cut-off rule (entries created before X vs dated before X), minimum bill amount, include flat/contingency toggle, and an 'anomalies' panel (duplicates, unusual entries) on pre-bill-review.",
+   "priority": "should"
+  },
+  {
+   "feature": "Approval audit (who approved, when)",
+   "our_area": "billing",
+   "our_screen": "invoice-editor",
+   "status": "covered",
+   "proposal": "Keep: our G-B2 logs approver and time; Clio's help says it does not show who approved. Surface 'approved by / at' on the bill and in versus page.",
+   "priority": "could"
+  },
+  {
+   "feature": "Bill edit 'update records' propagation",
+   "our_area": "billing",
+   "our_screen": "invoice-editor",
+   "status": "partial",
+   "proposal": "When a line is edited on a draft, ask whether to change the source TimeEntry (default yes before approval); record as WriteDown when amount drops.",
+   "priority": "could"
+  },
+  {
+   "feature": "Aggregation options on bill (by type, services only, expenses only)",
+   "our_area": "billing",
+   "our_screen": "bill-themes",
+   "status": "partial",
+   "proposal": "Add 'Line grouping' enum on bill-themes: itemized | aggregate fees and disbursements | aggregate fees only | aggregate disbursements only | by timekeeper | by UTBMS phase.",
+   "priority": "should"
+  },
+  {
+   "feature": "Bill reminders by SMS with pay link",
+   "our_area": "billing",
+   "our_screen": "collections-reminders",
+   "status": "partial",
+   "proposal": "Add channel enum email | SMS to collections-reminders; SMS contains amount and pay link only, no matter detail; consent recorded per contact.",
+   "priority": "could"
+  },
+  {
+   "feature": "Reminder schedule anchor",
+   "our_area": "billing",
+   "our_screen": "collections-reminders",
+   "status": "deliberately different",
+   "proposal": "Keep delivery-date anchor (Ontario Solicitors Act timing); Clio anchors on issue date. Document in versus page.",
+   "priority": "could"
+  },
+  {
+   "feature": "Autocharge triggers",
+   "our_area": "billing",
+   "our_screen": "payment-plans",
+   "status": "partial",
+   "proposal": "Autopay option gets trigger enum: on approval | on due date | N days after delivery; never before delivery of the account; gated by G-B9 per client.",
+   "priority": "should"
+  },
+  {
+   "feature": "Payment plan allocation rule",
+   "our_area": "billing",
+   "our_screen": "payment-plans",
+   "status": "partial",
+   "proposal": "State allocation: oldest due bill first, then oldest created; firm may override per plan (Clio fixes it).",
+   "priority": "could"
+  },
+  {
+   "feature": "Text snippets / narrative shortcuts",
+   "our_area": "time",
+   "our_screen": "my-time",
+   "status": "missing",
+   "proposal": "Add firm and personal snippets (abbreviation -> phrase) usable in narrative fields; agent narrative style guide may reference them.",
+   "priority": "could"
+  },
+  {
+   "feature": "Billing templates visual designer",
+   "our_area": "billing",
+   "our_screen": "bill-themes",
+   "status": "partial",
+   "proposal": "Live preview on bill-themes with sample bill (Clio themes have live preview); drag-and-drop not needed in v1.",
+   "priority": "could"
+  },
+  {
+   "feature": "Personal performance target fields",
+   "our_area": "time",
+   "our_screen": "timekeeper-targets",
+   "status": "covered",
+   "proposal": "Add 'working days per year' and 'fiscal year end' to TimekeeperTarget so capacity math matches Clio's personal target.",
+   "priority": "could"
+  },
+  {
+   "feature": "Hard/soft cost toggle and accounting sync",
+   "our_area": "time",
+   "our_screen": "expenses",
+   "status": "covered",
+   "proposal": "Our 'agency' field maps to hard (agent) vs soft (firm cost); add report column naming them 'disbursement' vs 'firm cost recovery' for Ontario usage.",
+   "priority": "could"
+  },
+  {
+   "feature": "Contact (client) rates per user group",
+   "our_area": "time",
+   "our_screen": "rates",
+   "status": "partial",
+   "proposal": "Rates screen: allow client-level rate overrides keyed by user OR role group, and more than one client rate per matter; show resolved rate source chain on entry.",
+   "priority": "should"
+  },
+  {
+   "feature": "Passive time capture from email/docs/desktop",
+   "our_area": "time",
+   "our_screen": "suggested-entries",
+   "status": "covered",
+   "proposal": "Keep Rebuild day; note Clio now has native suggestions (Manage AI) and pilot Clio Timekeeping, so our edge is accuracy, sources cited per suggestion, and Canada-resident processing, not existence.",
+   "priority": "must"
+  },
+  {
+   "feature": "Card surcharge Canada rules",
+   "our_area": "billing",
+   "our_screen": "payment-settings",
+   "status": "covered",
+   "proposal": "Remove '(verify)' on Quebec and 2.4% cap; also exclude debit, prepaid, wallets; require surcharge-free option; Law Society position check per province.",
+   "priority": "should"
+  }
+ ],
+ "corrections": [
+  {
+   "our_claim": "versus-clio: Clio time capture is 'Timers' (vs our agent rebuilding the day)",
+   "truth": "Clio Manage AI suggests time entries from unlogged calls, notes, emails and completed tasks, and Clio Timekeeping (pilot) passively captures email/document and desktop time for review. Claim should say Clio has AI suggestions; our difference is breadth, citations and gating.",
+   "sources": [
+    "https://help.clio.com/hc/articles/29765932267675",
+    "https://help.clio.com/hc/en-au/articles/29658207678107-Manage-AI-Create-Activities-Events-Notes-and-Tasks",
+    "https://help.clio.com/hc/articles/50852535786139-Clio-Timekeeping",
+    "https://www.clio.com/events/deep-dive-into-clio-duo-june-2025/"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: Clio 'People work; AI assists on request'",
+   "truth": "Manage AI has proactive actions (suggested time entries, scheduled automated bill drafts routed for approval). Reword to 'AI proposes some items; no single approval queue or citations'.",
+   "sources": [
+    "https://help.clio.com/hc/articles/29765932267675",
+    "https://help.clio.com/hc/en-us/articles/29764998990491"
+   ]
+  },
+  {
+   "our_claim": "versus-clio: monthly billing takes 'Days' today",
+   "truth": "Unproven for Clio users: Manage AI automated billing generates drafts on a schedule, flags duplicates, routes approvals. Present as an estimate for manual firms, not a Clio fact.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29764998990491",
+    "https://www.clio.com/customer-resources/welcome-kit/duo/"
+   ]
+  },
+  {
+   "our_claim": "time.json clio_gaps: 'AI time entry suggestions (Clio Duo / third-party)', where 'integrations, AI features 2025'",
+   "truth": "Native in Clio Manage as Manage AI (renamed from Clio Duo) plus Clio Timekeeping pilot; not only third-party.",
+   "sources": [
+    "https://help.clio.com/hc/articles/29765932267675",
+    "https://help.clio.com/hc/articles/50852535786139-Clio-Timekeeping"
+   ]
+  },
+  {
+   "our_claim": "billing.json clio_gaps: LEDES 'Settings > Billing > General > LEDES'",
+   "truth": "Clio exports both LEDES 1998B and 1998BI per bill or in bulk; requires UTBMS enabled under Settings > Billing > UTBMS Codes; firm ID in settings, client ID on contact. Exact menu for LEDES is not 'General > LEDES' in sources found.",
+   "sources": [
+    "https://help.clio.com/hc/articles/14078113389723",
+    "https://help.clio.com/hc/articles/9289762435099"
+   ]
+  },
+  {
+   "our_claim": "billing.json clio_gaps: 'Trust applied to bills automatically on approval' and 'Payment allocation order settings (proportional by default)'",
+   "truth": "Not confirmed by any source found in this pass; mark unverified until checked. Confirmed automatic charging is Autocharge of stored card methods, not trust.",
+   "sources": [
+    "https://help.clio.com/hc/articles/49144641966235-Autocharge-Contacts"
+   ]
+  },
+  {
+   "our_claim": "billing.json payment-settings: card surcharge 'not in Quebec (verify)'; reg '2.4% (verify)'",
+   "truth": "Confirmed by Clio's Canada surcharging article: 2.4% cap and cost of acceptance, credit only, excludes Quebec firms and Quebec cardholders, excludes trust payments.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/51846753939483-Get-Started-With-Surcharging-in-Canada"
+   ]
+  },
+  {
+   "our_claim": "billing.json clio_gaps: Interest 'grace period, rate' only",
+   "truth": "Clio profiles also set an accrual interval; interest is a bill line item from day after grace, whole unpaid bill, until paid/void, and only attaches at generation (existing bills must be regenerated).",
+   "sources": [
+    "https://help.clio.com/hc/articles/9285717159707",
+    "https://help.clio.com/hc/en-us/articles/9285279237787"
+   ]
+  }
+ ],
+ "screenshots_index": [
+  {
+   "area": "time",
+   "url": "https://help.clio.com/hc/articles/9289801180187",
+   "shows": "rate hierarchy article with screenshots"
+  },
+  {
+   "area": "time",
+   "url": "https://help.clio.com/hc/articles/9289741706779",
+   "shows": "time entry modal, save and duplicate"
+  },
+  {
+   "area": "time",
+   "url": "https://help.clio.com/hc/articles/9289744400667",
+   "shows": "activity category form"
+  },
+  {
+   "area": "time",
+   "url": "https://help.clio.com/hc/articles/50852535786139-Clio-Timekeeping",
+   "shows": "Clio Timekeeping suggestions"
+  },
+  {
+   "area": "time",
+   "url": "https://help.clio.com/hc/articles/29765932267675",
+   "shows": "Manage AI proactive actions incl. time suggestions"
+  },
+  {
+   "area": "time",
+   "url": "https://help.clio.com/hc/en-us/articles/9290091783323",
+   "shows": "personal performance target dashboard"
+  },
+  {
+   "area": "billing",
+   "url": "https://help.clio.com/hc/en-us/articles/53171753582619",
+   "shows": "bill theme editor with live preview"
+  },
+  {
+   "area": "billing",
+   "url": "https://help.clio.com/hc/articles/48926867354907",
+   "shows": "billing templates canvas"
+  },
+  {
+   "area": "billing",
+   "url": "https://help.clio.com/hc/articles/17284937823387",
+   "shows": "bill states and submit for approval"
+  },
+  {
+   "area": "billing",
+   "url": "https://help.clio.com/hc/en-us/articles/29764998990491",
+   "shows": "automated billing setup"
+  },
+  {
+   "area": "billing",
+   "url": "https://help.clio.com/hc/en-us/articles/25704317136155",
+   "shows": "split invoice matter settings"
+  },
+  {
+   "area": "billing",
+   "url": "https://help.clio.com/hc/articles/14078113389723",
+   "shows": "LEDES download"
+  },
+  {
+   "area": "billing",
+   "url": "https://help.clio.com/hc/articles/9285169278747",
+   "shows": "bulk bill generation"
+  },
+  {
+   "area": "billing",
+   "url": "https://help.clio.com/hc/articles/9285437408667-Tax",
+   "shows": "tax settings"
+  },
+  {
+   "area": "time",
+   "url": "https://help.clio.com/hc/articles/9289762435099",
+   "shows": "UTBMS settings"
+  }
+ ],
+ "open_questions": [
+  "Does Clio allow several timers paused at once? Not confirmed (help.clio.com 403, Wayback blocked).",
+  "Clio rounding options (increment, up/nearest) and whether changes re-round billed entries: unconfirmed this pass; spec's claim cites 14078692470427 but snippet not seen.",
+  "Does Clio offer timesheet approval or entry locking? Nothing found; likely absent, verify.",
+  "Is Clio interest simple or compound? Sources do not say.",
+  "Exact plan tiers for Manage AI, split billing, UTBMS/LEDES: sources conflict (Essentials/Advanced/Expand vs Core/Signature/Elite naming vs add-on).",
+  "Does Clio auto-apply trust to bills on approval and default to proportional payment allocation? Unverified.",
+  "Clio Payments Canada: PAD/Interac not found; confirm absence before claiming as our edge."
+ ],
+ "sources": [
+  "https://apis.io/apis/clio/clio-timers-api/",
+  "https://help.clio.com/hc/articles/14078113389723",
+  "https://help.clio.com/hc/articles/14078692470427-Bill-Settings",
+  "https://help.clio.com/hc/articles/17284937823387",
+  "https://help.clio.com/hc/articles/29765932267675",
+  "https://help.clio.com/hc/articles/48926867354907",
+  "https://help.clio.com/hc/articles/49144641966235-Autocharge-Contacts",
+  "https://help.clio.com/hc/articles/50852535786139-Clio-Timekeeping",
+  "https://help.clio.com/hc/articles/53408534657179",
+  "https://help.clio.com/hc/articles/9285055886235",
+  "https://help.clio.com/hc/articles/9285169278747",
+  "https://help.clio.com/hc/articles/9285222010395",
+  "https://help.clio.com/hc/articles/9285331482779",
+  "https://help.clio.com/hc/articles/9285345945243",
+  "https://help.clio.com/hc/articles/9285437408667-Tax",
+  "https://help.clio.com/hc/articles/9285717159707",
+  "https://help.clio.com/hc/articles/9289702013083-Mobile-App-Time-and-Expense-Activities",
+  "https://help.clio.com/hc/articles/9289741706779",
+  "https://help.clio.com/hc/articles/9289744400667",
+  "https://help.clio.com/hc/articles/9289745356571",
+  "https://help.clio.com/hc/articles/9289762435099",
+  "https://help.clio.com/hc/articles/9289801180187",
+  "https://help.clio.com/hc/en-au/articles/29658207678107-Manage-AI-Create-Activities-Events-Notes-and-Tasks",
+  "https://help.clio.com/hc/en-us/articles/14349646533787-Clio-Manage-Matter-Reports",
+  "https://help.clio.com/hc/en-us/articles/14351524759707-Clio-Manage-Productivity-Reports",
+  "https://help.clio.com/hc/en-us/articles/25704317136155",
+  "https://help.clio.com/hc/en-us/articles/29658606211483-Clio-Duo-View-Reports-and-Performance-Metrics",
+  "https://help.clio.com/hc/en-us/articles/29764998990491",
+  "https://help.clio.com/hc/en-us/articles/30954162649115-Clio-Accounting-Hard-Costs",
+  "https://help.clio.com/hc/en-us/articles/41863402264091-Review-Accepted-Payment-Methods",
+  "https://help.clio.com/hc/en-us/articles/51846753939483-Get-Started-With-Surcharging-in-Canada",
+  "https://help.clio.com/hc/en-us/articles/53171753582619",
+  "https://help.clio.com/hc/en-us/articles/9285279237787",
+  "https://help.clio.com/hc/en-us/articles/9285731098267",
+  "https://help.clio.com/hc/en-us/articles/9285735777819",
+  "https://help.clio.com/hc/en-us/articles/9290091783323",
+  "https://help.clio.com/hc/en-us/articles/9290560623771",
+  "https://www.americanbar.org/groups/law_practice/resources/law-technology-today/2025/ai-time-tracking-for-lawyers/",
+  "https://www.clio.com/app-directory/clio-payments/",
+  "https://www.clio.com/app-directory/kolleno/",
+  "https://www.clio.com/au/welcome/",
+  "https://www.clio.com/blog/what-is-ledes-billing/",
+  "https://www.clio.com/customer-resources/welcome-kit/duo/",
+  "https://www.clio.com/events/deep-dive-into-clio-duo-june-2025/",
+  "https://www.clio.com/wp-content/uploads/2025/06/Brochure-Quickstart-PDF-Getting-Paid-Quickly-and-Reliably.pdf",
+  "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeos2qBH6A%3A%3AqgpBZissQMibSRLbLo5xmQ/md"
+ ],
+ "method_note": "help.clio.com and clio.com returned 403 to direct fetch; web.archive.org blocked for this agent. All Clio facts come from official help-center search snippets (confidence medium) unless marked low. No page was opened in full, so no feature is high confidence."
+}

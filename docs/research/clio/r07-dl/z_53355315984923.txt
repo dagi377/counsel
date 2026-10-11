@@ -1,0 +1,66 @@
+===== Prepare and Manage Documents in Clio Grow https://help.clio.com/hc/en-us/articles/53355315984923-Prepare-and-Manage-Documents-in-Clio-Grow updated 2026-09-28T23:21:50Z
+In Clio Grow, you can prepare documents for clients directly from your document templates or by uploading a one-time PDF. Once prepared, a document can be edited, downloaded, or sent out for electronic signature. When document templates are set up correctly, the documents prepared from templates can use information previously collected about a matter or contact (e.g., information collected via intake forms) and stored in Clio to automatically populate relevant fields in the document. Learn how to create a document template.
+Once created, documents are tracked in the matter's File or Intake process tab. From the Intake process tab the document is added to your checklist where you can manage the due dates, view the document status, and download the file.
+Prepare a document from a template
+In Clio Grow, you can prepare documents for document templates you previously created. When you prepare a document from a template, Clio Grow automatically populates the document with contact and matter information based on the fields configured in the template. You can prepare a document from the main Documents tab or directly from a matter.
+- Go to Documents and click Prepare document.- Alternatively, from a Matter page, in the Intake process tab, from the Schedule or send dropdown, select Prepare Document.
+- Select the matter you want to prepare the document for and click Continue.- If you are preparing the document from the matter page, this step will not appear as the matter is pre-selected.
+- Select Use template.
+- Under Document templates, select the template you want to use.
+- Under Document Automation, select the contact whose information will populate the person fields in the document.
+- If the template is configured for e-signatures, under Signers in document, select the contact who will sign the document.
+- 
+Optional: Select a Due Date.
+- 
+Optional: If you use AI features in Clio Grow, you can set up follow ups to ensure the contact(s) sign(s) the document.
+- Click Draft document.- The document opens in the editor with the merge fields populated.
+- Review and edit the document as needed.
+- When ready, click Agree and send.
+- Select the option relevant to you:
+- 
+Email document link > Continue to email: Select this option to send the document to contact recipients via email and/or text. With this option you can also send it to firm user recipients and yourself via email. Review the email and click Send document.
+- 
+Sign document now > Sign document: Select this option to add your signature to the document before sending it to your client. Dropbox Sign will open. Click Get Started, fill the required fields, then click Continue > I agree. You can then return to Clio Grow and if needed send the document for signing to your contact.
+Note: If there are multiple signers, each signer will receive a separate email.
+Prepare a document from a PDF upload
+You can also prepare a one-time document for signing by uploading a PDF directly, without using a template. This is useful for documents created outside of Clio Grow. When using this option Clio prepares the document for signing meaning you will be required to select at least one contact to sign the document.
+- Go to Documents and click Prepare document.- Alternatively, from a Matter page, in the Intake process tab, from the Schedule or send dropdown, select Prepare Document.
+- Select the matter you want to prepare the document for and click Continue.- If you are preparing the document from the matter page, this step will not appear as the matter is pre-selected.
+- Select Upload PDF.
+- Upload your PDF or Word document.
+- Select the number of contact and firm users who need to sign the documents and specify who the signers are.
+- 
+Optional: Select a Due Date.
+- 
+Optional: If you use AI features in Clio Grow, you can set up follow ups to ensure the contact(s) sign(s) the document.
+- Click Prepare for Signing.
+- Drag and drop the Signature field and any other fields onto the document, and configure each of the fields as needed. You can refer to building a PDF template.
+- When ready, click Agree and send.
+- Select the option relevant to you:
+- 
+Email document link > Continue to email: Select this option to send the document to contact recipients via email and/or text. With this option you can also send it to firm user recipients and yourself via email. Review the email and click Send document.
+- 
+Sign document now > Sign document: Select this option to add your signature to the document before sending it to your client. Dropbox Sign will open. Click Get Started, fill the required fields, then click Continue > I agree. You can then return to Clio Grow and if needed send the document for signing to your contact.
+Note: If there are multiple signers, each signer will receive a separate email.
+Manage prepared documents in Clio Grow
+Once a document is prepared, it appears in the matter's Intake process tab and in Documents > Pending. From here you can track status, set due dates, send reminders, and resend expired document links.
+Set or update a due date
+- Go to the matter in Clio Grow.
+- Find the document task under the Intake process section.
+- Click the Options dropdown and select Set Due Date.
+- Select a date and click Save.
+Schedule a future reminder
+- Go to the matter in Clio Grow.
+- Find the document task under the Intake process section.
+- Click the Options dropdown and select Set Auto Reminder.
+- Select the reminder date and the type of reminder.
+- Click Schedule Reminder.
+Note: You can only schedule a future automatic reminder if the document has a due date.
+Send an immediate reminder or resend an expired link
+- Go to Documents > Pending.
+- Click the document's name.
+- Click Actions and then select Send Reminder.
+- Click Send reminder.
+Note: A document signature link is valid for seven days. Once expired, the contact can click the link in the original email to receive a new active link. You can also resend the link using the immediate reminder method above.
+
+IMGS: []

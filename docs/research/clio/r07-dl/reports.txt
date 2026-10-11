@@ -1,0 +1,207 @@
+
+Clio Grow Reports – Home
+ Clio customers get a $250 gift card when referring a law firm to Clio (North American Based Firms)
+ or Refer a Friend in Europe & the UK & 
+ Earn £200/€200
+ -->
+Earn $250 when you refer friends to Clio. 
+ Refer now 
+ -->
+See Clio’s newest features in this quarterly webinar, including a new way to get more five-star reviews. 
+ Reserve your spot today. 
+Skip to main content
+ All Categories
+ English (United States)
+ English (Europe)
+ English (Australia)
+ Home
+ All Categories
+ Reports
+Clio Grow Reports
+ Updated 
+April 08, 2026 00:22
+Have more questions? Submit a request
+-->
+Refer a Friend to Clio
+Clio customers get a $250 gift card when referring a law firm to Clio (North American Based Firms) 
+ $250 gift card
+Refer a Friend in Europe & the UK & Earn £200/€200
+ Earn £200/€200
+ -->
+Refer a Friend to Clio
+Earn $250 when you refer friends to Clio. 
+ Refer now
+ -->
+What’s New in Clio
+See our latest features, and get a sneak peak at what’s coming next.
+ Reserve your spot
+Reports in Clio Grow are designed around common data needs of firms. Each report allows you to filter data based on specific parameters to meet your needs.
+Matter revenue report
+The Matter Revenue Report in Clio Grow provides a detailed overview about revenue for different lead sources and referrals, matter status, categories, and types.
+If you use both Clio Grow and Clio Manage, this report shows contact and matter details from both Clio Grow and Clio Manage, helping you track where your firm's profit originates and identify value sources. Make sure to convert relevant matters from Grow to Manage, and make sure that your contacts between Grow and Manage are synced. While contacts typically sync automatically, you can also sync contacts manually when necessary. If a matter exists only in Clio Grow, the report will not display any associated Clio Manage fields.
+You can also generate a matter revenue report from Clio Manage.
+Note: The data from Clio Grow used for this report refreshes when the report is generated or when new filters are applied. Data from Clio Manage refreshes at intervals and the time of the last refresh will appear in a note at the top of the report.
+To generate this report:
+Go to Reports.
+Click Matter revenue report.
+To generate this report, first enable shared contacts.
+Set all report filter parameters as necessary.
+Click View report.
+Optional: Click Columns to adjust the columns included in the report, and Update columns to apply the changes.
+Optional: Click Filters to adjust the filters used to generate the report, then click Apply filters to apply the changes
+Contacts and matters have clickable links in case you want to quickly refer to specific contact or matter details.
+Note: Click Download CSV to use this report outside of Clio Grow. The download will include all previously selected columns and pages.
+This report includes the following data:
+Clio Grow data
+Contact
+This column shows the contact associated with each matter. It is sorted alphabetically by first name. You can click on any contact name to open a new tab with the contact's details. Learn more about Clio Grow contacts here.
+Email
+This column displays the primary email address entered when a contact was created.
+Source
+This column lists the source of prospective clients. If no lead source is assigned, this field will be unassigned.
+Referred by
+This column shows the referral source if another contact referred the prospective client.
+Matter
+This column lists the name of the matter in Clio Grow. You can click on the matter to open a new tab in Clio Grow with the matter details.
+Description
+This column displays the information entered in the Description field when the matter was created.
+Matter type
+This column shows the type of matter, similar to Clio Manage practice areas.
+Matter status - top level
+This column displays the current top-level status of the matter within the pipeline. Learn more about matter statuses here.
+Matter status - detailed
+This column displays the stage of the matter within the pipeline’s status.
+Status date
+This column shows the date the matter status was last updated.
+Created at
+This column shows the date when the matter was created.
+Location
+This column displays information from the Location field when the matter was created.
+Estimated value
+This column displays the anticipated total legal fees to be earned, as entered when the matter was created.
+Clio Manage data
+Matter
+This column lists the name of the matter in Clio Manage. You can click on the matter to open a new tab in Clio Manage with the matter details. 
+Description
+This column displays the information entered in the Description field when the matter was created in Clio Manage.
+Practice area
+This column displays the practice area associated with the matter.
+Matter status
+This column shows the current status of the matter (Open, Pending, or Closed).
+Status date
+This column shows the date when the matter status was last updated.
+Created at
+This column shows the date the matter was created in Clio Manage.
+Location
+This column displays the information entered in the Location field when the matter was created.
+Originating attorney
+This column lists the firm user selected as the originating attorney for the matter. If no originating attorney was selected, this field will be blank.
+Responsible attorney
+This column lists the firm user currently responsible for the matter. If no responsible attorney is selected, this field will be blank.
+Revenue data
+Unbilled time
+This column shows the total unbilled time for each matter and includes time entries on bills in draft or bills pending approval
+Unbilled hours
+This column shows the unbilled time entry hours for each matter. Unbilled time includes time entries not on approved bills, including those on bills in draft or pending approval.
+Unbilled expenses
+This column displays the total unbilled expenses for each matter. Unbilled activities are those on bills in draft or bills pending approval.
+Billed time
+This column displays the total value of billed time entries for the matter. Billed time entries are those that appear on approved bills.
+Billed hours
+This column shows the number of billed hours for the matter. Billed hours are time entries on approved bills.
+Billed expenses
+This column shows the dollar value of billed expense entries for the matter. Billed expense entries are those on approved bills.
+Collected time
+This column displays the dollar value of billed time entries for which payments have been received.
+Collected expenses
+This column displays the dollar value of billed expenses for which payments have been received.
+Revenue
+This column shows the total revenue for each matter, calculated by subtracting expenses from billable amounts.
+Lead source revenue report
+The lead source revenue report is designed to give firms a summary of the leads generated by different types of advertising or outreach and the business generated from the advertising or outreach. This report also shows estimated matter values across lead sources. You can use this report to understand the revenue driven from your marketing and referral sources.
+If you use both Clio Grow and Clio Manage, this report uses information from both Clio Grow and Clio Manage.
+Note: The data from Clio Grow used for this report refreshes when the report is generated or when new filters are applied. Data from Clio Manage refreshes at intervals and the time of the last refresh will appear in a note at the top of the report.
+To generate this report:
+Go to Reports.
+Select Lead source revenue report.
+Set all report filter parameters as necessary.
+Click View report.
+Optional: Click Columns to adjust the columns included in the report, and Update columns to apply the changes.
+Optional: Click Filters to adjust the filters used to generate the report, then click Apply filters to apply the changes.
+Source
+This column shows the source of a prospective client and will be Unassigned if no lead source is assigned.
+Intake matters
+Total number of intakes generated for each lead source. When you click on the number in a particular lead Source row, a Matter revenue report will open in a new tab with the filters associated with the number you clicked (i.e., the original filters used to create the Lead source revenue report, a value of Intake applied to the Matter Status - top-level filter, and the applicable lead source from the row of the number you clicked applied to the Source filter).
+Hired matters
+Total number of hires generated for each lead source. When you click on the number in a particular lead Source row, a Matter revenue report will open in a new tab with the filters associated with the number you clicked (i.e., the original filters used to create the Lead source revenue report, a value of Hired applied to the Matter Status - top-level filter, and the applicable lead source from the row of the number you clicked applied to the Source filter).
+Not hired matters
+Total number of intakes that were not hired for each lead source. When you click on the number in a particular lead Source row, a Matter revenue report will open in a new tab with the filters associated with the number you clicked (i.e., the original filters used to create the Lead source revenue report, a value of Not hired applied to the Matter Status - top-level filter, and the applicable lead source from the row of the number you clicked applied to the Source filter).
+Hired conversion rate
+The percentage of hires from the total number of intakes by lead source.
+Estimated value
+This column is calculated from the amount entered in the Value field when creating a matter in Clio Grow and is a total from all matters.
+Revenue
+This column shows the total revenue earned from the lead source. The number is pulled from the billable profit of the activities in Clio Manage.
+Spend
+For firms in the US advertising on Google’s Local Services Ads, this column shows the amount your firm is spending on the campaign.
+ROI (as a multiplier)
+For firms in the US advertising on Google’s Local Services Ads, this shows the revenue earned divided by the amount spent on ads.
+ROI (as a percentage)
+For firms in the US advertising on Google’s Local Services Ads, this shows the revenue earned divided by the amount spent on ads expressed as a percentage.
+Matters added report
+The matters added report shows a visual overview of matters added to your pipeline including the lead source, the pipeline value, and the rate at which your firm is converting leads to clients (i.e., the Conversion rate). You can view your data as bar, line, or pie chart, and group results by lead source or matter type.
+To generate this report:
+Go to Reports.
+Select Matters added report.
+Optional: Click Apply Filters to adjust the data according to your needs, then click Generate Report to apply the changes to the report.
+When generated, this report includes the following data:
+Matters added
+This refers to the number of leads or matters that have been added to the account within a given period of time. It is broken down by lead source and matter type. The report provides a visual representation, in either graph or table format, of which lead sources and matter types are generating the greatest number of cases.
+Pipeline value
+This chart displays the estimated value of matters in the pipeline by lead source or matter type over a given period. You can review this report in graph or table format.
+Conversion rate
+This chart shows the total number of hired matters divided by the total number of all matters added in a specific time period broken down by lead source and matter type.
+Note: You can download the data by changing your View to table (click the Table icon), clicking then Download CSV.
+Referral report
+The referral report in Clio Grow lists the contacts who refer clients to your firm and the total number of matters, summarizing which referral sources brought in potential clients and the types of matters they referred.
+Go to Reports.
+Select Referral report.
+Optional: Click Apply Filters to restrict data. You can change the date range and select or deselect matter types, lead sources, or users. Click Generate Report to apply the filters.
+Optional: Click Download CSV to save the data outside of Clio Grow.
+When generated, this report includes the following data:
+Name
+This column shows the name of the referral contact, as entered in the Referred by field when creating a contact.
+Total Referrals
+This column shows the total number of referrals made by the contact.
+Total Matters
+This column shows the number of matters referred to your firm by this contact.
+Intake
+This column shows the number of matters referred to your firm from this contact with an Intake matter status in the Pipeline. Learn more about matter statuses here (include link)
+Hired
+This column shows the number of referrals from this contact that resulted in the firm being hired.
+Did Not Hire
+This column shows the number of referrals where the client chose not to hire your firm.
+Total Value
+This column shows the combined total of the Value fields for all matters referred to your firm by the contact.
+Average Value
+This column shows the average value of matters referred by the contact.
+Intake Value
+This column shows the total value of matters referred by the contact with an Intake status.
+Hired Value
+This column shows the total value of matters referred by the contact with an Intake status.
+Did Not Hire Value
+This column shows the total value of matters where the client did not hire your firm.
+Conversion Rate %
+This column shows the percentage of referred matters that resulted in your firm being hired, calculated by dividing hired matters by the total number of referred matters.
+Need more help?
+ Ask The Law Community
+ Get answers from fellow Clio customers
+ Contact us
+ Tell us more and get personalized support
+Was this article helpful?
+ Yes
+ No
+ 0 out of 0 found this helpful
+ Still have questions?
+For immediate answers, connect with our new AI Suppo
+IMGS: []

@@ -1,0 +1,107 @@
+{
+ "owner": "f2-law-tax",
+ "items": [
+  {
+   "finding": "RV1-001",
+   "status": "rejected",
+   "change": "Read ETA Sch. VI Part V s.7 and s.23 on Justice Laws (E-15/page-121.html). s.23(a) says 'a service rendered to an individual in connection with ... litigation in Canada' after commencement, so the litigation exclusion IS individuals-only; a non-resident corporation in an Ontario action stays zero-rated. The 'rendered to an individual while in Canada' exclusion is s.7(a.1), and s.7(b) removes professional services from s.7, so it does not apply to legal services. b2 was right; kept tests (UK corp -> 0). Strengthened BIL-T-015: verbatim s.23 quote and cite, a note that presence in Canada is not a test, a new test (US individual advised in Toronto -> 0) and a new decision-table row. Remaining (verify): CRA Memo 4.5.3 reading of 'individual' (sole proprietors).",
+   "left_for": "reviewer r-review-1 should withdraw; no other file needs changes"
+  },
+  {
+   "finding": "RV1-004",
+   "status": "fixed",
+   "change": "BIL-L-039 now reads 'aggregating $7,500 or more' and counts operating cash fee payments plus trust cash receipts. Block when total >= 750000; tests 500000+250000 refused, +249999 allowed, WARN at 600000. One check function under a per-matter lock. Kept (verify): lso.ca By-Law 9 returned 403 again.",
+   "left_for": "trust.json/billing.json wording (legal-spec owner); a4-data-model.sql: cash method on billing.payment plus the aggregate check (a4 owner)"
+  },
+  {
+   "finding": "RV1-005",
+   "status": "fixed",
+   "change": "BIL-L-020 adds a stored recovery_base_cents = damages + costs - disbursements - taxes. Test: 3000000 incl. costs 500000 and disbursements 200000 -> base 2800000; CFA 2900000 blocked; capped proposal 2800000.",
+   "left_for": "b3-billing-engine.json BIL-C-032/033 (b3 owner)"
+  },
+  {
+   "finding": "RV1-006",
+   "status": "partial",
+   "change": "b1 client-credit rule (BIL-L-042): credit is client money in operating; it must be applied, refunded or moved to trust within N business days (default 5, verify); test: 6 days -> exception task.",
+   "left_for": "b3 BIL-C-063/081, aging job and journals (b3 owner)"
+  },
+  {
+   "finding": "RV1-007",
+   "status": "partial",
+   "change": "New b2 rule BIL-T-044: card surcharge is taxable at the paid bill's tax codes, pro rata; refunds include the surcharge and its tax pro rata; feature flag off. Tests: 2712 -> HST 353, refund includes both. Added a decision-table row. Kept (verify): CRA guidance on surcharges not read. ETA s.161 (read) does not cover payment-method surcharges.",
+   "left_for": "b3 BIL-C-204, BIL-J-013, BIL-X-013 (2712/353/116065); o1 CF-18"
+  },
+  {
+   "finding": "RV1-014",
+   "status": "fixed",
+   "change": "BIL-T-070: tax per tax line = -rhu(credit_pre_tax x line_tax / bill_taxable_base); the credit that exhausts the base takes the exact remaining tax (same as b3 BIL-C-203). Tests: base 5/tax 1, credit 3 -> -1; base 1005/tax 131, credits 335x3 -> -44, -44, -43. BIL-T-002 NS example restated with this rule.",
+   "left_for": "b3 BIL-C-203 adds the base-5 test (b3 owner); f1 follows b2"
+  },
+  {
+   "finding": "RV1-015",
+   "status": "fixed",
+   "change": "BIL-L-047 now reads 'once per bill per tax line on the summed taxable base, rounded half away from zero (b2 BIL-T-040)'; b1 conventions gain tax_rounding. b2 BIL-T-033/080 'half up' wording -> 'half away from zero'. Sample RT changed to 123456782RT0001 (Luhn checked) in b1 and b2; b2 BIL-T-061 keeps 123456789 only as the deliberate failing test and gains a passing test.",
+   "left_for": ""
+  },
+  {
+   "finding": "RV1-016",
+   "status": "partial",
+   "change": "b1: one months_after(local_date,n) clamp function plus days_after; delivery_local_date = delivered_at AT TIME ZONE 'America/Toronto'; cites Legislation Act, 2006 s.89 (verify). BIL-L-004: suit allowed on days > months_after(d,1). BIL-L-008: interest accrues for days >= months_after. BIL-L-024 uses days_after. All the reviewer's clamp and timezone tests added to BIL-L-004.",
+   "left_for": "b3 BIL-C-070 and engine.add_month (b3 owner); ../legal-spec/billing.json"
+  },
+  {
+   "finding": "RV1-020",
+   "status": "partial",
+   "change": "b2 BIL-T-016: line amount = pre-tax cost plus markup; no per-expense taxable flag; test courier 2500 + vendor HST 325 on an AB matter -> line 2500, GST 125.",
+   "left_for": "a4-data-model.sql expense columns (a4 owner)"
+  },
+  {
+   "finding": "RV1-021",
+   "status": "partial",
+   "change": "b2 BIL-T-090: a void after the filed period -> negative adjustment in the void period; same unfiled period nets to zero; W-PERIOD-CROSS warning. Tests: approved 2026-09-30, Q3 filed, void 2026-10-05 -> Q4 -13000. BIL-T-050: bill date = approval date.",
+   "left_for": "b3 BIL-J-012/BIL-C-121 (b3 owner)"
+  },
+  {
+   "finding": "RV1-023",
+   "status": "fixed",
+   "change": "Read ETA s.161 and s.162 on Justice Laws. s.161 covers BOTH early-payment discounts and late-payment charges (consideration deemed = invoice amount). s.162 is about natural resource rights, so the reviewer's mapping was also wrong. b2 BIL-T-043 and b1 BIL-L-049 now cite s.161 only, with no verify; dropped Sched. V Part VII; BIL-T-043 test base stated as '2% of fees 100000 = 2000; client pays 111000'.",
+   "left_for": "b3 BIL-C-204 citation (b3 owner) should cite s.161, not s.161/162"
+  },
+  {
+   "finding": "CF-10",
+   "status": "fixed",
+   "change": "BIL-T-002 now references BIL-T-050 ('earlier of paid and due; due = bill date = approval date, BIL-C-121; trust retainer not payment until applied, BIL-T-051').",
+   "left_for": ""
+  },
+  {
+   "finding": "CF-01",
+   "status": "n/a",
+   "change": "b2 already uses ppm for all tax rates; b1 has no stored rates.",
+   "left_for": ""
+  },
+  {
+   "finding": "RV1-005",
+   "status": "fixed",
+   "change": "Follow-up from f1: BIL-L-020 test now matches b3 BIL-C-032/033 exactly (base 2800000; 2900000 -> 409 CFA_FEE_EXCEEDS_RECOVERY; capped 2800000).",
+   "left_for": ""
+  },
+  {
+   "finding": "RV1-015",
+   "status": "fixed",
+   "change": "Follow-up from f1: BIL-L-047 wording matches b3 BIL-C-002/BIL-C-200 (rhu, once per bill per tax line, never per line); 333/333/334 -> 130 test added.",
+   "left_for": ""
+  },
+  {
+   "finding": "RV1-016",
+   "status": "fixed",
+   "change": "Follow-up from f1: months_after/days_after defined in BIL-L-003 to match b3 BIL-C-073 (Toronto local delivery date, clamp to last day of target month, the two never share code); BIL-L-005 deadlines use months_after.",
+   "left_for": ""
+  },
+  {
+   "finding": "RV1-006",
+   "status": "fixed",
+   "change": "Follow-up check: b1 BIL-L-042 already matches b3 BIL-C-067 (5 business days default, verify; exception at N days).",
+   "left_for": ""
+  }
+ ]
+}

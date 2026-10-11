@@ -1,0 +1,1397 @@
+{
+ "ddl_assumed": "-- live book (exists): one opening row per non-zero ledger, then Counsel activity\ntrust.trust_transaction: kind CHECK adds 'opening_balance' (amount_cents > 0, approval_id NOT NULL = G-IMP)\n-- historical book (new, append-only: forbid_mutation trigger + REVOKE UPDATE, DELETE)\nCREATE TABLE trust.historical_line (\n  id uuid PRIMARY KEY DEFAULT core.uuidv7(),\n  account_id uuid NOT NULL REFERENCES trust.trust_account(id),\n  ledger_id  uuid NOT NULL REFERENCES trust.client_ledger(id),\n  txn_date date NOT NULL, kind text NOT NULL, method text NOT NULL,   -- Clio values, 'unknown' allowed\n  instrument_no text, counterparty text, amount_cents bigint NOT NULL,\n  purpose text, source_ref jsonb NOT NULL,                            -- {clio_type, clio_id, etag}\n  import_job_id uuid NOT NULL REFERENCES platform.import_job(id),\n  staged_sha256 bytea NOT NULL);\n-- NOT in trust.ledger_balance / trust.account_balance views\n-- reconciliation: status CHECK adds 'imported'; + external_signer text, imported_job_id uuid;\n--   signed CHECK applies only to status='signed'; reconciliation_order accepts M-1 IN ('signed','imported')\n-- trust_account: + live_from date (first day of the month after cut-over)\nCREATE TABLE platform.source_subscription (\n  id uuid PRIMARY KEY DEFAULT core.uuidv7(), source text NOT NULL, remote_id text NOT NULL,\n  events text[] NOT NULL, expires_at timestamptz NOT NULL, last_renewed_at timestamptz,\n  last_error text, UNIQUE (source, remote_id));",
+ "id": "a3-migration",
+ "mapping": [
+  {
+   "entity": "users",
+   "clio_source": "API /users",
+   "clio_field": "id, name, email, enabled, roles (verify)",
+   "counsel_target": "User(id, name, email, status, role)",
+   "transform": "Match on lower(email). Enabled -> invited (no password, no MFA copied). Disabled -> status=inactive, kept for attribution only. Role mapped by admin in the mapping step; never auto-grant owner/admin.",
+   "migratable": "partial",
+   "note": "Passwords, MFA, sessions, API tokens: cannot migrate."
+  },
+  {
+   "entity": "users",
+   "clio_source": "API /users",
+   "clio_field": "rate (default hourly rate, verify)",
+   "counsel_target": "RateCard(user_id, rate_cents, from)",
+   "transform": "Decimal string -> integer cents (MIG-005). Effective from = cut-over date.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "users",
+   "clio_source": "API /groups",
+   "clio_field": "id, name",
+   "counsel_target": "Team(name) + membership",
+   "transform": "Group -> team. Clio permission flags are not mapped; access comes from access.json roles.",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "contacts",
+   "clio_source": "API /contacts; CSV contacts",
+   "clio_field": "id, type Person|Company",
+   "counsel_target": "Contact(kind person|organization)",
+   "transform": "Person -> person; Company -> organization.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "contacts",
+   "clio_source": "API /contacts",
+   "clio_field": "first_name, middle_name, last_name, prefix, title, name",
+   "counsel_target": "Contact(given, middle, family, honorific, job_title, display_name)",
+   "transform": "Trim; preserve original casing; empty string -> null.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "contacts",
+   "clio_source": "API /contacts",
+   "clio_field": "email_addresses[], phone_numbers[], addresses[]",
+   "counsel_target": "ContactPoint rows(kind, value, label, primary)",
+   "transform": "One row each. Emails lowercased for matching only, stored as given. Phones normalised to E.164 with default region CA; unparseable kept raw with flag phone_unparsed.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "contacts",
+   "clio_source": "API /contacts",
+   "clio_field": "is_client, is_co_counsel, is_bill_recipient",
+   "counsel_target": "Contact.roles[]",
+   "transform": "Booleans -> role tags client|co_counsel|bill_recipient.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "contacts",
+   "clio_source": "API /contacts",
+   "clio_field": "sales_tax_number, ledes_client_id",
+   "counsel_target": "Contact.tax_number, Contact.ledes_id",
+   "transform": "Copied as text.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "contacts",
+   "clio_source": "API /related_contacts, /relationships",
+   "clio_field": "contact pairs + description",
+   "counsel_target": "ContactRelation(a, b, label)",
+   "transform": "Free-text label kept.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "contacts",
+   "clio_source": "API /contacts",
+   "clio_field": "KycFieldValue (verify)",
+   "counsel_target": "IdVerification (historical, read-only)",
+   "transform": "Imported as historical evidence note only; a Counsel ID verification under By-Law 7.1 (verify) is still required before the next trust receipt for that client.",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "contacts",
+   "clio_source": "duplicate detection",
+   "clio_field": "name + email/phone",
+   "counsel_target": "DuplicateCandidate",
+   "transform": "Same normalised email OR (same family+given and same phone) -> candidate pair in dry run; never auto-merged (MIG-014).",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "matters",
+   "clio_source": "API /matters; CSV matters",
+   "clio_field": "id, display_number, number, custom_number",
+   "counsel_target": "Matter(number, legacy_number)",
+   "transform": "display_number -> legacy_number and shown everywhere. Counsel number = display_number unless it collides, then admin picks a rule in mapping.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "matters",
+   "clio_source": "API /matters",
+   "clio_field": "description, client (contact id)",
+   "counsel_target": "Matter(title, client_id)",
+   "transform": "Client via id_map(contact).",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "matters",
+   "clio_source": "API /matters",
+   "clio_field": "status Pending|Open|Closed; open_date, pending_date, close_date",
+   "counsel_target": "Matter(status, opened_on, closed_on)",
+   "transform": "Pending -> intake; Open -> open; Closed -> closed. Dates kept as ISO date (no TZ shift on date-only fields).",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "matters",
+   "clio_source": "API /matters",
+   "clio_field": "billing_method flat|contingency|hourly",
+   "counsel_target": "Matter.fee_arrangement",
+   "transform": "1:1; contingency matters flagged for retainer-agreement review (contingency agreements have formal requirements, verify Solicitors Act O.Reg 563/20).",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "matters",
+   "clio_source": "API /matters",
+   "clio_field": "practice_area, matter_stage",
+   "counsel_target": "Matter(practice_area, stage)",
+   "transform": "Create missing practice areas and stages; admin maps stages to Counsel stage set.",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "matters",
+   "clio_source": "API /matters",
+   "clio_field": "responsible_attorney, originating_attorney (verify)",
+   "counsel_target": "Matter(responsible_lawyer_id, originating_lawyer_id)",
+   "transform": "Via id_map(user); inactive user allowed for historical, but open matters need an active responsible lawyer before import (dry-run error).",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "matters",
+   "clio_source": "API /matter_contacts",
+   "clio_field": "contact, relationship",
+   "counsel_target": "MatterParty(contact_id, role)",
+   "transform": "Free-text role -> role enum via mapping table; unmapped -> role=other + original label.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "matters",
+   "clio_source": "API /matters",
+   "clio_field": "client_reference, maildrop_address",
+   "counsel_target": "Matter.client_reference; maildrop dropped",
+   "transform": "Maildrop is a Clio email address: not migratable.",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "matters",
+   "clio_source": "API /matters",
+   "clio_field": "MatterBudget(budget, notification_threshold)",
+   "counsel_target": "Matter.budget_cents, budget_alert_pct",
+   "transform": "Cents; threshold copied.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "matters",
+   "clio_source": "API /matter_protected_funds",
+   "clio_field": "amount, reason",
+   "counsel_target": "MatterTrustSettings(protected_amount, protected_purpose)",
+   "transform": "Cents; requires lawyer re-confirmation in G-IMP sign-off.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "matters",
+   "clio_source": "API /matters",
+   "clio_field": "EvergreenRetainer.minimum_threshold",
+   "counsel_target": "MatterTrustSettings.minimum_balance",
+   "transform": "Cents.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "matters",
+   "clio_source": "API /matter_dockets, /jurisdictions",
+   "clio_field": "court rules dockets",
+   "counsel_target": "Deadline (historical, unconfirmed)",
+   "transform": "Imported as deadlines with status=needs_confirmation; Counsel rule pack recomputes; never trusted as confirmed (deadlines area).",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "custom fields",
+   "clio_source": "API /custom_fields, /custom_field_sets",
+   "clio_field": "name, field_type, parent_type Contact|Matter, picklist options",
+   "counsel_target": "CustomFieldDef(scope, name, type, options)",
+   "transform": "Types: text_line|text_area->text, numeric->decimal(string), currency->money cents, date->date, checkbox->bool, picklist->enum, contact/matter ref->reference via id_map, url/email->text.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "custom fields",
+   "clio_source": "API custom_field_values",
+   "clio_field": "value per record",
+   "counsel_target": "CustomFieldValue",
+   "transform": "Converted per type; conversion failure -> kept as raw text in legacy_value + dry-run warning.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "notes",
+   "clio_source": "API /notes; CSV matter notes, contact notes",
+   "clio_field": "subject, detail, date, author, matter|contact",
+   "counsel_target": "Note(subject, body, at, author_id, matter_id|contact_id)",
+   "transform": "HTML in detail sanitised to Counsel rich-text; datetime -> America/Toronto.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "communications",
+   "clio_source": "API /communications; CSV communications",
+   "clio_field": "type (Email|Phone), subject, body, date, senders, receivers",
+   "counsel_target": "Communication(kind, subject, body_ref, at, parties)",
+   "transform": "Body stored in the document store, row keeps ref and hash. Attachments via documents.",
+   "migratable": "partial",
+   "note": "Clio for Clients portal threads and internal Conversations: export as read-only PDF/text archive per matter, not live threads."
+  },
+  {
+   "entity": "calendar",
+   "clio_source": "API /calendar_entries; CSV calendar entries",
+   "clio_field": "summary, description, start_at, end_at, all_day, location, recurrence_rule, matter, attendees, calendar_owner",
+   "counsel_target": "CalendarEvent",
+   "transform": "UTC instants kept; all_day -> date range; RRULE copied (RFC 5545). Past events imported read-only.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "calendar",
+   "clio_source": "API /calendar_entry_event_types",
+   "clio_field": "name, color",
+   "counsel_target": "EventType",
+   "transform": "1:1.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "calendar",
+   "clio_source": "API /reminders",
+   "clio_field": "minutes, notification method",
+   "counsel_target": "Reminder",
+   "transform": "Only for future events.",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "calendar",
+   "clio_source": "external sync (Outlook/Google)",
+   "clio_field": "-",
+   "counsel_target": "-",
+   "transform": "Clio's calendar sync bindings cannot be moved; user reconnects in Counsel.",
+   "migratable": "no",
+   "note": ""
+  },
+  {
+   "entity": "tasks",
+   "clio_source": "API /tasks; CSV tasks",
+   "clio_field": "name, description, due_at, status, priority, assignee, matter, completed_at",
+   "counsel_target": "Task",
+   "transform": "status complete -> done; pending|in_progress -> open|in_progress; priority High|Normal|Low -> 1|2|3.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "tasks",
+   "clio_source": "API /task_types, /task_templates, /task_template_lists",
+   "clio_field": "templates",
+   "counsel_target": "TaskTemplate (draft)",
+   "transform": "Imported as draft templates; admin must publish. Relative due rules may not translate.",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "documents",
+   "clio_source": "API /documents + /folders",
+   "clio_field": "id, name, parent folder, matter, category, created_at, updated_at, content_type, size",
+   "counsel_target": "Document(path, matter_id, category, legacy_id)",
+   "transform": "Folder tree recreated per matter. Name collisions -> suffix ' (2)'.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "documents",
+   "clio_source": "API /document_versions",
+   "clio_field": "version number, uploaded_at, creator, size",
+   "counsel_target": "DocumentVersion(n, at, author, sha256, size)",
+   "transform": "Every version imported in order; sha256 computed on our side; size must equal Clio size (VC-DOC-2).",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "documents",
+   "clio_source": "Document Archives zip",
+   "clio_field": "file bytes",
+   "counsel_target": "Object storage (Canada region, firm cell bucket)",
+   "transform": "Archive per matter (or per folder if over limit), downloaded, unzipped in sandbox, each entry matched to document id by path + size; unmatched -> fetch individually by version download.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "documents",
+   "clio_source": "API /document_templates, /document_automations",
+   "clio_field": "templates with Clio merge fields",
+   "counsel_target": "Document (template source file only)",
+   "transform": "Merge-field syntax differs; imported as plain files flagged needs_conversion.",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "documents",
+   "clio_source": "Clio Drive / e-signature status",
+   "clio_field": "-",
+   "counsel_target": "-",
+   "transform": "Signature workflow state not migratable; signed PDFs migrate as documents.",
+   "migratable": "no",
+   "note": ""
+  },
+  {
+   "entity": "time entries",
+   "clio_source": "API /activities type=TimeEntry; CSV time entries",
+   "clio_field": "date, quantity (seconds, verify) / quantity_in_hours, rate, total, note, user, matter, activity_description, billed, bill, non_billable, utbms (verify)",
+   "counsel_target": "TimeEntry(date, minutes, rate_cents, amount_cents, narrative, user_id, matter_id, billed_bill_id, billable)",
+   "transform": "Duration -> integer seconds then minutes = round-half-up(seconds/60) only for display; source seconds stored. amount_cents taken from Clio total (not recomputed); recompute only as a check with tolerance 0.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "time entries",
+   "clio_source": "API /timers",
+   "clio_field": "running timers",
+   "counsel_target": "-",
+   "transform": "Running timers stopped by user before freeze; not migrated.",
+   "migratable": "no",
+   "note": ""
+  },
+  {
+   "entity": "expenses",
+   "clio_source": "API /activities type=ExpenseEntry; CSV expense entries",
+   "clio_field": "date, quantity, price, total, expense_category, note, matter, billed, tax (verify)",
+   "counsel_target": "ExpenseEntry(date, qty_milli, unit_cents, amount_cents, category, taxable)",
+   "transform": "Quantity as decimal string -> thousandths (int). amount_cents from Clio total. Receipts attached via documents.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "expenses",
+   "clio_source": "API /expense_categories",
+   "clio_field": "name, rate, entry_type",
+   "counsel_target": "ExpenseCategory",
+   "transform": "1:1.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "rates",
+   "clio_source": "API /rate_tables, /activity_rates",
+   "clio_field": "user/matter/client rates",
+   "counsel_target": "RateCard",
+   "transform": "Cents; effective from cut-over; historical entries keep their own amounts.",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "bills",
+   "clio_source": "API /bills",
+   "clio_field": "number, issued_at, due_at, state, kind, subject, matter(s), client, sub_total, tax_sum, secondary tax, total, balance, paid, currency",
+   "counsel_target": "Bill (historical, immutable)",
+   "transform": "state draft -> not imported as bill: its unbilled entries stay unbilled; awaiting_approval -> not imported (finalise or void in Clio before freeze, MIG-022); awaiting_payment|paid -> issued|paid; void -> void; deleted -> skipped. Amounts in cents from Clio; tax not recomputed.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "bills",
+   "clio_source": "API /line_items",
+   "clio_field": "description, quantity, price, total, kind, taxable, activity",
+   "counsel_target": "BillLine",
+   "transform": "Linked to imported time/expense entries via id_map; flat line items kept as text lines.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "bills",
+   "clio_source": "Bill PDF (API /bills/{id}.pdf, verify)",
+   "clio_field": "rendered invoice",
+   "counsel_target": "Document attached to Bill",
+   "transform": "The delivered invoice PDF is the legal record; Counsel never re-renders a historical bill.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "bills",
+   "clio_source": "API /credit_memos, /interest_charges",
+   "clio_field": "amount, date, bill",
+   "counsel_target": "BillAdjustment(kind credit|interest)",
+   "transform": "Cents.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "bills",
+   "clio_source": "API /bill_themes, /billing_settings",
+   "clio_field": "theme",
+   "counsel_target": "-",
+   "transform": "Not migrated; firm sets up Counsel templates.",
+   "migratable": "no",
+   "note": ""
+  },
+  {
+   "entity": "payments",
+   "clio_source": "API /allocations, /bank_transactions (operating)",
+   "clio_field": "date, amount, source, bill, contact",
+   "counsel_target": "Payment + PaymentAllocation (historical)",
+   "transform": "Cents. Sum of allocations per bill must equal Clio bill paid (VC-BIL-2).",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "payments",
+   "clio_source": "API /clio_payments/payments",
+   "clio_field": "card payments metadata",
+   "counsel_target": "Payment.method=card, processor_ref",
+   "transform": "Metadata only; stored payment methods and card tokens cannot be migrated (PCI); clients re-enter.",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "payments",
+   "clio_source": "Outstanding client balances report",
+   "clio_field": "per client AR",
+   "counsel_target": "AR opening snapshot",
+   "transform": "Used as check only (VC-AR-1).",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "trust accounts",
+   "clio_source": "API /bank_accounts (type Trust|Operating, verify)",
+   "clio_field": "name, institution, account number (masked), currency, balance, default",
+   "counsel_target": "TrustAccount(type mixed|separate, institution, account_no_masked, opened_on)",
+   "transform": "Trust -> TrustAccount; Operating -> GeneralAccount. Mixed vs separate set by admin; separate accounts need for_matter_id. Signatories NOT in Clio: entered and approved via GA1 before G-IMP.",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "trust transactions",
+   "clio_source": "API /bank_transactions + /trust_line_items + Reports trust_ledger (json/csv)",
+   "clio_field": "date, amount, type (deposit|withdrawal|transfer), description, reference/cheque no, payee/payer, matter, client",
+   "counsel_target": "trust.historical_line(account_id, ledger_id, txn_date, kind, method, instrument_no, counterparty, amount_cents, purpose, source_ref, import_job_id, staged_sha256)",
+   "transform": "Historical book = its own append-only table trust.historical_line, never trust.trust_transaction. Excluded from trust.ledger_balance / account_balance views, so it never adds to a live balance (MIG-037). Clio kind and method stored as Clio gave them (deposit|withdrawal|transfer; method 'unknown' allowed here only, never guessed); no withdrawal_request or trust_transfer rows are invented. source_ref = {clio_type, clio_id, etag}; staged_sha256 = sha256 of the staged raw page row (MIG-013).",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "trust ledgers",
+   "clio_source": "Reports client_ledger, trust_listing at cut-over",
+   "clio_field": "per client/matter balance",
+   "counsel_target": "trust.client_ledger + live book trust.trust_transaction: exactly one row kind='opening_balance' per client ledger with a non-zero balance (txn_date = cut-over date, method='internal', amount_cents > 0, approval_id = the G-IMP gate approval)",
+   "transform": "Opening amount = signed-off Clio balance = sum(trust.historical_line for that ledger) (VC-TR-4). Live balance after posting = opening only (history is in a separate table), so nothing is counted twice. Zero-balance ledgers get no opening row.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "trust reconciliations",
+   "clio_source": "Clio reconciliation reports (help 54824841490075) as PDF/CSV",
+   "clio_field": "monthly reconciliation packages",
+   "counsel_target": "trust.reconciliation(status='imported', external_signer text, imported_job_id, signed_by NULL, package_sha256) + PDF as docs.document",
+   "transform": "Imported as documents + summary row, marked historical: status='imported', signer name kept as text (external_signer), never a core.app_user. Counsel never re-signs Clio months. The cut-over month's imported row is the M-1 base case for the first Counsel reconciliation (MIG-038). Unreconciled months before cut-over block G-IMP (MIG-031).",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "trust",
+   "clio_source": "API /trust_requests",
+   "clio_field": "requests",
+   "counsel_target": "-",
+   "transform": "POST-only in Clio API: no read endpoint; open trust requests cannot be read and must be listed manually by the firm.",
+   "migratable": "no",
+   "note": ""
+  },
+  {
+   "entity": "trust",
+   "clio_source": "outstanding cheques / deposits in transit",
+   "clio_field": "Clio reconciliation outstanding items",
+   "counsel_target": "ReconcilingItem(open) on cut-over Reconciliation",
+   "transform": "Each item cents + instrument no; cleared later through Counsel bank feed.",
+   "migratable": "yes",
+   "note": ""
+  },
+  {
+   "entity": "audit log",
+   "clio_source": "API /log_entries (verify scope)",
+   "clio_field": "user, action, object, at",
+   "counsel_target": "ForeignAuditArchive (ndjson, hashed, read-only)",
+   "transform": "Never converted into Counsel audit events; stored as an archive document with sha256 recorded in Counsel audit chain.",
+   "migratable": "partial",
+   "note": ""
+  },
+  {
+   "entity": "other",
+   "clio_source": "Report presets, schedules, custom actions, webhooks, app integrations, Clio Grow intake, Clio for Clients accounts",
+   "clio_field": "-",
+   "counsel_target": "-",
+   "transform": "Not migratable; listed on the dry-run 'not moved' page.",
+   "migratable": "no",
+   "note": ""
+  }
+ ],
+ "rules": [
+  {
+   "id": "MIG-001",
+   "title": "Region-pinned source",
+   "rule": "The Clio connection base URL is chosen from {app.clio.com, ca.app.clio.com, eu.app.clio.com, au.app.clio.com} with a developer app registered in that region; default ca.app.clio.com. Data is written only to the firm's Canadian cell; no staging outside Canada regardless of source region.",
+   "test": "Connect with region=ca: all requests go to https://ca.app.clio.com/api/v4/. Region=us: requests go to app.clio.com and the staging bucket region is still ca-central; a test asserts no write path has a non-Canadian endpoint.",
+   "source": "r11: API regions"
+  },
+  {
+   "id": "MIG-002",
+   "title": "Read-only OAuth scopes",
+   "rule": "The import app requests read-only permissions for every area; a token with any write scope is rejected at connect. Tokens are stored in the cell vault, never logged, revoked at job end (or alongside-mode end).",
+   "test": "Token introspection returning matters:read_write -> connect fails with error 'write scope not allowed'. Log capture of a full job contains 0 occurrences of the token string.",
+   "source": ""
+  },
+  {
+   "id": "MIG-003",
+   "title": "Rate budget",
+   "rule": "Client-side token bucket per Clio token: 45 requests/min during Clio peak (Mon-Fri 04:00-19:00 PT = 07:00-22:00 America/Toronto); off-peak starts at 45/min and increases by 10/min each 5 minutes without a 429, capped at a configured max. Any 429 sets the bucket to wait Retry-After seconds and halves the off-peak rate. Bulk extraction is scheduled off-peak; peak window allows only delta sync and user-triggered single reads.",
+   "test": "Simulated clock Tue 10:00 Toronto: 100 queued requests take >= 2 min 13 s (45/min). Fake returns 429 Retry-After: 30 -> next request sent at >= +30 s and rate halves from 85 to 42.",
+   "source": "r11: rate limits 50/min peak, Retry-After"
+  },
+  {
+   "id": "MIG-004",
+   "title": "Checkpoint and resume",
+   "rule": "Extraction is per resource in id ascending order with field selection; after each page the cursor (resource, last_id, next page url, updated_since watermark) and the staged raw page (jsonb + sha256) are committed in one transaction. A restart resumes from the last committed cursor; re-staging the same page is a no-op (same sha256).",
+   "test": "Kill the extractor after page 37 of 95 (documents): restart fetches page 38 first; staged rows = 18,930 exactly, 0 duplicates by (resource, clio_id).",
+   "source": ""
+  },
+  {
+   "id": "MIG-005",
+   "title": "Money parse without floats",
+   "rule": "Clio monetary JSON numbers are decoded as decimal strings (json.Number / numeric parser), never float64. Convert to integer cents only if the value has <= 2 fractional digits; otherwise the record is an error in the dry run (no rounding). Currency must be CAD; any other currency is an error.",
+   "test": "'1234.5' -> 123450; '0.1' -> 10; '19.999' -> error MIG-005; '1e2' -> 10000; currency 'USD' -> error. Sum of 10 x '0.10' = 100 cents exactly.",
+   "source": ""
+  },
+  {
+   "id": "MIG-006",
+   "title": "Time zones",
+   "rule": "Instants are stored as UTC timestamptz; date-only Clio fields stay dates with no shift. Derived dates (e.g. journal date from a timestamp) use America/Toronto.",
+   "test": "Clio '2026-03-08T04:30:00Z' (time entry) -> local date 2026-03-07 (EST, UTC-5). Clio date '2026-11-01' -> date 2026-11-01 unchanged.",
+   "source": ""
+  },
+  {
+   "id": "MIG-007",
+   "title": "ID map is the only join",
+   "rule": "Every imported row has exactly one id_map row (firm, clio_region, clio_type, clio_id) -> (counsel_type, counsel_id), unique on the source key. All references are resolved through id_map; a missing reference is a dry-run error, never a silent null.",
+   "test": "Time entry referencing matter 999 absent from staging -> dry-run error 'unresolved reference matter:999', entry not imported. Running transform twice creates 0 new id_map rows.",
+   "source": ""
+  },
+  {
+   "id": "MIG-008",
+   "title": "Idempotent transform",
+   "rule": "Staging -> Counsel transform is a pure function of staged rows + mapping config; re-running it upserts by id_map and produces identical rows (same counsel_id, same field values).",
+   "test": "Run full transform twice on fixture firm: table checksums (ordered by id) identical; audit events for second run = 0 data changes.",
+   "source": ""
+  },
+  {
+   "id": "MIG-009",
+   "title": "Documents via archives",
+   "rule": "Document bytes come from Document Archives zips per matter; archives are polled until state completed, downloaded, unzipped in a sandbox (no symlinks, no absolute or '..' paths, total uncompressed size <= 4x zip and <= configured cap). Each file is matched to a Clio document version by path and byte size; sha256 recorded.",
+   "test": "Zip containing '../etc/passwd' -> entry rejected, job continues, issue logged. Zip of 10 MB expanding to 900 MB -> rejected as bomb. Matter with 120 docs -> 120 matched, 0 unmatched.",
+   "source": "r11: Document Archives"
+  },
+  {
+   "id": "MIG-010",
+   "title": "All versions, in order",
+   "rule": "Every document version is imported with original version number and upload time; current version in Counsel = highest Clio version.",
+   "test": "Doc with versions 1,2,3 (sizes 10,12,15 KB) -> 3 DocumentVersion rows n=1..3, current n=3, sizes equal.",
+   "source": ""
+  },
+  {
+   "id": "MIG-011",
+   "title": "Large documents background",
+   "rule": "Documents above the inline threshold import in the background; the matter becomes usable when its metadata is imported and shows 'n documents still arriving'.",
+   "test": "Matter with 2 x 600 MB videos: matter status usable after metadata; doc rows have state=pending_bytes; completion flips to available.",
+   "source": "readiness clio-import edge"
+  },
+  {
+   "id": "MIG-012",
+   "title": "What cannot be migrated is listed",
+   "rule": "The dry run lists every Clio resource type found with a non-zero count that has no import path (mapping migratable=no) with counts, so the owner sees what will be left behind.",
+   "test": "Fixture with 3 open trust requests and 2 report presets -> 'Not moved' table shows trust requests: 3 (cannot be read via API, list manually), report presets: 2.",
+   "source": ""
+  },
+  {
+   "id": "MIG-013",
+   "title": "Unknown fields preserved",
+   "rule": "Any Clio field not in the mapping is kept in the staged raw JSON for the retention period and surfaced in the dry run as 'unmapped field' with count; nothing is dropped silently.",
+   "test": "Fixture contact with field 'nickname' -> unmapped_fields contains {resource: contacts, field: nickname, count: 1}.",
+   "source": ""
+  },
+  {
+   "id": "MIG-014",
+   "title": "No auto-merge",
+   "rule": "Duplicate contacts are flagged, never merged by the importer; merging is a human action after import with its own audit.",
+   "test": "Two contacts sharing 'a@x.ca' -> both imported, 1 DuplicateCandidate pair, 0 merges.",
+   "source": ""
+  },
+  {
+   "id": "MIG-015",
+   "title": "Dry run before import",
+   "rule": "Import cannot start unless a dry run on the same snapshot (same staging hash set) completed with 0 errors and the owner approved it (gate G-IMP step 'Import'). Warnings are allowed if acknowledged one by one.",
+   "test": "Dry run with 1 error -> Import button disabled, API returns 409 'dry run has errors'. Staging changed after dry run (new page) -> approval invalid, new dry run required.",
+   "source": ""
+  },
+  {
+   "id": "MIG-020",
+   "title": "Count parity",
+   "rule": "For every imported entity type: imported + skipped(with reason) = Clio count (API list total or CSV row count). Any difference blocks verified state.",
+   "test": "Clio contacts 1,284; imported 1,284 incl. 44 duplicate-flagged; skipped 0 -> pass. Imported 1,283 -> fail VC-CNT.",
+   "source": ""
+  },
+  {
+   "id": "MIG-021",
+   "title": "Per-matter sums",
+   "rule": "Per matter: sum of time amount cents, expense cents, billed totals, payments allocated, and AR balance equal Clio values (Reports work_in_progress, accounts_receivable_aging). Tolerance 0 cents.",
+   "test": "Matter 2024-031: Clio WIP $4,512.50 -> Counsel unbilled sum 451250 cents: pass; 451249 -> fail.",
+   "source": ""
+  },
+  {
+   "id": "MIG-022",
+   "title": "No half-finished bills",
+   "rule": "Bills in Clio state awaiting_approval at freeze block the cut-over; the firm must approve or void them in Clio first. Draft bills are not imported; their entries stay unbilled in Counsel.",
+   "test": "Fixture with 1 awaiting_approval bill -> cut-over checklist item 'bills in approval: 1' red; G-IMP sign-off disabled.",
+   "source": ""
+  },
+  {
+   "id": "MIG-023",
+   "title": "Tax not recomputed",
+   "rule": "Imported bills keep Clio's tax amounts (HST/GST per line); Counsel re-computes only as a check and reports differences as warnings, never corrects them.",
+   "test": "Bill subtotal 100000 cents, Clio tax 13000 -> stored 13000. Clio tax 12999 -> stored 12999 + warning 'tax differs from 13% by 1 cent'.",
+   "source": ""
+  },
+  {
+   "id": "MIG-030",
+   "title": "Trust balance three-way match at cut-over",
+   "rule": "For each trust account at the cut-over date: (a) sum of Clio client ledger balances (Reports client_ledger/trust_listing as of cut-over) = (b) sum of trust.historical_line rows per ledger = (c) adjusted bank balance = bank statement closing balance + deposits in transit - outstanding cheques/withdrawals. Per client ledger, (a) = (b) exactly. Any difference blocks G-IMP until explained by a reconciling item or corrected in Clio.",
+   "test": "Account TA-1: statement 5,000,000; outstanding cheque 125,000; deposit in transit 0 -> adjusted 4,875,000. Client ledgers 3,000,000 + 1,875,000 = 4,875,000 -> pass. Readiness mock '1 off by $12.50': ledger history 101,250 vs Clio 100,000 -> blocked, issue shows 1,250 cents.",
+   "source": "By-Law 9 s.18 records and s.18(8) monthly comparison (verify subsection); readiness clio-import"
+  },
+  {
+   "id": "MIG-031",
+   "title": "Cut-over on a reconciled month end",
+   "rule": "The cut-over date must be the last day of a month whose Clio trust reconciliation is completed and signed for every trust account; all earlier months back to the start of history must be reconciled in Clio or listed as exceptions signed by the responsible lawyer.",
+   "test": "Cut-over 2026-10-31 with Clio reconciliation for October missing on TA-2 -> blocked. Cut-over 2026-10-15 -> rejected 'not a month end'.",
+   "source": "By-Law 9 monthly comparison (verify s.18(8) and 25-day timing)"
+  },
+  {
+   "id": "MIG-032",
+   "title": "No negative client ledger",
+   "rule": "If any client ledger in Clio history is negative at any month end or at cut-over, the dry run lists it as an error; G-IMP cannot be signed until the firm records the correction in Clio and a lawyer explains it in the sign-off.",
+   "test": "Ledger L-17 balance -2,500 cents on 2025-06-30 -> error 'overdrawn ledger L-17 on 2025-06-30 (-$25.00)'.",
+   "source": "By-Law 9 (client ledger never overdrawn, verify section)"
+  },
+  {
+   "id": "MIG-033",
+   "title": "Opening balance sign-off gate (G-IMP)",
+   "rule": "Opening balance lines are posted only after G-IMP signatures by owner, a licensee with signing authority on that account, and the bookkeeper, each signing the exact per-ledger list with the bank statement file hash. Until then the Counsel trust area is read-only for that firm (no receipts, withdrawals, transfers).",
+   "test": "Owner + bookkeeper signed, licensee not -> POST /trust/receipts returns 423 'trust locked pending G-IMP'. All three signed list hash H; list changed after signing -> signatures void.",
+   "source": "readiness gate G-IMP"
+  },
+  {
+   "id": "MIG-034",
+   "title": "History is read-only",
+   "rule": "Imported historical trust lines (trust.historical_line) and historical bills/payments can never be edited or deleted (forbid_mutation trigger + REVOKE UPDATE, DELETE from every app role). A correction found after cut-over is a new live-book row in trust.trust_transaction (an approved receipt, withdrawal or bank_charge_correction through the normal gates) whose purpose names the historical_line id; reverses_id is only for live rows and never points at history.",
+   "test": "UPDATE trust.historical_line SET amount_cents=... -> rejected by trigger. Correction of 1,000 cents for historical line H -> one new trust.trust_transaction row, purpose cites H, live ledger balance changes by exactly 1,000; H unchanged.",
+   "source": ""
+  },
+  {
+   "id": "MIG-037",
+   "title": "No double count of trust history",
+   "rule": "Live balances (trust.ledger_balance, trust.account_balance, client listing, reconciliation journal balance) read only trust.trust_transaction. trust.historical_line is reporting/evidence only and is never in a balance view. After G-IMP posting, each ledger's live balance equals its opening_balance row.",
+   "test": "Ledger L-1: 40 historical lines summing 3,000,000 + opening row 3,000,000 -> trust.ledger_balance(L-1) = 3,000,000 (not 6,000,000). Inserting a historical_line after cut-over does not change ledger_balance.",
+   "source": "RV2-005; By-Law 9 s.18 client ledger (verify)"
+  },
+  {
+   "id": "MIG-038",
+   "title": "Imported reconciliations do not block Counsel sign-off",
+   "rule": "Clio reconciliations are stored with status='imported' (not 'signed'). trust_account.live_from = first day of the month after cut-over. The reconciliation order check accepts M-1 with status IN ('signed','imported'), so the first Counsel month (live_from) can be signed. Imported months are month-locked like signed months; no Counsel reconciliation may be created for a month before live_from.",
+   "test": "Cut-over 2026-10-31, imported October row status='imported' -> November Counsel reconciliation signs (G12) on 2026-12-10 without error. Attempt to create a Counsel reconciliation for 2026-10 -> rejected 'month before live_from'. Attempt to post a live row dated 2026-10-15 -> rejected 'month locked'.",
+   "source": "RV2-006; By-Law 9 s.18(8) monthly comparison (verify)"
+  },
+  {
+   "id": "MIG-035",
+   "title": "Signatories before trust",
+   "rule": "Clio has no signatory/EFT-user record: before G-IMP each trust account needs signatories entered and approved via GA1.",
+   "test": "Account TA-1 with 0 approved signatories -> G-IMP checklist red 'no signatories'.",
+   "source": ""
+  },
+  {
+   "id": "MIG-036",
+   "title": "Retention of migrated records",
+   "rule": "Imported trust history, Clio reconciliation packages, the cut-over bank statement and raw staged JSON for trust resources are retained for the trust-record retention period (10 years, verify) and are included in every firm export.",
+   "test": "retain_until of a 2019-05-01 historical line with fiscal year end 2019-12-31 = 2029-12-31 or later; purge job skips it before that date.",
+   "source": "By-Law 9 retention (verify: 10 years before most recent fiscal year end)"
+  },
+  {
+   "id": "MIG-040",
+   "title": "Alongside is read-only",
+   "rule": "In alongside mode Clio is the system of record: Counsel never writes to Clio, and imported entities are read-only in Counsel (edit buttons replaced by 'edit in Clio'). Trust area stays locked.",
+   "test": "PATCH /matters/{imported id} in alongside mode -> 409 'source of record is Clio'. Outbound HTTP to clio.com with method != GET (except webhook management) -> test failure.",
+   "source": ""
+  },
+  {
+   "id": "MIG-041",
+   "title": "Webhook subscriptions",
+   "rule": "Subscribe to matter, activity, bill, calendar_entry, communication, contact, task, document, folder (and clio_payments_payment if used) with fields=id,etag,updated_at; verify X-Hook-Signature HMAC-SHA256 over the raw body with the handshake secret; reject unsigned or bad signatures with 401 and do not process.",
+   "test": "Delivery with valid signature -> enqueued fetch of the record. Body changed by 1 byte -> 401, no fetch. Replayed delivery (same id+etag) -> no-op.",
+   "source": "r11: webhooks"
+  },
+  {
+   "id": "MIG-042",
+   "title": "Webhook renewal",
+   "rule": "Webhooks are created with the maximum expiry (31 days); each one is a row in platform.source_subscription(source='clio', remote_id, events, expires_at, last_renewed_at, last_error), written in the same tx as the create call result. Owner: the migration worker's River periodic job subscription.renew (hourly) renews by PATCH every row with expires_at - now <= 7 days and updates expires_at/last_renewed_at; renewal failure keeps last_error, retries on the next hourly run and alerts the firm admin and platform on-call at 72 h before expiry. When a subscription lapses anyway, MIG-043 gap fill runs from the last delivered event. Deleting webhooks (R-14, alongside exit) deletes the rows. Task home: T-040b 'Clio alongside sync' (o1).",
+   "test": "Webhook expires 2026-11-30T00:00Z; subscription.renew at 2026-11-23T00:00Z PATCHes and sets expires_at=2026-12-24T00:00Z. Fake returns 500 on every attempt -> last_error set each hour, admin + on-call alert raised at 2026-11-27T00:00Z, expires_at unchanged. Two workers run the job at once -> one PATCH (River unique job).",
+   "source": "r11: max 31 days; RV2-013"
+  },
+  {
+   "id": "MIG-043",
+   "title": "Polling fallback and gap fill",
+   "rule": "Every 15 min (off-peak) / 60 min (peak) poll each resource with updated_since = last watermark - 10 min overlap; resources without webhooks (bank_transactions, trust_line_items, allocations, notes, bills content) are polled only. After any webhook lapse or suspension, poll from the last delivered event time. Weekly full id-list diff detects deletes.",
+   "test": "Webhook suspended 2026-11-02 10:00 to 14:00: gap job polls updated_since 09:50 and imports 7 changed matters. Clio deletes contact 55 (no webhook received): weekly diff marks it deleted_in_source.",
+   "source": ""
+  },
+  {
+   "id": "MIG-044",
+   "title": "Conflict-free sync",
+   "rule": "Sync applies a Clio record only if its etag/updated_at is newer than the stored one; older or equal versions are ignored.",
+   "test": "Stored matter etag v5 updated 10:00; webhook-triggered fetch returns v4 updated 09:58 -> ignored.",
+   "source": ""
+  },
+  {
+   "id": "MIG-050",
+   "title": "Freeze window",
+   "rule": "Between freeze start and go-live, no user may create trust, billing or payment records in Clio; the runbook records the Clio freeze time and the final delta sync must show 0 trust/bill/payment changes after it.",
+   "test": "Final delta finds 1 bank_transaction updated after freeze 2026-10-31T22:00-04:00 -> go-live blocked, item listed.",
+   "source": ""
+  },
+  {
+   "id": "MIG-051",
+   "title": "Point of no return",
+   "rule": "Rollback to Clio is a pure switch-back until the first trust or billing record is posted in Counsel; after that, rollback requires the 'Counsel-since-cut-over' export (all new records as Clio import CSV + trust lines) and a lawyer sign-off.",
+   "test": "0 Counsel trust lines -> rollback = disable firm and reopen Clio, no data steps. 3 lines posted -> rollback screen requires export file hash + licensee signature.",
+   "source": ""
+  },
+  {
+   "id": "MIG-052",
+   "title": "Keep Clio readable",
+   "rule": "The runbook requires the firm to keep Clio access (any plan that allows reports and export) for at least 60 days after go-live, and a final full Clio export (API raw + CSV + reconciliation PDFs) stored in Counsel before access ends.",
+   "test": "Go-live 2026-11-01: checklist item 'final Clio export stored' due 2026-12-31; missing -> admin alert.",
+   "source": ""
+  },
+  {
+   "id": "MIG-060",
+   "title": "Expand-contract only",
+   "rule": "A schema change that a running app version depends on ships in three releases: expand (add nullable column/table/view, dual-write), migrate (backfill, switch reads), contract (drop old) at least one release later. No release both adds and removes something the other version reads.",
+   "test": "CI check: migration that drops column X while app version N-1 (from release manifest) still selects X -> fail.",
+   "source": ""
+  },
+  {
+   "id": "MIG-061",
+   "title": "Lock-safe DDL",
+   "rule": "Each migration sets lock_timeout = '3s' and statement_timeout; indexes on existing tables use CREATE INDEX CONCURRENTLY (own non-transactional migration); new constraints are added NOT VALID then VALIDATE CONSTRAINT separately; no ALTER COLUMN TYPE that rewrites a table larger than 100k rows.",
+   "test": "Lint: 'CREATE INDEX ix ON trust.trust_transaction' without CONCURRENTLY -> fail. Migration test against a table locked by another session -> fails within 3 s, does not queue.",
+   "source": ""
+  },
+  {
+   "id": "MIG-062",
+   "title": "Batched backfills",
+   "rule": "Backfills run as resumable jobs, keyset-paginated by primary key, <= 5,000 rows or 1 s per batch, committing each batch with a checkpoint; idempotent (WHERE new_col IS NULL); throttled when replication lag > 5 s.",
+   "test": "Backfill 1,000,000 rows: >= 200 batches; kill at batch 120, restart resumes at 120; final count of NULLs = 0.",
+   "source": ""
+  },
+  {
+   "id": "MIG-063",
+   "title": "Never rewrite financial history",
+   "rule": "Migrations and backfills must not UPDATE or DELETE rows in financial or audit tables (trust.trust_transaction, trust.historical_line, bill, bill_line, payment, payment_allocation, trust.reconciliation, trust_audit_event, gl.journal_entry lines). New representation = new columns filled for new rows, plus a derived view or a new append-only table for old rows. Enforced by DB triggers (role app and role migrator) and a migration linter.",
+   "test": "Migration containing 'UPDATE bill SET' -> lint fail. Executing it anyway -> trigger raises 'financial history is append-only'. Trust balance per ledger before == after migration suite.",
+   "source": ""
+  },
+  {
+   "id": "MIG-064",
+   "title": "Snapshot rehearsal",
+   "rule": "Every migration is rehearsed against an anonymized copy of each cell's production data (made inside the Canada region; names, emails, phones, addresses, free text and document bytes replaced; amounts, dates, ids, counts kept) before it runs in production; the invariant suite (VC-INV) must pass and duration must be under the budget recorded in the migration header.",
+   "test": "Rehearsal on cell 'firm-07' snapshot: 412 matters, trust totals identical pre/post, migration ran 41 s vs budget 120 s -> pass. Snapshot containing a real email domain from the source -> anonymizer check fails.",
+   "source": ""
+  },
+  {
+   "id": "MIG-065",
+   "title": "Cell rollout",
+   "rule": "Migrations roll out to cells in waves: internal cell, 1 canary firm, then the rest; a wave starts only when the previous wave's post-migration invariants pass.",
+   "test": "Canary invariant fails -> rollout halts with remaining cells untouched (0 of N-2 migrated).",
+   "source": ""
+  },
+  {
+   "id": "MIG-066",
+   "title": "Audit chain survives migrations",
+   "rule": "The trust_audit_event hash chain is verified before and after every migration; migrations never re-hash existing events. A format change adds a new hash version for new events only.",
+   "test": "Chain of 10,000 events verifies pre/post; a migration that changes before_after JSON key order of an old event -> verification fails -> migration rejected.",
+   "source": ""
+  },
+  {
+   "id": "MIG-070",
+   "title": "Full firm export, any time",
+   "rule": "Owner can request a full firm export at any time, including for 90 days after cancellation (verify contract); export is approved by the owner (gate), built inside the cell, encrypted, and delivered by time-limited link (24 h).",
+   "test": "Cancelled firm on day 89 -> export allowed; day 91 -> refused with contract reference. Link used at 25 h -> 410.",
+   "source": ""
+  },
+  {
+   "id": "MIG-071",
+   "title": "Complete and verifiable",
+   "rule": "The export contains every entity in the firm (JSON per entity, CSV per entity), every document version's bytes, trust and general ledgers, reconciliation packages, the audit chain, and imported Clio raw archives; manifest lists each file's sha256 and row counts; a verifier checks counts against the live DB at export time.",
+   "test": "Fixture firm: manifest counts equal DB counts for all 31 entity files; altering one byte of a document -> verifier reports sha256 mismatch for that path.",
+   "source": ""
+  },
+  {
+   "id": "MIG-072",
+   "title": "Open formats, no lock-in",
+   "rule": "JSON uses the published schema (counsel-export/1); money as integer cents + currency; dates ISO 8601 (instants UTC 'Z', dates YYYY-MM-DD); ids are stable UUIDs plus legacy ids; CSVs are UTF-8 with header, RFC 4180 quoting. A 'Clio-compatible' preset also writes contacts, matters, tasks, calendar, notes, time and expense CSVs in Clio's import template columns (verify current templates).",
+   "test": "Amount 1234.5 never appears; '123450' with currency 'CAD' does. CSV field containing a comma and a quote round-trips through Python csv reader unchanged.",
+   "source": ""
+  },
+  {
+   "id": "MIG-073",
+   "title": "Export trust balances reconcile",
+   "rule": "The export includes a trust_balances.csv as of the export date; sum per account equals the sum of ledger lines in the export and the last signed reconciliation's client listing total if the export date is that month end.",
+   "test": "Export at 2027-01-31 after signed January reconciliation of 4,875,000 -> trust_balances total 4,875,000 = sum of exported lines.",
+   "source": ""
+  }
+ ],
+ "runbook": [
+  {
+   "step": "R-01",
+   "when": "T-30d",
+   "who": "admin",
+   "action": "Connect Clio (Canada app, read-only scopes). Choose mode: full move or alongside. Record Clio region and plan.",
+   "check": "MIG-001, MIG-002"
+  },
+  {
+   "step": "R-02",
+   "when": "T-30d to T-14d",
+   "who": "agent",
+   "action": "Initial full extraction off-peak (nights/weekends, Toronto 22:00-07:00 weekdays + weekends) with checkpoints; documents via Document Archives per matter.",
+   "check": "MIG-003, MIG-004, MIG-009"
+  },
+  {
+   "step": "R-03",
+   "when": "T-14d",
+   "who": "admin + agent",
+   "action": "Mapping step: roles, stages, practice areas, custom fields, matter-party roles, mixed/separate trust accounts. Enter signatories (GA1).",
+   "check": "MIG-035"
+  },
+  {
+   "step": "R-04",
+   "when": "T-14d",
+   "who": "agent",
+   "action": "Dry run 1: counts, unresolved references, unmapped fields, duplicates, not-moved list, trust history vs Clio reports.",
+   "check": "MIG-012, MIG-013, MIG-015, VC-*"
+  },
+  {
+   "step": "R-05",
+   "when": "T-14d to T-3d",
+   "who": "firm",
+   "action": "Fix in Clio: overdrawn ledgers, unreconciled months, bills awaiting approval, matters without an active responsible lawyer. Repeat dry run until 0 errors.",
+   "check": "MIG-022, MIG-031, MIG-032"
+  },
+  {
+   "step": "R-06",
+   "when": "T-7d",
+   "who": "agent",
+   "action": "Rehearsal import into a scratch copy of the cell; run full validation; time it to size the freeze window.",
+   "check": "VC-*"
+  },
+  {
+   "step": "R-07",
+   "when": "T-1d (last business day of month)",
+   "who": "firm",
+   "action": "Users stop running timers, finish entries; announce freeze. Optional: alongside mode switched on for read-only preview.",
+   "check": "-"
+  },
+  {
+   "step": "R-08",
+   "when": "T0 freeze start (month end, e.g. 2026-10-31 18:00 Toronto)",
+   "who": "firm admin",
+   "action": "Freeze: no new trust, bill or payment records in Clio. Record freeze timestamp. Non-financial edits allowed but will be picked up by delta.",
+   "check": "MIG-050"
+  },
+  {
+   "step": "R-09",
+   "when": "T0 + bank statement available (1-5 business days)",
+   "who": "bookkeeper",
+   "action": "Complete and sign Clio's reconciliation for the cut-over month; upload bank statement(s) for each trust account; export Clio trust_listing, client_ledger, trust_ledger reports as of cut-over via Reports API.",
+   "check": "MIG-031"
+  },
+  {
+   "step": "R-10",
+   "when": "T0 + statement",
+   "who": "agent",
+   "action": "Final delta extraction (updated_since watermark - overlap); confirm 0 trust/bill/payment changes after freeze; final dry run.",
+   "check": "MIG-043, MIG-050"
+  },
+  {
+   "step": "R-11",
+   "when": "after R-10",
+   "who": "owner",
+   "action": "Approve import (G-IMP step 1). Import runs; documents continue in background.",
+   "check": "MIG-015, MIG-011"
+  },
+  {
+   "step": "R-12",
+   "when": "after import",
+   "who": "agent",
+   "action": "Validation report: counts, per-matter sums, AR, trust three-way match per ledger and account.",
+   "check": "VC-*, MIG-030"
+  },
+  {
+   "step": "R-13",
+   "when": "after R-12",
+   "who": "owner + licensee + bookkeeper",
+   "action": "Sign trust opening balances (G-IMP). One opening_balance row per non-zero ledger posted in trust.trust_transaction; trust_account.live_from set; Counsel trust unlocked; Counsel cut-over Reconciliation created with outstanding items.",
+   "check": "MIG-033"
+  },
+  {
+   "step": "R-14",
+   "when": "go-live",
+   "who": "admin",
+   "action": "Firm starts work in Counsel. Clio set to read-only use by policy; webhooks deleted and their platform.source_subscription rows removed (alongside off).",
+   "check": "MIG-040, MIG-042"
+  },
+  {
+   "step": "R-15",
+   "when": "go-live to first Counsel trust/bill posting",
+   "who": "owner",
+   "action": "Rollback window A: switch back = disable Counsel firm, unfreeze Clio; no data steps.",
+   "check": "MIG-051"
+  },
+  {
+   "step": "R-16",
+   "when": "after first posting, up to 60 days",
+   "who": "owner + licensee",
+   "action": "Rollback window B: export 'since cut-over' records in Clio import format + trust lines list; lawyer signs; firm re-enters trust lines in Clio manually.",
+   "check": "MIG-051"
+  },
+  {
+   "step": "R-17",
+   "when": "first Counsel month end",
+   "who": "licensee",
+   "action": "First Counsel monthly reconciliation (G12): outstanding items from cut-over clear; continuity with the Clio cut-over package confirmed; the imported cut-over month (status='imported') satisfies the M-1 order check.",
+   "check": "VC-TR-4, MIG-038"
+  },
+  {
+   "step": "R-18",
+   "when": "go-live + <= 60 days",
+   "who": "admin",
+   "action": "Final Clio export (raw API + CSV + reconciliation PDFs + log entries) stored and hashed in Counsel; revoke Clio token; firm may cancel Clio.",
+   "check": "MIG-052, MIG-036"
+  }
+ ],
+ "validation_checks": [
+  {
+   "id": "VC-CNT-1",
+   "check": "Count parity per entity type",
+   "formula": "clio_count = imported + skipped_with_reason",
+   "blocking": true,
+   "example": "contacts 1,284 = 1,284 + 0"
+  },
+  {
+   "id": "VC-REF-1",
+   "check": "Unresolved references",
+   "formula": "count(refs without id_map) = 0",
+   "blocking": true,
+   "example": "0"
+  },
+  {
+   "id": "VC-DOC-1",
+   "check": "Document versions present",
+   "formula": "for each Clio version: exists Counsel version with same size; sha256 recorded",
+   "blocking": false,
+   "example": "18,930 of 18,930; 28 pending_bytes -> warning until done"
+  },
+  {
+   "id": "VC-DOC-2",
+   "check": "Byte size equality",
+   "formula": "size_counsel = size_clio per version",
+   "blocking": true,
+   "example": "mismatch -> refetch once, then error"
+  },
+  {
+   "id": "VC-TIME-1",
+   "check": "Per-matter time and expense totals",
+   "formula": "sum(amount_cents) per matter and billed flag = Clio WIP / billed totals",
+   "blocking": true,
+   "example": "451,250 = 451,250"
+  },
+  {
+   "id": "VC-BIL-1",
+   "check": "Per-bill totals",
+   "formula": "sum(lines)+tax = total; total - paid - credits = balance (cents)",
+   "blocking": true,
+   "example": "113,000 - 50,000 - 0 = 63,000"
+  },
+  {
+   "id": "VC-BIL-2",
+   "check": "Payments allocated",
+   "formula": "sum(allocations per bill) = Clio paid",
+   "blocking": true,
+   "example": "50,000 = 50,000"
+  },
+  {
+   "id": "VC-AR-1",
+   "check": "AR per client",
+   "formula": "sum(open bill balances per client) = Clio accounts_receivable report",
+   "blocking": true,
+   "example": "63,000 = 63,000"
+  },
+  {
+   "id": "VC-TR-1",
+   "check": "Client ledger balance",
+   "formula": "sum(trust.historical_line.amount_cents per ledger, txn_date <= cut-over) = Clio client_ledger balance",
+   "blocking": true,
+   "example": "3,000,000 = 3,000,000"
+  },
+  {
+   "id": "VC-TR-2",
+   "check": "Account three-way",
+   "formula": "sum(client ledgers) = statement closing + deposits in transit - outstanding cheques",
+   "blocking": true,
+   "example": "4,875,000 = 5,000,000 + 0 - 125,000"
+  },
+  {
+   "id": "VC-TR-3",
+   "check": "No negative ledgers",
+   "formula": "min(balance per ledger at each month end and cut-over) >= 0",
+   "blocking": true,
+   "example": "min = 0"
+  },
+  {
+   "id": "VC-TR-4",
+   "check": "Opening = history",
+   "formula": "trust.trust_transaction opening_balance row per ledger = sum(trust.historical_line per ledger); sum opening per account = adjusted bank; after posting, trust.ledger_balance per ledger = opening row (no double count)",
+   "blocking": true,
+   "example": "L-1: history 3,000,000; opening 3,000,000; ledger_balance 3,000,000; posted only after G-IMP"
+  },
+  {
+   "id": "VC-TR-5",
+   "check": "Reconciled months",
+   "formula": "every month up to cut-over has a Clio reconciliation imported as trust.reconciliation status='imported' or a signed exception",
+   "blocking": true,
+   "example": "Oct 2026 imported (external_signer 'J. Smith, LSO 12345A')"
+  },
+  {
+   "id": "VC-TR-6",
+   "check": "Protected funds",
+   "formula": "protected_amount <= ledger balance",
+   "blocking": true,
+   "example": "200,000 <= 3,000,000"
+  },
+  {
+   "id": "VC-USR-1",
+   "check": "Open matters have active responsible lawyer",
+   "formula": "count(open matters with inactive/absent lawyer) = 0",
+   "blocking": true,
+   "example": "0"
+  },
+  {
+   "id": "VC-NOT-1",
+   "check": "Not-moved list acknowledged",
+   "formula": "owner acknowledged each non-zero not-migratable type",
+   "blocking": true,
+   "example": "trust requests: 3 acknowledged"
+  },
+  {
+   "id": "VC-INV-1",
+   "check": "Schema migration invariants",
+   "formula": "row counts, trust balance per ledger, bill totals, audit chain verify: identical before and after",
+   "blocking": true,
+   "example": "all equal"
+  },
+  {
+   "id": "VC-EXP-1",
+   "check": "Export completeness",
+   "formula": "manifest counts = DB counts; every sha256 verifies",
+   "blocking": true,
+   "example": "31 files ok"
+  }
+ ],
+ "id_map_sql": "-- one per firm cell\nCREATE TABLE import_job (\n  id uuid PRIMARY KEY, mode text NOT NULL CHECK (mode IN ('full','alongside')),\n  clio_region text NOT NULL CHECK (clio_region IN ('ca','us','eu','au')),\n  cutover_date date, freeze_at timestamptz, status text NOT NULL,\n  created_by uuid NOT NULL, created_at timestamptz NOT NULL DEFAULT now());\nCREATE TABLE import_cursor (\n  job_id uuid REFERENCES import_job, resource text, last_clio_id bigint,\n  next_page_url text, updated_since timestamptz, pages_done int NOT NULL DEFAULT 0,\n  PRIMARY KEY (job_id, resource));\nCREATE TABLE import_staged (                 -- raw pages, retained (MIG-013, MIG-036)\n  job_id uuid, resource text, clio_id bigint, etag text, clio_updated_at timestamptz,\n  raw jsonb NOT NULL, sha256 bytea NOT NULL, fetched_at timestamptz NOT NULL,\n  PRIMARY KEY (job_id, resource, clio_id, sha256));\nCREATE TABLE id_map (\n  clio_region text NOT NULL, clio_type text NOT NULL, clio_id bigint NOT NULL,\n  counsel_type text NOT NULL, counsel_id uuid NOT NULL,\n  first_job_id uuid NOT NULL, last_job_id uuid NOT NULL,\n  source_etag text, source_updated_at timestamptz,\n  state text NOT NULL CHECK (state IN ('active','deleted_in_source','skipped')),\n  skip_reason text,\n  PRIMARY KEY (clio_region, clio_type, clio_id),\n  UNIQUE (counsel_type, counsel_id));",
+ "dry_run_report_shape": {
+  "job_id": "uuid",
+  "snapshot_sha256": "hex of sorted staged sha256s",
+  "generated_at": "2026-10-20T03:10:00Z",
+  "entities": [
+   {
+    "type": "contacts",
+    "found": 1284,
+    "ready": 1240,
+    "warnings": 44,
+    "errors": 0,
+    "skipped": 0
+   }
+  ],
+  "errors": [
+   {
+    "code": "MIG-007",
+    "resource": "activities",
+    "clio_id": 88123,
+    "message": "unresolved reference matter:999"
+   }
+  ],
+  "warnings": [
+   {
+    "code": "MIG-014",
+    "message": "duplicate candidate",
+    "ids": [
+     101,
+     207
+    ]
+   }
+  ],
+  "unmapped_fields": [
+   {
+    "resource": "contacts",
+    "field": "nickname",
+    "count": 1
+   }
+  ],
+  "not_moved": [
+   {
+    "type": "trust_requests",
+    "count": 3,
+    "reason": "Clio API has no read endpoint"
+   }
+  ],
+  "trust": [
+   {
+    "account": "TA-1",
+    "clio_listing_cents": 4875000,
+    "history_cents": 4875000,
+    "bank_statement_cents": 5000000,
+    "outstanding_cents": -125000,
+    "deposits_in_transit_cents": 0,
+    "status": "match",
+    "ledgers_mismatched": []
+   }
+  ],
+  "estimates": {
+   "requests_total": 41250,
+   "offpeak_hours": 9.5,
+   "document_bytes": 48318382080
+  }
+ },
+ "export_layout": "counsel-export-<firm>-<as_of YYYYMMDDTHHMMSSZ>/\n  manifest.json                 # schema above; sha256 of every other file\n  manifest.json.sig             # Ed25519 signature by the cell export key (public key in README)\n  README.txt                    # format, verifier instructions, schema URLs\n  schema/                       # JSON Schema per entity (counsel-export/1)\n  json/<entity>.ndjson          # one record per line: users, contacts, contact_points, matters,\n                                # matter_parties, custom_field_defs, custom_field_values, notes,\n                                # communications, calendar_events, tasks, documents,\n                                # document_versions, time_entries, expense_entries, rate_cards,\n                                # bills, bill_lines, bill_adjustments, payments,\n                                # payment_allocations, trust_accounts, signatories,\n                                # client_trust_ledgers, trust_transactions, trust_historical_lines,\n                                # withdrawal_requests,\n                                # trust_transfers, reconciliations, reconciling_items,\n                                # general_journal_lines, gate_decisions\n  csv/<entity>.csv              # same entities flattened; money columns *_cents + currency\n  csv/clio-compatible/*.csv     # optional preset in Clio import template columns (verify)\n  documents/<matter_id>/<document_id>/v<n>-<sanitised name>\n  ledgers/trust/<account_id>/journal.csv, client_ledgers/<ledger_id>.csv, trust_balances.csv\n  ledgers/trust/<account_id>/reconciliations/<YYYY-MM>.pdf + .json\n  ledgers/general/journal.csv\n  audit/trust_audit_events.ndjson   # with prev_hash/hash; verify.py recomputes chain\n  audit/app_audit_events.ndjson\n  legacy/clio/<region>/raw/<resource>.ndjson, reports/*.csv|pdf, log_entries.ndjson",
+ "export_manifest_schema": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://counsel.example/schema/counsel-export/1/manifest.json",
+  "title": "Counsel firm export manifest (counsel-export/1)",
+  "type": "object",
+  "required": [
+   "format",
+   "firm",
+   "generated_at",
+   "as_of",
+   "files",
+   "trust_balances",
+   "audit_chain"
+  ],
+  "properties": {
+   "format": {
+    "const": "counsel-export/1"
+   },
+   "firm": {
+    "type": "object",
+    "required": [
+     "id",
+     "name"
+    ],
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "name": {
+      "type": "string"
+     }
+    }
+   },
+   "generated_at": {
+    "type": "string",
+    "format": "date-time"
+   },
+   "as_of": {
+    "type": "string",
+    "format": "date-time"
+   },
+   "requested_by": {
+    "type": "string",
+    "format": "uuid"
+   },
+   "approved_by": {
+    "type": "string",
+    "format": "uuid"
+   },
+   "files": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "path",
+      "sha256",
+      "bytes"
+     ],
+     "properties": {
+      "path": {
+       "type": "string"
+      },
+      "sha256": {
+       "type": "string",
+       "pattern": "^[0-9a-f]{64}$"
+      },
+      "bytes": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "entity": {
+       "type": "string"
+      },
+      "rows": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "schema": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   "trust_balances": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "account_id",
+      "total_cents",
+      "currency"
+     ],
+     "properties": {
+      "account_id": {
+       "type": "string"
+      },
+      "total_cents": {
+       "type": "integer"
+      },
+      "currency": {
+       "const": "CAD"
+      },
+      "last_signed_reconciliation": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "format": "date"
+      }
+     }
+    }
+   },
+   "audit_chain": {
+    "type": "object",
+    "required": [
+     "events",
+     "head_hash",
+     "algorithm"
+    ],
+    "properties": {
+     "events": {
+      "type": "integer"
+     },
+     "head_hash": {
+      "type": "string"
+     },
+     "algorithm": {
+      "const": "sha256"
+     }
+    }
+   },
+   "legacy_sources": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "properties": {
+      "system": {
+       "const": "clio"
+      },
+      "region": {
+       "type": "string"
+      },
+      "path": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  },
+  "$defs": {
+   "money": {
+    "type": "object",
+    "required": [
+     "cents",
+     "currency"
+    ],
+    "properties": {
+     "cents": {
+      "type": "integer"
+     },
+     "currency": {
+      "const": "CAD"
+     }
+    }
+   },
+   "record_common": {
+    "type": "object",
+    "required": [
+     "id",
+     "created_at",
+     "updated_at"
+    ],
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "legacy": {
+      "type": [
+       "object",
+       "null"
+      ],
+      "properties": {
+       "system": {
+        "const": "clio"
+       },
+       "region": {
+        "type": "string"
+       },
+       "id": {
+        "type": "integer"
+       }
+      }
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time"
+     }
+    }
+   }
+  }
+ }
+}

@@ -1,0 +1,13 @@
+===== Clio Grow Reputation Management Dashboard https://help.clio.com/hc/en-us/articles/50326611402267-Clio-Grow-Reputation-Management-Dashboard updated 2026-06-10T07:41:45Z
+The Reputation Management dashboard in Clio Grow gives you a single place to track the review requests your firm sends to clients. Once you start sending review requests, you can use the dashboard to see important metrics about your review requests.
+Understand the Reputation Management dashboard
+- In Clio Grow, click Reputation from the left navigation panel to view your Reputation Management dashboard.
+The top of your dashboard displays the most important metrics.
+Total reviews requested
+The total number of review requests your firm has sent to clients, including both manual and automatic requests.
+Click through rate
+The percentage of clients that clicked on a review link out of the number of requests that you sent.
+The table shows the contact, the status (Link clicked, Reminder sent, Request sent, Request failed, or Follow-up failed), the send method (email or SMS), and the date of the request.
+Note: A review request may fail for a number of reasons, with the most common being missing contact details. Make sure that contact information is available for the contact before attempting to resend the request. Some review requests may also not appear in your report if other settings prevent the request, for example, if text messaging is not enabled for your firm.
+
+IMGS: []

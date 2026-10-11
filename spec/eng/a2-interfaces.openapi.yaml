@@ -1,0 +1,2192 @@
+openapi: 3.1.0
+info:
+  title: Counsel API
+  version: 1.0.0
+  description: |
+    Counsel HTTP API v1 (one cell per firm; host is the firm's cell hostname).
+    Conventions (rules ARC-I-001..012, -047..051 in a2-interfaces.html):
+    - JSON only; money is integer cents in fields ending _cents, currency CAD.
+    - Business dates YYYY-MM-DD in America/Toronto; instants RFC 3339 with offset.
+    - Cursor pagination (limit, cursor -> next_cursor).
+    - ETag/If-Match on every mutable resource (version integer).
+    - Idempotency-Key required on every POST that creates money records or external effects; such operations carry
+      x-money: true or x-external-effect: true (ARC-I-007; conformance asserts count(x-money) >= 20).
+    - Rates are parts per million (*_ppm). Module and gate-kind names follow the a4 schemas (CF-05).
+    - Every operation lists its problem responses explicitly (ARC-I-051).
+    - Errors: RFC 9457 application/problem+json.
+    - /v1 is additive-only.
+    Money endpoints (bills, payments, credit notes, trust) are specified in detail; the rest at path level.
+servers:
+- url: https://{cell_host}/v1
+  variables:
+    cell_host: {default: firm.example.ca}
+security:
+- session: []
+- bearer: []
+tags:
+- {name: billing}
+- {name: payments}
+- {name: trust}
+- {name: gates}
+- {name: matters}
+- {name: other}
+paths:
+  /bills:
+    get:
+      tags: [billing]
+      operationId: listBills
+      parameters:
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: matter_id
+        in: query
+        schema: {$ref: '#/components/schemas/Id'}
+      - name: status
+        in: query
+        schema: {$ref: '#/components/schemas/BillStatus'}
+      responses:
+        '200':
+          description: Page of bills
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/Bill'}
+                  next_cursor:
+                    type: [string, 'null']
+        '401': &id001 {$ref: '#/components/responses/Problem'}
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [billing]
+      operationId: draftBill
+      summary: Create a draft bill (pre-bill) from unbilled WIP. Opens gate billing.prebill_review on submit.
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BillCreate'}
+      responses:
+        '201':
+          description: Draft created
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+            Location:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Bill'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /bills/{bill_id}:
+    parameters:
+    - {$ref: '#/components/parameters/BillId'}
+    get:
+      tags: [billing]
+      operationId: getBill
+      responses:
+        '200':
+          description: Bill
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Bill'}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    patch:
+      tags: [billing]
+      operationId: updateDraftBill
+      summary: Edit a draft bill (status draft or returned only). Totals are always recomputed server-side.
+      parameters:
+      - {$ref: '#/components/parameters/IfMatch'}
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: {$ref: '#/components/schemas/BillPatch'}
+      responses:
+        '200':
+          description: Updated
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Bill'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+  /bills/{bill_id}/lines:
+    parameters:
+    - {$ref: '#/components/parameters/BillId'}
+    get:
+      tags: [billing]
+      operationId: listBillLines
+      parameters:
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      responses:
+        '200':
+          description: Lines
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/BillLine'}
+                  next_cursor:
+                    type: [string, 'null']
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /bills/{bill_id}/submit:
+    parameters:
+    - {$ref: '#/components/parameters/BillId'}
+    post:
+      tags: [billing, gates]
+      operationId: submitBill
+      summary: Submit draft for approval. Opens gate billing.bill_approval bound to the bill's payload hash. Never approves.
+      parameters:
+      - {$ref: '#/components/parameters/IfMatch'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '202':
+          description: Gate opened
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Gate'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /bills/{bill_id}/deliver:
+    parameters:
+    - {$ref: '#/components/parameters/BillId'}
+    post:
+      tags: [billing]
+      operationId: deliverBill
+      summary: Deliver an approved bill to the client (external effect). Allowed only when status=approved.
+      parameters:
+      - {$ref: '#/components/parameters/IfMatch'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [channel]
+              properties:
+                channel:
+                  type: string
+                  enum: [portal, email, print]
+                recipient_contact_ids:
+                  type: array
+                  items: {$ref: '#/components/schemas/Id'}
+      responses:
+        '202':
+          description: Delivery queued
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Bill'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      description: Queues delivery. delivered_at is set only by the delivery effect on evidence, as the America/Toronto date,
+        and is immutable once set; a bounce leaves it null (ARC-I-052).
+      x-money: true
+  /bills/{bill_id}/void:
+    parameters:
+    - {$ref: '#/components/parameters/BillId'}
+    post:
+      tags: [billing, gates]
+      operationId: voidBill
+      summary: Void an approved, undelivered bill; opens gate billing.bill_void (G-B2).
+      parameters:
+      - {$ref: '#/components/parameters/IfMatch'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason_code]
+              properties:
+                reason_code: {type: string, maxLength: 64}
+      responses:
+        '202':
+          description: Gate opened
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Gate'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      description: Allowed only when status=approved and delivered_at is null (ARC-I-050). The effect posts the exact reversal
+        (BIL-J-012), sets status=voided and returns entries to approved; no credit note. A delivered bill returns 409 code=bill_delivered_use_credit_note;
+        use POST /credit-notes.
+      x-money: true
+  /payments:
+    get:
+      tags: [payments]
+      operationId: listPayments
+      parameters:
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: client_id
+        in: query
+        schema: {$ref: '#/components/schemas/Id'}
+      - name: received_from
+        in: query
+        schema: {type: string, format: date}
+      - name: received_to
+        in: query
+        schema: {type: string, format: date}
+      responses:
+        '200':
+          description: Page of payments
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/Payment'}
+                  next_cursor:
+                    type: [string, 'null']
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [payments]
+      operationId: recordPayment
+      summary: Record a payment received into the operating account. Trust receipts use POST /trust/receipts.
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PaymentCreate'}
+      responses:
+        '201':
+          description: Recorded (allocations proposed; unambiguous allocations to one bill apply directly, others open billing.payment_allocation)
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Payment'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /payments/{payment_id}:
+    parameters:
+    - {$ref: '#/components/parameters/PaymentId'}
+    get:
+      tags: [payments]
+      operationId: getPayment
+      responses:
+        '200':
+          description: Payment
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Payment'}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /payments/{payment_id}/allocations:
+    parameters:
+    - {$ref: '#/components/parameters/PaymentId'}
+    post:
+      tags: [payments, gates]
+      operationId: proposeAllocation
+      summary: Replace the proposed allocation set. Sum must equal payment amount (ARC-I-029). Opens gate billing.payment_allocation
+        when ambiguous or trust-touching.
+      parameters:
+      - {$ref: '#/components/parameters/IfMatch'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [allocations]
+              properties:
+                allocations:
+                  type: array
+                  minItems: 1
+                  items: {$ref: '#/components/schemas/AllocationInput'}
+      responses:
+        '200':
+          description: Applied directly
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Payment'}
+        '202':
+          description: Gate opened
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Gate'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /payments/{payment_id}/refunds:
+    parameters:
+    - {$ref: '#/components/parameters/PaymentId'}
+    post:
+      tags: [payments, gates]
+      operationId: requestRefund
+      summary: Request a refund; opens gate billing.refund. Effect handler calls the provider with idempotency key <gate_id>:<version>.
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [amount_cents, reason_code]
+              properties:
+                amount_cents: {$ref: '#/components/schemas/Cents'}
+                reason_code: {type: string, maxLength: 64}
+      responses:
+        '202':
+          description: Gate opened
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Gate'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /credit-notes:
+    get:
+      tags: [billing]
+      operationId: listCreditNotes
+      parameters:
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: bill_id
+        in: query
+        schema: {$ref: '#/components/schemas/Id'}
+      responses:
+        '200':
+          description: Page
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/CreditNote'}
+                  next_cursor:
+                    type: [string, 'null']
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [billing, gates]
+      operationId: requestCreditNote
+      summary: Request a credit note or write-off; opens gate billing.credit_note. Number is assigned only by the effect handler.
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreditNoteCreate'}
+      responses:
+        '202':
+          description: Gate opened
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Gate'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /credit-notes/{credit_note_id}:
+    get:
+      tags: [billing]
+      operationId: getCreditNote
+      parameters:
+      - name: credit_note_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+      responses:
+        '200':
+          description: Credit note
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CreditNote'}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /trust/accounts:
+    get:
+      tags: [trust]
+      operationId: listTrustAccounts
+      responses:
+        '200':
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/TrustAccount'}
+                  next_cursor:
+                    type: [string, 'null']
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /trust/ledgers:
+    get:
+      tags: [trust]
+      operationId: listTrustLedgers
+      parameters:
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: matter_id
+        in: query
+        schema: {$ref: '#/components/schemas/Id'}
+      - name: account_id
+        in: query
+        schema: {$ref: '#/components/schemas/Id'}
+      responses:
+        '200':
+          description: Client trust ledgers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/TrustLedger'}
+                  next_cursor:
+                    type: [string, 'null']
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /trust/ledgers/{ledger_id}/lines:
+    get:
+      tags: [trust]
+      operationId: listTrustLines
+      parameters:
+      - name: ledger_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      responses:
+        '200':
+          description: Journal lines, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/TrustJournalLine'}
+                  next_cursor:
+                    type: [string, 'null']
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /trust/receipts:
+    post:
+      tags: [trust, gates]
+      operationId: recordTrustReceipt
+      summary: Record money received into trust. Posts directly when classification is unambiguous and cash is under limit;
+        otherwise opens trust.receipt_classification or trust.cash_over_limit.
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TrustReceiptCreate'}
+      responses:
+        '201':
+          description: Posted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TrustJournalLine'}
+        '202':
+          description: Gate opened; not yet posted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Gate'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /trust/withdrawals:
+    get:
+      tags: [trust]
+      operationId: listWithdrawals
+      parameters:
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: status
+        in: query
+        schema: {$ref: '#/components/schemas/WithdrawalStatus'}
+      responses:
+        '200':
+          description: Page
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/WithdrawalRequest'}
+                  next_cursor:
+                    type: [string, 'null']
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [trust, gates]
+      operationId: requestWithdrawal
+      summary: Create a withdrawal request and open gate trust.withdrawal (or billing.trust_fee_withdrawal when bill_id is
+        set). Authorization only via the gate.
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/WithdrawalCreate'}
+      responses:
+        '202':
+          description: Request created and gate opened
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WithdrawalRequest'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      description: Opens the authorization gate. Authorization (gate decision) fails 409 code=insufficient_trust_funds when
+        the amount exceeds the ledger's available balance including holds (ARC-I-025).
+      x-money: true
+  /trust/withdrawals/{withdrawal_id}:
+    parameters:
+    - {$ref: '#/components/parameters/WithdrawalId'}
+    get:
+      tags: [trust]
+      operationId: getWithdrawal
+      responses:
+        '200':
+          description: Withdrawal
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WithdrawalRequest'}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /trust/withdrawals/{withdrawal_id}/execution:
+    parameters:
+    - {$ref: '#/components/parameters/WithdrawalId'}
+    post:
+      tags: [trust]
+      operationId: recordWithdrawalExecution
+      summary: 'Record that an authorized withdrawal was paid at the bank; posts the trust_transaction (txn_date = executed_on)
+        and releases the hold. Not a way to authorize: the withdrawal''s gate must be approved and unexpired (else 409 not_authorized).
+        Caller holds trust.execute and is not the authorizer unless sole practitioner (ARC-I-012, -027).'
+      parameters:
+      - {$ref: '#/components/parameters/IfMatch'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [executed_on, bank_ref]
+              properties:
+                executed_on: {type: string, format: date}
+                bank_ref: {type: string, maxLength: 80}
+                instrument_no: {type: string, maxLength: 40}
+      responses:
+        '201':
+          description: Trust transaction posted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TrustJournalLine'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /trust/withdrawals/{withdrawal_id}/cancel:
+    parameters:
+    - {$ref: '#/components/parameters/WithdrawalId'}
+    post:
+      tags: [trust]
+      operationId: cancelWithdrawal
+      summary: Cancel a request not yet executed; withdraws its open gate.
+      parameters:
+      - {$ref: '#/components/parameters/IfMatch'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '200':
+          description: Cancelled
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WithdrawalRequest'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /trust/transfers:
+    post:
+      tags: [trust, gates]
+      operationId: requestTransfer
+      summary: Ledger-to-ledger or account-to-account transfer; opens gate trust.transfer.
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [from_ledger_id, to_ledger_id, amount_cents, authority_document_id]
+              properties:
+                from_ledger_id: {$ref: '#/components/schemas/Id'}
+                to_ledger_id: {$ref: '#/components/schemas/Id'}
+                amount_cents: {$ref: '#/components/schemas/Cents'}
+                authority_document_id: {$ref: '#/components/schemas/Id'}
+      responses:
+        '202':
+          description: Gate opened
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Gate'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /trust/bank-lines/imports:
+    post:
+      tags: [trust]
+      operationId: importBankLines
+      summary: Import a bank statement file (CSV/OFX) for an account; lines are matched, never posted to the journal.
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [account_id, file]
+              properties:
+                account_id: {$ref: '#/components/schemas/Id'}
+                file: {type: string, contentMediaType: application/octet-stream}
+      responses:
+        '202': {description: Import queued}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /trust/reconciliations:
+    get:
+      tags: [trust]
+      operationId: listReconciliations
+      parameters:
+      - name: account_id
+        in: query
+        schema: {$ref: '#/components/schemas/Id'}
+      responses:
+        '200':
+          description: Reconciliations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/Reconciliation'}
+                  next_cursor:
+                    type: [string, 'null']
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [trust]
+      operationId: prepareReconciliation
+      summary: Prepare the monthly three-way reconciliation for an account and month.
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [account_id, month, bank_balance_cents]
+              properties:
+                account_id: {$ref: '#/components/schemas/Id'}
+                month: {type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'}
+                bank_balance_cents: {type: integer}
+      responses:
+        '201':
+          description: Prepared
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Reconciliation'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /trust/reconciliations/{reconciliation_id}/submit:
+    post:
+      tags: [trust, gates]
+      operationId: submitReconciliation
+      summary: Submit for sign-off; opens gate trust.reconciliation_signoff. Refused unless balanced or every difference has
+        an explanation.
+      parameters:
+      - name: reconciliation_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+      - {$ref: '#/components/parameters/IfMatch'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '202':
+          description: Gate opened
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Gate'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /trust/requests:
+    get:
+      tags: [trust]
+      operationId: listTrustRequests
+      summary: Retainer / funds-into-trust requests sent to clients.
+      responses:
+        '200': {description: Page}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [trust]
+      operationId: createTrustRequest
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '201': {description: Created}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /gates:
+    get:
+      tags: [gates]
+      operationId: listGates
+      summary: Approval inbox. Default filter is gates the caller may decide.
+      parameters:
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: state
+        in: query
+        schema: {$ref: '#/components/schemas/GateState'}
+      - name: kind
+        in: query
+        schema: {type: string}
+      - name: decidable_by_me
+        in: query
+        schema: {type: boolean, default: true}
+      responses:
+        '200':
+          description: Page of gates
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/Gate'}
+                  next_cursor:
+                    type: [string, 'null']
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /gates/{gate_id}:
+    parameters:
+    - {$ref: '#/components/parameters/GateId'}
+    get:
+      tags: [gates]
+      operationId: getGate
+      summary: Gate with current payload, payload_hash and decisions. Viewing writes an audit row.
+      responses:
+        '200':
+          description: Gate
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Gate'}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /gates/{gate_id}/decisions:
+    parameters:
+    - {$ref: '#/components/parameters/GateId'}
+    post:
+      tags: [gates]
+      operationId: decideGate
+      summary: Approve, return or reject. Human session only, step-up for high/irreversible (ARC-I-016..022).
+      parameters:
+      - {$ref: '#/components/parameters/IfMatch'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/GateDecisionInput'}
+      responses:
+        '200':
+          description: Decision recorded
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Gate'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /gates/{gate_id}/withdraw:
+    parameters:
+    - {$ref: '#/components/parameters/GateId'}
+    post:
+      tags: [gates]
+      operationId: withdrawGate
+      summary: Preparer withdraws an open gate.
+      parameters:
+      - {$ref: '#/components/parameters/IfMatch'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '200':
+          description: Withdrawn
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Gate'}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+  /matters:
+    get:
+      tags: [matters]
+      operationId: listMatters
+      responses:
+        '200': {description: Page}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [matters]
+      operationId: requestMatterOpening
+      summary: Opens gate matter.opening
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '202': {description: Gate opened}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+  /matters/{matter_id}:
+    get:
+      tags: [matters]
+      operationId: getMatter
+      parameters:
+      - name: matter_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+      responses:
+        '200': {description: Matter}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    patch:
+      tags: [matters]
+      operationId: updateMatter
+      parameters:
+      - name: matter_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+      - {$ref: '#/components/parameters/IfMatch'}
+      responses:
+        '200': {description: Updated}
+        '202': {description: Gate opened (key fact)}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+  /contacts:
+    get:
+      tags: [matters]
+      operationId: listContacts
+      responses:
+        '200': {description: Page}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [matters]
+      operationId: createContact
+      responses:
+        '201': {description: Created}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+  /contacts/{contact_id}:
+    get:
+      tags: [matters]
+      operationId: getContact
+      parameters:
+      - name: contact_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+      responses:
+        '200': {description: Contact}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /documents:
+    get:
+      tags: [other]
+      operationId: listDocuments
+      responses:
+        '200': {description: Page}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [other]
+      operationId: uploadDocument
+      responses:
+        '201': {description: Created}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+  /documents/{document_id}/versions/{version_id}/pages/{page}:
+    get:
+      tags: [other]
+      operationId: getDocumentPage
+      summary: Line-numbered page text (citation source)
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema: {type: string}
+      - name: version_id
+        in: path
+        required: true
+        schema: {type: string}
+      - name: page
+        in: path
+        required: true
+        schema: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Page text}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /documents/{document_id}/release:
+    post:
+      tags: [other, gates]
+      operationId: requestRelease
+      summary: Opens gate docs.outgoing
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema: {type: string}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '202': {description: Gate opened}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-external-effect: true
+  /drafts:
+    get:
+      tags: [other]
+      operationId: listDrafts
+      responses:
+        '200': {description: Page}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /deadlines:
+    get:
+      tags: [other]
+      operationId: listDeadlines
+      responses:
+        '200': {description: Page}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [other]
+      operationId: proposeDeadline
+      summary: Creates proposed deadline and opens cal.confirm
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '202': {description: Gate opened}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+  /deadlines/{deadline_id}:
+    get:
+      tags: [other]
+      operationId: getDeadline
+      parameters:
+      - name: deadline_id
+        in: path
+        required: true
+        schema: {type: string}
+      responses:
+        '200': {description: Deadline}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /work-items:
+    get:
+      tags: [other]
+      operationId: listWorkItems
+      responses:
+        '200': {description: Page}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [other]
+      operationId: createWorkItem
+      responses:
+        '201': {description: Created}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+  /work-items/{work_item_id}:
+    patch:
+      tags: [other]
+      operationId: updateWorkItem
+      parameters:
+      - name: work_item_id
+        in: path
+        required: true
+        schema: {type: string}
+      - {$ref: '#/components/parameters/IfMatch'}
+      responses:
+        '200': {description: Updated}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+  /time-entries:
+    get:
+      tags: [other]
+      operationId: listTimeEntries
+      responses:
+        '200': {description: Page}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [other]
+      operationId: recordTime
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '201': {description: Created}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /time-entries/{time_entry_id}:
+    patch:
+      tags: [other]
+      operationId: updateTime
+      summary: Refused with 409 locked_to_bill once on an approved bill
+      parameters:
+      - name: time_entry_id
+        in: path
+        required: true
+        schema: {type: string}
+      - {$ref: '#/components/parameters/IfMatch'}
+      responses:
+        '200': {description: Updated}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+  /expenses:
+    get:
+      tags: [other]
+      operationId: listExpenses
+      responses:
+        '200': {description: Page}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [other]
+      operationId: recordExpense
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '201': {description: Created}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-money: true
+  /audit-events:
+    get:
+      tags: [other]
+      operationId: listAuditEvents
+      summary: Requires admin.audit_log; read-only
+      responses:
+        '200': {description: Page}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /users:
+    get:
+      tags: [other]
+      operationId: listUsers
+      responses:
+        '200': {description: Page}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /users/{user_id}/roles:
+    put:
+      tags: [other, gates]
+      operationId: requestRoleChange
+      summary: Opens gate core.role_change
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema: {type: string}
+      - {$ref: '#/components/parameters/IfMatch'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '202': {description: Gate opened}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+  /roles:
+    get:
+      tags: [other]
+      operationId: listRoles
+      responses:
+        '200': {description: Roles with capability ids}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /webhook-endpoints:
+    get:
+      tags: [other]
+      operationId: listWebhookEndpoints
+      responses:
+        '200': {description: Page}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+    post:
+      tags: [other, gates]
+      operationId: createWebhookEndpoint
+      summary: Opens gate platform.integration_scope
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '202': {description: Gate opened}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-external-effect: true
+  /agent/runs:
+    post:
+      tags: [other]
+      operationId: startAgentRun
+      summary: Starts a Paploo run as the calling member (skill id + structured inputs)
+      parameters:
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '202': {description: Run started}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+      x-external-effect: true
+  /agent/runs/{run_id}:
+    get:
+      tags: [other]
+      operationId: getAgentRun
+      summary: Run state
+      plan and steps: null
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema: {type: string}
+      responses:
+        '200': {description: Run}
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '429': *id001
+        default: *id001
+  /hooks/{provider}:
+    post:
+      tags: [payments]
+      operationId: receiveProviderEvent
+      security: []
+      summary: Inbound provider webhook (payment processor, e-sign, bank feed). Signature verified on the raw body; (provider,
+        event_id) deduplicated in platform.inbound_event.
+      description: Duplicate event ids return 204 with no effect. Handlers re-fetch the provider object and apply state by
+        precedence pending < received < posted < partially_refunded < refunded; reversed is terminal, so order does not matter
+        (ARC-I-048).
+      parameters:
+      - name: provider
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-z0-9_]{2,40}$'}
+      - name: webhook-id
+        in: header
+        required: true
+        schema: {type: string, maxLength: 200}
+      - name: webhook-timestamp
+        in: header
+        required: true
+        schema: {type: integer}
+      - name: webhook-signature
+        in: header
+        required: true
+        schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        '204': {description: Accepted or duplicate}
+        '400': *id001
+        '401': *id001
+        '429': *id001
+        default: *id001
+  /webhook-endpoints/{webhook_id}:
+    parameters:
+    - name: webhook_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/Id'}
+    patch:
+      tags: [other]
+      operationId: renewWebhookEndpoint
+      x-external-effect: true
+      summary: Renew or change expiry of a webhook endpoint (expires_at null = never expires). Widening events opens gate
+        platform.integration_scope (ARC-I-049).
+      parameters:
+      - {$ref: '#/components/parameters/IfMatch'}
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                expires_at:
+                  type: [string, 'null']
+                  format: date-time
+                events:
+                  type: array
+                  items: {type: string}
+      responses:
+        '200':
+          description: Endpoint
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+        '202': {description: Gate opened (events widened)}
+        '400': *id001
+        '401': *id001
+        '403': *id001
+        '404': *id001
+        '409': *id001
+        '412': *id001
+        '422': *id001
+        '428': *id001
+        '429': *id001
+        default: *id001
+components:
+  securitySchemes:
+    session: {type: apiKey, in: cookie, name: counsel_session, description: OIDC-backed browser session (members). Only sessions
+        may decide gates.}
+    bearer: {type: http, scheme: bearer, description: 'API keys (firm integrations, scopes = capability ids) and agent tokens
+        issued via the Paploo app-API connection (principal type agent, acting_for user). Neither may decide gates.'}
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 200, default: 50}
+    Cursor:
+      name: cursor
+      in: query
+      schema: {type: string}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: UUID; stored 30 days per (firm, principal, key) with request hash (ARC-I-007/008).
+      schema: {type: string, format: uuid}
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Strong ETag of the version being changed. Missing -> 428, stale -> 412.
+      schema:
+        type: string
+        examples: ['"7"']
+    BillId:
+      name: bill_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/Id'}
+    PaymentId:
+      name: payment_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/Id'}
+    WithdrawalId:
+      name: withdrawal_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/Id'}
+    GateId:
+      name: gate_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/Id'}
+  headers:
+    ETag:
+      description: Strong ETag "<version>"
+      schema: {type: string}
+  responses:
+    Problem:
+      description: RFC 9457 problem
+      headers:
+        Retry-After:
+          schema: {type: integer}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+  schemas:
+    Id: {type: string, format: uuid, description: UUIDv7}
+    Cents: {type: integer, minimum: 0, maximum: 100000000000, description: Non-negative amount in CAD cents.}
+    SignedCents: {type: integer, description: 'Signed amount in CAD cents (receipt +, disbursement -).'}
+    Actor:
+      type: object
+      required: [type, id]
+      properties:
+        type:
+          type: string
+          enum: [user, agent, api_key, system]
+        id: {type: string}
+        acting_for: {$ref: '#/components/schemas/Id'}
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+          format: uri
+          examples: ['urn:counsel:problem:sod_violation']
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+        instance: {type: string}
+        code:
+          type: string
+          description: Stable machine code. x-extensible-enum.
+          examples: [validation_failed, invalid_money, version_conflict, precondition_required, idempotency_key_required,
+            idempotency_key_reused, request_in_progress, sod_violation, missing_capability, not_signatory, agent_cannot_decide,
+            step_up_required, payload_changed, gate_expired, already_decided, allocation_mismatch, insufficient_trust_funds,
+            executor_is_authorizer, read_only_field, unverified_citation, plan_required, rate_limited, not_found]
+        trace_id: {type: string}
+        gate_id: {$ref: '#/components/schemas/Id'}
+        errors:
+          type: array
+          items:
+            type: object
+            required: [pointer, code]
+            properties:
+              pointer: {type: string, description: JSON Pointer into the request body}
+              code: {type: string}
+    BillStatus:
+      type: string
+      enum: [draft, in_review, returned, approved, delivered, partially_paid, paid, voided]
+      x-extensible-enum: true
+    Bill:
+      type: object
+      required: [id, version, matter_id, client_id, status, period_from, period_to, fees_cents, taxable_disb_cents, nontaxable_disb_cents,
+        hst_rate_ppm, hst_cents, discount_cents, total_cents, trust_applied_cents, balance_cents, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        version: {type: integer}
+        number:
+          type: [string, 'null']
+          description: Assigned only on approval (gapless per firm)
+        matter_id: {$ref: '#/components/schemas/Id'}
+        client_id: {$ref: '#/components/schemas/Id'}
+        status: {$ref: '#/components/schemas/BillStatus'}
+        period_from: {type: string, format: date}
+        period_to: {type: string, format: date}
+        fees_cents: {$ref: '#/components/schemas/Cents'}
+        taxable_disb_cents: {$ref: '#/components/schemas/Cents'}
+        nontaxable_disb_cents: {$ref: '#/components/schemas/Cents'}
+        hst_rate_ppm: {type: integer, description: 'parts per million, e.g. 130000 = 13%; QST 9.975% = 99750 (CF-01)'}
+        hst_cents: {$ref: '#/components/schemas/Cents'}
+        discount_cents: {$ref: '#/components/schemas/Cents'}
+        total_cents: {$ref: '#/components/schemas/Cents'}
+        trust_applied_cents: {$ref: '#/components/schemas/Cents'}
+        balance_cents: {type: integer}
+        gate_id: {$ref: '#/components/schemas/Id'}
+        approved_by: {$ref: '#/components/schemas/Id'}
+        approved_at: {type: string, format: date-time}
+        delivered_at: {type: string, format: date-time}
+        delivery_channel:
+          type: string
+          enum: [portal, email, print]
+        template_id: {$ref: '#/components/schemas/Id'}
+        split_parent_id: {$ref: '#/components/schemas/Id'}
+        created_at: {type: string, format: date-time}
+        reserved_cents: {$ref: '#/components/schemas/Cents', readOnly: true, description: fee withdrawals from trust authorized
+            or executed-not-applied against this bill; allocations cap at balance - reserved}
+    BillCreate:
+      type: object
+      additionalProperties: false
+      required: [matter_id, period_to]
+      properties:
+        matter_id: {$ref: '#/components/schemas/Id'}
+        period_from: {type: string, format: date}
+        period_to: {type: string, format: date}
+        template_id: {$ref: '#/components/schemas/Id'}
+        line_actions:
+          type: array
+          items: {$ref: '#/components/schemas/LineAction'}
+    BillPatch:
+      type: object
+      additionalProperties: false
+      description: Totals, status, number and approval fields are read-only (422 read_only_field).
+      properties:
+        period_from: {type: string, format: date}
+        period_to: {type: string, format: date}
+        template_id: {$ref: '#/components/schemas/Id'}
+        discount_cents: {$ref: '#/components/schemas/Cents'}
+        line_actions:
+          type: array
+          items: {$ref: '#/components/schemas/LineAction'}
+    LineAction:
+      type: object
+      additionalProperties: false
+      required: [source_id, action]
+      properties:
+        source_id: {$ref: '#/components/schemas/Id'}
+        action:
+          type: string
+          enum: [bill, hold, write_down, write_off, no_charge]
+        write_down_cents: {$ref: '#/components/schemas/Cents'}
+        reason_code: {type: string, maxLength: 64}
+        narrative: {type: string, maxLength: 1000}
+    BillLine:
+      type: object
+      required: [id, bill_id, source_type, amount_cents, taxable, action]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        bill_id: {$ref: '#/components/schemas/Id'}
+        source_type:
+          type: string
+          enum: [time, expense, flat, adjustment]
+        source_id: {$ref: '#/components/schemas/Id'}
+        narrative: {type: string}
+        quantity_milli: {type: integer, description: quantity x 1000 (hours as minutes/60 never float)}
+        rate_cents: {$ref: '#/components/schemas/Cents'}
+        amount_cents: {type: integer}
+        taxable: {type: boolean}
+        action:
+          type: string
+          enum: [bill, hold, write_down, write_off, no_charge]
+        write_down_cents: {$ref: '#/components/schemas/Cents'}
+        reason_code: {type: string}
+        agent_flags:
+          type: array
+          items: {type: string}
+    PaymentCreate:
+      type: object
+      additionalProperties: false
+      required: [received_at, payer_contact_id, amount_cents, method]
+      properties:
+        received_at: {type: string, format: date-time}
+        payer_contact_id: {$ref: '#/components/schemas/Id'}
+        amount_cents: {$ref: '#/components/schemas/Cents'}
+        method:
+          type: string
+          enum: [eft, cheque, card, cash, wire, interac]
+        provider: {type: string}
+        provider_ref: {type: string, maxLength: 120}
+        processor_fee_cents: {$ref: '#/components/schemas/Cents'}
+        allocations:
+          type: array
+          items: {$ref: '#/components/schemas/AllocationInput'}
+    AllocationInput:
+      type: object
+      additionalProperties: false
+      required: [target_type, amount_cents]
+      properties:
+        target_type:
+          type: string
+          enum: [bill, trust_ledger, unapplied]
+        target_id: {$ref: '#/components/schemas/Id'}
+        amount_cents: {$ref: '#/components/schemas/Cents'}
+      description: target_type=bill only for an operating-account payment; a trust-account payment may only target trust_ledger
+        (422 trust_receipt_not_allocatable). Bucket split is computed by the server (ARC-I-029).
+    Payment:
+      type: object
+      required: [id, version, received_at, amount_cents, method, account, status, allocations]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        version: {type: integer}
+        received_at: {type: string, format: date-time}
+        payer_contact_id: {$ref: '#/components/schemas/Id'}
+        amount_cents: {$ref: '#/components/schemas/Cents'}
+        method: {type: string}
+        account:
+          type: string
+          enum: [operating, trust]
+        provider: {type: string}
+        provider_ref: {type: string}
+        processor_fee_cents: {$ref: '#/components/schemas/Cents'}
+        status:
+          type: string
+          enum: [received, allocation_pending, allocated, failed, refunded, partially_refunded, reversed]
+          x-extensible-enum: true
+        allocations:
+          type: array
+          items:
+            type: object
+            required: [id, target_type, amount_cents, state]
+            properties:
+              id: {$ref: '#/components/schemas/Id'}
+              target_type:
+                type: string
+                enum: [bill, trust_ledger, unapplied]
+              target_id: {$ref: '#/components/schemas/Id'}
+              amount_cents: {$ref: '#/components/schemas/Cents'}
+              state:
+                type: string
+                enum: [proposed, applied, reversed]
+              gate_id: {$ref: '#/components/schemas/Id'}
+              fee_cents: {$ref: '#/components/schemas/SignedCents', readOnly: true}
+              dtx_cents: {$ref: '#/components/schemas/SignedCents', readOnly: true}
+              dnt_cents: {$ref: '#/components/schemas/SignedCents', readOnly: true}
+              tax_cents: {$ref: '#/components/schemas/SignedCents', readOnly: true}
+              interest_cents: {$ref: '#/components/schemas/SignedCents', readOnly: true}
+            description: For target_type=bill, fee+dtx+dnt+tax+interest = amount_cents; all zero otherwise. Reversal rows
+              are -1 x original per bucket.
+    CreditNoteCreate:
+      type: object
+      additionalProperties: false
+      required: [bill_id, kind, amount_cents, reason_code]
+      properties:
+        bill_id: {$ref: '#/components/schemas/Id'}
+        kind:
+          type: string
+          enum: [credit, write_off]
+        amount_cents: {$ref: '#/components/schemas/Cents'}
+        reason_code: {type: string, maxLength: 64}
+        trust_effect:
+          type: string
+          enum: [none, refund_to_trust]
+          default: none
+    CreditNote:
+      type: object
+      required: [id, bill_id, kind, amount_cents, hst_cents, status]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        number:
+          type: [string, 'null']
+        bill_id: {$ref: '#/components/schemas/Id'}
+        kind:
+          type: string
+          enum: [credit, write_off]
+        amount_cents: {$ref: '#/components/schemas/Cents'}
+        hst_cents: {$ref: '#/components/schemas/Cents'}
+        reason_code: {type: string}
+        status:
+          type: string
+          enum: [requested, issued, rejected]
+        gate_id: {$ref: '#/components/schemas/Id'}
+    TrustAccount:
+      type: object
+      required: [id, type, institution, account_no_masked, opened_on]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        type:
+          type: string
+          enum: [mixed, separate]
+        institution: {type: string}
+        account_no_masked:
+          type: string
+          examples: ['****1234']
+        for_matter_id: {$ref: '#/components/schemas/Id'}
+        opened_on: {type: string, format: date}
+        closed_on:
+          type: [string, 'null']
+          format: date
+        dual_authorization: {type: boolean}
+    TrustLedger:
+      type: object
+      required: [id, account_id, client_id, matter_id, balance_cents, available_cents]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        account_id: {$ref: '#/components/schemas/Id'}
+        client_id: {$ref: '#/components/schemas/Id'}
+        matter_id: {$ref: '#/components/schemas/Id'}
+        balance_cents: {$ref: '#/components/schemas/Cents'}
+        available_cents: {$ref: '#/components/schemas/Cents', description: posted cleared balance - protected - minimum -
+            authorized holds (ARC-I-025)}
+        protected_cents: {$ref: '#/components/schemas/Cents'}
+        pending_withdrawals_cents: {$ref: '#/components/schemas/Cents', description: 'sum of authorized, not yet executed
+            withdrawals'}
+        last_activity_on: {type: string, format: date}
+    TrustJournalLine:
+      type: object
+      required: [id, account_id, ledger_id, kind, posted_on, amount_cents, posted_by, posted_at]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        account_id: {$ref: '#/components/schemas/Id'}
+        ledger_id: {$ref: '#/components/schemas/Id'}
+        kind:
+          type: string
+          enum: [receipt, disbursement, transfer, correction]
+        posted_on: {type: string, format: date}
+        method: {type: string}
+        instrument_no: {type: string}
+        counterparty: {type: string}
+        amount_cents: {$ref: '#/components/schemas/SignedCents'}
+        purpose: {type: string}
+        reverses_id: {$ref: '#/components/schemas/Id'}
+        gate_id: {$ref: '#/components/schemas/Id'}
+        posted_by: {$ref: '#/components/schemas/Id'}
+        posted_at: {type: string, format: date-time}
+        month_locked: {type: boolean}
+      description: One row of a4 trust.trust_transaction.
+    TrustReceiptCreate:
+      type: object
+      additionalProperties: false
+      required: [account_id, matter_id, received_on, amount_cents, method, payer]
+      properties:
+        account_id: {$ref: '#/components/schemas/Id'}
+        matter_id: {$ref: '#/components/schemas/Id'}
+        received_on: {type: string, format: date}
+        amount_cents: {$ref: '#/components/schemas/Cents'}
+        method:
+          type: string
+          enum: [eft, cheque, cash, wire, card, interac]
+        payer: {type: string, maxLength: 200}
+        instrument_no: {type: string, maxLength: 40}
+        purpose: {type: string, maxLength: 200}
+        payment_id: {$ref: '#/components/schemas/Id'}
+    WithdrawalStatus:
+      type: string
+      enum: [draft, awaiting_authorization, authorized, executed, applied, confirmed, rejected, expired, cancelled, effect_failed]
+      x-extensible-enum: true
+      description: authorized = held against the ledger and the bill; executed = posted; applied = fee withdrawal applied
+        to its bill; confirmed = matched to a bank line (ARC-I-025, -027).
+    WithdrawalCreate:
+      type: object
+      additionalProperties: false
+      required: [ledger_id, amount_cents, purpose_category, payee, method]
+      properties:
+        ledger_id: {$ref: '#/components/schemas/Id'}
+        amount_cents: {$ref: '#/components/schemas/Cents'}
+        purpose_category:
+          type: string
+          enum: [fees, disbursement, client_payment, third_party, refund]
+        payee: {type: string, maxLength: 200}
+        method:
+          type: string
+          enum: [eft, cheque, wire]
+        bill_id: {$ref: '#/components/schemas/Id'}
+        direction_document_id: {$ref: '#/components/schemas/Id'}
+        receiving_account_masked: {type: string}
+    WithdrawalRequest:
+      type: object
+      required: [id, version, ledger_id, amount_cents, purpose_category, payee, method, status, initiated_by]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        version: {type: integer}
+        ledger_id: {$ref: '#/components/schemas/Id'}
+        amount_cents: {$ref: '#/components/schemas/Cents'}
+        purpose_category: {type: string}
+        payee: {type: string}
+        method: {type: string}
+        bill_id: {$ref: '#/components/schemas/Id'}
+        status: {$ref: '#/components/schemas/WithdrawalStatus'}
+        gate_id: {$ref: '#/components/schemas/Id'}
+        initiated_by: {$ref: '#/components/schemas/Actor'}
+        authorized_by:
+          type: array
+          items: {$ref: '#/components/schemas/Id'}
+        executed_by: {$ref: '#/components/schemas/Id'}
+        bank_ref: {type: string}
+        journal_line_id: {$ref: '#/components/schemas/Id'}
+    Reconciliation:
+      type: object
+      required: [id, version, account_id, month, bank_balance_cents, outstanding_items_cents, adjusted_bank_cents, journal_balance_cents,
+        client_listing_total_cents, status]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        version: {type: integer}
+        account_id: {$ref: '#/components/schemas/Id'}
+        month: {type: string}
+        bank_balance_cents: {type: integer}
+        outstanding_items_cents: {type: integer}
+        adjusted_bank_cents: {type: integer}
+        journal_balance_cents: {type: integer}
+        client_listing_total_cents: {type: integer}
+        balanced: {type: boolean, description: adjusted_bank == journal_balance == client_listing_total}
+        status:
+          type: string
+          enum: [prepared, in_review, signed, superseded]
+        gate_id: {$ref: '#/components/schemas/Id'}
+        signed_by: {$ref: '#/components/schemas/Id'}
+        signed_at: {type: string, format: date-time}
+    GateState:
+      type: string
+      enum: [open, partially_approved, returned, approved_cooling, approved, executing, executed, effect_failed, rejected,
+        expired, withdrawn]
+    Gate:
+      type: object
+      required: [id, kind, version, state, subject, payload, payload_hash, preparers, min_approvers, opened_at, expires_at,
+        decisions]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        kind:
+          type: string
+          examples: [trust.withdrawal]
+        version: {type: integer}
+        state: {$ref: '#/components/schemas/GateState'}
+        risk:
+          type: string
+          enum: [low, medium, high, irreversible]
+        capability: {type: string}
+        subject:
+          type: object
+          required: [type, id]
+          properties:
+            type: {type: string}
+            id: {$ref: '#/components/schemas/Id'}
+            matter_id: {$ref: '#/components/schemas/Id'}
+        payload: {type: object, description: Validated against the kind's payload schema; data only}
+        payload_hash: {type: string, pattern: '^sha256:[0-9a-f]{64}$'}
+        preparers:
+          type: array
+          items: {$ref: '#/components/schemas/Actor'}
+        min_approvers: {type: integer}
+        opened_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+        effect_after:
+          type: [string, 'null']
+          format: date-time
+        decisions:
+          type: array
+          items:
+            type: object
+            required: [decider_id, decision, version, at]
+            properties:
+              decider_id: {$ref: '#/components/schemas/Id'}
+              decision:
+                type: string
+                enum: [approve, recommend, return, reject]
+              version: {type: integer}
+              reason: {type: string}
+              at: {type: string, format: date-time}
+        effect:
+          type: object
+          properties:
+            handler: {type: string}
+            state:
+              type: string
+              enum: [pending, running, succeeded, failed]
+            result_ref: {type: string}
+            error_code: {type: string}
+    GateDecisionInput:
+      type: object
+      additionalProperties: false
+      required: [decision, version, payload_hash]
+      properties:
+        decision:
+          type: string
+          enum: [approve, return, reject]
+        version: {type: integer}
+        payload_hash: {type: string, pattern: '^sha256:[0-9a-f]{64}$'}
+        reason: {type: string, maxLength: 1000, description: Required for return and reject}
+        sole_practitioner_declaration: {type: string, maxLength: 500}

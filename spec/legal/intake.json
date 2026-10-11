@@ -1,0 +1,3267 @@
+{
+ "area": "intake",
+ "title": "Intake, leads and consultations",
+ "summary": "Captures prospects from web forms, email and phone notes into one lead inbox, where the agent triages each one (practice area, urgency, limitation-period risk, dedupe, pre-conflict screen). Leads then move through a pipeline to a booked consultation and a decision. A lawyer accepts or declines every lead and approves every retain, decline or refer outcome before the prospect becomes a client.",
+ "screens": [
+  {
+   "id": "public-intake-form",
+   "name": "Public intake form",
+   "route": "/intake/:firmSlug/:formSlug",
+   "who": [
+    "client",
+    "agent"
+   ],
+   "purpose": "Lets a prospective client tell the firm about their problem without creating an account.",
+   "layout": "Single column on the firm's brand. Header shows the firm name and a short notice that the firm does not act for the prospect yet. Below sit form steps (about you, the other side, what happened, key dates, documents) and an optional chat-style helper panel. The footer holds the consent checkbox and submit button.",
+   "fields": [
+    {
+     "name": "full_name",
+     "type": "text",
+     "required": true,
+     "note": "Legal name, plus optional preferred name"
+    },
+    {
+     "name": "email",
+     "type": "email",
+     "required": true,
+     "note": "Verified by a one-time link before booking"
+    },
+    {
+     "name": "phone",
+     "type": "phone",
+     "required": false,
+     "note": "E.164 format, with a 'may we leave a voicemail' checkbox"
+    },
+    {
+     "name": "preferred_contact",
+     "type": "enum",
+     "required": true,
+     "note": "email | phone | text"
+    },
+    {
+     "name": "matter_type_hint",
+     "type": "enum",
+     "required": false,
+     "note": "Firm's practice areas plus 'not sure'. The agent reclassifies it anyway"
+    },
+    {
+     "name": "other_parties",
+     "type": "list<text>",
+     "required": true,
+     "note": "Names of the other side, their lawyers, insurers and employers. Needed for the conflict screen"
+    },
+    {
+     "name": "story",
+     "type": "longtext",
+     "required": true,
+     "note": "Free text. The help text asks for facts only, not documents marked privileged"
+    },
+    {
+     "name": "key_date",
+     "type": "date",
+     "required": false,
+     "note": "'When did this happen or when did you find out?' Drives the limitation-period flag"
+    },
+    {
+     "name": "deadline_known",
+     "type": "text",
+     "required": false,
+     "note": "Any court date, notice or letter with a deadline"
+    },
+    {
+     "name": "attachments",
+     "type": "file[]",
+     "required": false,
+     "note": "PDF or images, 25 MB total, virus scanned, held in quarantine until the lead is accepted"
+    },
+    {
+     "name": "referral_source",
+     "type": "enum",
+     "required": false,
+     "note": "search | referral | LSO Referral Service | past client | social | other"
+    },
+    {
+     "name": "consent_contact",
+     "type": "bool",
+     "required": true,
+     "note": "Consent to be contacted about this inquiry"
+    },
+    {
+     "name": "consent_marketing",
+     "type": "bool",
+     "required": false,
+     "note": "Separate opt-in, never pre-ticked (CASL)"
+    },
+    {
+     "name": "ack_no_relationship",
+     "type": "bool",
+     "required": true,
+     "note": "Prospect acknowledges that no lawyer-client relationship exists yet"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Submit inquiry",
+     "by": "human",
+     "gate": "none",
+     "note": "Creates a Lead with status 'new' and sends an auto-acknowledgement with no advice in it"
+    },
+    {
+     "name": "Guided chat intake",
+     "by": "agent",
+     "gate": "none",
+     "note": "Optional conversational mode. It asks follow-up questions, never gives legal advice, and writes its answers back into the same fields"
+    },
+    {
+     "name": "Self-book consultation",
+     "by": "human",
+     "gate": "none",
+     "note": "Shown only if the form's settings allow it and the email is verified. Slot holds are tentative until G1"
+    }
+   ],
+   "agent": "In chat mode, asks clarifying questions about dates, parties and the location of the events. Refuses advice requests with a fixed safe message. Detects an emergency (safety risk, a court date within 7 days) and shows the firm's urgent phone number. Runs no conflict search in front of the prospect.",
+   "gate": "none",
+   "states": [
+    "blank",
+    "in progress (autosaved locally)",
+    "email unverified",
+    "submitted",
+    "rate-limited",
+    "form unpublished"
+   ],
+   "edge": [
+    "Spam and bot submissions: captcha, honeypot field and per-IP rate limit",
+    "Prospect pastes very long privileged documents into the story field: soft cap with a prompt to attach instead",
+    "Prospect is the opposing party of an existing client: the form still accepts it, the screen flags it later and nothing is revealed to the prospect",
+    "Duplicate submission within 24h: merged into the existing lead",
+    "Minor or person under disability: the form asks whether a guardian or litigation guardian is involved",
+    "French-language request: form offered in FR (French Language Services consideration) (verify whether required for a private firm)"
+   ],
+   "reg": "RPC 3.3 confidentiality applies to information from prospective clients. Information received can create a conflict even if the firm never acts (RPC 3.4 commentary) (verify exact rule ref). Disclaimer text must not be misleading (RPC 4.2 marketing). Contact consent and a separate marketing opt-in are needed for CASL. PIPEDA consent and purpose statement apply. Data stored in Canada.",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Field",
+     "Sample value"
+    ],
+    "rows": [
+     [
+      "Full name",
+      "Tsion Haile"
+     ],
+     [
+      "Other parties",
+      "Northgate Logistics Inc.; Brian Ostrowski (manager)"
+     ],
+     [
+      "What happened",
+      "Terminated without notice after 6 years, told 'restructuring'"
+     ],
+     [
+      "When",
+      "2026-08-29"
+     ],
+     [
+      "Referral source",
+      "Past client"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "intake-form-builder",
+   "name": "Intake form builder",
+   "route": "/settings/intake/forms/:formId",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Lets the firm build and publish intake forms for each practice area.",
+   "layout": "Left: list of forms with publish status. Centre: field canvas with drag-to-order and a library of standard fields. Right: settings for the form (practice area, routing, auto-ack template, self-booking, languages) and a live preview.",
+   "fields": [
+    {
+     "name": "form_name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "slug",
+     "type": "text",
+     "required": true,
+     "note": "Unique within the firm"
+    },
+    {
+     "name": "practice_area",
+     "type": "ref",
+     "required": false,
+     "note": "Default classification hint"
+    },
+    {
+     "name": "fields",
+     "type": "list<FieldDef>",
+     "required": true,
+     "note": "Standard fields (parties, key date, consent) are locked on and cannot be removed"
+    },
+    {
+     "name": "route_to",
+     "type": "ref",
+     "required": false,
+     "note": "Default reviewing lawyer or queue"
+    },
+    {
+     "name": "auto_ack_template",
+     "type": "ref",
+     "required": true,
+     "note": "Must pass a check that it contains no advice"
+    },
+    {
+     "name": "allow_self_booking",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "consult_fee",
+     "type": "money",
+     "required": false,
+     "note": "If set, it is collected at booking (see Consultation booking)"
+    },
+    {
+     "name": "embed_code",
+     "type": "text",
+     "required": false,
+     "note": "Read-only iframe or script snippet"
+    },
+    {
+     "name": "question_types",
+     "type": "enum",
+     "required": true,
+     "note": "short text, long text, single choice, multi choice, dropdown, date, yes/no, file, money, address, phone"
+    },
+    {
+     "name": "follow_ups",
+     "type": "rules",
+     "required": false,
+     "note": "Extra questions shown after a given answer; nesting allowed one level"
+    },
+    {
+     "name": "field_mapping",
+     "type": "map",
+     "required": false,
+     "note": "Each answer maps to a contact, lead or matter field; type must match"
+    },
+    {
+     "name": "languages",
+     "type": "enum[]",
+     "required": true,
+     "note": "en, fr; all text translated, not only built-in labels"
+    },
+    {
+     "name": "public",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "defaults",
+     "type": "map",
+     "required": false,
+     "note": "Stage, assignee and sender used for submissions"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Draft form from description",
+     "by": "agent",
+     "gate": "none",
+     "note": "For example, 'a form for slip-and-fall cases'. The agent proposes fields and questions"
+    },
+    {
+     "name": "Publish",
+     "by": "human",
+     "gate": "approve",
+     "note": "A lawyer or admin approves the public text: disclaimer, consent wording and the auto-ack message"
+    },
+    {
+     "name": "Unpublish / archive",
+     "by": "human",
+     "gate": "none",
+     "note": "Old submissions stay linked"
+    }
+   ],
+   "agent": "Drafts forms and questions for a practice area. Lints the disclaimers, consent wording and auto-ack text for advice, guarantees of results or misleading claims.",
+   "gate": "Publishing a form or changing its public wording needs approval from a lawyer or admin.",
+   "states": [
+    "draft",
+    "pending approval",
+    "published",
+    "archived"
+   ],
+   "edge": [
+    "Removing a field that past leads used: the field is hidden, not deleted",
+    "Self-booking is turned on but no lawyer has availability: block publishing",
+    "Consult fee is set but no payment account is connected: block publishing",
+    "Acknowledgement checkbox needed as a hard requirement: use a required yes/no, not an optional checkbox"
+   ],
+   "reg": "Marketing and advertising content must be accurate and must not promise results (RPC 4.2-1) (verify). The consent wording must meet PIPEDA and CASL.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Form",
+     "Practice area",
+     "Status",
+     "Submissions (30d)",
+     "Self-book"
+    ],
+    "rows": [
+     [
+      "Employment intake",
+      "Employment",
+      "Published",
+      "41",
+      "Yes"
+     ],
+     [
+      "Personal injury",
+      "Personal injury",
+      "Published",
+      "27",
+      "No"
+     ],
+     [
+      "Wills & estates",
+      "Estates",
+      "Draft",
+      "0",
+      "Yes"
+     ],
+     [
+      "Real estate purchase",
+      "Real estate",
+      "Pending approval",
+      "0",
+      "Yes"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "lead-inbox",
+   "name": "Lead inbox",
+   "route": "/leads",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Gives one triaged queue of every new inquiry from forms, email, phone notes and referrals.",
+   "layout": "Top bar: filters (source, practice area, urgency, risk flag, assignee, status) and search. Main area: list sorted by urgency, then time-to-limitation, then age. Right: a preview pane with the agent summary and quick actions.",
+   "fields": [
+    {
+     "name": "lead_name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "source",
+     "type": "enum",
+     "required": true,
+     "note": "web form | email | phone note | referral | manual"
+    },
+    {
+     "name": "practice_area",
+     "type": "enum",
+     "required": true,
+     "note": "Classified by the agent, with a confidence score"
+    },
+    {
+     "name": "urgency",
+     "type": "enum",
+     "required": true,
+     "note": "critical | high | normal | low"
+    },
+    {
+     "name": "limitation_flag",
+     "type": "enum",
+     "required": true,
+     "note": "none | watch | at risk | possibly expired | unknown"
+    },
+    {
+     "name": "pre_conflict",
+     "type": "enum",
+     "required": true,
+     "note": "clear | possible hit | hit. Only internal users with conflict permission see the details"
+    },
+    {
+     "name": "assignee",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "received_at",
+     "type": "datetime",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "sla_due",
+     "type": "datetime",
+     "required": true,
+     "note": "First-response target set by urgency"
+    },
+    {
+     "name": "triage_outcome",
+     "type": "enum",
+     "required": true,
+     "note": "new | for_review | ignored. for_review holds referrals from lawyers, third-party lead notices and unclear senders; no auto-reply is sent for these."
+    },
+    {
+     "name": "fit",
+     "type": "enum",
+     "required": false,
+     "note": "good | possible | poor | tbd (agent), with reasons"
+    },
+    {
+     "name": "mobile_layout",
+     "type": "note",
+     "required": false,
+     "note": "At phone width the list sorts by consults today or tomorrow, then good fit"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Open lead",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Assign / reassign",
+     "by": "human",
+     "gate": "none",
+     "note": "The agent proposes an assignee by practice area and load"
+    },
+    {
+     "name": "Merge duplicates",
+     "by": "human",
+     "gate": "none",
+     "note": "The agent proposes merges. A human confirms"
+    },
+    {
+     "name": "Mark spam",
+     "by": "human",
+     "gate": "none",
+     "note": "Deleted after 30 days. The agent can auto-mark obvious bot submissions, and they stay reviewable"
+    },
+    {
+     "name": "Bulk decline",
+     "by": "human",
+     "gate": "approve",
+     "note": "Each declined lead still gets its own non-engagement letter"
+    },
+    {
+     "name": "Show ignored / restore",
+     "by": "human",
+     "gate": "none",
+     "note": "Ignored leads are never deleted; restore puts them back in New"
+    },
+    {
+     "name": "Quick accept: contact only",
+     "by": "human",
+     "gate": "approve",
+     "note": "Creates a contact without a matter, still needs G1 note"
+    },
+    {
+     "name": "Filter: for review",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Triages each arrival within a minute. It classifies practice area and sub-type, scores urgency, computes the limitation flag from the key dates, runs the pre-conflict name screen, dedupes against existing leads and contacts, writes a 3-line summary, and proposes an assignee and the next step.",
+   "gate": "none (triage is advisory. The accept/decline decision happens on Lead detail, G1)",
+   "states": [
+    "empty",
+    "loading",
+    "has new",
+    "all triaged",
+    "filtered: no results",
+    "triage failed (shows a retry and the raw submission)"
+   ],
+   "edge": [
+    "The agent cannot classify the lead: practice area set to 'unclassified', which forces human review",
+    "Key date missing: limitation flag 'unknown', ranked above 'none'",
+    "The same person sends a phone note and a web form: proposed merge",
+    "A lead outside the firm's practice areas: suggest a referral, and it still needs G1 to decline",
+    "SLA breach: escalate to the responsible lawyer and add it to the daily digest",
+    "Lead arrives from an external source with a bad or rotated key: rejected and logged, admin alerted"
+   ],
+   "reg": "Conflict-hit details are restricted to authorized roles. A lead's information stays confidential even after it is declined (RPC 3.3). Audit log of who viewed what.",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "Received",
+     "Lead",
+     "Source",
+     "Area",
+     "Urgency",
+     "Limitation",
+     "Conflict",
+     "Assignee"
+    ],
+    "rows": [
+     [
+      "Oct 10 09:12",
+      "Tsion Haile",
+      "Web form",
+      "Employment / wrongful dismissal",
+      "High",
+      "Watch (approx. 22 mo left)",
+      "Clear",
+      "Ayo Ewebiyi"
+     ],
+     [
+      "Oct 10 08:40",
+      "Daniel Fortier",
+      "Phone note",
+      "Personal injury / MVA",
+      "Critical",
+      "At risk (AB application 30-day window)",
+      "Clear",
+      "Linda Kassim"
+     ],
+     [
+      "Oct 9 17:05",
+      "Grace Mendel",
+      "Email",
+      "Estates / will challenge",
+      "Normal",
+      "Unknown (no date)",
+      "Possible hit",
+      "Unassigned"
+     ],
+     [
+      "Oct 9 11:30",
+      "Ridgeway Bakery Ltd.",
+      "Referral",
+      "Commercial lease",
+      "Normal",
+      "None",
+      "Clear",
+      "Yonathan Degu"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "phone-and-email-capture",
+   "name": "Phone note and email capture",
+   "route": "/leads/new?source=phone|email",
+   "who": [
+    "clerk",
+    "paralegal",
+    "lawyer",
+    "agent"
+   ],
+   "purpose": "Turns a phone call or a forwarded email into a structured lead.",
+   "layout": "Left: raw input (call notes typed live, a transcript upload, or the email thread from the intake mailbox). Right: the structured lead the agent extracts, with each field marked by its source span.",
+   "fields": [
+    {
+     "name": "raw_input",
+     "type": "longtext|file",
+     "required": true,
+     "note": "Notes, a transcript, or the email body and attachments"
+    },
+    {
+     "name": "caller_name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "callback_number",
+     "type": "phone",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "ok_to_leave_message",
+     "type": "bool",
+     "required": true,
+     "note": "Matters for family violence and employment matters"
+    },
+    {
+     "name": "extracted_fields",
+     "type": "Lead fields",
+     "required": true,
+     "note": "Same schema as the public form"
+    },
+    {
+     "name": "taken_by",
+     "type": "ref",
+     "required": true,
+     "note": "Staff member"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Extract lead",
+     "by": "agent",
+     "gate": "none",
+     "note": "Fills the fields and marks low-confidence values"
+    },
+    {
+     "name": "Save as lead",
+     "by": "human",
+     "gate": "none",
+     "note": "Staff confirm the extracted fields"
+    },
+    {
+     "name": "Attach to existing lead",
+     "by": "human",
+     "gate": "none",
+     "note": "For follow-up calls or emails"
+    }
+   ],
+   "agent": "Watches the intake mailbox (a firm address) and builds draft leads from new threads. Extracts parties, dates, location and the ask, and runs the same triage as web leads. A call transcript is parsed only if the caller consented to recording.",
+   "gate": "none",
+   "states": [
+    "empty",
+    "extracting",
+    "needs review",
+    "saved",
+    "extraction failed"
+   ],
+   "edge": [
+    "Email is from an existing client about an open matter: route it to that matter, not the lead inbox",
+    "Email from the opposing counsel or party of a current matter: do not create a lead, alert the responsible lawyer",
+    "Call recorded without consent: the transcript upload is blocked and only staff notes are kept",
+    "Several prospects in one email, such as spouses: propose split leads with a joint-retainer note"
+   ],
+   "reg": "Recording calls needs notice or consent (verify the applicable federal or provincial rule for one-party consent versus PIPEDA notice). Joint retainers need specific disclosure (RPC 3.4-5) (verify).",
+   "mock": {
+    "kind": "detail",
+    "columns": [
+     "Extracted field",
+     "Value",
+     "Confidence"
+    ],
+    "rows": [
+     [
+      "Caller",
+      "Daniel Fortier",
+      "High"
+     ],
+     [
+      "Incident",
+      "Rear-ended on Hwy 401 near Whitby",
+      "High"
+     ],
+     [
+      "Date of accident",
+      "2026-10-02",
+      "High"
+     ],
+     [
+      "Insurer",
+      "Not stated",
+      "-"
+     ],
+     [
+      "OK to leave message",
+      "Yes",
+      "High"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "lead-detail",
+   "name": "Lead detail",
+   "route": "/leads/:leadId",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin",
+    "agent"
+   ],
+   "purpose": "The single page where a lead is reviewed, worked and accepted or declined.",
+   "layout": "Header: name, stage, urgency and limitation chips, assignee, and Accept/Decline/Refer buttons. Left: the agent's triage card (summary, classification, limitation analysis, pre-conflict result, missing info). Centre tabs: Submission, Timeline (all contacts, emails and calls), Documents (quarantined), Notes. Right: next step, tasks and the consultation panel.",
+   "fields": [
+    {
+     "name": "contact",
+     "type": "ref",
+     "required": true,
+     "note": "A prospect Contact, not yet a Client"
+    },
+    {
+     "name": "parties",
+     "type": "list<PartyRole>",
+     "required": true,
+     "note": "Role: prospect, adverse, related, insurer, opposing counsel"
+    },
+    {
+     "name": "practice_area",
+     "type": "enum",
+     "required": true,
+     "note": "The human can override the agent"
+    },
+    {
+     "name": "facts_summary",
+     "type": "longtext",
+     "required": true,
+     "note": "Agent draft that staff can edit"
+    },
+    {
+     "name": "key_dates",
+     "type": "list<DatedEvent>",
+     "required": false,
+     "note": "Incident, discovery, termination, death, notice received"
+    },
+    {
+     "name": "limitation_analysis",
+     "type": "object",
+     "required": true,
+     "note": "{regime, trigger date, expiry estimate, basis, confidence}. Advisory only, and the lawyer confirms it"
+    },
+    {
+     "name": "pre_conflict_result",
+     "type": "ref",
+     "required": true,
+     "note": "Links to the full conflict check (conflicts area) once the lead is accepted"
+    },
+    {
+     "name": "estimated_value",
+     "type": "money",
+     "required": false,
+     "note": "For pipeline metrics"
+    },
+    {
+     "name": "stage",
+     "type": "enum",
+     "required": true,
+     "note": "See CRM pipeline"
+    },
+    {
+     "name": "decision",
+     "type": "enum",
+     "required": false,
+     "note": "accepted | declined | referred | pending"
+    },
+    {
+     "name": "decision_reason",
+     "type": "enum+text",
+     "required": false,
+     "note": "Required on decline: conflict, outside practice, capacity, no merit, other"
+    },
+    {
+     "name": "score",
+     "type": "number",
+     "required": false,
+     "note": "With score version and the factors behind it"
+    },
+    {
+     "name": "timeline",
+     "type": "list",
+     "required": false,
+     "note": "Calls, emails, SMS, form events, bookings; automated reminders included"
+    },
+    {
+     "name": "fit",
+     "type": "enum",
+     "required": false,
+     "note": "good | possible | poor | tbd"
+    },
+    {
+     "name": "fit_reasons",
+     "type": "list",
+     "required": false,
+     "note": "Each reason cites the message or form answer it came from; opens with source highlight"
+    },
+    {
+     "name": "fit_overridden_by",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "payment_status",
+     "type": "enum",
+     "required": false,
+     "note": "none | requested | paid to trust | refunded"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Accept lead (G1)",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer only. Opens the formal conflict check and allows a consult to be booked"
+    },
+    {
+     "name": "Decline lead (G1)",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer approves the drafted non-engagement letter, which is then sent"
+    },
+    {
+     "name": "Refer out",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer picks a referral firm, and the agent drafts the referral note. Referral fee rules are checked"
+    },
+    {
+     "name": "Request missing info",
+     "by": "agent",
+     "gate": "none",
+     "note": "Sends a templated, advice-free question to the prospect (for example 'what date were you terminated?')"
+    },
+    {
+     "name": "Override classification / limitation",
+     "by": "human",
+     "gate": "none",
+     "note": "Logged with the reason"
+    },
+    {
+     "name": "Log call / email",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Send questionnaire",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Text the lead",
+     "by": "human",
+     "gate": "none",
+     "note": "Only if SMS consent recorded"
+    },
+    {
+     "name": "Take over from agent",
+     "by": "human",
+     "gate": "none",
+     "note": "Stops all agent screening and sequences for this lead permanently; logged"
+    },
+    {
+     "name": "Request retainer or consult payment",
+     "by": "human",
+     "gate": "approve",
+     "note": "Payment link through the trust payment provider. Money for future services is deposited to trust as client money, never as earned. A refund needs G-fee."
+    },
+    {
+     "name": "Reply to SMS",
+     "by": "human",
+     "gate": "none",
+     "note": "SMS is two-way: inbound replies attach to the timeline; STOP/ARRET opts out on all channels"
+    }
+   ],
+   "agent": "Keeps the triage card current as new info arrives. Drafts the follow-up questions, the non-engagement letter and the referral note. Recomputes the limitation flag whenever a date changes. Never sends anything that could read as advice without the gate.",
+   "gate": "G1: a lawyer accepts, declines or refers the lead. On decline or refer, the lawyer approves the exact non-engagement or referral letter text.",
+   "states": [
+    "new",
+    "triaged",
+    "awaiting info",
+    "pending decision (G1)",
+    "accepted",
+    "declined",
+    "referred",
+    "merged",
+    "spam",
+    "for review",
+    "agent stopped (taken over)"
+   ],
+   "edge": [
+    "Pre-conflict 'hit': Accept is disabled until the conflict lead reviews it. Staff can still decline, and the decline letter reveals nothing about the conflict",
+    "Limitation 'possibly expired': show a banner, and the decline letter must state that a limitation period may apply and urge prompt independent advice",
+    "Prospect stops responding: the agent schedules follow-ups and proposes 'closed - no response' after N attempts, which still needs G1 with a letter",
+    "Prospect asks for advice by email before acceptance: the agent drafts a holding reply. A lawyer must approve anything substantive",
+    "Lead reopened after a decline: a new G1 is required",
+    "Lead pays a retainer then is declined at G1: refund goes through G-fee; the trust record stays"
+   ],
+   "reg": "Non-engagement (declining) letters are a LawPRO risk-management recommendation, and they should mention any limitation-period risk (verify LawPRO guidance). RPC 3.3 confidentiality applies, and information received may disqualify the firm from acting against the prospect (RPC 3.4) (verify). Referral fees are allowed only under RPC 3.6-6.1 conditions (written agreement, client consent, not to non-licensees) (verify). Limitations Act, 2002 (Ontario): basic 2 years from discovery, ultimate 15 years. Some claims have shorter notice periods.",
+   "mock": {
+    "kind": "detail",
+    "columns": [
+     "Section",
+     "Content"
+    ],
+    "rows": [
+     [
+      "Summary",
+      "Tsion Haile, 6-yr warehouse supervisor at Northgate Logistics, terminated 2026-08-29 without cause. Offered 2 weeks pay. Wants advice on severance."
+     ],
+     [
+      "Classification",
+      "Employment > wrongful dismissal (0.94)"
+     ],
+     [
+      "Limitation",
+      "Basic 2-yr period from 2026-08-29 -> est. 2028-08-29. ESA complaint route also possible (verify window). Flag: watch"
+     ],
+     [
+      "Pre-conflict",
+      "Clear: no match for Northgate Logistics Inc. or Brian Ostrowski"
+     ],
+     [
+      "Missing",
+      "Written termination letter; employment contract; age and role"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "crm-pipeline",
+   "name": "Intake pipeline board",
+   "route": "/leads/pipeline",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin",
+    "agent"
+   ],
+   "purpose": "Shows every open lead by stage so nothing stalls between inquiry and retainer.",
+   "layout": "A board with one column per stage, each column showing a count and value total. Cards show the name, area, days in stage, the next follow-up and the limitation chip. The top has a switcher for pipeline (per practice area), filters, and a stuck-leads toggle.",
+   "fields": [
+    {
+     "name": "stage",
+     "type": "enum",
+     "required": true,
+     "note": "Default: New -> Triaged -> Accepted (G1) -> Conflict cleared (G2) -> Consult booked -> Consult held -> Retain decided (G3) -> Engagement sent -> Converted. Lost and Declined are side lanes. Firms can rename stages but not remove the gate stages"
+    },
+    {
+     "name": "days_in_stage",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "next_follow_up",
+     "type": "datetime",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "lost_reason",
+     "type": "enum",
+     "required": false,
+     "note": "Chose another firm | price | no response | not a fit | timing"
+    },
+    {
+     "name": "filters",
+     "type": "list",
+     "required": false,
+     "note": "needs attention (new and untouched, sequence error, SLA breach, stalled over N days), first-touch source, value band, my leads only (default)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Move card",
+     "by": "human",
+     "gate": "none",
+     "note": "Moves into gate stages (Accepted, Conflict cleared, Retain decided) only happen through the gate action, not by dragging"
+    },
+    {
+     "name": "Auto-advance",
+     "by": "agent",
+     "gate": "none",
+     "note": "Moves the card when evidence lands: a consult booked or held, the engagement letter sent or signed"
+    },
+    {
+     "name": "Mark lost",
+     "by": "human",
+     "gate": "approve",
+     "note": "If the lead was accepted, a lawyer approves the closing non-engagement letter"
+    },
+    {
+     "name": "Edit stages",
+     "by": "human",
+     "gate": "none",
+     "note": "Admin only"
+    },
+    {
+     "name": "Hire",
+     "by": "human",
+     "gate": "approve",
+     "note": "Card quick action; opens G1 accept"
+    },
+    {
+     "name": "Not hired",
+     "by": "human",
+     "gate": "none",
+     "note": "lost_reason required"
+    }
+   ],
+   "agent": "Moves cards on evidence. Flags leads stuck past a stage SLA. Drafts and sends follow-up nudges from approved templates within the consent scope. Puts a limitation-at-risk lead at the top of its column.",
+   "gate": "none on the board itself (gate stages are entered only through G1, G2 and G3)",
+   "states": [
+    "empty pipeline",
+    "normal",
+    "stuck leads highlighted",
+    "filtered"
+   ],
+   "edge": [
+    "Someone drags a card into a gate column: rejected with a link to the gate action",
+    "Lead converted by a different lawyer than the assignee: originating and responsible lawyer are recorded separately",
+    "Two pipelines claim the same lead after reclassification: the lead moves pipelines and keeps its history"
+   ],
+   "reg": "Follow-up emails to prospects: CASL implied consent from the inquiry is time-limited (verify the 6-month inquiry rule). Do not send marketing after an opt-out.",
+   "mock": {
+    "kind": "board",
+    "columns": [
+     "New",
+     "Accepted",
+     "Conflict cleared",
+     "Consult booked",
+     "Retain decided",
+     "Engagement sent"
+    ],
+    "rows": [
+     [
+      "Grace Mendel (estates, 1d)",
+      "Tsion Haile (employment, 0d)",
+      "Daniel Fortier (PI, 0d)",
+      "Ridgeway Bakery Ltd. (lease, 3d)",
+      "Samuel Okafor (real estate, 1d)",
+      "Priya Raman (family, 2d)"
+     ],
+     [
+      "Marcus Bell (unclassified, 0d)",
+      "",
+      "",
+      "Hanna Wolde (employment, 6d, stuck)",
+      "",
+      ""
+     ]
+    ]
+   }
+  },
+  {
+   "id": "consultation-booking",
+   "name": "Consultation scheduler",
+   "route": "/consultations (staff) and /book/:firmSlug/:token (prospect)",
+   "who": [
+    "lawyer",
+    "clerk",
+    "client",
+    "agent"
+   ],
+   "purpose": "Books, reminds and runs consultations, with an optional consult fee.",
+   "layout": "Staff view: a calendar of lawyer availability with consult slots and a list of upcoming consults with their pre-consult brief status. Prospect view: pick the consult type, lawyer (optional) and slot, then confirm and pay if there is a fee.",
+   "fields": [
+    {
+     "name": "lead",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "lawyer",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "consult_type",
+     "type": "enum",
+     "required": true,
+     "note": "free 15 min | paid 60 min | follow-up, configured by the firm"
+    },
+    {
+     "name": "mode",
+     "type": "enum",
+     "required": true,
+     "note": "in person | video | phone"
+    },
+    {
+     "name": "start",
+     "type": "datetime",
+     "required": true,
+     "note": "Firm time zone (America/Toronto)"
+    },
+    {
+     "name": "duration_min",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "consult_fee",
+     "type": "money",
+     "required": false,
+     "note": "Plus HST"
+    },
+    {
+     "name": "fee_status",
+     "type": "enum",
+     "required": false,
+     "note": "none | pending | paid | refunded | waived"
+    },
+    {
+     "name": "video_link",
+     "type": "url",
+     "required": false,
+     "note": "Generated"
+    },
+    {
+     "name": "reminders",
+     "type": "list<datetime>",
+     "required": false,
+     "note": "Default 24h and 1h before"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Propose slots",
+     "by": "agent",
+     "gate": "none",
+     "note": "Uses lawyer availability, urgency and the limitation flag. Critical leads get the earliest slots"
+    },
+    {
+     "name": "Book",
+     "by": "human",
+     "gate": "none",
+     "note": "Staff or the prospect. Allowed only after G1 and once the pre-conflict screen is not a 'hit'"
+    },
+    {
+     "name": "Reschedule / cancel",
+     "by": "human",
+     "gate": "none",
+     "note": "Cancelling a paid consult triggers a refund decision"
+    },
+    {
+     "name": "Waive or refund fee",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer or admin"
+    },
+    {
+     "name": "Send reminders",
+     "by": "agent",
+     "gate": "G-SK",
+     "note": "Only from a template approved under G-SK and on its approved cadence; any other text needs staff approval. Respects 'ok to leave message'"
+    }
+   ],
+   "agent": "Proposes and holds slots, sends confirmations and reminders, and collects any missing documents before the consult. Writes a pre-consult brief for the lawyer: facts, parties, timeline, limitation analysis, open questions, and a checklist for the consult.",
+   "gate": "Only a fee waiver or refund needs approval. Booking itself is unblocked once G1 (and the pre-conflict screen) allow it.",
+   "states": [
+    "no availability",
+    "slot held",
+    "booked",
+    "reminded",
+    "held",
+    "no-show",
+    "cancelled",
+    "rescheduled"
+   ],
+   "edge": [
+    "Prospect books then the formal conflict check (G2) finds a conflict: the agent cancels with a neutral message, refunds the fee, and a lawyer approves the letter",
+    "No-show: the agent sends one rebooking offer and moves the lead to Lost after the firm's policy period",
+    "Time zone mismatch for a prospect outside Ontario: show both time zones",
+    "Prospect pays by card: the fee goes to the operating account if it is earned at the consult, or to trust if it is paid in advance for future work (verify the firm policy and BL9 treatment)"
+   ],
+   "reg": "A consult fee paid before the service is money received in advance of services and may need to go to trust under By-Law 9 (verify). Card processing fees must never be drawn from trust (verify). HST applies to consult fees. Identity: no ID verification is needed until funds move or the matter opens (By-Law 7.1) (verify the exemption for a fee paid by card from the client).",
+   "mock": {
+    "kind": "calendar",
+    "columns": [
+     "Time",
+     "Lawyer",
+     "Prospect",
+     "Type",
+     "Mode",
+     "Fee",
+     "Brief"
+    ],
+    "rows": [
+     [
+      "Oct 14 10:00",
+      "Linda Kassim",
+      "Daniel Fortier",
+      "Free 30 min",
+      "Video",
+      "-",
+      "Ready"
+     ],
+     [
+      "Oct 14 14:00",
+      "Ayo Ewebiyi",
+      "Tsion Haile",
+      "Paid 60 min",
+      "In person",
+      "$250 + HST paid",
+      "Drafting"
+     ],
+     [
+      "Oct 15 11:30",
+      "Yonathan Degu",
+      "Ridgeway Bakery Ltd.",
+      "Paid 60 min",
+      "Phone",
+      "$300 + HST pending",
+      "Waiting on lease copy"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "consult-outcome",
+   "name": "Consultation outcome",
+   "route": "/consultations/:consultId/outcome",
+   "who": [
+    "lawyer",
+    "agent"
+   ],
+   "purpose": "Records what happened at the consult and the lawyer's retain, decline or refer decision.",
+   "layout": "Left: the agent-drafted consult note, built from the lawyer's dictation or notes. Right: a decision panel (retain, decline, refer, follow-up needed), scope summary, proposed fee arrangement, and the documents generated next (engagement letter draft or non-engagement letter).",
+   "fields": [
+    {
+     "name": "consult_note",
+     "type": "longtext",
+     "required": true,
+     "note": "Facts confirmed, advice given at the consult, and next steps. Stored in the matter or lead file, never in platform logs"
+    },
+    {
+     "name": "decision",
+     "type": "enum",
+     "required": true,
+     "note": "retain | decline | refer | follow-up"
+    },
+    {
+     "name": "scope",
+     "type": "text",
+     "required": false,
+     "note": "Required if retaining. Mark full or limited scope"
+    },
+    {
+     "name": "fee_arrangement",
+     "type": "enum",
+     "required": false,
+     "note": "hourly | flat | contingency | blended"
+    },
+    {
+     "name": "retainer_amount",
+     "type": "money",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "limitation_confirmed",
+     "type": "date|text",
+     "required": true,
+     "note": "The lawyer confirms or corrects the agent's limitation estimate. It then feeds the matter deadlines"
+    },
+    {
+     "name": "advice_given_summary",
+     "type": "text",
+     "required": false,
+     "note": "Important if declining after advice was given"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Draft note from dictation",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Approve outcome (G3)",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "Lawyer signs off on the note and the decision"
+    },
+    {
+     "name": "Generate engagement letter draft",
+     "by": "agent",
+     "gate": "none",
+     "note": "Handed to the engagement area (G5)"
+    },
+    {
+     "name": "Generate non-engagement letter",
+     "by": "agent",
+     "gate": "approve",
+     "note": "States what was and was not done and mentions limitation risk"
+    }
+   ],
+   "agent": "Turns rough notes or dictation into a structured note. Proposes scope and fee from the firm's fee schedule. Pre-fills the engagement letter or non-engagement letter. Pushes the confirmed limitation date to the deadlines calendar once the matter opens.",
+   "gate": "G3: a lawyer signs off on the outcome and the confirmed limitation date. On decline or refer, the lawyer also approves the letter.",
+   "states": [
+    "awaiting notes",
+    "draft",
+    "pending sign-off (G3)",
+    "retained",
+    "declined",
+    "referred",
+    "follow-up scheduled"
+   ],
+   "edge": [
+    "Lawyer gave substantive advice at a free consult and then declines: the letter must record that advice was limited to the consult and that no ongoing retainer exists",
+    "Limited-scope retainer chosen: flag that the RPC 3.2-1A requirements apply to the engagement letter",
+    "Contingency fee chosen: flag that the contingency agreement rules apply (verify the current regulation)"
+   ],
+   "reg": "Limited-scope retainer (RPC 3.2-1A) (verify). Contingency fees fall under the Solicitors Act and its contingency fee regulation (verify current O. Reg.). Non-engagement letter practice follows LawPRO (verify).",
+   "mock": {
+    "kind": "doc",
+    "columns": [
+     "Section",
+     "Draft"
+    ],
+    "rows": [
+     [
+      "Decision",
+      "Retain: wrongful dismissal claim against Northgate Logistics Inc."
+     ],
+     [
+      "Scope",
+      "Full scope: demand letter, negotiation, claim if needed"
+     ],
+     [
+      "Fee",
+      "Contingency 25% or hourly at $350. Client to choose"
+     ],
+     [
+      "Limitation",
+      "Confirmed 2028-08-29 (basic period), with a diary note 6 months earlier"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "lead-conversion",
+   "name": "Convert lead to client and matter",
+   "route": "/leads/:leadId/convert",
+   "who": [
+    "lawyer",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Turns a retained lead into a Client contact and an open Matter once every pre-opening gate has cleared.",
+   "layout": "A stepper with a checklist: G1 accepted, G2 conflict cleared, G3 retain decided, G4 ID verified, G5 engagement signed, and an optional G6 retainer in trust. Each step shows its status and a link. The bottom holds a preview of the new matter (number, name, responsible and originating lawyer, practice area, key deadlines).",
+   "fields": [
+    {
+     "name": "client_type",
+     "type": "enum",
+     "required": true,
+     "note": "individual | organization"
+    },
+    {
+     "name": "matter_name",
+     "type": "text",
+     "required": true,
+     "note": "Agent proposes, for example 'Haile v. Northgate Logistics (wrongful dismissal)'"
+    },
+    {
+     "name": "matter_number",
+     "type": "text",
+     "required": true,
+     "note": "Generated from the firm's pattern"
+    },
+    {
+     "name": "responsible_lawyer",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "originating_lawyer",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "practice_area",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "parties",
+     "type": "list<PartyRole>",
+     "required": true,
+     "note": "Copied from the lead, and these feed the conflict database"
+    },
+    {
+     "name": "initial_deadlines",
+     "type": "list<Deadline>",
+     "required": false,
+     "note": "Includes the confirmed limitation date"
+    },
+    {
+     "name": "documents_to_carry",
+     "type": "file[]",
+     "required": false,
+     "note": "Quarantined lead files are released into the matter"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Open matter",
+     "by": "human",
+     "gate": "approve",
+     "note": "Allowed only when G2 and G3 are done. G4 and G5 can be set to 'required before open' or 'before first funds' by firm policy"
+    },
+    {
+     "name": "Prefill matter",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Create portal invite",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Hands off to the client portal area"
+    }
+   ],
+   "agent": "Assembles the matter record from the lead, consult outcome and engagement data. Carries the parties into the conflict index. Creates the limitation deadline with reminders. Proposes the initial task list from the practice-area template.",
+   "gate": "A lawyer approves opening the matter. This is blocked until G2 (conflict cleared) and G3 (retain decided) are done, and until G4 and G5 if the firm policy says so.",
+   "states": [
+    "blocked (gates outstanding)",
+    "ready",
+    "opening",
+    "opened",
+    "failed (rolled back)"
+   ],
+   "edge": [
+    "Contact already exists as a client of another matter: link it, do not duplicate",
+    "Organization client: needs the authorized signatory and the beneficial-ownership info for ID (By-Law 7.1) (verify)",
+    "The engagement letter is signed but the retainer has not arrived: the matter can open while billing stays blocked until G6",
+    "A conversion is undone within 24 hours: archive the matter, with the audit trail kept"
+   ],
+   "reg": "By-Law 7.1 client identification and verification (verify the triggers). RPC 3.4 conflicts must be cleared before acting. Retainer funds go to trust under By-Law 9.",
+   "mock": {
+    "kind": "timeline",
+    "columns": [
+     "Gate",
+     "Status",
+     "By",
+     "When"
+    ],
+    "rows": [
+     [
+      "G1 Lead accepted",
+      "Done",
+      "Ayo Ewebiyi",
+      "Oct 10 09:40"
+     ],
+     [
+      "G2 Conflict cleared",
+      "Done",
+      "Linda Kassim",
+      "Oct 10 11:02"
+     ],
+     [
+      "G3 Retain decided",
+      "Done",
+      "Ayo Ewebiyi",
+      "Oct 14 15:10"
+     ],
+     [
+      "G4 ID verified",
+      "Pending",
+      "Meraf Abay",
+      "-"
+     ],
+     [
+      "G5 Engagement signed",
+      "Sent for e-sign",
+      "-",
+      "Oct 14 16:00"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "intake-dashboard",
+   "name": "Intake dashboard",
+   "route": "/leads/dashboard",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "Shows how well the firm turns inquiries into clients and where leads leak.",
+   "layout": "A KPI row (new leads, median first response, consult booking rate, conversion rate, value retained). Below it: a funnel by stage, a sources table, time-to-respond by urgency, at-risk limitation leads, and an agent triage accuracy panel (human overrides).",
+   "fields": [
+    {
+     "name": "period",
+     "type": "enum",
+     "required": true,
+     "note": "7d | 30d | quarter | custom"
+    },
+    {
+     "name": "practice_area",
+     "type": "enum",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "source",
+     "type": "enum",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "lawyer",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "accept_rate",
+     "type": "number",
+     "required": false,
+     "note": "Leads converted / leads received"
+    },
+    {
+     "name": "chart_type",
+     "type": "enum",
+     "required": false,
+     "note": "bar, line, pie"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Ask a question",
+     "by": "human",
+     "gate": "none",
+     "note": "For example, 'which sources converted best for employment this quarter?' The agent answers with the query behind it"
+    },
+    {
+     "name": "Weekly intake digest",
+     "by": "agent",
+     "gate": "none",
+     "note": "Internal only"
+    },
+    {
+     "name": "Export CSV",
+     "by": "human",
+     "gate": "none",
+     "note": "Aggregates only. No story text"
+    }
+   ],
+   "agent": "Computes the metrics and writes a weekly digest (leaks, SLA breaches, leads at limitation risk, sources trending up or down). Tracks its own classification and urgency accuracy against human overrides.",
+   "gate": "none",
+   "states": [
+    "no data yet",
+    "loaded",
+    "partial (sources not tagged)"
+   ],
+   "edge": [
+    "Small numbers: show counts, not percentages, below n=10",
+    "Referral-source ROI depends on tagging: show the untagged share",
+    "Declined leads count in the funnel but their contents are not shown"
+   ],
+   "reg": "Dashboards show aggregates only. Prospect confidential information is not exposed beyond authorized roles.",
+   "mock": {
+    "kind": "dashboard",
+    "columns": [
+     "Metric",
+     "Last 30 days",
+     "Prior 30 days"
+    ],
+    "rows": [
+     [
+      "New leads",
+      "86",
+      "71"
+     ],
+     [
+      "Median first response",
+      "38 min",
+      "2 h 10 min"
+     ],
+     [
+      "Consult booked rate",
+      "52%",
+      "44%"
+     ],
+     [
+      "Lead -> client conversion",
+      "23%",
+      "19%"
+     ],
+     [
+      "Agent area overrides",
+      "4 of 86",
+      "7 of 71"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "intake-settings",
+   "name": "Intake settings",
+   "route": "/settings/intake",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "One place for the lists and rules every intake screen uses: sources, practice areas, stages, service area, scoring and alerts.",
+   "layout": "Left: section list (Sources, Practice areas, Stages, Service area, Scoring, Notifications, Channels, Connections). Right: editable list for the chosen section with usage counts.",
+   "fields": [
+    {
+     "name": "lead_sources",
+     "type": "list",
+     "required": true,
+     "note": "Name, kind (web, phone, referral person, directory, ad, AI receptionist), active flag; used by reports"
+    },
+    {
+     "name": "practice_areas",
+     "type": "list",
+     "required": true,
+     "note": "Name, default lawyer, default consult type, accept/decline policy text"
+    },
+    {
+     "name": "stages",
+     "type": "list",
+     "required": true,
+     "note": "Name, order, category: intake | retained | not retained; SLA days per stage"
+    },
+    {
+     "name": "service_area",
+     "type": "list",
+     "required": false,
+     "note": "Provinces/cities served; leads outside are flagged, not dropped"
+    },
+    {
+     "name": "scoring_rules",
+     "type": "list",
+     "required": false,
+     "note": "Weighted factors: practice fit, location, value band, urgency, conflict pre-check; threshold for 'hot'"
+    },
+    {
+     "name": "decline_reasons",
+     "type": "list",
+     "required": true,
+     "note": "Controlled list so lost-reason reports are clean"
+    },
+    {
+     "name": "notifications",
+     "type": "matrix",
+     "required": false,
+     "note": "Per user: new lead, lead assigned, SLA breach, booking, payment failed; channel email or in-app"
+    },
+    {
+     "name": "sms_enabled",
+     "type": "bool",
+     "required": false,
+     "note": "Firm-level switch; needs a verified firm number and CASL wording"
+    },
+    {
+     "name": "lead_capture_key",
+     "type": "secret",
+     "required": false,
+     "note": "Per-source key for external web forms and directories; shown once, rotatable, never logged"
+    },
+    {
+     "name": "default_assignee_rule",
+     "type": "enum",
+     "required": true,
+     "note": "round robin | by practice area | fixed person"
+    },
+    {
+     "name": "campaigns",
+     "type": "list",
+     "required": false,
+     "note": "Named campaigns under a source (for example a community radio spot), with optional spend by month (manual or CSV)"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Add / edit / retire list item",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Rotate lead capture key",
+     "by": "human",
+     "gate": "approve",
+     "note": "Admin only; old key keeps working 24h"
+    },
+    {
+     "name": "Suggest scoring weights",
+     "by": "agent",
+     "gate": "none",
+     "note": "From the last 12 months of accepted vs lost leads; human applies"
+    },
+    {
+     "name": "Apply scoring change",
+     "by": "human",
+     "gate": "approve",
+     "note": "Admin; change is versioned so old scores stay explainable"
+    }
+   ],
+   "agent": "Spots unused or duplicate sources ('Google' vs 'google ads') and offers a merge; proposes scoring weights from outcomes.",
+   "gate": "Scoring and key rotation changes need an admin; no client-facing effect so no lawyer gate.",
+   "states": [
+    "defaults loaded",
+    "edited unsaved",
+    "saved"
+   ],
+   "edge": [
+    "A stage is deleted while leads sit in it: must pick a target stage first",
+    "A source is retired but old leads keep it for reports",
+    "Scoring change mid-week makes the dashboard mix old and new scores: show score version"
+   ],
+   "reg": "Scoring must not use protected grounds under the Ontario Human Rights Code (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Stage",
+     "Category",
+     "SLA days",
+     "Leads now"
+    ],
+    "rows": [
+     [
+      "New",
+      "intake",
+      "1",
+      "7"
+     ],
+     [
+      "Consult booked",
+      "intake",
+      "3",
+      "4"
+     ],
+     [
+      "Engagement sent",
+      "intake",
+      "5",
+      "2"
+     ],
+     [
+      "Retained",
+      "retained",
+      "-",
+      "31"
+     ],
+     [
+      "Not retained",
+      "not retained",
+      "-",
+      "18"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "intake-automations",
+   "name": "Intake follow-up sequences",
+   "route": "/settings/intake/sequences/:id",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Build the automatic steps that run after a lead arrives: acknowledge, send questionnaire, offer booking, remind, move stage.",
+   "layout": "Top: trigger and filters. Middle: ordered step list with wait times and stop conditions. Right: preview of each outgoing message and a dry-run log.",
+   "fields": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "trigger",
+     "type": "enum",
+     "required": true,
+     "note": "lead created | stage entered | form submitted | consult booked | engagement unsigned N days"
+    },
+    {
+     "name": "filters",
+     "type": "rules",
+     "required": false,
+     "note": "Practice area, source, score band, language"
+    },
+    {
+     "name": "steps",
+     "type": "list",
+     "required": true,
+     "note": "send email | send SMS | send questionnaire | send booking link | create task | move stage | wait"
+    },
+    {
+     "name": "stop_conditions",
+     "type": "list",
+     "required": true,
+     "note": "Lead replied, booked, declined, retained, opted out; always includes opt-out"
+    },
+    {
+     "name": "quiet_hours",
+     "type": "range",
+     "required": false,
+     "note": "No SMS outside 8am-9pm prospect local time"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "draft | active | paused"
+    },
+    {
+     "name": "version",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "step_types",
+     "type": "enum[]",
+     "required": false,
+     "note": "Adds 'human task' (assignee, due, reminder) that blocks later steps until done, for example run a conflict check"
+    },
+    {
+     "name": "run_state",
+     "type": "enum",
+     "required": false,
+     "note": "Per lead: running | waiting on person | completed | failed | cancelled; the failed step shows on the pipeline card"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Start from a starter sequence",
+     "by": "human",
+     "gate": "none",
+     "note": "Quick intake, screening, full intake"
+    },
+    {
+     "name": "Draft sequence from description",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Dry run on last 20 leads",
+     "by": "agent",
+     "gate": "none",
+     "note": "Shows who would have got what"
+    },
+    {
+     "name": "Activate",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer approves all client-facing wording (G-form)"
+    },
+    {
+     "name": "Pause / resume",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Writes step wording in the firm's voice, checks every message for advice-like content and missing opt-out, and runs the dry run.",
+   "gate": "Lawyer approves the wording of every outbound step before the sequence goes live (G-form).",
+   "states": [
+    "draft",
+    "dry-run done",
+    "pending approval",
+    "active",
+    "paused"
+   ],
+   "edge": [
+    "Two sequences match one lead: highest priority wins, the other is logged as skipped",
+    "Lead opts out by SMS reply 'STOP': all sequences stop on all channels",
+    "Message would go to a party that is the opposing side (shared phone): pre-conflict hit stops automation",
+    "Edits to an active sequence create a new version; running leads finish on their version",
+    "Human task assignee leaves: the step reassigns to the lead's assignee and the run keeps waiting"
+   ],
+   "reg": "CASL: messages to prospects need consent or an inquiry exemption and an unsubscribe in every message (verify). No legal advice before a retainer.",
+   "mock": {
+    "kind": "timeline",
+    "columns": [
+     "Step",
+     "Wait",
+     "Channel",
+     "Stops if"
+    ],
+    "rows": [
+     [
+      "Acknowledge",
+      "0",
+      "email",
+      "-"
+     ],
+     [
+      "Send questionnaire",
+      "0",
+      "email+SMS",
+      "opt-out"
+     ],
+     [
+      "Reminder",
+      "2 days",
+      "SMS",
+      "form submitted"
+     ],
+     [
+      "Offer booking",
+      "on submit",
+      "email",
+      "booked"
+     ],
+     [
+      "Task: call lead",
+      "3 days",
+      "task",
+      "booked"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "ai-receptionist",
+   "name": "AI receptionist (phone and web chat)",
+   "route": "/settings/intake/receptionist and /leads/:leadId/conversation",
+   "who": [
+    "admin",
+    "lawyer",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Agent answers after-hours or overflow calls and website chat, collects facts, screens fit, offers a booking, and hands a lead to the inbox with transcript.",
+   "layout": "Settings tab: hours, greeting, disclosure line, questions per practice area, escalation number. Conversation tab: transcript, summary, extracted fields, fit result, recording.",
+   "fields": [
+    {
+     "name": "channels",
+     "type": "enum[]",
+     "required": true,
+     "note": "phone overflow | after hours | web chat"
+    },
+    {
+     "name": "disclosure_text",
+     "type": "text",
+     "required": true,
+     "note": "Always says it is an automated assistant; firm cannot turn this off"
+    },
+    {
+     "name": "hours_and_forwarding",
+     "type": "schedule",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "question_sets",
+     "type": "ref",
+     "required": true,
+     "note": "Reuses intake form questions per practice area"
+    },
+    {
+     "name": "emergency_rules",
+     "type": "list",
+     "required": true,
+     "note": "Words that trigger a warm transfer or a 911 line, e.g. violence, arrest today"
+    },
+    {
+     "name": "recording_consent",
+     "type": "bool",
+     "required": true,
+     "note": "Caller asked before recording"
+    },
+    {
+     "name": "transcript",
+     "type": "text",
+     "required": false,
+     "note": "Stored in the firm cell; retention per lead policy"
+    },
+    {
+     "name": "summary",
+     "type": "text",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "fit_result",
+     "type": "enum",
+     "required": false,
+     "note": "fit | out of area | out of practice | needs lawyer"
+    },
+    {
+     "name": "pre_conflict",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "reply_signoff",
+     "type": "text",
+     "required": true,
+     "note": "Email and chat sign-off. Must state 'intake assistant, not a lawyer'; publishing it passes G-form."
+    },
+    {
+     "name": "ai_disclosure",
+     "type": "bool",
+     "required": true,
+     "note": "Always on for every channel; cannot be switched off (Clio leaves it to the firm)"
+    },
+    {
+     "name": "email_reply_scope",
+     "type": "note",
+     "required": true,
+     "note": "The agent may reply by email only to collect facts and offer booking. Anything substantive goes to the approval path."
+    },
+    {
+     "name": "practice_area_profiles",
+     "type": "list",
+     "required": false,
+     "note": "Per practice area: required_fields, optional_fields, service_area, booking_enabled, consult_type"
+    },
+    {
+     "name": "faq",
+     "type": "list",
+     "required": false,
+     "note": "Question and answer pairs; each answer passes G-form before it goes live"
+    },
+    {
+     "name": "languages",
+     "type": "enum[]",
+     "required": false,
+     "note": "Primary en; optional fr"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Answer and collect",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Offer consult slot",
+     "by": "agent",
+     "gate": "none",
+     "note": "Only free slots; paid consults send a payment link"
+    },
+    {
+     "name": "Warm transfer",
+     "by": "agent",
+     "gate": "G-SK",
+     "note": "Only to staff on the firm's approved transfer list with the approved script (G-SK); otherwise the agent takes a message"
+    },
+    {
+     "name": "Review conversation",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Correct extracted fields",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Publish script changes",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer approves (G-form)"
+    },
+    {
+     "name": "Suggest criteria from firm website",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Agent drafts profiles and FAQ from the firm site; a lawyer approves (G-form)"
+    },
+    {
+     "name": "Test console",
+     "by": "human",
+     "gate": "none",
+     "note": "Runs the live config in a sandbox for chat, email and phone; never creates real leads"
+    }
+   ],
+   "agent": "Runs the call or chat, never gives legal advice, never states fees beyond the published consult fee, writes lead with transcript and fit score.",
+   "gate": "Script and disclosure wording approved by a lawyer before going live; each lead still goes through G1.",
+   "states": [
+    "off",
+    "test mode",
+    "live",
+    "conversation in progress",
+    "handed off"
+   ],
+   "edge": [
+    "Caller is an existing client: route to their lawyer, do not create a lead",
+    "Caller names an opposing party of a current client: stop collecting facts, take contact only",
+    "Caller is a minor or in crisis: emergency rule, human callback",
+    "Poor audio: agent says so and offers a callback, never guesses a name",
+    "Caller refuses recording: continue without recording, notes only",
+    "Email from a lawyer referring a client: routed to for_review, never auto-answered",
+    "FAQ answer edited but not yet approved: the agent keeps using the last approved answer"
+   ],
+   "reg": "Avoid creating a solicitor-client relationship or giving advice (LSO Rules ch. 3, verify). Disclose automation; recording consent under PIPEDA (verify).",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "Time",
+     "Channel",
+     "Caller",
+     "Fit",
+     "Summary"
+    ],
+    "rows": [
+     [
+      "22:14",
+      "phone",
+      "Tsion Alemu",
+      "fit",
+      "Slip and fall at a grocery store, 3 weeks ago"
+     ],
+     [
+      "23:02",
+      "chat",
+      "R. Okafor",
+      "out of area",
+      "Tenancy dispute in Alberta"
+     ],
+     [
+      "07:41",
+      "phone",
+      "Kidus Haile",
+      "needs lawyer",
+      "Employer ended job yesterday, severance offer by Friday"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "intake-questionnaire-send",
+   "name": "Send intake questionnaire",
+   "route": "/leads/:leadId/questionnaires",
+   "who": [
+    "clerk",
+    "paralegal",
+    "lawyer",
+    "client",
+    "agent"
+   ],
+   "purpose": "Send a prospect a secure, prefilled questionnaire (and later a document request) and track completion.",
+   "layout": "Left: questionnaire picker and preview with prefilled answers. Right: delivery (email/SMS), due date, reminders, status history.",
+   "fields": [
+    {
+     "name": "form",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "prefill",
+     "type": "map",
+     "required": false,
+     "note": "From lead record; prospect can correct"
+    },
+    {
+     "name": "language",
+     "type": "enum",
+     "required": true,
+     "note": "en | fr"
+    },
+    {
+     "name": "channel",
+     "type": "enum[]",
+     "required": true,
+     "note": "email | SMS"
+    },
+    {
+     "name": "due_date",
+     "type": "date",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "reminders",
+     "type": "list",
+     "required": false,
+     "note": "Auto reminders need a due date"
+    },
+    {
+     "name": "link_expiry_days",
+     "type": "number",
+     "required": true,
+     "note": "Default 7; prospect can request a fresh link"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "sent | opened | partial | submitted | expired"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Send",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Remind now",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Resend fresh link",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Save partial answers",
+     "by": "human",
+     "gate": "none",
+     "note": "By the prospect, resume later"
+    },
+    {
+     "name": "Map answers to lead",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Picks the questionnaire for the practice area, prefills it, maps returned answers to lead fields and flags contradictions with earlier notes.",
+   "gate": "none (wording comes from an approved form)",
+   "states": [
+    "not sent",
+    "sent",
+    "opened",
+    "partial",
+    "submitted",
+    "expired"
+   ],
+   "edge": [
+    "Prospect forwards link to someone else: link bound to email/phone code",
+    "Answers conflict with phone notes: both kept, flagged for lawyer",
+    "Form changed after sending: prospect keeps the version sent"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Lead",
+     "Form",
+     "Sent",
+     "Status",
+     "Due"
+    ],
+    "rows": [
+     [
+      "Tsion Alemu",
+      "Personal injury intake",
+      "Oct 6",
+      "partial",
+      "Oct 10"
+     ],
+     [
+      "Hawthorne Bakery Inc.",
+      "Commercial lease",
+      "Oct 7",
+      "submitted",
+      "-"
+     ],
+     [
+      "Kidus Haile",
+      "Employment",
+      "Oct 9",
+      "opened",
+      "Oct 11"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "consult-types-settings",
+   "name": "Consultation types and availability",
+   "route": "/settings/consultations/types",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Define bookable consultation types, who takes them, when, and the booking rules behind the public booking page.",
+   "layout": "List of types on the left; editor on the right with availability grid, rules and a live preview of slots for the next two weeks.",
+   "fields": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "lawyers",
+     "type": "ref[]",
+     "required": true,
+     "note": "Pool; booking picks any free one or a named one"
+    },
+    {
+     "name": "duration_min",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "mode",
+     "type": "enum[]",
+     "required": true,
+     "note": "in person | phone | video"
+    },
+    {
+     "name": "weekly_availability",
+     "type": "schedule",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "slot_step_min",
+     "type": "enum",
+     "required": true,
+     "note": "15 | 30 | 60"
+    },
+    {
+     "name": "min_notice_hours",
+     "type": "number",
+     "required": true,
+     "note": "Stops same-day surprise bookings"
+    },
+    {
+     "name": "max_days_ahead",
+     "type": "number",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "buffer_before_min",
+     "type": "number",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "buffer_after_min",
+     "type": "number",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "daily_cap",
+     "type": "number",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "fee",
+     "type": "money",
+     "required": false,
+     "note": "Plus HST; payment hold window, default 10 min, then slot released"
+    },
+    {
+     "name": "questions",
+     "type": "ref",
+     "required": false,
+     "note": "Short pre-booking questions"
+    },
+    {
+     "name": "paused",
+     "type": "bool",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "firm_page_listed",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Create type",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Pause type",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Copy booking link",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Preview slots",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Publish fee or wording change",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-form / G-fee"
+    }
+   ],
+   "agent": "Warns when availability is too thin for current lead volume and when calendar sync is broken.",
+   "gate": "Lawyer or admin approves fee and public wording changes.",
+   "states": [
+    "draft",
+    "live",
+    "paused"
+   ],
+   "edge": [
+    "Calendar sync down: booking page shows 'call us' instead of stale slots",
+    "All-day event or holiday blocks the day",
+    "Prospect time zone differs: shown in prospect's zone, stored UTC",
+    "Payment not finished in the hold window: slot released, lead keeps a 'payment abandoned' note"
+   ],
+   "reg": "Consult fee receipts and HST (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Type",
+     "Length",
+     "Mode",
+     "Fee",
+     "Lawyers"
+    ],
+    "rows": [
+     [
+      "Family intro",
+      "30 min",
+      "video",
+      "$0",
+      "Ayo Ewebiyi"
+     ],
+     [
+      "Real estate review",
+      "45 min",
+      "in person",
+      "$150",
+      "Linda Kassim"
+     ],
+     [
+      "Employment strategy",
+      "60 min",
+      "phone, video",
+      "$250",
+      "Linda Kassim, Yonathan Degu"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "referral-sources-report",
+   "name": "Referral and source report",
+   "route": "/leads/reports/sources",
+   "who": [
+    "lawyer",
+    "admin"
+   ],
+   "purpose": "Shows which people and channels send leads, how many become retained matters, and the fees they produced.",
+   "layout": "Toggle: by referrer person | by source. Table with drill-down to the leads; bar chart above; CSV export.",
+   "fields": [
+    {
+     "name": "period",
+     "type": "daterange",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "group_by",
+     "type": "enum",
+     "required": true,
+     "note": "referrer | source | practice area Adds: campaign; first touch vs any touch."
+    },
+    {
+     "name": "leads",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "retained",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "not_retained",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "conversion_pct",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "est_value",
+     "type": "money",
+     "required": false,
+     "note": "From lead estimate"
+    },
+    {
+     "name": "billed",
+     "type": "money",
+     "required": false,
+     "note": "From billing area, once retained"
+    },
+    {
+     "name": "spend",
+     "type": "money",
+     "required": false,
+     "note": "Optional, per source or campaign; enables cost per retained matter"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Drill into leads",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Export CSV",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Draft thank-you note to referrer",
+     "by": "agent",
+     "gate": "approve",
+     "note": "No client names without consent"
+    }
+   ],
+   "agent": "Writes a monthly note on which sources are rising or falling and suggests thank-you notes for top referrers.",
+   "gate": "Thank-you notes are approved before sending; they must not reveal the client.",
+   "states": [
+    "empty",
+    "populated"
+   ],
+   "edge": [
+    "Referral from another lawyer with a referral fee: flag for the referral-fee rules",
+    "Lead merged: counted once"
+   ],
+   "reg": "Referral fees to other licensees are regulated (LSO Rules 3.6-6 to 3.6-6.2, verify); no client identity in thank-you notes without consent.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Referrer / source",
+     "Leads",
+     "Retained",
+     "Conv. %",
+     "Billed"
+    ],
+    "rows": [
+     [
+      "Meraf Abay (accountant)",
+      "9",
+      "6",
+      "67%",
+      "$18,400"
+     ],
+     [
+      "Firm website",
+      "41",
+      "12",
+      "29%",
+      "$22,150"
+     ],
+     [
+      "Lawyer directory",
+      "15",
+      "3",
+      "20%",
+      "$4,900"
+     ]
+    ]
+   }
+  }
+ ],
+ "entities": [
+  {
+   "name": "Lead",
+   "fields": [
+    "id",
+    "firm_id",
+    "contact_id",
+    "source",
+    "form_id",
+    "practice_area",
+    "practice_area_confidence",
+    "urgency",
+    "limitation_flag",
+    "limitation_analysis",
+    "pre_conflict_status",
+    "stage",
+    "assignee_id",
+    "estimated_value",
+    "decision",
+    "decision_reason",
+    "decided_by",
+    "decided_at",
+    "sla_due",
+    "received_at",
+    "merged_into",
+    "triage_outcome",
+    "fit",
+    "fit_reasons",
+    "fit_overridden_by",
+    "agent_stopped_at",
+    "campaign_id",
+    "touches",
+    "payment_status"
+   ],
+   "relations": [
+    "Contact (prospect) one",
+    "PartyRole many",
+    "Consultation many",
+    "Communication many",
+    "IntakeSubmission many",
+    "ConflictCheck one (after G1)",
+    "Matter zero-or-one (after conversion)"
+   ]
+  },
+  {
+   "name": "IntakeForm",
+   "fields": [
+    "id",
+    "firm_id",
+    "name",
+    "slug",
+    "practice_area",
+    "field_defs",
+    "auto_ack_template_id",
+    "allow_self_booking",
+    "consult_fee",
+    "status",
+    "approved_by",
+    "approved_at"
+   ],
+   "relations": [
+    "IntakeSubmission many"
+   ]
+  },
+  {
+   "name": "IntakeSubmission",
+   "fields": [
+    "id",
+    "form_id",
+    "lead_id",
+    "channel",
+    "raw_payload_ref",
+    "attachments",
+    "consents",
+    "ip_hash",
+    "submitted_at"
+   ],
+   "relations": [
+    "Lead one",
+    "IntakeForm zero-or-one"
+   ]
+  },
+  {
+   "name": "Contact",
+   "fields": [
+    "id",
+    "type",
+    "name",
+    "aliases",
+    "email",
+    "phone",
+    "ok_to_leave_message",
+    "is_client",
+    "marketing_consent",
+    "consent_log"
+   ],
+   "relations": [
+    "Lead many",
+    "Matter many via Role"
+   ]
+  },
+  {
+   "name": "PartyRole",
+   "fields": [
+    "id",
+    "lead_id|matter_id",
+    "contact_id",
+    "role",
+    "notes"
+   ],
+   "relations": [
+    "Contact one",
+    "Lead or Matter one"
+   ]
+  },
+  {
+   "name": "Consultation",
+   "fields": [
+    "id",
+    "lead_id",
+    "lawyer_id",
+    "type",
+    "mode",
+    "start",
+    "duration_min",
+    "fee",
+    "fee_status",
+    "payment_id",
+    "status",
+    "brief_doc_id",
+    "note_doc_id",
+    "outcome",
+    "signed_off_by",
+    "signed_off_at"
+   ],
+   "relations": [
+    "Lead one",
+    "Payment zero-or-one"
+   ]
+  },
+  {
+   "name": "PipelineStage",
+   "fields": [
+    "id",
+    "pipeline_id",
+    "name",
+    "order",
+    "is_gate",
+    "sla_days"
+   ],
+   "relations": [
+    "Pipeline one"
+   ]
+  },
+  {
+   "name": "Pipeline",
+   "fields": [
+    "id",
+    "firm_id",
+    "practice_area",
+    "name"
+   ],
+   "relations": [
+    "PipelineStage many"
+   ]
+  },
+  {
+   "name": "Communication",
+   "fields": [
+    "id",
+    "lead_id",
+    "channel",
+    "direction",
+    "template_id",
+    "drafted_by_agent",
+    "approved_by",
+    "sent_at",
+    "body_ref"
+   ],
+   "relations": [
+    "Lead one"
+   ]
+  },
+  {
+   "name": "NonEngagementLetter",
+   "fields": [
+    "id",
+    "lead_id",
+    "reason",
+    "limitation_warning",
+    "draft_doc_id",
+    "approved_by",
+    "sent_at"
+   ],
+   "relations": [
+    "Lead one"
+   ]
+  },
+  {
+   "name": "Referral",
+   "fields": [
+    "id",
+    "lead_id",
+    "to_firm",
+    "to_lawyer",
+    "referral_fee_agreement",
+    "client_consent",
+    "approved_by"
+   ],
+   "relations": [
+    "Lead one"
+   ]
+  },
+  {
+   "name": "IntakeSequence",
+   "fields": [
+    "id",
+    "name",
+    "trigger",
+    "filters",
+    "steps",
+    "stop_conditions",
+    "status",
+    "version",
+    "run_state"
+   ],
+   "relations": [
+    "runs for many Lead via SequenceRun"
+   ]
+  },
+  {
+   "name": "ReceptionistConversation",
+   "fields": [
+    "id",
+    "channel",
+    "started_at",
+    "transcript_ref",
+    "summary",
+    "fit_result",
+    "recording_consent"
+   ],
+   "relations": [
+    "creates or updates one Lead"
+   ]
+  },
+  {
+   "name": "ConsultType",
+   "fields": [
+    "id",
+    "name",
+    "duration_min",
+    "modes",
+    "availability",
+    "min_notice_hours",
+    "buffers",
+    "fee",
+    "paused"
+   ],
+   "relations": [
+    "many Lawyer",
+    "has many Consultation"
+   ]
+  },
+  {
+   "name": "LeadSource",
+   "fields": [
+    "id",
+    "name",
+    "kind",
+    "active",
+    "capture_key_hash"
+   ],
+   "relations": [
+    "has many Lead"
+   ]
+  },
+  {
+   "name": "Campaign",
+   "fields": [
+    "id",
+    "source_id",
+    "name",
+    "starts_on",
+    "ends_on",
+    "spend_by_month"
+   ],
+   "relations": [
+    "LeadSource many-to-one",
+    "Lead one-to-many"
+   ]
+  },
+  {
+   "name": "SequenceRun",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by intake relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  }
+ ],
+ "gates": [
+  {
+   "id": "G1",
+   "name": "Accept, decline or refer lead",
+   "approver": "lawyer",
+   "blocks": "Formal conflict check, consultation booking, any substantive communication. On decline or refer, the letter cannot be sent until approved"
+  },
+  {
+   "id": "G2",
+   "name": "Conflict cleared (owned by conflicts area)",
+   "approver": "lawyer",
+   "blocks": "Holding the consultation for substance, and opening the matter"
+  },
+  {
+   "id": "G3",
+   "name": "Consultation outcome sign-off",
+   "approver": "lawyer (consulting)",
+   "blocks": "Engagement letter drafting going out, non-engagement letter, conversion, and the limitation deadline entering the calendar"
+  },
+  {
+   "id": "G-form",
+   "name": "Publish intake form or public wording",
+   "approver": "lawyer or admin",
+   "blocks": "Form going live, and changes to the disclaimer, consent or auto-ack text"
+  },
+  {
+   "id": "G-fee",
+   "name": "Consult fee waiver or refund",
+   "approver": "lawyer or admin",
+   "blocks": "Refund or waiver of a collected consult fee"
+  },
+  {
+   "id": "G-open",
+   "name": "Open matter from lead",
+   "approver": "lawyer",
+   "blocks": "Matter creation, document release from quarantine, and the portal invite"
+  }
+ ],
+ "agent_jobs": [
+  {
+   "name": "Triage new lead",
+   "trigger": "event: lead.created or submission.received",
+   "does": "Classify practice area and sub-type, score urgency, compute the limitation flag, run the pre-conflict name screen, dedupe, summarize, and propose an assignee",
+   "output": "A triage card on the lead, ready for G1"
+  },
+  {
+   "name": "Intake mailbox watcher",
+   "trigger": "event: mail.received on the intake address",
+   "does": "Separate new inquiries from client or matter mail, extract a draft lead, and route other mail",
+   "output": "A draft lead for staff review"
+  },
+  {
+   "name": "Limitation watch",
+   "trigger": "schedule: daily",
+   "does": "Recompute days remaining for open leads. Escalate any under 90 or 30 days, or with critical short notice periods",
+   "output": "Escalation alerts and digest lines, plus a priority bump for G1"
+  },
+  {
+   "name": "Missing-info chaser",
+   "trigger": "event: lead awaiting info; schedule",
+   "does": "Send templated questions, and request documents through a secure upload link",
+   "output": "Updated lead fields"
+  },
+  {
+   "name": "Decline/refer letter drafter",
+   "trigger": "event: lawyer chooses decline or refer",
+   "does": "Draft a non-engagement or referral letter with a limitation warning and no confidential detail",
+   "output": "Draft letter for G1"
+  },
+  {
+   "name": "Pre-consult brief",
+   "trigger": "event: consultation booked; schedule: T-24h refresh",
+   "does": "Build a brief with facts, parties, timeline, limitation analysis, documents, questions to ask and a fee schedule hint",
+   "output": "Brief doc on the consultation"
+  },
+  {
+   "name": "Consult note and outcome",
+   "trigger": "event: consultation ended or dictation uploaded",
+   "does": "Structure the note and propose a decision, scope and fee",
+   "output": "Draft outcome for G3"
+  },
+  {
+   "name": "Pipeline follow-ups",
+   "trigger": "schedule: hourly",
+   "does": "Detect stuck leads and send approved-template nudges within the consent scope",
+   "output": "Sent nudges and a stuck list in the digest"
+  },
+  {
+   "name": "Conversion prefill",
+   "trigger": "event: G3 retained",
+   "does": "Prepare the matter record, parties, deadlines and task template",
+   "output": "Matter draft for G-open"
+  },
+  {
+   "name": "Weekly intake digest",
+   "trigger": "schedule: Monday 08:00 America/Toronto",
+   "does": "Funnel, sources, SLA breaches, at-risk leads and override rate",
+   "output": "Internal digest (no approval)"
+  },
+  {
+   "name": "AI receptionist",
+   "trigger": "event: inbound call or chat",
+   "does": "Answers, discloses automation, collects facts, screens fit, offers slot",
+   "output": "Lead with transcript for G1"
+  },
+  {
+   "name": "Sequence runner",
+   "trigger": "event + schedule",
+   "does": "Runs approved follow-up steps and stops on reply, booking, opt-out",
+   "output": "Messages from approved templates only"
+  }
+ ],
+ "open_questions": [
+  "Should the agent ever show the prospect a limitation warning on the public form (for example, 'some claims have short deadlines, contact us urgently'), or is that too close to advice?",
+  "Is the limitation flag allowed to auto-promote a lead to 'critical' and page the on-call lawyer outside business hours?",
+  "Consult fees: always deposit them to trust first, or let the firm choose to treat a same-day consult fee as earned in operating?",
+  "Which practice areas and short notice periods ship in v1 (for example municipal road notice, Crown notice, accident benefits, HRTO 1-year, ESA complaints)? All need verification against statute.",
+  "Do we record phone intake calls at all in v1, or only staff notes?",
+  "Should G4 (ID) and G5 (engagement signed) be hard prerequisites to open a matter, or firm-configurable as drafted?",
+  "Is a French-language public form required in v1?",
+  "Is LSO Referral Service integration in scope, or just a source tag?",
+  "How long are declined-lead records retained? They are needed for future conflict checks, but they must meet PIPEDA's limits on retention",
+  "Do we run our own AI phone line in v1, or only web chat plus phone notes?",
+  "Should paid consults hold the slot for 10 minutes or longer?",
+  "Email marketing campaigns (segments, consent basis per recipient, unsubscribe, metrics): in scope at all? Needs an owner decision against LSO Rule 4.2 (marketing) and CASL (express or implied consent, expiry, unsubscribe) before any screen is specced.",
+  "Review requests after matter close (reputation dashboard): in scope at all? Needs an owner decision against LSO Rule 4.2 on testimonials and CASL; if yes, off by default, no incentives, ask everyone or no one.",
+  "Agent activity panel plus a monthly cap on agent-handled conversations with an 80% alert? (could)",
+  "Quick Form: staff fill a questionnaire live on the phone, saved with taken_by? (could)",
+  "Self-serve refresh of an expired questionnaire link within N days (default 30)? (could)",
+  "Cap appointment reminders at 5 with firm defaults and auto-created video links? (could)",
+  "Optional analytics hook on the public form and chat (no PII, off by default)? (could)",
+  "Should our receptionist ever reply by email without a human beyond fact collection and booking (Clio does)?"
+ ],
+ "sources": [
+  "https://www.clio.com/clio-grow",
+  "https://www.clio.com/features/online-intake-forms/",
+  "https://help.clio.com/hc/articles/9073499214747",
+  "https://www.practicepanther.com/features/",
+  "https://www.mycase.com/features/client-intake/",
+  "https://www.lso.ca/about-lso/legislation-rules/rules-of-professional-conduct",
+  "https://www.lso.ca/about-lso/legislation-rules/by-laws",
+  "https://www.ontario.ca/laws/statute/02l24",
+  "https://www.ontario.ca/laws/statute/90h19",
+  "https://www.practicepro.ca/practice-aids/",
+  "https://www.priv.gc.ca/en/privacy-topics/privacy-laws-in-canada/the-personal-information-protection-and-electronic-documents-act-pipeda/",
+  "https://help.clio.com/hc/en-us/articles/9290604239003-Manage-Leads-in-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/17770743592219-Clio-Grow-Automated-Workflows",
+  "https://help.clio.com/hc/en-us/articles/9284521443611-Intake-Form-Question-Fields",
+  "https://help.clio.com/hc/en-us/articles/9073499214747-Set-Up-Clio-Grow-Intake-Form-Templates",
+  "https://help.clio.com/hc/en-us/articles/29739406189339-Clio-Grow-Reports",
+  "https://help.clio.com/hc/en-us/articles/14164457325595-Text-Message-Notifications-and-Reminders-in-Clio-Grow",
+  "https://www.clio.com/about/press/grow-ai/",
+  "https://help.clio.com/hc/en-us/articles/52832534769179-Grow-AI-s-Voice-Agent",
+  "https://help.clio.com/hc/en-us/articles/9192379853979-Clio-Scheduler",
+  "https://support.clio.com/hc/en-us/articles/1260800739389-How-Do-I-Set-Up-Advanced-Booking-Settings-in-Clio-Scheduler-",
+  "https://help.clio.com/hc/en-us/articles/55876222702363-Grow-AI-s-Email-Agent",
+  "https://help.clio.com/hc/en-us/articles/55843648105627-Customize-Grow-AI",
+  "https://help.clio.com/hc/en-us/articles/56637189840795-Clio-Mobile-Leads",
+  "https://help.clio.com/hc/en-us/articles/25315194374299-Clio-Grow-Marketing-Sources",
+  "https://help.clio.com/hc/en-us/articles/47739327025051-Request-Payments-in-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/39242840782107-Email-Marketing-in-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/50326611402267-Clio-Grow-Reputation-Management-Dashboard",
+  "https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct"
+ ],
+ "clio_gaps": [
+  {
+   "clio_feature": "Lead inbox with ignored view",
+   "where_in_clio": "Leads > Marketing (Untriaged / Ignored); Leads > Appointments; Leads > Marketing > Remove; Ignored",
+   "status": "added",
+   "note": "Restore from ignored in lead-inbox. 'For review' in Clio is the label for leads its AI routes to people, not a tab; we add triage_outcome for_review. Source: r07-grow | Merged duplicate 'Ignore, mark as spam, restore': lead-inbox. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Lead capture token for external sources",
+   "where_in_clio": "Grow > Settings > Integrations > Lead capture",
+   "status": "added",
+   "note": "lead_capture_key in intake-settings"
+  },
+  {
+   "clio_feature": "Accept as contact only vs quick intake (contact + matter)",
+   "where_in_clio": "Grow > Inbox > Accept menu",
+   "status": "added",
+   "note": "Quick accept contact-only action; full path via lead-conversion"
+  },
+  {
+   "clio_feature": "Intake form templates, question types, follow-up questions, language",
+   "where_in_clio": "Grow > Forms > Templates",
+   "status": "added",
+   "note": "Question types, follow-ups, mapping, en/fr in intake-form-builder"
+  },
+  {
+   "clio_feature": "Public form settings (default stage, type, assignee, sender)",
+   "where_in_clio": "Grow > Forms > template > Public form settings",
+   "status": "added",
+   "note": "defaults field"
+  },
+  {
+   "clio_feature": "Automated workflows (rapid, screening, comprehensive)",
+   "where_in_clio": "Grow > Settings > Automated workflows",
+   "status": "added",
+   "note": "intake-automations with dry run, approval and versioning. Clio: only drafts can be edited (a published one is cancelled and recreated), only admins build them, an assign-task step blocks later steps; we add a human-task step. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Matter statuses with intake/hired/not-hired category",
+   "where_in_clio": "Grow > Settings > Matter statuses",
+   "status": "added",
+   "note": "stages in intake-settings"
+  },
+  {
+   "clio_feature": "Lead sources, contact types, tags",
+   "where_in_clio": "Grow > Settings",
+   "status": "added",
+   "note": "intake-settings"
+  },
+  {
+   "clio_feature": "Pipeline board",
+   "where_in_clio": "Grow > Pipeline",
+   "status": "added",
+   "note": "crm-pipeline | Merged duplicate 'Pipeline board with intake / hired / not-hired': crm-pipeline needs-attention filter + Hire / Not hired. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Text message reminders (fixed templates)",
+   "where_in_clio": "Grow > Settings > Communications",
+   "status": "deliberately different",
+   "note": "We allow firm-written SMS, but every template passes G-form and CASL check | Merged duplicate 'SMS no-reply texts from intake product': Ours is two-way from day one with STOP/ARRET across channels. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Scheduler appointment types, buffers, min notice, increments, pause, firm booking page",
+   "where_in_clio": "Clio Grow > Settings > Appointments > Clio Scheduler appointments",
+   "status": "added",
+   "note": "consult-types-settings"
+  },
+  {
+   "clio_feature": "Paid booking with hold timeout",
+   "where_in_clio": "Scheduler + Payments",
+   "status": "added",
+   "note": "fee + hold window in consult-types-settings"
+  },
+  {
+   "clio_feature": "Referral report, lead source revenue, matters added reports",
+   "where_in_clio": "Grow > Reports",
+   "status": "added",
+   "note": "referral-sources-report; dashboard extended"
+  },
+  {
+   "clio_feature": "Grow AI voice agent, website chat, email agent and follow-ups",
+   "where_in_clio": "Grow > Grow AI",
+   "status": "added",
+   "note": "ai-receptionist; disclosure always on (Clio: firm toggle). Clio's voice agent is US only, so Ontario firms on Clio do not get it. Email agent with for_review routing added. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Outcome-based pricing for AI-assisted hires",
+   "where_in_clio": "Grow AI billing",
+   "status": "deliberately different",
+   "note": "Pricing is out of spec scope; open question for owner"
+  },
+  {
+   "clio_feature": "Notification: email me on new lead",
+   "where_in_clio": "Grow > Settings > Personal",
+   "status": "added",
+   "note": "notifications matrix"
+  },
+  {
+   "clio_feature": "Grow AI fit assessment with human override",
+   "where_in_clio": "Lead detail > Review assessment",
+   "status": "added",
+   "note": "fit, fit_reasons, fit_overridden_by. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Take over screening from AI (per lead)",
+   "where_in_clio": "Clio mobile > Leads > lead",
+   "status": "added",
+   "note": "Take over from agent on lead-detail. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Grow AI intake criteria per practice area, FAQ, languages, import from website, test panel",
+   "where_in_clio": "Settings > Grow AI",
+   "status": "added",
+   "note": "ai-receptionist profiles, faq, languages, test console. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Grow AI cost controls and activity log",
+   "where_in_clio": "Settings > Subscription > Billing | Activity",
+   "status": "deliberately different",
+   "note": "No per-hire fee; activity panel and monthly cap are an open question. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Firm-wide AI off switch",
+   "where_in_clio": "Settings > Account > AI settings",
+   "status": "already covered",
+   "note": "receptionist states off / test / live. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Appointment lead accept / ignore-and-cancel",
+   "where_in_clio": "Leads > Appointments",
+   "status": "already covered",
+   "note": "consultation-booking + lead-inbox. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Send form, Quick Form, due dates, reminders, link expiry",
+   "where_in_clio": "Matter > Intake process; Forms > Pending; Grow > Matter > Intake process",
+   "status": "added",
+   "note": "intake-questionnaire-send; staff-fill Quick Form is an open question. Source: r07-grow | Merged duplicate 'Send intake form to existing lead with reminders': intake-questionnaire-send"
+  },
+  {
+   "clio_feature": "Communication templates, email sequences, checklists",
+   "where_in_clio": "Settings > Communication templates / sequences",
+   "status": "already covered",
+   "note": "intake-automations. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Grow dashboard",
+   "where_in_clio": "Dashboard",
+   "status": "already covered",
+   "note": "intake-dashboard. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Marketing sources and campaigns (attribution)",
+   "where_in_clio": "Settings > Marketing > Sources / Campaigns",
+   "status": "added",
+   "note": "intake-settings campaigns, Lead.campaign_id and touches, report spend. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Email marketing campaigns",
+   "where_in_clio": "Marketing > Create campaign",
+   "status": "deliberately different",
+   "note": "Not specced: owner decision needed (LSO Rule 4.2, CASL). See open questions. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Reputation management (review requests)",
+   "where_in_clio": "Reputation (left nav)",
+   "status": "deliberately different",
+   "note": "Not specced: owner decision needed (LSO Rule 4.2 on testimonials, CASL). See open questions. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Google Local Services Ads",
+   "where_in_clio": "Settings > Marketing > Marketing channels",
+   "status": "deliberately different",
+   "note": "US only; not in scope. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Website builder",
+   "where_in_clio": "Settings > Logo & letterhead / Website",
+   "status": "deliberately different",
+   "note": "Not in scope; optional analytics hook is an open question. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Appointment reminders",
+   "where_in_clio": "Settings > Appointments > Automated reminders",
+   "status": "already covered",
+   "note": "consult-types-settings reminders. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Request payment from a lead before conversion",
+   "where_in_clio": "Matter > Intake process > Request payment",
+   "status": "added",
+   "note": "lead-detail payment request to trust. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Intake documents and e-signature",
+   "where_in_clio": "Matter > Intake process > Prepare document",
+   "status": "already covered",
+   "note": "documents engagement-letter-composer + signature-request. Source: r07-grow"
+  },
+  {
+   "clio_feature": "Mobile lead triage",
+   "where_in_clio": "Clio mobile > Leads",
+   "status": "added",
+   "note": "lead-inbox mobile layout. Source: r07-grow"
+  }
+ ]
+}

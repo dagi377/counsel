@@ -1,0 +1,3564 @@
+{
+ "billing/billing-home": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/pre-bill-review": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/invoice-editor": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/bill-delivery": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/trust-to-fees": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/payments-inbox": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": []
+ },
+ "billing/online-payment-page": {
+  "view": [
+   "client"
+  ],
+  "act": [
+   "client"
+  ],
+  "approve": []
+ },
+ "billing/retainer-requests": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/receivables-aging": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/collections-reminders": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/credit-notes": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/billing-reports": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper"
+  ],
+  "approve": []
+ },
+ "billing/bill-settings": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/bill-themes": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/batch-billing": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/split-billing": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/ledes-export": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/payment-plans": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "billing/payment-settings": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "conflicts/conflict-check-new": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "conflicts/conflict-results": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "conflicts/conflict-clearance": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "conflicts/consents-waivers": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "conflicts/conflicts-register": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "conflicts/client-identification": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "client"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal"
+  ]
+ },
+ "conflicts/organization-identification": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "conflicts/identity-portal": {
+  "view": [
+   "client"
+  ],
+  "act": [
+   "client"
+  ],
+  "approve": []
+ },
+ "conflicts/ethical-walls": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "conflicts/lateral-hire-intake": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "admin",
+   "lawyer",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "conflicts/compliance-audit-log": {
+  "view": [
+   "owner",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [],
+  "approve": []
+ },
+ "conflicts/id-retention-register": {
+  "view": [
+   "owner",
+   "lawyer",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "conflicts/conflict-search-settings": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "conflicts/quick-name-search": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "conflicts/party-records-hygiene": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "deadlines/deadline-dashboard": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "deadlines/firm-calendar": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "deadlines/matter-deadlines": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "deadlines/extraction-review": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "deadlines/second-check-queue": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal"
+  ]
+ },
+ "deadlines/limitation-assessment": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "deadlines/rule-trigger-wizard": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "deadlines/deadline-detail": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "deadlines/reminder-policy": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "associate",
+   "paralegal"
+  ],
+  "act": [
+   "owner",
+   "admin",
+   "lawyer"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "deadlines/rule-pack-admin": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "admin"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "deadlines/calendar-sync": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "approve": []
+ },
+ "deadlines/calendar-settings": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "deadlines/event-detail": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/engagement-letter-composer": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/signature-request": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/client-signing": {
+  "view": [
+   "client"
+  ],
+  "act": [
+   "client"
+  ],
+  "approve": []
+ },
+ "documents/matter-documents": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/document-viewer": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/document-search": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [],
+  "approve": []
+ },
+ "documents/template-library": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin"
+  ],
+  "act": [
+   "owner",
+   "admin",
+   "lawyer"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "documents/document-assembly": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/ai-draft-workspace": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/document-review": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/precedent-library": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "documents/email-filing": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/client-sharing": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/document-trash": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/document-settings": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/multi-document-analysis": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "documents/bundle-builder": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "intake/public-intake-form": {
+  "view": [
+   "client"
+  ],
+  "act": [
+   "client"
+  ],
+  "approve": []
+ },
+ "intake/intake-form-builder": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "associate",
+   "paralegal"
+  ],
+  "act": [
+   "owner",
+   "admin",
+   "lawyer"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "intake/lead-inbox": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "intake/phone-and-email-capture": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "intake/lead-detail": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "intake/crm-pipeline": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "intake/consultation-booking": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "client"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "client"
+  ],
+  "approve": []
+ },
+ "intake/consult-outcome": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "intake/lead-conversion": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "intake/intake-dashboard": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk"
+  ],
+  "act": [],
+  "approve": []
+ },
+ "intake/intake-settings": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "intake/intake-automations": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "intake/ai-receptionist": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "intake/intake-questionnaire-send": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "intake/consult-types-settings": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "intake/referral-sources-report": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "matters/firm-home": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [],
+  "approve": []
+ },
+ "matters/matter-list": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk"
+  ],
+  "approve": []
+ },
+ "matters/matter-stage-board": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "matters/matter-open-wizard": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "matters/matter-overview": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "matters/matter-parties": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "matters/matter-notes-activity": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "matters/matter-financial-summary": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper"
+  ],
+  "approve": []
+ },
+ "matters/contact-list": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "bookkeeper",
+   "admin"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": []
+ },
+ "matters/contact-detail": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": []
+ },
+ "matters/practice-area-settings": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer"
+  ],
+  "act": [
+   "owner",
+   "admin"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "matters/global-search": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [],
+  "approve": []
+ },
+ "matters/matter-templates": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "matters/matter-numbering": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "matters/matter-access": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "matters/contact-import": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "matters/contact-field-settings": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "matters/firm-feed": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/client-portal": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "client"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "client"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "platform/esign-request": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "client"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "client"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "platform/comms-log": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/approvals-inbox": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "bookkeeper"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal"
+  ]
+ },
+ "platform/agent-activity": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer"
+  ],
+  "approve": []
+ },
+ "platform/ask-agent": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "admin",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "bookkeeper"
+  ],
+  "approve": []
+ },
+ "platform/automation-settings": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "admin"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "platform/reports": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper"
+  ],
+  "approve": []
+ },
+ "platform/matter-closing": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/archive-retention": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "admin",
+   "lawyer",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/users-roles": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "admin"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "platform/firm-profile": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "admin"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "platform/integrations-data": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "admin"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "platform/report-catalogue": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/custom-report-builder": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/firm-insights": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/text-messaging": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/internal-messages": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/mail-add-in": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/notification-settings": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/portal-settings": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/api-and-webhooks": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/account-subscription": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "platform/research-workspace": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "time/my-time": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin"
+  ],
+  "approve": []
+ },
+ "time/suggested-entries": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": []
+ },
+ "time/time-entry-detail": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "time/expenses": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "time/rates": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "bookkeeper"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "time/matter-fee-arrangement": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "time/matter-wip": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "time/write-downs": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "time/timesheet-approval": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "time/utilization": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper"
+  ],
+  "act": [],
+  "approve": []
+ },
+ "time/activity-list": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "time/activity-categories": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "time/time-settings": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "time/timekeeper-targets": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "trust/trust-overview": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "trust/trust-accounts": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [
+   "owner"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "trust/client-trust-ledger": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": []
+ },
+ "trust/trust-receipts-journal": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "trust/trust-disbursements-journal": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "trust/withdrawal-request": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "trust/trust-transfers": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "trust/bank-feed-import": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "trust/monthly-reconciliation": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "trust/lso-annual-report": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "trust/trust-audit-trail": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor"
+  ],
+  "act": [],
+  "approve": []
+ },
+ "trust/matter-trust-settings": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "trust/trust-reports": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "trust/trust-balance-clearance": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "trust/general-account-books": {
+  "view": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "auditor",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "bookkeeper",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "work/work-board": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "work/work-list": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "work/work-item": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "work/work-item-create": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "work/my-work": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "work/approval-queue": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "bookkeeper"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal"
+  ]
+ },
+ "work/workload": {
+  "view": [
+   "owner",
+   "lawyer"
+  ],
+  "act": [],
+  "approve": []
+ },
+ "work/saved-filters": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "work/matter-work-tab": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "work/workflow-editor": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "associate",
+   "paralegal"
+  ],
+  "act": [
+   "owner",
+   "admin",
+   "lawyer"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "work/workflow-templates": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk"
+  ],
+  "act": [
+   "owner",
+   "admin",
+   "lawyer"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "work/external-sync": {
+  "view": [
+   "owner",
+   "admin",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "admin"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "work/work-automations": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "work/work-categories": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "work/work-reports": {
+  "view": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk",
+   "agent",
+   "admin",
+   "bookkeeper"
+  ],
+  "approve": [
+   "owner",
+   "lawyer",
+   "associate"
+  ]
+ },
+ "access/roles-list": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "admin"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "access/role-editor": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "admin"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "access/user-list": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "admin"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "access/user-detail": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "admin"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "access/matter-access": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "associate",
+   "paralegal",
+   "clerk"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "associate"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "access/restricted-walls": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "access/duty-rules": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "agent"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "access/break-glass": {
+  "view": [
+   "owner",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "lawyer"
+  ],
+  "approve": [
+   "owner"
+  ]
+ },
+ "access/access-review": {
+  "view": [
+   "owner",
+   "admin",
+   "lawyer",
+   "auditor"
+  ],
+  "act": [
+   "owner",
+   "admin",
+   "lawyer",
+   "agent"
+  ],
+  "approve": [
+   "owner",
+   "lawyer"
+  ]
+ },
+ "access/access-audit": {
+  "view": [
+   "owner",
+   "admin",
+   "auditor"
+  ],
+  "act": [],
+  "approve": []
+ }
+}

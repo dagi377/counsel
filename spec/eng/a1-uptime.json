@@ -1,0 +1,595 @@
+{
+ "slos": [
+  {
+   "id": "SLO-01",
+   "name": "Cell web/API availability",
+   "sli": "good requests / valid requests at the cell ingress; good = status < 500 and latency < 5 s; 429 and 4xx excluded; plus synthetic probe minutes",
+   "target": "99.9% per calendar month per cell",
+   "budget": "43 min 12 s per 30-day month (44 min 38 s per 31-day month)",
+   "window": "calendar month, America/Toronto"
+  },
+  {
+   "id": "SLO-02",
+   "name": "Money write path availability",
+   "sli": "successful POSTs on time entry, invoice issue, payment record, trust receipt/disbursement endpoints / valid POSTs",
+   "target": "99.9% per month",
+   "budget": "43 min / month; correctness budget is zero (any duplicate or lost money effect = SEV1)",
+   "window": "calendar month"
+  },
+  {
+   "id": "SLO-03",
+   "name": "Interactive latency",
+   "sli": "server-side latency of interactive GET / POST (excl. uploads, exports, reports)",
+   "target": "95% of reads < 500 ms, 99% < 2 s; 95% of writes < 1 s",
+   "budget": "5% of requests may exceed p95 bound",
+   "window": "rolling 28 days"
+  },
+  {
+   "id": "SLO-04",
+   "name": "Deadline reminder delivery",
+   "sli": "reminders delivered on at least one channel (in-app + email or fallback) within 15 min of scheduled time / reminders due",
+   "target": "99.9%; zero reminders more than 24 h late",
+   "budget": "1 late reminder per 1,000; a reminder > 24 h late or never sent = SEV1 regardless of budget",
+   "window": "calendar month"
+  },
+  {
+   "id": "SLO-05",
+   "name": "Durability / RPO",
+   "sli": "minutes in which newest archived WAL segment (in the DR-region bucket) is < 120 s old / minutes",
+   "target": "99.9% of minutes; database RPO 0 for single-zone loss (quorum sync standby), ≤ 5 min for region loss. Documents have their own RPO: SLO-05b",
+   "budget": "43 min / month of archive age ≥ 120 s; archive age ≥ 300 s pages immediately",
+   "window": "calendar month"
+  },
+  {
+   "id": "SLO-05b",
+   "name": "Document durability / RPO (DR replication)",
+   "sli": "objects replicated to the DR-region bucket within 5 min of PUT / objects PUT (provider replication-time control metric, or the per-cell replication-lag exporter that HEADs each new key in the DR bucket)",
+   "target": "99.9% of objects within 5 min; document RPO for region loss ≤ 15 min (hard bound enforced by paging); trust/financial locked records RPO 0 (written to both regions before commit, ARC-U-042)",
+   "budget": "1 in 1,000 objects may take 5-15 min; oldest unreplicated object ≥ 15 min pages immediately",
+   "window": "calendar month"
+  },
+  {
+   "id": "SLO-06",
+   "name": "Recovery time / RTO",
+   "sli": "measured time from incident declaration to cell serving writes, in drills and real incidents",
+   "target": "zone loss ≤ 5 min (automatic); single-cell PITR restore ≤ 60 min; region loss: first (priority-1) cell ≤ 60 min, all cells ≤ 4 h, in firm priority order (ARC-U-043)",
+   "budget": "none: a per-cell drill over 60 min or a yearly all-cells drill over 4 h is a failed drill and blocks onboarding new cells until fixed",
+   "window": "per drill (per-cell quarterly, all-cells yearly) / per incident"
+  },
+  {
+   "id": "SLO-07",
+   "name": "Outbox delivery",
+   "sli": "outbox events delivered to consumer (or external API) within 5 min of commit / events committed, excluding time the named dependency is declared down",
+   "target": "99.9%",
+   "budget": "1 in 1,000 events late",
+   "window": "rolling 28 days"
+  },
+  {
+   "id": "SLO-08",
+   "name": "Agent job start",
+   "sli": "agent jobs started on Paploo within 2 min of enqueue / jobs enqueued, while Paploo is healthy",
+   "target": "99%",
+   "budget": "1%; Paploo/model outage time is excluded and tracked as dependency SLO",
+   "window": "rolling 28 days"
+  },
+  {
+   "id": "SLO-09",
+   "name": "Document availability",
+   "sli": "successful signed-URL issue + object GET/PUT / attempts",
+   "target": "99.9% per month",
+   "budget": "43 min / month",
+   "window": "calendar month"
+  },
+  {
+   "id": "SLO-10",
+   "name": "Dependency: Paploo runtime + model (informational)",
+   "sli": "Paploo app API health and turn success rate",
+   "target": "99.5% (not part of SLO-01; app stays usable without it)",
+   "budget": "3 h 36 min / month",
+   "window": "calendar month"
+  }
+ ],
+ "rules": [
+  {
+   "id": "ARC-U-001",
+   "area": "topology",
+   "rule": "Every firm is one cell: namespaces counsel-<cell>, paploo-<cell>, paploo-<cell>-agents; own Postgres cluster, own KMS key, own object-storage bucket, own secrets, own hostname <cell>.<domain>. No query, job, queue, bucket or key is shared between cells.",
+   "verification": "Guard test: render Helm for 2 cells and assert no resource name, DB DSN, bucket, KMS ARN or secret ref is equal across them. Chaos: delete cell A's namespace in staging; cell B synthetic stays green 100% for 30 min."
+  },
+  {
+   "id": "ARC-U-002",
+   "area": "topology",
+   "rule": "All cell workloads run in one Canadian region (primary ca-central, 3 zones) with backups and WAL archive in a second Canadian region (DR). No data, log, trace, backup or replica leaves Canada. Model endpoint location is a per-cell disclosed setting (ADR 0014 open question 3).",
+   "verification": "Config test: every bucket, KMS key, DB, log sink and trace exporter endpoint in rendered config resolves to an allow-listed Canadian region; CI fails on any other region string."
+  },
+  {
+   "id": "ARC-U-003",
+   "area": "topology",
+   "rule": "Stateless tiers (web, API, workers, outbox relay) run ≥ 2 replicas per cell, spread across ≥ 2 zones (topologySpreadConstraints maxSkew 1, whenUnsatisfiable DoNotSchedule) with a PodDisruptionBudget minAvailable 1.",
+   "verification": "Chaos: cordon+drain one zone in staging; synthetic for every cell shows ≤ 1 failed probe and SLO-01 error count ≤ 0.1% over the hour."
+  },
+  {
+   "id": "ARC-U-004",
+   "area": "topology",
+   "rule": "Shared control plane (cluster, ingress/WAF, fleet operator, CI/CD, observability, status page) carries no firm data. Logs and traces carry cell id and record ids only, never document text, client names, or prompts.",
+   "verification": "Log scan test: run the e2e suite with seeded canary strings (client name 'ZZCANARY-CLIENT', doc text 'ZZCANARY-DOC'); grep all log/trace sinks; zero hits."
+  },
+  {
+   "id": "ARC-U-005",
+   "area": "topology",
+   "rule": "Each cell has ResourceQuota and LimitRange; database pods run on a dedicated node pool with PriorityClass higher than app pods; agent containers run in a separate node pool and can never evict cell app or DB pods.",
+   "verification": "Chaos: start 200 agent containers in cell A; cell A and B API p95 stays < 500 ms and no DB/app pod is evicted (kubectl events)."
+  },
+  {
+   "id": "ARC-U-006",
+   "area": "postgres",
+   "rule": "Postgres per cell is a 3-instance cluster (CloudNativePG or managed equivalent): one primary and two standbys, one per zone (z1, z2, z3), with quorum synchronous replication: CloudNativePG minSyncReplicas: 1, maxSyncReplicas: 2, i.e. synchronous_standby_names = 'ANY 1 (<z2 standby>, <z3 standby>)', synchronous_commit=on. Commit returns once either standby has the WAL, so the loss of any one zone (primary or standby) keeps RPO 0 and writes continue.",
+   "verification": "Chaos 1: kill primary pod/node during a load of 50 writes/s with idempotency keys; after failover, count(rows) = count(acknowledged writes) exactly; failover completes ≤ 60 s. Chaos 2: kill the z2 standby under 20 writes/s; zero failed commits after 60 s, pg_stat_replication shows the z3 standby as sync (quorum)."
+  },
+  {
+   "id": "ARC-U-007",
+   "area": "postgres",
+   "rule": "Only when BOTH standbys are unreachable does the cluster block writes; it stays writable only after an operator decision (no silent downgrade to async). Loss of one standby raises PGSyncStandbyDegraded (ticket, rebuild within 24 h); loss of both raises PGSyncStandbyMissing (page) within 1 min.",
+   "verification": "Chaos: kill one standby -> writes continue, PGSyncStandbyDegraded fires. Kill both standbys; assert alert PGSyncStandbyMissing fires ≤ 60 s and writes block (not silently async) until runbook RB-01 step is taken."
+  },
+  {
+   "id": "ARC-U-008",
+   "area": "postgres",
+   "rule": "WAL archiving to the DR-region bucket with archive_timeout = 60 s; base backup daily; PITR retention 35 days; alert when newest archived WAL age > 120 s (warn) / 300 s (page).",
+   "verification": "Drill: block bucket egress for 3 min; WALArchiveLag warning fires at 120 s and page at 300 s; after unblock archive catches up and no gap exists (barman/pg_verifybackup check passes)."
+  },
+  {
+   "id": "ARC-U-009",
+   "area": "postgres",
+   "rule": "Encryption: storage volumes and snapshots encrypted with the cell's KMS key; backups encrypted client-side before upload; TLS 1.2+ required on every DB connection (hostssl only, sslmode=verify-full in app).",
+   "verification": "Test: connect with sslmode=disable → refused. Inspect backup object: not a valid pg/tar stream without key. Cloud config check: volume KMS key id = cell key id."
+  },
+  {
+   "id": "ARC-U-010",
+   "area": "postgres",
+   "rule": "Restore drill quarterly per cell (rotating so every cell is drilled at least twice a year) and monthly for one random cell: PITR to a timestamp into a scratch namespace, run integrity checks (trust ledger balances = sum of entries per matter; invoice totals = sum of lines; row counts within 0.1% of source at that time).",
+   "verification": "Drill pass criteria: restore wall time ≤ 45 min, data within 5 min of target time, all integrity queries return 0 mismatches. Result recorded in drill log with timings."
+  },
+  {
+   "id": "ARC-U-011",
+   "area": "postgres",
+   "rule": "API request connections go through a pooler (PgBouncer, transaction mode) with server-side statement_timeout 15 s for API roles, 5 min for job roles, idle_in_transaction_session_timeout 30 s. Because transaction mode does not keep session state: (a) API code sets per-request settings (counsel.user_id, counsel.firm_id, role) with SET LOCAL / set_config(..., true) only, never plain SET; (b) River clients (workers, LISTEN/NOTIFY for job wake-up, advisory locks, leader election) and the outbox relay connect directly to the Postgres rw service (or a session-mode PgBouncer pool), never through the transaction-mode pool; (c) migrations connect directly.",
+   "verification": "Test 1: API query pg_sleep(20) is cancelled at 15 s; a held idle transaction is killed at 30 s. Test 2: pool size 1; request A sets counsel.user_id via SET LOCAL and commits; request B on the same server connection reads current_setting('counsel.user_id', true) -> empty. Lint: plain 'SET ' (without LOCAL) in API code fails CI. Test 3: River job inserted -> worker picks it up within 1 s via NOTIFY (no 5 s poll fallback)."
+  },
+  {
+   "id": "ARC-U-012",
+   "area": "storage",
+   "rule": "Documents live in the cell bucket, versioning on, server-side encryption with the cell KMS key, public access blocked, access only via short-lived signed URLs (≤ 15 min) issued after an authz check. Bucket replicated to the DR region bucket with replication-time control (or an equivalent lag exporter) and lag monitoring per SLO-05b.",
+   "verification": "Test: unsigned GET → 403; signed URL used after 16 min → 403; delete an object, previous version still restorable; replica object present in DR bucket within 5 min (SLO-05b); block replication for 16 min in staging -> DocReplicationLag page fires."
+  },
+  {
+   "id": "ARC-U-013",
+   "area": "storage",
+   "rule": "Trust, financial and billing records (trust ledgers, journals, reconciliations, invoices, client statements, monthly export snapshots) are written as immutable objects under an object lock. Retention period per record class comes from the retention table (legal spec), not code constants. Default: trust records 10 years (LSO By-Law 9, record-retention section, (verify) exact section and which records are 6 vs 10 years); tax books and records 6 years (Income Tax Act s.230(4), (verify) start date of period). Use governance mode until counsel verifies each period, then compliance mode.",
+   "verification": "Test: write a trust-ledger snapshot with retain-until = now + 10 y; DELETE and overwrite attempts with app role return AccessDenied; a lifecycle rule cannot remove it; retention table change does not shorten existing locks."
+  },
+  {
+   "id": "ARC-U-014",
+   "area": "storage",
+   "rule": "Every month-end (and on each reconciliation sign-off) the cell writes an immutable export (CSV + PDF) of trust ledgers, client trust listing and reconciliation to the locked prefix; DB is source of truth, export is the evidence copy that survives a logical DB corruption.",
+   "verification": "Test: run month-end job for a seeded cell with 3 matters; locked objects exist with SHA-256 recorded in DB; recomputed hash matches."
+  },
+  {
+   "id": "ARC-U-015",
+   "area": "deploy",
+   "rule": "Fleet rollout in rings: ring 0 = internal staging cell + demo cell (bake 2 h), ring 1 = ≤ 10% of firm cells (bake 24 h), ring 2 = rest. Automatic halt and rollback when a ring's SLO-01 burn rate > 6x over 30 min or any SEV1/2 opens.",
+   "verification": "Drill: deploy a build with an injected 5% 500-error rate to ring 0; pipeline halts before ring 1 and rolls ring 0 back automatically within 10 min."
+  },
+  {
+   "id": "ARC-U-016",
+   "area": "deploy",
+   "rule": "Within a cell: RollingUpdate maxUnavailable 0, maxSurge 1; readiness probe checks DB and pooler reachability; preStop sleep 10 s and graceful shutdown ≤ 30 s that finishes in-flight requests and releases job leases.",
+   "verification": "Test: run 20 req/s against a cell during rollout; zero 5xx and zero connection resets."
+  },
+  {
+   "id": "ARC-U-017",
+   "area": "deploy",
+   "rule": "Schema migrations are expand-contract: release N may only add (tables, nullable columns, columns with constant default, indexes CONCURRENTLY, constraints NOT VALID then VALIDATE); app N must run on schema N-1 and N; destructive changes (drop, rename, type narrow, NOT NULL on existing column) only after a release that stops using the field has been in all cells ≥ 7 days. Rename = add new + dual-write + backfill + switch reads + drop.",
+   "verification": "CI linter (squawk or equivalent) rejects DROP/RENAME/ALTER TYPE/CREATE INDEX without CONCURRENTLY in an expand migration; compatibility test runs app N-1 test suite against schema N and must pass."
+  },
+  {
+   "id": "ARC-U-018",
+   "area": "deploy",
+   "rule": "Migrations run as a separate pre-rollout Job with lock_timeout = 2 s and retry; backfills run as batched jobs (≤ 1,000 rows per transaction, sleeps between) never inside the migration.",
+   "verification": "Test: hold an ACCESS SHARE lock on a hot table; migration fails at 2 s and retries without blocking reads (p95 unchanged)."
+  },
+  {
+   "id": "ARC-U-019",
+   "area": "deploy",
+   "rule": "Feature flags are per cell, stored in the cell DB, typed, with owner and expiry date; every agent-driven feature has a kill switch flag that disables it without deploy within 1 min; a flag past expiry fails CI.",
+   "verification": "Test: flip agent.drafting.enabled=false; within 60 s UI hides the action and new jobs are refused with code AGENT_DISABLED; CI with an expired flag fails."
+  },
+  {
+   "id": "ARC-U-020",
+   "area": "deploy",
+   "rule": "Rollback = redeploy previous image; possible because of expand-contract. Never roll back a migration by running down-migrations in production.",
+   "verification": "Drill: deploy N then roll back to N-1 in staging cell; synthetic green throughout."
+  },
+  {
+   "id": "ARC-U-021",
+   "area": "async",
+   "rule": "Every side effect leaving the cell DB (agent job start, email, payment request, e-sign envelope, webhook, notification) is written as an outbox row in the same transaction as the business change; a relay delivers it. No direct external call inside a business transaction.",
+   "verification": "Fault test: kill the API pod between commit and relay; event is still delivered once relay restarts. Code check: static rule forbids HTTP clients in transaction scope."
+  },
+  {
+   "id": "ARC-U-022",
+   "area": "async",
+   "rule": "Consumers are idempotent: each consumer records processed message ids in an inbox table (PK message_id, consumer) in the same transaction as its effect; a redelivered message is a no-op.",
+   "verification": "Test: deliver the same 'payment.succeeded' event 3 times; one trust/operating receipt row, one inbox row."
+  },
+  {
+   "id": "ARC-U-023",
+   "area": "async",
+   "rule": "Retries: exponential backoff with full jitter, base 2 s, cap 15 min, max 20 attempts or 24 h (whichever first) for external calls; 4xx other than 408/409/425/429 are not retried. After the limit the message goes to a dead-letter table with last error (redacted) and an alert. Topics marked money_external (payment, refund, payout) stop retrying at 20 h (below a 24 h provider idempotency-key TTL), then the relay looks the operation up at the provider by our idempotency key / reference before any further send; it dead-letters only after that lookup and pages (not just alerts). Ordering: the relay claims by subject (SELECT DISTINCT ON (subject) ... ORDER BY subject, subject_seq FOR UPDATE SKIP LOCKED) and never delivers subject_seq n+1 before n is delivered.",
+   "verification": "Test: fake endpoint returns 503 forever → attempts at ~2,4,8…900 s, stops at 24 h, row in dead_letter, DLQ alert fires; a 400 goes to DLQ after 1 attempt. money_external: fake 503 for 21 h → sends stop at 20 h, one GET by reference, then DLQ + page; key never re-sent after 20 h. Two relays, subject S with seq 1..3 where 1 fails twice → delivery order at the fake is 1,2,3."
+  },
+  {
+   "id": "ARC-U-024",
+   "area": "async",
+   "rule": "Dead letters are triaged within 1 business day; replay is an explicit admin action per message or batch, idempotent, audited.",
+   "verification": "Test: replay a DLQ message twice; one effect; two audit rows (replay requested, replay done)."
+  },
+  {
+   "id": "ARC-U-025",
+   "area": "money",
+   "rule": "Money effects are exactly-once via idempotency keys: every payment request, refund, trust disbursement and invoice issue carries a key = UUIDv7 generated before the first attempt and stored with the attempt; the same key is sent to the processor; DB has UNIQUE(idempotency_key) and UNIQUE(provider, provider_txn_id) on ledger entries, one-effect-per-source unique indexes on trust.trust_transaction (per withdrawal, per transfer leg, per payment+ledger) and gl.journal_entry(source_type, source_id), and a gate.effect_execution row (PK approval_id) written in the same tx as the effect. The relay is at-least-once; exactly-once is a property of the effect, not of delivery. Amounts are integer cents CAD.",
+   "verification": "Test: client retries POST /payments with same key 5 times under network faults; processor fake receives 1 charge of 12,500 cents; one ledger row; responses identical. Replay an approved withdrawal effect 3 times concurrently → exactly 1 trust_transaction row and 1 effect_execution row."
+  },
+  {
+   "id": "ARC-U-026",
+   "area": "money",
+   "rule": "A trust ledger entry and its balance check run in one serializable (or SELECT … FOR UPDATE on the matter trust balance row) transaction; a disbursement that would make a matter's trust balance negative is rejected, also under concurrency.",
+   "verification": "Concurrency test: matter trust balance 100,000 cents; 2 parallel disbursements of 60,000 cents; exactly one succeeds, balance 40,000, other gets INSUFFICIENT_TRUST_FUNDS."
+  },
+  {
+   "id": "ARC-U-027",
+   "area": "money",
+   "rule": "Agent jobs never create money effects directly: they create a pending Counsel gate.approval_request via the app API and park; Counsel's gate is authoritative for the effect, and Paploo only resumes or fails the run on the gate.decided event (no Paploo-side gate for Counsel money/trust actions). The gate decision carries the idempotency key used for the effect.",
+   "verification": "Test: agent job output 'disburse 5,000 cents' creates a pending Counsel gate row and no Paploo gate row, not a ledger row; approval twice creates one ledger row; the run resumes on gate.decided."
+  },
+  {
+   "id": "ARC-U-028",
+   "area": "degraded",
+   "rule": "Core areas (matters, contacts, time, billing, trust, deadlines, documents, conflicts search) have no runtime dependency on Paploo or the model provider: their read and write paths must succeed with Paploo and model unreachable.",
+   "verification": "Chaos: NetworkPolicy blocks cell → Paploo and → model gateway for 1 h; full e2e suite for core areas passes; SLO-01 unaffected; agent UI shows banner DM-01."
+  },
+  {
+   "id": "ARC-U-029",
+   "area": "degraded",
+   "rule": "Agent jobs are queued in the cell DB with state queued|running|waiting_gate|retrying|failed|done; when Paploo is unhealthy (circuit open) jobs stay queued, the user sees 'agent unavailable, queued', and every agent action has a manual path in the UI.",
+   "verification": "Chaos: stop Paploo for 30 min while users enqueue 10 jobs; all 10 run after recovery, none duplicated (unique job idempotency key), each manual path usable during outage."
+  },
+  {
+   "id": "ARC-U-030",
+   "area": "degraded",
+   "rule": "Deadline reminders are computed and sent by cell workers, never by the agent; if the primary email provider fails, the reminder goes via the secondary provider and is always shown in-app; a daily deadline digest (next 30 days) is emailed and downloadable as ICS/PDF.",
+   "verification": "Chaos: primary email fake returns 503; reminders still delivered through secondary within 15 min; in-app list correct."
+  },
+  {
+   "id": "ARC-U-031",
+   "area": "external",
+   "rule": "Every external call has a client timeout (connect 3 s, total ≤ 10 s interactive, ≤ 60 s background), a per-dependency circuit breaker (open after 50% failures over ≥ 20 calls in 60 s, half-open probe after 30 s) and a bulkhead (max concurrent calls per dependency per cell).",
+   "verification": "Test: fake dependency hangs; caller returns at timeout; after 20 failures breaker opens and later calls fail fast < 50 ms; half-open after 30 s."
+  },
+  {
+   "id": "ARC-U-032",
+   "area": "external",
+   "rule": "Reconciliation jobs: payments — daily, processor transactions/payouts vs ledger by provider_txn_id and amount; bank feeds — daily import with gap detection and statement-balance check; e-sign — hourly envelope status pull for envelopes pending > 1 h; email — bounce/complaint webhooks plus daily delivery-status pull. Mismatches create a task for the firm's accounting role and an internal alert; nothing is auto-corrected in trust.",
+   "verification": "Test: processor fake has a 12,500-cent payment missing from ledger (webhook dropped); next daily recon creates one mismatch task and no ledger write."
+  },
+  {
+   "id": "ARC-U-033",
+   "area": "external",
+   "rule": "Inbound webhooks (payments, e-sign, email, bank) are verified (signature + timestamp window 5 min), stored raw in an inbox first, acknowledged 2xx only after the inbox commit, and processed asynchronously.",
+   "verification": "Test: replay a captured webhook 6 min later → 401; valid webhook while DB primary is failing over → 503 (provider retries), never 2xx without stored row."
+  },
+  {
+   "id": "ARC-U-034",
+   "area": "observe",
+   "rule": "Per cell SLIs exported to Prometheus (availability, latency, outbox lag, job queue age, DLQ size, WAL archive age, replication lag, reminder freshness, backup age); alerts use multi-window burn rate: page at 14.4x (1 h and 5 min) and 6x (6 h and 30 min); ticket at 1x (3 d).",
+   "verification": "Test: inject 2% errors for 10 min in staging cell; fast-burn page fires within 5 min; stop injection; alert resolves."
+  },
+  {
+   "id": "ARC-U-035",
+   "area": "observe",
+   "rule": "Synthetic checks per cell every 60 s from 2 locations (one outside our cloud): login with a synthetic user, open matter list, create + delete a 0.1 h time entry in a synthetic matter, signed-URL document round-trip. Synthetic data lives in a flagged synthetic matter excluded from reports and billing.",
+   "verification": "Test: break the document path in one cell; only that cell's synthetic fails, page within 3 min; firm reports show no synthetic rows."
+  },
+  {
+   "id": "ARC-U-036",
+   "area": "observe",
+   "rule": "Public status page hosted outside our infrastructure, with components per area (app, documents, payments, e-sign, email, agent) and per-cell incident notices; first post within 15 min of a declared SEV1/2.",
+   "verification": "Drill: declare a test SEV2 in game day; status post timestamp - declaration ≤ 15 min."
+  },
+  {
+   "id": "ARC-U-037",
+   "area": "observe",
+   "rule": "Incident process: severities SEV1 (cell down, data loss risk, money/trust error, missed deadline reminder, cross-cell leak), SEV2 (degraded mode active > 30 min, SLO fast burn), SEV3; incident commander assigned ≤ 5 min for SEV1; blameless postmortem within 5 business days with action items tracked. Privacy breaches follow PIPEDA s.10.1 (report and notify where real risk of significant harm) and firm notification.",
+   "verification": "Game day quarterly: simulated SEV1; check timeline: page ack ≤ 5 min, IC named, status post ≤ 15 min, postmortem filed ≤ 5 business days."
+  },
+  {
+   "id": "ARC-U-038",
+   "area": "security",
+   "rule": "Edge: cloud DDoS protection (L3/L4) plus WAF with managed rules and rate-based rules; per-IP 2,000 req / 5 min at the edge; app limits per user 600 req/min, login 10 attempts / 15 min per account and 50 / 15 min per IP, webhook endpoints 100 req/s per cell; over-limit returns 429 with Retry-After and is excluded from SLO-01.",
+   "verification": "Load test: 5,000 req/min from one IP → 429 at the edge after threshold, other users' p95 unaffected; 11th bad login for an account → 429."
+  },
+  {
+   "id": "ARC-U-039",
+   "area": "security",
+   "rule": "Key rotation without downtime: envelope encryption with key id in every ciphertext; rotation adds a new key version, new writes use it, reads accept old and new until re-encryption job completes. Webhook signing secrets and API tokens support two active values during rotation. DB credentials rotate by alternating two roles. TLS certificates auto-renew with ≥ 30 days left; alert at 14 days.",
+   "verification": "Drill: rotate cell KMS key, webhook secret and DB role during 20 req/s load; zero 5xx, zero webhook rejections, old ciphertexts still decrypt."
+  },
+  {
+   "id": "ARC-U-040",
+   "area": "security",
+   "rule": "Secrets never in logs, events, error messages or DB plaintext; app and Paploo use redaction helpers; admin break-glass access to a cell DB is time-boxed (≤ 4 h), audited, and needs a second engineer's approval.",
+   "verification": "Test: force errors containing a token value; grep logs for it → 0. Audit query shows break-glass grant with approver and expiry."
+  },
+  {
+   "id": "ARC-U-041",
+   "area": "capacity",
+   "rule": "Capacity guardrails per cell: CPU and memory requests sized for 3x the firm's p95 load; DB storage autoscaling alert at 70%; node pools autoscale; cluster capacity reserved for one full zone loss (N+1 zones).",
+   "verification": "Test: load cell at 3x recorded peak for 30 min; SLO-03 met. Zone drain test (ARC-U-003) passes with all cells."
+  },
+  {
+   "id": "ARC-U-042",
+   "area": "storage",
+   "rule": "Document RPO after DR restore: trust and financial evidence objects (month-end exports, reconciliation packages, ARC-U-014) are written to the primary and the DR bucket before the DB row that references them commits (sync dual write, RPO 0). All other documents rely on async replication (SLO-05b). After any DR restore a reconciliation job lists docs.document_version rows created in the last 24 h whose object is missing in the DR bucket, marks them status='lost_in_dr' and notifies the uploader and firm admin; it never deletes the row.",
+   "verification": "DR drill: upload 100 documents, block replication for the last 10, fail over; job marks exactly those 10 lost_in_dr and sends 10 notices; a reconciliation package PUT with the DR bucket unreachable fails the sign-off tx (no row without the object in both regions)."
+  },
+  {
+   "id": "ARC-U-043",
+   "area": "dr",
+   "rule": "Region-loss restore capacity: the DR node pool autoscales (pre-approved quota) to restore 8 cells in parallel (about N/4 for 30 cells); base backups are at most 24 h old so WAL replay is ≤ 15 min per cell; per-cell restore budget 45 min (base restore ≈ 15 min for 50 GB, WAL replay ≤ 15 min, integrity checks ≈ 15 min). Restore order: firm priority list (priority-1 cells first). Arithmetic for 30 cells: cluster bring-up 30 min + 4 waves × 45 min = 3 h 30 min ≤ 4 h. Above 32 cells per region, parallelism is raised so ceil(cells/parallel) × 45 min + 30 min ≤ 4 h. A yearly all-cells drill (not per cell) restores every cell into the DR region.",
+   "verification": "Yearly all-cells drill: wall time from declaration to last cell serving writes ≤ 4 h and first priority-1 cell ≤ 60 min; every cell passes ARC-U-010 integrity queries. Capacity check in CI: parallel slots × 45 min waves fits 4 h for the current cell count."
+  }
+ ],
+ "degraded_modes": [
+  {
+   "id": "DM-01",
+   "dependency": "Paploo agent runtime down or app API unhealthy",
+   "detection": "health probe + circuit breaker on app API; synthetic agent ping every 5 min",
+   "works": "all core areas fully manual: matters, time, billing, trust, deadlines, documents, conflicts, intake forms",
+   "disabled": "start/continue agent jobs, agent drafts, gate approvals that need Paploo",
+   "user_sees": "banner 'Assistant unavailable; your work is unaffected; queued requests will run later' + queued count",
+   "recovery": "jobs resume in FIFO order with the same idempotency keys; jobs older than 24 h ask the user to confirm before running"
+  },
+  {
+   "id": "DM-02",
+   "dependency": "Model provider down or slow (Paploo up)",
+   "detection": "Paploo run failures with provider error class; turn latency > 3x baseline",
+   "works": "same as DM-01",
+   "disabled": "new agent runs; runs in progress retry with backoff",
+   "user_sees": "'Assistant slow/unavailable' banner; job state retrying with next attempt time",
+   "recovery": "automatic; after 24 h retrying, job moves to failed with 'do manually' link"
+  },
+  {
+   "id": "DM-03",
+   "dependency": "Transactional email provider down",
+   "detection": "breaker open / send error rate > 20%",
+   "works": "everything; outbound emails queue",
+   "disabled": "none for users; client emails delayed",
+   "user_sees": "'Email sending delayed' on send screens",
+   "recovery": "failover to secondary provider for reminders and security mail immediately; client correspondence retries on primary up to 1 h then secondary"
+  },
+  {
+   "id": "DM-04",
+   "dependency": "Payment processor down",
+   "detection": "breaker open; processor status",
+   "works": "invoices, trust ledger, manual receipt entry (cheque, wire, e-transfer) with proof upload",
+   "disabled": "online card/bank payments; payment links show 'temporarily unavailable, other ways to pay'",
+   "user_sees": "banner on billing; client pay page shows alternatives",
+   "recovery": "pending payment intents reconciled by daily recon; no double charge because of idempotency keys"
+  },
+  {
+   "id": "DM-05",
+   "dependency": "Bank feed provider down or late",
+   "detection": "no import by expected time + 6 h; gap detection",
+   "works": "trust and operating ledgers, manual statement import (CSV/OFX upload), reconciliation with manual statement",
+   "disabled": "automatic matching",
+   "user_sees": "'Bank feed last updated <time>' on reconciliation",
+   "recovery": "backfill import for the gap dates; dedupe by (account, posted_on, amount, bank ref or description, source_seq = ordinal among identical tuples in one statement), so two same-day same-amount cheques both survive"
+  },
+  {
+   "id": "DM-06",
+   "dependency": "E-sign provider down",
+   "detection": "breaker open",
+   "works": "document drafting, download for wet signature, upload of signed copy",
+   "disabled": "sending new envelopes",
+   "user_sees": "'E-signature unavailable; download to sign' option",
+   "recovery": "queued envelopes sent on recovery after user confirms; hourly status reconciliation"
+  },
+  {
+   "id": "DM-07",
+   "dependency": "Identity provider (SSO) down",
+   "detection": "OIDC discovery/token errors",
+   "works": "existing sessions (≤ 12 h) continue",
+   "disabled": "new SSO logins",
+   "user_sees": "login page notice; firm admins may use break-glass local account (password + TOTP), audited",
+   "recovery": "automatic"
+  },
+  {
+   "id": "DM-08",
+   "dependency": "Object storage degraded in primary region",
+   "detection": "signed URL / PUT error rate > 5%",
+   "works": "everything except document upload/download; metadata visible",
+   "disabled": "uploads (queued client-side with retry), downloads",
+   "user_sees": "'Documents temporarily unavailable' on document views",
+   "recovery": "if > 30 min: switch reads to DR replica bucket (read-only); uploads resume on recovery"
+  },
+  {
+   "id": "DM-09",
+   "dependency": "Postgres failover in progress",
+   "detection": "pooler reconnect errors",
+   "works": "reads may fail ≤ 60 s; client retries idempotent requests",
+   "disabled": "writes for ≤ 60 s",
+   "user_sees": "'Saving…' retry; no data loss (quorum sync standby)",
+   "recovery": "automatic"
+  },
+  {
+   "id": "DM-10",
+   "dependency": "Primary region lost",
+   "detection": "multi-zone failure, provider status",
+   "works": "after DR restore: everything; documents from replica bucket",
+   "disabled": "all until restore (priority-1 cells ≤ 60 min, all cells ≤ 4 h); agent features until Paploo restored in DR",
+   "user_sees": "status page; then app at same hostname (DNS failover)",
+   "recovery": "RB-03; database: at most 5 min lost; documents: at most the replication lag (≤ 15 min, SLO-05b), lost ones marked lost_in_dr (ARC-U-042); firms told which time window to re-check"
+  },
+  {
+   "id": "DM-11",
+   "dependency": "Cell read-only mode (operator-set during incident or major migration)",
+   "detection": "flag cell.read_only",
+   "works": "all reads, exports, deadline list, documents download",
+   "disabled": "all writes return 503 READ_ONLY with Retry-After",
+   "user_sees": "banner with expected end time",
+   "recovery": "flag off"
+  }
+ ],
+ "runbooks": [
+  {
+   "id": "RB-01",
+   "title": "Postgres primary failure / sync standby missing",
+   "trigger": "PGPrimaryDown, PGSyncStandbyMissing, PGReplicationLag > 10 s",
+   "steps": "confirm automatic failover; check new primary + at least one quorum sync standby; one standby lost: writes continue, rebuild it within 24 h; both lost: decide wait (writes blocked) vs. allow async with IC approval; verify WAL archive continuity",
+   "target_time": "≤ 15 min"
+  },
+  {
+   "id": "RB-02",
+   "title": "Point-in-time restore of a cell (logical corruption, bad migration, accidental delete)",
+   "trigger": "human decision",
+   "steps": "set cell read-only (DM-11); pick target time from audit log; restore to scratch namespace; run integrity queries; swap DSN or copy rows back; re-run outbox from target time with idempotency keys; tell firm the re-entry window",
+   "target_time": "≤ 60 min"
+  },
+  {
+   "id": "RB-03",
+   "title": "Region failover to DR region",
+   "trigger": "primary region loss declared by IC",
+   "steps": "IC declares within 15 min; apply DR cluster stack (IaC) and scale DR pool to 8 parallel restore slots; restore cells in firm priority order, 8 at a time, from base backup + DR WAL archive; point buckets to replica; run lost_in_dr document job (ARC-U-042); switch DNS per cell (TTL 60 s); restore Paploo cells last; verify synthetic per cell",
+   "target_time": "first cell ≤ 60 min, all cells ≤ 4 h"
+  },
+  {
+   "id": "RB-04",
+   "title": "Paploo runtime outage",
+   "trigger": "PaplooAPIDown, breaker open > 5 min",
+   "steps": "confirm DM-01 banner; check queue age; contact Paploo on-call; no action on core; on recovery watch drain rate and duplicate-guard metric",
+   "target_time": "ack ≤ 5 min"
+  },
+  {
+   "id": "RB-05",
+   "title": "Model provider outage",
+   "trigger": "agent run provider-error rate > 20%",
+   "steps": "confirm DM-02; check per-cell model gateway; if a configured alternate in-country endpoint exists, switch via cell config; status page note",
+   "target_time": "ack ≤ 5 min"
+  },
+  {
+   "id": "RB-06",
+   "title": "Payment processor outage / reconciliation mismatch",
+   "trigger": "breaker open; ReconMismatch > 0",
+   "steps": "confirm DM-04; for mismatches look up provider_txn_id; never edit trust rows directly: create correcting entry through app with approver; notify firm",
+   "target_time": "mismatch triaged ≤ 1 business day"
+  },
+  {
+   "id": "RB-07",
+   "title": "Bank feed gap",
+   "trigger": "BankFeedStale > 30 h",
+   "steps": "check provider; tell firm to upload statement; backfill when restored; verify closing balance matches statement",
+   "target_time": "≤ 1 business day"
+  },
+  {
+   "id": "RB-08",
+   "title": "Dead-letter triage and replay",
+   "trigger": "DLQSize > 0",
+   "steps": "classify (bug, bad data, dependency); fix cause; replay through admin action; confirm effect once",
+   "target_time": "≤ 1 business day"
+  },
+  {
+   "id": "RB-09",
+   "title": "Outbox lag",
+   "trigger": "OutboxOldestAge > 5 min",
+   "steps": "check relay pods, DB locks, breaker states; scale relay; find poison message → DLQ",
+   "target_time": "≤ 30 min"
+  },
+  {
+   "id": "RB-10",
+   "title": "Bad deploy / canary halt",
+   "trigger": "ring burn-rate halt, SEV after deploy",
+   "steps": "stop rollout; redeploy previous image to affected cells; turn feature flag off if flagged; keep schema (expand-only)",
+   "target_time": "≤ 15 min"
+  },
+  {
+   "id": "RB-11",
+   "title": "Failed or blocking migration",
+   "trigger": "migration Job failed, lock waits",
+   "steps": "migration retries with lock_timeout; if still failing, abort rollout (app N-1 still compatible); fix forward in next release",
+   "target_time": "≤ 30 min"
+  },
+  {
+   "id": "RB-12",
+   "title": "Key and secret rotation (scheduled or after exposure)",
+   "trigger": "schedule (90 days) or suspected exposure",
+   "steps": "add new version; deploy readers; switch writers; re-encrypt job; revoke old after verification; for exposure: revoke immediately and accept brief failures, open SEV",
+   "target_time": "exposure: revoke ≤ 1 h"
+  },
+  {
+   "id": "RB-13",
+   "title": "TLS certificate near expiry",
+   "trigger": "CertExpiry < 14 d",
+   "steps": "check cert-manager/ACME logs; renew manually; verify chain",
+   "target_time": "≤ 1 business day"
+  },
+  {
+   "id": "RB-14",
+   "title": "DDoS or abusive traffic",
+   "trigger": "edge 429 spike, WAF alerts, latency burn",
+   "steps": "tighten WAF rate rules, geo/ASN rules if justified; enable challenge on login; verify per-cell isolation",
+   "target_time": "≤ 30 min"
+  },
+  {
+   "id": "RB-15",
+   "title": "WAL archive failing / disk filling",
+   "trigger": "WALArchiveAge > 300 s, PGDiskUsage > 80%",
+   "steps": "check bucket credentials and network; expand volume; never delete WAL manually; take fresh base backup after fix",
+   "target_time": "≤ 30 min"
+  },
+  {
+   "id": "RB-16",
+   "title": "Deadline reminder backlog or missed reminder",
+   "trigger": "ReminderLate > 0",
+   "steps": "SEV1 if any > 24 h late; send via secondary channel; call firm contact; list affected deadlines to firm",
+   "target_time": "≤ 15 min"
+  },
+  {
+   "id": "RB-17",
+   "title": "Suspected breach or cross-cell data exposure",
+   "trigger": "canary hit, report, anomaly",
+   "steps": "SEV1; contain (revoke, isolate cell); preserve evidence; legal assesses PIPEDA s.10.1 real-risk-of-significant-harm test and firm duties; notify affected firms",
+   "target_time": "contain ≤ 1 h"
+  },
+  {
+   "id": "RB-18",
+   "title": "Accidental document deletion or overwrite",
+   "trigger": "firm request",
+   "steps": "find object version; restore previous version; locked records cannot have been deleted (verify lock)",
+   "target_time": "≤ 1 business day"
+  },
+  {
+   "id": "RB-19",
+   "title": "Cell stamp / decommission",
+   "trigger": "new firm / firm leaves",
+   "steps": "stamp from Helm + IaC; run synthetic; enroll in rings and drills. Leave: final export, retain locked records until retain-until, destroy keys only after retention ends",
+   "target_time": "stamp ≤ 1 day"
+  },
+  {
+   "id": "RB-20",
+   "title": "Email provider failover",
+   "trigger": "EmailSendErrors > 20% for 10 min",
+   "steps": "switch provider flag; verify SPF/DKIM for secondary already published; drain queue",
+   "target_time": "≤ 15 min"
+  }
+ ]
+}

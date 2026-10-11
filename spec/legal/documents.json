@@ -1,0 +1,3578 @@
+{
+ "area": "documents",
+ "title": "Documents: engagement letters, e-sign, matter files, templates, AI drafting, review, precedents",
+ "summary": "Each matter has one document store. The agent files, names, OCRs and indexes everything that arrives, and drafts outgoing documents from templates, precedents and matter facts. Every factual claim in a draft carries a page/line citation back to a source document. Nothing leaves the firm until a named lawyer approves it: G5 for the engagement letter, G8 for any other outgoing document. The client signs the engagement letter through our own e-sign flow, with a full audit trail.",
+ "screens": [
+  {
+   "id": "engagement-letter-composer",
+   "name": "Engagement letter composer",
+   "route": "/matters/:id/engagement",
+   "who": [
+    "lawyer",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Turn intake and conflict output into an engagement or retainer letter that the lawyer approves before it is sent for signature.",
+   "layout": "Left: the letter, editable, with highlighted variable terms. Right: a terms panel (scope, fee basis, rates, retainer, HST, exclusions) and a compliance checklist. Top bar: status, approver, Send for signature.",
+   "fields": [
+    {
+     "name": "letter_type",
+     "type": "enum",
+     "required": true,
+     "note": "full-scope | limited-scope | contingency (LSO standard form) | non-engagement | disengagement"
+    },
+    {
+     "name": "client",
+     "type": "ref",
+     "required": true,
+     "note": "Contact(s) who sign. Joint clients need a joint-retainer clause."
+    },
+    {
+     "name": "scope_included",
+     "type": "text",
+     "required": true,
+     "note": "What we will do, in plain language"
+    },
+    {
+     "name": "scope_excluded",
+     "type": "text",
+     "required": false,
+     "note": "Required for limited scope"
+    },
+    {
+     "name": "fee_basis",
+     "type": "enum",
+     "required": true,
+     "note": "hourly | flat | blended | contingency"
+    },
+    {
+     "name": "rates",
+     "type": "money",
+     "required": false,
+     "note": "Per timekeeper, from the rate table"
+    },
+    {
+     "name": "retainer_amount",
+     "type": "money",
+     "required": false,
+     "note": "Deposited to trust, never to operating"
+    },
+    {
+     "name": "hst_applies",
+     "type": "bool",
+     "required": true,
+     "note": "13% Ontario HST (verify for non-resident clients)"
+    },
+    {
+     "name": "estimate",
+     "type": "money",
+     "required": false,
+     "note": "Range plus the assumptions behind it"
+    },
+    {
+     "name": "responsible_lawyer",
+     "type": "ref",
+     "required": true,
+     "note": "The G5 approver"
+    },
+    {
+     "name": "conflict_check",
+     "type": "ref",
+     "required": true,
+     "note": "Must be cleared (G2) before the letter can be approved"
+    },
+    {
+     "name": "template_version",
+     "type": "ref",
+     "required": true,
+     "note": "Pinned template and version"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Draft letter",
+     "by": "agent",
+     "gate": "none",
+     "note": "Built from the intake summary, the conflict result and the matter-type default template"
+    },
+    {
+     "name": "Edit terms",
+     "by": "human",
+     "gate": "none",
+     "note": "A term edit regenerates the affected clauses only"
+    },
+    {
+     "name": "Approve letter",
+     "by": "human",
+     "gate": "approve",
+     "note": "G5. Only the responsible lawyer can approve. Approval locks the text and hashes it."
+    },
+    {
+     "name": "Send for signature",
+     "by": "agent",
+     "gate": "none",
+     "note": "Allowed only after G5. Opens a signature request."
+    },
+    {
+     "name": "Revoke and redraft",
+     "by": "human",
+     "gate": "none",
+     "note": "Voids any open signature request"
+    }
+   ],
+   "agent": "Picks the template by matter type and fee basis. Fills scope from the intake facts. Pulls rates from the rate table. Adds a limited-scope clause and an exclusions list when needed. Switches to the LSO standard form for contingency matters. Runs the checklist: scope stated, fee basis, retainer to trust, HST, termination, file retention, joint-retainer disclosure. Each check shows pass or fail with its reason.",
+   "gate": "G5: the responsible lawyer approves the exact letter text (scope, fees, retainer, estimate). The approved version is hashed, and the signed copy must match that hash.",
+   "states": [
+    "empty",
+    "drafting",
+    "draft",
+    "pending approval",
+    "approved",
+    "sent",
+    "signed",
+    "declined",
+    "voided"
+   ],
+   "edge": [
+    "Conflict not cleared: Approve is disabled and the screen links to the conflict check",
+    "Contingency fee: the free-form template is blocked. Only the LSO standard form, with fields filled in, is allowed.",
+    "Joint clients with possibly divergent interests: a joint-retainer warning appears, plus a separate consent block",
+    "Text edited after approval: the approval is cleared and G5 has to be redone",
+    "The client asks for changes after sending: void the request, redraft, re-approve"
+   ],
+   "reg": "RPC 3.6-1 requires fees to be fair, reasonable and disclosed in a timely way. RPC 3.2-1A on limited-scope retainers: the scope should be confirmed in writing (verify). RPC 3.4 joint retainers need disclosure and consent. Contingency fees: O. Reg. 563/20 under the Solicitors Act requires the LSO 'Standard Form Contingency Fee Agreement' dated Nov 18, 2021, modified only by filling in matter details or choosing its options (verify current version). A non-compliant agreement risks being found void.",
+   "mock": {
+    "kind": "doc",
+    "columns": [
+     "Check",
+     "Result",
+     "Note"
+    ],
+    "rows": [
+     [
+      "Conflict cleared (G2)",
+      "pass",
+      "Cleared by Linda Kassim 2026-10-02"
+     ],
+     [
+      "Scope and exclusions stated",
+      "pass",
+      "Limited scope: lease review only"
+     ],
+     [
+      "Retainer to trust",
+      "pass",
+      "$2,500.00 to trust, Northgate Bakery Ltd."
+     ],
+     [
+      "HST shown",
+      "pass",
+      "13%"
+     ],
+     [
+      "Estimate assumptions",
+      "fail",
+      "No assumptions listed for the $3,000 to $4,500 range"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "signature-request",
+   "name": "Signature request tracker",
+   "route": "/matters/:id/signatures/:requestId",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Track an outgoing signature package from send to completion, with signer order, reminders and a tamper-evident audit trail.",
+   "layout": "Header: package status and document hash. Middle: a signer list with order, status, last activity and identity method. Bottom: an audit timeline. Side: the signed PDF and certificate once complete.",
+   "fields": [
+    {
+     "name": "documents",
+     "type": "ref",
+     "required": true,
+     "note": "One or more approved document versions, pinned by hash"
+    },
+    {
+     "name": "signers",
+     "type": "list",
+     "required": true,
+     "note": "Name, email, mobile, role (client, lawyer, witness), order"
+    },
+    {
+     "name": "identity_method",
+     "type": "enum",
+     "required": true,
+     "note": "email link | email plus SMS code | ID-verified (links to the Client ID record)"
+    },
+    {
+     "name": "signing_fields",
+     "type": "list",
+     "required": true,
+     "note": "Signature, initials, date, text; placed by the agent and adjustable"
+    },
+    {
+     "name": "expires_at",
+     "type": "date",
+     "required": true,
+     "note": "Default 14 days (owner choice). Clio is inconsistent: its intake product says 7 days in one place and 14 in another."
+    },
+    {
+     "name": "reminder_plan",
+     "type": "enum",
+     "required": false,
+     "note": "None | days 3 and 7 (default) | every 3 days | custom"
+    },
+    {
+     "name": "witness_required",
+     "type": "bool",
+     "required": false,
+     "note": "Set by template, for example on contingency agreements (verify under current form)"
+    },
+    {
+     "name": "signing_order",
+     "type": "enum",
+     "required": true,
+     "note": "parallel | sequential with order"
+    },
+    {
+     "name": "field_types",
+     "type": "enum[]",
+     "required": false,
+     "note": "signature, initials, date signed, text, checkbox, dropdown, radio; fields can show based on another field"
+    },
+    {
+     "name": "firm_presign",
+     "type": "bool",
+     "required": false,
+     "note": "Lawyer signs before client"
+    },
+    {
+     "name": "non_contact_signer",
+     "type": "bool",
+     "required": false,
+     "note": "Ad-hoc signer allowed; created as a contact with role 'signer'"
+    },
+    {
+     "name": "viewed_at",
+     "type": "datetime",
+     "required": false,
+     "note": "Firm notified when opened"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Place signing fields",
+     "by": "agent",
+     "gate": "none",
+     "note": "Uses the template's anchors, or detected signature blocks"
+    },
+    {
+     "name": "Send",
+     "by": "human",
+     "gate": "none",
+     "note": "Only approved versions can be sent"
+    },
+    {
+     "name": "Remind",
+     "by": "agent",
+     "gate": "none",
+     "note": "Follows the reminder plan, using an approved reminder template"
+    },
+    {
+     "name": "Void",
+     "by": "human",
+     "gate": "none",
+     "note": "Requires a reason, which goes to audit"
+    },
+    {
+     "name": "Countersign",
+     "by": "human",
+     "gate": "sign-off",
+     "note": "The lawyer signs last, where the template needs it"
+    },
+    {
+     "name": "File completed copy",
+     "by": "agent",
+     "gate": "none",
+     "note": "Saves the signed PDF plus certificate to the matter folder and advances the matter stage"
+    }
+   ],
+   "agent": "Sends reminders on schedule. Spots a bounced email or a stalled signer and tells the clerk. Once complete, checks that the signed document's hash matches the approved version. Files the signed copy and certificate, sends the client their copy, and fires the 'engagement signed' event, which triggers the trust retainer request.",
+   "gate": "None to send, since the document already passed G5 or G8. The lawyer's countersignature is a sign-off where the document needs one.",
+   "states": [
+    "draft",
+    "sent",
+    "partially signed",
+    "completed",
+    "declined",
+    "expired",
+    "voided",
+    "delivery failed"
+   ],
+   "edge": [
+    "A signer declines with a comment: the comment goes to the lawyer and the letter returns to draft",
+    "Wrong email address: void, fix the contact, resend. The old link is dead.",
+    "Hash mismatch on completion: block filing and alert the lawyer",
+    "Document type excluded from e-signature (will, power of attorney): Send is blocked and the screen offers a wet-ink signing checklist instead",
+    "Signer is a corporation: capture the signing officer's name and title, and 'I have authority to bind the corporation'",
+    "Link expires (default 14 days): signer can ask for a fresh link; firm sees 'expired'",
+    "Non-PDF upload: converted to PDF and the converted copy is what is signed"
+   ],
+   "reg": "Electronic Commerce Act, 2000 (Ontario): electronic signatures are generally valid. Section 31 excludes wills, codicils, trusts created by wills, and powers of attorney for property or personal care (verify current text). Keep the audit trail with the file. Signer identity ties into BL 7.1 client ID where funds will move.",
+   "mock": {
+    "kind": "timeline",
+    "columns": [
+     "Time",
+     "Event",
+     "Who"
+    ],
+    "rows": [
+     [
+      "2026-10-03 09:12",
+      "Sent (sha256 7f3a...)",
+      "Ayo Ewebiyi"
+     ],
+     [
+      "2026-10-03 11:40",
+      "Opened, SMS code verified",
+      "Hana Tesfaye (client)"
+     ],
+     [
+      "2026-10-03 11:46",
+      "Signed 3 fields",
+      "Hana Tesfaye (client)"
+     ],
+     [
+      "2026-10-03 14:02",
+      "Countersigned",
+      "Linda Kassim"
+     ],
+     [
+      "2026-10-03 14:02",
+      "Completed, filed to /Engagement",
+      "agent"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "client-signing",
+   "name": "Client signing page",
+   "route": "/sign/:token",
+   "who": [
+    "client"
+   ],
+   "purpose": "Let the client read, ask a question about, and sign a document on any device without creating an account.",
+   "layout": "Top: firm name and a step indicator (verify, review, sign). Centre: the document, with signing fields highlighted. Bottom: Sign, Decline, and Ask the lawyer a question.",
+   "fields": [
+    {
+     "name": "verification_code",
+     "type": "text",
+     "required": true,
+     "note": "SMS or email code when the identity method needs one"
+    },
+    {
+     "name": "consent_to_electronic",
+     "type": "bool",
+     "required": true,
+     "note": "An explicit checkbox agreeing to sign electronically"
+    },
+    {
+     "name": "signature",
+     "type": "signature",
+     "required": true,
+     "note": "Typed name or drawn"
+    },
+    {
+     "name": "decline_reason",
+     "type": "text",
+     "required": false,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Sign",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Decline",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Ask a question",
+     "by": "human",
+     "gate": "none",
+     "note": "Goes to the lawyer's inbox. The agent does not answer substantive questions on this page."
+    },
+    {
+     "name": "Download copy",
+     "by": "human",
+     "gate": "none",
+     "note": "Available after completion"
+    }
+   ],
+   "agent": "None on this page. It records audit events (opened, viewed each page, signed, IP address, device). It does not chat with the client here, so it cannot give unapproved advice.",
+   "gate": "none",
+   "states": [
+    "verify identity",
+    "reviewing",
+    "signed",
+    "declined",
+    "expired link",
+    "already completed"
+   ],
+   "edge": [
+    "Link forwarded to someone else: the second factor (SMS) blocks them",
+    "Screen reader or low vision: must meet WCAG 2.1 AA; AODA applies in Ontario (verify which tier)",
+    "Client wants French: show the French template version where the firm offers one"
+   ],
+   "reg": "Confidentiality (RPC 3.3): links expire and are single-purpose. Accessibility (AODA, verify). Data stays in Canada.",
+   "mock": {
+    "kind": "form",
+    "columns": [],
+    "rows": []
+   }
+  },
+  {
+   "id": "matter-documents",
+   "name": "Matter documents",
+   "route": "/matters/:id/documents",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Show one place for every document on a matter, with folders, filing status, privilege flags and quick actions.",
+   "layout": "Left: a folder tree, seeded from the matter-type folder template. Centre: the document table. Right: a filing queue of items the agent filed with low confidence or flagged as privileged.",
+   "fields": [
+    {
+     "name": "title",
+     "type": "text",
+     "required": true,
+     "note": "Agent-proposed name in firm style: YYYY-MM-DD Type - Party"
+    },
+    {
+     "name": "folder",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "doc_type",
+     "type": "enum",
+     "required": true,
+     "note": "pleading | correspondence | agreement | evidence | ID | financial | court order | internal note | ..."
+    },
+    {
+     "name": "source",
+     "type": "enum",
+     "required": true,
+     "note": "upload | email | portal | generated | scanned"
+    },
+    {
+     "name": "privilege",
+     "type": "enum",
+     "required": true,
+     "note": "none | solicitor-client | litigation | uncertain"
+    },
+    {
+     "name": "ocr_status",
+     "type": "enum",
+     "required": true,
+     "note": "n/a | queued | done | low quality"
+    },
+    {
+     "name": "version",
+     "type": "int",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "client_visible",
+     "type": "bool",
+     "required": true,
+     "note": "Shared to the portal. Off by default."
+    },
+    {
+     "name": "retention_class",
+     "type": "enum",
+     "required": true,
+     "note": "Inherited from the matter, and drives the destruction date"
+    },
+    {
+     "name": "doc_category",
+     "type": "enum",
+     "required": false,
+     "note": "From document settings"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "draft | in review | final | sent | signed. Set by the agent from events (review approved, sent, signature completed); a person can correct it."
+    },
+    {
+     "name": "classification",
+     "type": "enum",
+     "required": false,
+     "note": "Legal type proposed by the agent (for example statement of claim, affidavit, lease). Distinct from doc_type, which is the broad group."
+    },
+    {
+     "name": "tags",
+     "type": "list",
+     "required": false,
+     "note": "Up to 10 free tags per document"
+    },
+    {
+     "name": "received_at",
+     "type": "date",
+     "required": false,
+     "note": "Date the firm received the document, not the upload time. The agent reads it from a stamp, the email header or a service note. Feeds limitation and service deadlines through G7."
+    },
+    {
+     "name": "locked_by",
+     "type": "ref",
+     "required": false,
+     "note": "User or agent job holding the edit lock"
+    },
+    {
+     "name": "locked_at",
+     "type": "datetime",
+     "required": false,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Upload / drop / email-in",
+     "by": "human",
+     "gate": "none",
+     "note": "Each matter has its own email-in address"
+    },
+    {
+     "name": "Auto-file",
+     "by": "agent",
+     "gate": "none",
+     "note": "Names, classifies, OCRs and files the document. Queued for review when confidence is low."
+    },
+    {
+     "name": "Confirm filing",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-D1. Only for low-confidence items or privilege flags."
+    },
+    {
+     "name": "Share to client portal",
+     "by": "human",
+     "gate": "approve",
+     "note": "A privileged or internal document can never be shared without a warning acknowledgement"
+    },
+    {
+     "name": "Move / rename / delete",
+     "by": "human",
+     "gate": "none",
+     "note": "Deletion is soft and goes to audit. A legal hold blocks it."
+    },
+    {
+     "name": "New from template",
+     "by": "human",
+     "gate": "none",
+     "note": "Opens document assembly"
+    },
+    {
+     "name": "Bulk download (zip)",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer for full-matter export; logged"
+    },
+    {
+     "name": "Bulk move / retype",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Combine into bundle",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Comment thread on file",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Lock / unlock",
+     "by": "human",
+     "gate": "none",
+     "note": "Unlock by the person who locked it or a lawyer on the matter. The agent locks a document while it drafts a new version and releases it on save."
+    },
+    {
+     "name": "Branch as new version",
+     "by": "human",
+     "gate": "none",
+     "note": "Offered when someone edits a locked document; the edit becomes a separate version instead of overwriting."
+    }
+   ],
+   "agent": "Files each incoming document to the right folder. Proposes a name and a type. Runs OCR and extracts key data (dates, parties, amounts, deadlines), and sends deadlines to the calendar for G7. Flags privileged items and duplicates. Keeps the matter brief up to date.",
+   "gate": "G-D1: a clerk or lawyer confirms filing only when the agent is unsure (confidence below threshold), the item is flagged privileged, or it looks like it belongs to another matter.",
+   "states": [
+    "empty",
+    "has documents",
+    "filing queue non-empty",
+    "legal hold",
+    "matter closed (read-only)",
+    "locked"
+   ],
+   "edge": [
+    "Email attachment matches two matters: queue it and never guess",
+    "Possible misdirected document from opposing counsel (privileged): quarantine it, alert the lawyer, and do not open it further (RPC 7.2-10, verify)",
+    "Password-protected or corrupt file: store as is and flag it",
+    "Very large scans (500+ pages): OCR runs in the background with progress shown",
+    "Duplicate upload: link it as the same document, with no new version",
+    "Lock held by a user who has left or is away: a lawyer on the matter can break the lock; the break is logged and the holder is told",
+    "received_at the agent could not read with confidence: left blank and flagged; no deadline is computed from a guessed date"
+   ],
+   "reg": "Confidentiality (RPC 3.3) and privilege. Retention and destruction follow LSO file-management guidance (verify periods). Client ID copies follow BL 7.1 retention (verify period). All storage stays in the firm's Canadian cell.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Name",
+     "Type",
+     "Folder",
+     "Privilege",
+     "Ver",
+     "Filed by"
+    ],
+    "rows": [
+     [
+      "2026-09-28 Commercial Lease - Northgate Bakery",
+      "agreement",
+      "/Lease",
+      "none",
+      "1",
+      "agent (0.97)"
+     ],
+     [
+      "2026-10-01 Letter from Bellwood Properties counsel",
+      "correspondence",
+      "/Correspondence",
+      "none",
+      "1",
+      "agent (0.91)"
+     ],
+     [
+      "2026-10-02 Internal note - rent abatement theory",
+      "internal note",
+      "/Work product",
+      "solicitor-client",
+      "2",
+      "Meraf Abay"
+     ],
+     [
+      "2026-10-04 Scan_0041.pdf",
+      "unknown",
+      "/Inbox",
+      "uncertain",
+      "1",
+      "queued (0.42)"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "document-viewer",
+   "name": "Document viewer",
+   "route": "/matters/:id/documents/:docId",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Read a document (PDF, Word or image) with a searchable OCR text layer, page/line anchors, versions, comments and extracted data.",
+   "layout": "Centre: a page viewer with zoom, thumbnails and line numbers. Right tabs: Details, Extracted, Versions, Comments, Activity. Top: search in document, download, Ask about this document.",
+   "fields": [
+    {
+     "name": "pages",
+     "type": "int",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "text_layer",
+     "type": "text",
+     "required": true,
+     "note": "Native text or OCR, with line positions kept so citations can point to page:line"
+    },
+    {
+     "name": "ocr_confidence",
+     "type": "number",
+     "required": false,
+     "note": "Per page. Low pages are shaded."
+    },
+    {
+     "name": "extracted",
+     "type": "json",
+     "required": false,
+     "note": "Dates, parties, amounts, obligations, each with page:line"
+    },
+    {
+     "name": "versions",
+     "type": "list",
+     "required": true,
+     "note": "Author, time, hash, change summary"
+    },
+    {
+     "name": "comments",
+     "type": "list",
+     "required": false,
+     "note": "Anchored to a text range. Internal only."
+    },
+    {
+     "name": "history",
+     "type": "list",
+     "required": true,
+     "note": "History tab: uploads, versions, views, shares, signature events, and every agent read (which job read it, when, and for what purpose)"
+    },
+    {
+     "name": "source_highlight",
+     "type": "span",
+     "required": false,
+     "note": "When opened from any review card (filing, deadline, intake fact, conflict hit, draft citation), the page scrolls to the cited span and highlights it beside the extracted value"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Search in document",
+     "by": "human",
+     "gate": "none",
+     "note": "Covers the OCR text too"
+    },
+    {
+     "name": "Ask about this document",
+     "by": "human",
+     "gate": "none",
+     "note": "The agent answers with page:line citations, and clicking one jumps to the highlight"
+    },
+    {
+     "name": "Compare versions",
+     "by": "human",
+     "gate": "none",
+     "note": "A redline between any two versions"
+    },
+    {
+     "name": "Upload new version",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Restore version",
+     "by": "human",
+     "gate": "none",
+     "note": "Creates a new version. History is never rewritten."
+    },
+    {
+     "name": "Re-run OCR",
+     "by": "human",
+     "gate": "none",
+     "note": "Uses a higher-quality pass"
+    },
+    {
+     "name": "Accept extracted deadline",
+     "by": "human",
+     "gate": "approve",
+     "note": "Hands off to G7 in the calendar area"
+    },
+    {
+     "name": "Show history",
+     "by": "human",
+     "gate": "none",
+     "note": "Filter by person, agent job or event type; export is logged"
+    }
+   ],
+   "agent": "Builds the text layer and line map. Summarizes the document. Extracts data with citations. Proposes deadlines and tasks. Answers questions about this document only, citing page and line.",
+   "gate": "None to view. Extracted deadlines go to G7 (calendar area).",
+   "states": [
+    "loading",
+    "OCR pending",
+    "ready",
+    "low OCR quality",
+    "superseded version",
+    "quarantined"
+   ],
+   "edge": [
+    "Handwriting or a poor scan: mark the low-confidence lines. Citations to them show a 'verify against image' badge.",
+    "Rotated or mixed-size pages: line numbers are computed per rendered page",
+    "A Word document has no fixed pages: cite against a frozen PDF rendering of that version",
+    "Viewing a superseded version: a banner links to the current one",
+    "An agent read of a privilege-flagged document still in the G-D1 queue must never happen; if one is logged it raises an incident"
+   ],
+   "reg": "Privilege labels are shown on every page and on downloads. Downloads are watermarked with user and time when the document is marked confidential.",
+   "mock": {
+    "kind": "detail",
+    "columns": [
+     "Extracted item",
+     "Value",
+     "Cite"
+    ],
+    "rows": [
+     [
+      "Term start",
+      "2026-11-01",
+      "p.2 l.14"
+     ],
+     [
+      "Base rent",
+      "$4,200.00 / month + HST",
+      "p.3 l.6-8"
+     ],
+     [
+      "Notice to terminate",
+      "90 days, written",
+      "p.11 l.22"
+     ],
+     [
+      "Landlord",
+      "Bellwood Properties Inc.",
+      "p.1 l.3"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "document-search",
+   "name": "Document search",
+   "route": "/documents/search",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal"
+   ],
+   "purpose": "Search across a matter or across all matters the user can access, by keyword, phrase or meaning, including OCR text.",
+   "layout": "Top: a query box with a matter scope picker and filters (type, date, party, privilege, folder). Results: snippets with the hit highlighted and a page:line reference. Side: an optional AI answer with citations.",
+   "fields": [
+    {
+     "name": "query",
+     "type": "text",
+     "required": true,
+     "note": "Keyword, \"exact phrase\", or a natural-language question"
+    },
+    {
+     "name": "scope",
+     "type": "enum",
+     "required": true,
+     "note": "this matter | my matters | all accessible"
+    },
+    {
+     "name": "filters",
+     "type": "json",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "mode",
+     "type": "enum",
+     "required": true,
+     "note": "keyword | semantic | both"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Search",
+     "by": "human",
+     "gate": "none",
+     "note": "Access is checked per matter. Hits on matters the user is walled off from are never shown or counted."
+    },
+    {
+     "name": "Answer with citations",
+     "by": "agent",
+     "gate": "none",
+     "note": "Answers only from the hits, and says so when no hit supports an answer"
+    },
+    {
+     "name": "Save search",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    }
+   ],
+   "agent": "Rewrites the query to cover synonyms. Ranks hits. Writes a short cited answer. Never pulls content from matters outside the user's access or behind an ethical wall.",
+   "gate": "none",
+   "states": [
+    "empty",
+    "results",
+    "no results",
+    "index still building"
+   ],
+   "edge": [
+    "Ethical wall: walled matters are excluded at the index level, not hidden afterwards",
+    "OCR still running on new documents: show 'n documents not yet searchable'",
+    "Query names a client from a conflicted matter: no leakage through counts or suggestions"
+   ],
+   "reg": "Confidentiality and conflicts screens (RPC 3.4 commentary on screening, verify) mean access control comes before ranking.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Document",
+     "Matter",
+     "Snippet",
+     "Cite"
+    ],
+    "rows": [
+     [
+      "Commercial Lease",
+      "Northgate Bakery - lease review",
+      "...rent shall abate in proportion to the area rendered unfit...",
+      "p.9 l.4"
+     ],
+     [
+      "Purchase Agreement",
+      "Tesfaye - 41 Elm St purchase",
+      "...vendor shall deliver vacant possession...",
+      "p.5 l.18"
+     ],
+     [
+      "Statement of Claim",
+      "Bekele v. Fairway Auto",
+      "...the defendant failed to repair the brake line...",
+      "p.3 l.11"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "template-library",
+   "name": "Template library and editor",
+   "route": "/templates and /templates/:id",
+   "who": [
+    "lawyer",
+    "admin",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Manage firm templates with merge fields, conditional clauses and optional clauses. Each template is versioned and approved before use.",
+   "layout": "List: templates by practice area and type, with status and owner. Editor: the document on the left, and a field/logic panel on the right (fields, conditions, clause picks), plus a test-fill preview using a sample matter.",
+   "fields": [
+    {
+     "name": "name",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "practice_area",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "doc_kind",
+     "type": "enum",
+     "required": true,
+     "note": "engagement letter | letter | agreement | pleading | form | email"
+    },
+    {
+     "name": "fields",
+     "type": "list",
+     "required": true,
+     "note": "Each field maps to a matter, contact or custom field, or is an ask-at-assembly question"
+    },
+    {
+     "name": "conditions",
+     "type": "list",
+     "required": false,
+     "note": "If/else clause blocks, for example 'if limited scope'"
+    },
+    {
+     "name": "locked_text",
+     "type": "bool",
+     "required": false,
+     "note": "For example, the LSO contingency form: only fields and options can change"
+    },
+    {
+     "name": "language",
+     "type": "enum",
+     "required": true,
+     "note": "en | fr"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "draft | pending approval | published | retired"
+    },
+    {
+     "name": "version",
+     "type": "int",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "source_format",
+     "type": "enum",
+     "required": true,
+     "note": "Word, fillable PDF, spreadsheet"
+    },
+    {
+     "name": "preview_matter",
+     "type": "ref",
+     "required": false,
+     "note": "Fill preview with a real matter's data"
+    },
+    {
+     "name": "court_forms",
+     "type": "list",
+     "required": true,
+     "note": "Court forms tab: official Ontario forms first (Rules of Civil Procedure, Family Law Rules, estates), each with source URL, official version date and checksum"
+    },
+    {
+     "name": "built_on_form_version",
+     "type": "ref",
+     "required": false,
+     "note": "For firm templates built on a court form: the official version used"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Import Word file",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Propose fields",
+     "by": "agent",
+     "gate": "none",
+     "note": "Finds blanks, sample names and dates in the imported file and proposes merge fields"
+    },
+    {
+     "name": "Test fill",
+     "by": "human",
+     "gate": "none",
+     "note": "Runs against a sample matter. Unfilled fields are listed."
+    },
+    {
+     "name": "Publish",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-D2: a lawyer approves the template version. Matters pin the version they used."
+    },
+    {
+     "name": "Retire",
+     "by": "human",
+     "gate": "none",
+     "note": "Existing documents keep their pinned version"
+    },
+    {
+     "name": "Flag templates on old form versions",
+     "by": "agent",
+     "gate": "none",
+     "note": "A daily job compares official form versions; firm templates built on an old version are flagged and blocked from new assembly until a lawyer republishes (G-D2)"
+    },
+    {
+     "name": "Request a form",
+     "by": "human",
+     "gate": "none",
+     "note": "Adds a form to the internal backlog"
+    }
+   ],
+   "agent": "Converts an uploaded Word file into a template with proposed fields and conditions. Flags clauses that conflict with firm standards or are out of date (for example, an old contingency form date). Suggests where an approved precedent clause should replace free text.",
+   "gate": "G-D2: a lawyer approves each published template version, because every document generated from it inherits its text.",
+   "states": [
+    "draft",
+    "pending approval",
+    "published",
+    "retired",
+    "on outdated court form"
+   ],
+   "edge": [
+    "A field mapped to a custom field that was later deleted: block publishing and list the broken fields",
+    "Regulator form updated (for example, the LSO standard form): the agent opens a change request and the old version stays published until replaced",
+    "Circular or contradictory conditions: the test fill fails with the path shown",
+    "One template cannot embed another: use clause blocks instead",
+    "Official form page unreachable or changed layout: keep the last known version, show 'unable to check since <date>' and do not auto-flag"
+   ],
+   "reg": "The LSO contingency fee form must stay unmodified apart from its fillable fields and options (O. Reg. 563/20, verify). French-language services where offered.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Template",
+     "Area",
+     "Status",
+     "Version",
+     "Approved by"
+    ],
+    "rows": [
+     [
+      "Engagement - limited scope (hourly)",
+      "General",
+      "published",
+      "4",
+      "Linda Kassim"
+     ],
+     [
+      "Contingency fee agreement (LSO form)",
+      "Personal injury",
+      "published",
+      "2",
+      "Linda Kassim"
+     ],
+     [
+      "Demand letter - unpaid invoice",
+      "Civil litigation",
+      "pending approval",
+      "1",
+      "-"
+     ],
+     [
+      "Non-engagement letter",
+      "General",
+      "published",
+      "3",
+      "Linda Kassim"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "document-assembly",
+   "name": "Document assembly",
+   "route": "/matters/:id/assemble",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Generate one document or a set from templates, prefilled with matter data. Only the missing answers are asked for.",
+   "layout": "Step 1: pick a template or document set. Step 2: a short questionnaire with only the missing fields, each prefilled answer showing where it came from. Step 3: a preview of every output, then Save as draft to the matter.",
+   "fields": [
+    {
+     "name": "template_or_set",
+     "type": "ref",
+     "required": true,
+     "note": "A set is an ordered list of templates, for example a closing package"
+    },
+    {
+     "name": "answers",
+     "type": "json",
+     "required": true,
+     "note": "Each one is marked from matter | from document p:l | entered by user"
+    },
+    {
+     "name": "output_format",
+     "type": "enum",
+     "required": true,
+     "note": "docx | pdf"
+    },
+    {
+     "name": "target_folder",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "which_client",
+     "type": "ref",
+     "required": false,
+     "note": "When a matter has several clients, pick whose data fills client fields"
+    },
+    {
+     "name": "output_both",
+     "type": "bool",
+     "required": false,
+     "note": "Word and PDF together"
+    },
+    {
+     "name": "case_facts",
+     "type": "list",
+     "required": true,
+     "note": "Panel listing every field as resolved, missing, conflicting (two sources disagree, each cited) or role-unassigned. Generate is blocked until none are missing or conflicting."
+    },
+    {
+     "name": "trigger",
+     "type": "enum",
+     "required": false,
+     "note": "manual | on matter open | on stage change (filters: practice area, responsible lawyer, from stage, to stage). Automatic runs land in target_folder and go to G8 before anything leaves the firm."
+    },
+    {
+     "name": "client_questionnaire",
+     "type": "ref",
+     "required": false,
+     "note": "Questionnaire built only from unresolved fields; status not started | in progress | needs review | completed"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Prefill",
+     "by": "agent",
+     "gate": "none",
+     "note": "From matter fields, and from source documents with citations"
+    },
+    {
+     "name": "Answer missing fields",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Generate",
+     "by": "agent",
+     "gate": "none",
+     "note": "Saved as a draft. Never sent."
+    },
+    {
+     "name": "Send to review",
+     "by": "human",
+     "gate": "approve",
+     "note": "Hands off to the document review screen (G8)"
+    },
+    {
+     "name": "Regenerate set",
+     "by": "human",
+     "gate": "none",
+     "note": "After matter data changes"
+    },
+    {
+     "name": "Resolve fact conflict",
+     "by": "human",
+     "gate": "none",
+     "note": "Pick a source or type a value; the choice is cited and saved to matter facts"
+    },
+    {
+     "name": "Ask client for missing answers",
+     "by": "agent",
+     "gate": "approve",
+     "note": "Agent builds the questionnaire and a portal link; a lawyer or clerk approves the wording before it is sent. Reviewed answers save to matter facts with source = client before Generate."
+    }
+   ],
+   "agent": "Prefills from the matter and its documents, citing where each value came from. Spots values that disagree, for example two different closing dates across documents, and asks instead of picking one. Generates the outputs and files them as drafts.",
+   "gate": "None here. The outputs are drafts and go to G8 before leaving the firm.",
+   "states": [
+    "choose template",
+    "questionnaire",
+    "generating",
+    "drafts ready",
+    "failed",
+    "blocked: fact conflicts",
+    "waiting on client answers"
+   ],
+   "edge": [
+    "Conflicting values across sources: they are shown side by side and a person must choose",
+    "Required field unknown: generation is blocked. A placeholder is never silently used.",
+    "Template version retired mid-flow: warn and offer the current version",
+    "Client answer contradicts an existing fact: it lands as a conflicting fact, never overwrites",
+    "Stage-change trigger fires twice (stage moved back and forth): the second run is skipped if an ungenerated or unreviewed set already exists"
+   ],
+   "reg": "Competence (RPC 3.1): the lawyer stays responsible for the generated content.",
+   "mock": {
+    "kind": "form",
+    "columns": [
+     "Field",
+     "Value",
+     "Source"
+    ],
+    "rows": [
+     [
+      "Purchaser",
+      "Hana Tesfaye",
+      "matter: client"
+     ],
+     [
+      "Property",
+      "41 Elm St, Hamilton ON",
+      "APS p.1 l.9"
+     ],
+     [
+      "Closing date",
+      "2026-11-27 / 2026-11-30",
+      "APS p.2 l.4 vs amendment p.1 l.6 (choose)"
+     ],
+     [
+      "Deposit",
+      "$40,000.00",
+      "APS p.2 l.12"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "ai-draft-workspace",
+   "name": "AI drafting workspace",
+   "route": "/matters/:id/drafts/:draftId",
+   "who": [
+    "lawyer",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Have the agent draft a letter, memo, pleading or agreement from matter sources and precedents. Every factual sentence is cited to a page:line in a source document.",
+   "layout": "Left: the draft, with citation chips inline. Right: the source pane, which opens the cited page with the lines highlighted. Top: the instruction, the precedents used, and a citation-coverage meter. Bottom: a chat to revise the draft.",
+   "fields": [
+    {
+     "name": "instruction",
+     "type": "text",
+     "required": true,
+     "note": "For example: 'Demand letter to landlord re rent abatement, firm but courteous'"
+    },
+    {
+     "name": "doc_kind",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "sources",
+     "type": "list",
+     "required": true,
+     "note": "Matter documents in scope. Defaults to all, and can be narrowed."
+    },
+    {
+     "name": "precedents",
+     "type": "list",
+     "required": false,
+     "note": "From the precedent library, chosen by the agent and editable"
+    },
+    {
+     "name": "citations",
+     "type": "list",
+     "required": true,
+     "note": "claim span -> doc, version hash, page, line range, quote"
+    },
+    {
+     "name": "unsupported_claims",
+     "type": "list",
+     "required": true,
+     "note": "Sentences that state a fact but have no citation"
+    },
+    {
+     "name": "legal_authorities",
+     "type": "list",
+     "required": false,
+     "note": "Cases or statutes cited. Each one shows 'not verified' until a person checks it."
+    },
+    {
+     "name": "revise_mode",
+     "type": "enum",
+     "required": true,
+     "note": "tracked | direct. Tracked is the default for any document that already exists or came from outside the firm."
+    },
+    {
+     "name": "redlines",
+     "type": "list",
+     "required": false,
+     "note": "Tracked mode: each change is an insert or delete with its reason and a citation; accept or reject per change or in bulk"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Draft",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Revise by instruction",
+     "by": "human",
+     "gate": "none",
+     "note": "Through the chat or inline comments"
+    },
+    {
+     "name": "Open citation",
+     "by": "human",
+     "gate": "none",
+     "note": "Jumps to the exact lines"
+    },
+    {
+     "name": "Mark authority verified",
+     "by": "human",
+     "gate": "none",
+     "note": "A person confirms the case or statute exists and says what the draft claims"
+    },
+    {
+     "name": "Send to review",
+     "by": "human",
+     "gate": "approve",
+     "note": "G8 review"
+    },
+    {
+     "name": "Accept / reject change",
+     "by": "human",
+     "gate": "none",
+     "note": "Per change; unresolved changes block Send to review"
+    }
+   ],
+   "agent": "Retrieves the relevant passages. Drafts in the precedent's structure and the firm's style. Attaches a page:line citation to each factual claim and quotes the source text in the chip. Marks any claim it cannot support. Never invents a case citation: it lists authorities as 'to verify' unless they come from a verified source.",
+   "gate": "None on this screen. 'Send to review' moves the draft to G8.",
+   "states": [
+    "empty",
+    "drafting",
+    "draft",
+    "revising",
+    "sent to review",
+    "superseded"
+   ],
+   "edge": [
+    "A cited source document gets a new version: citations pinned to the old hash are flagged stale",
+    "A quote does not match the source text (OCR drift): the chip turns red and the sentence counts as unsupported",
+    "The instruction asks for something outside the matter's scope (limited retainer): warn",
+    "Sources include privileged internal notes and the output is going out of the firm: warn before citing them",
+    "Agent change with no reason or citation is shown as unsupported and cannot be bulk-accepted"
+   ],
+   "reg": "LSO generative AI guidance (white paper and practice note, April 2024): the licensee remains responsible. Main risks: confidentiality, hallucination and accuracy, supervision. Competence (RPC 3.1). Some Ontario courts require disclosure or certification of AI use or authorities in filed documents (verify the current practice direction).",
+   "mock": {
+    "kind": "doc",
+    "columns": [
+     "Sentence",
+     "Cite",
+     "Status"
+    ],
+    "rows": [
+     [
+      "The lease began on November 1, 2026.",
+      "Lease p.2 l.14",
+      "supported"
+     ],
+     [
+      "Section 9.3 provides for rent abatement when premises are unfit.",
+      "Lease p.9 l.2-6",
+      "supported"
+     ],
+     [
+      "The roof leak began on September 12.",
+      "Email Sep 13 p.1 l.4",
+      "supported"
+     ],
+     [
+      "Your client has acknowledged the defect.",
+      "-",
+      "unsupported"
+     ],
+     [
+      "See 1234 Holdings v. Example Corp, 2019 ONSC 0000.",
+      "-",
+      "authority not verified"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "document-review",
+   "name": "Document review (approval)",
+   "route": "/review/documents and /matters/:id/review/:docId",
+   "who": [
+    "lawyer",
+    "agent"
+   ],
+   "purpose": "Show the lawyer's queue of outgoing documents waiting for approval (G8), with the agent's pre-checks, a redline against the precedent, and a citation audit.",
+   "layout": "Queue list on the left (matter, document, due, risk). Centre: the document, toggling between clean view and redline against the precedent or previous version. Right: a pre-check report (citations, unsupported claims, defined terms, parties, dates, amounts, scope), then Approve / Request changes.",
+   "fields": [
+    {
+     "name": "document_version",
+     "type": "ref",
+     "required": true,
+     "note": "Pinned by hash"
+    },
+    {
+     "name": "destination",
+     "type": "enum",
+     "required": true,
+     "note": "client | opposing counsel | court filing | third party"
+    },
+    {
+     "name": "risk",
+     "type": "enum",
+     "required": true,
+     "note": "low | medium | high, set by the pre-checks"
+    },
+    {
+     "name": "precheck_results",
+     "type": "list",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "reviewer",
+     "type": "ref",
+     "required": true,
+     "note": "A licensee with authority on the matter"
+    },
+    {
+     "name": "decision_note",
+     "type": "text",
+     "required": false,
+     "note": "Required when requesting changes"
+    },
+    {
+     "name": "redline_set",
+     "type": "ref",
+     "required": false,
+     "note": "When the agent edited an existing document, the review item is the set of tracked changes, not the whole file"
+    },
+    {
+     "name": "source_highlight",
+     "type": "span",
+     "required": false,
+     "note": "Each pre-check finding opens the cited span side by side in the viewer"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Run pre-checks",
+     "by": "agent",
+     "gate": "none",
+     "note": "Runs automatically when a document enters the queue"
+    },
+    {
+     "name": "Approve",
+     "by": "human",
+     "gate": "approve",
+     "note": "G8. Locks the version, records the approver, time and hash, and unblocks sending or filing."
+    },
+    {
+     "name": "Request changes",
+     "by": "human",
+     "gate": "none",
+     "note": "The draft returns to the drafting workspace with comments"
+    },
+    {
+     "name": "Approve with edits",
+     "by": "human",
+     "gate": "approve",
+     "note": "The lawyer's edits create a new version, and that new version is the one approved"
+    },
+    {
+     "name": "Delegate review",
+     "by": "human",
+     "gate": "none",
+     "note": "Only to another lawyer"
+    }
+   ],
+   "agent": "Runs the pre-checks: every factual claim cited, quotes match their sources, party names and addresses match the contact records, dates and amounts are consistent, defined terms are used consistently, no other client's names leak in, the content fits the retainer scope, and there is no privileged internal content in an external document. Sorts the queue by due date and risk.",
+   "gate": "G8: a named lawyer approves the exact version of each outgoing document or filing. Without that approval the system cannot email, portal-share, e-sign or file it.",
+   "states": [
+    "queue empty",
+    "pending approval",
+    "changes requested",
+    "approved",
+    "sent / filed",
+    "withdrawn"
+   ],
+   "edge": [
+    "Pre-checks fail on an unverified authority in a court filing: Approve requires an explicit acknowledgement",
+    "The document changes after approval: the approval is void and it goes back into the queue",
+    "The reviewer is not on the matter, or is behind an ethical wall: they cannot see it",
+    "Urgent filing at the deadline: no bypass. The queue escalates to the backup lawyer instead."
+   ],
+   "reg": "Supervision of non-lawyers and the AI (RPC 6.1, verify). Competence (RPC 3.1). Court rules on document form (RCP, e.g. r.4) for filings (verify). LSO AI guidance: the licensee is responsible for the output.",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "Matter",
+     "Document",
+     "To",
+     "Risk",
+     "Due"
+    ],
+    "rows": [
+     [
+      "Northgate Bakery - lease review",
+      "Demand letter re abatement",
+      "opposing counsel",
+      "medium",
+      "2026-10-12"
+     ],
+     [
+      "Bekele v. Fairway Auto",
+      "Affidavit of documents",
+      "court filing",
+      "high",
+      "2026-10-15"
+     ],
+     [
+      "Tesfaye - 41 Elm St purchase",
+      "Requisition letter",
+      "vendor's solicitor",
+      "low",
+      "2026-10-20"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "precedent-library",
+   "name": "Precedent library",
+   "route": "/precedents",
+   "who": [
+    "lawyer",
+    "paralegal",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Hold the firm's curated set of good past documents and clauses, anonymized and tagged, for the agent and staff to draft from.",
+   "layout": "Search and facets (area, document kind, clause type, jurisdiction, date). Results as cards with a preview. Detail view: the anonymized text, the clause breakdown, and usage stats (times used, last reviewed).",
+   "fields": [
+    {
+     "name": "title",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "kind",
+     "type": "enum",
+     "required": true,
+     "note": "full document | clause"
+    },
+    {
+     "name": "practice_area",
+     "type": "enum",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "tags",
+     "type": "list",
+     "required": false,
+     "note": "For example: abatement, force majeure, limited scope"
+    },
+    {
+     "name": "source_matter",
+     "type": "ref",
+     "required": false,
+     "note": "Visible only to people with access to that matter"
+    },
+    {
+     "name": "anonymized",
+     "type": "bool",
+     "required": true,
+     "note": "Client and party details removed"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "proposed | approved | stale | retired"
+    },
+    {
+     "name": "review_due",
+     "type": "date",
+     "required": true,
+     "note": "Periodic re-review for currency of law"
+    },
+    {
+     "name": "approved_by",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Propose from matter document",
+     "by": "human",
+     "gate": "none",
+     "note": "Anyone can nominate a document"
+    },
+    {
+     "name": "Anonymize",
+     "by": "agent",
+     "gate": "none",
+     "note": "Removes names, addresses, amounts and identifying facts, and shows a diff of what changed"
+    },
+    {
+     "name": "Admit to library",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-D3: a lawyer confirms the anonymization and the quality"
+    },
+    {
+     "name": "Flag stale",
+     "by": "agent",
+     "gate": "none",
+     "note": "When the review date passes or a cited statute or rule changes"
+    },
+    {
+     "name": "Use in draft",
+     "by": "human",
+     "gate": "none",
+     "note": "Opens the AI drafting workspace with this precedent selected"
+    }
+   ],
+   "agent": "Suggests precedent candidates from approved outgoing documents that drew no changes. Anonymizes them. Splits documents into tagged clauses. Flags stale precedents. Picks the best precedents when drafting.",
+   "gate": "G-D3: a lawyer approves each precedent's admission, which covers both the anonymization and the legal quality.",
+   "states": [
+    "empty",
+    "proposed",
+    "approved",
+    "stale",
+    "retired"
+   ],
+   "edge": [
+    "Anonymization misses an identifier: it is visible in the diff, and the lawyer must tick 'no client-identifying info remains'",
+    "A precedent from a matter that later becomes conflicted or walled: it stays in the library only in anonymized form, and the source link is hidden",
+    "The law changes: the agent flags dependent precedents and templates together"
+   ],
+   "reg": "Confidentiality (RPC 3.3) continues after the retainer ends. Reusing client documents needs real anonymization. Precedents never cross firm cells.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Precedent",
+     "Kind",
+     "Area",
+     "Status",
+     "Review due"
+    ],
+    "rows": [
+     [
+      "Rent abatement demand (commercial)",
+      "full document",
+      "Commercial leasing",
+      "approved",
+      "2027-04-01"
+     ],
+     [
+      "Limited-scope exclusions clause",
+      "clause",
+      "General",
+      "approved",
+      "2027-01-15"
+     ],
+     [
+      "Requisition letter (residential purchase)",
+      "full document",
+      "Real estate",
+      "stale",
+      "2026-09-30"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "email-filing",
+   "name": "Email filing",
+   "route": "/matters/:id/email and /settings/email-filing",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Get every matter email and its attachments into the matter file without manual forwarding.",
+   "layout": "Matter tab: filed threads with attachments, filed-by and confidence. Settings: connected mailboxes, matter forwarding addresses, filing rules, review queue for uncertain emails.",
+   "fields": [
+    {
+     "name": "mailbox",
+     "type": "ref",
+     "required": true,
+     "note": "Connected Microsoft 365 or Google account per user; shared mailboxes allowed"
+    },
+    {
+     "name": "rule",
+     "type": "enum",
+     "required": true,
+     "note": "by known contact address | by matter number in subject | by forward-to address | agent suggestion"
+    },
+    {
+     "name": "thread",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "attachments",
+     "type": "file[]",
+     "required": false,
+     "note": "Saved as matter documents, linked to the email"
+    },
+    {
+     "name": "matter",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "confidence",
+     "type": "number",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "privilege",
+     "type": "enum",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "time_entry_hint",
+     "type": "ref",
+     "required": false,
+     "note": "Suggests a time entry; billing area owns it"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Connect mailbox",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "File thread to matter",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Auto-file",
+     "by": "agent",
+     "gate": "none",
+     "note": "Only above confidence threshold"
+    },
+    {
+     "name": "Confirm uncertain filing",
+     "by": "human",
+     "gate": "approve",
+     "note": "G-D1"
+    },
+    {
+     "name": "Unfile / move",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Exclude address or domain",
+     "by": "human",
+     "gate": "none",
+     "note": "e.g. personal emails, newsletters"
+    }
+   ],
+   "agent": "Files emails by contact and matter number, splits a thread that spans two matters, saves attachments, and queues anything uncertain.",
+   "gate": "Uncertain or multi-matter emails need a human to confirm (G-D1).",
+   "states": [
+    "not connected",
+    "connected",
+    "filing",
+    "needs review"
+   ],
+   "edge": [
+    "A contact is a party on two matters: never auto-file, ask",
+    "An email to the client cc's opposing counsel: filed, privilege flag off",
+    "Sender is on a walled matter the user is screened from: filed only to that matter, hidden from the user",
+    "Mailbox token expires: banner and admin alert, no silent gap"
+   ],
+   "reg": "Email is part of the client file (LSO record keeping, verify).",
+   "mock": {
+    "kind": "inbox",
+    "columns": [
+     "From",
+     "Subject",
+     "Suggested matter",
+     "Confidence",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Meraf Abay",
+      "RE: closing date",
+      "2026-0091 Abay purchase",
+      "0.97",
+      "filed"
+     ],
+     [
+      "opposing@lawfirm.example",
+      "Without prejudice offer",
+      "2026-0077 Haile v. Northgate",
+      "0.81",
+      "needs review"
+     ],
+     [
+      "Kaleab Bereket",
+      "Two matters, one question",
+      "2026-0102 / 2026-0103",
+      "0.50",
+      "needs review"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "client-sharing",
+   "name": "Client sharing and secure links",
+   "route": "/matters/:id/sharing",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "client"
+   ],
+   "purpose": "Control what the client (or co-counsel) can see and download, by portal or by an expiring secure link.",
+   "layout": "List of shared items with who, how (portal or link), expiry, opened/downloaded marks; side panel to add a share; tab for client uploads.",
+   "fields": [
+    {
+     "name": "item",
+     "type": "ref",
+     "required": true,
+     "note": "Document or folder; folder share includes later files"
+    },
+    {
+     "name": "recipient",
+     "type": "ref",
+     "required": true,
+     "note": "Client, co-counsel or other named person"
+    },
+    {
+     "name": "method",
+     "type": "enum",
+     "required": true,
+     "note": "portal | secure link (no account, email code)"
+    },
+    {
+     "name": "expires_at",
+     "type": "date",
+     "required": false,
+     "note": "Required for secure links; default 14 days"
+    },
+    {
+     "name": "allow_download",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "message",
+     "type": "text",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "opened_at",
+     "type": "datetime",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "upload_folder",
+     "type": "ref",
+     "required": false,
+     "note": "Client uploads land here, max size per file"
+    },
+    {
+     "name": "recipient_kind",
+     "type": "enum",
+     "required": true,
+     "note": "client | co-counsel | opposing. Co-counsel gets a two-way upload folder and a stop-sharing control."
+    },
+    {
+     "name": "folder_rule",
+     "type": "note",
+     "required": false,
+     "note": "Shown on screen: sharing a folder shares only items already approved under G8. New files added to a shared folder are queued for G8, never shared automatically (Clio auto-includes later files)."
+    },
+    {
+     "name": "co_counsel_link_days",
+     "type": "int",
+     "required": false,
+     "note": "Expiry for emailed co-counsel links. Default 7 days (Clio uses 7)."
+    }
+   ],
+   "actions": [
+    {
+     "name": "Share",
+     "by": "human",
+     "gate": "approve",
+     "note": "Outgoing documents still pass G8 if not yet reviewed"
+    },
+    {
+     "name": "Revoke",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Extend expiry",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Resend link",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Request documents from client",
+     "by": "agent",
+     "gate": "none",
+     "note": "Checklist of what is missing, e.g. ID, lease, pay stubs"
+    },
+    {
+     "name": "Stop sharing with co-counsel",
+     "by": "human",
+     "gate": "none",
+     "note": "Revokes all links and the upload folder at once"
+    }
+   ],
+   "agent": "Builds the request list from the matter type, chases missing uploads, and warns when a folder share would expose a privileged or internal file.",
+   "gate": "Lawyer approves sharing any document that has not passed G8.",
+   "states": [
+    "nothing shared",
+    "shared",
+    "link expired",
+    "revoked"
+   ],
+   "edge": [
+    "A file is added later to a shared folder but is marked internal: not shared, with a warning",
+    "Client forwards a secure link: second device must pass the email code",
+    "Client upload contains malware: quarantined, staff told",
+    "Co-counsel share on a matter with a wall: blocked for screened people",
+    "Co-counsel uploads a file: ingest-document files it with source = co-counsel and runs G-D1 checks before anyone on the firm side relies on it"
+   ],
+   "reg": "Confidentiality (LSO Rules 3.3, verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Item",
+     "To",
+     "Method",
+     "Expires",
+     "Opened"
+    ],
+    "rows": [
+     [
+      "Draft separation agreement.pdf",
+      "Selam Tadesse",
+      "portal",
+      "-",
+      "Oct 8"
+     ],
+     [
+      "Closing documents/",
+      "Meraf Abay",
+      "portal (folder)",
+      "-",
+      "Oct 9"
+     ],
+     [
+      "Expert report.pdf",
+      "co-counsel Yohannes Sinke",
+      "secure link",
+      "Oct 20",
+      "no"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "document-trash",
+   "name": "Deleted documents",
+   "route": "/documents/trash",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "admin"
+   ],
+   "purpose": "Recover deleted documents within a window, and permanently delete only when retention and holds allow.",
+   "layout": "Table of deleted items with who deleted, when, days left; filters by matter; restore and purge buttons.",
+   "fields": [
+    {
+     "name": "document",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "deleted_by",
+     "type": "ref",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "deleted_at",
+     "type": "datetime",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "restore_until",
+     "type": "date",
+     "required": true,
+     "note": "Default 30 days"
+    },
+    {
+     "name": "hold",
+     "type": "bool",
+     "required": true,
+     "note": "Legal hold or retention class blocks purge"
+    },
+    {
+     "name": "reason",
+     "type": "text",
+     "required": false,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Restore",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Purge now",
+     "by": "human",
+     "gate": "approve",
+     "note": "Lawyer; removes all versions; logged"
+    },
+    {
+     "name": "Auto-purge",
+     "by": "agent",
+     "gate": "G14",
+     "note": "Agent proposes the purge list at window end (no hold, retention allows); nothing is destroyed until a lawyer approves G14"
+    }
+   ],
+   "agent": "Purges expired items that have no hold; reports anything blocked.",
+   "gate": "Permanent deletion before the window ends needs a lawyer.",
+   "states": [
+    "empty",
+    "items waiting",
+    "purge pending approval"
+   ],
+   "edge": [
+    "Document deleted from a closed matter under retention: deletion refused, not trashed",
+    "Restoring into a folder that was removed: restored to matter root",
+    "Signed engagement letter deleted: refused, signed records are protected"
+   ],
+   "reg": "File retention after closing (LSO guidance, verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Document",
+     "Matter",
+     "Deleted by",
+     "Days left",
+     "Hold"
+    ],
+    "rows": [
+     [
+      "scan_0042.pdf",
+      "2026-0088",
+      "Kaleab Bereket",
+      "27",
+      "no"
+     ],
+     [
+      "Draft v3 notice.docx",
+      "2026-0077",
+      "Yonathan Degu",
+      "4",
+      "no"
+     ],
+     [
+      "Bank statement.pdf",
+      "2025-0140",
+      "Ayo Ewebiyi",
+      "12",
+      "yes"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "document-settings",
+   "name": "Document settings",
+   "route": "/settings/documents",
+   "who": [
+    "admin",
+    "lawyer"
+   ],
+   "purpose": "Firm-wide rules for documents: types, folder templates, file naming, merge fields, signing defaults and limits.",
+   "layout": "Sections: Types, Folder templates per practice area, Naming, Data fields catalog (with preview against a chosen matter), Signing defaults, Limits.",
+   "fields": [
+    {
+     "name": "doc_types",
+     "type": "list",
+     "required": true,
+     "note": "Used for filing and reports"
+    },
+    {
+     "name": "folder_templates",
+     "type": "map",
+     "required": true,
+     "note": "Practice area -> folder tree created on matter open"
+    },
+    {
+     "name": "naming_rule",
+     "type": "pattern",
+     "required": false,
+     "note": "e.g. {date} {doc_type} {party}; agent applies on filing"
+    },
+    {
+     "name": "field_catalog",
+     "type": "list",
+     "required": true,
+     "note": "Every fillable field with source (contact, matter, custom field) and preview value"
+    },
+    {
+     "name": "sign_defaults",
+     "type": "map",
+     "required": true,
+     "note": "Expiry days (14), reminder days, sequential by default, identity check level"
+    },
+    {
+     "name": "max_upload_mb",
+     "type": "number",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "ocr_on_upload",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Edit",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Preview fields on a matter",
+     "by": "human",
+     "gate": "none",
+     "note": "Blank means the matter is missing that data"
+    },
+    {
+     "name": "Publish folder template",
+     "by": "human",
+     "gate": "approve",
+     "note": ""
+    }
+   ],
+   "agent": "Flags fields used in templates that no matter type collects, and naming collisions.",
+   "gate": "Folder template and signing default changes need an admin.",
+   "states": [
+    "defaults",
+    "edited",
+    "saved"
+   ],
+   "edge": [
+    "A custom field is renamed: templates using it are listed and re-linked",
+    "Folder template changed: applies to new matters only"
+   ],
+   "reg": "",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Practice area",
+     "Folders"
+    ],
+    "rows": [
+     [
+      "Real estate",
+      "Agreement, Title search, Closing, Correspondence, Trust"
+     ],
+     [
+      "Family",
+      "Pleadings, Financial disclosure, Correspondence, Agreements"
+     ],
+     [
+      "Employment",
+      "Contract, Termination, Correspondence, Settlement"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "multi-document-analysis",
+   "name": "Analyze several documents",
+   "route": "/matters/:id/analyze",
+   "who": [
+    "lawyer",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Ask one question across many matter documents (chronology, parties, obligations, inconsistencies) and keep the result.",
+   "layout": "Left: picked documents with page counts. Centre: question and answer with citations to page and line. Right: save as note or new document.",
+   "fields": [
+    {
+     "name": "documents",
+     "type": "ref[]",
+     "required": true,
+     "note": "Up to 50 files; size limit per set"
+    },
+    {
+     "name": "question",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "depth",
+     "type": "enum",
+     "required": true,
+     "note": "quick | thorough"
+    },
+    {
+     "name": "answer",
+     "type": "text",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "citations",
+     "type": "list",
+     "required": false,
+     "note": "Each claim links to page/paragraph"
+    },
+    {
+     "name": "save_as",
+     "type": "enum",
+     "required": false,
+     "note": "note | new document"
+    },
+    {
+     "name": "mode",
+     "type": "enum",
+     "required": true,
+     "note": "answer | table"
+    },
+    {
+     "name": "table_columns",
+     "type": "list",
+     "required": false,
+     "note": "Table mode: one question per column, defined by a person or proposed by the agent; templates per practice area"
+    },
+    {
+     "name": "table_cells",
+     "type": "list",
+     "required": false,
+     "note": "One row per document. Each cell holds the answer and a page:line citation, or 'not applicable' / 'not found'. Clicking a cell opens the source highlight."
+    },
+    {
+     "name": "document_limit",
+     "type": "int",
+     "required": true,
+     "note": "Stated cap per table (proposed 300 documents); above it the agent asks to split the set"
+    }
+   ],
+   "actions": [
+    {
+     "name": "Analyze",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Follow-up question",
+     "by": "agent",
+     "gate": "none",
+     "note": "Keeps context within the session; saved results keep the thread"
+    },
+    {
+     "name": "Save result",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Send to review",
+     "by": "human",
+     "gate": "approve",
+     "note": "Only if the result leaves the firm (G8)"
+    },
+    {
+     "name": "Export table CSV",
+     "by": "human",
+     "gate": "none",
+     "note": "Citations travel as a column"
+    },
+    {
+     "name": "Save table as template",
+     "by": "human",
+     "gate": "none",
+     "note": "Saves the columns for reuse"
+    }
+   ],
+   "agent": "Builds chronologies, party lists, obligation tables and contradictions with citations; marks anything without support.",
+   "gate": "none for internal notes; G8 if sent out.",
+   "states": [
+    "idle",
+    "running",
+    "answered",
+    "saved"
+   ],
+   "edge": [
+    "Scanned file with low OCR confidence: answer warns and names the pages",
+    "Selected documents include a walled one for a screened user: removed before analysis",
+    "Password-protected file: skipped and listed",
+    "Question needs law, not facts: points to the drafting workspace",
+    "Cell answer without a citation is shown as 'unsupported' and excluded from export unless a person confirms it"
+   ],
+   "reg": "AI use with confidential info: LSO guidance on generative AI (verify).",
+   "mock": {
+    "kind": "doc",
+    "columns": [
+     "Date",
+     "Event",
+     "Source"
+    ],
+    "rows": [
+     [
+      "2025-03-04",
+      "Lease signed",
+      "Lease.pdf p.1"
+     ],
+     [
+      "2026-01-15",
+      "Rent missed",
+      "Ledger.xlsx row 12"
+     ],
+     [
+      "2026-02-02",
+      "Notice served",
+      "Notice N4.pdf p.2"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "bundle-builder",
+   "name": "Document bundle builder",
+   "route": "/matters/:id/bundles/:bundleId",
+   "who": [
+    "lawyer",
+    "clerk",
+    "paralegal",
+    "agent"
+   ],
+   "purpose": "Combine chosen documents into one paginated PDF with tabs and an index, for a court record, a brief of documents or a closing book.",
+   "layout": "Left: ordered list of documents with tab labels (drag to reorder). Right: live index and page preview. Footer: output options.",
+   "fields": [
+    {
+     "name": "items",
+     "type": "ref[]",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "tab_labels",
+     "type": "list",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "index_page",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "page_numbers",
+     "type": "enum",
+     "required": true,
+     "note": "continuous | per tab"
+    },
+    {
+     "name": "bookmarks",
+     "type": "bool",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "cover_page",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "output",
+     "type": "file",
+     "required": false,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Suggest order and tabs",
+     "by": "agent",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Build",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Replace one document and rebuild",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Send to review",
+     "by": "human",
+     "gate": "approve",
+     "note": "G8 before filing or sending"
+    }
+   ],
+   "agent": "Proposes order by date or by court rule, writes the index, checks page limits and missing pages.",
+   "gate": "Bundle approved (G8) before it leaves the firm.",
+   "states": [
+    "draft",
+    "built",
+    "pending approval",
+    "approved"
+   ],
+   "edge": [
+    "One file is not PDF: converted, conversion noted",
+    "Total size above court portal limit: offers split into volumes (verify the limit)",
+    "Source document changes after build: bundle marked stale"
+   ],
+   "reg": "Ontario Rules of Civil Procedure format rules for records and books of documents (verify).",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Tab",
+     "Document",
+     "Pages"
+    ],
+    "rows": [
+     [
+      "1",
+      "Notice of application",
+      "4"
+     ],
+     [
+      "2",
+      "Affidavit of Selam Tadesse",
+      "12"
+     ],
+     [
+      "3",
+      "Exhibit A - lease",
+      "9"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "firm-library",
+   "name": "Firm library and private drafts",
+   "route": "/documents/firm and /documents/private",
+   "who": [
+    "lawyer",
+    "associate",
+    "paralegal",
+    "clerk",
+    "agent"
+   ],
+   "purpose": "Hold firm material that belongs to no matter (policies, checklists, forms in progress) and each person's private drafts.",
+   "layout": "Tabs: Firm and Private. Left: folder tree. Centre: document table with status, owner and updated date. Right: details of the selected item.",
+   "fields": [
+    {
+     "name": "title",
+     "type": "text",
+     "required": true,
+     "note": ""
+    },
+    {
+     "name": "area",
+     "type": "enum",
+     "required": true,
+     "note": "firm | private"
+    },
+    {
+     "name": "folder",
+     "type": "ref",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "owner",
+     "type": "ref",
+     "required": true,
+     "note": "Private items are visible only to the owner"
+    },
+    {
+     "name": "status",
+     "type": "enum",
+     "required": true,
+     "note": "draft | final"
+    },
+    {
+     "name": "tags",
+     "type": "list",
+     "required": false,
+     "note": ""
+    },
+    {
+     "name": "updated_at",
+     "type": "datetime",
+     "required": true,
+     "note": ""
+    }
+   ],
+   "actions": [
+    {
+     "name": "Upload / new",
+     "by": "human",
+     "gate": "none",
+     "note": ""
+    },
+    {
+     "name": "Move private draft to matter",
+     "by": "human",
+     "gate": "approve",
+     "note": "Runs ingest-document filing checks; privilege or low-confidence items go to G-D1"
+    },
+    {
+     "name": "Propose as precedent",
+     "by": "human",
+     "gate": "approve",
+     "note": "Goes to G-D3"
+    },
+    {
+     "name": "Detect matter content",
+     "by": "agent",
+     "gate": "none",
+     "note": "Warns when a firm-library file names a client or party, and suggests moving it to the matter"
+    }
+   ],
+   "agent": "Indexes firm items for search. Never reads another user's private drafts. Flags firm-library files that look like matter content.",
+   "gate": "G-D1 when a private draft moves into a matter and is uncertain or privilege-flagged; G-D3 when a file is proposed as a precedent.",
+   "states": [
+    "empty",
+    "has items",
+    "moving to matter"
+   ],
+   "edge": [
+    "Owner leaves the firm: private drafts go to a lawyer the owner names, or to the firm owner, after notice; never deleted silently",
+    "Firm admin sees neither area: firm admin manages users, not content"
+   ],
+   "reg": "Material that identifies a client belongs in the matter file for record-keeping; the firm library is for non-client material.",
+   "mock": {
+    "kind": "table",
+    "columns": [
+     "Title",
+     "Area",
+     "Owner",
+     "Status",
+     "Updated"
+    ],
+    "rows": [
+     [
+      "Office file-opening checklist",
+      "firm",
+      "Linda Kassim",
+      "final",
+      "2026-09-30"
+     ],
+     [
+      "Draft memo template: limitation periods",
+      "private",
+      "Ayo Ewebiyi",
+      "draft",
+      "2026-10-07"
+     ],
+     [
+      "Privacy breach response plan",
+      "firm",
+      "Linda Kassim",
+      "final",
+      "2026-08-14"
+     ]
+    ]
+   }
+  }
+ ],
+ "entities": [
+  {
+   "name": "Document",
+   "fields": [
+    "id",
+    "matter_id",
+    "folder_id",
+    "title",
+    "doc_type",
+    "source",
+    "privilege",
+    "client_visible",
+    "retention_class",
+    "legal_hold",
+    "current_version_id",
+    "created_by",
+    "created_at",
+    "status",
+    "classification",
+    "tags",
+    "received_at",
+    "locked_by",
+    "locked_at",
+    "area",
+    "owner_id"
+   ],
+   "relations": [
+    "Matter one-to-many",
+    "Folder many-to-one",
+    "DocumentVersion one-to-many"
+   ]
+  },
+  {
+   "name": "DocumentVersion",
+   "fields": [
+    "id",
+    "document_id",
+    "number",
+    "sha256",
+    "storage_key",
+    "mime",
+    "pages",
+    "text_layer_key",
+    "ocr_confidence",
+    "author",
+    "change_summary",
+    "created_at"
+   ],
+   "relations": [
+    "Document many-to-one",
+    "Citation targets this"
+   ]
+  },
+  {
+   "name": "Folder",
+   "fields": [
+    "id",
+    "matter_id",
+    "parent_id",
+    "name",
+    "from_template"
+   ],
+   "relations": [
+    "Matter one-to-many",
+    "Folder tree"
+   ]
+  },
+  {
+   "name": "Extraction",
+   "fields": [
+    "id",
+    "version_id",
+    "kind",
+    "value",
+    "page",
+    "line_from",
+    "line_to",
+    "confidence",
+    "status"
+   ],
+   "relations": [
+    "DocumentVersion many-to-one",
+    "may create a Deadline (G7)"
+   ]
+  },
+  {
+   "name": "EngagementLetter",
+   "fields": [
+    "id",
+    "matter_id",
+    "letter_type",
+    "fee_basis",
+    "scope_included",
+    "scope_excluded",
+    "rates",
+    "retainer_amount",
+    "estimate",
+    "template_version_id",
+    "document_version_id",
+    "approved_by",
+    "approved_at",
+    "approved_hash",
+    "status"
+   ],
+   "relations": [
+    "Matter one-to-one (current)",
+    "ConflictCheck required",
+    "SignatureRequest one-to-many"
+   ]
+  },
+  {
+   "name": "SignatureRequest",
+   "fields": [
+    "id",
+    "matter_id",
+    "document_version_ids",
+    "status",
+    "expires_at",
+    "reminder_plan",
+    "completed_hash",
+    "certificate_key"
+   ],
+   "relations": [
+    "Signer one-to-many",
+    "AuditEvent one-to-many"
+   ]
+  },
+  {
+   "name": "Signer",
+   "fields": [
+    "id",
+    "request_id",
+    "contact_id",
+    "role",
+    "order",
+    "identity_method",
+    "status",
+    "signed_at",
+    "ip",
+    "user_agent"
+   ],
+   "relations": [
+    "Contact many-to-one"
+   ]
+  },
+  {
+   "name": "Template",
+   "fields": [
+    "id",
+    "name",
+    "practice_area",
+    "doc_kind",
+    "language",
+    "locked_text",
+    "status",
+    "built_on_form_version",
+    "trigger"
+   ],
+   "relations": [
+    "TemplateVersion one-to-many",
+    "DocumentSet many-to-many"
+   ]
+  },
+  {
+   "name": "TemplateVersion",
+   "fields": [
+    "id",
+    "template_id",
+    "number",
+    "body_key",
+    "fields",
+    "conditions",
+    "approved_by",
+    "approved_at"
+   ],
+   "relations": [
+    "Template many-to-one"
+   ]
+  },
+  {
+   "name": "Draft",
+   "fields": [
+    "id",
+    "matter_id",
+    "instruction",
+    "doc_kind",
+    "source_scope",
+    "precedent_ids",
+    "document_id",
+    "coverage",
+    "status",
+    "revise_mode"
+   ],
+   "relations": [
+    "Citation one-to-many",
+    "Precedent many-to-many"
+   ]
+  },
+  {
+   "name": "Citation",
+   "fields": [
+    "id",
+    "draft_id",
+    "claim_span",
+    "target_version_id",
+    "page",
+    "line_from",
+    "line_to",
+    "quote",
+    "match_status"
+   ],
+   "relations": [
+    "Draft many-to-one",
+    "DocumentVersion many-to-one"
+   ]
+  },
+  {
+   "name": "Review",
+   "fields": [
+    "id",
+    "document_version_id",
+    "destination",
+    "risk",
+    "precheck_results",
+    "reviewer_id",
+    "decision",
+    "decision_note",
+    "decided_at",
+    "redline_set_id"
+   ],
+   "relations": [
+    "DocumentVersion one-to-one per decision",
+    "Gate G8"
+   ]
+  },
+  {
+   "name": "Precedent",
+   "fields": [
+    "id",
+    "title",
+    "kind",
+    "practice_area",
+    "tags",
+    "source_document_id",
+    "anonymized_body_key",
+    "status",
+    "review_due",
+    "approved_by"
+   ],
+   "relations": [
+    "Draft many-to-many",
+    "Clause one-to-many"
+   ]
+  },
+  {
+   "name": "EmailFiling",
+   "fields": [
+    "id",
+    "thread_id",
+    "mailbox",
+    "matter_id",
+    "rule",
+    "confidence",
+    "status"
+   ],
+   "relations": [
+    "belongs to Matter",
+    "has many Document (attachments)"
+   ]
+  },
+  {
+   "name": "Share",
+   "fields": [
+    "id",
+    "item_ref",
+    "recipient",
+    "method",
+    "expires_at",
+    "allow_download",
+    "opened_at",
+    "revoked_at",
+    "recipient_kind"
+   ],
+   "relations": [
+    "Document or Folder"
+   ]
+  },
+  {
+   "name": "Bundle",
+   "fields": [
+    "id",
+    "matter_id",
+    "items",
+    "options",
+    "output_doc",
+    "status"
+   ],
+   "relations": [
+    "many Document"
+   ]
+  },
+  {
+   "name": "CourtForm",
+   "fields": [
+    "id",
+    "jurisdiction",
+    "rule_set",
+    "form_number",
+    "title",
+    "source_url",
+    "version_date",
+    "checksum",
+    "checked_at"
+   ],
+   "relations": [
+    "Template many-to-one via built_on_form_version"
+   ]
+  },
+  {
+   "name": "DocumentEvent",
+   "fields": [
+    "id",
+    "document_id",
+    "version_id",
+    "kind",
+    "actor_kind",
+    "actor_id",
+    "agent_job",
+    "purpose",
+    "at"
+   ],
+   "relations": [
+    "Document many-to-one"
+   ]
+  },
+  {
+   "name": "Redline",
+   "fields": [
+    "id",
+    "draft_id",
+    "version_id",
+    "op",
+    "span",
+    "text",
+    "reason",
+    "citation_id",
+    "decision",
+    "decided_by"
+   ],
+   "relations": [
+    "Draft many-to-one",
+    "Citation many-to-one"
+   ]
+  },
+  {
+   "name": "AnalysisTable",
+   "fields": [
+    "id",
+    "matter_id",
+    "columns",
+    "document_ids",
+    "template_name",
+    "created_by"
+   ],
+   "relations": [
+    "Document many-to-many",
+    "Citation one-to-many per cell"
+   ]
+  },
+  {
+   "name": "AuditEvent",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by documents relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "Clause",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by documents relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  },
+  {
+   "name": "DocumentSet",
+   "fields": [
+    "id"
+   ],
+   "relations": [
+    "referenced by documents relations"
+   ],
+   "note": "stub added by spec lint: fields to be defined by the area owner"
+  }
+ ],
+ "gates": [
+  {
+   "id": "G5",
+   "name": "Engagement letter approved",
+   "approver": "responsible lawyer",
+   "blocks": "Sending the letter or fee agreement for signature, and therefore the trust retainer request and matter opening"
+  },
+  {
+   "id": "G8",
+   "name": "Outgoing document approved",
+   "approver": "lawyer on the matter",
+   "blocks": "Emailing, portal-sharing, e-signing or filing any document outside the firm"
+  },
+  {
+   "id": "G-D1",
+   "name": "Uncertain filing / privilege confirmed",
+   "approver": "clerk or lawyer (lawyer for privilege flags)",
+   "blocks": "Low-confidence or privilege-flagged documents stay in the filing queue, outside search and agent context, and cannot be shared"
+  },
+  {
+   "id": "G-D2",
+   "name": "Template version published",
+   "approver": "lawyer (template owner)",
+   "blocks": "Using that template version in assembly or engagement letters"
+  },
+  {
+   "id": "G-D3",
+   "name": "Precedent admitted",
+   "approver": "lawyer",
+   "blocks": "The precedent being used by the agent or shown to other matters"
+  }
+ ],
+ "agent_jobs": [
+  {
+   "name": "ingest-document",
+   "trigger": "event: upload, email-in, portal upload, scan",
+   "does": "OCR, line map, classify, name, file, dedupe, privilege flag, extract dates, parties and amounts",
+   "output": "A filed document, or a filing-queue item for G-D1. Extracted deadlines go to G7."
+  },
+  {
+   "name": "draft-engagement-letter",
+   "trigger": "event: conflict cleared (G2) and lead accepted (G1)",
+   "does": "Picks the template, fills scope, fees and retainer, runs the compliance checklist",
+   "output": "A draft engagement letter for G5"
+  },
+  {
+   "name": "signature-chaser",
+   "trigger": "schedule: daily",
+   "does": "Sends reminders, detects bounces and expiry, files completed packages, verifies the hash",
+   "output": "A filed signed copy and an 'engagement signed' event for the trust retainer request"
+  },
+  {
+   "name": "draft-with-citations",
+   "trigger": "event: user instruction or task from the matter plan",
+   "does": "Retrieves sources and precedents, drafts, cites each claim page:line, lists unsupported claims and authorities to verify",
+   "output": "A draft for G8"
+  },
+  {
+   "name": "precheck-outgoing",
+   "trigger": "event: document enters the review queue",
+   "does": "Checks citations, quotes, names, dates, amounts, scope, cross-client leakage and privileged content",
+   "output": "A pre-check report and risk level for G8"
+  },
+  {
+   "name": "citation-staleness",
+   "trigger": "event: new version of a cited document",
+   "does": "Re-matches the quotes against the new version",
+   "output": "Stale-citation flags on open drafts"
+  },
+  {
+   "name": "template-and-precedent-currency",
+   "trigger": "schedule: weekly, plus event on a known rule or form change",
+   "does": "Flags templates and precedents past their review date or tied to changed law or forms",
+   "output": "Change requests for G-D2 and stale flags for G-D3"
+  },
+  {
+   "name": "precedent-candidates",
+   "trigger": "schedule: monthly",
+   "does": "Finds approved outgoing documents with no changes requested, anonymizes them and splits them into clauses",
+   "output": "Proposed precedents for G-D3"
+  },
+  {
+   "name": "email-filer",
+   "trigger": "event: email arrives in connected mailbox",
+   "does": "Matches to matter, files thread and attachments",
+   "output": "Filed email or G-D1 review item"
+  },
+  {
+   "name": "trash-purger",
+   "trigger": "schedule: daily",
+   "does": "Purges trashed documents past window with no hold",
+   "output": "Purge log"
+  },
+  {
+   "name": "court-form-currency",
+   "trigger": "schedule: daily",
+   "does": "Fetches official Ontario court form pages, compares version dates and checksums, flags firm templates built on old versions",
+   "output": "Flag on template-library; republish under G-D2"
+  },
+  {
+   "name": "assembly-on-stage",
+   "trigger": "event: matter opened or stage changed",
+   "does": "Generates the configured template set into the target folder after resolving case facts",
+   "output": "Draft documents for G8; fact conflicts block and notify"
+  },
+  {
+   "name": "tracked-revision",
+   "trigger": "event: revise request on an existing document",
+   "does": "Produces tracked changes, each with a reason and citation, instead of a rewritten file",
+   "output": "Redline set for G8"
+  }
+ ],
+ "open_questions": [
+  "E-sign: build our own signing flow (full control, data in Canada) or integrate a Canadian-hosted provider? This spec assumes our own.",
+  "Which document formats are authoritative for citations: always freeze a PDF rendering of each version, including Word drafts?",
+  "Should a Word round-trip (lawyer edits in Word desktop) be supported in v1, or only in-browser editing?",
+  "OCR and embeddings: must run inside the firm's Canadian cell. Is a self-hosted OCR engine acceptable on quality?",
+  "Is a clerk allowed to clear G-D1 for privilege flags, or must it always be a lawyer?",
+  "French-language templates and signing page in v1?",
+  "Do we keep a separate approval for portal-sharing an internal document, or fold it into G8?",
+  "Retention periods per document class: should we encode the LSO guidance defaults, or have each firm set them?",
+  "Sync with external stores (OneDrive, Google Drive) in v1, or our store only?",
+  "Do we offer a Word / Outlook add-in in v1, or rely on mailbox connection and web editing?",
+  "Default secure-link expiry 14 days: right for the firm?",
+  "Saved document views and per-user columns, with a natural-language filter that compiles to a saved view? (could)",
+  "Extract Word comments and tracked changes on ingest into a read-only 'From file' block? (could)",
+  "Make 'Create PDF' a first-class document action linked to the source version hash? (could)",
+  "Bundle-builder: add matter-number footer and cover fields (title, code, date)? (could)",
+  "Template status needs-review | in-progress | ready before G-D2, with each proposed field citing its source text? (could)",
+  "Compare any two documents (not only versions) with a cited topic table? (could)",
+  "Machine translation EN<->FR, marked unverified until a person approves? (could)",
+  "Document row action 'Add time', with time proposed from edit sessions (coordinate with time area)? (could)",
+  "Minimum desktop path: 'Open in Word' using the document lock as check-out? (could)",
+  "Mobile-web scan to PDF feeding ingest-document? (could)",
+  "Signature rule format 'show field X when checkbox Y checked' spelled out? (could)",
+  "Agent fills Ontario court forms field by field with a cited source; partner or build a short list first? (could)",
+  "Tabular review cap: is 300 documents per table the right stated limit?"
+ ],
+ "sources": [
+  "https://help.clio.com/hc/en-au/articles/24313560334747-Get-Started-With-Clio-Draft",
+  "https://help.clio.com/hc/en-us/articles/24385283808539",
+  "https://clio.com/features/legal-documents",
+  "https://www.ontario.ca/laws/regulation/200563",
+  "https://www.ontario.ca/laws/regulation/040195",
+  "https://oba.org/Sections/Real-Property-Law/News/E-Commerce-Act-Coming-into-Force",
+  "https://hullandhull.com/2021/06/electronic-signatures-still-not-an-option-for-wills-in-ontario/",
+  "https://www.osler.com/en/insights/updates/law-society-of-ontario-publishes-guidance-for-licensees-with-respect-to-the-use-of-generative-ai/",
+  "https://www.lawtimesnews.com/resources/practice-management/how-to-create-a-conditional-fee-arrangement-in-ontario/393273",
+  "https://lso.ca/about-lso/legislation-rules/rules-of-professional-conduct",
+  "https://lso.ca/about-lso/legislation-rules/by-laws",
+  "https://help.clio.com/hc/en-us/articles/9207223181979-Get-Started-With-e-Signatures",
+  "https://help.clio.com/hc/en-us/articles/14983640722971-Share-Documents",
+  "https://help.clio.com/hc/en-us/articles/14983722680091-Delete-and-Restore-Documents-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing",
+  "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in",
+  "https://help.clio.com/hc/en-us/articles/33476998957211-Manage-AI-Analyze-Documents",
+  "https://help.clio.com/hc/en-us/articles/43337504015387-Combine-or-Replace-Documents",
+  "https://help.clio.com/hc/en-us/articles/9290238939163-Document-Templates",
+  "https://help.clio.com/hc/en-us/articles/24317070863899-Clio-Draft-Draft-and-Manage-Documents",
+  "https://www.clio.com/about/press/clio-for-word-beta-legal-ai-document-drafting/",
+  "https://support.clio.com/hc/en-us/articles/360015268573-Full-Text-Search",
+  "https://help.clio.com/hc/en-us/articles/14983923587867-Manage-Documents-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/55223630859419-Preview-and-Review-Documents",
+  "https://help.clio.com/hc/en-us/articles/14983859054619-Search-and-Download-Documents-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/41990965598491-AI-Features-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/24385283808539-Clio-Draft-Download-Documents-and-Send-for-ESignatures",
+  "https://help.clio.com/hc/en-us/articles/9207225170203-e-Signature-Settings-in-Dropbox-Sign",
+  "https://help.clio.com/hc/en-us/articles/24315924591771-Clio-Draft-Form-Templates",
+  "https://help.clio.com/hc/en-us/articles/24663592578075-Clio-Draft-Create-Questionnaire-Templates",
+  "https://help.clio.com/hc/en-us/articles/35132279298843-Clio-Manage-Automated-Workflows",
+  "https://help.clio.com/hc/en-us/articles/49566590035227-Compare-Documents-With-Tabular-Document-Review",
+  "https://help.clio.com/hc/en-us/articles/49815360439835-Clio-for-Word-and-Vincent",
+  "https://help.clio.com/hc/en-us/articles/9290177437339-Clio-for-Co-Counsel-Law-Firm-Actions",
+  "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions",
+  "https://help.clio.com/hc/en-us/articles/55085715266587-Get-Started-with-Documents",
+  "https://www.clio.com/about/press/clio-draft-canada-launch/"
+ ],
+ "clio_gaps": [
+  {
+   "clio_feature": "Document categories, templates, merge fields settings",
+   "where_in_clio": "Manage > Documents > Settings",
+   "status": "added",
+   "note": "document-settings (types, field catalog with matter preview)"
+  },
+  {
+   "clio_feature": "Version history (upload new version, download any version)",
+   "where_in_clio": "Document > Version history",
+   "status": "already covered",
+   "note": "document-viewer versions + restore. The earlier 'only newest deletable' claim is unproven; Clio confirms only upload, download any version, and that permanent delete removes all versions. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Comment thread per file",
+   "where_in_clio": "Document detail",
+   "status": "added",
+   "note": "Comment thread action on matter-documents"
+  },
+  {
+   "clio_feature": "Trash with 30-day restore",
+   "where_in_clio": "Documents > Trash",
+   "status": "added",
+   "note": "document-trash with hold/retention blocks"
+  },
+  {
+   "clio_feature": "Share to client portal, folder share, secure link without login, manage sharing",
+   "where_in_clio": "Documents > Actions > Share; Manage sharing tab; Documents > Share externally",
+   "status": "added",
+   "note": "client-sharing | Merged duplicate 'Share via secure link, client portal, co-counsel portal': client-sharing recipient_kind incl. co-counsel. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Client upload limit and folder",
+   "where_in_clio": "Clio for Clients",
+   "status": "added",
+   "note": "upload_folder + size limit"
+  },
+  {
+   "clio_feature": "e-Signature: PDF only, contact required, sequential signing, viewed notification, link expiry",
+   "where_in_clio": "Documents > Send for e-signature",
+   "status": "added",
+   "note": "signing_order, non_contact_signer, viewed_at, expiry added. Clio link validity is inconsistent (7 or 14 days); Manage e-sign runs through Dropbox Sign with reminders at 3 and 7 days, which we now default to. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Signature field types incl. conditional fields",
+   "where_in_clio": "Grow document templates; Grow > Documents > Templates",
+   "status": "added",
+   "note": "field_types on signature-request | Merged duplicate 'Grow PDF templates with signature and conditional fields': signature-request field_types. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Grow retainer document templates (text editor vs PDF)",
+   "where_in_clio": "Grow > Documents > Templates",
+   "status": "already covered",
+   "note": "engagement-letter-composer + template-library"
+  },
+  {
+   "clio_feature": "Clio Draft: court forms, role cards, regenerate, save to matter",
+   "where_in_clio": "Clio Draft",
+   "status": "added",
+   "note": "Regenerate set + which_client added. Clio's Ontario court-form coverage is unconfirmed (its own sources disagree: one lists Ontario and BC, another only BC); our court forms tab in template-library is our own. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Generate from template: pick client when several, Word/PDF/both",
+   "where_in_clio": "Documents > New > From template",
+   "status": "added",
+   "note": "document-assembly fields"
+  },
+  {
+   "clio_feature": "Combine or replace documents",
+   "where_in_clio": "Documents > Combine",
+   "status": "added",
+   "note": "bundle-builder with index/tabs"
+  },
+  {
+   "clio_feature": "Full text search",
+   "where_in_clio": "Global search",
+   "status": "already covered",
+   "note": "document-search; we OCR on upload. Clio full-text search covers content only when its AI features are on (names and metadata otherwise); no Clio article describes OCR of scanned images, so Clio OCR is unproven. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Outlook / Gmail add-in, automated email filing, maildrop forward",
+   "where_in_clio": "Integrations; Settings > Email",
+   "status": "added",
+   "note": "email-filing (mailbox connection + forward address); add-in is an open question The Outlook/Gmail add-in is specified in platform mail-add-in and is planned, not built (readiness#9); Clio's current Outlook add-in and server-side filing are confirmed (r04)."
+  },
+  {
+   "clio_feature": "Clio Drive desktop folder",
+   "where_in_clio": "Clio Drive",
+   "status": "deliberately different",
+   "note": "Not in v1; web plus mailbox filing; revisit"
+  },
+  {
+   "clio_feature": "AI Document Analyzer (up to 25 docs, quick/thorough, save as note/doc)",
+   "where_in_clio": "Manage AI launchpad / document Actions",
+   "status": "added",
+   "note": "multi-document-analysis with follow-ups kept"
+  },
+  {
+   "clio_feature": "Clio for Word / Clio Work drafting and research",
+   "where_in_clio": "Clio Work; Word add-in",
+   "status": "partial",
+   "note": "ai-draft-workspace covers cited drafting and now tracked changes; it has no licensed research corpus, citator, persistent memory or agentic mode as Clio Work does. Source: r08-ai"
+  },
+  {
+   "clio_feature": "Bulk delete; client folders undeletable",
+   "where_in_clio": "Documents",
+   "status": "added",
+   "note": "Bulk actions; system folders protected via folder templates (unverified)"
+  },
+  {
+   "clio_feature": "Document status, classification, tags, received date",
+   "where_in_clio": "Document > Actions > Edit details",
+   "status": "added",
+   "note": "matter-documents status, classification, tags, received_at. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Document lock",
+   "where_in_clio": "Documents > Actions > Lock / Unlock",
+   "status": "added",
+   "note": "locked_by/locked_at + Lock / unlock + Branch as new version. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Preview panel with history tab",
+   "where_in_clio": "Document preview > History",
+   "status": "added",
+   "note": "document-viewer history incl. agent reads. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Firm-level and private document areas",
+   "where_in_clio": "Documents > Firm / Private",
+   "status": "added",
+   "note": "firm-library screen. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Filters and saved views",
+   "where_in_clio": "Documents > filters > Create view",
+   "status": "already covered",
+   "note": "Basic filters exist; saved views and NL filter left as an open question (could). Source: r03-documents"
+  },
+  {
+   "clio_feature": "Copy, move, bulk move, download folder",
+   "where_in_clio": "Documents > Actions",
+   "status": "already covered",
+   "note": "matter-documents bulk actions. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Create PDF from Word",
+   "where_in_clio": "Documents > Create PDF",
+   "status": "already covered",
+   "note": "Done inside signature-request; first-class action is an open question. Source: r03-documents"
+  },
+  {
+   "clio_feature": "PDF bundle with cover, TOC, page numbers, matter footer",
+   "where_in_clio": "Combine files > Include options",
+   "status": "already covered",
+   "note": "bundle-builder. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Generate document on matter created / stage change",
+   "where_in_clio": "Settings > Automated Workflows",
+   "status": "added",
+   "note": "document-assembly trigger + assembly-on-stage job. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Court form library and form templates",
+   "where_in_clio": "Clio Draft > Library > Court forms",
+   "status": "added",
+   "note": "template-library court_forms tab with official version tracking; Clio does not auto-update form templates. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Sets of forms and templates",
+   "where_in_clio": "Clio Draft > Library > Sets",
+   "status": "already covered",
+   "note": "template_or_set + Regenerate set. Source: r03-documents"
+  },
+  {
+   "clio_feature": "AI client questionnaires mapped to document fields",
+   "where_in_clio": "Clio Draft > Questionnaires",
+   "status": "added",
+   "note": "document-assembly 'Ask client for missing answers'. Source: r03-documents"
+  },
+  {
+   "clio_feature": "AI convert document to template",
+   "where_in_clio": "Clio Draft > Word templates; Clio Work",
+   "status": "already covered",
+   "note": "template-library Import Word file + Propose fields; status values left as open question. Source: r03-documents | Merged duplicate 'Template from existing document': template-library Import Word file + Propose fields"
+  },
+  {
+   "clio_feature": "Word template builder add-in",
+   "where_in_clio": "Word > Clio Draft Template Builder",
+   "status": "deliberately different",
+   "note": "Web-first template editing; Word add-in is an open question. Source: r03-documents"
+  },
+  {
+   "clio_feature": "In-browser document editor with AI",
+   "where_in_clio": "Documents > Open in > Document Editor",
+   "status": "already covered",
+   "note": "ai-draft-workspace. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Clio for Word add-in with AI tracked changes",
+   "where_in_clio": "Word > Add-ins > Clio for Microsoft Word",
+   "status": "added",
+   "note": "Tracked changes in ai-draft-workspace (revise_mode); no Word add-in in v1. Sources: r03-documents, r14-rivals"
+  },
+  {
+   "clio_feature": "Clio Launcher (open in local app)",
+   "where_in_clio": "Document > Open in local app",
+   "status": "deliberately different",
+   "note": "Web-first; 'Open in Word' via check-out is an open question. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Clio Draft built-in e-sign (US only)",
+   "where_in_clio": "Draft > Signatures",
+   "status": "deliberately different",
+   "note": "Not available to Canadian firms in Clio; ours is in-app for Canada. Source: r03-documents"
+  },
+  {
+   "clio_feature": "DocuSign integration (US only)",
+   "where_in_clio": "Documents > e-Sign (DocuSign)",
+   "status": "deliberately different",
+   "note": "Not relevant for Ontario. Source: r03-documents"
+  },
+  {
+   "clio_feature": "e-Signature limits counter and cancel only in Dropbox Sign",
+   "where_in_clio": "Documents > e-Sign; Dropbox Sign web app",
+   "status": "deliberately different",
+   "note": "We void inside the app and set no caps. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Folder share auto-includes later files",
+   "where_in_clio": "Matter > Documents > folder > Share to client portal",
+   "status": "deliberately different",
+   "note": "New files in a shared folder queue for G8. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Tabular Document Review / Vincent Tables",
+   "where_in_clio": "Work > Vincent > Analyze > Tabular Document Review",
+   "status": "added",
+   "note": "multi-document-analysis table mode with cell citations and a stated limit. Sources: r03-documents, r08-ai"
+  },
+  {
+   "clio_feature": "Compare documents / redline analysis",
+   "where_in_clio": "Vincent > Compare Documents",
+   "status": "already covered",
+   "note": "Compare versions in document-viewer; any-two-documents compare is an open question. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Translate documents",
+   "where_in_clio": "Vincent workflow",
+   "status": "deliberately different",
+   "note": "Not in v1; open question. Source: r03-documents"
+  },
+  {
+   "clio_feature": "AI schedule events from documents",
+   "where_in_clio": "Calendar > Extract from a document",
+   "status": "deliberately different",
+   "note": "ingest-document extracts dates to G7; source highlight on the review card. Sources: r03-documents, r14-rivals Clio's AI Scheduling applies no local court rules when counting days; ours computes and cites each date under G7/G7b, a real difference, not parity (r02 correction; matches deadlines.json)."
+  },
+  {
+   "clio_feature": "AI data processing location and opt-out",
+   "where_in_clio": "Settings > Account Level AI Access",
+   "status": "deliberately different",
+   "note": "Clio may process AI queries outside the home jurisdiction; all our processing stays in the firm's Canadian cell. Source: r03-documents Clio stores Canadian data in Canada; its help articles say AI processing may temporarily occur outside the region (its Canadian security page claims in-region processing) (r03, r08, r12)."
+  },
+  {
+   "clio_feature": "Mobile scan to PDF",
+   "where_in_clio": "Mobile > Document > Scan documents",
+   "status": "deliberately different",
+   "note": "Not in v1; mobile-web capture is an open question. Source: r03-documents"
+  },
+  {
+   "clio_feature": "OneDrive for Business sync",
+   "where_in_clio": "Settings > Apps > Microsoft",
+   "status": "deliberately different",
+   "note": "Existing open question on external stores. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Add time from a document",
+   "where_in_clio": "Documents > Actions > Add time",
+   "status": "deliberately different",
+   "note": "Owned by the time area; listed as an open question here. Source: r03-documents"
+  },
+  {
+   "clio_feature": "Clio Draft separate account and seats",
+   "where_in_clio": "Clio Draft > Settings > Subscription",
+   "status": "deliberately different",
+   "note": "One app, no separate product. Source: r03-documents"
+  }
+ ]
+}

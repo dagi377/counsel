@@ -1,0 +1,1196 @@
+{
+ "id": "r04-comms-portal",
+ "scope": "Clio communications (automated email filing, compose, Maildrop, email/phone logs, Outlook and Gmail add-ins, text messaging, internal/secure messages, co-counsel portal), Clio for Clients portal and app, notifications. Help-center facts from the official help.clio.com Zendesk API (articles updated Apr-Oct 2026).",
+ "clio_products": [
+  "Clio Manage",
+  "Clio for Clients",
+  "Clio for Co-Counsel",
+  "Clio Manage mobile app",
+  "Clio's Outlook Add-in",
+  "Clio for Gmail",
+  "Clio Grow (texting, email filing shared)",
+  "Clio AI features"
+ ],
+ "features": [
+  {
+   "name": "Automated email filing (server-side inbox sync)",
+   "product": "Clio Manage",
+   "where": "Settings > Communications > Connect your inbox",
+   "what": "Each user connects one or more Gmail / Outlook / Exchange (M365-hosted) inboxes; mail sent or received after connecting is matched to matters (single-matter contact, or exact matter name in subject/body). Whole threads file once, with formatting; replies follow the thread.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Email sync scope setting with retroactive effect",
+   "product": "Clio Manage",
+   "where": "Settings > Communications > Show emails for",
+   "what": "Choose Contacts (default), Contacts and firm users, or Everyone. Changing it re-evaluates history: removes filed mail that no longer qualifies and files mail that now does.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Unfiled email queue and matter suggestions",
+   "product": "Clio Manage",
+   "where": "Communications > Emails > Unfiled; File to matter",
+   "what": "Mail from a contact with several matters and no matter name needs a person to pick from suggested matters or search; options No matter and Do not file and remove (removes from Clio only, not the mailbox).",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing",
+    "https://help.clio.com/hc/en-us/articles/56487431247259-Send-and-Reply-to-Emails"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Filed email management (thread rename, refile, attachments folder, Auto-filed label)",
+   "product": "Clio Manage",
+   "where": "Communications > Emails > thread > Edit thread",
+   "what": "Filed threads show an Auto-filed label with matter name/number; thread display name can be renamed in Clio only; matter can be changed; attachments go to an Email Attachments folder in matter documents; mailbox gets a Filed to Clio label. Access follows matter permissions.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Compose, reply, reply-all, forward from inside Clio",
+   "product": "Clio Manage",
+   "where": "Communications > Emails > New > Email",
+   "what": "Send from any of the user's connected inboxes (From picker), with Cc/Bcc and attachments; drafts can be discarded; sent mail auto-files by the same matching rules or lands in Unfiled.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/56487431247259-Send-and-Reply-to-Emails"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Email with Manage template (merge fields)",
+   "product": "Clio Manage",
+   "where": "Communications > New > Email with Manage template; Settings > Communications > Email templates",
+   "what": "Reusable templates with autofill contact/matter fields and attachments; personal or account-wide (admins/primary subscriber). Saved to the matter as an email log; Cc only.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/56535059875483-Set-Up-Email-Signatures-and-Templates",
+    "https://help.clio.com/hc/en-us/articles/56487431247259-Send-and-Reply-to-Emails"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Email signature applied per email type",
+   "product": "Clio Manage",
+   "where": "Settings > Communications > Email signature",
+   "what": "One signature applied to selected system emails (bill share, trust request, outstanding balance, bill reminders, template emails). Requires a connected sender address.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/56535059875483-Set-Up-Email-Signatures-and-Templates"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Sender email address (send Clio emails as the user)",
+   "product": "Clio Manage",
+   "where": "Settings > Apps > Google / Microsoft > Email integrations",
+   "what": "Bills, reminders, calendar invites and task notifications go out from the user's own Google/Microsoft address; copies land in Sent and bounces return to the user. Custom domains need SPF/DKIM. Some mail (portal, trust request, co-counsel, invites) still comes from a Clio address per the current article (the article is internally inconsistent on portal messages).",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/56518455237403-Set-Up-Sender-Email-Address",
+    "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in",
+    "https://help.clio.com/hc/en-us/articles/9125226343579-Clio-for-Gmail"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Maildrop forwarding addresses",
+   "product": "Clio Manage",
+   "where": "Matter > Communications > New > Copy matter Maildrop address; Settings > Profile > Maildrop Email Aliases",
+   "what": "Every matter has a forwarding address; forwarded mail saves as an email log (EML preserved); a general address saves without a matter. Only the user's sign-in address and registered aliases are accepted; vCard download; attachments are not uploaded this way.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/56536848700571-Forward-Emails-to-Matters-With-Maildrop",
+    "https://help.clio.com/hc/en-us/articles/9289644630811-Mobile-App-Communications"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Manual email logs",
+   "product": "Clio Manage",
+   "where": "Communications > New > Email log (Communications > Logs)",
+   "what": "Record of an email linked to a matter, contact or user, with From/To, optional time entry; filter by matter, contact, has-time, creator, bill ID; CSV export (all or visible columns); print; permanent single delete.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125239990555-Record-and-Manage-Email-Logs"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Outlook add-in: file email/thread/attachments, pre-send matter pick",
+   "product": "Clio Manage + Outlook",
+   "where": "Outlook ribbon / message surface > Clio icon > File Email",
+   "what": "File selected messages and attachments of a thread; pick a matter on compose so the sent mail files itself; optional Move email to matter folder; pinnable filing pane. Requires Outlook 2016+ with M365 Business on Microsoft-hosted mail.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Outlook add-in: matter folder mirror and drag-to-file bulk filing",
+   "product": "Clio Manage + Outlook",
+   "where": "Add-in > Clio Settings > Matter folders in Outlook / File all emails in folders",
+   "what": "Builds an Outlook folder tree Clio Manage > matter status > contact > matter; with File all emails in folders on, mail moved or dragged into a matter folder files itself (bulk filing). Sync runs on a schedule, not instantly.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Outlook add-in: Filed to Clio category tag",
+   "product": "Clio Manage + Outlook",
+   "where": "Add-in > Clio Settings > Filed to Clio category",
+   "what": "Outlook category marks filed mail (and not-yet-synced state); can be renamed/recoloured or turned off; a Favorites search folder can collect it.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Outlook / Gmail time entry with one saved template",
+   "product": "Clio Manage",
+   "where": "Add-in > Clio Settings > Time entry template",
+   "what": "Toggle Add a time entry while filing: description, billable flag, user filed on behalf of, activity category, UTBMS task code, rate, today or received date. One default template per user.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in",
+    "https://help.clio.com/hc/en-us/articles/9125226343579-Clio-for-Gmail"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Outlook add-in: AI suggested replies",
+   "product": "Clio Manage + Outlook",
+   "where": "Add-in > Reply subtab (gear for tone and length)",
+   "what": "Clio AI drafts a reply to the open thread; user picks tone/length and copies it into Outlook.",
+   "plan_tier": "Requires Clio AI features (Manage AI); exact plan not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29658448391067-Draft-Client-Communications-using-Clio-s-AI-features"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Gmail add-on",
+   "product": "Clio Manage + Gmail",
+   "where": "Gmail right side panel > Clio",
+   "what": "Log one email or whole thread (Log All Emails), save attachments individually or all, add time per logged email, add contacts, include closed matters toggle. Outgoing mail is filed from Sent after sending. Not supported in the Gmail iOS app.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125226343579-Clio-for-Gmail"
+   ],
+   "screenshots": [
+    "https://workspace.google.com/marketplace/app/clio_for_gmail/259969685083"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Phone logs",
+   "product": "Clio Manage",
+   "where": "Create new > Phone log; Communications > Logs (Phone filter)",
+   "what": "Record of a call linked to matter/contact/user with From/To, time entry, and subscribers who are notified when the log is updated; filter, CSV export, print, permanent single delete; visibility follows matter permissions.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125244587675-Record-and-Manage-Phone-Logs"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Automated phone logs from mobile calls",
+   "product": "Clio Manage mobile app",
+   "where": "Mobile > contact or matter > tap phone number > Call",
+   "what": "Outbound calls started in the app are timed in the background; afterwards a pre-filled log (date, matter, contact, duration, subject) and optional time entry are reviewed and saved.",
+   "plan_tier": "Requires Clio Timekeeping enabled (per article)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9289644630811-Mobile-App-Communications"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Two-way client text messaging from a firm toll-free number",
+   "product": "Clio Manage",
+   "where": "Settings > Text Messaging (admin enable); Communications > New > Text message; matter/contact Dashboard > Text",
+   "what": "Admin enables; firm gets a toll-free number after mandatory business verification (about six weeks; volume caps and possible carrier filtering while pending). Outbound SMS only (2,048 chars); inbound SMS/MMS (photos, video, audio, .txt; 8,192 chars) with media saved to the contact's matters' documents. Calls to the number fail. US/Canada (+1) only.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage"
+   ],
+   "screenshots": [
+    "https://brand.clio.com/m/4cc4672a3178c452/original/Text-Messaging.gif",
+    "https://brand.clio.com/m/175d004c3414a9a7/original/Send-Text-Matter-Dashboard.jpg",
+    "https://brand.clio.com/m/4c71c8bd82565e7f/original/Send-Text-Contact-Dashboard.jpg",
+    "https://brand.clio.com/m/2a2ad4fd55895e9e/original/Send-Text-Mobile.PNG"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Texts stored at contact level, visible firm-wide",
+   "product": "Clio Manage",
+   "where": "Communications > Text messages",
+   "what": "Threads attach to the contact and show on all that contact's matters; every firm user can see every text thread on the shared number. Stored encrypted; not encrypted in transit.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Follow / unfollow text conversations and unread badges",
+   "product": "Clio Manage",
+   "where": "Communications > Text messages > All / Following; bell icon",
+   "what": "Senders and repliers auto-follow; others may follow to get badges and push notifications.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/9290346939547-Set-Up-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Text delivery failure reasons",
+   "product": "Clio Manage",
+   "where": "Text thread message status",
+   "what": "Failed texts show a reason: unreachable number, rejected by carrier, temporary, unknown, carrier error, blocked (unverified number).",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Export text conversation as PDF",
+   "product": "Clio Manage",
+   "where": "Text thread > Actions > Export as PDF",
+   "what": "Printable PDF of a conversation for records or court.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Opt-out and opt-in by keyword",
+   "product": "Clio Manage",
+   "where": "Text thread",
+   "what": "Client opt-outs are honoured; a client can opt back in by texting UNSTOP.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Calendar invites and reminders by text with Y/N confirmation",
+   "product": "Clio Manage",
+   "where": "Calendar > New event > Invite attendees > Notify via text; Settings > Text Messaging > Event reminders",
+   "what": "Client gets automated texts on create/update/cancel and N days before; replying Y or N records attendance on the event. Templates are fixed (cannot be edited).",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/9289861195291-Calendar-Notifications-and-Reminders"
+   ],
+   "screenshots": [
+    "https://brand.clio.com/m/6852a5776c70e986/original/Notify-Via-Text-Calendar-Event.jpg",
+    "https://brand.clio.com/m/3676d8eef97eb613/original/Add-Calendar-Event-Reminders.jpg"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Text to Pay",
+   "product": "Clio Manage",
+   "where": "Bill > Send > text option; Online payments > Copy payment link",
+   "what": "Text a payment link for a bill or trust request (requires Clio Payments); the bill link shows the balance due on the payment page.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/9285343645595-Send-Bills-to-Clients"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "AI quick and suggested responses to texts",
+   "product": "Clio Manage",
+   "where": "Communications > Text messages > thread > Quick response / Suggest response",
+   "what": "AI drafts a 3-4 word quick reply or a longer contextual reply for review before sending; also in the mobile app.",
+   "plan_tier": "Requires Clio AI features; plan not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29658448391067-Draft-Client-Communications-using-Clio-s-AI-features"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Grow outbound text notifications (no-reply)",
+   "product": "Clio Grow",
+   "where": "Clio Grow settings (after Manage texting is set up)",
+   "what": "Grow sends one-way notification texts from the same firm number; they are logged in Manage.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14164457325595-Text-Message-Notifications-and-Reminders-in-Clio-Grow"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Internal (secure) messages between firm users",
+   "product": "Clio Manage",
+   "where": "Communications > New > Internal message; Communications > Internal messages (My threads / Matter threads)",
+   "what": "Direct messages tied to a matter with document attachments (saved to matter documents). My threads vs Matter threads; others with matter access can read but only participants reply; archive, filter (matter, archived, has time, read/unread), print thread, add time or run a timer while replying.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125264015259-Internal-Messages",
+    "https://help.clio.com/hc/en-us/articles/9289644630811-Mobile-App-Communications"
+   ],
+   "screenshots": [
+    "https://brand.clio.com/m/7e17a6de5788c0b8/original/Internal-Message-View-and-Respond.jpg"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Bill approval notice via internal message",
+   "product": "Clio Manage",
+   "where": "Billing > Draft > Submit for approval > Notify via Internal message",
+   "what": "Approver gets an internal message naming the bill.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125264015259-Internal-Messages"
+   ],
+   "screenshots": [
+    "https://brand.clio.com/m/323c354d9f7890f9/original/Internal-Message-Bill-Approval.jpg"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio for Co-Counsel portal",
+   "product": "Clio Manage / Clio for Co-Counsel",
+   "where": "Matter > Share (to co-counsel contact)",
+   "what": "Sharing a matter creates a portal where outside counsel see key matter details, shared documents, calendar events and assigned tasks, can message, add time (optionally at a co-counsel rate), notes and email/phone logs. Co-counsel with their own Clio account can switch accounts.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290191798683-Clio-for-Co-Counsel-Law-Firm-Setup",
+    "https://help.clio.com/hc/en-us/articles/9290178875291-Clio-for-Co-Counsel-Co-Counsel-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Client portal per matter with participants",
+   "product": "Clio for Clients",
+   "where": "Communications > New > New client portal; Matter > Communications > Go to client portal",
+   "what": "One portal per matter; responsible user and matter clients added by default; other firm users or contacts can be added. Every participant sees all portal history, including items from before they joined or while removed.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9043484357147-Clio-for-Clients-Law-Firm-Setup",
+    "https://help.clio.com/hc/en-us/articles/46839239014299-Multi-Client-Matters-in-Clio-Manage-and-Clio-Grow"
+   ],
+   "screenshots": [
+    "https://brand.clio.com/asset/8613a016-afd0-418e-aef3-cc3b7a01f625/Multi-Client-Matters-GIF.gif"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Portal messages with attachments, shared documents and folders",
+   "product": "Clio for Clients",
+   "where": "Client portal > Messages / Shared resources; Documents > Share to client portal",
+   "what": "Send messages and share files or whole folders (new files in a shared folder are shared automatically); stop sharing per item; firm upload limit 100 MB per file.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions",
+    "https://help.clio.com/hc/en-us/articles/14983640722971-Share-Documents"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Passwordless client sign-in",
+   "product": "Clio for Clients",
+   "where": "clients.clio.com (US/CA)",
+   "what": "Clients sign in with their email and a one-time link valid one hour; firm controls the sign-in email (primary email by default). Invitation is sent automatically on the first message or share, with firm logo and name.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions",
+    "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Client mobile app with biometrics, push and document scanner",
+   "product": "Clio for Clients app (iOS/Android)",
+   "where": "App stores",
+   "what": "Biometric unlock, push notifications, scan or photograph documents and upload them.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions"
+   ],
+   "screenshots": [
+    "https://apps.apple.com/us/app/id1506329289"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Client uploads with destination folder",
+   "product": "Clio for Clients",
+   "where": "Portal > Documents > Send document; Messages > Attach",
+   "what": "Clients upload up to 20 files at a time (up to 5 GB each), optionally rename, add a message and pick a previously shared folder as destination.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "View and pay bills and matter trust requests in portal",
+   "product": "Clio for Clients",
+   "where": "Billing > Send > Send to client portal (firm); Portal > Bills (client)",
+   "what": "Bills and matter-level trust requests shared individually or in bulk; bill edits show live; payment needs Clio Payments; expense receipts downloadable. Multi-matter bills and contact-level trust requests fall back to email.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions",
+    "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Shared calendar events (My / Case / Past events)",
+   "product": "Clio for Clients",
+   "where": "Calendar event attendees > share to portal; Portal > Calendar events",
+   "what": "Events with a portal client as attendee are shared by default; every client in the portal sees shared events, invitees with full details and others with limited details.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions",
+    "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Matter stage visibility for clients",
+   "product": "Clio for Clients + Clio Manage",
+   "where": "Settings > Matter stages > Show matter stages in Clio for Clients (per practice area)",
+   "what": "Clients see the stage on an Overview tab (web) or stage card (mobile), with optional client-facing name and description; each stage change emails and pushes the client.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/15083241879195-Create-and-Manage-Matter-Stages",
+    "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Portal event trail and read receipts",
+   "product": "Clio for Clients",
+   "where": "Client portal > Messages > Show all client portal events",
+   "what": "Toggle shows when participants read messages/documents, were added/removed, changed sign-in email, and stage changes.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Print portal messages to PDF",
+   "product": "Clio for Clients",
+   "where": "Client portal > Print messages",
+   "what": "Downloads a PDF record of all portal correspondence on the matter.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9043484357147-Clio-for-Clients-Law-Firm-Setup"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Time entry from the portal",
+   "product": "Clio for Clients",
+   "where": "Client portal > clock icon",
+   "what": "Log time for portal correspondence without leaving the portal.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9043484357147-Clio-for-Clients-Law-Firm-Setup"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Revoke access (no portal delete)",
+   "product": "Clio for Clients",
+   "where": "Client portal > delete message / Stop sharing / remove participant",
+   "what": "A portal cannot be deleted or closed; access is cut by deleting messages, unsharing, or removing participants.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Public portal login link",
+   "product": "Clio for Clients",
+   "where": "https://clients.clio.com/login",
+   "what": "A generic link firms can post on their website for clients who already have accounts.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Client portal language (English/Spanish)",
+   "product": "Clio for Clients",
+   "where": "Portal sign-in screen and portal settings > Change language",
+   "what": "Client chooses Spanish for the UI and notifications; must be set on sign-in screen and in portal settings.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Automatic client logout after 15 minutes idle",
+   "product": "Clio for Clients",
+   "where": "Portal",
+   "what": "Session ends after 15 minutes of inactivity.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Secure email link document share (no portal)",
+   "product": "Clio Manage",
+   "where": "Documents > Share > secure link",
+   "what": "Send documents via an emailed secure download link without requiring a portal account.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983640722971-Share-Documents"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "AI proactive client update drafts (AI Actions)",
+   "product": "Clio Manage",
+   "where": "Matter Dashboard > AI Actions card; AI Launchpad > Help me write",
+   "what": "AI watches tasks, documents, stage changes and drafts a client update for the responsible attorney/staff only; drafts last one day; Help me write refines text in any field such as a portal message.",
+   "plan_tier": "Requires Clio AI features; plan not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29658448391067-Draft-Client-Communications-using-Clio-s-AI-features"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Per-user notification settings by area and channel",
+   "product": "Clio Manage",
+   "where": "Settings > Notifications",
+   "what": "Email / in-app / mobile toggles per area: calendar, co-counsel uploads, e-signatures, matters, notes, phone logs, client portal messages and documents, internal messages, texts, tasks, Outlook filing failures, CSV exports; pop-up reminders. Some emails cannot be turned off (matter budget updates and thresholds, low matter trust funds).",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290346939547-Set-Up-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/9289640943643-Set-Up-Clio-s-Mobile-App"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Subscriber model on matters, notes and phone logs",
+   "product": "Clio Manage",
+   "where": "Matter / note / phone log > subscribers",
+   "what": "Users can be subscribed to records and get notified on change; texts use follow/unfollow.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290346939547-Set-Up-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/9125244587675-Record-and-Manage-Phone-Logs",
+    "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Client-facing notifications (portal, calendar, bills)",
+   "product": "Clio Manage / Clio for Clients",
+   "where": "Automatic",
+   "what": "Clients get email for new portal items, shared bills (with the firm's optional message), shared events and stage changes; calendar attendee emails cannot be disabled; text reminders only if sent by text.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions",
+    "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions",
+    "https://help.clio.com/hc/en-us/articles/9289861195291-Calendar-Notifications-and-Reminders"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Mobile app inbox for texts, secure messages and portal replies",
+   "product": "Clio Manage mobile app",
+   "where": "Mobile > Home > Inbox",
+   "what": "Texts, internal/secure messages and portal threads in one inbox; cannot create a new portal from mobile.",
+   "plan_tier": "Not stated in help article; plan matrix not verified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9289644630811-Mobile-App-Communications"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Communications API (email and phone logs)",
+   "product": "Clio Manage API",
+   "where": "/api/v4/communications",
+   "what": "Communication records typed EmailCommunication or PhoneCommunication with subject, body, received_at, senders, matter.",
+   "plan_tier": "API access; plan not verified",
+   "sources": [
+    "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeok0Z1aJg%3A%3AxmSyWp2XRAueGXo7xnut0w/md"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Plan placement of client portal",
+   "product": "Clio for Clients",
+   "where": "Pricing",
+   "what": "Third-party pricing sites disagree on whether the portal starts at EasyStart or Essentials; text messaging tier not found.",
+   "plan_tier": "Unverified: EasyStart or Essentials",
+   "sources": [
+    "https://costbench.com/software/ai-legal-tools/clio/",
+    "https://toolradar.com/tools/clio/pricing"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  }
+ ],
+ "gaps": [
+  {
+   "feature": "Email sync scope (contacts / +firm users / everyone) with retroactive re-evaluation",
+   "our_area": "platform",
+   "our_screen": "comms-log",
+   "status": "missing",
+   "proposal": "Add firm+user setting comms.sync_scope enum contacts|contacts_and_staff|everyone (default contacts) on integrations-data mail connector; changing it runs an agent re-evaluation job that shows a preview diff (N items would be unfiled, M filed) and needs human confirm before applying, logged as AgentEvent. Never-file rules already exist; keep them precedence over scope.",
+   "priority": "must"
+  },
+  {
+   "feature": "Do not file and remove (drop a synced email from the app without touching mailbox)",
+   "our_area": "platform",
+   "our_screen": "comms-log",
+   "status": "missing",
+   "proposal": "Add action 'Exclude from records' (human, no gate): removes the CommItem and its body_ref from the document store, keeps a tombstone with message-id hash so re-sync never re-imports it; agent learns sender/folder exclusions as a never-file rule proposal.",
+   "priority": "must"
+  },
+  {
+   "feature": "Compose new email / reply-all / forward from inside the app, choosing among several connected inboxes",
+   "our_area": "platform",
+   "our_screen": "comms-log",
+   "status": "partial",
+   "proposal": "Add action 'Compose email' (human) with fields from_inbox (ref Connector, per user, many allowed), to/cc/bcc, attachments from matter documents, draft autosave; replies go out through the user's own mailbox via the connector so Sent folder stays truthful. Agent drafts route through G-OUT as today; add misdirected-recipient check on compose.",
+   "priority": "must"
+  },
+  {
+   "feature": "Thread display rename and Email Attachments folder",
+   "our_area": "platform",
+   "our_screen": "comms-log",
+   "status": "partial",
+   "proposal": "Add CommItem.display_subject (does not alter original) and rule: attachments of filed mail go to a per-matter 'Email attachments' folder with back-link; add 'Refile thread' that moves the whole thread and its attachments.",
+   "priority": "should"
+  },
+  {
+   "feature": "Sender identity: system emails sent from the user's or firm's own address (SPF/DKIM)",
+   "our_area": "platform",
+   "our_screen": "integrations-data",
+   "status": "missing",
+   "proposal": "Add Firm.sender_domain + per-user sender_address with DNS check panel (SPF, DKIM, DMARC status) and fallback to platform address; content-free notice emails keep working either way. Show which email types use which sender.",
+   "priority": "should"
+  },
+  {
+   "feature": "Email signatures and firm-wide email templates with merge fields",
+   "our_area": "platform",
+   "our_screen": "automation-settings",
+   "status": "partial",
+   "proposal": "Extend MessageTemplate with channel=email, scope personal|firm, merge fields (contact, matter, firm), default attachments, and signature per user with 'apply to' list (bill share, reminders, template mail). Firm-scope templates editable by admin only; agent may propose new templates through G-SK.",
+   "priority": "should"
+  },
+  {
+   "feature": "Per-matter forwarding address (Maildrop)",
+   "our_area": "platform",
+   "our_screen": "comms-log",
+   "status": "missing",
+   "proposal": "Add Matter.inbound_address (opaque token address) plus a general inbound address; accept only from registered user addresses/aliases (User.mail_aliases); store original .eml in document store; include attachments (Clio does not) after virus scan; vCard download. Useful for staff without the add-in and for phones.",
+   "priority": "should"
+  },
+  {
+   "feature": "Manual email log / phone log export to CSV and print",
+   "our_area": "platform",
+   "our_screen": "comms-log",
+   "status": "partial",
+   "proposal": "Add actions 'Export filtered log' (CSV, G-EXP when > threshold rows or external recipient) and 'Print / PDF item or thread'; filters: matter, contact, has-time, creator, bill id, channel.",
+   "priority": "should"
+  },
+  {
+   "feature": "Subscribers on comms items (notify on update)",
+   "our_area": "platform",
+   "our_screen": "notification-settings",
+   "status": "missing",
+   "proposal": "Add generic Subscription(user_id, target_type, target_id) for matters, notes, call logs, text threads, internal threads; 'Follow/Unfollow' action everywhere; new event types 'followed item updated'. Agent auto-subscribes the responsible lawyer and anyone who replied.",
+   "priority": "should"
+  },
+  {
+   "feature": "Outlook folder mirror and drag-to-file bulk filing",
+   "our_area": "platform",
+   "our_screen": "mail-add-in",
+   "status": "partial",
+   "proposal": "Add mail-add-in option mirror_folders (Matters > status > client > matter) and rule 'mail moved into a matter folder files itself'; since our server connector already files, implement as a connector-side folder watcher rather than add-in logic. Keep filed_tag category.",
+   "priority": "could"
+  },
+  {
+   "feature": "AI suggested reply inside the mail sidebar",
+   "our_area": "platform",
+   "our_screen": "mail-add-in",
+   "status": "partial",
+   "proposal": "Add sidebar tab 'Reply' where the agent drafts a reply with tone/length controls and matter context, inserted into compose only by the human; substantive client-facing replies still flow to G-OUT if sent from the app; record citations to matter documents used.",
+   "priority": "should"
+  },
+  {
+   "feature": "Include closed matters toggle when filing",
+   "our_area": "platform",
+   "our_screen": "mail-add-in",
+   "status": "missing",
+   "proposal": "Add file target filter include_closed (default off); filing to a closed matter shows a warning and is logged.",
+   "priority": "could"
+  },
+  {
+   "feature": "Time entry template for filing",
+   "our_area": "platform",
+   "our_screen": "mail-add-in",
+   "status": "partial",
+   "proposal": "Add per-user default time template (activity, task code, rate, duration, date = today|received) prefilled when time toggle is on; still goes to timekeeper gate.",
+   "priority": "could"
+  },
+  {
+   "feature": "Mobile automated call logging",
+   "our_area": "platform",
+   "our_screen": "comms-log",
+   "status": "deliberately different",
+   "proposal": "No native mobile app in v1. Instead add a telephony connector (VoIP provider webhooks) that creates call CommItems with duration, direction and contact match, plus 'Log call' quick action at phone width; transcripts only with recorded consent (existing rule).",
+   "priority": "could"
+  },
+  {
+   "feature": "Text toll-free verification state and send caps",
+   "our_area": "platform",
+   "our_screen": "text-messaging",
+   "status": "missing",
+   "proposal": "Add states 'verification pending' and 'verification rejected' with reason and resubmit action; show daily/weekly caps while pending; block automation (agent routine texts) until verified.",
+   "priority": "should"
+  },
+  {
+   "feature": "Text delivery status and failure reasons",
+   "our_area": "platform",
+   "our_screen": "text-messaging",
+   "status": "missing",
+   "proposal": "Add CommItem.delivery_status enum queued|sent|delivered|failed with failure_reason enum unreachable|carrier_rejected|temporary|unknown|carrier_error|blocked_unverified; agent suggests fallback (portal or call) on failure, never auto-resends substantive content.",
+   "priority": "must"
+  },
+  {
+   "feature": "Inbound MMS handling",
+   "our_area": "platform",
+   "our_screen": "text-messaging",
+   "status": "missing",
+   "proposal": "Rule: inbound media goes to upload quarantine (same as portal uploads), virus scan, then filed to the thread's matter documents; outbound stays SMS-only text; character limits enforced in composer.",
+   "priority": "should"
+  },
+  {
+   "feature": "Export text thread as PDF",
+   "our_area": "platform",
+   "our_screen": "text-messaging",
+   "status": "missing",
+   "proposal": "Add action 'Export thread PDF' with timestamps, numbers, delivery status; logged; G-EXP if sent outside the firm.",
+   "priority": "should"
+  },
+  {
+   "feature": "Calendar invite by text with Y/N attendance confirmation and automatic reminders",
+   "our_area": "deadlines",
+   "our_screen": "text-messaging",
+   "status": "missing",
+   "proposal": "Add to shared calendar events: notify_via_text flag (opted-in contacts only), reminder_days, and parse Y/N replies into Event.client_confirmed; unknown replies go to triage. Templates are firm-approved routine templates (editable, unlike Clio).",
+   "priority": "should"
+  },
+  {
+   "feature": "Firm-wide visibility of all texts (Clio) vs matter-scoped",
+   "our_area": "platform",
+   "our_screen": "text-messaging",
+   "status": "deliberately different",
+   "proposal": "Keep matter-scoped filing; add rule: an unfiled text thread is visible only to the comms triage role until filed; filed texts follow matter permissions and ethical walls. Explicitly better than Clio's whole-firm visibility.",
+   "priority": "must"
+  },
+  {
+   "feature": "AI quick replies to texts",
+   "our_area": "platform",
+   "our_screen": "text-messaging",
+   "status": "partial",
+   "proposal": "Add 'Suggest reply' (short and long) for human review; reuse template-only autonomy for routine; substantive suggestions remain G-OUT.",
+   "priority": "could"
+  },
+  {
+   "feature": "Internal threads: archive, read/unread filter, print, time from thread, read-only for non-participants",
+   "our_area": "platform",
+   "our_screen": "internal-messages",
+   "status": "partial",
+   "proposal": "Add states archived; fields unread_by; actions Archive, Print thread, Add time / timer (to timekeeper gate); rule: staff with matter access can read matter threads but only participants can reply.",
+   "priority": "should"
+  },
+  {
+   "feature": "Bill approval notice through internal messages",
+   "our_area": "billing",
+   "our_screen": "internal-messages",
+   "status": "partial",
+   "proposal": "When a bill is submitted for approval, post a system message in a matter thread to the approver in addition to the Approvals inbox item; one notification, not two, per notification settings.",
+   "priority": "could"
+  },
+  {
+   "feature": "Co-counsel workspace: tasks, time at co-counsel rate, notes and logs",
+   "our_area": "platform",
+   "our_screen": "internal-messages",
+   "status": "partial",
+   "proposal": "Extend guest space (G-GUEST) with: tasks assigned to guest, guest time entries at a per-matter guest_rate routed to billing gate, guest calendar view of shared events, guest notes and call logs. Guest sees only what is shared.",
+   "priority": "should"
+  },
+  {
+   "feature": "Matter stage client-facing name, description and stage-change notification",
+   "our_area": "platform",
+   "our_screen": "client-portal",
+   "status": "partial",
+   "proposal": "Add to stage template: client_label, client_description, show_to_client per practice area (warn when internal shorthand is exposed); stage change sends content-free notice email/push; agent drafts the description, lawyer approves once per template.",
+   "priority": "must"
+  },
+  {
+   "feature": "Portal event trail visible to staff and print portal transcript",
+   "our_area": "platform",
+   "our_screen": "client-portal",
+   "status": "partial",
+   "proposal": "Add staff toggle 'Show portal events' (read receipts, participant add/remove, sign-in email change, stage changes) and action 'Export portal transcript PDF' logged.",
+   "priority": "should"
+  },
+  {
+   "feature": "Passwordless sign-in option for clients",
+   "our_area": "platform",
+   "our_screen": "portal-settings",
+   "status": "deliberately different",
+   "proposal": "Keep password+MFA default; add portal-settings sign_in_method enum password_mfa|magic_link_plus_device (magic link valid 60 min + device trust + passkey). Clio uses email link only; ours stays stronger but should offer passkeys for low-friction.",
+   "priority": "should"
+  },
+  {
+   "feature": "Idle session timeout for clients",
+   "our_area": "platform",
+   "our_screen": "portal-settings",
+   "status": "missing",
+   "proposal": "Add client_idle_timeout_minutes (default 15) and absolute session lifetime.",
+   "priority": "must"
+  },
+  {
+   "feature": "Client chooses upload destination folder; batch upload limits",
+   "our_area": "platform",
+   "our_screen": "client-portal",
+   "status": "partial",
+   "proposal": "Add upload.destination (shared folder or request) and multi-file upload (N files per batch); agent still classifies and files after quarantine.",
+   "priority": "could"
+  },
+  {
+   "feature": "Shared folder auto-shares new documents",
+   "our_area": "platform",
+   "our_screen": "client-portal",
+   "status": "deliberately different",
+   "proposal": "Do not auto-share: adding a file to a shared folder creates a 'pending share' proposal that a human (or G-PM for agent-proposed) confirms. Record as an explicit safety advantage.",
+   "priority": "should"
+  },
+  {
+   "feature": "New participant sees full prior history (Clio)",
+   "our_area": "platform",
+   "our_screen": "client-portal",
+   "status": "deliberately different",
+   "proposal": "Keep per-message audience; add rule: a participant added later sees only items from their join date unless staff ticks 'share history', with warning for joint/adverse situations.",
+   "priority": "must"
+  },
+  {
+   "feature": "Calendar events: invitee full details vs other clients limited details",
+   "our_area": "platform",
+   "our_screen": "client-portal",
+   "status": "partial",
+   "proposal": "Add shared_event.visibility enum attendees_full_others_limited|attendees_only; default attendees_only for multi-client portals.",
+   "priority": "should"
+  },
+  {
+   "feature": "Secure one-off document link without portal account",
+   "our_area": "platform",
+   "our_screen": "client-portal",
+   "status": "missing",
+   "proposal": "Add action 'Send secure link' with expiry (default 7 days), optional passcode by SMS, download log; G-PM if agent proposes.",
+   "priority": "should"
+  },
+  {
+   "feature": "Bills shared to portal with live updates and bulk send; fallback for multi-matter bills",
+   "our_area": "billing",
+   "our_screen": "client-portal",
+   "status": "covered",
+   "proposal": "Already covered by bill ref; add rule that a re-issued bill notifies the client with a content-free notice and the bill version history is visible to staff.",
+   "priority": "could"
+  },
+  {
+   "feature": "Client portal mobile app (biometrics, push, scanner)",
+   "our_area": "platform",
+   "our_screen": "client-portal",
+   "status": "deliberately different",
+   "proposal": "Keep responsive web; add PWA install, web push, passkeys (biometric), and camera capture with document edge detection in the upload tab to close most of the gap.",
+   "priority": "should"
+  },
+  {
+   "feature": "Portal language",
+   "our_area": "platform",
+   "our_screen": "client-portal",
+   "status": "covered",
+   "proposal": "locale field exists (EN/FR); keep, ensure notices follow client locale.",
+   "priority": "could"
+  },
+  {
+   "feature": "AI proactive client update drafts",
+   "our_area": "platform",
+   "our_screen": "client-portal",
+   "status": "covered",
+   "proposal": "Covered by routine replies + G-PM; add trigger list (task done, document uploaded, stage change) and expiry of stale drafts.",
+   "priority": "could"
+  },
+  {
+   "feature": "Notification channels per area incl. locked emails",
+   "our_area": "platform",
+   "our_screen": "notification-settings",
+   "status": "covered",
+   "proposal": "Covered (ours adds digest, quiet hours, delegation). Add event types: co-counsel upload, e-signature completed, sync/filing failure per connector, text failed, stage changed.",
+   "priority": "could"
+  },
+  {
+   "feature": "Portal time entry shortcut",
+   "our_area": "time",
+   "our_screen": "client-portal",
+   "status": "missing",
+   "proposal": "Add clock action in portal staff view and in every comms thread creating a proposed time entry with drafted narrative to the timekeeper gate.",
+   "priority": "should"
+  }
+ ],
+ "corrections": [
+  {
+   "our_claim": "platform.json clio_gaps: 'Secure messages to firm users and co-counsel portal' located at 'Communications > New > Secure message; Clio Connect'",
+   "truth": "Current help article (updated 2026-10-02) names it Internal message (Communications > New > Internal message) and the external portal Clio for Co-Counsel; 'Secure messages' / 'Clio Connect' appear only in older or regional copies and the mobile article.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125264015259-Internal-Messages",
+    "https://help.clio.com/hc/en-us/articles/9290191798683-Clio-for-Co-Counsel-Law-Firm-Setup",
+    "https://help.clio.com/hc/en-us/articles/9289644630811-Mobile-App-Communications"
+   ]
+  },
+  {
+   "our_claim": "platform.json clio_gaps: 'Batch file unfiled emails' at 'Outlook add-in > unfiled scan'",
+   "truth": "The current Outlook add-in has no inbox scan; bulk filing is done by moving/dragging mail into mirrored matter folders, and the unfiled queue is Communications > Emails > Unfiled from automated email filing. The 48-hour scan was a 2018 launch feature.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in",
+    "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing",
+    "https://www.clio.com/blog/clio-this-month-outlook-add-in/"
+   ]
+  },
+  {
+   "our_claim": "platform.json clio_gaps: 'Email integration settings' at 'Settings > Email integrations'",
+   "truth": "Inbox connection for filing is Settings > Communications; sending as the user is Settings > Apps > Google/Microsoft > Email integrations; signatures/templates are Settings > Communications subtabs.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing",
+    "https://help.clio.com/hc/en-us/articles/56518455237403-Set-Up-Sender-Email-Address",
+    "https://help.clio.com/hc/en-us/articles/56535059875483-Set-Up-Email-Signatures-and-Templates"
+   ]
+  },
+  {
+   "our_claim": "platform.json clio_gaps: 'Portal branding and settings' at 'Settings > Clio for Clients'",
+   "truth": "Unproven: no Clio help article found for a portal settings page. Branding found is only firm logo/name on the invitation email; staff notification options live in Settings > Notifications; stage visibility in matter stage settings.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions",
+    "https://help.clio.com/hc/en-us/articles/9290346939547-Set-Up-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/15083241879195-Create-and-Manage-Matter-Stages"
+   ]
+  },
+  {
+   "our_claim": "platform.json clio_gaps: 'Portal notice emails with link only' listed as a Clio feature we 'added'",
+   "truth": "Clio's bill notification email can carry the firm's free-text message, so Clio notices are not content-free; our content-free rule is a deliberate difference, not parity.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions"
+   ]
+  },
+  {
+   "our_claim": "versus-clio/index.html: our column for 'Mobile apps, Outlook and Gmail add-ins' says 'Web only'",
+   "truth": "Inconsistent with our own spec, which defines a mail-add-in screen (Outlook/Gmail sidebar). Either mark the add-in as planned or drop the screen.",
+   "sources": [
+    "../legal-spec/platform.json#mail-add-in"
+   ]
+  },
+  {
+   "our_claim": "platform.json clio_gaps treat Clio email as add-in-only ('Outlook add-in', 'Gmail add-on', 'Communications log')",
+   "truth": "Clio now has server-side automated email filing for Gmail/Outlook/Exchange plus compose/reply inside Clio (articles updated Oct 2026). Our 'server-side mail connector' is not a differentiator anymore.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing",
+    "https://help.clio.com/hc/en-us/articles/56487431247259-Send-and-Reply-to-Emails"
+   ]
+  },
+  {
+   "our_claim": "platform.json text-messaging assumes per-matter filing like Clio",
+   "truth": "Clio files texts at contact level (shown on all the contact's matters) and every firm user can see all texts; ours is stricter by design.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage"
+   ]
+  }
+ ],
+ "screenshots_index": [
+  {
+   "area": "text messaging",
+   "url": "https://brand.clio.com/m/4cc4672a3178c452/original/Text-Messaging.gif",
+   "shows": "Sending a text from Communications"
+  },
+  {
+   "area": "text messaging",
+   "url": "https://brand.clio.com/m/175d004c3414a9a7/original/Send-Text-Matter-Dashboard.jpg",
+   "shows": "Text button on matter dashboard contacts"
+  },
+  {
+   "area": "text messaging",
+   "url": "https://brand.clio.com/m/4c71c8bd82565e7f/original/Send-Text-Contact-Dashboard.jpg",
+   "shows": "Text button on contact dashboard"
+  },
+  {
+   "area": "text messaging",
+   "url": "https://brand.clio.com/m/2a2ad4fd55895e9e/original/Send-Text-Mobile.PNG",
+   "shows": "Mobile app new text"
+  },
+  {
+   "area": "internal messages",
+   "url": "https://brand.clio.com/m/7e17a6de5788c0b8/original/Internal-Message-View-and-Respond.jpg",
+   "shows": "Internal message thread view and reply"
+  },
+  {
+   "area": "internal messages",
+   "url": "https://brand.clio.com/m/323c354d9f7890f9/original/Internal-Message-Bill-Approval.jpg",
+   "shows": "Submit bill for approval with internal message notify"
+  },
+  {
+   "area": "calendar/text",
+   "url": "https://brand.clio.com/m/6852a5776c70e986/original/Notify-Via-Text-Calendar-Event.jpg",
+   "shows": "Notify via text checkbox on calendar event"
+  },
+  {
+   "area": "calendar",
+   "url": "https://brand.clio.com/m/3676d8eef97eb613/original/Add-Calendar-Event-Reminders.jpg",
+   "shows": "Calendar event reminder settings"
+  },
+  {
+   "area": "client portal",
+   "url": "https://brand.clio.com/asset/8613a016-afd0-418e-aef3-cc3b7a01f625/Multi-Client-Matters-GIF.gif",
+   "shows": "Multi-client matter setup (all clients added to portal)"
+  },
+  {
+   "area": "client portal app",
+   "url": "https://apps.apple.com/us/app/id1506329289",
+   "shows": "App Store listing with client app screenshots"
+  },
+  {
+   "area": "gmail add-on",
+   "url": "https://workspace.google.com/marketplace/app/clio_for_gmail/259969685083",
+   "shows": "Google Workspace Marketplace listing with add-on screenshots"
+  },
+  {
+   "area": "client portal",
+   "url": "https://www.clio.com/wp-content/uploads/2025/04/Clio-for-Clients-Best-Practice-Guide.pdf",
+   "shows": "Clio for Clients best practice guide PDF (not opened; 403)"
+  },
+  {
+   "area": "communications",
+   "url": "https://www.clio.com/features/law-firm-communications/",
+   "shows": "Marketing page for communications (403 to fetch; from search)"
+  }
+ ],
+ "open_questions": [
+  "Which Clio plan tiers include Clio for Clients, text messaging and automated email filing? Third-party pricing pages conflict; clio.com/pricing returns 403 to fetch.",
+  "Sender email article lists Clio for Clients messages both as sent from the user's address and as always sent from a Clio address; which is current?",
+  "Does Clio honour STOP keyword automatically and record consent (CASL/TCPA)? Only the UNSTOP tip was found in the article.",
+  "Is there a firm-level Clio for Clients settings page (branding, permissions, upload limits)? None found.",
+  "Whether Clio's automated email filing is available on Canadian (ca.app.clio.com) accounts and stores data in Canada was not stated.",
+  "Does Clio's client portal support any second factor beyond email link and mobile biometrics?"
+ ],
+ "sources": [
+  "https://costbench.com/software/ai-legal-tools/clio/",
+  "https://help.clio.com/hc/en-us/articles/14164457325595-Text-Message-Notifications-and-Reminders-in-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/14983640722971-Share-Documents",
+  "https://help.clio.com/hc/en-us/articles/15083241879195-Create-and-Manage-Matter-Stages",
+  "https://help.clio.com/hc/en-us/articles/29658448391067-Draft-Client-Communications-using-Clio-s-AI-features",
+  "https://help.clio.com/hc/en-us/articles/46839239014299-Multi-Client-Matters-in-Clio-Manage-and-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing",
+  "https://help.clio.com/hc/en-us/articles/56487431247259-Send-and-Reply-to-Emails",
+  "https://help.clio.com/hc/en-us/articles/56518455237403-Set-Up-Sender-Email-Address",
+  "https://help.clio.com/hc/en-us/articles/56535059875483-Set-Up-Email-Signatures-and-Templates",
+  "https://help.clio.com/hc/en-us/articles/56536848700571-Forward-Emails-to-Matters-With-Maildrop",
+  "https://help.clio.com/hc/en-us/articles/9043484357147-Clio-for-Clients-Law-Firm-Setup",
+  "https://help.clio.com/hc/en-us/articles/9125220988827-Text-Messaging-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/9125226343579-Clio-for-Gmail",
+  "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in",
+  "https://help.clio.com/hc/en-us/articles/9125239990555-Record-and-Manage-Email-Logs",
+  "https://help.clio.com/hc/en-us/articles/9125244587675-Record-and-Manage-Phone-Logs",
+  "https://help.clio.com/hc/en-us/articles/9125264015259-Internal-Messages",
+  "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions",
+  "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions",
+  "https://help.clio.com/hc/en-us/articles/9285343645595-Send-Bills-to-Clients",
+  "https://help.clio.com/hc/en-us/articles/9289640943643-Set-Up-Clio-s-Mobile-App",
+  "https://help.clio.com/hc/en-us/articles/9289644630811-Mobile-App-Communications",
+  "https://help.clio.com/hc/en-us/articles/9289861195291-Calendar-Notifications-and-Reminders",
+  "https://help.clio.com/hc/en-us/articles/9290178875291-Clio-for-Co-Counsel-Co-Counsel-Actions",
+  "https://help.clio.com/hc/en-us/articles/9290191798683-Clio-for-Co-Counsel-Law-Firm-Setup",
+  "https://help.clio.com/hc/en-us/articles/9290346939547-Set-Up-Clio-Manage",
+  "https://lawyerist.com/news/clio-for-clients-client-portal/",
+  "https://toolradar.com/tools/clio/pricing",
+  "https://www.clio.com/blog/clio-this-month-outlook-add-in/",
+  "https://www.clio.com/features/client-portal/",
+  "https://www.clio.com/features/law-firm-communications/",
+  "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeok0Z1aJg%3A%3AxmSyWp2XRAueGXo7xnut0w/md"
+ ]
+}

@@ -1,0 +1,6 @@
+{
+ "readiness/support-access": {"view": ["owner","admin","auditor"], "act": ["owner","admin"], "approve": ["owner"]},
+ "readiness/data-escrow": {"view": ["owner","admin","auditor"], "act": ["owner","admin"], "approve": ["owner"]},
+ "readiness/status-page": {"view": ["owner","admin","lawyer","associate","paralegal","clerk","bookkeeper","auditor"], "act": ["owner","admin"], "approve": []},
+ "readiness/pricing-plan": {"view": ["owner","admin"], "act": ["owner"], "approve": ["owner"]}
+}

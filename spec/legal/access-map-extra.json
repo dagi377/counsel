@@ -1,0 +1,10 @@
+{
+ "readiness/trust-center": {"view": ["owner","admin","auditor"], "act": ["owner","admin"], "approve": ["owner"]},
+ "readiness/integrations-hub": {"view": ["owner","admin"], "act": ["owner","admin"], "approve": ["owner"]},
+ "readiness/payments-setup": {"view": ["owner","bookkeeper"], "act": ["owner","bookkeeper"], "approve": ["owner"]},
+ "readiness/mobile-app": {"view": ["owner","lawyer","associate","paralegal","clerk"], "act": ["owner","lawyer","associate","paralegal","clerk"], "approve": ["owner","lawyer","associate"]},
+ "readiness/mail-add-ins": {"view": ["owner","lawyer","associate","paralegal","clerk"], "act": ["owner","lawyer","associate","paralegal","clerk","agent"], "approve": ["owner","lawyer","associate"]},
+ "readiness/research": {"view": ["owner","lawyer","associate","paralegal"], "act": ["owner","lawyer","associate","paralegal","agent"], "approve": ["owner","lawyer"]},
+ "readiness/clio-import": {"view": ["owner","admin","bookkeeper"], "act": ["admin","bookkeeper","agent"], "approve": ["owner","lawyer"]},
+ "readiness/provinces-languages": {"view": ["owner","admin","lawyer"], "act": ["admin"], "approve": ["owner","lawyer"]}
+}

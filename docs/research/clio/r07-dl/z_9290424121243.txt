@@ -1,0 +1,51 @@
+===== Clio Grow Logo and Website https://help.clio.com/hc/en-us/articles/9290424121243-Clio-Grow-Logo-and-Website updated 2026-09-01T16:19:41Z
+With Clio Grow's website feature, you can create a professional and secure website directly in Clio Grow, all without having to learn design or code. Once your website is published, your clients can find your firm services, book and pay for consultations, and submit case details online.
+Tip: Learn more about Clio Grow's website builder here.
+Manage logo and letterhead
+Your firm's logo and letterhead are used to show your firm's information on Clio Grow intake forms and documents. You can create a custom letterhead or upload a logo. If you create a letterhead, you can choose how you want the letterhead to appear. If you upload a logo, Clio Grow will automatically create a letterhead for you based on your firm information and the uploaded logo.
+Note: Your account can only have one logo or letterhead.
+Create letterhead Upload logo
+- Go to Settings > Logo & letterhead.
+- Next to Letterhead Settings, click Edit Letterhead.
+- Customize how you want your letterhead to appear.- You can upload an image, create up to three columns for the layout, change the font, and more.
+- Click Save Letterhead.
+Your firm's logo, which you upload here, will appear on your Clio Grow intake forms, documents, and website with a maximum display size of 170x125 pixels.
+- Go to Settings > Logo & letterhead.
+- Click Edit Law Firm Info.
+- Under Current Logo, click Choose File and then select your logo file.- 
+Logo display guidance: For the best visual results in Clio Grow, upload a logo with dimensions larger than the maximum display size (max width: 170 px, max height: 125 px ). If the initial logo is unclear, the pixel density of your image might be too low for the display size. To improve clarity, you can increase the dimensions of your logo file (e.g., double the width and height), save, and re-upload.
+- Click Update Law Firm Info.
+Create your Clio Grow website
+Creating your website in Clio Grow is easy and does not require any design or coding experience. You can use the domain name offered by Clio Grow, purchase a domain through Google Domains, or use an existing domain that you already own. After that, you can select your website's theme and color scheme, and add text and images in the website builder before publishing your website.
+- Go to Settings > Website builder.
+- Fill the page details and choose your options to create your website.
+- Click Save to save your changes.
+- When you are finished and ready for clients to view your website, scroll to the top, and toggle on Publish website.
+Connect your custom domain
+With Clio Grow's website feature, you can connect a custom domain that you purchased from a third-party provider to your Clio Grow website using domain mapping. You can connect your domain to Clio Grow by adding new A records and removing any existing A records with the same name in the DNS settings. Follow the steps below to begin and complete the custom domain connection process.
+Note: When you connect your domain to Clio Grow, your old website content will not be available.
+Important: If you leave Clio, you will lose your Clio Grow website content. If you connected your own custom domain, you can keep the domain, but you will lose access to the website content.Step 1: Add your custom domain to the website settings page
+- Go to Settings > Website builder.
+- Under Website options, click Use an existing domain you own.
+- Enter the custom domain you purchased and select Submit domain.- Once your domain has been added, your website will no longer be available at the Clio Grow subdomain and will not be accessible until you finish the DNS record updates.
+Step 2: Remove existing A records and add new A records
+The directions below are general directions for adding an A record and vary depending on which provider you bought the domain from. For directions specific to any other domain provider, search for "Add an A record [provider's name]" in Google or the domain provider's help/support site.
+Note: Some DNS providers only allow unique host values when creating records. This means that you may need to add multiple data values to one host depending on your DNS provider.
+- Log in to your account on the domain provider's website.
+- Go to the DNS management section in your account settings.
+- Find the Add Records screen.
+- Delete any existing A records with the same name as the ones you are going to set up.
+- 
+Create four separate A records. Two will be a slightly different version for your custom domain.
+Important: All four A records are required. Your domain will not route to your Clio Grow website without all four.
+- Record 1, host: example.com value: 52.223.37.0
+- Record 2, host: example.com value: 35.71.140.199
+- Record 3, host: www.example.com value: 52.223.37.0
+- Record 4, host: www.example.com value: 35.71.140.199
+- Save your changes.- Once completed, your domain will route to your Clio Grow website within 48 hours.
+Tip: See here for directions for common domain providers:
+- GoDaddy
+- Google Domains
+- Domain.com
+
+IMGS: []

@@ -1,0 +1,702 @@
+{
+ "id": "r02-tasks-calendar",
+ "scope": "Clio task management (tasks, task lists, types, priorities, statuses, boards, assignment, reminders, recurrence), calendars (firm/user calendars, events, court rules and jurisdictions incl. Canada/Ontario, sync), automated workflows",
+ "clio_products": [
+  "Clio Manage",
+  "Clio Manage Automated Workflows",
+  "Clio Manage Court Rules",
+  "Manage AI",
+  "Clio Grow",
+  "Clio Scheduler",
+  "Clio Docket",
+  "Clio Operate"
+ ],
+ "features": [
+  {
+   "name": "Tasks (create, assign, due date, description)",
+   "product": "Clio Manage",
+   "where": "Tasks > New task, or Matter > Tasks > New task",
+   "what": "Only name and assignee are required. A task linked to a matter shows on the matter timeline, on the calendar on its due date, and in the firm feed.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9204917906971-Manage-Tasks-in-Clio-Manage",
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=2"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Task priority (High / Normal / Low)",
+   "product": "Clio Manage",
+   "where": "Task form, priority dropdown",
+   "what": "Three fixed priority levels, Normal by default; not configurable by the firm.",
+   "plan_tier": "All plans (API)",
+   "sources": [
+    "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeoscpSSsg%3A%3AwjoaG_lUTq-dxkdkBZEuow/md",
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=4"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Task statuses (Pending, In progress, In review, Complete)",
+   "product": "Clio Manage",
+   "where": "Task form status; Tasks list status column",
+   "what": "Fixed four-status set; firms without Advanced Tasks can only use Pending and Complete. The API also lists a 'draft' status value.",
+   "plan_tier": "Full set on Advanced / Expand (formerly Complete)",
+   "sources": [
+    "https://help.clio.com/hc/articles/9205859328923",
+    "https://help.clio.com/hc/en-us/articles/14352051388827-Clio-Manage-Task-Reports",
+    "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeoscpSSsg%3A%3AwjoaG_lUTq-dxkdkBZEuow/md",
+    "https://developers.support.clio.com/hc/en-us/articles/360053612114"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=2"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Task types (admin-defined categories)",
+   "product": "Clio Manage",
+   "where": "Tasks > Task types",
+   "what": "Firm-defined categories, one per task, used to filter, export and report on tasks.",
+   "plan_tier": "Advanced Tasks: Advanced / Expand",
+   "sources": [
+    "https://help.clio.com/hc/articles/9205859328923",
+    "https://www.clio.com/ca/features/task-management/",
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=1",
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=4"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Time estimate per task",
+   "product": "Clio Manage",
+   "where": "Task form > Time estimate",
+   "what": "Estimated duration on a task, filterable as a column and compared with recorded time in the task progress report.",
+   "plan_tier": "Advanced Tasks: Advanced / Expand",
+   "sources": [
+    "https://help.clio.com/hc/articles/9205859328923",
+    "https://help.clio.com/hc/en-us/articles/14352051388827-Clio-Manage-Task-Reports"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=4"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Private tasks",
+   "product": "Clio Manage",
+   "where": "Task form > Private task toggle",
+   "what": "Restricts visibility to the creator, the assignee and firm admins; hidden from matter timeline and firm feed. API field permission=private|public.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9204917906971-Manage-Tasks-in-Clio-Manage",
+    "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeoscpSSsg%3A%3AwjoaG_lUTq-dxkdkBZEuow/md",
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=4"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Statute of limitations flag on a task",
+   "product": "Clio Manage",
+   "where": "Task form (API field statute_of_limitations)",
+   "what": "Boolean marking a task as a limitation date; feeds the built-in Statute of Limitations calendar.",
+   "plan_tier": "All plans (inferred)",
+   "sources": [
+    "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeoscpSSsg%3A%3AwjoaG_lUTq-dxkdkBZEuow/md",
+    "https://help.clio.com/hc/en-us/articles/9290016489883",
+    "https://n8n.io/workflows/18785-monitor-statute-deadlines-in-clio-and-send-email-escalations/"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Assignment notifications and completion notice",
+   "product": "Clio Manage",
+   "where": "Task form checkboxes; Settings > Notifications",
+   "what": "Opt-in per task: email the assignee on assignment and notify the creator on completion. Self-assignment sends nothing. Channels: email, in-app, mobile.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9206714957211-Task-Notifications-and-Reminders"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Task reminders (manual, multiple)",
+   "product": "Clio Manage",
+   "where": "Task form > Reminders > Add a reminder",
+   "what": "Several reminders per task, each to a chosen firm user at a chosen time before due. No automatic reminders; reminders are dropped if the task completes first.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9206714957211-Task-Notifications-and-Reminders"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Recurring tasks (no native recurrence found)",
+   "product": "Clio Manage",
+   "where": "Task > Duplicate (workaround)",
+   "what": "No native repeating-task setting found; help content points to duplicating a task (copies details, reminders, assignee). Recurrence exists on calendar events, not tasks.",
+   "plan_tier": "n/a",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9204917906971-Manage-Tasks-in-Clio-Manage",
+    "https://docs.developers.clio.com/api-docs/clio-manage/api-changelog/"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Task lists (templates of tasks)",
+   "product": "Clio Manage",
+   "where": "Tasks > Task lists > New task list > Add task template",
+   "what": "Named group of task templates per practice area, each with name, description, priority, private flag, task type, time estimate and assignee (list assignee or a specific user). Lists can be duplicated; tasks inside cannot be reordered.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf",
+    "https://help.clio.com/hc/en-us/articles/9206286672155-Task-Lists"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=1",
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=4"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Task list due dates: trigger date or relative dates",
+   "product": "Clio Manage",
+   "where": "Matter > Tasks > Assign task list",
+   "what": "Either every task is due on one trigger date, or each task is due relative to the list start or to another task in the list (simple dependency).",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9206286672155-Task-Lists",
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=3"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Assign task list to a matter (or one template)",
+   "product": "Clio Manage",
+   "where": "Matter > Tasks > Assign task list; Task list > Edit > Assign task template",
+   "what": "Pick list, assignee, trigger date; optionally force one assignee on all tasks and email assignees. A single template can be assigned alone.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9206286672155-Task-Lists",
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=2"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Task feeds (iCal feed of tasks)",
+   "product": "Clio Manage",
+   "where": "Tasks > Task feeds",
+   "what": "A 'Task feeds' button on the Task lists page; with Calendar ICS feeds this gives one-way subscription of tasks to outside calendar apps (function inferred from name).",
+   "plan_tier": "Unknown",
+   "sources": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf",
+    "https://help.clio.com/hc/articles/9289960611355"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=1"
+   ],
+   "confidence": "low"
+  },
+  {
+   "name": "Task reports (task progress by user)",
+   "product": "Clio Manage",
+   "where": "Reports > Tasks",
+   "what": "Per-user counts by status (pending, in progress, in review, completed) with time estimate versus tracked time.",
+   "plan_tier": "Some plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14352051388827-Clio-Manage-Task-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Task views and bulk actions",
+   "product": "Clio Manage",
+   "where": "Tasks tab; Matter > Tasks",
+   "what": "Outstanding/Completed tabs, date range, search, column chooser, filters, expand rows, export, inline Mark complete and Add time per task.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=2"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Matter stages board (kanban of matters, not tasks)",
+   "product": "Clio Manage",
+   "where": "Matters > Stages",
+   "what": "Kanban per practice area, up to 15 stages, drag matters between columns, days-in-stage on each card; moving a matter can fire automated workflows. No kanban board for tasks; third-party Legalboards offers one.",
+   "plan_tier": "Select plans (Advanced / Expand)",
+   "sources": [
+    "https://help.clio.com/hc/articles/15083241879195",
+    "https://www.clio.com/app-directory/legalboards/",
+    "https://pricingsaas.com/companies/clio/diffs/2025Q4"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Automated Workflows: Made by Clio templates",
+   "product": "Clio Manage (Automated Workflows app)",
+   "where": "Settings > Automated Workflows > Made by Clio / My Automations / Automation history",
+   "what": "Fixed trigger-action pairs: matter created or stage changed -> assign task list; stage changed -> generate document from template; matter converted from Clio Grow -> apply matter template. Each automation has an Active toggle, can be renamed or deleted, and runs are listed in Automation history. 'Request a template' asks Clio for new pairings (no custom builder).",
+   "plan_tier": "Advanced and Expand (PDF says Advanced and Complete)",
+   "sources": [
+    "https://www.clio.com/wp-content/uploads/2025/05/Automated-Workflows-Best-Practice-Guide.pdf",
+    "https://help.clio.com/hc/articles/35132279298843"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/05/Automated-Workflows-Best-Practice-Guide.pdf#page=1",
+    "https://www.clio.com/wp-content/uploads/2025/05/Automated-Workflows-Best-Practice-Guide.pdf#page=2"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Automation assigns only to users with matter access",
+   "product": "Clio Manage",
+   "where": "Automated Workflows",
+   "what": "Clio warns that tasks from a workflow only appear for assignees who have matter access when the rule fires.",
+   "plan_tier": "Advanced / Expand",
+   "sources": [
+    "https://www.clio.com/wp-content/uploads/2025/05/Automated-Workflows-Best-Practice-Guide.pdf"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2025/05/Automated-Workflows-Best-Practice-Guide.pdf#page=4"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Grow tasks and checklists",
+   "product": "Clio Grow",
+   "where": "Grow > Tasks",
+   "what": "Separate intake-side tasks; they do not sync with Manage tasks and Grow sends no overdue notifications.",
+   "plan_tier": "Grow add-on / Expand",
+   "sources": [
+    "https://help.clio.com/hc/articles/9207009137051-Clio-Grow-Tasks",
+    "https://help.clio.com/hc/en-us/articles/9206714957211-Task-Notifications-and-Reminders"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Calendars: personal, Firm, Tasks, Statute of Limitations, custom",
+   "product": "Clio Manage",
+   "where": "Calendar > My calendars / Other calendars",
+   "what": "Default calendars plus user-created ones; calendars shared by others appear under Other calendars. Edit/delete via the calendar's menu.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290016489883",
+    "https://www.clio.com/uk/features/legal-calendaring-software/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Calendar sharing permissions",
+   "product": "Clio Manage",
+   "where": "Calendar > calendar menu > share",
+   "what": "Share a calendar with users or groups at one of three permission levels (names not confirmed).",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290016489883",
+    "https://www.clio.com/uk/features/legal-calendaring-software/"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Event types (colour categories)",
+   "product": "Clio Manage",
+   "where": "Settings > Calendar event types; event form",
+   "what": "Firm-defined event types, each with a name and colour, chosen per event.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290016489883"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Events: attendees, reminders, recurrence, privacy",
+   "product": "Clio Manage",
+   "where": "Calendar > New event",
+   "what": "Events carry attendees, multiple reminders, a recurrence rule and privacy; private events are redacted via API for users without access.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://docs.developers.clio.com/api-docs/clio-manage/api-changelog/",
+    "https://help.clio.com/hc/en-us/articles/9290016489883"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Calendar sync with Google and Microsoft 365",
+   "product": "Clio Manage",
+   "where": "Settings > Contact and Calendar Sync",
+   "what": "Two-way sync of personal or user-created calendars (firm calendar only by primary subscriber). Connect Google or Microsoft, not both. Sync can take up to 24 hours. Private outside events show as Busy.",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289960611355"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "ICS calendar feeds",
+   "product": "Clio Manage",
+   "where": "Calendar settings > feeds",
+   "what": "One-way ICS feeds for apps without native sync (e.g. Apple Calendar, Yahoo).",
+   "plan_tier": "All plans",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289960611355"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Court Rules (rules-based calendaring)",
+   "product": "Clio Manage",
+   "where": "Settings > Court Rules > Jurisdictions; Calendar > Add court rule",
+   "what": "Admin adds jurisdictions and defaults (jurisdiction, service type, calendar, attendees). User picks trigger, date/time and service type; dependent dates are added to the calendar, flagged court_rule. Editing the trigger can bulk-update later events; custom rules with own triggers/actions are allowed.",
+   "plan_tier": "Court rule count capped per plan in 2023 (Essentials 3, Advanced/Complete 10); current caps unverified",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules",
+    "https://lawyerist.com/news/clio-court-rules-enhancements/",
+    "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeopV6rR5A%3A%3AoqtWqqI3TbiE6STHmftG8w",
+    "https://canadianlawyermag.com/resources/legal-technology/clio-software-review/382118",
+    "https://www.clio.com/?p=4951"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Court Rules coverage",
+   "product": "Clio Manage",
+   "where": "Settings > Court Rules > Jurisdictions",
+   "what": "US: 50 states, about 2,200 jurisdictions. Canada: two provincial courts and the Federal Court (provinces not named publicly). UK and Australia: a few conveyancing rule sets only.",
+   "plan_tier": "As above",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules",
+    "https://www.clio.com/blog/track-court-deadlines-court-rules/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Manage AI Scheduling (deadline extraction from documents)",
+   "product": "Clio Manage (Manage AI)",
+   "where": "AI Launchpad > Schedule; Matter dashboard > AI Actions; Calendar > New events > from document",
+   "what": "Reads court notices or orders, classifies the document, drafts events with a side-by-side view of the source for review. Clio states it does not apply local court rules when counting days.",
+   "plan_tier": "Manage AI plans (Essentials+ likely)",
+   "sources": [
+    "https://help.clio.com/hc/articles/42019952139035",
+    "https://help.clio.com/hc/articles/29657814904475"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Manage AI create tasks/events from plain language",
+   "product": "Clio Manage (Manage AI)",
+   "where": "Main nav > Create (AI) > Task / Event",
+   "what": "Chat prompt drafts a task or event, user reviews in the normal form before saving; defaults to current user and matter.",
+   "plan_tier": "Essentials, Advanced, Expand",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29658207678107"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Docket monitoring (US)",
+   "product": "Clio Work / Clio Manage",
+   "where": "Matter dashboard > attach docket",
+   "what": "Monitors connected US court dockets for new filings, orders and scheduling changes; in Manage, new activity can prompt updated deadlines and follow-up tasks. Available from Aug 2026 in supported US jurisdictions.",
+   "plan_tier": "Eligible customers, US only",
+   "sources": [
+    "https://www.clio.com/about/press/clio-docket/",
+    "https://www.clio.com/blog/automated-court-monitoring-clio-work/",
+    "https://help.clio.com/hc/articles/54380817844251",
+    "https://releasebot.io/updates/clio"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Scheduler (online booking)",
+   "product": "Clio Grow / Scheduler",
+   "where": "Grow > Scheduler settings",
+   "what": "Booking pages with availability per appointment type, buffers, minimum notice, SMS reminders, optional prepayment; bookings land on the Manage calendar.",
+   "plan_tier": "Grow add-on or Expand",
+   "sources": [
+    "https://help.clio.com/hc/articles/9192379853979",
+    "https://lawyerist.com/news/make-appointment-booking-a-breeze-with-clio-scheduler/"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio Operate workflows (enterprise)",
+   "product": "Clio Operate (ex-ShareDo)",
+   "where": "Workflow Designer",
+   "what": "Enterprise work management with phases, tasks and a no-code visual workflow designer; separate from Manage's fixed Automated Workflows.",
+   "plan_tier": "Clio for Enterprise",
+   "sources": [
+    "https://releasebot.io/updates/clio"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  }
+ ],
+ "gaps": [
+  {
+   "feature": "Automation run history (per-run log)",
+   "our_area": "work",
+   "our_screen": "work-automations",
+   "status": "partial",
+   "proposal": "Add a Run history tab on work-automations: one row per firing (time, event, matter, rule version, actions taken, items created, skipped reason, error). Agent explains failed or skipped runs in one line and links the fix.",
+   "priority": "must"
+  },
+  {
+   "feature": "Assignee without matter access when a rule fires",
+   "our_area": "work",
+   "our_screen": "work-automations",
+   "status": "missing",
+   "proposal": "Edge case: if a role-resolved assignee cannot see the matter (wall or access), create the item unassigned in the matter owner's queue and flag 'assignee lacks access'; dry run shows this up front.",
+   "priority": "should"
+  },
+  {
+   "feature": "ICS subscription feeds for calendars and tasks",
+   "our_area": "deadlines",
+   "our_screen": "calendar-sync",
+   "status": "missing",
+   "proposal": "Add per-user read-only ICS feed URLs (personal calendar, work due dates) with title_privacy applied, revocable token, and deadlines exported read-only. Off by default; admin can disable firm-wide.",
+   "priority": "could"
+  },
+  {
+   "feature": "Statute-of-limitations flag on a task",
+   "our_area": "deadlines",
+   "our_screen": "limitation-assessment",
+   "status": "deliberately different",
+   "proposal": "Keep limitations as Deadline records, not task flags. Add migration rule: imported Clio tasks with statute_of_limitations=true become proposed limitation deadlines that go through extraction-review (G7).",
+   "priority": "should"
+  },
+  {
+   "feature": "Court Rules custom rules (firm-built triggers/actions)",
+   "our_area": "deadlines",
+   "our_screen": "rule-pack-admin",
+   "status": "partial",
+   "proposal": "Allow firm-local rule packs (e.g. a judge's practice direction, a scheduling order template) beside vendor packs, marked 'firm-made', requiring lawyer sign-off (G7e) and excluded from vendor verification claims.",
+   "priority": "should"
+  },
+  {
+   "feature": "Court rule defaults per firm (jurisdiction, service type, calendar, attendees)",
+   "our_area": "deadlines",
+   "our_screen": "rule-trigger-wizard",
+   "status": "partial",
+   "proposal": "Add firm defaults on rule-pack-admin: default court/pack, default service method, default calendar, default chain attendees; wizard pre-fills from matter's court and these defaults.",
+   "priority": "should"
+  },
+  {
+   "feature": "Docket monitoring feeding deadlines (Clio Docket, US)",
+   "our_area": "deadlines",
+   "our_screen": "matter-deadlines",
+   "status": "missing",
+   "proposal": "Ontario equivalent: a generic 'court activity' connector (Ontario Courts Portal / e-filing notices by email) that turns new orders or hearing notices into extraction-review items; nothing becomes a deadline without G7. Mark as later phase.",
+   "priority": "could"
+  },
+  {
+   "feature": "Matter kanban by stage",
+   "our_area": "matters",
+   "our_screen": null,
+   "status": "covered",
+   "proposal": "None if matters.json already has a stage board; ensure days-in-stage on cards and that a stage move shows which automations fired.",
+   "priority": "could"
+  },
+  {
+   "feature": "Recurring tasks",
+   "our_area": "work",
+   "our_screen": "work-item",
+   "status": "covered",
+   "proposal": "Keep recurrence; reword clio_gaps row to say Clio has no native recurring tasks (duplicate workaround), so this is an advantage, not parity.",
+   "priority": "should"
+  },
+  {
+   "feature": "Sync latency and single-provider rule",
+   "our_area": "deadlines",
+   "our_screen": "calendar-sync",
+   "status": "partial",
+   "proposal": "State a sync SLO (e.g. under 5 minutes via push webhooks) on the health panel and allow both Google and Microsoft at once per user with per-calendar routing; Clio allows one provider and up to 24h lag.",
+   "priority": "should"
+  },
+  {
+   "feature": "Task priority levels",
+   "our_area": "work",
+   "our_screen": "work-categories",
+   "status": "covered",
+   "proposal": "None; ensure imported Clio High/Normal/Low map to our default priorities.",
+   "priority": "could"
+  },
+  {
+   "feature": "Fixed vs configurable task statuses",
+   "our_area": "work",
+   "our_screen": "workflow-editor",
+   "status": "covered",
+   "proposal": "Migration mapping: Clio pending/in_progress/in_review/complete/draft -> default workflow statuses; in_review -> Needs approval.",
+   "priority": "should"
+  },
+  {
+   "feature": "AI scheduling without court-rule counting",
+   "our_area": "deadlines",
+   "our_screen": "extraction-review",
+   "status": "covered",
+   "proposal": "Versus page can cite that Clio says its AI Scheduling does not apply local court rules to day counting, while ours computes with the Ontario rule pack and shows each step.",
+   "priority": "must"
+  }
+ ],
+ "corrections": [
+  {
+   "our_claim": "deadlines clio_gaps: 'Google, Office 365 and Outlook desktop sync'",
+   "truth": "Current Clio calendar sync is Google or Microsoft 365 (one at a time), plus one-way ICS feeds. No current official source for an Outlook desktop calendar sync; the Outlook add-in is for email filing and time capture.",
+   "sources": [
+    "https://help.clio.com/hc/articles/9289960611355",
+    "https://www.clio.com/clio-outlook-add-in/"
+   ]
+  },
+  {
+   "our_claim": "work clio_gaps lists 'Recurring tasks' as a Clio feature we added",
+   "truth": "No native recurring tasks found in Clio Manage; help content suggests duplicating a task. Recurrence exists on calendar events. Treat as our advantage (low-medium confidence).",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9204917906971-Manage-Tasks-in-Clio-Manage",
+    "https://docs.developers.clio.com/api-docs/clio-manage/api-changelog/"
+   ]
+  },
+  {
+   "our_claim": "work clio_gaps: 'Kanban for tasks ... Clio does not'",
+   "truth": "Correct for tasks, but Clio does have a kanban board for matters by stage (Matters > Stages), and moving cards fires automated workflows. The versus page should not imply Clio has no kanban at all.",
+   "sources": [
+    "https://help.clio.com/hc/articles/15083241879195"
+   ]
+  },
+  {
+   "our_claim": "deadlines clio_gaps: 'Clio's Canadian coverage is thin'",
+   "truth": "Supported, but be exact: Clio says Canada has two provincial courts plus the Federal Court, more planned. Which provinces is not public in what we could read; do not claim Ontario is absent until verified.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules"
+   ]
+  },
+  {
+   "our_claim": "work clio_gaps: 'Automated workflows: matter created or stage changed -> assign task list' (implies a rule builder)",
+   "truth": "Clio offers only three fixed Made-by-Clio pairings (assign task list, generate document, apply matter template on Grow conversion) with no custom trigger/condition builder; new pairings are requested from Clio. Plan: Advanced and Expand (Complete was renamed Expand on 2026-01-01).",
+   "sources": [
+    "https://www.clio.com/wp-content/uploads/2025/05/Automated-Workflows-Best-Practice-Guide.pdf",
+    "https://help.clio.com/hc/articles/35132279298843",
+    "https://pricingsaas.com/companies/clio/diffs/2025Q4"
+   ]
+  },
+  {
+   "our_claim": "deadlines clio_gaps: 'AI scheduling: extract deadlines from a court document with side-by-side source' listed as parity",
+   "truth": "Clio's AI Scheduling drafts events with source side by side, but Clio states it does not apply local court rules when counting days. Our computed, cited dates plus G7/G7b are a real difference, not parity.",
+   "sources": [
+    "https://help.clio.com/hc/articles/42019952139035"
+   ]
+  }
+ ],
+ "screenshots_index": [
+  {
+   "area": "tasks",
+   "url": "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=1",
+   "shows": "Tasks > Task lists page with Task types and Task feeds buttons"
+  },
+  {
+   "area": "tasks",
+   "url": "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=2",
+   "shows": "Matter > Tasks tab with status badges (In progress, In review, Pending), Assign task list, Add time"
+  },
+  {
+   "area": "tasks",
+   "url": "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf#page=4",
+   "shows": "New task template modal: priority, private toggle, task type, time estimate, list assignee vs select assignee"
+  },
+  {
+   "area": "automations",
+   "url": "https://www.clio.com/wp-content/uploads/2025/05/Automated-Workflows-Best-Practice-Guide.pdf#page=1",
+   "shows": "Automated Workflows app: Made by Clio cards (assign task list, generate document, apply matter template)"
+  },
+  {
+   "area": "automations",
+   "url": "https://www.clio.com/wp-content/uploads/2025/05/Automated-Workflows-Best-Practice-Guide.pdf#page=2",
+   "shows": "My Automations list with Active toggles and When/Then summaries"
+  }
+ ],
+ "open_questions": [
+  "Which two Canadian provincial courts does Clio Court Rules cover, and is Ontario Superior Court (RCP) one of them? Needs a login or Clio sales confirmation.",
+  "Does Clio Manage have native recurring tasks? Only a duplicate-task workaround was found; the help article 9204917906971 could not be opened (403).",
+  "Exact 'Task feeds' behaviour (iCal of tasks?) and calendar sharing permission level names; help articles were 403.",
+  "Current per-plan court rule caps (2023 data: Essentials 3, Advanced/Complete 10) and plan names after the Complete -> Expand rename.",
+  "Is Manage AI (incl. AI Scheduling) available to Canadian firms on all plans? Plan list seen: Essentials, Advanced, Expand.",
+  "Whether Clio Docket or similar monitoring will cover any Canadian courts."
+ ],
+ "sources": [
+  "https://canadianlawyermag.com/resources/legal-technology/clio-software-review/382118",
+  "https://developers.support.clio.com/hc/en-us/articles/360053612114",
+  "https://docs.developers.clio.com/api-docs/clio-manage/api-changelog/",
+  "https://help.clio.com/hc/articles/15083241879195",
+  "https://help.clio.com/hc/articles/29657814904475",
+  "https://help.clio.com/hc/articles/35132279298843",
+  "https://help.clio.com/hc/articles/42019952139035",
+  "https://help.clio.com/hc/articles/54380817844251",
+  "https://help.clio.com/hc/articles/9192379853979",
+  "https://help.clio.com/hc/articles/9205859328923",
+  "https://help.clio.com/hc/articles/9207009137051-Clio-Grow-Tasks",
+  "https://help.clio.com/hc/articles/9289960611355",
+  "https://help.clio.com/hc/en-us/articles/14352051388827-Clio-Manage-Task-Reports",
+  "https://help.clio.com/hc/en-us/articles/29658207678107",
+  "https://help.clio.com/hc/en-us/articles/9204917906971-Manage-Tasks-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/9206286672155-Task-Lists",
+  "https://help.clio.com/hc/en-us/articles/9206714957211-Task-Notifications-and-Reminders",
+  "https://help.clio.com/hc/en-us/articles/9289840995867-Court-Rules",
+  "https://help.clio.com/hc/en-us/articles/9290016489883",
+  "https://lawyerist.com/news/clio-court-rules-enhancements/",
+  "https://lawyerist.com/news/make-appointment-booking-a-breeze-with-clio-scheduler/",
+  "https://n8n.io/workflows/18785-monitor-statute-deadlines-in-clio-and-send-email-escalations/",
+  "https://pricingsaas.com/companies/clio/diffs/2025Q4",
+  "https://releasebot.io/updates/clio",
+  "https://www.clio.com/?p=4951",
+  "https://www.clio.com/about/press/clio-docket/",
+  "https://www.clio.com/app-directory/legalboards/",
+  "https://www.clio.com/blog/automated-court-monitoring-clio-work/",
+  "https://www.clio.com/blog/track-court-deadlines-court-rules/",
+  "https://www.clio.com/ca/features/task-management/",
+  "https://www.clio.com/clio-outlook-add-in/",
+  "https://www.clio.com/uk/features/legal-calendaring-software/",
+  "https://www.clio.com/wp-content/uploads/2025/05/Automated-Workflows-Best-Practice-Guide.pdf",
+  "https://www.clio.com/wp-content/uploads/2025/07/Task-Lists-Best-Practices-Guide.pdf",
+  "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeopV6rR5A%3A%3AoqtWqqI3TbiE6STHmftG8w",
+  "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeoscpSSsg%3A%3AwjoaG_lUTq-dxkdkBZEuow/md"
+ ]
+}

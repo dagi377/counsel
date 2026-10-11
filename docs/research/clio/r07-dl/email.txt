@@ -1,0 +1,124 @@
+
+Email Marketing in Clio Grow – Home
+ Clio customers get a $250 gift card when referring a law firm to Clio (North American Based Firms)
+ or Refer a Friend in Europe & the UK & 
+ Earn £200/€200
+ -->
+Earn $250 when you refer friends to Clio. 
+ Refer now 
+ -->
+See Clio’s newest features in this quarterly webinar, including a new way to get more five-star reviews. 
+ Reserve your spot today. 
+Skip to main content
+ All Categories
+ English (United States)
+ English (Europe)
+ English (Australia)
+ Home
+ All Categories
+ Communications 
+Email Marketing in Clio Grow
+ Updated 
+February 02, 2026 19:00
+Have more questions? Submit a request
+-->
+Refer a Friend to Clio
+Clio customers get a $250 gift card when referring a law firm to Clio (North American Based Firms) 
+ $250 gift card
+Refer a Friend in Europe & the UK & Earn £200/€200
+ Earn £200/€200
+ -->
+Refer a Friend to Clio
+Earn $250 when you refer friends to Clio. 
+ Refer now
+ -->
+What’s New in Clio
+See our latest features, and get a sneak peak at what’s coming next.
+ Reserve your spot
+With Clio Grow, you can build and send high-quality email campaigns to engage with leads and clients. Once enabled, email marketing is accessible to all users in your firm who have access to Clio Grow. You can use email marketing campaigns to curate emails that help your firm stay top of mind, convert leads to clients, and secure repeat business. The reporting features for email marketing can also help you understand how well your campaign performed, how recipients interact with your campaigns, and how much revenue you drive from email campaigns.
+Tip: Leverage information about your contacts—such as contact tags and contact types—to send emails that are relevant to them. If you also use Clio Manage, ensure that you enable shared contacts between Clio Manage and Clio Grow to receive help with premade campaigns.
+Create an email marketing campaign
+The email marketing campaign feature in Clio Grow guides you through every step of creating effective email campaigns. Depending on the nature of the campaign, you may need to return to the draft campaign more than once to modify and refine it. Clio Grow makes this easy by autosaving your campaign as you work. If you are working with other firm users on an email campaign, to minimize the risk of accidentally overwriting another user's work in the campaign builder, draft your email copy and brainstorm subject lines outside of the Clio Grow campaign builder.
+Step 1: Create a new campaign
+In Clio Grow, click the main Marketing tab.
+Click Create campaign.
+Select from one of the existing campaign objectives or click Create a custom campaign.
+Tip: If you use Clio Manage in addition to Clio Grow, you can also explore the premade campaigns available to you. For each campaign, a relevant list of recipients and content has already been started for you. To get the most out of premade campaigns, make sure that you opt in to shared contacts.
+Step 2: Define the campaign
+Optional: Click Edit name to update the campaign name.
+Note: The campaign name is for internal use and will not appear on any sent campaign emails. It is used as the marketing source label that is added to a matter. In turn, this marketing source can then be used to track metrics and matter revenue attributed to the campaign. Learn more about marketing sources here.
+Describe the campaign objective.
+If you are using one of the ready-to-use campaigns, you will not be able to change the objective.
+Step 3: Curate a list of recipients
+You can curate your list of recipients to suit your needs by using appropriate filters, along with contact tags, contact types, and other recipient characteristics. Clio also helps you to protect your sender's reputation by automatically removing recipients who are more likely to report your emails as spam. Clio may remove recipients to whom previous emails bounced or recipients that your firm did not formally engage with, for example, those with Did not Hire statuses. Note that the latter scenario would not apply to certain campaign objectives that aim to revive lost opportunities. In addition, those who have unsubscribed from your emails on a previous campaign will also be removed from your list of recipients.
+Click the Recipients section to expand it.
+Click Add filters for the Include or Exclude options based on how you want to filter recipients based on their characteristics.
+For available filter options and their meanings, refer to Understand filter options to select your recipients.
+Select from the available options in the drop-down, then set the value(s) to filter upon.
+The number of contacts that meet the criteria of your filters will update as you add and remove filters.
+Optional: Repeat the steps above to add additional filters. To remove a filter or value, click the X next to it.
+Optional: To manually remove a contact from the list of recipients, click View to see the list of your contacts, then click Remove in the row of the individual you want to remove.
+Note: In your Recipients list you can toggle between the Included and Removed options to see the individuals in their respective lists. You can also continue to Remove or Include previously removed individuals from their respective lists. If you apply additional filters or remove filters with your Recipients list open, click Refresh to apply the filter changes to the list of contacts. Some recipients may appear in your Removed
+When you are satisfied with your final list of contacts, click Next.
+Important: If the number of contacts in your segment exceeds 5,000, you will be notified that only the newest 5,000 contacts will be included.
+Ensure that your contacts’ email addresses are up to date to minimize the risk of email bouncing, which can occur when the email address is no longer valid or the inbox is full due to inactivity. Higher bounce rates may negatively impact your sender reputation and reduce the effectiveness of your campaign due to a lower delivery rate. You can refer to View campaign metrics to learn how to monitor relevant campaign metrics in the email marketing recipient report. Also, make sure that the content you plan to create is relevant to your list of contacts. Recipients may not find an email relevant if it is too broad, thereby increasing the risk of it being labeled as spam.
+Step 4: Create your content
+Tip: If you are unsure where to start, consider using the AI email feature for inspiration. To learn more, see Use AI to create your email copy.
+Add an email subject line.
+Tip: A short and meaningful subject line with appropriate capitalization and punctuation are less likely to be marked as spam, as is a subject line that avoids misleading or sensationalized statements. A curated subject line minimizes the risk of your email being marked as spam, thereby maintaining your sender reputation and ensuring a high deliverability rate.
+Create the body of the email. Provide information about how the email should address the contact.
+Greeting format: Use the Contact name options dropdown to select how the recipient will be addressed. When you select an option, the text in brackets in the Greeting format represents your selection and serves as a placeholder for the recipient's details. You can edit text outside of the brackets. As an example, “Happy holidays, [First Name]!” would display as “Happy holidays, Gabriela!”
+Note: To comply with anti-spam laws, your firm’s name and address in Clio Grow will automatically be added to emails, along with the option for the recipient to unsubscribe from emails.
+When the subject line and content are ready, click Next.
+Note: Campaigns autosave as you work. Find your draft campaigns in the Email campaigns table.
+Step 5: Send the campaign
+Optional, but recommended: Click Send test email > Send test email to preview what your email will look like to recipients and to review the subject line, greeting, email body, sign off, and the firm signature (firm name and address) for any issues or errors.
+Note: Check your spam folder if you do not see the test email in your inbox.
+Once you are satisfied with the email, click Send email > Send email.
+Important: This action cannot be undone. Only send the email when you are certain all aspects of the campaign have been reviewed.
+Your email campaign will be sent to recipients in sequential batches over a short period.
+Edit or delete in-progress campaigns
+Campaigns that have not yet been sent can be edited and/or deleted.
+Edit Delete
+Important: When editing an existing email campaign that other Clio Grow users are also contributing to, ensure you communicate with those collaborators. Clio Grow’s email campaign builder autosaves as you work to make sure no changes are lost, but this may cause work to be overwritten if two or more users are simultaneously working on the same campaign.
+In Clio Grow, go to the main Marketing tab.
+Click the name of the relevant campaign (with a Draft status), or click Actions > Edit.
+In Clio Grow, go to the main Marketing tab.
+For the the relevant campaign (with a Draft status) click Actions > Delete.
+Click Delete campaign to confirm the action.
+Important: Deleted campaigns cannot be recovered.
+Understand filter options to select your recipients
+The following filter options are available to create a segment.
+Contact tag is: Contact tags in Clio Grow allow you to add any identifier to your contacts. Learn more about creating Grow tags and adding them to contacts.
+Contact type is: Contact types in Clio Grow allow you to distinguish between contacts who are leads, clients, or those who did not retain your services. Learn more about contact types.
+Matter type is: Matter type in Clio Grow provides information about the practice area of the matter. Learn more about matter types in Clio Grow and how to create and manage matter types.
+Matter status is: Matter status in Clio Grow provides a measure of the stage a matter is in, from its creation to its conclusion. You may recognize these as the statuses in the Pipeline columns. Learn more about how to create and manage matter statuses in Clio Grow.
+Form is pending since: When you send a form to a Clio Grow contact and before the contact fills and submits the form, it will be in a pending state. You can view all pending forms in Forms > Pending. This field allows you to filter contacts with pending forms based on the date the form was sent.
+Document is pending since: When you send a document to a Clio Grow contact and before the contact fills and submits the form, it will be in a pending state. You can view all pending forms in Forms > Pending. This field allows you to filter contacts with pending forms based on the date the form was sent.
+Practice area is: Practice area is information synced from Clio Manage. It provides information about the practice area of the matter. Learn more about matter types in Clio Manage and how to create and manage practice areas.
+Matter close date is between: This field allows you to filter contacts based on the date a matter status was set to 'Close'.
+Use AI to create your email copy
+If you are not sure where to start with creating clear and engaging content that follows best practices for email marketing campaigns, you can use the AI feature to help you create the subject line, greeting, and body of the email (i.e., step 4 in Create an Email marketing campaign). Ensure that your recipients are added before using the AI feature, so that the suggested content is tailored to them.
+Note: In some instances the AI feature may not be able to generate content that is relevant to or appropriate for the list of recipients. When this happens, try adjusting your list of recipients to generate different content.
+In the Content block, click Draft email.
+Optional: If you are not satisfied with the draft and would like the AI to try again, click the regenerate icon (next to Drafted by AI).
+When you are generally satisfied with the AI-generated draft, click Insert email.
+This will populate the various fields in the Content blocks with the AI-generated text.
+Make any required adjustments to the Subject, Greeting format, Contact name options, and Body, then click Next.
+Proceed as you usually would with sending the email.
+Manage campaigns
+In the main Marketing tab, your Email campaigns table will show the status and key results of your campaigns. The table provides the following information about each campaign:
+Name: The campaign name.
+You can click on the campaign name of in-progress campaigns to continue editing the campaign, and on the campaign name of sent campaigns to review campaign performance.
+Status: The status of the campaign
+For one of the campaigns, you can see statuses of Draft, Sending…, Sent, or Failed.
+For ongoing campaigns, like birthday email campaigns, you can see statuses of Active and Pause.
+Date launched: The date and time the campaign was sent.
+Recipients: The number of contacts to whom the email was sent.
+Opens: The percentage of recipients who opened an email.
+Clicks: The percentage of delivered emails that were opened by the recipient.
+Actions: You’ll be able to take different actions and/or view additional information about each campaign depending on the Status of the campaign. Campaigns with Draft status can be edited or deleted, and campaigns with a Sent status can be viewed or reviewed for their metrics. Click Actions for the relevant email campaign to access these options.
+Draft: A campaign in Draft status can be edited or deleted.
+Sending: A campaign is currently in the Sending status. You will have to wait for the sending to complete before taking any action.
+Sent: You can review a summary about any campaign with a Sent status, using the View campaign option in the Actions dropdown. Your campaign page will display the following information about your campaign performance. Primary subscribers and those with Admin permissions will also be able to view more details about each Sent campaign, using the View recipient report option in the Action
+IMGS: []

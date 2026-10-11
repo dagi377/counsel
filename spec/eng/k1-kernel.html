@@ -1,0 +1,83 @@
+<h2>App kernel</h2>
+<p><b>Status:</b> spec only, owner decision 2026-10-10. Nothing is built. Counsel is two layers in one repo: a reusable <b>app kernel</b> (<code>kernel/</code>), which is the generic backend for an AI-native business app, and the <b>legal app</b> (<code>app/legal/</code>) on top. This page sets the boundary, the kernel modules and their interfaces, and how the app plugs in. The build guide (o1) tags every task <code>kernel</code> or <code>app</code>, and a4-data-model.json tags every table.</p>
+
+<h3>Purpose</h3>
+<ul>
+<li>A second AI-native app (for example accounting or property management) should be able to reuse identity, gates, audit, events, documents, deadlines, work items, money primitives and the cell deploy without copying Counsel code.</li>
+<li>Domain-free code gets stricter tests. If the gate engine has no idea what a trust withdrawal is, it cannot quietly special-case one.</li>
+<li><b>No over-generalising.</b> Code goes in the kernel only when it is clearly domain-free today. It stays one Go module and one repo until a second app exists (see the extraction rule below).</li>
+</ul>
+
+<h3>Kernel vs app boundary</h3>
+<div class="scroll"><table class="ftable">
+<tr><th>Concern</th><th>Kernel (domain-free)</th><th>App (legal)</th><th>Why the line is here</th></tr>
+<tr><td>Identity and access</td><td>users, roles, teams, capabilities registry, <code>Can()</code>, RLS session vars, break-glass, access reviews, offboarding, one cell per customer</td><td>legal roles (lawyer, paralegal, clerk), the access.json matrix, ethical-wall subject resolver</td><td>Who holds which capability is generic. Walls are a legal duty, so they come in as an app resolver.</td></tr>
+<tr><td>Gates</td><td>approval engine: preparer is never the approver, the agent never approves, payload hash (JCS), versions, expiry, min approvers, authority limits, fresh MFA, effects run exactly once</td><td>gate kinds (G-B2, G-TREL, G14...), spec_gate ids, sole-practitioner self-approval policy, 24 h cooling-off on trust kinds</td><td>Separation of duties is a general control. Which actions need it, and the one licensee exception, are legal rules.</td></tr>
+<tr><td>Audit</td><td>hash-chained append-only log, redaction, verifier</td><td>none</td><td>Fully generic.</td></tr>
+<tr><td>Events</td><td>outbox, inbox, idempotency keys, inbound webhooks (verify, dedup), outbound Standard Webhooks</td><td>event types and inbound providers it registers; payment-event precedence</td><td>Delivery guarantees are generic. What an event means belongs to the app.</td></tr>
+<tr><td>Money</td><td>int64 cents, ppm, <code>Rhu</code>, <code>Allocate</code> (largest remainder), gapless number series, <b>double-entry ledger engine</b> (balanced journals, reversals, periods, idempotent posting)</td><td>chart of accounts (OP-*, TR-*), trust as the By-Law 9 book (trust.trust_transaction), billing, tax, interest, surcharge, contingency rules</td><td><b>Decision:</b> the ledger <i>engine</i> belongs in the kernel because balance, reversal and period lock are accounting invariants that every business has. Trust and billing <i>rules</i> are Ontario law, so they live in the app. Trust stays a single-entry app book (CF-02) and does not run on the engine.</td></tr>
+<tr><td>Documents</td><td>documents, versions, page/line text, citations (quote_hash), shares, uploads, signature requests, drafts, templates, retention engine</td><td>document kinds (court_form, engagement_letter, precedent, research_memo, bundle), RC-* retention classes, G14 destruction gate</td><td>Citation by page and line works the same for any document. Which kinds exist, and how long each is kept, is legal.</td></tr>
+<tr><td>Work</td><td>work items, boards, workflows, SLA, automation (gated for effects)</td><td>legal work templates, practice-area mapping</td><td>Generic.</td></tr>
+<tr><td>Deadlines</td><td>engine: trigger events, offsets, day-count modes, holidays, roll-forward, human confirmation, reminder worker</td><td>Ontario rule pack (YAML), limitation assessment</td><td>Counting days is generic. Court rules are legal data.</td></tr>
+<tr><td>Notifications and portal</td><td>notifier, preferences, portal shell (guest identity, sign-in, page registry)</td><td>portal pages (matter docs, bills), court filings, legal notices</td><td>The shell is generic. What a client sees is legal.</td></tr>
+<tr><td>Reports</td><td>report definitions, runs, schedules, CSV/PDF with sha256 manifest</td><td>AR aging, WIP, trust listing, HST report</td><td>Generic framework, legal content.</td></tr>
+<tr><td>Import</td><td>staging, id map, checkpoints, dry run, unmapped-field report, import gate</td><td>Clio source (regions, rate limits, archives), financial cut-over</td><td>The import pipeline is generic. Clio is a vendor.</td></tr>
+<tr><td>Agent tools</td><td>tool registry (read/report/write), JSON Schema input, plan before write, drafts and gates only, quoted untrusted text, citations</td><td>the 25 Counsel tools, the Paploo package manifest</td><td>The tool contract is generic. The tools are legal.</td></tr>
+<tr><td>Parties, matters, conflicts, intake, time, trust, billing</td><td>none</td><td>all</td><td>Contacts-as-parties, conflicts, client ID (By-Law 7.1), trust accounting and Ontario billing law are domain semantics.</td></tr>
+</table></div>
+
+<h3>Kernel modules and interfaces</h3>
+<p>The signatures are Go-ish and illustrative. They fix the shape, not the final names. Every I/O function takes <code>ctx</code> first. Writes take the caller's <code>pgx.Tx</code>, so a module's change and its outbox and audit rows commit together.</p>
+<div class="scroll"><table class="ftable">
+<tr><th>Package</th><th>Interface</th><th>Extension point</th></tr>
+<tr><td><code>kernel/registry</code></td><td><code>type Registry interface { Capability(Capability); Role(Role); SubjectKind(SubjectKind, SubjectResolver); GateKind(GateKind); EventType(name string, schema []byte); InboundProvider(Provider); RulePack(fs.FS); DocumentKind(DocumentKind); RetentionClass(RetentionClass); Report(ReportDef); PortalPage(PortalPage); Tool(Tool); ChartOfAccounts(Chart); NumberSeries(name, format string); SmokeCheck(name string, fn CheckFunc); RestoreCheck(name string, fn CheckFunc); Routes(func(chi.Router)) }</code></td><td>The only way in. It is validated at boot against <code>spec/kernel/*.schema.json</code>. Duplicate ids or a kernel prefix make boot fail.</td></tr>
+<tr><td><code>kernel/identity</code></td><td><code>Can(ctx, p Principal, cap string, s Subject) (bool, error)</code>; <code>type SubjectResolver interface { Visible(ctx, p Principal, s Subject) (bool, error) }</code>; <code>AgentPrincipal(run RunID, actingFor UserID, grant []string) Principal</code></td><td>roles, capabilities, subject kinds with resolvers (walls)</td></tr>
+<tr><td><code>kernel/gate</code></td><td><code>Open(ctx, tx, kind string, subject Subject, payload json.RawMessage, preparer Principal) (GateID, error)</code>; <code>Decide(ctx, tx, id GateID, version int, d Decision, by Principal) error</code>; <code>type GateKind struct { Slug, Approver string; Risk Risk; MinApprovers int; TTL time.Duration; PayloadSchema []byte; Effect EffectFunc; CoolingOff time.Duration }</code>; <code>type EffectFunc func(ctx, tx, g Approved) error</code> (it runs at most once per gate, and the kernel holds the lock); <code>type SelfApprovalPolicy func(ctx, g Gate, by Principal) (allowed bool, reason string)</code></td><td>gate kinds, effect handlers, one optional self-approval policy (default deny)</td></tr>
+<tr><td><code>kernel/audit</code></td><td><code>Append(ctx, tx, e Event) error</code>; <code>Verify(ctx, from, to Seq) error</code></td><td>none</td></tr>
+<tr><td><code>kernel/outbox</code>, <code>idem</code>, <code>inbound</code>, <code>webhook</code></td><td><code>outbox.Emit(ctx, tx, subject Subject, typ string, body any) error</code>; <code>idem.Middleware</code>; <code>type Provider struct { ID string; Verify func(r *http.Request, body []byte) (eventID string, err error); Handle func(ctx, tx, e InboundEvent) error }</code></td><td>event types, inbound providers</td></tr>
+<tr><td><code>kernel/money</code>, <code>numseq</code>, <code>clock</code></td><td><code>type Cents int64; type PPM int64; Rhu(num, den int64) (int64, error); Allocate(total Cents, weights []int64) ([]Cents, error)</code>; <code>numseq.Next(ctx, tx, series string) (string, error)</code>; <code>clock.Today(ctx) civil.Date</code></td><td>number series formats, the business time zone</td></tr>
+<tr><td><code>kernel/ledger</code></td><td><code>Post(ctx, tx, e Entry) (EntryID, error)</code> (balanced, idempotent per source); <code>Reverse(ctx, tx, id EntryID, reason string) (EntryID, error)</code>; <code>ClosePeriod(ctx, tx, book string, p Period) error</code>; <code>Balance(ctx, account string, asOf civil.Date) (Cents, error)</code></td><td>chart of accounts, books, posting templates</td></tr>
+<tr><td><code>kernel/docs</code>, <code>retention</code></td><td><code>Put(ctx, tx, kind string, subject Subject, r io.Reader) (VersionID, error)</code>; <code>Lines(ctx, v VersionID, page int) ([]Line, error)</code>; <code>Cite(ctx, v VersionID, page, l0, l1 int) (Citation, error)</code>; <code>retention.Propose(ctx, class string) (PurgeList, error)</code></td><td>document kinds, templates, retention classes (min_years, never_purge, destruction gate)</td></tr>
+<tr><td><code>kernel/work</code></td><td><code>Create(ctx, tx, it Item) (ItemID, error)</code>; <code>type Automation struct { Trigger string; Cond Expr; Action ActionRef }</code> (an action with an effect must open a gate)</td><td>subject kinds, templates, automation actions</td></tr>
+<tr><td><code>kernel/deadline</code></td><td><code>Compute(ctx, pack, rule string, trigger civil.Date, subject Subject) ([]Proposed, error)</code>; <code>Confirm(ctx, tx, id DeadlineID, by Principal) error</code></td><td>rule packs: versioned YAML, validated by <code>rulepack.schema.json</code></td></tr>
+<tr><td><code>kernel/notify</code>, <code>portal</code></td><td><code>notify.Send(ctx, tx, to UserID, template string, data map[string]string) error</code>; <code>type PortalPage struct { ID, Route, Capability string; Load LoaderFunc }</code></td><td>notification templates, portal pages</td></tr>
+<tr><td><code>kernel/report</code></td><td><code>type ReportDef struct { ID, Capability string; Params []byte; Run func(ctx, tx pgx.Tx, params json.RawMessage) (Rows, error) }</code></td><td>report definitions</td></tr>
+<tr><td><code>kernel/importer</code></td><td><code>type Source interface { Resources() []string; Extract(ctx, res string, cur Cursor) (Page, error); Transform(ctx, staged Row, m IDMap) ([]Command, error) }</code></td><td>import sources (Clio is the first)</td></tr>
+<tr><td><code>kernel/agenttools</code></td><td><code>type Tool struct { Name string; Kind ToolKind /* read|report|write */; Input []byte; Capability string; Handle func(ctx, p Principal, in json.RawMessage) (Result, error) }</code>; the kernel itself provides <code>report_plan</code>, <code>report_step</code>, <code>open_gate</code> and <code>cite</code></td><td>agent tools</td></tr>
+<tr><td><code>kernel/server</code>, <code>metrics</code></td><td>problem+json, ETag/If-Match, cursor paging, OpenAPI conformance, SLO metrics</td><td>routes, smoke and restore checks</td></tr>
+</table></div>
+
+<h3>How the app registers</h3>
+<ol>
+<li><code>app/legal/register.go</code> exports <code>func Register(r registry.Registry) error</code>. It is the only symbol <code>cmd/</code> calls from the app.</li>
+<li><code>cmd/counseld</code> builds the kernel, calls <code>legal.Register</code>, then <code>kernel.Start</code>. Registration is boot-time only. Nothing can be registered at runtime and there is no plugin loading.</li>
+<li>Registered data (gate kinds, rule packs, document kinds, reports, portal pages, tools) must validate against <code>spec/kernel/*.schema.json</code>, otherwise boot fails. The app's ids use its own module prefix (<code>billing.</code>, <code>trust.</code>, <code>matter.</code>). The single exception is <code>core.trust_signatory</code> (CF-07), which is grandfathered under question Q-K1: rename it to <code>trust.signatory_change</code> with an alias?</li>
+<li><code>test/fixtures/helpdesk</code> is a tiny non-legal app that registers one of each. Kernel tests run against it and never against app/legal.</li>
+</ol>
+
+<h3>Data ownership</h3>
+<p>Layer is tagged per table in a4-data-model.json (94 kernel, 103 app). Kernel schemas are core, audit, gate, platform, work and agent. App schemas are party, intake, conflict, matter, timekeeping, trust and billing. gl, docs, cal and comms are mixed: they are kernel except for the app tables listed in the DDL header. The DDL is unchanged apart from that header comment.</p>
+<p><b>Known coupling:</b> 38 kernel-table columns FK into app tables, mostly <code>matter_id</code> and <code>contact_id</code> (for example <code>docs.document.matter_id</code> and <code>work.work_item.matter_id</code>). They are listed in <code>layers.kernel_to_app_fks</code> and become <code>tools/kernel_bindings.txt</code>. Kernel Go code treats them only as an opaque <code>Subject{Kind, ID}</code> resolved by the app. The ratchet stops the list from growing. When a second app exists, they become <code>(subject_kind, subject_id)</code> through an expand-contract migration.</p>
+
+<h3>What stays out of the kernel, and why</h3>
+<ul>
+<li><b>Parties and matters.</b> In law a "contact" means parties with adverse interest, and "matter" carries conflict and wall semantics. A generic CRM would be over-generalising.</li>
+<li><b>Conflicts and client ID (By-Law 7.1).</b> These are regulatory duties with legal retention.</li>
+<li><b>Trust accounting.</b> By-Law 9 rules (cash limit, withdrawals, three-way reconciliation) and its single-entry book of record.</li>
+<li><b>Billing, tax and interest.</b> Solicitors Act, ETA place of supply and the assessment rights are Ontario and Canadian law.</li>
+<li><b>Court rule packs, legal templates and skills.</b> These are data and content, not plumbing.</li>
+<li><b>Time-keeping rates and rounding.</b> They look generic, but the 8-tier rate chain and the paralegal scope are legal practice. Move them only if a second app needs exactly this.</li>
+</ul>
+
+<h3>Relation to Paploo ADR 0014 (custom apps)</h3>
+<p>Paploo runs the agent: per-user containers, connections the agent uses without holding, the tool gate, model budgets. The kernel provides the business plumbing behind the app's own API. In ADR 0014 terms, Counsel (kernel plus legal app) is the "app" with its own system of record. The kernel gate engine is authoritative for Counsel effects (ARC-I-045 amends ADR 0014 sec. 5), so a Paploo gate never stands in for a Counsel gate. <code>kernel/agenttools</code> is the server side of the tools that the Paploo package's skills call. The kernel holds no Paploo code, and Paploo core holds no kernel or legal terms. The kernel is not part of Paploo: a kernel app could run with no agent at all (ARC-U-028 degraded mode).</p>
+
+<h3>Versioning and compatibility</h3>
+<ul>
+<li>The kernel has one version, <code>kernel.Version</code> (semver), even while it lives in the same Go module. The Registry interface and <code>spec/kernel/*.schema.json</code> are <b>CONTRACT</b> files. Changes are additive within a major version: a new optional field or a new extension point is allowed; a removed or renamed one needs a major version and an ADR.</li>
+<li>Kernel migrations follow the same expand-contract rule as the app (ARC-U-017). A kernel table never needs an app migration to apply.</li>
+<li>The app declares <code>registry.Requires("&gt;=1.2 &lt;2")</code>. If it does not match, boot fails.</li>
+</ul>
+
+<h3>Extract when a second app exists</h3>
+<p>The kernel stays in this repo as <code>kernel/</code> until a second real app needs it. Until then: no separate module, no plugin loading, no generic CRM, no configurable workflows-as-a-product. Extraction is a mechanical move to its own module, and it is only possible because T-001b keeps the boundary clean (no app imports, no legal terms, no new kernel-to-app FKs). At extraction time the second app's needs decide which kernel_bindings become subject references. Anything the second app does not need stays where it is.</p>

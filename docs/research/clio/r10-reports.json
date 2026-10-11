@@ -1,0 +1,1040 @@
+{
+ "id": "r10-reports",
+ "scope": "Every Clio report by category, dashboards (firm, personal, accounting), AI/insights reporting, custom reports, presets, scheduling, history, exports and report permissions; compared with platform.json reports, report-catalogue, custom-report-builder, firm-insights and trust/billing reports.",
+ "clio_products": [
+  "Clio Manage",
+  "Clio Accounting",
+  "Clio Grow",
+  "Clio Payments",
+  "Manage AI"
+ ],
+ "features": [
+  {
+   "name": "Accounts receivable report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Billing",
+   "what": "Outstanding amounts on approved unpaid and past-due bills per user, client and matter; reflects partial payments, interest and credit notes; drafts excluded.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14330519112987-Clio-Manage-Billing-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Accounts receivable aging report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Billing",
+   "what": "Overdue receivables bucketed 1-30, 31-60, 61-90 and 91+ days past the bill due date, for collection follow-up.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14330519112987-Clio-Manage-Billing-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Billing history report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Billing",
+   "what": "Bills open, paid and past due with status, due date, payments, credit notes, interest and balance.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14330519112987-Clio-Manage-Billing-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Matter balance summary report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Billing",
+   "what": "Per matter: receivables, unbilled work in progress and expenses in progress; optionally client and matter trust funds. Columns can be hidden/reordered.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14330519112987-Clio-Manage-Billing-Reports",
+    "https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Invoice payments report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Billing",
+   "what": "Bill payments and Clio Payments refunds, how each payment was allocated to bill line items (incl. overpayments) and the users responsible for those lines.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14330519112987-Clio-Manage-Billing-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Forex gains and losses report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Billing",
+   "what": "For multi-currency firms: gain or loss from the rate at bill issue vs. rate at payment, with currency totals.",
+   "plan_tier": "firms using multiple currencies",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14330519112987-Clio-Manage-Billing-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Client activity report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Client",
+   "what": "Billed and unbilled time and expense entries across a client's matters (non-billable time excluded).",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Client ledger report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Client",
+   "what": "Per client trust and operating transactions: payments, refunds, transfers and balances.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Trust ledger report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Client",
+   "what": "Client and matter transactions and balances across all trust accounts; Clio positions it as suitable for regulators.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Trust interest calculation report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Client",
+   "what": "Computes interest earned on client/matter trust funds from a rate, compounding period and date range.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Trust management report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Client",
+   "what": "Unbilled time and expenses vs. trust balance and the minimum trust threshold per matter, to see where retainers are running low. Also used to carry trust balances into a migration.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports",
+    "https://help.clio.com/hc/en-us/articles/50633368921243-Export-Data-From-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Trust listing report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Client",
+   "what": "Summary of trust balances for all clients with opening and closing balances.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Work in progress report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Client",
+   "what": "Unbilled time and expenses per matter: entries on draft or pending-approval bills or not on any bill.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Bank account activity report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Client",
+   "what": "Funds in and out across all firm bank accounts (operating and trust) with running balance.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Matters report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Matter",
+   "what": "Matter list with description, responsible and originating attorney, last bill date, AR, billable flag, practice area, status and client contact details.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14349646533787-Clio-Manage-Matter-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Matters by responsible attorney report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Matter",
+   "what": "Matters grouped by responsible attorney with client name and description.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14349646533787-Clio-Manage-Matter-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Contact information report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Matter",
+   "what": "Clients, their matters and basic contact details; suggested for building an email list.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14349646533787-Clio-Manage-Matter-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Billing rate report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Matter",
+   "what": "Custom and default client, matter and user billing rates across matters.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14349646533787-Clio-Manage-Matter-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Productivity by client report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Productivity",
+   "what": "Amount billed per client and each client's share of firm billings (approved or paid bills).",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14351524759707-Clio-Manage-Productivity-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Productivity by user report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Productivity",
+   "what": "Per user time and expense split into unbilled (draft/pending bills), billed and total, incl. discounts.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14351524759707-Clio-Manage-Productivity-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Matter productivity by user report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Productivity",
+   "what": "Each user's billed, unbilled and non-billable time and expenses grouped by matter.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14351524759707-Clio-Manage-Productivity-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Realization report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Productivity",
+   "what": "Per user progression of time from original value through discounts/write-offs to billed and collected.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14351524759707-Clio-Manage-Productivity-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Revenue report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Revenue",
+   "what": "Unbilled, billed and collected time and expenses by matter incl. taxes, credit notes, discounts and interest; results depend on creation vs. billing date.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14352205073051-Clio-Manage-Revenue-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Originating attorney revenue report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Revenue",
+   "what": "Revenue brought in per originating attorney incl. taxes, interest and collected time and expenses.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14352205073051-Clio-Manage-Revenue-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Fee allocation report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Revenue",
+   "what": "Per user and matter: billed and collected time and expenses, AR and credit notes, to work out compensation splits.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14352205073051-Clio-Manage-Revenue-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Task progress by user report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Task",
+   "what": "Per user task counts by status (pending, in progress, in review, completed) with time estimates.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14352051388827-Clio-Manage-Task-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Task productivity by user report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Task",
+   "what": "Per user counts of upcoming, overdue and completed tasks.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14352051388827-Clio-Manage-Task-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Payments monthly statements",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Online payments",
+   "what": "Monthly statement of all online payments for bookkeeping and tax.",
+   "plan_tier": "firms using Clio Payments",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14351266745755-Clio-Manage-Online-Payments-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Payments ledger report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Online payments",
+   "what": "All payment-processor transactions by type and status (charges, fees, refunds, disputes, payouts).",
+   "plan_tier": "firms using Clio Payments",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14351266745755-Clio-Manage-Online-Payments-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Payments transaction report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Online payments",
+   "what": "Authorized payment transactions with processing fees.",
+   "plan_tier": "firms using Clio Payments",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14351266745755-Clio-Manage-Online-Payments-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Payments deposit report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Online payments",
+   "what": "Deposits (payouts) with the matching transaction fees, daily and monthly.",
+   "plan_tier": "firms using Clio Payments",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14351266745755-Clio-Manage-Online-Payments-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Form 1099-K report",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Online payments",
+   "what": "US IRS settlement report for card processing volume.",
+   "plan_tier": "US firms using Clio Payments",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14351266745755-Clio-Manage-Online-Payments-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Personal injury reports (damages, medical expenses, medical expense payments)",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Reports > category Personal injury",
+   "what": "Damages and medical bills recorded on a matter; medical expenses by provider with liens and balances; payments by payer.",
+   "plan_tier": "firms using PI matter features",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/16719358011547-Clio-Manage-Personal-Injury-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Law Society of Alberta trust report (Trust Safety Accounting Upload)",
+   "product": "Clio Manage",
+   "where": "Reports > Reports > category Compliance",
+   "what": "Alberta-specific annual trust filing output; enabled by default when the account mailing address is in Canada; cannot be preset or scheduled.",
+   "plan_tier": "Canadian accounts (Alberta use)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report",
+    "https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Trust account management reports (Australia)",
+   "product": "Clio Manage",
+   "where": "Reports (AU accounts)",
+   "what": "Jurisdiction-specific trust compliance reports incl. a file maintenance report of changes to contacts, matters and bank accounts; only for accounts set to Australia.",
+   "plan_tier": "Australian accounts only",
+   "sources": [
+    "https://help.clio.com/hc/en-au/articles/19199218407835"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Trust reconciliation report",
+   "product": "Clio Manage",
+   "where": "Accounts > trust account > Reconciliations > View report",
+   "what": "Per completed reconciliation: summary (ledger vs bank and difference), transaction details (in/out, interest, charges, adjustments, cleared and uncleared) and per-client ledger effect; PDF export; kept 10 years.",
+   "plan_tier": "current plans only; admins reconcile",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/54824841490075-View-Reconciliation-Reports",
+    "https://help.clio.com/hc/en-us/articles/9290138047899-Trust-Reconciliation-in-Clio"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Report output formats and column chooser",
+   "product": "Clio Manage",
+   "where": "Classic report > Output format",
+   "what": "Most reports output CSV and PDF; some Excel and Web. For CSV on 11 named reports, columns can be hidden, shown and reordered.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Report presets",
+   "product": "Clio Manage",
+   "where": "Reports > Classic reports > Presets",
+   "what": "Save a report plus filters as a named preset; generate, edit or delete. Presets are private to their creator; not available for 1099-K, Clio Payments statements and Alberta compliance reports.",
+   "plan_tier": "US Core/Signature/Elite; CA Essentials/Advanced/Complete",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/815701981",
+    "https://player.vimeo.com/video/815702048"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Scheduled presets",
+   "product": "Clio Manage",
+   "where": "Save as preset > Add schedule",
+   "what": "Daily, weekly (chosen days) or monthly (every 1-12 months) at a set time with an 'effective from' date; result emailed to the creator; schedules run for up to 12 months.",
+   "plan_tier": "US Core/Signature/Elite; CA Essentials/Advanced/Complete",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Report history",
+   "product": "Clio Manage",
+   "where": "Reports > History",
+   "what": "Own report runs from the last six months; sort, filter by category/output/date, search by name, reopen in original format. Users cannot see others' runs.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Custom reports (Reports Beta)",
+   "product": "Clio Manage",
+   "where": "Reports > Reports Beta > Create new custom report",
+   "what": "Pick a dataset, fields and calculations with live sample preview; name, description, category; refine with columns, filters (unlimited, default last month), up to two group-by levels and currency. Filtering/grouping only on standard fields, not custom fields. Still labelled Beta.",
+   "plan_tier": "create: US Signature/Elite, CA Advanced/Expand; others can refine Clio pre-built reports",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/37685184870299-Custom-Reports-in-Clio-Manage",
+    "https://www.clio.com/ca/features/law-firm-insights/"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Custom report datasets",
+   "product": "Clio Manage",
+   "where": "Reports Beta > dataset picker",
+   "what": "Account transactions (operating+trust), Bills, Calendar entries, Fee allocation, Online payments, Matters, Payments and credit notes, Time entry productivity; most include matter/contact standard and some custom fields (not contact-select, matter-select or multi-line text).",
+   "plan_tier": "as custom reports",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/37685184870299-Custom-Reports-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Report views",
+   "product": "Clio Manage",
+   "where": "Reports Beta > report > Save report view",
+   "what": "Saved refinement (columns, filters, groups) of a custom or Clio report; per-report subtabs Report (key-metric summary, columns, filters, groups), Report views, History of exports with who/when/format and re-download.",
+   "plan_tier": "unlimited on US Signature/Elite, CA Advanced/Expand; 5 per Clio report on US Core / CA Essentials",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/37685184870299-Custom-Reports-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Scheduled report views",
+   "product": "Clio Manage",
+   "where": "Reports Beta > Report views > Add schedule",
+   "what": "Daily/weekly/monthly with time, start date, format and recipients; higher tiers can notify other firm users, lower tiers self only.",
+   "plan_tier": "US Core+, CA Essentials+ (others-notify on US Signature/Elite, CA Advanced/Expand)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/37685184870299-Custom-Reports-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Duplicate and customize",
+   "product": "Clio Manage",
+   "where": "Reports Beta > card > More",
+   "what": "Copy any existing (incl. Clio pre-built) report as the base of a new custom report; edit, export or delete.",
+   "plan_tier": "as custom reports",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/37685184870299-Custom-Reports-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "AI report building (Manage AI)",
+   "product": "Clio Manage",
+   "where": "Reports Beta > Manage AI prompt; AI Launchpad > Ask a question",
+   "what": "Describe a report in plain language and the AI preselects dataset fields and calculations; ask the Launchpad to run a standard report for a period or answer personal-metric questions (billed hours, realization, collection, utilization).",
+   "plan_tier": "firms with Clio's AI features (Manage AI add-on)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29658606211483-Generate-Reports-and-Monitor-Performance",
+    "https://help.clio.com/hc/en-us/articles/37685184870299-Custom-Reports-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Firm Dashboard",
+   "product": "Clio Manage",
+   "where": "Dashboard > Firm Dashboard",
+   "what": "Utilization (vs 8-hour day), realization (billed minus discounted over billable hours) and collection rates by year, by activity date; date selector, user filter, currency picker. Visible to admins and users with reports permission.",
+   "plan_tier": "all current plans (reports permission)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290390462875-Navigate-Clio-Manage",
+    "https://www.clio.com/features/law-firm-insights/",
+    "https://www.clio.com/wp-content/uploads/2019/11/Clio-Manages-Firm-Dashboard-One-Pager.pdf"
+   ],
+   "screenshots": [
+    "https://www.clio.com/wp-content/uploads/2019/11/Clio-Manages-Firm-Dashboard-One-Pager.pdf"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Industry benchmarks on dashboard (Legal Trends Report)",
+   "product": "Clio Manage",
+   "where": "Dashboard (marketing claim)",
+   "what": "Marketing says firms can compare their metrics against Legal Trends Report benchmarks; not described in the help article.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://www.clio.com/features/law-firm-insights/",
+    "https://www.clio.com/wp-content/uploads/2019/11/Clio-Manages-Firm-Dashboard-One-Pager.pdf"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Personal Dashboard",
+   "product": "Clio Manage",
+   "where": "Dashboard > Personal Dashboard",
+   "what": "Today's agenda, hourly metrics (billable vs target), firm billing metrics by bill state, financial metrics vs annual target (260-day year) and the detailed annual report.",
+   "plan_tier": "all; billing panels need billing+reports permission",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290390462875-Navigate-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/9290091783323-Clio-Manage-Detailed-Annual-Report"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Detailed annual report and personal performance targets",
+   "product": "Clio Manage",
+   "where": "Settings > Profile > Personal Performance; Dashboard > Personal Dashboard",
+   "what": "User sets rate, annual billing target, working days and fiscal year end; chart compares target vs actual billable time.",
+   "plan_tier": "all (billing+reports permission)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290091783323-Clio-Manage-Detailed-Annual-Report"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Firm Feed",
+   "product": "Clio Manage",
+   "where": "Dashboard > Firm Feed",
+   "what": "Firm-wide audit stream of record changes (matters, contacts, payments, bills, time, permissions, documents) filterable by user, type and deleted/exported. Admin-only by default; custom role can grant it.",
+   "plan_tier": "all; custom roles on higher tiers",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290390462875-Navigate-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Reports permission (all or nothing)",
+   "product": "Clio Manage",
+   "where": "Settings > Manage Users > Permissions > Reports",
+   "what": "One checkbox grants every report; reports cannot be restricted individually and expose colleagues' productivity and rates even without billing permission.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290095965211-Reports-Permissions-and-Settings"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Reports payment allocation setting",
+   "product": "Clio Manage",
+   "where": "Settings > Billing > Reports allocation",
+   "what": "Admin picks how partial payments and credit notes are spread over line items (proportional, or expenses/services oldest-first variants); affects invoice payments, fee allocation, revenue, originating revenue and the dashboard collection rate.",
+   "plan_tier": "all current plans with Reports permission (Clio says not every report is on every plan; per-report tiers not published)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290095965211-Reports-Permissions-and-Settings"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Bulk data export",
+   "product": "Clio Manage",
+   "where": "Exports page (app.clio.com/export / ca.app.clio.com/export)",
+   "what": "Admin-only Excel-ready CSV per type: calendar entries, communications, contact notes, contact related matters, contacts, expense entries, matter notes, matters, tasks, time entries. Balances come from the AR and trust management reports, not the exporter.",
+   "plan_tier": "all; admins only",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/50633368921243-Export-Data-From-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Reports API (report presets)",
+   "product": "Clio Manage",
+   "where": "API v4 /report_presets, /report_presets/{id}/generate_report",
+   "what": "List, create, update, delete presets and generate a report from a preset via API.",
+   "plan_tier": "API access",
+   "sources": [
+    "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeorUUmBmg%3A%3AmWqBVQx7SFybbMXFZcNcqA"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Clio Accounting reports",
+   "product": "Clio Accounting",
+   "where": "Clio Accounting > Reports",
+   "what": "Profit and loss, general ledger, balance sheet, trial balance, cash flow, operating/trust reconciliation, vendor expenses, and (Canada) a tax summary laid out by sales-tax return line numbers incl. input tax credits.",
+   "plan_tier": "plans that include Clio Accounting",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/21249768099355-Accounting-Reports"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Accounting dashboard",
+   "product": "Clio Accounting",
+   "where": "Clio Accounting > Dashboard",
+   "what": "Account balances with bank-feed items to review, AR total and paid/owing invoice counts, monthly operating expenses vs prior month, hard costs to invoice, two-month P&L, best-practice checklists.",
+   "plan_tier": "plans that include Clio Accounting",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/21254364296219-Accounting-Dashboard"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Grow reports",
+   "product": "Clio Grow",
+   "where": "Clio Grow > Reports",
+   "what": "Matter revenue by lead source, campaign and referral; lead source revenue; matters added with pipeline value and conversion rate; referral report of referring contacts. Admin permission needed.",
+   "plan_tier": "Clio Grow",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/29739406189339-Clio-Grow-Reports",
+    "https://help.clio.com/hc/en-us/articles/9290095965211-Reports-Permissions-and-Settings"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Third-party analytics add-ons",
+   "product": "Clio Manage",
+   "where": "Clio App Directory",
+   "what": "Apps such as LawKPIs add read-only dashboards with peer benchmarks (realization, AR aging, utilization, intake conversion).",
+   "plan_tier": "third-party",
+   "sources": [
+    "https://clio.com/app-directory/lawkpis"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  }
+ ],
+ "gaps": [
+  {
+   "feature": "Trust management report (WIP vs trust balance vs minimum trust threshold)",
+   "our_area": "trust",
+   "our_screen": "report-catalogue",
+   "status": "missing",
+   "proposal": "Add catalogue row Trust > 'Retainer coverage': per matter unbilled WIP + AR vs trust held vs the matter's minimum trust / evergreen threshold, with 'top-up needed' flag; agent drafts the replenishment request (human sends).",
+   "priority": "must"
+  },
+  {
+   "feature": "Trust interest calculation report",
+   "our_area": "trust",
+   "our_screen": "report-catalogue",
+   "status": "missing",
+   "proposal": "Add Trust > 'Trust interest' for separate interest-bearing trust accounts only: rate, compounding, period, allocation per client; note mixed trust interest goes to LFO, not clients (verify).",
+   "priority": "should"
+  },
+  {
+   "feature": "Bank account activity report (all firm accounts)",
+   "our_area": "billing",
+   "our_screen": "report-catalogue",
+   "status": "partial",
+   "proposal": "Add Money > 'Bank account activity': funds in/out and running balance per general and trust account, sourced from ledgers, with bank-feed match status.",
+   "priority": "should"
+  },
+  {
+   "feature": "Reports payment allocation setting",
+   "our_area": "billing",
+   "our_screen": "billing-reports",
+   "status": "missing",
+   "proposal": "Add firm setting 'payment allocation for reports' (proportional | disbursements first | fees first, oldest first) with effective date; every money report and the collection KPI shows which method it used; changing it never rewrites past runs.",
+   "priority": "should"
+  },
+  {
+   "feature": "Fee allocation settings (originating/responsible/staff percentages)",
+   "our_area": "billing",
+   "our_screen": "report-catalogue",
+   "status": "partial",
+   "proposal": "Add firm and per-matter credit split (originating %, responsible %, staff %) and a Money > 'Fee credit allocation' report that applies it to collected fees.",
+   "priority": "should"
+  },
+  {
+   "feature": "Structured schedule (daily/weekly/monthly, effective-from date, expiry)",
+   "our_area": "platform",
+   "our_screen": "reports",
+   "status": "partial",
+   "proposal": "Replace free-text 'schedule' with fields cadence (daily|weekly days|monthly every N), time, start date, end date (default 12 months), format, internal recipients; renewal reminder before expiry.",
+   "priority": "should"
+  },
+  {
+   "feature": "Report views and per-report export history",
+   "our_area": "platform",
+   "our_screen": "custom-report-builder",
+   "status": "partial",
+   "proposal": "Add 'views' (saved column/filter/group variants of any report, incl. catalogue reports) and per-report History tab (who exported, when, format, re-download); 'Duplicate and customize' action on catalogue reports.",
+   "priority": "should"
+  },
+  {
+   "feature": "Custom report datasets: calendar entries, fee allocation, online payments, payments and credit notes",
+   "our_area": "platform",
+   "our_screen": "custom-report-builder",
+   "status": "partial",
+   "proposal": "Extend dataset enum with calendar events, credit notes, fee credit allocation and online payment transactions; allow filter/group on custom fields (Clio cannot).",
+   "priority": "should"
+  },
+  {
+   "feature": "Column chooser (hide/show/reorder) on standard reports",
+   "our_area": "platform",
+   "our_screen": "report-catalogue",
+   "status": "missing",
+   "proposal": "Add 'columns' option on every catalogue report run, remembered in presets.",
+   "priority": "could"
+  },
+  {
+   "feature": "Online payments reports (deposit/payout, monthly statement, ledger)",
+   "our_area": "billing",
+   "our_screen": "report-catalogue",
+   "status": "partial",
+   "proposal": "Split 'Online payment transactions' into: processor ledger (charges, fees, refunds, disputes, payouts), deposit/payout report matched to bank deposits, monthly processor statement.",
+   "priority": "should"
+  },
+  {
+   "feature": "Forex gains and losses",
+   "our_area": "billing",
+   "our_screen": "report-catalogue",
+   "status": "deliberately different",
+   "proposal": "CAD-only firm assumption; if multi-currency is added later, add Money > 'Foreign exchange gain/loss'. Record the assumption in the spec.",
+   "priority": "could"
+  },
+  {
+   "feature": "Personal injury reports (damages, medical expenses and payments, liens)",
+   "our_area": "matters",
+   "our_screen": "report-catalogue",
+   "status": "missing",
+   "proposal": "If PI is a supported practice area: add Matters > 'Damages and medical specials' and 'Liens and subrogation' reports fed by a matter damages schedule.",
+   "priority": "could"
+  },
+  {
+   "feature": "Personal dashboard and personal performance targets",
+   "our_area": "time",
+   "our_screen": "firm-insights",
+   "status": "partial",
+   "proposal": "Add a 'My numbers' panel on the home screen: billable vs target hours, fiscal year end, working days, billed/unbilled; targets set by the user or admin (firm-insights already has targets).",
+   "priority": "should"
+  },
+  {
+   "feature": "Firm Dashboard utilization/realization/collection",
+   "our_area": "platform",
+   "our_screen": "firm-insights",
+   "status": "covered",
+   "proposal": "Add explicit definitions matching ours (available hours basis, activity-date vs bill-date) and show which basis is used.",
+   "priority": "could"
+  },
+  {
+   "feature": "Legal Trends benchmarks",
+   "our_area": "platform",
+   "our_screen": "firm-insights",
+   "status": "deliberately different",
+   "proposal": "Keep external benchmarks out; optionally allow a firm-entered target band.",
+   "priority": "could"
+  },
+  {
+   "feature": "Firm Feed (firm-wide change log with deleted/exported filter)",
+   "our_area": "access",
+   "our_screen": "agent-activity",
+   "status": "partial",
+   "proposal": "Confirm the audit view covers human edits (not only agent events) and add filters 'deleted' and 'exported'; access via role permission.",
+   "priority": "should"
+  },
+  {
+   "feature": "Per-report permissions",
+   "our_area": "access",
+   "our_screen": "report-catalogue",
+   "status": "covered",
+   "proposal": "Ours is stronger (per-report role visibility vs Clio's single all-reports permission). Add to versus page.",
+   "priority": "could"
+  },
+  {
+   "feature": "AI report building and Ask a question",
+   "our_area": "platform",
+   "our_screen": "custom-report-builder",
+   "status": "covered",
+   "proposal": "Ours already shows query and rows; add example prompts for personal metrics (my realization last quarter).",
+   "priority": "could"
+  },
+  {
+   "feature": "Accounting reports (P&L, GL, balance sheet, trial balance, cash flow, vendor expenses)",
+   "our_area": "billing",
+   "our_screen": "billing-reports",
+   "status": "deliberately different",
+   "proposal": "State in spec that the general books live in the connected accounting system; keep exports to it. Add 'HST return worksheet' mapping our HST report to GST/HST return lines incl. ITCs from recorded disbursements (verify CRA line numbers).",
+   "priority": "should"
+  },
+  {
+   "feature": "Clio Grow reports: revenue by lead source/campaign, pipeline value, referral report",
+   "our_area": "intake",
+   "our_screen": "report-catalogue",
+   "status": "partial",
+   "proposal": "Add Intake > 'Revenue by lead source' (collected fees traced to lead source/campaign), 'Pipeline value' (expected value of open leads), 'Referrers' (referring contacts with matter counts and fees).",
+   "priority": "should"
+  },
+  {
+   "feature": "Bulk CSV export by data type",
+   "our_area": "platform",
+   "our_screen": "integrations-data",
+   "status": "covered",
+   "proposal": "Ours is broader (bills, payments, trust ledgers, audit hash). Add communications and contact-matter relationships to export_entities to match Clio.",
+   "priority": "could"
+  },
+  {
+   "feature": "Reports API (presets, generate report)",
+   "our_area": "platform",
+   "our_screen": "api-and-webhooks",
+   "status": "missing",
+   "proposal": "Add API endpoints: list catalogue, run report with filters, fetch run output, manage presets; same role visibility and export logging.",
+   "priority": "could"
+  },
+  {
+   "feature": "Reconciliation report retention 10 years, 3 sections, PDF",
+   "our_area": "trust",
+   "our_screen": "report-catalogue",
+   "status": "covered",
+   "proposal": "Confirm our monthly reconciliation output has the three parts (summary, transaction detail incl. uncleared, per-client effect).",
+   "priority": "could"
+  },
+  {
+   "feature": "Alberta-style jurisdiction compliance output",
+   "our_area": "trust",
+   "our_screen": "lso-annual-report",
+   "status": "covered",
+   "proposal": "Ours targets LSO; Clio only ships Alberta. Highlight on versus page (verify Clio has no Ontario-specific report).",
+   "priority": "could"
+  }
+ ],
+ "corrections": [
+  {
+   "our_claim": "platform.json clio_gaps: 'Trust reports (journal, ledger, listing, dormant)' at 'Reports > Trust / Accounts'",
+   "truth": "In Clio Manage (non-AU), trust reports sit in the Client category: client ledger, trust ledger, trust interest calculation, trust management, trust listing. No help article found for a dormant/unclaimed trust report or separate receipts/disbursements journals. A dedicated 'Trust reports' article exists only for Australian accounts.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports",
+    "https://help.clio.com/hc/en-au/articles/19199218407835"
+   ]
+  },
+  {
+   "our_claim": "platform.json clio_gaps: 'Custom reports' at 'Reports > Custom reports'",
+   "truth": "Custom reports live under Reports > Reports Beta, are still labelled Beta, and creating them needs US Signature/Elite or CA Advanced/Expand. Filter and group work only on standard fields, not custom fields.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/37685184870299-Custom-Reports-in-Clio-Manage"
+   ]
+  },
+  {
+   "our_claim": "platform.json clio_gaps: 'Firm dashboard / insights with benchmarks' at 'Insights / Firm dashboard'",
+   "truth": "It is Dashboard > Firm Dashboard with three metrics (utilization, realization, collection) by activity date. The benchmark comparison appears only in marketing, not in the help article. There is no separate 'Insights' screen.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290390462875-Navigate-Clio-Manage",
+    "https://www.clio.com/features/law-firm-insights/"
+   ]
+  },
+  {
+   "our_claim": "platform.json clio_gaps: 'Data export to CSV per data type' at 'Settings > Data export'",
+   "truth": "It is a separate Exports page (app.clio.com/export), admin-only, with ten types (calendar entries, communications, contact notes, contact related matters, contacts, expenses, matter notes, matters, tasks, time). It does not cover bills or trust ledgers; balances come from reports.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/50633368921243-Export-Data-From-Clio-Manage"
+   ]
+  },
+  {
+   "our_claim": "platform.json clio_gaps: 'Scheduled reports' marked 'already covered' by reports 'schedule' (free text)",
+   "truth": "Clio schedules are structured (daily/weekly/monthly every 1-12, time, effective-from date, max 12 months, email notice; report views add format and other-user recipients on higher tiers). Our free-text field is only partial coverage.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History",
+    "https://help.clio.com/hc/en-us/articles/37685184870299-Custom-Reports-in-Clio-Manage"
+   ]
+  },
+  {
+   "our_claim": "platform.json clio_gaps: 'Classic reports with filters' at 'Reports > Reports'",
+   "truth": "Path is Reports > Classic reports > Reports subtab > Categories (Billing, Client, Matter, Productivity, Revenue, Task, Online payments, Personal injury, Compliance).",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History",
+    "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report"
+   ]
+  }
+ ],
+ "screenshots_index": [
+  {
+   "area": "presets/scheduling",
+   "url": "https://player.vimeo.com/video/815701981",
+   "shows": "Clio video embedded in the presets article (presets and scheduling walkthrough)"
+  },
+  {
+   "area": "history",
+   "url": "https://player.vimeo.com/video/815702048",
+   "shows": "Second Clio video embedded in the presets article"
+  },
+  {
+   "area": "firm dashboard",
+   "url": "https://www.clio.com/wp-content/uploads/2019/11/Clio-Manages-Firm-Dashboard-One-Pager.pdf",
+   "shows": "2019 Clio PDF with Firm Dashboard screenshots (utilization/realization/collection); older UI"
+  },
+  {
+   "area": "insights marketing",
+   "url": "https://www.clio.com/features/law-firm-insights/",
+   "shows": "Clio law-firm-insights product page (403 to direct fetch; seen via search)"
+  }
+ ],
+ "open_questions": [
+  "Does Clio Canada provide trust receipts and disbursements journals or a monthly trust comparison in the BL9 sense, or only trust ledger + trust listing + reconciliation report? Help articles do not name journals.",
+  "Is there any Ontario/LSO-specific report in Clio (like the Alberta one)? None found in the help center search.",
+  "Exact per-report plan tiers for classic reports are not published; Clio says only 'not all reports are on every plan'.",
+  "The Firm Dashboard benchmark claim (Legal Trends) is marketing-only; unverified in the product.",
+  "Reports API details came from a third-party mirror; official docs.developers.clio.com not opened.",
+  "Classic-presets tier text lists CA 'Complete' while custom reports list CA 'Expand'; Clio's Canadian plan names may have changed. Check current pricing."
+ ],
+ "sources": [
+  "https://clio.com/app-directory/lawkpis",
+  "https://help.clio.com/hc/en-au/articles/19199218407835",
+  "https://help.clio.com/hc/en-us/articles/14330519112987-Clio-Manage-Billing-Reports",
+  "https://help.clio.com/hc/en-us/articles/14344842681115-Clio-Manage-Client-Reports",
+  "https://help.clio.com/hc/en-us/articles/14349646533787-Clio-Manage-Matter-Reports",
+  "https://help.clio.com/hc/en-us/articles/14351266745755-Clio-Manage-Online-Payments-Reports",
+  "https://help.clio.com/hc/en-us/articles/14351524759707-Clio-Manage-Productivity-Reports",
+  "https://help.clio.com/hc/en-us/articles/14352051388827-Clio-Manage-Task-Reports",
+  "https://help.clio.com/hc/en-us/articles/14352205073051-Clio-Manage-Revenue-Reports",
+  "https://help.clio.com/hc/en-us/articles/14353332840603-Clio-Manage-Law-Society-of-Alberta-Trust-Report",
+  "https://help.clio.com/hc/en-us/articles/16719358011547-Clio-Manage-Personal-Injury-Reports",
+  "https://help.clio.com/hc/en-us/articles/21249768099355-Accounting-Reports",
+  "https://help.clio.com/hc/en-us/articles/21254364296219-Accounting-Dashboard",
+  "https://help.clio.com/hc/en-us/articles/29658606211483-Generate-Reports-and-Monitor-Performance",
+  "https://help.clio.com/hc/en-us/articles/29739406189339-Clio-Grow-Reports",
+  "https://help.clio.com/hc/en-us/articles/37685184870299-Custom-Reports-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/50633368921243-Export-Data-From-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/54824841490075-View-Reconciliation-Reports",
+  "https://help.clio.com/hc/en-us/articles/9290078155803-Clio-Manage-Reports-Presets-and-History",
+  "https://help.clio.com/hc/en-us/articles/9290091783323-Clio-Manage-Detailed-Annual-Report",
+  "https://help.clio.com/hc/en-us/articles/9290095965211-Reports-Permissions-and-Settings",
+  "https://help.clio.com/hc/en-us/articles/9290138047899-Trust-Reconciliation-in-Clio",
+  "https://help.clio.com/hc/en-us/articles/9290390462875-Navigate-Clio-Manage",
+  "https://player.vimeo.com/video/815701981",
+  "https://player.vimeo.com/video/815702048",
+  "https://www.clio.com/ca/features/law-firm-insights/",
+  "https://www.clio.com/features/law-firm-insights/",
+  "https://www.clio.com/wp-content/uploads/2019/11/Clio-Manages-Firm-Dashboard-One-Pager.pdf",
+  "https://www.withone.ai/knowledge/clio/conn_mod_def%3A%3AGLeorUUmBmg%3A%3AmWqBVQx7SFybbMXFZcNcqA"
+ ]
+}

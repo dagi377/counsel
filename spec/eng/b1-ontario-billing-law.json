@@ -1,0 +1,474 @@
+{
+ "id": "b1-ontario-billing-law",
+ "as_of": "2026-10-10",
+ "conventions": {
+  "money": "integer cents CAD",
+  "dates": "ISO 8601, America/Toronto",
+  "month_arithmetic": "months_after(local_date, n): same day n months later, clamped to month end; days_after(local_date, n) for day windows; local_date = delivered_at AT TIME ZONE 'America/Toronto' (verify with counsel)",
+  "tax_rounding": "once per bill per tax line on the summed base, half away from zero (b2 BIL-T-040)"
+ },
+ "sources_read": [
+  "https://www.ontario.ca/laws/statute/90s15 (official .doc, consolidated from 2021-07-01, read in full)",
+  "https://www.ontario.ca/laws/regulation/200563 (official .doc, consolidated from 2022-01-01, read in full)",
+  "https://laws-lois.justice.gc.ca/eng/acts/E-15/section-161.html (ETA s.161, read 2026-10-10)"
+ ],
+ "sources_not_reachable": [
+  "lso.ca By-Law 9, By-Law 7.1, By-Law 4, RPC ch.3, Paralegal Rules r.5 (HTTP 403); all LSO-based rules marked verify"
+ ],
+ "rules": [
+  {
+   "id": "BIL-L-001",
+   "rule": "Every bill delivered to a client must be signed by the lawyer (or a partner, in own or firm name), or be enclosed with a cover letter so signed that refers to the bill.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.2(1)",
+   "enforce": "BLOCK delivery unless bill.signed_by is a licensee (lawyer partner/licensee of the firm) with an e-signature record, or a signed cover letter referencing bill_id is attached. Record signer user_id, signed_at, signature hash.",
+   "test": "Bill #2026-0141 approved by clerk only, no licensee signature: Deliver returns 409 SIGNATURE_REQUIRED. Same bill signed by lawyer L1 at 2026-10-10T14:02-04:00: delivery allowed, audit row has signer L1.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-002",
+   "rule": "A bill is sufficient in form if it has a reasonable description of services with a lump-sum fee plus a DETAILED statement of disbursements.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.2(3)",
+   "enforce": "BLOCK delivery if any disbursement is aggregated without per-item description, date and amount; fees may be lump-sum only if a non-empty services narrative is present (min 1 line).",
+   "test": "Bill with fees lump sum 250000 cents + narrative 'Drafting and closing of purchase' + disbursements [{2026-09-02, Land registry fee, 7000}]: passes. Same bill with disbursements as one line 'Disbursements 15000' and no items: blocked DISBURSEMENT_DETAIL_REQUIRED.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-003",
+   "rule": "The date a bill is delivered (sent by post, left at office/abode, or delivered) starts every Solicitors Act clock, so delivery must be recorded as a fact separate from approval.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 ss.2(1)-(2), 3, 4(1), 33(1)",
+   "enforce": "RECORD bill.delivered_at (timestamptz); delivery_local_date = delivered_at AT TIME ZONE 'America/Toronto'. All Solicitors Act clocks use two shared functions (same as b3 BIL-C-073): months_after(local_date, n) = same day n months later, clamped to the last day of the target month; days_after(local_date, n) = local_date + n days; month windows never use days_after and day windows never use months_after. Also RECORD delivery_method (hand|post|email|portal), recipient, and proof (email message-id / portal view receipt / courier ref). Bill status 'delivered' only when delivered_at is set. Electronic delivery as valid s.2 delivery: (verify) with counsel; default require client's written consent to e-delivery in the retainer.",
+   "test": "Bill approved 2026-10-01, emailed 2026-10-03T09:15-04:00: delivered_at=2026-10-03; interest start = 2026-11-03; client requisition-assessment window ends 2026-11-03; 12-month window ends 2027-10-03.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-004",
+   "rule": "No action to collect fees may start until one month after the bill is delivered.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.2(1) (exception: judge's leave, s.8)",
+   "enforce": "BLOCK collections actions of type 'legal_action' / 'statement_of_claim referral' on any day <= months_after(delivery_local_date, 1), where delivery_local_date = delivered_at AT TIME ZONE 'America/Toronto' and months_after(d, n) = same day n months later clamped to month end (one shared function; time computation per Legislation Act, 2006, S.O. 2006, c. 21, Sched. F, s.89, (verify)); WARN in collections UI with the earliest date.",
+   "test": "Bill delivered 2026-01-31: months_after(2026-01-31,1) = 2026-02-28 (clamp); action allowed only on days > 2026-02-28, i.e. from 2026-03-01 (conservative until counsel confirms, (verify)); attempt on 2026-02-28 returns 409 TOO_EARLY. Clamp cases: months_after(2026-03-31,1)=2026-04-30; months_after(2028-01-30,1)=2028-02-29; months_after(2028-02-29,12)=2029-02-28. Delivered 2026-10-31T23:30-04:00 (stored 2026-11-01T03:30Z): delivery_local_date 2026-10-31, months_after = 2026-11-30.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-005",
+   "rule": "A client may obtain assessment of a delivered bill by requisition within one month of delivery; after that the lawyer may requisition assessment; a client application after 12 months (or after judgment) needs special circumstances.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 ss.3(b), 3(c), 4(1)",
+   "enforce": "RECORD and DISPLAY per bill: client_requisition_deadline = months_after(delivery_local_date, 1), client_12m_deadline = months_after(delivery_local_date, 12) (BIL-L-003). Bill footer must include the right-to-assessment notice (firm wording, see BIL-L-007). Agent may not tell a client the right has expired.",
+   "test": "Bill delivered 2026-03-15: page shows 'Client requisition window to 2026-04-15; 12-month window to 2027-03-15'. On 2027-03-16 status shows 'special circumstances required' and never 'expired'.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-006",
+   "rule": "Payment of a bill does not end the client's right to assessment (court may still assess in special circumstances), so a paid bill and its supporting dockets must remain intact.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.11; s.6(2) (credit for all sums received, refund overpayment)",
+   "enforce": "BLOCK deletion or edit of a delivered or paid bill and its time entries/disbursements; corrections only by credit note referencing the original. RECORD all payments received from or on account of the client per matter.",
+   "test": "Bill 0141 paid in full 2026-05-01; user tries to edit a time entry on it 2026-08-01: blocked BILL_LOCKED; credit note CN-0009 for -12000 cents allowed with approval G-B5 and links to 0141.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-007",
+   "rule": "The firm should give clients notice of their right to have the bill assessed on each account (firm default text).",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 ss.3-4; LSO Rules of Professional Conduct r.3.6-1 commentary (verify wording)",
+   "enforce": "WARN at approval if bill template has no assessment-rights paragraph; template setting 'assessment_notice' required on default template (G-B8 to remove).",
+   "test": "Template 'Standard' with assessment_notice empty: approval preflight shows warning W-ASSESS-NOTICE; managing lawyer can override with reason recorded.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-008",
+   "rule": "Interest on unpaid fees, charges or disbursements may run only from one month after delivery.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.33(1)",
+   "enforce": "BLOCK accrual of interest before months_after(delivery_local_date, 1) regardless of the bill's due date; interest accrues for days >= interest_start = max(due_date, months_after(delivery_local_date, 1)). Uses the same months_after as BIL-L-004; 30-day windows (BIL-L-024) use days_after and never share this code.",
+   "test": "Bill 100000 cents delivered 2026-06-01, due 'on receipt', rate 3.0%/yr simple: no interest on 2026-06-30; on 2026-07-31 accrued = round(100000*0.03*30/365) = 247 cents (from 2026-07-01). (Simple vs compound and day-count per retainer; default simple, actual/365.)",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-009",
+   "rule": "The interest rate applicable to a bill must be shown on the bill delivered.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.33(3)",
+   "enforce": "BLOCK accrual of any interest on a bill whose rendered PDF did not show the rate; rate is snapshotted into bill.interest_rate_bp at approval and printed. Changing the payment profile later does not change a delivered bill's rate.",
+   "test": "Bill delivered with no rate printed, 90 days overdue: interest job computes 0 and logs INTEREST_NOT_DISCLOSED. Bill printed '3.00% per annum' then firm changes default to 5%: bill keeps 300 bp.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-010",
+   "rule": "The rate must be one the client agreed to; the Act now sets no default rate and no maximum has been prescribed under s.33(5); Courts of Justice Act s.127 post/pre-judgment rates are only a common contractual benchmark.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.33(3),(5); Courts of Justice Act, R.S.O. 1990, c. C.43, s.127 (verify that no s.33(5) regulation exists and current quarterly CJA rates)",
+   "enforce": "BLOCK enabling interest on a matter unless the engagement record has interest_terms (rate or 'CJA s.127 postjudgment rate for the quarter of delivery'). If CJA-linked, store the published quarterly rate table (admin-entered, effective dates) and snapshot at approval.",
+   "test": "Matter with retainer silent on interest: toggle 'charge interest' refused NO_INTEREST_TERMS. Retainer says 'CJA postjudgment rate'; table has 2026Q4 = 5.0% (illustrative): bill delivered 2026-10-20 prints 5.00% and stores 500 bp.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-011",
+   "rule": "On assessment the officer may disallow or vary interest, and a client found to have overpaid is owed interest from the overpayment date.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.33(2),(4); s.6(2)",
+   "enforce": "RECORD assessment outcome on the bill (assessed_amount, interest_allowed, certificate date); compute refund = paid - assessed, plus interest on overpayment from each payment date at the rate fixed; refund goes through G-B6.",
+   "test": "Bill 500000 paid 2026-02-01, assessed at 420000 on 2026-08-01, interest on overpayment fixed at 4%: refund 80000 + round(80000*0.04*181/365)=1587 cents => 81587.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-012",
+   "rule": "Interest on security given for future fees may not start until the amount due is fixed by agreement or assessment.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.32",
+   "enforce": "BLOCK interest on retainer/security-backed amounts before bill delivery (covered by BIL-L-008 timing).",
+   "test": "Client gives promissory note as security 2026-01-10; first bill delivered 2026-03-01: interest cannot start before 2026-04-01.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-013",
+   "rule": "A written fee agreement for business in any court other than Small Claims Court must be examined and allowed by an assessment officer before the amount payable under it is received (does not apply to contingency fee agreements).",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 ss.16, 17; s.28.1(10)",
+   "enforce": "WARN when a matter has fee_agreement_type in (fixed, percentage, other s.16 agreement) and court != small_claims and no 'approved by assessment officer' flag, before applying payment to that agreement's bills. (verify) practical scope with counsel; do not block hourly retainers.",
+   "test": "Matter: fixed-fee agreement 1500000 cents, Superior Court litigation, no approval flag: trust application preflight shows W-S17-APPROVAL; Small Claims matter: no warning.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-014",
+   "rule": "A fee agreement may not relieve the lawyer of liability for negligence; such a clause is void.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.22(1)",
+   "enforce": "BLOCK engagement-letter templates containing a clause tagged 'liability_waiver'; agent drafting fee agreements must not insert one.",
+   "test": "Template with clause tag liability_waiver: publish fails TEMPLATE_PROHIBITED_CLAUSE.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-015",
+   "rule": "Contingency fee agreements must be in writing.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.28.1(4)",
+   "enforce": "BLOCK fee_arrangement=contingency on a matter unless a signed CFA document is linked.",
+   "test": "Matter M-77 set to contingency with no signed document: save fails CFA_DOCUMENT_REQUIRED.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-016",
+   "rule": "No contingency fee agreement in criminal or quasi-criminal proceedings or family law matters.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.28.1(3)",
+   "enforce": "BLOCK fee_arrangement=contingency when matter.practice_area in (criminal, quasi_criminal, family).",
+   "test": "Family matter: selecting contingency returns 422 CONTINGENCY_NOT_PERMITTED; personal-injury matter: allowed.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-017",
+   "rule": "A percentage contingency agreement must use the LSO 'Standard Form Contingency Fee Agreement' dated November 18, 2021, unless the client or payer is an organization (with affiliates) with more than 25 employees, a full-time lawyer, or assets or revenue over $10 million, or a court approved the agreement.",
+   "source": "O. Reg. 563/20 (Solicitors Act) s.7(1), 7(3)",
+   "enforce": "BLOCK percentage CFA unless cfa.form = 'LSO-SFCFA-2021-11-18' (verify current LSO version) OR exemption recorded with evidence: org_employees>25 | org_has_fulltime_lawyer | org_assets_or_revenue_cents>1_000_000_000 | court_approval_doc.",
+   "test": "Individual PI client, 33% CFA on firm's custom form: blocked CFA_STANDARD_FORM_REQUIRED. Corporate client revenue 1_200_000_000 cents with evidence: custom form allowed. Revenue exactly 1_000_000_000: not exempt (must EXCEED).",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-018",
+   "rule": "A non-percentage contingency agreement (not exempt) must contain the eight prescribed statements (fee method, cap, disbursements/taxes/HST first charge, costs, assessment rights and timelines, disability approval, termination, client keeps critical decisions).",
+   "source": "O. Reg. 563/20 (Solicitors Act) s.7(2) paras 1-8",
+   "enforce": "BLOCK activation of a non-percentage CFA unless checklist items 1-8 are each ticked by a lawyer with clause reference (item 6 only if client under disability).",
+   "test": "Success-fee CFA with items 1-5,7,8 ticked, client adult: activates. Missing item 5: blocked CFA_MISSING_STATEMENT_5.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-019",
+   "rule": "A CFA may not require the lawyer's consent to settle/abandon, prevent the client from terminating or changing lawyers, or allow fee splitting except as the conduct rules permit.",
+   "source": "O. Reg. 563/20 (Solicitors Act) s.8",
+   "enforce": "BLOCK CFA templates with clauses tagged consent_to_settle, no_termination, fee_split_non_licensee.",
+   "test": "CFA containing 'client shall not settle without counsel's consent' (tag consent_to_settle): activation blocked CFA_IMPERMISSIBLE_TERM.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-020",
+   "rule": "A claimant's lawyer may not recover more in contingency fees than the client recovers from the other side (including costs, excluding disbursements and taxes).",
+   "source": "O. Reg. 563/20 (Solicitors Act) s.1",
+   "enforce": "Store recovery_base_cents = damages + costs - disbursements included in the recovery - taxes included in the recovery; BLOCK approval of a contingency bill where fees_cents > recovery_base_cents.",
+   "test": "Settlement 3000000 incl. costs 500000 and disbursements 200000, no taxes in recovery: recovery base = 3000000 - 200000 = 2800000. CFA calc gives 2900000: approval refused 409 CFA_FEE_EXCEEDS_RECOVERY; capped proposal 2800000 shown. CFA calc 2800000: allowed. (Same formula and numbers as b3 BIL-C-032/033.)",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-021",
+   "rule": "A percentage fee must be calculated excluding amounts specified as disbursements that a court allows or would allow from the adverse party.",
+   "source": "O. Reg. 563/20 (Solicitors Act) s.2",
+   "enforce": "ENFORCE in calculator: base = recovery - amounts designated 'disbursements (recoverable)'. Show the base on the bill.",
+   "test": "Settlement 1000000 of which 80000 designated disbursements, 30% CFA: fee = 30% of 920000 = 276000 (not 300000).",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-022",
+   "rule": "The client must direct that the amounts claimed by the lawyer for fees, costs, taxes and disbursements be paid to the lawyer in trust from any award or settlement.",
+   "source": "O. Reg. 563/20 (Solicitors Act) s.3",
+   "enforce": "BLOCK recording a settlement receipt on a CFA matter into operating; it must be a trust receipt. RECORD client direction document.",
+   "test": "Settlement cheque 3000000 on CFA matter posted to operating: refused MUST_DEPOSIT_TO_TRUST.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-023",
+   "rule": "Disbursements/taxes the lawyer paid are reimbursed from the recovery as a first charge (subject to Legal Aid Services Act, 2020 s.13).",
+   "source": "O. Reg. 563/20 (Solicitors Act) s.4",
+   "enforce": "ENFORCE settlement statement order: reimbursed disbursements and taxes first, then fee, then balance to client; flag legal-aid certificate matters for review.",
+   "test": "Recovery 1000000, firm paid disbursements 50000 + HST on them 6500: statement lists 56500 first.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-024",
+   "rule": "Client may apply to assess a contingency bill within 30 days after delivery or one year after payment; for a court-approved over-maximum agreement (s.28.1(6)), client or lawyer within six months after delivery.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.28.1(11); O. Reg. 563/20 (Solicitors Act) s.5",
+   "enforce": "RECORD and DISPLAY CFA assessment deadlines on the bill (30 days = days_after(delivery_local_date, 30), never months_after); the CFA statement must include these timelines (R563 s.7(2) para 5).",
+   "test": "CFA bill delivered 2026-05-01, paid 2026-05-20: show 'assessment by 2026-05-31 (30 days after delivery) or by 2027-05-20 (1 year after payment)'.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-025",
+   "rule": "A CFA for a party under disability with a litigation guardian must be approved by a judge before finalization or reviewed with the r.7.08 settlement approval.",
+   "source": "O. Reg. 563/20 (Solicitors Act) s.6",
+   "enforce": "BLOCK CFA activation when client.under_disability=true unless judge approval doc or 'to be reviewed under r.7.08' flag; BLOCK paying any fee from settlement until r.7.08 order is linked.",
+   "test": "Minor plaintiff CFA, no approval: fee trust withdrawal blocked R708_ORDER_REQUIRED.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-026",
+   "rule": "Contingency fee rules apply to paralegal licensees with necessary modifications; fee-split references are to the Paralegal Rules of Conduct.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 s.32.1; O. Reg. 563/20 (Solicitors Act) s.9",
+   "enforce": "APPLY BIL-L-015..025 to paralegal-licensee matters too.",
+   "test": "Paralegal matter in Small Claims with 25% CFA on non-standard form: blocked as for lawyers.",
+   "verify": false
+  },
+  {
+   "id": "BIL-L-027",
+   "rule": "Fees and disbursements must be fair and reasonable and disclosed in a timely fashion; no hidden fees.",
+   "source": "LSO Rules of Professional Conduct r.3.6-1, 3.6-1.1 (verify text; lso.ca blocked)",
+   "enforce": "WARN at approval when bill total exceeds the matter estimate/budget by >10% with no recorded client notice; RECORD the engagement's fee basis and estimate shown to the client.",
+   "test": "Estimate 500000, draft bill 600000, no 'estimate update sent' event: preflight W-ESTIMATE-EXCEEDED, approval requires reason.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-028",
+   "rule": "A statement of account must clearly and separately detail the amounts charged as fees and as disbursements.",
+   "source": "LSO Rules of Professional Conduct r.3.6-3 (verify); LSO Paralegal Rules of Conduct r.5.01 (verify subrule)",
+   "enforce": "BLOCK rendering a bill that mixes fees and disbursements in one line or total; template must have separate fee subtotal, disbursement subtotal (taxable / non-taxable), tax lines, and grand total.",
+   "test": "Line 'Services and expenses 150000' of type mixed: blocked MIXED_LINE. Bill shows fees 100000, disbursements 20000 (taxable 15000, non-taxable 5000), HST 14950, total 134950: passes.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-029",
+   "rule": "On a joint retainer, fees and disbursements must be apportioned among the clients as agreed (or equally).",
+   "source": "LSO Rules of Professional Conduct r.3.6-4 (verify)",
+   "enforce": "RECORD split percentages per client on joint matters (sum = 100.00%); bill generator issues per-payer allocations.",
+   "test": "Joint retainer A 60% / B 40%, bill 100000: A billed 60000, B 40000; split 60/30 rejected SPLIT_NOT_100.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-030",
+   "rule": "Fees may be divided with a licensee outside the firm only with client consent and in proportion to work done and responsibility assumed.",
+   "source": "LSO Rules of Professional Conduct r.3.6-5 (verify)",
+   "enforce": "BLOCK recording a fee-division payable to an outside licensee without a client consent document and the recipient's LSO licence number.",
+   "test": "Payable 50000 to outside lawyer with no consent: blocked FEE_DIVISION_CONSENT_REQUIRED.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-031",
+   "rule": "Referral fees are allowed only to another licensee, not due to a conflict of interest, with a written referral agreement, client informed and consenting in writing, and within the caps (15% of first $50,000 of fees and 5% thereafter, max $25,000 per matter).",
+   "source": "LSO Rules of Professional Conduct r.3.6-6, 3.6-6.1 (verify caps and conditions)",
+   "enforce": "BLOCK a referral-fee payable unless payee is a licensee (licence # recorded), written referral agreement and client consent are linked, and amount <= cap computed on fees billed on the matter.",
+   "test": "Fees on matter 12000000: cap = min(15%*5000000 + 5%*7000000, 2500000) = min(1100000, 2500000) = 1100000. Payable 1200000 blocked REFERRAL_CAP. Fees 60000000: computed 750000+2750000=3500000, capped 2500000.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-032",
+   "rule": "A licensee may not split fees with, or pay referral fees to, a non-licensee (except within permitted affiliations or multi-discipline practices).",
+   "source": "LSO Rules of Professional Conduct r.3.6-7, 3.6-8 (verify); LSO Paralegal Rules of Conduct r.5.01 (verify)",
+   "enforce": "BLOCK any payable calculated as a share of fees or referral reward to a payee without a licensee flag or an approved MDP/affiliation record.",
+   "test": "Payable 'referral bonus 20000' to marketing agency: blocked FEE_SPLIT_NON_LICENSEE. Ordinary vendor invoice 20000 for ads (fixed price, not fee-linked): allowed.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-033",
+   "rule": "If fees are reduced on assessment, the overpayment must be repaid to the client promptly.",
+   "source": "LSO Rules of Professional Conduct r.3.6-10 (verify); Solicitors Act, R.S.O. 1990, c. S.15 s.6(2)",
+   "enforce": "CREATE refund task automatically when an assessed_amount < paid amount; track until paid (G-B6).",
+   "test": "Paid 500000, assessed 420000: refund task 80000 + interest (BIL-L-011) created same day.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-034",
+   "rule": "Money received in trust for a client must be deposited to a trust account and recorded against that client.",
+   "source": "LSO By-Law 9 s.8 (verify section number)",
+   "enforce": "BLOCK posting a payment marked 'retainer/funds in trust' to operating.",
+   "test": "Retainer 500000 received by card into operating merchant account: posting refused TRUST_FUNDS_TO_OPERATING; must route to trust merchant account.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-035",
+   "rule": "Trust money may be withdrawn for fees only for a bill (statement of account) already delivered to the client, and only up to that bill's unpaid amount.",
+   "source": "LSO By-Law 9 s.9(1) (fees for which a bill has been delivered; verify paragraph) ; RPC r.3.6 commentary",
+   "enforce": "BLOCK any trust-to-operating transfer of type 'fees' unless linked bill.delivered_at IS NOT NULL and delivered_at <= transfer date and amount <= bill.balance_due. Applies also to agent-proposed transfers.",
+   "test": "Bill 0150 approved, not delivered, balance 300000, trust 500000: transfer 300000 refused BILL_NOT_DELIVERED. After delivery 2026-10-10: transfer 300000 allowed; transfer 300001 refused EXCEEDS_BILL_BALANCE.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-036",
+   "rule": "Withdrawals from trust for a client may never exceed that client's trust balance; no client ledger may go negative.",
+   "source": "LSO By-Law 9 s.9(2) (verify)",
+   "enforce": "BLOCK at write time with a DB constraint/serializable check: sum(client trust ledger) >= 0 after every entry.",
+   "test": "Client ledger 120000, bill delivered balance 150000: transfer 150000 refused TRUST_OVERDRAW; 120000 allowed, AR balance 30000 remains.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-037",
+   "rule": "Trust money may be withdrawn only by cheque (not payable to cash or bearer), electronic transfer meeting the By-Law 9 requirements, or bank draft; never cash.",
+   "source": "LSO By-Law 9 s.10 (verify)",
+   "enforce": "BLOCK withdrawal method 'cash' or cheque payee 'cash'/'bearer'.",
+   "test": "Trust cheque payee 'Cash' 10000: refused PAYEE_NOT_PERMITTED.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-038",
+   "rule": "An electronic trust transfer must be authorized by a licensee with trust signing authority (exceptionally a bonded non-licensee as permitted) and documented with an authorization (Form 9A) and bank confirmation printed/retained within the required days.",
+   "source": "LSO By-Law 9 s.12 (verify forms and day count)",
+   "enforce": "BLOCK execution unless authorizer has trust_signing=true and is a licensee or approved bonded non-licensee; RECORD authorization (who, when, amount, client, matter, reason) and attach bank confirmation within 5 business days (verify), else raise exception task.",
+   "test": "Clerk without signing authority submits EFT 300000: refused SIGNER_NOT_AUTHORIZED. Lawyer authorizes; no bank confirmation after 5 days: task 'EFT confirmation missing' to lawyer.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-039",
+   "rule": "A licensee may not receive cash aggregating $7,500 CAD or more on one client file (fees paid to operating and trust receipts both count), subject to listed exceptions (e.g. cash from a financial institution, public body, peace officer; fees/disbursements where any refund over $7,500 is paid in cash).",
+   "source": "LSO By-Law 9 ss.4-6 (verify exceptions); not By-Law 7.1",
+   "enforce": "BLOCK recording a cash receipt when the client-file cash total after the receipt (sum of operating payments with method cash + trust receipts with method cash and amount > 0, foreign currency at the day's rate) is >= 750000 cents, unless an exception code with evidence is chosen (G6c); WARN when the total reaches 600000. One check function serves both the payment and the trust-receipt paths, under a per-matter lock.",
+   "test": "Prior cash on file 500000 (operating fee payment); new trust cash 250000 => 750000 total: refused CASH_LIMIT unless exception 'from_financial_institution' with evidence. New cash 249999 => 749999: allowed. Prior 590000 + 10000 => 600000: allowed with WARN.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-040",
+   "rule": "The firm must keep a fees book or chronological file of copies of all billings showing fees charged, dates and client names.",
+   "source": "LSO By-Law 9 s.18 para 8 (verify paragraph)",
+   "enforce": "RECORD immutable bill register: bill number (no gaps; voids kept), date, client, matter, fees, disbursements, taxes, total; export by date range.",
+   "test": "Bills 0141, 0142 (void), 0143: register lists all three in order; 0142 shows VOID with reason; deleting 0142 refused.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-041",
+   "rule": "Billing, receipt and trust records must be current, and retained for the By-Law 9 periods (trust journals/ledgers 10 years; other financial records including fees book 6 years).",
+   "source": "LSO By-Law 9 ss.21-23 (verify periods)",
+   "enforce": "BLOCK purge of bills, payments, trust entries before retention end; retention clock = fiscal year end; per-firm export on offboarding.",
+   "test": "Bill dated 2020-03-01 (FYE 2020-12-31): purge attempt 2026-10-10 refused (6-year end 2026-12-31).",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-042",
+   "rule": "General (operating) receipts and disbursements journals must be kept and each payment applied to the bill it pays.",
+   "source": "LSO By-Law 9 s.18 paras 5-6 (verify)",
+   "enforce": "RECORD every payment allocation (payment_id -> bill_id, amount); unallocated remainder shown as client credit, never silently absorbed. Client credit is client money held in operating: within N business days (firm setting, default 5; (verify) against By-Law 9) it must be applied to a delivered bill of the same client-matter with client direction, refunded, or transferred to trust; at N days an exception task 'client money in operating' is raised.",
+   "test": "Payment 100000 against bills 60000 + 30000: allocations 60000, 30000; credit 10000 visible. Credit untouched 6 business days (N=5): exception task 'client money in operating' raised.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-043",
+   "rule": "Before receiving, paying or transferring funds for a client the firm must identify and verify the client (exemptions include payments of professional fees, disbursements, expenses or bail, and funds from a financial institution/public body).",
+   "source": "LSO By-Law 7.1 Part III (verify sections and exemptions)",
+   "enforce": "WARN on trust receipts/payments when client.id_verified=false; BLOCK trust disbursement to a third party when not verified and no exemption code; fee payments to operating are exempt.",
+   "test": "Unverified client deposits 2000000 to trust for a real estate purchase: receipt flagged; payout 2000000 to vendor blocked ID_VERIFICATION_REQUIRED.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-044",
+   "rule": "Paralegal licensees: statement of account must separately detail fees and disbursements and fees must be fair and reasonable; contingency rules apply via s.32.1.",
+   "source": "LSO Paralegal Rules of Conduct r.5.01 (verify subrules); Solicitors Act, R.S.O. 1990, c. S.15 s.32.1",
+   "enforce": "APPLY BIL-L-027, 028, 033 to bills signed by paralegals; bill signer licence type printed (L1 lawyer / P1 paralegal).",
+   "test": "Paralegal P1 signs bill for a Small Claims matter: allowed, footer shows 'Licensed Paralegal, LSO #P12345'.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-045",
+   "rule": "The Solicitors Act assessment and delivery provisions name 'solicitors'; whether they govern paralegal bills is not settled — do not print Solicitors Act assessment wording on paralegal bills by default.",
+   "source": "Solicitors Act, R.S.O. 1990, c. S.15 ss.2-4 (term 'solicitor'); LSO Paralegal Rules of Conduct (verify assessment route for paralegal fees)",
+   "enforce": "WARN: template for paralegal signer uses 'paralegal' assessment-notice variant set by the firm; open question to counsel.",
+   "test": "Paralegal bill with lawyer template text 'under the Solicitors Act': preflight W-PARALEGAL-TEMPLATE.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-046",
+   "rule": "A paralegal may only bill for work within the paralegal scope of practice.",
+   "source": "LSO By-Law 4 s.6 (verify)",
+   "enforce": "WARN when a paralegal timekeeper's entries are on a matter whose practice_area is outside the configured paralegal scope.",
+   "test": "Paralegal enters 2.0h on a family law matter: entry flagged W-SCOPE.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-047",
+   "rule": "A GST/HST registrant's invoice must show its business (registration) number so the client can claim input tax credits; Ontario HST rate is 13%.",
+   "source": "Excise Tax Act s.169(4); Input Tax Credit Information (GST/HST) Regulations s.3 (verify current $100/$500 thresholds); canada.ca GST/HST rates",
+   "enforce": "BLOCK bill delivery for a registered firm without its BN/RT number on the bill; HST computed once per bill per tax line on the summed taxable base (never per line), in integer cents, rounded half away from zero: rhu(base x rate_ppm / 1e6) (b2 BIL-T-040, b3 BIL-C-002/BIL-C-200).",
+   "test": "Fees 100000 + taxable disbursements 15000 => HST 13% = 14950; firm RT 123456782RT0001 missing in settings: delivery blocked HST_NUMBER_MISSING. Lines 333, 333, 334 at 13%: HST rhu(1000 x 0.13) = 130, not 43+43+43 = 129.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-048",
+   "rule": "Disbursements paid as the client's agent are not subject to HST on rebill; the firm's own costs rebilled are taxable.",
+   "source": "CRA GST/HST Policy Statement P-209R (verify per category)",
+   "enforce": "ENFORCE category tax flags; agent disbursements require 'paid as agent' flag set by a human or category default.",
+   "test": "Court filing fee 16000 (agent): HST 0. Photocopies 5000 (own cost): HST 650.",
+   "verify": true
+  },
+  {
+   "id": "BIL-L-049",
+   "rule": "Interest charged on overdue accounts is not subject to HST and is shown on its own line.",
+   "source": "Excise Tax Act s.161 (an amount charged for late payment does not change the consideration shown on the invoice, so it is not taxed; read on Justice Laws 2026-10-10)",
+   "enforce": "ENFORCE interest line tax_code = exempt; separate from fees.",
+   "test": "Interest 247 cents: HST 0; line labelled 'Interest at 3.00% p.a. (Solicitors Act s.33)'.",
+   "verify": false
+  }
+ ],
+ "must_not": [
+  {
+   "rule": "Pay fees from trust for a bill that has not been delivered, or for more than the delivered bill's balance.",
+   "see": "BIL-L-035"
+  },
+  {
+   "rule": "Let any client trust ledger go below zero, or use one client's trust money for another.",
+   "see": "BIL-L-036"
+  },
+  {
+   "rule": "Withdraw trust money in cash or to 'cash'/'bearer'.",
+   "see": "BIL-L-037"
+  },
+  {
+   "rule": "Execute a trust transfer without a licensee (or approved bonded) authorizer and a stored authorization.",
+   "see": "BIL-L-038"
+  },
+  {
+   "rule": "Accept cash bringing the client-file aggregate to 750000 cents or more without a recorded exception.",
+   "see": "BIL-L-039"
+  },
+  {
+   "rule": "Charge interest before delivered_at + 1 month, or at a rate not printed on the bill, or without client-agreed terms.",
+   "see": "BIL-L-008..010"
+  },
+  {
+   "rule": "Deliver an unsigned bill or let the agent sign; agent may draft, never sign or approve.",
+   "see": "BIL-L-001"
+  },
+  {
+   "rule": "Edit, renumber or delete a delivered bill, its dockets or the bill register; corrections are credit notes.",
+   "see": "BIL-L-006, 040"
+  },
+  {
+   "rule": "Mix fees and disbursements in one line or subtotal.",
+   "see": "BIL-L-028"
+  },
+  {
+   "rule": "Allow contingency fees in family, criminal or quasi-criminal matters, or a percentage CFA off the LSO standard form without a recorded exemption.",
+   "see": "BIL-L-016, 017"
+  },
+  {
+   "rule": "Bill a contingency fee greater than the client's recovery (incl. costs, excl. disbursements and taxes).",
+   "see": "BIL-L-020"
+  },
+  {
+   "rule": "Pay referral fees or fee shares to non-licensees, or referral fees above the cap.",
+   "see": "BIL-L-031, 032"
+  },
+  {
+   "rule": "Tell a client the assessment right has 'expired'; after 12 months it needs special circumstances, it does not vanish.",
+   "see": "BIL-L-005"
+  },
+  {
+   "rule": "Purge financial records before the By-Law 9 retention period.",
+   "see": "BIL-L-041"
+  },
+  {
+   "rule": "Charge HST on agent disbursements or on interest.",
+   "see": "BIL-L-048, 049"
+  }
+ ]
+}

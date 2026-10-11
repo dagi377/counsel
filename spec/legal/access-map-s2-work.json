@@ -1,0 +1,3 @@
+{
+ "work/team-availability": {"view": ["owner","lawyer","associate","paralegal","clerk","admin","agent"], "act": ["owner","lawyer","associate","paralegal","clerk","admin","agent"], "approve": ["owner","lawyer"]}
+}

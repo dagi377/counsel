@@ -1,0 +1,110 @@
+Enter now
+Automated workflows in Clio Grow can help you set up a consistent intake process for your firm and reduce the administrative work required to intake new clients. You can build and customize automated workflows from pre-built templates or create them from scratch and choose how you want your emails, appointments, and forms to be sent out and when you want matter statuses to be changed. Once your automated workflows are built, you can apply them to your matters without having to manually initiate each new step, allowing you to intake new clients faster. 
+Tip: You can continue to manually add checklist items to your matters and apply both automated workflows and checklists to your matters. 
+Note: Administrators can build, edit, and cancel or archive automated workflows. Any user can add automated workflows to a matter. 
+Before getting started
+Some steps in automated workflows are created from your firm's existing data, including intake forms, appointments, emails, and matter statuses. Before getting started with automated workflows, set up the following:
+Intake forms: Learn more about creating intake forms here.
+Appointment types and reminders: Learn more about creating appointment types here and more about setting up appointment reminders here.
+Email templates: Learn more about creating invitation, confirmation, and reminder email templates for forms and appointments here.
+Matter statuses: Learn more about setting up matter statuses here.
+Build automated workflows
+Clio Grow offers templates of automated workflows that you can customize for your firm's needs, allowing you to choose which steps of your intake process should be automated or kept manual. You also have the option to create your own automated workflow from scratch. When building your automated workflows, you can choose how you want an email or form to be sent out, when an appointment should be scheduled, and when a matter's status should be changed.
+Note: All fields within each automated workflow template are required to be completed. 
+Build workflow from pre-built template Build custom workflow
+Go to Settings > Automated workflows. 
+If this is your first automated workflow, click Choose a template. If you have already created at least one automated workflow, click New template.
+Select one of the automated workflow templates that you want to customize and then click Continue. 
+Rapid intake: This option allows you to send an intake form to a new client and automatically change the matter's status and book a follow-up appointment once the new client submits the completed form.
+Screening inbox leads: This option allows you to automatically send an email and appointment booking link. Once the appointment is booked, the matter's status will automatically change and the client will be sent an intake form.
+Comprehensive intake: This option allows you to send a basic intake form and then schedule an appointment once the intake form is completed. Once the appointment is scheduled, another intake form will be sent to the new client. 
+Under Title, enter a title for the automated workflow. This title will only be visible to users on your account.
+Click each box and follow the prompts on your screen to select how you want to send a form, appointment link, or email, and when a matter's status should be changed. You can also add an additional workflow item in between two existing items or at the end of your workflow by clicking the plus icon.
+Request form
+This step in the workflow allows you to select an existing intake form and email template to send to a new client. Once the client completes the form and submits it, the next step in the automated workflow will be actioned.
+Under Select form, select one of your existing intake forms.
+Optional: Click View forms to view your current intake forms.
+Under Select send form email template, choose an existing email template.
+Optional: Click View templates to view your send form email templates.
+Optional: Click Remove to delete the item from the workflow. 
+Change matter status
+This step in the workflow allows you to select which matter status your matter should change to once the previous step in the workflow has been completed. If your previous step is a sent intake form, the matter's status will change to the selected status once the new client completes and submits the intake form. Once the matter status is changed, the next step in the automated workflow will be actioned.
+Under Select matter status, select one of your existing matter statuses.
+Optional: Click Remove to delete the item from the workflow. 
+Schedule appointment
+This step in the workflow allows you to set up an appointment once the previous step in the workflow has been initiated. If your previous step is a matter status change, Clio Grow will automatically send your new client an appointment booking link once the matter status has been automatically changed. Once the client books the appointment, the next step in the automated workflow will be actioned.
+Under Select appointment, select one of your existing appointment types.
+Optional: Click View appointment types to view a list of your current appointment types.
+Optional: Click Invitation email, Confirmation email, and/or Reminder email to view the email templates for your selected appointment type.
+Optional: Click Remove to delete the item from the workflow. 
+Send email
+This step in the workflow allows you to automatically send a new client an email. Once the email is sent, the next step in the automated workflow will be actioned.
+Under Select email template, select one of your existing email templates.
+Optional: Click View templates to view your current email templates.
+Optional: Click Remove to delete the item from the workflow. 
+Assign task
+This step in the workflow allows you to assign a task to one or multiple firm users. Assignees will automatically be notified when the task is assigned. When you apply an automated workflow to a matter and it gets to a task, the next steps in the workflow will not proceed until the task is marked complete.
+You can add tasks to workflows if you want to perform conflict checks or review client details before proceeding to next steps, or if you do not want to immediately action next steps.
+Under Assign task, enter the task details. You can add a description, assignee(s), due date, and set a reminder for the assignee(s) to complete the task.
+Optional: Click Remove to delete the item from the workflow. 
+Optional: If you want to change the order of a workflow item, unselect the item and then click the up or down arrows on the right side to move it above or below another workflow item.
+Click Save draft & exit if you want to save the workflow without being able to apply it to any matters yet, or click Save & publish to save the workflow and have the option to begin applying it to your matters. 
+Go to Settings > Automated workflows. 
+If this is your first automated workflow, click Choose a template. If you have already created at least one automated workflow, click New template.
+Select Create my own and then click Continue. 
+Under Title, enter a title for the automated workflow. This title will only be visible to users on your account.
+Click each box and follow the prompts on your screen to select how you want to send a form, appointment link, or email, and when a matter's status should be changed. You can also add an additional workflow item in between two existing items or at the end of your workflow by clicking the plus icon.
+Request form
+This step in the workflow allows you to select an existing intake form and email template to send to a new client. Once the client completes the form and submits it, the next step in the automated workflow will be actioned.
+Under Select form, select one of your existing intake forms.
+Optional: Click View forms to view your current intake forms.
+Under Select send form email template, choose an existing email template.
+Optional: Click View templates to view your send form email templates.
+Optional: Click Remove to delete the item from the workflow. 
+Change matter status
+This step in the workflow allows you to select which matter status your matter should change to once the previous step in the workflow has been completed. If your previous step is a sent intake form, the matter's status will change to the selected status once the new client completes and submits the intake form. Once the matter status is changed, the next step in the automated workflow will be actioned.
+Under Select matter status, select one of your existing matter statuses.
+Optional: Click Remove to delete the item from the workflow. 
+Schedule appointment
+This step in the workflow allows you to set up an appointment once the previous step in the workflow has been initiated. If your previous step is a matter status change, Clio Grow will automatically send your new client an appointment booking link once the matter status has been automatically changed. Once the client books the appointment, the next step in the automated workflow will be actioned.
+Under Select appointment, select one of your existing appointment types.
+Optional: Click View appointment types to view a list of your current appointment types.
+Optional: Click Invitation email, Confirmation email, and/or Reminder email to view the email templates for your selected appointment type.
+Optional: Click Remove to delete the item from the workflow. 
+Send email
+This step in the workflow allows you to automatically send a new client an email. Once the email is sent, the next step in the automated workflow will be actioned.
+Under Select email template, select one of your existing email templates.
+Optional: Click View templates to view your current email templates.
+Optional: Click Remove to delete the item from the workflow. 
+Assign task
+This step in the workflow allows you to assign a task to one or multiple firm users. Assignees will automatically be notified when the task is assigned. When you apply an automated workflow to a matter and it gets to a task, the next steps in the workflow will not proceed until the task is marked complete.
+You can add tasks to workflows if you want to perform conflict checks or review client details before proceeding to next steps, or if you do not want to immediately action next steps.
+Under Assign task, enter the task details. You can add a description, assignee(s), due date, and set a reminder for the assignee(s) to complete the task.
+Optional: Click Remove to delete the item from the workflow. 
+Optional: If you want to change the order of a workflow item, unselect the item and then click the up or down arrows on the right side to move it above or below another workflow item.
+Click Save draft & exit if you want to save the workflow without being able to apply it to any matters yet, or click Save & publish to save the workflow and have the option to begin applying it to your matters. 
+Edit automated workflows
+After creating an automated workflow, you can fully edit each component of the workflow, including the internal title and the selections in each section of the workflow.
+Note: You can only edit automated workflows that are in draft. If a workflow has been published, you will need to cancel it and then create a new workflow. Learn more about canceling and archiving the workflow from the settings page here and canceling it from within the matter here.
+Go to Settings > Automated workflows. 
+Click the automated workflow's name.
+Make your edits.
+Click Save draft & exit if you want to save the workflow without being able to apply it to any matters yet, or click Save & publish to save the workflow and have the option to begin applying it to your matters. 
+Cancel and archive automated workflows
+If you no longer need an automated workflow in Clio Grow, you can cancel and archive it. This action will stop the workflow if it has been applied to any matters and will remove it from your automations page.
+Go to Settings > Automated workflows. 
+Click the Actions dropdown and select Cancel and archive.
+To confirm the action, click Yes, stop automated workflow.
+Apply automated workflows to matters
+When you apply an automated workflow to a matter, the first step in the workflow will automatically be started. The applied workflow will show which step is in progress and which steps are coming up next and which steps have been completed. 
+Important: You cannot apply an automated workflow to a matter until the workflow has been published. To publish an automated workflow, go Settings > Automated workflows. Open the workflow and click Save & publish at the bottom.
+Go to Matters and find and select your matter, or search for your matter in the search bar and select it. 
+Within the Intake process subtab, click the dropdown field under Add checklist, automated workflow, email campaign and select one of your automated workflows. 
+Your applied automated workflow will be listed under the Automated workflows section. Learn more about the states for the workflow and the steps within the workflow in the section below on View and manage automated workflows on applied matters. 
+View and manage automated workflows on applied matters
+Once an automated workflow has been applied to a matter, the applied workflow will show the state of the workflow and the progress of each step within the workflow. You can view which steps are in progress, which steps are up next, and which steps have been completed. You can also view workflows that were cancelled and any steps where there may be errors. 
+Tip: If an automated workflow is cancelled or fails due to an error, you can view the failed automation in both the matter and in your Pipeline. 
+Go Matters and find your matter or search for your matter in the search bar. 
+Within the Intake process subtab, scroll down to the Automated workflows section. Your applied automated workflow will be listed under this section with a colored pill showing one of four states for the workflow.
+Running: When
+IMGS: []

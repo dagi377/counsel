@@ -1,0 +1,1156 @@
+{
+ "id": "r03-documents",
+ "scope": "Clio document management (folders, versions, categories, Clio Drive, OCR/search, templates, automation), Clio Draft (court forms, Canada), e-signature, document sharing; compared with legal-spec/documents.json. Method: official help-article bodies via the help.clio.com Zendesk help-center API (direct pages and Wayback returned 403/blocked); clio.com pages via search snippets only.",
+ "clio_products": [
+  "Clio Manage",
+  "Clio Draft",
+  "Clio Grow",
+  "Clio Work (Vincent)",
+  "Clio for Word",
+  "Clio Desktop (Clio Drive, Clio Launcher)",
+  "Clio for Clients",
+  "Clio for Co-Counsel",
+  "Dropbox Sign integration",
+  "DocuSign integration (US)",
+  "Clio mobile app"
+ ],
+ "features": [
+  {
+   "name": "Documents home navigation",
+   "product": "Clio Manage",
+   "where": "Documents (left nav): New, Recents, Starred, Private, Firm, Contacts, Matters, Trash, Settings",
+   "what": "One store grouped by matter and contact, plus firm-level (non-matter) files, a per-user private area, recents and starred items.",
+   "plan_tier": "select plans (help says 'available to select plans'; tier not named)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/55085715266587-Get-Started-with-Documents"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/1220333593"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "List / tree view, sort and visible columns",
+   "product": "Clio Manage",
+   "where": "Documents > Firm|Contacts|Matters > View as / Sort by / Visible columns",
+   "what": "Tree view shows the full matter folder structure; user picks and orders columns (latest version, owner, size, status, ID, category, received at, author, recorded time, etc.).",
+   "plan_tier": "select plans (help says 'available to select plans'; tier not named)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/55085715266587-Get-Started-with-Documents"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Folders and folder upload",
+   "product": "Clio Manage",
+   "where": "Documents > + New > Create a new folder / Upload a folder",
+   "what": "Create or upload folders (5 GB max per upload) with optional category; contact and matter root folders cannot be moved; only empty folders can be deleted.",
+   "plan_tier": "all plans with Documents",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290308200091-Create-and-Upload-Document-Files-and-Folders",
+    "https://help.clio.com/hc/en-us/articles/14983923587867-Manage-Documents-in-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/14983722680091-Delete-and-Restore-Documents-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Document metadata: status, classification, category, tags, author, received date",
+   "product": "Clio Manage",
+   "where": "Document > Actions > Edit details; preview Details panel",
+   "what": "Each file carries a status (e.g. Draft, In review), a legal-document classification (e.g. Affidavit, Complaint), firm category, up to 10 tags, author and received-at date.",
+   "plan_tier": "select plans (help says 'available to select plans'; tier not named)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983923587867-Manage-Documents-in-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/55223630859419-Preview-and-Review-Documents",
+    "https://help.clio.com/hc/en-us/articles/55223361431963-Filter-Documents-and-Save-Views"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Document categories",
+   "product": "Clio Manage",
+   "where": "Documents > Categories and templates > Categories",
+   "what": "Firm-defined categories used to sort and filter documents and templates.",
+   "plan_tier": "all plans with Documents",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983647053339-Document-Categories"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Filters and saved views",
+   "product": "Clio Manage",
+   "where": "Documents > filters > + Create view",
+   "what": "Filter by name, type, status, classification, uploader, tags, category; save filter sets as named views shown as tabs; rename, duplicate, delete views.",
+   "plan_tier": "select plans (help says 'available to select plans'; tier not named)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/55223361431963-Filter-Documents-and-Save-Views"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Version history",
+   "product": "Clio Manage",
+   "where": "Document > Versions tab (+ next to Version history)",
+   "what": "Upload a new version, see prior versions, download any earlier version. API exposes /documents/:id/versions.",
+   "plan_tier": "all plans with Documents",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/55223630859419-Preview-and-Review-Documents",
+    "https://help.clio.com/hc/en-us/articles/43337504015387-Combine-or-Replace-Documents",
+    "https://help.clio.com/hc/en-us/articles/14983859054619-Search-and-Download-Documents-in-Clio-Manage",
+    "https://developers.support.clio.com/hc/en-us/articles/1260801745250"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Document lock",
+   "product": "Clio Manage",
+   "where": "Documents > Actions (more) > Lock / Unlock",
+   "what": "Anyone can lock a file to signal they are editing it; only firm administrators can unlock. Padlock icon and a note on the Versions tab.",
+   "plan_tier": "select plans (help says 'available to select plans'; tier not named)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983923587867-Manage-Documents-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Preview panel with Details, Versions, Comments, History tabs",
+   "product": "Clio Manage",
+   "where": "Documents > click file name",
+   "what": "Read without downloading; step through files with arrows; comment thread per file; Word-embedded comments shown separately; activity history tab; print.",
+   "plan_tier": "select plans (help says 'available to select plans'; tier not named)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/55223630859419-Preview-and-Review-Documents"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Copy a file",
+   "product": "Clio Manage",
+   "where": "Documents > Actions > Create or generate > Create a copy",
+   "what": "Duplicates content and metadata into a chosen location; audit, version, sharing and e-sign history are not copied; medical records cannot be copied.",
+   "plan_tier": "all plans with Documents",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983923587867-Manage-Documents-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Move single / bulk",
+   "product": "Clio Manage",
+   "where": "Documents > Actions > Move to; checkbox bulk move",
+   "what": "Move files and folders individually or in bulk.",
+   "plan_tier": "all plans with Documents",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983923587867-Manage-Documents-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Add time from a document",
+   "product": "Clio Manage",
+   "where": "Documents > Actions > Add time",
+   "what": "Create a time entry directly from a document row.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983923587867-Manage-Documents-in-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/9290308200091-Create-and-Upload-Document-Files-and-Folders"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Full-text search (AI-dependent)",
+   "product": "Clio Manage",
+   "where": "Global search bar (Cmd/Ctrl+K) and Documents search field",
+   "what": "Global search matches names and full-text content; if the firm opts out of AI features, search falls back to names and metadata only. Local Documents search is by name.",
+   "plan_tier": "unclear; content search tied to AI features being on",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983859054619-Search-and-Download-Documents-in-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/41990965598491-AI-Features-in-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/9290347515291-Global-Search"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "OCR of scanned files",
+   "product": "Clio Manage",
+   "where": "not documented",
+   "what": "No help article found describing OCR of image-only PDFs in Manage. Mobile scanner produces PDFs; Clio Work/Vincent accepts images and audio but OCR is not described for Manage search.",
+   "plan_tier": "unknown",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983859054619-Search-and-Download-Documents-in-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/9289697637403-Mobile-App-Documents",
+    "https://help.clio.com/hc/en-us/articles/49723173337755-Supported-File-Types-in-Clio-Work"
+   ],
+   "screenshots": [],
+   "confidence": "low"
+  },
+  {
+   "name": "Download file, folder (.zip), bulk, previous version",
+   "product": "Clio Manage",
+   "where": "Documents > Actions > Download latest / Download folder; bulk download icon",
+   "what": "Original format for files; zip for folders and bulk selections.",
+   "plan_tier": "all plans with Documents",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983859054619-Search-and-Download-Documents-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Trash with 30-day restore",
+   "product": "Clio Manage",
+   "where": "Documents > Trash",
+   "what": "Deleted items go to Trash for 30 days, restorable; permanent delete per item or Empty Trash removes item and its version history.",
+   "plan_tier": "all plans with Documents",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983722680091-Delete-and-Restore-Documents-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Create PDF from Word",
+   "product": "Clio Manage",
+   "where": "Documents > Download arrow > Create PDF",
+   "what": "Converts a Word file to a PDF in the same folder, e.g. before e-sign.",
+   "plan_tier": "all plans with Documents",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/43337504015387-Combine-or-Replace-Documents"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Combine files into one PDF",
+   "product": "Clio Manage",
+   "where": "Matter > Documents > select > Actions > Combine files",
+   "what": "Merge DOCX, PNG, PDF and others into one PDF in a chosen order; optional text edit before saving.",
+   "plan_tier": "all plans",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/43337504015387-Combine-or-Replace-Documents"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/article_attachments/43337702742939"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "PDF bundle (cover, TOC, page numbers, matter footer)",
+   "product": "Clio Manage",
+   "where": "Combine files > Include options",
+   "what": "Bundle adds cover page (title, code, date), clickable table of contents, page numbering and a matter-number footer automatically.",
+   "plan_tier": "'Premium and higher plans' per help (plan name not confirmed elsewhere)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/43337504015387-Combine-or-Replace-Documents"
+   ],
+   "screenshots": [
+    "https://help.clio.com/hc/article_attachments/43337702742939"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "In-browser Document Editor with AI",
+   "product": "Clio Work (inside Clio Manage)",
+   "where": "Documents > Open in > Document Editor; Work > Editor",
+   "what": "Web word processor; Vincent AI can draft from matter context, summarize, rewrite, with Tracked Changes or Direct Edits; auto-saves to matter with version history; reduced toolbar for PDFs.",
+   "plan_tier": "Clio Work subscription",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/53031641830939-Document-Editor",
+    "https://help.clio.com/hc/en-us/articles/55223630859419-Preview-and-Review-Documents"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/1212462242"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Drive virtual drive",
+   "product": "Clio Manage + Clio Desktop app",
+   "where": "Documents > Desktop access > install; Desktop app > Drive",
+   "what": "Mounts Clio documents as a drive in Finder/Explorer (contacts > matters folders); two-way sync; bulk upload queue; 5 GB file limit; long names shortened; Manage is source of truth on conflict.",
+   "plan_tier": "not stated in articles read",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9031909985435-Clio-Drive-File-Management",
+    "https://help.clio.com/hc/en-us/articles/9031393962395-Set-Up-Clio-Desktop-App"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Launcher",
+   "product": "Clio Desktop app",
+   "where": "Document > Open in local app",
+   "what": "Opens a Clio file in a chosen desktop program and saves changes back.",
+   "plan_tier": "not stated",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290315308699-Clio-Launcher"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Document templates with merge fields (Word, Excel, PowerPoint, PDF)",
+   "product": "Clio Manage",
+   "where": "Settings > Documents > Document templates; merge fields at Settings > Documents > Document Template Merge Fields",
+   "what": "<<Matter.Client.Name>> style merge fields; preview field values against a chosen matter; fillable-PDF templates use field names; custom fields usable.",
+   "plan_tier": "Essentials+ per third-party tier lists (unverified)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/53353783646875-Document-Templates-in-Clio-Manage"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/851009295"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Generate document from template",
+   "product": "Clio Manage",
+   "where": "Documents > + New > Create a new document from template",
+   "what": "Choose template, matter, name, output PDF/Word/both; pick which client fills fields on multi-client matters; PI matters can pick contact.",
+   "plan_tier": "plans with templates",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290308200091-Create-and-Upload-Document-Files-and-Folders"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Automated workflows: generate document on matter created / stage change",
+   "product": "Clio Manage",
+   "where": "Settings > Automated Workflows > Made by Clio",
+   "what": "Rules (practice area, responsible attorney, from/to stage) that generate a document from a template, assign a task list, or apply a matter template; up to 1,000 automations per firm.",
+   "plan_tier": "select plans (help says 'available to select plans'; tier not named)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/35132279298843-Clio-Manage-Automated-Workflows"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/1068610208"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Draft court form library",
+   "product": "Clio Draft",
+   "where": "Clio Draft > Library > Court forms",
+   "what": "Fillable official court forms auto-filled from Clio Manage matter data; search by form number/title; Request a form if missing. Canada: Ontario and BC forms named in one article, only BC in another; launch press says doc automation works in all provinces except Quebec and data is hosted in Canada.",
+   "plan_tier": "Clio Draft subscription (add-on; per-seat; products selectable)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/24313560334747-Get-Started-With-Clio-Draft",
+    "https://help.clio.com/hc/en-us/articles/24317070863899-Clio-Draft-Draft-and-Manage-Documents",
+    "https://www.clio.com/about/press/clio-draft-canada-launch/",
+    "https://www.clio.com/ca/draft/court-forms/"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/973527061"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "name": "Form templates (pre-filled court forms)",
+   "product": "Clio Draft",
+   "where": "Library > Court forms > Actions > Create form template",
+   "what": "Save a court form with firm-wide pre-filled values and extra text boxes; not auto-updated when the official form changes.",
+   "plan_tier": "Clio Draft",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/24315924591771-Clio-Draft-Form-Templates"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/1072329848"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Sets of forms/templates",
+   "product": "Clio Draft",
+   "where": "Library > Sets",
+   "what": "Reusable bundles of up to 20 court forms, form templates and Word templates per practice area; drafted together with one populate page.",
+   "plan_tier": "Clio Draft",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/24316265351451-Clio-Draft-Sets",
+    "https://help.clio.com/hc/en-us/articles/24317070863899-Clio-Draft-Draft-and-Manage-Documents"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/1076471578"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Draft workflow: select, populate once, review, regenerate",
+   "product": "Clio Draft",
+   "where": "Library > Add > Draft new documents; or Manage matter > Documents > New > Create document in Clio Draft",
+   "what": "Answer case facts once to fill all selected documents; review/edit; save to Manage matter; regenerate after data changes.",
+   "plan_tier": "Clio Draft",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/24317070863899-Clio-Draft-Draft-and-Manage-Documents"
+   ],
+   "screenshots": [
+    "https://brand.clio.com/m/2c27663e25563c44/Regenerate-with-Clio-Draft.png",
+    "https://brand.clio.com/m/623ee93d019f04a9/original/Clio-Draft-Add-or-Delete-Documents.png",
+    "https://player.vimeo.com/video/1073725757"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Word template builder add-in (cards, fields, conditions)",
+   "product": "Clio Draft / Clio for Word",
+   "where": "Word > Home > Clio Draft Template Builder (or Clio for Word)",
+   "what": "Role cards (parties, courts) and other cards hold fields (short/long text, single/multi select, date); standalone question conditions and field-triggered conditions with AND/OR.",
+   "plan_tier": "Clio Draft",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/41958696760987-Create-or-Edit-Word-Document-Templates",
+    "https://help.clio.com/hc/en-us/articles/41958729758491-Manage-Cards-and-Fields-in-the-Template-Builder",
+    "https://help.clio.com/hc/en-us/articles/41958789435931-Add-Conditional-Logic-to-Word-Templates",
+    "https://help.clio.com/hc/en-us/articles/50120936599451-Clio-for-Word-Template-Builder"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "AI convert document to template",
+   "product": "Clio Draft; Clio Work",
+   "where": "Draft > Word templates > Create templates from documents; Work Editor > Convert to template",
+   "what": "AI detects fields and conditional sections in .docx (5 files, 5 MB each in Draft); statuses Needs Review / In progress / Ready; Vincent walks the user through proposed fields and rules.",
+   "plan_tier": "Clio Draft or Clio Work",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/50124317806875-Convert-Documents-to-Templates-with-AI-in-Clio-Draft",
+    "https://help.clio.com/hc/en-us/articles/56367796556443-Build-and-Manage-Templates-in-Clio-Work"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/1230092655"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "AI client questionnaires mapped to documents",
+   "product": "Clio Draft",
+   "where": "Questionnaires > Questionnaire Templates > Create; Live Questionnaires",
+   "what": "AI writes plain-language questions from the required fields of chosen forms/templates; share link per matter; statuses Not started, In progress, Needs review, Completed; firm reviews then saves answers to matter.",
+   "plan_tier": "Clio Draft",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/24663592578075-Clio-Draft-Create-Questionnaire-Templates",
+    "https://help.clio.com/hc/en-us/articles/33309999460891-Clio-Draft-Live-Questionnaires"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/1059048142"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Draft from forms and templates inside Vincent",
+   "product": "Clio Work",
+   "where": "Vincent > Draft > Draft documents from forms and templates",
+   "what": "Vincent gathers case facts, flags conflicting or missing facts and role assignment before generating forms/templates.",
+   "plan_tier": "Clio Work",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/56367803320475-Draft-Documents-from-Forms-and-Templates-in-Clio-Work"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "e-Signature (Dropbox Sign integration)",
+   "product": "Clio Manage / Clio Grow",
+   "where": "Documents > Download arrow > e-Sign",
+   "what": "PDF only (40 MB / 500 pages); signer must be a contact with email; sequential signing optional; drag signature, initials, date fields; included at no extra cost but usable only inside Clio.",
+   "plan_tier": "Unlimited on Advanced/Expand (CA) and Grow; Essentials 15 per user/month pooled; EasyStart 3 per user/month pooled; no rollover",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9207223181979-Get-Started-With-e-Signatures"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "e-Signature limits counter",
+   "product": "Clio Manage",
+   "where": "Documents > e-Sign dialog",
+   "what": "Shows remaining monthly signatures on capped plans.",
+   "plan_tier": "EasyStart/Essentials (CA)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9207223181979-Get-Started-With-e-Signatures"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Cancel / remind via Dropbox Sign account",
+   "product": "Dropbox Sign",
+   "where": "Dropbox Sign web app",
+   "what": "Requests cannot be cancelled inside Clio; cancel or remind in Dropbox Sign; automatic reminders at 3 and 7 days; sender email text not customizable.",
+   "plan_tier": "all",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9207225170203-e-Signature-Settings-in-Dropbox-Sign"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Grow PDF templates with signature fields and conditional fields",
+   "product": "Clio Grow",
+   "where": "Grow > Documents > Templates > Create New > PDF Template",
+   "what": "Drag signature, initials, date signed, name, email, textbox, checkbox, dropdown, radio; rules show/hide fields based on a checkbox; firm users can sign before client; due dates, auto reminders, resend expired links.",
+   "plan_tier": "Clio Grow",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290238939163-Document-Templates-in-Clio-Grow",
+    "https://help.clio.com/hc/en-us/articles/53355315984923-Prepare-and-Manage-Documents-in-Clio-Grow"
+   ],
+   "screenshots": [
+    "//fast.wistia.com/embed/iframe/0mwevmjfj7",
+    "https://brand.clio.com/m/1023cfb9c6c9bfa1/original/Edit-Sent-Document-Due-Date-Grow.jpg"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Draft built-in e-sign (US only)",
+   "product": "Clio Draft",
+   "where": "Draft > Signatures",
+   "what": "US customers use Draft's own e-sign tool; Canadian customers are pointed to the Dropbox Sign integration in Manage.",
+   "plan_tier": "Clio Draft US",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/24385283808539-Clio-Draft-Download-Documents-and-Send-for-ESignatures"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "DocuSign integration (US only)",
+   "product": "Clio Manage",
+   "where": "Documents > e-Sign (DocuSign)",
+   "what": "Optional DocuSign connection; signed copy is emailed back and must be added as a new version manually.",
+   "plan_tier": "US",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/16126031982363-DocuSign-and-Clio"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Share via secure link, client portal, co-counsel portal, internal direct link",
+   "product": "Clio Manage",
+   "where": "Documents > Actions > Share > Share externally",
+   "what": "Secure email link (no login), Clio for Clients portal, Clio for Co-Counsel portal, internal copy-link for users with matter permission.",
+   "plan_tier": "portal on Essentials+ per third-party tier lists (unverified)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983640722971-Share-Documents"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Folder share auto-includes later files; client upload folder",
+   "product": "Clio for Clients",
+   "where": "Matter > Documents > folder > Share to client portal",
+   "what": "Files added later to a shared folder are shared automatically; firms make a 'Client uploads' folder; 100 MB portal upload cap; passwordless email login (1-hour link).",
+   "plan_tier": "plans with client portal",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions",
+    "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Co-counsel sharing with 7-day email links",
+   "product": "Clio for Co-Counsel",
+   "where": "Documents > Share with contacts > Share via Clio for Co-Counsel",
+   "what": "External attorneys see shared items until unshared; notification links expire after 7 days; reshare by stop and share again.",
+   "plan_tier": "plans with co-counsel portal",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9290177437339-Clio-for-Co-Counsel-Law-Firm-Actions"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "AI Document Analyzer",
+   "product": "Clio Manage AI",
+   "where": "AI Launchpad (diamond) > Analyze Documents; document Actions > Analyze with Vincent",
+   "what": "Up to 25 DOCX/TXT/PDF files, 50 MB total; summary or thorough; matter documents only; no follow-up context across sessions.",
+   "plan_tier": "Manage AI features",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/33476998957211-Analyze-Documents-Using-AI"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "AI schedule events from documents",
+   "product": "Clio Manage AI",
+   "where": "AI Launchpad; Matter dashboard AI Actions; Calendar > New event > Extract from a document",
+   "what": "Classifies document type, extracts dates (including handwritten notes) into events for review; does not apply local court day-counting rules.",
+   "plan_tier": "Manage AI features",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/42019952139035-Schedule-Events-From-Documents-Using-Clio-s-AI-Features"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "AI data processing location and opt-out",
+   "product": "Clio Manage AI",
+   "where": "Settings > Account Level AI Access",
+   "what": "AI queries may be processed outside the firm's home jurisdiction; results stored in region; admin can switch AI off firm-wide, which also removes content search.",
+   "plan_tier": "all with AI",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/41990965598491-AI-Features-in-Clio-Manage"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Tabular Document Review",
+   "product": "Clio Work",
+   "where": "Work > Vincent > Analyze > Tabular Document Review",
+   "what": "One row per document, one column per question; Vincent fills cells; templates of tables can be saved.",
+   "plan_tier": "Clio Work",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/49566590035227-Compare-Documents-With-Tabular-Document-Review"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/1196744322"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Compare documents / redline analysis",
+   "product": "Clio Work",
+   "where": "Vincent > More Workflows > Compare Documents; Redline Analysis",
+   "what": "Side-by-side comparison of two documents (versions or opposing filings) with relationship note and synthesis; redline analysis for docx/pdf.",
+   "plan_tier": "Clio Work",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/41750517581723-Compare-Documents-in-Clio-Work",
+    "https://help.clio.com/hc/en-us/articles/52508612250523-Perform-Redline-Analyses-in-Clio-Work"
+   ],
+   "screenshots": [
+    "https://brand.clio.com/asset/32b8fc9f-2451-408f-a4fd-2a9cd2e7e915/Compare-Document-Versions-Navattic-Thumbnail.png",
+    "https://player.vimeo.com/video/1127310748"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Translate documents",
+   "product": "Clio Work",
+   "where": "Vincent workflow",
+   "what": "AI translation of documents.",
+   "plan_tier": "Clio Work",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/51541484444187-Translate-Documents-in-Clio-Work"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  },
+  {
+   "name": "Clio for Word add-in (Vincent in Word)",
+   "product": "Clio for Word",
+   "where": "Word > Home > Add-ins > Clio for Microsoft Word",
+   "what": "Vincent drafts and revises in Word as native tracked changes or direct edits; save back to Clio by normal upload.",
+   "plan_tier": "Clio Work / Vincent for Enterprise; template builder with Clio Draft",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/49815360439835-Clio-for-Word-and-Vincent",
+    "https://help.clio.com/hc/en-us/articles/50120936599451-Clio-for-Word-Template-Builder"
+   ],
+   "screenshots": [
+    "https://player.vimeo.com/video/1195782061"
+   ],
+   "confidence": "high"
+  },
+  {
+   "name": "Mobile scan to PDF",
+   "product": "Clio mobile app",
+   "where": "+ > Document > Scan documents",
+   "what": "Camera scan with crop, multi-page into one PDF, filed to matter folder with category.",
+   "plan_tier": "all",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9289697637403-Mobile-App-Documents"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Automated email filing and Maildrop",
+   "product": "Clio Manage / Grow",
+   "where": "Settings > Communications > Connect your inbox; Matter > Communications > Copy matter Maildrop address",
+   "what": "Connect Gmail/Outlook/Exchange to auto-file contact emails to matters; per-matter forwarding address saves EML (forward method cannot upload attachments).",
+   "plan_tier": "not stated",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing",
+    "https://help.clio.com/hc/en-us/articles/56536848700571-Forward-Emails-to-Matters-With-Maildrop"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "OneDrive for Business sync",
+   "product": "Clio Manage integration",
+   "where": "Settings > Apps > Microsoft > OneDrive for Business",
+   "what": "One firm account; Clio builds client/matter folder tree in OneDrive; renaming those folders in OneDrive causes re-creation.",
+   "plan_tier": "integration",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9284825370011-Microsoft-OneDrive-for-Business-and-Clio"
+   ],
+   "screenshots": [],
+   "confidence": "high"
+  },
+  {
+   "name": "Clio Draft separate account, seats and products",
+   "product": "Clio Draft",
+   "where": "Clio Draft > Settings > Subscription",
+   "what": "Separate per-seat subscription with selectable products (court forms, document automation); Chrome-only for full function; single active session, 24h inactivity logout.",
+   "plan_tier": "Draft add-on (USD list approx. $99/user/month per search snippet; CAD unverified)",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/24314530232603-Clio-Draft-Subscription-and-Billing-Information",
+    "https://help.clio.com/hc/en-us/articles/24313560334747-Get-Started-With-Clio-Draft"
+   ],
+   "screenshots": [],
+   "confidence": "medium"
+  }
+ ],
+ "gaps": [
+  {
+   "feature": "Document lock / check-out",
+   "our_area": "documents",
+   "our_screen": "matter-documents",
+   "status": "missing",
+   "proposal": "Add field locked_by + locked_at on Document and actions Lock / Unlock (unlock by locker or admin). Agent auto-locks a document while it is drafting a new version and releases on save; a human edit on a locked doc offers 'branch as new version'.",
+   "priority": "should"
+  },
+  {
+   "feature": "Status, classification, tags, received date on documents",
+   "our_area": "documents",
+   "our_screen": "matter-documents",
+   "status": "partial",
+   "proposal": "Add fields status (draft | in review | final | sent | signed), classification (legal type, agent-proposed), tags (max 10), received_at (date the firm received it, distinct from upload time; agent extracts from stamps/emails). received_at feeds limitation and service deadlines.",
+   "priority": "must"
+  },
+  {
+   "feature": "Saved filter views and configurable columns",
+   "our_area": "documents",
+   "our_screen": "matter-documents",
+   "status": "missing",
+   "proposal": "Add filters (type, status, classification, uploader, tags, category, privilege) and Save view; per-user column picker. AI: natural-language filter ('unsigned engagement letters this month') compiles to a saved view.",
+   "priority": "could"
+  },
+  {
+   "feature": "Firm-level (non-matter) and private document areas",
+   "our_area": "documents",
+   "our_screen": "matter-documents",
+   "status": "missing",
+   "proposal": "Add a /documents/firm library (precedent-adjacent firm material, policies) and a per-user Private drafts area; moving a private draft into a matter triggers G-D1 filing checks. Keep admin-blind rule: firm admin sees no matter files.",
+   "priority": "should"
+  },
+  {
+   "feature": "Document activity history tab",
+   "our_area": "documents",
+   "our_screen": "document-viewer",
+   "status": "partial",
+   "proposal": "Add a History tab: uploads, versions, views, shares, signature events, agent reads (which agent job read it and why). Agent reads are our differentiator for audit.",
+   "priority": "must"
+  },
+  {
+   "feature": "Word-embedded comments surfaced",
+   "our_area": "documents",
+   "our_screen": "document-viewer",
+   "status": "missing",
+   "proposal": "On ingest, extract Word comments and tracked changes into a read-only 'From file' comments block alongside firm comments.",
+   "priority": "could"
+  },
+  {
+   "feature": "Create PDF from Word",
+   "our_area": "documents",
+   "our_screen": "matter-documents",
+   "status": "partial",
+   "proposal": "Add action 'Create PDF' (new document linked to source version hash). Signature-request already converts; make it a first-class action.",
+   "priority": "could"
+  },
+  {
+   "feature": "Bundle with cover page, TOC, page numbers, matter footer",
+   "our_area": "documents",
+   "our_screen": "bundle-builder",
+   "status": "covered",
+   "proposal": "Add matter_number_footer option and cover fields (title, code, date) to match; keep index/tabs.",
+   "priority": "could"
+  },
+  {
+   "feature": "Generate document on matter created / stage change",
+   "our_area": "documents",
+   "our_screen": "document-assembly",
+   "status": "missing",
+   "proposal": "Add assembly triggers: on matter open or stage change (practice area, responsible lawyer, from/to stage) -> agent generates the set into target_folder and routes to G8. Coordinate with matters area stage model.",
+   "priority": "should"
+  },
+  {
+   "feature": "Court form library with official-version tracking (ON first)",
+   "our_area": "documents",
+   "our_screen": "template-library",
+   "status": "partial",
+   "proposal": "Add a Court forms tab: official Ontario forms (Rules of Civil Procedure, Family Law Rules, Estates) with source URL, version date and checksum; a daily job detects new official versions and flags firm form templates built on old versions (Clio does not auto-update form templates). 'Request a form' -> internal backlog.",
+   "priority": "must"
+  },
+  {
+   "feature": "Pre-filled form templates and reusable sets",
+   "our_area": "documents",
+   "our_screen": "document-assembly",
+   "status": "covered",
+   "proposal": "Confirm a Set entity (up to N items, practice-area tagged) and form-template prefill; one populate step across the set.",
+   "priority": "could"
+  },
+  {
+   "feature": "Client questionnaire generated from document fields",
+   "our_area": "documents",
+   "our_screen": "document-assembly",
+   "status": "missing",
+   "proposal": "Action 'Ask client for missing answers': agent builds a questionnaire only for unresolved fields of the selected template/set, sends a portal link, tracks Not started / In progress / Needs review / Completed; reviewed answers save to matter facts (with source = client) before Generate. Coordinate with intake area.",
+   "priority": "should"
+  },
+  {
+   "feature": "Fact conflict resolution before generation",
+   "our_area": "documents",
+   "our_screen": "document-assembly",
+   "status": "partial",
+   "proposal": "Before Generate, show a 'case facts' panel listing missing, conflicting (two sources disagree, each cited) and role-unassigned fields; Generate blocked until resolved.",
+   "priority": "must"
+  },
+  {
+   "feature": "AI template conversion statuses",
+   "our_area": "documents",
+   "our_screen": "template-library",
+   "status": "partial",
+   "proposal": "Add template status needs-review | in-progress | ready before G-D2 publish; Propose fields output lists each field and condition with the source text span.",
+   "priority": "could"
+  },
+  {
+   "feature": "Folder share auto-includes future files",
+   "our_area": "documents",
+   "our_screen": "client-sharing",
+   "status": "deliberately different",
+   "proposal": "Keep: share a folder only as a live view of G8-approved items; new files in a shared folder are queued for G8 rather than auto-shared. State this rule explicitly on the screen.",
+   "priority": "should"
+  },
+  {
+   "feature": "Co-counsel portal",
+   "our_area": "documents",
+   "our_screen": "client-sharing",
+   "status": "partial",
+   "proposal": "Add recipient_kind (client | co-counsel | opposing) with co-counsel two-way upload folder and stop-sharing; links expire (Clio uses 7 days).",
+   "priority": "should"
+  },
+  {
+   "feature": "Tabular review across many documents",
+   "our_area": "documents",
+   "our_screen": "multi-document-analysis",
+   "status": "missing",
+   "proposal": "Add mode 'table': user or agent defines columns; one row per document; every cell cites page:line; export CSV; save table as template.",
+   "priority": "should"
+  },
+  {
+   "feature": "Cross-document compare (opposing filings or versions)",
+   "our_area": "documents",
+   "our_screen": "document-viewer",
+   "status": "partial",
+   "proposal": "Extend Compare versions to compare any two documents: topic table with cited positions from each, plus material-difference summary.",
+   "priority": "could"
+  },
+  {
+   "feature": "Document translation",
+   "our_area": "documents",
+   "our_screen": "document-viewer",
+   "status": "missing",
+   "proposal": "Action 'Translate (EN<->FR first)': produces a linked translated copy marked 'machine translation, unverified' until a person approves.",
+   "priority": "could"
+  },
+  {
+   "feature": "Add time from document",
+   "our_area": "time",
+   "our_screen": null,
+   "status": "partial",
+   "proposal": "Document row action 'Add time' prefilled with document and matter; agent proposes time from edit sessions on the document.",
+   "priority": "could"
+  },
+  {
+   "feature": "Desktop drive and Word add-in",
+   "our_area": "documents",
+   "our_screen": null,
+   "status": "deliberately different",
+   "proposal": "Keep web-first; answer the open question with an evidence note: Clio ships Drive (two-way sync), Launcher and Clio for Word with AI tracked changes. Minimum: 'Open in Word' via WebDAV-style check-out using the lock above.",
+   "priority": "could"
+  },
+  {
+   "feature": "Mobile scan to PDF",
+   "our_area": "documents",
+   "our_screen": "matter-documents",
+   "status": "missing",
+   "proposal": "Mobile-web capture: camera pages -> one PDF -> ingest-document (OCR, classify, file).",
+   "priority": "could"
+  },
+  {
+   "feature": "AI tracked-changes editing",
+   "our_area": "documents",
+   "our_screen": "ai-draft-workspace",
+   "status": "partial",
+   "proposal": "Add revise mode tracked | direct; tracked mode outputs accept/reject redlines, each change carrying its reason and citation.",
+   "priority": "should"
+  },
+  {
+   "feature": "E-sign limits and in-app cancel",
+   "our_area": "documents",
+   "our_screen": "signature-request",
+   "status": "covered",
+   "proposal": "Ours voids inside the app (Clio cannot cancel inside Clio). No caps. Keep as differentiator; add reminder defaults 3 and 7 days for parity.",
+   "priority": "could"
+  },
+  {
+   "feature": "Conditional signer fields",
+   "our_area": "documents",
+   "our_screen": "signature-request",
+   "status": "covered",
+   "proposal": "field_types already lists conditional display; add rule format 'show field X when checkbox Y checked'.",
+   "priority": "could"
+  }
+ ],
+ "corrections": [
+  {
+   "our_claim": "documents.json clio_gaps: 'Full text search ... Clio native OCR unclear' (implies Clio full-text search is always on)",
+   "truth": "Clio global search covers full-text content only when AI features are enabled; if the firm opts out, search is names and metadata only. No Clio article describes OCR of scanned images in Manage, so 'OCR unclear' stays unproven.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/14983859054619-Search-and-Download-Documents-in-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/41990965598491-AI-Features-in-Clio-Manage"
+   ]
+  },
+  {
+   "our_claim": "documents.json sources cite clio.com/ca/draft/e-signatures, implying Clio Draft e-sign is available in Canada",
+   "truth": "Draft's built-in e-sign is described as US-only; Canadian customers are pointed to the Dropbox Sign integration in Manage/Grow.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/24385283808539-Clio-Draft-Download-Documents-and-Send-for-ESignatures",
+    "https://help.clio.com/hc/en-us/articles/9207223181979-Get-Started-With-e-Signatures"
+   ]
+  },
+  {
+   "our_claim": "documents.json clio_gaps: 'Clio Draft: court forms ... Ontario court forms in templates' (implies Clio has Ontario court forms)",
+   "truth": "Clio's own sources conflict: one help article lists US plus Ontario and BC forms, another lists only BC in Canada. The launch press release covers Canadian court forms and document automation in all provinces except Quebec, hosted in Canada. Treat Ontario court-form coverage as unconfirmed.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/24317070863899-Clio-Draft-Draft-and-Manage-Documents",
+    "https://help.clio.com/hc/en-us/articles/24313560334747-Get-Started-With-Clio-Draft",
+    "https://www.clio.com/about/press/clio-draft-canada-launch/"
+   ]
+  },
+  {
+   "our_claim": "documents.json clio_gaps: 'Version history, only newest deletable'",
+   "truth": "Not found in the version, delete or manage articles read; only confirmed: upload new version, download any version, permanent delete removes all versions. Mark unproven.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/55223630859419-Preview-and-Review-Documents",
+    "https://help.clio.com/hc/en-us/articles/14983722680091-Delete-and-Restore-Documents-in-Clio-Manage",
+    "https://help.clio.com/hc/en-us/articles/43337504015387-Combine-or-Replace-Documents"
+   ]
+  },
+  {
+   "our_claim": "documents.json clio_gaps: 'e-Signature ... link expiry' and our default 14 days",
+   "truth": "Clio is not consistent: Grow says signature links are valid for 7 days (resendable), and another passage says 14 days. Manage e-sign goes through Dropbox Sign, which sends automatic reminders at 3 and 7 days.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/53355315984923-Prepare-and-Manage-Documents-in-Clio-Grow",
+    "https://help.clio.com/hc/en-us/articles/9207223181979-Get-Started-With-e-Signatures",
+    "https://help.clio.com/hc/en-us/articles/9207225170203-e-Signature-Settings-in-Dropbox-Sign"
+   ]
+  },
+  {
+   "our_claim": "versus page: 'Citations: Clio Sometimes'",
+   "truth": "Defensible but should be more precise: Vincent in Clio Work gives cited analysis; the Manage Document Analyzer (no Work) shows no citations in its help. Suggest wording: 'cited in Clio Work (Vincent), not in base Manage AI'.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/33476998957211-Analyze-Documents-Using-AI"
+   ]
+  },
+  {
+   "our_claim": "versus page: 'Data: AI may process outside Canada'",
+   "truth": "Confirmed by Clio: AI features may process queries on servers outside the firm's home jurisdiction; results are stored in region. Clio Draft Canada court forms are hosted in Canada. Keep the claim and cite it.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/41990965598491-AI-Features-in-Clio-Manage",
+    "https://www.clio.com/about/press/clio-draft-canada-launch/"
+   ]
+  },
+  {
+   "our_claim": "versus page: 'Mobile apps, Outlook and Gmail add-ins'",
+   "truth": "Outlook add-in and mobile app confirmed. A Gmail add-in was not checked in this scope; email filing connects Gmail through automated email filing instead. Verify before publishing.",
+   "sources": [
+    "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in",
+    "https://help.clio.com/hc/en-us/articles/9289697637403-Mobile-App-Documents",
+    "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing"
+   ]
+  }
+ ],
+ "screenshots_index": [
+  {
+   "area": "documents",
+   "url": "https://player.vimeo.com/video/1220333593",
+   "shows": "Get Started with Documents walkthrough video"
+  },
+  {
+   "area": "documents",
+   "url": "https://player.vimeo.com/video/1212462242",
+   "shows": "Document Editor with Vincent"
+  },
+  {
+   "area": "documents",
+   "url": "https://help.clio.com/hc/article_attachments/43337702742939",
+   "shows": "Combine files / bundle dialog"
+  },
+  {
+   "area": "templates",
+   "url": "https://player.vimeo.com/video/851009295",
+   "shows": "Document templates and merge fields in Manage"
+  },
+  {
+   "area": "automation",
+   "url": "https://player.vimeo.com/video/1068610208",
+   "shows": "Automated workflow setup"
+  },
+  {
+   "area": "clio-draft",
+   "url": "https://player.vimeo.com/video/973527061",
+   "shows": "Clio Draft getting started"
+  },
+  {
+   "area": "clio-draft",
+   "url": "https://player.vimeo.com/video/1072329848",
+   "shows": "Court form templates"
+  },
+  {
+   "area": "clio-draft",
+   "url": "https://player.vimeo.com/video/1076471578",
+   "shows": "Sets"
+  },
+  {
+   "area": "clio-draft",
+   "url": "https://player.vimeo.com/video/1073725757",
+   "shows": "Drafting workflow"
+  },
+  {
+   "area": "clio-draft",
+   "url": "https://brand.clio.com/m/2c27663e25563c44/Regenerate-with-Clio-Draft.png",
+   "shows": "Regenerate documents with Clio Draft"
+  },
+  {
+   "area": "clio-draft",
+   "url": "https://brand.clio.com/m/623ee93d019f04a9/original/Clio-Draft-Add-or-Delete-Documents.png",
+   "shows": "Add or delete documents in a draft"
+  },
+  {
+   "area": "clio-draft",
+   "url": "https://player.vimeo.com/video/1059048142",
+   "shows": "AI questionnaire templates"
+  },
+  {
+   "area": "templates",
+   "url": "https://player.vimeo.com/video/1230092655",
+   "shows": "Convert document to template in Clio Work"
+  },
+  {
+   "area": "e-sign",
+   "url": "https://brand.clio.com/m/1023cfb9c6c9bfa1/original/Edit-Sent-Document-Due-Date-Grow.jpg",
+   "shows": "Grow sent-document due date editing"
+  },
+  {
+   "area": "e-sign",
+   "url": "https://fast.wistia.com/embed/iframe/0mwevmjfj7",
+   "shows": "Grow PDF template builder video"
+  },
+  {
+   "area": "ai-review",
+   "url": "https://player.vimeo.com/video/1196744322",
+   "shows": "Tabular Document Review"
+  },
+  {
+   "area": "ai-review",
+   "url": "https://brand.clio.com/asset/32b8fc9f-2451-408f-a4fd-2a9cd2e7e915/Compare-Document-Versions-Navattic-Thumbnail.png",
+   "shows": "Compare documents thumbnail"
+  },
+  {
+   "area": "word",
+   "url": "https://player.vimeo.com/video/1195782061",
+   "shows": "Clio for Word and Vincent"
+  }
+ ],
+ "open_questions": [
+  "Does Clio Manage OCR image-only PDFs so their text is searchable? No help article says so; ask Clio support or test in a trial.",
+  "Which Canadian court forms does Clio Draft carry today (Ontario and BC, or only BC)? Help articles disagree.",
+  "Clio Draft CAD price and whether it is bundled in any Canadian Manage tier (the UK bundles it into higher tiers).",
+  "Current Canadian Manage tier names: help uses EasyStart/Essentials/Advanced/Expand; the combine article says 'Premium and higher' for bundles. Which tiers have Documents, templates, locks and saved views?",
+  "Is the Document Editor only for Clio Work subscribers, or available in base Manage?",
+  "Signature link validity: is it 7 or 14 days in Grow, and what is it for Manage via Dropbox Sign?",
+  "Where does Dropbox Sign store Canadian firms' signed documents and audit trails (data residency)?",
+  "Gmail add-in existence (versus page claim) not verified here."
+ ],
+ "sources": [
+  "https://developers.support.clio.com/hc/en-us/articles/1260801745250",
+  "https://help.clio.com/hc/en-us/articles/14983640722971-Share-Documents",
+  "https://help.clio.com/hc/en-us/articles/14983647053339-Document-Categories",
+  "https://help.clio.com/hc/en-us/articles/14983722680091-Delete-and-Restore-Documents-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/14983859054619-Search-and-Download-Documents-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/14983923587867-Manage-Documents-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/16126031982363-DocuSign-and-Clio",
+  "https://help.clio.com/hc/en-us/articles/24313560334747-Get-Started-With-Clio-Draft",
+  "https://help.clio.com/hc/en-us/articles/24314530232603-Clio-Draft-Subscription-and-Billing-Information",
+  "https://help.clio.com/hc/en-us/articles/24315924591771-Clio-Draft-Form-Templates",
+  "https://help.clio.com/hc/en-us/articles/24316265351451-Clio-Draft-Sets",
+  "https://help.clio.com/hc/en-us/articles/24317070863899-Clio-Draft-Draft-and-Manage-Documents",
+  "https://help.clio.com/hc/en-us/articles/24385283808539-Clio-Draft-Download-Documents-and-Send-for-ESignatures",
+  "https://help.clio.com/hc/en-us/articles/24663592578075-Clio-Draft-Create-Questionnaire-Templates",
+  "https://help.clio.com/hc/en-us/articles/33309999460891-Clio-Draft-Live-Questionnaires",
+  "https://help.clio.com/hc/en-us/articles/33476998957211-Analyze-Documents-Using-AI",
+  "https://help.clio.com/hc/en-us/articles/35132279298843-Clio-Manage-Automated-Workflows",
+  "https://help.clio.com/hc/en-us/articles/41750517581723-Compare-Documents-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/41958696760987-Create-or-Edit-Word-Document-Templates",
+  "https://help.clio.com/hc/en-us/articles/41958729758491-Manage-Cards-and-Fields-in-the-Template-Builder",
+  "https://help.clio.com/hc/en-us/articles/41958789435931-Add-Conditional-Logic-to-Word-Templates",
+  "https://help.clio.com/hc/en-us/articles/41990965598491-AI-Features-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/42019952139035-Schedule-Events-From-Documents-Using-Clio-s-AI-Features",
+  "https://help.clio.com/hc/en-us/articles/43337504015387-Combine-or-Replace-Documents",
+  "https://help.clio.com/hc/en-us/articles/49566590035227-Compare-Documents-With-Tabular-Document-Review",
+  "https://help.clio.com/hc/en-us/articles/49723173337755-Supported-File-Types-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/49815360439835-Clio-for-Word-and-Vincent",
+  "https://help.clio.com/hc/en-us/articles/50120936599451-Clio-for-Word-Template-Builder",
+  "https://help.clio.com/hc/en-us/articles/50124317806875-Convert-Documents-to-Templates-with-AI-in-Clio-Draft",
+  "https://help.clio.com/hc/en-us/articles/51541484444187-Translate-Documents-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/52508612250523-Perform-Redline-Analyses-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/53031641830939-Document-Editor",
+  "https://help.clio.com/hc/en-us/articles/53167049724315-Automated-Email-Filing",
+  "https://help.clio.com/hc/en-us/articles/53353783646875-Document-Templates-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/53355315984923-Prepare-and-Manage-Documents-in-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/55085715266587-Get-Started-with-Documents",
+  "https://help.clio.com/hc/en-us/articles/55223361431963-Filter-Documents-and-Save-Views",
+  "https://help.clio.com/hc/en-us/articles/55223630859419-Preview-and-Review-Documents",
+  "https://help.clio.com/hc/en-us/articles/56367796556443-Build-and-Manage-Templates-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/56367803320475-Draft-Documents-from-Forms-and-Templates-in-Clio-Work",
+  "https://help.clio.com/hc/en-us/articles/56536848700571-Forward-Emails-to-Matters-With-Maildrop",
+  "https://help.clio.com/hc/en-us/articles/9031393962395-Set-Up-Clio-Desktop-App",
+  "https://help.clio.com/hc/en-us/articles/9031909985435-Clio-Drive-File-Management",
+  "https://help.clio.com/hc/en-us/articles/9125228224539-Clio-s-Outlook-Add-in",
+  "https://help.clio.com/hc/en-us/articles/9156698397467-Clio-for-Clients-Law-Firm-Actions",
+  "https://help.clio.com/hc/en-us/articles/9156800144283-Clio-for-Clients-Client-Actions",
+  "https://help.clio.com/hc/en-us/articles/9200279456667-Roles-and-Permissions-in-Clio-Manage",
+  "https://help.clio.com/hc/en-us/articles/9207223181979-Get-Started-With-e-Signatures",
+  "https://help.clio.com/hc/en-us/articles/9207225170203-e-Signature-Settings-in-Dropbox-Sign",
+  "https://help.clio.com/hc/en-us/articles/9284651312411-Compliance",
+  "https://help.clio.com/hc/en-us/articles/9284825370011-Microsoft-OneDrive-for-Business-and-Clio",
+  "https://help.clio.com/hc/en-us/articles/9289697637403-Mobile-App-Documents",
+  "https://help.clio.com/hc/en-us/articles/9290177437339-Clio-for-Co-Counsel-Law-Firm-Actions",
+  "https://help.clio.com/hc/en-us/articles/9290238939163-Document-Templates-in-Clio-Grow",
+  "https://help.clio.com/hc/en-us/articles/9290308200091-Create-and-Upload-Document-Files-and-Folders",
+  "https://help.clio.com/hc/en-us/articles/9290315308699-Clio-Launcher",
+  "https://help.clio.com/hc/en-us/articles/9290347515291-Global-Search",
+  "https://www.clio.com/about/press/clio-draft-canada-launch/",
+  "https://www.clio.com/ca/draft/court-forms/",
+  "https://www.clio.com/ca/pricing/",
+  "https://www.trustradius.com/compare-products/clio-draft-vs-guideless"
+ ]
+}

@@ -1,0 +1,79 @@
+===== Text Message Notifications and Reminders in Clio Grow https://help.clio.com/hc/en-us/articles/14164457325595-Text-Message-Notifications-and-Reminders-in-Clio-Grow updated 2026-09-28T23:14:20Z
+Text message notifications and reminders in Clio Grow help your firm efficiently manage client intake by ensuring prospective clients receive timely links to forms and documents, as well as appointment reminders. When you use text messaging in Clio Grow, all messages are sent from the same dedicated toll-free number assigned to your firm for text messaging in Clio Manage. This provides a consistent, professional experience for your clients.
+When you send a text from Clio Grow, the message is a no-reply notification, and your client cannot respond to it. If you first enable text messaging in Clio Manage and text your client from Clio Manage. The texts you send from either Clio Grow or Clio Manage will be logged in to Clio Manage, and your client will be able to respond to messages sent from both applications.
+You can use text messages to:
+- 
+Request and remind clients to complete intake forms and electronically sign documents.
+- 
+Remind clients of upcoming appointments.
+- 
+Automate text reminders to ensure follow-through on your intake process.
+Note: Text messaging is only available for US and Canadian numbers (+1 country code) on the US server.
+Set up text notifications and reminders
+This section outlines how to enable the text messaging feature in Clio Grow, allowing you to begin sending notifications and reminders. Once text messaging is enabled in Clio Manage, an administrator on your firm's account can enable the feature in Clio Grow.
+Important: To set up text notifications and reminders in Clio Grow, you must first set up text messaging in Clio Manage. An administrator must complete the required verification form and have a toll-free number assigned.
+Tip: Once text messaging is enabled, you can set up default appointment reminders for all new appointments.
+- In Clio Grow, go to Settings > Communications.
+- Click Enable text message notifications.
+View text notification templates
+Clio Grow text notifications and reminders include default message templates. Appointment reminders include the appointment's name, date, time, and location. When you send a client a text notification for a form or document, the client can click a link to complete the form or sign the document. You can view the full text of these default templates in your Clio Grow settings.
+Note: You cannot create new text templates or edit the default text notification and reminder templates.
+- In Clio Grow, go to Settings > Communication templates.
+- Scroll down to the Appointments, Documents, or Forms sections.
+- Click the text message template's name to view it.
+Send text notifications and reminders
+You can send text notifications and reminders for intake forms, documents, and appointment reminders. Clients receive both an email and a no-reply text as long as they have a valid email address and a North American phone number. When firms use two methods, the likelihood increases that a client will see and read the notification. You have the option to not send a text notification when you send a form or document.
+Send appointment reminders
+When you schedule a manual appointment in Clio Grow, or if a client schedules an appointment themselves using Clio Scheduler, you can set up default automated reminders for appointments based on a specified cadence. This allows prospective clients with a North American number to receive text reminders. You can also manually send a text notification to prospective clients to remind them of their upcoming appointment(s).
+- Create a new appointment.- If an appointment was booked via Clio Scheduler, to ensure contacts receive reminders, set up automated reminders.
+- 
+Optional: In the new appointment modal, under Automated reminders, select Add a reminder, and then choose the desired reminder cadence.
+- Select Create appointment.
+- 
+In the new modal, select an email template or compose a new email if applicable.
+Note: If your contact has only an email address on file, they will only receive an email reminder. If they have only a phone number on file, they will only receive a text reminder.
+- Click Send email.
+Send form notifications
+You can send a text notification to invite a prospective client to complete an intake form, which includes a shortened link to the form. You can also send a text reminder to follow up on an incomplete form. Learn more about preparing forms here.
+- Prepare a form for your client.
+- In the Send form window, under Email template, select a template or compose a new email. Learn more about email and communications templates here.
+- Under Text message, the option to send the form via text message is enabled by default.- Turn the toggle off if you only want to send the form by email.
+- 
+Optional: Click View default templates to view the templates.
+- Click Send form.
+Send document notifications
+You can send a text notification when preparing to send a document for electronic signature. You can also send a text reminder to follow up on an unsigned document. Learn more about preparing documents for electronic signature here and document reminders here.
+- Prepare a document for your client to sign electronically.
+- In the Send document window, under Email template, select a template or compose a new email. Learn more about email and communications templates here.
+- Under Text message, the option to send the document via text message is enabled by default.- Turn the toggle off if you only want to send the document by email.
+- 
+Optional: Click View default templates to review the templates.
+- Click Send document.
+- If there are multiple signers, click Prepare next message and repeat steps 2 through 4 to send the document to the next signer.
+View sent texts
+Once you (manually) send a text message, you can view the message in the matter or contact's Timeline, visible from any of the matter or contact's subtabs (i.e., the Intake process, Notes, Communications, and Files subtabs for a matter, or the Tasks, Notes, Communications subtabs for a contact). Automated text message reminders do not show in the Timeline.
+- Go to the contact or matter.
+- Select any subtab.
+- Scroll down to Timeline and find the text message.
+- Click View message to view the text.
+Failed text messages
+If a text message fails to send, the reason for failure can be any one of the following:
+- 
+Unreachable number: There is an error with the contact's phone number. Verify that the phone number selected as the contact's texting number is a correctly-formatted US or Canadian number.
+- 
+Rejected by carrier: The contact's carrier rejected the text message. A possible reason for this is that the phone number is unable to receive text messages. Verify the phone number entered for the contact and ensure that it is a correctly-formatted US or Canadian number.
+- 
+Temporary error: The text message was not delivered because of an unusual error. Please try again.
+- 
+Unknown error: An unexpected and unknown error occurred when we tried to deliver the text message. Please try again.
+- 
+Carrier error: The text message was not delivered because an error occurred on the contact's carrier side. Please try again.
+- 
+Blocked messages: The text message was blocked by the service provider because your toll-free number has not been verified yet. Learn more here.
+Turn off text message notifications
+You can turn off Clio Grow text message notifications in your settings. Turning off this feature does not affect text messaging in Clio Manage, which means that you can continue to text clients in Clio Manage even if text message notifications are turned off in Clio Grow.
+- Go to Settings > Communications.
+- Click Disable text message notifications.
+- When prompted, click Disable text message notifications.
+
+IMGS: []
