@@ -18,10 +18,10 @@ func (r *recordPoster) PostOpening(_ context.Context, _ string, l OpeningLine) e
 func flagCtx(t *testing.T, on bool) context.Context {
 	t.Helper()
 	s := flags.New()
-	if err := s.Define(flags.Def{Name: openingFlag}); err != nil {
+	if err := s.Define(flags.Def{Name: FlagBylaw9Verified}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Set(openingFlag, on); err != nil {
+	if err := s.Set(FlagBylaw9Verified, on); err != nil {
 		t.Fatal(err)
 	}
 	return flags.WithSet(context.Background(), s)

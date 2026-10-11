@@ -51,10 +51,10 @@ func Kinds() []DocumentKind { return slices.Clone(documentKinds) }
 // RetentionClasses lists the retention classes Counsel registers.
 func RetentionClasses() []RetentionClass { return slices.Clone(retentionClasses) }
 
-func init() { add(registerKinds) }
-
-// registerKinds registers every retention class, then every document kind that uses one.
-func registerKinds(r registry.Registry) error {
+// RegisterKinds registers every retention class, then every document kind that uses one.
+// It is feature-gated (Q-005, Q-T032L1): it is not added to this package's always-run
+// registrars, and boot calls it only when the documents feature is on.
+func RegisterKinds(r registry.Registry) error {
 	known := map[string]bool{}
 	for _, c := range retentionClasses {
 		if c.NeverPurge && c.DestructionGate != "" {

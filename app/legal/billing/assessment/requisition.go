@@ -13,10 +13,6 @@ import (
 	"github.com/dagi377/counsel/kernel/flags"
 )
 
-// requisitionFlag gates assessment requisitions (V-BILL); it is
-// app/legal.FlagSolicitorsActVerified, which this package cannot import.
-const requisitionFlag = "billing.solicitors_act_verified"
-
 // Requisition errors.
 var (
 	// ErrSpecialCircumstances means the requisition is past the 12-month window and has no
@@ -96,7 +92,7 @@ func (r *Requisitions) Windows(ctx context.Context, b AssessedBill) (Windows, er
 // Record records a requisition on b today. After the 12-month window it needs a
 // special-circumstances note. A paid bill can still be assessed.
 func (r *Requisitions) Record(ctx context.Context, b AssessedBill, note string) (Requisition, error) {
-	if !r.Flags.Enabled(requisitionFlag) {
+	if !r.Flags.Enabled(FlagSolicitorsActVerified) {
 		return Requisition{}, ErrRequisitionUnverified
 	}
 	w, err := r.Windows(ctx, b)

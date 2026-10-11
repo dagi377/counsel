@@ -12,10 +12,6 @@ import (
 	"github.com/dagi377/counsel/kernel/flags"
 )
 
-// openingFlag gates opening-balance posting on confirmed By-Law 9 text. It mirrors
-// legal.FlagTrustBylaw9Verified; this package cannot import app/legal (import cycle).
-const openingFlag = "trust.bylaw9_verified"
-
 var (
 	// ErrOpeningUnverified is returned while the By-Law 9 flag is off.
 	ErrOpeningUnverified = errors.New("clio: opening balances: by-law 9 rules not verified")
@@ -85,7 +81,7 @@ func OpeningListHash(lines []OpeningLine, statementSHA256 string) string {
 // CheckOpeningSigned returns nil only when owner, a licensee with signing authority and the
 // bookkeeper have each signed the current list hash. Signatures over another hash are void.
 func CheckOpeningSigned(ctx context.Context, s OpeningSignoff) error {
-	if !flags.Enabled(ctx, openingFlag) {
+	if !flags.Enabled(ctx, FlagBylaw9Verified) {
 		return ErrOpeningUnverified
 	}
 	if s.AccountID == "" || s.StatementSHA256 == "" || len(s.Lines) == 0 {

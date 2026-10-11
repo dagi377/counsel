@@ -8,10 +8,6 @@ import (
 	"github.com/dagi377/counsel/kernel/flags"
 )
 
-// historyFlag gates trust-history balances on confirmed By-Law 9 text. It mirrors
-// legal.FlagTrustBylaw9Verified; this package cannot import app/legal (import cycle).
-const historyFlag = "trust.bylaw9_verified"
-
 // ErrHistoryUnverified is returned while the By-Law 9 flag is off.
 var ErrHistoryUnverified = errors.New("clio: trust history: by-law 9 rules not verified")
 
@@ -43,7 +39,7 @@ type TrustBook struct {
 
 // LedgerBalance is the live balance of one client ledger: the sum of live rows only.
 func (b TrustBook) LedgerBalance(ctx context.Context, ledgerID string) (int64, error) {
-	if !flags.Enabled(ctx, historyFlag) {
+	if !flags.Enabled(ctx, FlagBylaw9Verified) {
 		return 0, ErrHistoryUnverified
 	}
 	// rule: MIG-037 (verify)
@@ -58,7 +54,7 @@ func (b TrustBook) LedgerBalance(ctx context.Context, ledgerID string) (int64, e
 
 // AccountBalance is the live balance of the whole account: the sum of live rows only.
 func (b TrustBook) AccountBalance(ctx context.Context) (int64, error) {
-	if !flags.Enabled(ctx, historyFlag) {
+	if !flags.Enabled(ctx, FlagBylaw9Verified) {
 		return 0, ErrHistoryUnverified
 	}
 	// rule: MIG-037 (verify)

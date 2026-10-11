@@ -10,8 +10,8 @@ import (
 
 func TestRegisterKinds(t *testing.T) {
 	r := registryfake.New()
-	if err := Register(r); err != nil {
-		t.Fatalf("Register: %v", err)
+	if err := RegisterKinds(r); err != nil {
+		t.Fatalf("RegisterKinds: %v", err)
 	}
 	if err := r.Seal(); err != nil {
 		t.Fatalf("Seal: %v", err)

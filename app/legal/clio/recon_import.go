@@ -11,10 +11,6 @@ import (
 	"github.com/dagi377/counsel/kernel/flags"
 )
 
-// reconImportFlag gates imported reconciliations on confirmed By-Law 9 text. It mirrors
-// legal.FlagTrustBylaw9Verified; this package cannot import app/legal (import cycle).
-const reconImportFlag = "trust.bylaw9_verified"
-
 var (
 	// ErrReconImportUnverified is returned while the By-Law 9 flag is off.
 	ErrReconImportUnverified = errors.New("clio: imported reconciliations: by-law 9 rules not verified")
@@ -56,7 +52,7 @@ type ImportedRecon struct {
 
 // ImportRecon stores a Clio reconciliation as status imported, signer kept as text.
 func ImportRecon(ctx context.Context, jobID string, c ClioRecon) (ImportedRecon, error) {
-	if !flags.Enabled(ctx, reconImportFlag) {
+	if !flags.Enabled(ctx, FlagBylaw9Verified) {
 		return ImportedRecon{}, ErrReconImportUnverified
 	}
 	if c.AccountID == "" || jobID == "" || c.Period.Month < time.January || c.Period.Month > time.December {
@@ -99,7 +95,7 @@ func prevPeriod(p recon.Period) recon.Period {
 // prior maps each earlier month to its reconciliation status. Month M-1 must be signed or
 // imported, so the first Counsel month (live_from) signs on an imported Clio month.
 func CheckCounselRecon(ctx context.Context, liveFrom, p recon.Period, prior map[recon.Period]ReconStatus) error {
-	if !flags.Enabled(ctx, reconImportFlag) {
+	if !flags.Enabled(ctx, FlagBylaw9Verified) {
 		return ErrReconImportUnverified
 	}
 	// rule: MIG-038 (verify)
@@ -117,7 +113,7 @@ func CheckCounselRecon(ctx context.Context, liveFrom, p recon.Period, prior map[
 // CheckLivePosting refuses a live trust row dated before live_from: those months are
 // imported and month-locked like signed months.
 func CheckLivePosting(ctx context.Context, liveFrom recon.Period, on clock.Date) error {
-	if !flags.Enabled(ctx, reconImportFlag) {
+	if !flags.Enabled(ctx, FlagBylaw9Verified) {
 		return ErrReconImportUnverified
 	}
 	// rule: MIG-038 (verify)

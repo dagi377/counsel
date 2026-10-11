@@ -58,9 +58,11 @@ func TestVerifyFlagsDefinedOffWithOwnerAndExpiry(t *testing.T) {
 	tests := []string{
 		"billing.card_surcharge",
 		"billing.contingency_fees",
+		"billing.records_verified",
 		"billing.solicitors_act_verified",
 		"conflict.id_verification",
 		"deadline.ontario_pack",
+		"export.post_cancel_window",
 		"tax.verify_rules",
 		"trust.bylaw9_verified",
 	}

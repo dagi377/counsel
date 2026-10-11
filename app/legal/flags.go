@@ -11,13 +11,15 @@ import (
 // Verify flags gate code built on law nobody has confirmed yet. Each stays off until the owner
 // named on it confirms the rule; see docs/DECISIONS-NEEDED.md for the open question behind each.
 const (
-	FlagCardSurcharge         = "billing.card_surcharge"          // V-SURCHARGE
-	FlagContingencyFees       = "billing.contingency_fees"        // V-CFA
-	FlagSolicitorsActVerified = "billing.solicitors_act_verified" // V-BILL
-	FlagIDVerification        = "conflict.id_verification"        // V-ID
-	FlagDeadlineOntarioPack   = "deadline.ontario_pack"           // V-DEADLINES
-	FlagTaxVerifyRules        = "tax.verify_rules"                // V-TAX
-	FlagTrustBylaw9Verified   = "trust.bylaw9_verified"           // V-TRUST
+	FlagCardSurcharge          = "billing.card_surcharge"          // V-SURCHARGE
+	FlagContingencyFees        = "billing.contingency_fees"        // V-CFA
+	FlagBillingRecordsVerified = "billing.records_verified"        // V-TRUST
+	FlagSolicitorsActVerified  = "billing.solicitors_act_verified" // V-BILL
+	FlagIDVerification         = "conflict.id_verification"        // V-ID
+	FlagDeadlineOntarioPack    = "deadline.ontario_pack"           // V-DEADLINES
+	FlagExportPostCancelWindow = "export.post_cancel_window"       // customer contract
+	FlagTaxVerifyRules         = "tax.verify_rules"                // V-TAX
+	FlagTrustBylaw9Verified    = "trust.bylaw9_verified"           // V-TRUST
 )
 
 // verifyExpiry is when every verify flag must be confirmed and made permanent, or removed.
@@ -39,12 +41,16 @@ func Flags() []flags.Def {
 			Doc: "credit-card surcharge on payments: cap, banned cases and HST treatment unconfirmed"},
 		{Name: FlagContingencyFees, Owner: "lawyer/LSO", Expiry: verifyExpiry,
 			Doc: "contingency fee agreements: cap formula and LSO standard form unconfirmed"},
+		{Name: FlagBillingRecordsVerified, Owner: "lawyer/LSO", Expiry: verifyExpiry,
+			Doc: "fees book and billing-record retention checks rest on By-Law 9 text not yet confirmed"},
 		{Name: FlagSolicitorsActVerified, Owner: "lawyer/LSO", Expiry: verifyExpiry,
 			Doc: "Solicitors Act periods and bill and assessment-notice wording unconfirmed"},
 		{Name: FlagIDVerification, Owner: "lawyer/LSO", Expiry: verifyExpiry,
 			Doc: "By-Law 7.1 client ID verification exemptions and retention unconfirmed"},
 		{Name: FlagDeadlineOntarioPack, Owner: "lawyer/LSO, owner", Expiry: verifyExpiry,
 			Doc: "Ontario court and limitation deadline rule pack not yet checked by a lawyer"},
+		{Name: FlagExportPostCancelWindow, Owner: "owner", Expiry: verifyExpiry,
+			Doc: "90-day export window after cancellation depends on the unconfirmed customer contract"},
 		{Name: FlagTaxVerifyRules, Owner: "accountant/CRA", Expiry: verifyExpiry,
 			Doc: "HST place of supply for litigation and Indian Act s.87 relief unconfirmed"},
 		{Name: FlagTrustBylaw9Verified, Owner: "lawyer/LSO", Expiry: verifyExpiry,

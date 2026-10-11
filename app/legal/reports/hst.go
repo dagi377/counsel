@@ -11,8 +11,8 @@ import (
 )
 
 // FlagBillingRecordsVerified gates the fees book and retention checks below, which rest on
-// unconfirmed By-Law 9 text. It is off by default; registering it in app/legal/flags.go is
-// left to the integrator (that file is outside this task).
+// unconfirmed By-Law 9 text. It is off by default. It mirrors legal.FlagBillingRecordsVerified,
+// which this package cannot import.
 const FlagBillingRecordsVerified = "billing.records_verified"
 
 var (

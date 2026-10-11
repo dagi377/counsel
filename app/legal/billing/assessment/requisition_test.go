@@ -23,10 +23,10 @@ func requisitionFixture(t *testing.T, today string, flagOn bool) (*Requisitions,
 		t.Fatal(err)
 	}
 	f := flagsfake.New()
-	if err := f.Define(flags.Def{Name: requisitionFlag, Owner: "lawyer/LSO"}); err != nil {
+	if err := f.Define(flags.Def{Name: FlagSolicitorsActVerified, Owner: "lawyer/LSO"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.Set(requisitionFlag, flagOn); err != nil {
+	if err := f.Set(FlagSolicitorsActVerified, flagOn); err != nil {
 		t.Fatal(err)
 	}
 	return &Requisitions{Calendar: interestfake.New(loc), Clock: clockfake.New(now.Add(12*time.Hour), loc), Flags: f}, loc
