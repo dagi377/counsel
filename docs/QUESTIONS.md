@@ -4298,3 +4298,17 @@ of FEAT-TIM-01 above.
   tool count (8 to 9), spec/ai/features.json, kernel/agenttools/scope_test.go,
   app/legal/boot/agent.go and agent_test.go, and the regenerated F-PLT-04 skill. The write-path
   helpers are in ai_plt_helpers_test.go (prefix `plti`).
+
+## Q-FEAT-PLT-24 F-PLT-13 filing scope re-evaluation: event and helpers
+
+- No sync-scope event exists on main or a pushed branch. F-PLT-13 binds
+  `email.sync_scope_changed` (platform.EventSyncScopeChanged), named like comms'
+  `email.filed` and `email.received`; it has no publisher yet (add it to EVENTS-8: the
+  email-settings "Change sync scope" action emits it before the change applies, with the
+  requesting user as its user). The run acts for that user (trigger.Bind, not a schedule).
+- Read-only: chat, no write tool, no gate kind. The tests run the production runner
+  (run.New) over agenttest.FromFeature's registry of real read handlers and check the answer
+  with run.CheckAnswer.
+- Branch base: task/FEAT-PLT-06 (not main), so the plti helpers stay in the one platform
+  helper file ai_plt_helpers_test.go that FEAT-PLT-05 started. Outside the task's files:
+  featureset (Def and its list entry), boot JobBindings and the helper file.

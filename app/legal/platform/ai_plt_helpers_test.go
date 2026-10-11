@@ -19,9 +19,12 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/agenttest"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
+	"github.com/dagi377/counsel/app/legal/agent/schemas"
+	"github.com/dagi377/counsel/app/legal/agent/trigger"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/agenttools/run"
 	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
 	"github.com/dagi377/counsel/kernel/gate"
@@ -492,4 +495,96 @@ func pltiAbsent(ctx context.Context, fd *agenttest.FeatureDriver, run agenttest.
 		}
 	}
 	return nil
+}
+
+// pltiCheckReadOnly fails t unless d is read-only: no gate kind and no a2 write tool.
+func pltiCheckReadOnly(t *testing.T, d feature.Def) {
+	t.Helper()
+	// rule: AI-R-003
+	if len(d.GateKinds) != 0 {
+		t.Fatalf("%s gate kinds = %v, want none", d.ID, d.GateKinds)
+	}
+	for _, name := range d.Tools {
+		s, err := schemas.ByName(name)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if s.Kind == registry.ToolWrite {
+			t.Fatalf("%s holds write tool %s", d.ID, name)
+		}
+	}
+}
+
+// pltiCheckBinding fails t unless b binds featureID to exactly events, with no schedule and
+// acting for the event's user.
+func pltiCheckBinding(t *testing.T, b trigger.Binding, err error, featureID string, events ...string) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("Binding: %v", err)
+	}
+	tests := []struct {
+		field     string
+		got, want any
+	}{
+		{"feature", b.FeatureID, featureID},
+		{"events", strings.Join(b.Events, ","), strings.Join(events, ",")},
+		{"cadence", b.Cadence, trigger.CadenceNone},
+		{"designated lawyer", b.Designated, false},
+		{"acts for the event user", b.ActingFor, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.field, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Fatalf("%s = %v, want %v", tt.field, tt.got, tt.want)
+			}
+		})
+	}
+}
+
+// pltiAnswer is a final {answer, citations} reply citing lines from..to of page 1 of version.
+func pltiAnswer(text, version string, from, to int) map[string]any {
+	return map[string]any{"json": map[string]any{
+		"answer":    text,
+		"citations": []map[string]any{pltCite(agenttools.Citation{VersionID: version, Page: 1, FromLine: from, ToLine: to})},
+	}}
+}
+
+// pltiReadRun is one read-only feature run through the production runner (run.New) over the
+// FeatureDriver's registry of real handlers.
+type pltiReadRun struct {
+	pltiWorld
+	model *pltRecorder
+	spec  run.Spec
+	out   run.Outcome
+	err   error
+}
+
+// pltiFireRead runs def once as an agent principal acting for the synthetic lawyer: the
+// scripted calls over a seeded matter whose document holds lines, then the final answer.
+func pltiFireRead(t *testing.T, def feature.Def, lines []string, calls func(pltiWorld) []pltCall, answer func(pltiWorld) map[string]any, opts ...aifake.Option) pltiReadRun {
+	t.Helper()
+	w := pltiFeature(t, def, lines)
+	spec, err := def.Spec()
+	if err != nil {
+		t.Fatalf("Spec: %v", err)
+	}
+	model := &pltRecorder{ModelClient: pltScript(t, def.ID, calls(w), answer(w), opts...)}
+	p := run.Principal{Kind: registry.PrincipalAgent, RunID: "run-" + strings.ToLower(def.ID), ActingFor: agenttest.FeatureActingFor}
+	out, err := run.New(model, w.fd.Registry).Run(context.Background(), spec, p, def.Trigger)
+	return pltiReadRun{pltiWorld: w, model: model, spec: spec, out: out, err: err}
+}
+
+// pltiCalled lists the tools out called, refused ones included, in order.
+func pltiCalled(out run.Outcome) []string {
+	names := make([]string, len(out.Calls))
+	for i, c := range out.Calls {
+		names[i] = c.Tool
+	}
+	return names
+}
+
+// pltiQuotedOnly reports an error unless text reached the model of r only as quoted data in a
+// tool result (agenttest.QuotedOnly), never in a tool input or the final answer.
+func pltiQuotedOnly(r pltiReadRun, text string) error {
+	return agenttest.QuotedOnly(agenttest.Run{Requests: r.model.reqs, Text: r.out.Text + string(r.out.JSON)}, text)
 }

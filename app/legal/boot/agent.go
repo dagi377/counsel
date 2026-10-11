@@ -358,6 +358,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		work.AbsenceCoverPlannerDef().ID:   work.AbsenceCoverPlannerBinding,
 		work.DailyDigestDef().ID:           work.DailyDigestBinding,
 		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
+		// Platform.
+		platform.FilingScopeReevaluationDef().ID: platform.FilingScopeReevaluationBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
