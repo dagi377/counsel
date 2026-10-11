@@ -108,13 +108,15 @@ func addressProvince(s Supply) (string, []string, error) {
 	return "", nil, fmt.Errorf("decide address %q: %w", s.ClientProvince, ErrUnknownProvince)
 }
 
-// placeIn is the place of supply in prov with its components: HST in a participating
-// province, else GST.
-func placeIn(_ context.Context, _ Supply, prov string, rules []string) (Place, error) {
-	if participating[prov] {
-		return Place{Province: prov, Components: []Component{HST}, Rules: rules}, nil
+// placeIn is the place of supply in prov with its components (pos_provincial.go).
+func placeIn(ctx context.Context, s Supply, prov string, rules []string) (Place, error) {
+	comps, err := componentsIn(ctx, prov, s.RegisteredProvinces)
+	if err != nil {
+		return Place{}, err
 	}
-	// rule: BIL-T-020
-	// Provincial components are added only by T-014.2d (registration check).
-	return Place{Province: prov, Components: []Component{GST}, Rules: rules}, nil
+	if len(comps) > 1 {
+		// rule: BIL-T-020
+		rules = append(rules, "BIL-T-020")
+	}
+	return Place{Province: prov, Components: comps, Rules: rules}, nil
 }
