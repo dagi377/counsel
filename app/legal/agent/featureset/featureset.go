@@ -44,5 +44,6 @@ func appDefs() []feature.Def {
 		conflict.ReverseSweepDef(),
 		conflict.IDObligationWatcherDef(),
 		conflict.IDEvidenceCheckDef(),
+		conflict.ExpiryRetentionDef(),
 	}
 }

@@ -1904,3 +1904,20 @@ Done in PORT-18:
 - F-CON-07's model call is extraction (spec): its Def sets `Kind: ai.KindExtraction`, so it
   exports no plugin skill.
 - Event types with no publisher yet: `identity.portal_submission` (F-CON-07).
+
+## Q-FEAT-CON-10 Conflict features F-CON-10, F-CON-15 and F-CON-16
+
+- Tasks: FEAT-CON-10, FEAT-CON-11, FEAT-CON-12. Same layout as Q-FEAT-CON-07: each Def joins
+  `featureset.appDefs` and its test, and gets its generated plugin skill. The branches stack on
+  `task/FEAT-CON-07` (which carries FEAT-CORE-15); `featureset.go` and its test take one line
+  each per task, so they merge with FEAT-CON-08/09 by keeping both lines.
+- F-CON-15 and F-CON-16 are screen actions. The spec words the button in `trigger`
+  ("on request: ethical-walls > Propose wall") and leaves `on_request` empty, while the screen
+  action route reads `Def.Actions`. The Defs set `Actions` to the trigger's button; their spec
+  test checks that and compares the rest of the Def with `Actions` cleared. Proposed: fill
+  `on_request` for screen-action features in `spec/ai/features.json`.
+- Gate kind constants `GateIDDestruction` (G14), `GateWall` (G2b) and `GateLateral` (G2c)
+  live in the Def files. `conflict.id_destruction` needs two approvers; the feature test checks only
+  that another lawyer may decide, not that the batch is fully approved.
+- F-CON-10's weekly binding needs an acting user from boot (the records officer); boot wiring
+  is not in these tasks.
