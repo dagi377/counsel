@@ -861,3 +861,18 @@ contract declares yet. Not built.
   as an untrusted `agenttools.Quoted` envelope without a source; CheckCitations passes because
   only the "quotes" array needs citations. Matter-scoped items are those whose subject kind is
   "matter".
+## Q-GATE-AMOUNT gate amount path, authority-limit kind and editor lookup per kind
+
+- Source: review of waves 2-3, items 4 and 5 (ARC-I-016, ARC-I-020, BIL-C-085).
+- Additive to `kernel/registry/types.go` GateKind: `AmountPath`, `LimitKind`, `Preparers`
+  (new type `PreparersFunc`). Additive to `spec/kernel/gatekind.schema.json`: optional
+  `amount_path` and `limit_kind`. `spec/gates.json` declares `amount_path` on every kind whose
+  payload has a `*_cents` field (bill_approval reads `total_cents`) and `limit_kind`
+  `trust_withdrawal_max` on trust.withdrawal and billing.trust_fee_withdrawal.
+- Decide no longer depends on SetDecideHooks for these checks: the limit and the kind's editor
+  lookup run on every Decide. A money kind with no amount path fails registration and Decide.
+- Open (verify): core.authority_limit.kind allows only writedown_pct, trust_withdrawal_max and
+  practice_area, so bills have no cents cap kind yet; adding one needs an additive migration.
+- Write-offs: `WriteOffEffect.Totals` (nil fails closed) sums write-offs on the same bill plus
+  the client's other bills in the last 30 days (verify the window with the lawyer). The
+  Postgres implementation must lock the bill row FOR UPDATE.
