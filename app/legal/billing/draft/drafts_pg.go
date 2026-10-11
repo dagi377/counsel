@@ -77,7 +77,7 @@ INSERT INTO billing.bill_line (bill_id, ordinal, source_type, time_entry_id, exp
 VALUES ($1::uuid, $2, $3, nullif($4, '')::uuid, nullif($5, '')::uuid, $6, $7, $8, $9, $10)`
 	draftLockSQL  = `SELECT status, discount_cents, matter_id::text FROM billing.bill WHERE id = $1::uuid FOR UPDATE`
 	draftLinesSQL = `
-SELECT ordinal, source_type, coalesce(time_entry_id::text, expense_id::text, ''), amount_cents, tax_code
+SELECT ordinal, source_type, coalesce(time_entry_id::text, expense_id::text, ''), amount_cents, tax_code, on_hold
   FROM billing.bill_line WHERE bill_id = $1::uuid ORDER BY ordinal`
 	draftLineUpdateSQL = `
 UPDATE billing.bill_line SET amount_cents = $3, narrative = coalesce(nullif($4, ''), narrative)
@@ -124,6 +124,7 @@ type pgLine struct {
 	sourceID string
 	amount   int64
 	taxCode  string
+	held     bool // on hold: on the draft, outside every total
 }
 
 // supply is a draft's decided place of supply and the date its rates are taken on.
@@ -199,6 +200,8 @@ func (d PGDrafts) compute(ctx context.Context, lines []pgLine, discount int64, s
 	var t totals
 	for _, l := range lines {
 		switch {
+		case l.held:
+			// A held line stays on the draft but is not billed.
 		case l.source == bill.SourceExpense && l.taxCode == bill.TaxCodeExempt:
 			t.nontaxable += l.amount
 		case l.source == bill.SourceExpense:
@@ -388,7 +391,7 @@ func (d PGDrafts) Edit(ctx context.Context, tx pgx.Tx, id bill.ID, e bill.DraftE
 	lines, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (pgLine, error) {
 		var l pgLine
 		var src string
-		err := r.Scan(&l.ordinal, &src, &l.sourceID, &l.amount, &l.taxCode)
+		err := r.Scan(&l.ordinal, &src, &l.sourceID, &l.amount, &l.taxCode, &l.held)
 		l.source = bill.SourceType(src)
 		return l, err
 	})
@@ -397,7 +400,7 @@ func (d PGDrafts) Edit(ctx context.Context, tx pgx.Tx, id bill.ID, e bill.DraftE
 	}
 	for _, a := range e.LineActions {
 		i := lineOf(lines, a.SourceID)
-		if i < 0 || a.Action == "hold" || a.Action == "write_off" {
+		if i < 0 || lines[i].held || a.Action == "hold" || a.Action == "write_off" {
 			return fmt.Errorf("edit draft %s: line action %q: %w", id, a.Action, bill.ErrInvalid)
 		}
 		amount, _, err := applyAction(lines[i].amount, a)
