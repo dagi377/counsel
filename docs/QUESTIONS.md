@@ -27,7 +27,7 @@ Template:
 - Reading A: generate into `web/src/app/api/client.ts` (app layer); `web/src/kernel` keeps only the domain-free runtime (fetch, problem+json, extensible-enum decode, enumLabel).
 - Reading B: keep the path and add `web/src/kernel/api/client.ts` as an exemption in kernel/boundary_test.go (scanner change, not an allowlist line).
 - Proposed: A. A working generator (tools/gen_client.mjs, python3+PyYAML for YAML, no new npm deps) and ARC-I-002 tests are drafted and pass vitest; they ship once the path is decided.
-- Answer: (owner)
+- Answer: owner (2026-10-11): A. Generate into `web/src/app/api` (the kernel web stays free of legal terms), with a Node YAML parser (`yaml` devDependency), not python3. T-045.1 is requeued.
 
 ## Q-004 POST /hooks/{provider} lacks problem responses ARC-I-051 asks for
 
@@ -239,6 +239,11 @@ Template:
 - Proposed: the integrator replaces the zero-call check with a check that `Register` twice on a
   `registryfake` and `Seal` reports only `ErrDuplicateID`-free results for one call, or drops
   it. Every wave 1 task that registers anything hits the same failure.
+- Answer: owner (2026-10-11): same as Q-005. Registration tests assert only the "always" set;
+  feature-gated kinds (docs kinds, RC-* retention) register only when their flag is on. Done:
+  `docs.RegisterKinds` is exported and not in the always-run registrars, so
+  `TestRegisterWithNoFeaturesRecordsOnlyAlwaysSet` stays as is.
+
 ## T-035L.2 Court filing contract does not match comms.comm_filing; no registry kind for message templates
 
 - Task: T-035L.2
@@ -259,7 +264,11 @@ Template:
   store, or `Registry` gains an additive `MessageTemplate` kind.
 - Proposed: B for filings (contract already describes court filings), and app-side seeding
   for templates (no Registry change).
-- Answer: open. T-035L.2 is stopped until answered.
+- Answer: owner (2026-10-11): B. A separate additive `legal.court_filing` table (court,
+  reference, draft/filed/rejected); `comms.comm_filing` stays as message-to-matter filing. The
+  app seeds its own message templates (versioned `body_ref`) at registration; no registry kind
+  is added. T-035L.2 is requeued.
+
 ## AI-008: /healthz model field
 
 - No `/healthz` handler exists on main yet, and AI-008 lists no server file. AI-008 ships
@@ -267,3 +276,16 @@ Template:
   value `/healthz` must report as `model: mock|live`. Proposed: the task that adds `/healthz`
   (kernel/server) reads `Mode()` from the client built at boot, and boot passes `COUNSEL_ENV`
   as `env` so a live config in test or ci fails with `ErrLiveModelForbidden`.
+
+## Q-FLAGS-001 Verify flags that modules define but app/legal does not register
+
+- Tasks: T-041.x (export), T-044.x (reports), T-037L.x/T-038L.x (clio), T-035L.1 (conflict)
+- Sources: `export.FlagPostCancelWindow` and `reports.FlagBillingRecordsVerified` were read
+  with `flags.Enabled` but missing from `app/legal/flags.go`; several packages repeated
+  flag names as private copies.
+- Answer: owner (2026-10-11): the integrator registers every new flag in app/legal/flags.go,
+  default off. Done: `billing.records_verified` and `export.post_cancel_window` added
+  (`conflict.id_verification` and `trust.bylaw9_verified` were already there). Module packages
+  cannot import app/legal (it imports them), so each keeps one exported mirror per package;
+  the private copies in clio and billing/assessment were folded into it, and
+  `TestFlagMirrorsMatchCanonicalNames` checks every mirror against app/legal.

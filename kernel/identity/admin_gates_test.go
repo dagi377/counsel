@@ -28,7 +28,7 @@ func (s *adminStore) ActivateUser(_ context.Context, _ pgx.Tx, a UserActivation)
 	return nil
 }
 
-func user(id string) Principal { return Principal{Kind: gate.PrincipalUser, UserID: id} }
+func gateUser(id string) Principal { return Principal{Kind: gate.PrincipalUser, UserID: id} }
 
 func newAdminGates(t *testing.T, now time.Time) (*gatefake.Fake, *adminStore, AdminGates) {
 	t.Helper()
@@ -64,11 +64,11 @@ func TestAdminGatesRoleChangeAndActivation(t *testing.T) {
 		wantErr  error
 		applied  bool
 	}{
-		{name: "GA1 role change approved by admin.roles", kind: KindRoleChange, approver: user("roles-admin"), applied: true},
-		{name: "GA2 activation approved by admin.users", kind: KindUserActivation, approver: user("users-admin"), applied: true},
-		{name: "GA1 approver without admin.roles", kind: KindRoleChange, approver: user("users-admin"), wantErr: gate.ErrNotAuthorized},
-		{name: "GA2 approver without admin.users", kind: KindUserActivation, approver: user("roles-admin"), wantErr: gate.ErrNotAuthorized},
-		{name: "GA1 preparer never approves", kind: KindRoleChange, approver: user("preparer"), wantErr: gate.ErrSelfApproval},
+		{name: "GA1 role change approved by admin.roles", kind: KindRoleChange, approver: gateUser("roles-admin"), applied: true},
+		{name: "GA2 activation approved by admin.users", kind: KindUserActivation, approver: gateUser("users-admin"), applied: true},
+		{name: "GA1 approver without admin.roles", kind: KindRoleChange, approver: gateUser("users-admin"), wantErr: gate.ErrNotAuthorized},
+		{name: "GA2 approver without admin.users", kind: KindUserActivation, approver: gateUser("roles-admin"), wantErr: gate.ErrNotAuthorized},
+		{name: "GA1 preparer never approves", kind: KindRoleChange, approver: gateUser("preparer"), wantErr: gate.ErrSelfApproval},
 		{name: "GA2 agent never approves", kind: KindUserActivation, approver: agent, wantErr: gate.ErrAgentApprover},
 	}
 	for _, tc := range tests {
@@ -79,9 +79,9 @@ func TestAdminGatesRoleChangeAndActivation(t *testing.T) {
 				err error
 			)
 			if tc.kind == KindRoleChange {
-				id, err = ag.ProposeRoleChange(ctx, nil, RoleChange{RoleID: "r1", Change: json.RawMessage(`{"add":["admin.users"]}`)}, user("preparer"))
+				id, err = ag.ProposeRoleChange(ctx, nil, RoleChange{RoleID: "r1", Change: json.RawMessage(`{"add":["admin.users"]}`)}, gateUser("preparer"))
 			} else {
-				id, err = ag.ProposeActivation(ctx, nil, UserActivation{UserID: "u9", RoleID: "r1"}, user("preparer"))
+				id, err = ag.ProposeActivation(ctx, nil, UserActivation{UserID: "u9", RoleID: "r1"}, gateUser("preparer"))
 			}
 			if err != nil {
 				t.Fatalf("propose: %v", err)
@@ -122,15 +122,15 @@ func TestAdminGatesRejectInvalidPayload(t *testing.T) {
 		open func() error
 	}{
 		{"role change without role", func() error {
-			_, err := ag.ProposeRoleChange(ctx, nil, RoleChange{Change: json.RawMessage(`{}`)}, user("preparer"))
+			_, err := ag.ProposeRoleChange(ctx, nil, RoleChange{Change: json.RawMessage(`{}`)}, gateUser("preparer"))
 			return err
 		}},
 		{"role change without change", func() error {
-			_, err := ag.ProposeRoleChange(ctx, nil, RoleChange{RoleID: "r1"}, user("preparer"))
+			_, err := ag.ProposeRoleChange(ctx, nil, RoleChange{RoleID: "r1"}, gateUser("preparer"))
 			return err
 		}},
 		{"activation without role", func() error {
-			_, err := ag.ProposeActivation(ctx, nil, UserActivation{UserID: "u1"}, user("preparer"))
+			_, err := ag.ProposeActivation(ctx, nil, UserActivation{UserID: "u1"}, gateUser("preparer"))
 			return err
 		}},
 		{"effect with wrong kind", func() error {
