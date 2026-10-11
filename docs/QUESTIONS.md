@@ -3220,3 +3220,14 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   features).
 - F-WRK-05 is scheduled, so it binds with `trigger.BindDesignated` and runs for the designated
   lawyer in firm settings; with none named readiness flags it (JOB-ACTOR).
+
+## Q-FEAT-WRK-11 F-WRK-08 automation run events
+
+- Task: FEAT-WRK-11 (F-WRK-08 Explain automation runs).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs) and `app/legal/boot/agent.go` (the job binding). Built on task/FEAT-WRK-10 for the
+  shared read tools and `ai_wrkd_helpers_test.go`.
+- No event exists in spec/eng/a2-interfaces.json or kernel/work for "automation run failed or
+  skipped". The Def binds `work.automation_run_failed` and `work.automation_run_skipped`
+  (consts in app/legal/work); nothing publishes them yet. Confirm the names when kernel/work
+  publishes automation run events.

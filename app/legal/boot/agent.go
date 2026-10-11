@@ -317,7 +317,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 			// (Q-INTEG-16-SCREENS); the screen action covers on-request runs.
 			return trigger.Bind(matter.ChronologyDef(), "", matter.EventDocumentUploaded, matter.EventEmailFiled)
 		},
-		work.DailyDigestDef().ID: work.DailyDigestBinding,
+		work.DailyDigestDef().ID:           work.DailyDigestBinding,
+		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
