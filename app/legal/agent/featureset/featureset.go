@@ -129,5 +129,6 @@ func appDefs() []feature.Def {
 		intake.EngagementLetterDraftDef(),
 		intake.DraftSequenceDef(),
 		intake.ReceptionistCriteriaDef(),
+		intake.ThankReferrerDef(),
 	}
 }

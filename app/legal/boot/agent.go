@@ -437,6 +437,8 @@ var actionScreens = map[string]trigger.Screen{
 	"consult-outcome":     {SubjectKind: "intake.lead", Capability: "intake.convert"},
 	// Intake.
 	"intake-automations": {SubjectKind: "matter", Capability: "intake.forms"},
+	// Intake: the referral sources report selects referrer contacts (F-INT-21).
+	"referral-sources-report": {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
