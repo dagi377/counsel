@@ -491,6 +491,50 @@ func TestARC_I_025_DisburseLocksBeforeReading(t *testing.T) {
 	}
 }
 
+// rule: ARC-I-025
+func TestARC_I_025_LockLedgerLocksBeforeReadingAndCountsHolds(t *testing.T) {
+	tests := []struct {
+		name      string
+		holds     map[string]memHold
+		wantHeld  int64
+		wantAvail int64
+	}{
+		{"no holds", nil, 0, 10000},
+		{"one hold", map[string]memHold{"w-1": {"", 3000}}, 3000, 7000},
+		{"two holds", map[string]memHold{"w-1": {"", 3000}, "w-2": {"", 4000}}, 7000, 3000},
+		{"hold on another ledger", map[string]memHold{"w-1": {"other", 3000}}, 0, 10000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newRig(t)
+			l := r.open(t, "acct-a", "A")
+			if _, err := r.s.Receive(context.Background(), nil, receipt(l, 10000)); err != nil {
+				t.Fatal(err)
+			}
+			for w, h := range tt.holds {
+				if h.ledger == "" {
+					h.ledger = l
+				}
+				r.repo.holds[w] = h
+			}
+			r.repo.ops = nil
+			b, held, err := r.s.LockLedger(context.Background(), nil, l)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := []string{"lockLedger", "sums"}; fmt.Sprint(r.repo.ops) != fmt.Sprint(want) {
+				t.Fatalf("ops = %v, want %v", r.repo.ops, want)
+			}
+			if held != tt.wantHeld || b.AvailableCents != tt.wantAvail || b.ClearedCents != 10000 {
+				t.Fatalf("held = %d, balance = %+v; want held %d, available %d", held, b, tt.wantHeld, tt.wantAvail)
+			}
+		})
+	}
+	if _, _, err := newRig(t).s.LockLedger(context.Background(), nil, "missing"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing ledger = %v, want ErrNotFound", err)
+	}
+}
+
 func TestDisburseValidation(t *testing.T) {
 	tests := []struct {
 		name string

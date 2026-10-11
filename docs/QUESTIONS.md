@@ -521,3 +521,14 @@ Template:
   unchanged, into `allocate.go` (where the contract header says it lives), so it also touches
   `money.go` (deletion only) and this file. New tests are in `allocate_test.go`; the existing
   `TestAllocate` in `money_test.go` is kept as is.
+
+## fix/trust-auth-race: withdrawal authorisation locks the client ledger
+
+- Effect.Apply read `Balance` in its own transaction without a lock, so two concurrent
+  authorisations could both pass and together overdraw a client ledger (By-law 9). Apply now
+  locks the withdrawal, then the client ledger row FOR UPDATE in the gate's tx (the order
+  Execute/Disburse use), re-checks `trust.AvailableCents` net of authorised holds and records
+  its hold in the same tx.
+- Files outside withdraw/: `withdraw.TrustLedgers` swaps `Balance` for
+  `LockLedger(ctx, tx, id) (Balance, held, error)`, so `trust.LedgerStore` (receipt.go) and
+  `trustfake` gain that method (additive; the frozen `trust.Ledgers` contract is unchanged).
