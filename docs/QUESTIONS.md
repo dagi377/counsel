@@ -2391,3 +2391,5 @@ Done in PORT-18:
   `deadlines.RuleWatchBinding` does; it can move to `trigger.BindDesignated` once JOB-ACTOR merges.
 - None of these Defs' write tools is a sourced write (draft_document carries no amount or date
   pointers), so `agenttools.ErrUnsourcedValue` cannot arise in their runs; no test asserts it.
+- F-DOC-10 binds `matter.opened` and `matter.stage_changed`; the matter module does not publish either
+  yet (add them to EVENTS-WIRE).
