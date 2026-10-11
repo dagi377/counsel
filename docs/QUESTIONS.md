@@ -4286,3 +4286,27 @@ of FEAT-TIM-01 above.
 - Their dedicated effects need RestPorts.Receipts (Poster) and RestPorts.Refunds (Ledger), which
   Production leaves nil, so both kinds are unregistered in production. They were never in
   unwired_gates.txt (the list is computed with test ports). Wire them in Production.
+
+## Q-GE2-MONEY billing, trust and accounting kinds left on ApprovalEffect
+
+- Given dedicated effects (app/legal/boot/effects_money.go): billing.bill_delivery
+  (bill.DeliveryEffect), trust.reconciliation_signoff (recon.SignOffEffect), trust.cash_over_limit
+  (trust.CashGateEffect, validates the By-law 9 s.6 evidence; the receipt reads the gate back),
+  trust.transfer (withdraw.TransferEffect, now a no-op on a repeat under the same gate).
+- The reconciliation package hash is SHA-256 of the row's canonical JSON (month, balances, items,
+  client snapshot) computed in the gate tx; owner to confirm, or name the sealed package artefact.
+- Left on the record-only path (owner decision needed):
+  - billing.payment_allocation: applying a proposal writes billing.payment_allocation, posts AR on
+    the fees book and moves bill status; no apply service exists and the payload carries an
+    untyped `allocations` array. Needs an apply service and GL ports.
+  - billing.payment_plan: payload has one amount, a schedule and a start date but
+    billing.payment_plan needs `bill_ids` and per-instalment `instalments`; is amount_cents the
+    total or each instalment, and when does the plan end?
+  - billing.prebill_review: G-B1 approves a pre-bill period for a matter; no pre-bill row or state
+    exists to move (the draft bill tool opens it on a document draft, which ApprovalEffect moves).
+  - billing.settings_change: no billing settings store; which table holds `setting`/`new_value`?
+  - gl.operating_reconciliation: no operating reconciliation table in the data model.
+  - trust.regulatory_release: no regulatory report store or release channel (report_id,
+    recipient).
+  - billing.collections_message: already moved by ApprovalEffect (email draft stamped and queued);
+    no change.
