@@ -4255,3 +4255,11 @@ of FEAT-TIM-01 above.
   draft_document schema FORM-SUBJECT changed. list_unbilled now records provenance itself
   (sourcedRead) and boot also wraps every read tool (TIME-FIX); recording a value twice is
   harmless, but one of the two can go.
+
+## Q-SHIFT-FLAG shift_date business days behind deadline.ontario_pack
+
+- Answers the open point above: while `deadline.ontario_pack` is off, `shift_date` refuses
+  `unit: business` with `ErrHolidayPackUnverified` ("holiday pack not verified"); it fails
+  closed rather than counting weekends only. Calendar-day shifts are unaffected.
+- `spec/eng/a2-interfaces.html` now lists 26 tools (shift_date row appended, matching the
+  JSON order). The HTML row also notes the flag; the JSON description is unchanged.

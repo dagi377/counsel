@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/dagi377/counsel/app/legal/agent"
+	"github.com/dagi377/counsel/app/legal/legalflags"
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 	"github.com/dagi377/counsel/app/legal/roles/rolesfake"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/agenttools/agenttoolsfake"
@@ -60,30 +62,35 @@ func shiftAgent() registry.Principal {
 
 // TestShiftDate shifts by calendar and business days. Business days skip weekends and the
 // Ontario court holidays (Thanksgiving 2026-10-12; Christmas 2026-12-25 and the Monday after,
-// 2026-12-28).
+// 2026-12-28), and are refused while deadline.ontario_pack is off; calendar days are not.
 //
 // rule: ARC-U-027
 func TestShiftDate(t *testing.T) {
 	cases := []struct {
 		name    string
+		pack    bool // deadline.ontario_pack
 		in      string
 		want    string
 		wantErr error
 	}{
-		{"calendar days ignore weekends", `{"date":"2026-10-09","days":3,"unit":"calendar"}`, "2026-10-12", nil},
-		{"calendar days back", `{"date":"2026-10-09","days":-7,"unit":"calendar"}`, "2026-10-02", nil},
-		{"business day over a weekend", `{"date":"2026-10-16","days":1,"unit":"business"}`, "2026-10-19", nil},
-		{"business day over a weekend and Thanksgiving", `{"date":"2026-10-09","days":1,"unit":"business"}`, "2026-10-13", nil},
-		{"business day back over Thanksgiving", `{"date":"2026-10-13","days":-1,"unit":"business"}`, "2026-10-09", nil},
-		{"business days over Christmas", `{"date":"2026-12-24","days":1,"unit":"business"}`, "2026-12-29", nil},
-		{"zero business days", `{"date":"2026-10-10","days":0,"unit":"business"}`, "2026-10-10", nil},
-		{"unknown unit", `{"date":"2026-10-09","days":1,"unit":"weeks"}`, "", agenttools.ErrInvalidInput},
-		{"start date the run did not read", `{"date":"2026-10-05","days":1,"unit":"business"}`, "", agenttools.ErrUnsourcedValue},
+		{"calendar days ignore weekends", true, `{"date":"2026-10-09","days":3,"unit":"calendar"}`, "2026-10-12", nil},
+		{"calendar days back", true, `{"date":"2026-10-09","days":-7,"unit":"calendar"}`, "2026-10-02", nil},
+		{"business day over a weekend", true, `{"date":"2026-10-16","days":1,"unit":"business"}`, "2026-10-19", nil},
+		{"business day over a weekend and Thanksgiving", true, `{"date":"2026-10-09","days":1,"unit":"business"}`, "2026-10-13", nil},
+		{"business day back over Thanksgiving", true, `{"date":"2026-10-13","days":-1,"unit":"business"}`, "2026-10-09", nil},
+		{"business days over Christmas", true, `{"date":"2026-12-24","days":1,"unit":"business"}`, "2026-12-29", nil},
+		{"zero business days", true, `{"date":"2026-10-10","days":0,"unit":"business"}`, "2026-10-10", nil},
+		{"unknown unit", true, `{"date":"2026-10-09","days":1,"unit":"weeks"}`, "", agenttools.ErrInvalidInput},
+		{"start date the run did not read", true, `{"date":"2026-10-05","days":1,"unit":"business"}`, "", agenttools.ErrUnsourcedValue},
+		{"pack off: calendar days still shift", false, `{"date":"2026-10-09","days":3,"unit":"calendar"}`, "2026-10-12", nil},
+		{"pack off: business days refused", false, `{"date":"2026-10-16","days":1,"unit":"business"}`, "", agent.ErrHolidayPackUnverified},
+		{"pack off: zero business days refused", false, `{"date":"2026-10-10","days":0,"unit":"business"}`, "", agent.ErrHolidayPackUnverified},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := legalflagstest.Context(t, legalflags.DeadlineOntarioPack, tc.pack)
 			w := newShiftWorld(t, "2026-10-09", "2026-10-16", "2026-10-13", "2026-12-24", "2026-10-10")
-			res, err := w.reg.Call(context.Background(), shiftAgent(), agent.ToolShiftDate, json.RawMessage(tc.in))
+			res, err := w.reg.Call(ctx, shiftAgent(), agent.ToolShiftDate, json.RawMessage(tc.in))
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tc.wantErr)
 			}
@@ -97,6 +104,16 @@ func TestShiftDate(t *testing.T) {
 				t.Fatalf("output = %s, want date %s", res.Output, tc.want)
 			}
 		})
+	}
+}
+
+// TestShiftDateNoFlagSetFailsClosed: a context with no flag set at all refuses business days.
+func TestShiftDateNoFlagSetFailsClosed(t *testing.T) {
+	w := newShiftWorld(t, "2026-10-16")
+	_, err := w.reg.Call(context.Background(), shiftAgent(), agent.ToolShiftDate,
+		json.RawMessage(`{"date":"2026-10-16","days":1,"unit":"business"}`))
+	if !errors.Is(err, agent.ErrHolidayPackUnverified) {
+		t.Fatalf("err = %v, want ErrHolidayPackUnverified", err)
 	}
 }
 
@@ -120,7 +137,7 @@ func TestARC_U_027_CreateTaskDueOnSourced(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := legalflagstest.Context(t, legalflags.DeadlineOntarioPack, true)
 			w := newShiftWorld(t, "2026-10-09")
 			if tc.shift != "" {
 				if _, err := w.reg.Call(ctx, tc.p, agent.ToolShiftDate, json.RawMessage(tc.shift)); err != nil {
