@@ -3276,3 +3276,16 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   is a one-line change to app/legal/agent/tools_draft_note.go, left to its owner.
 - Events: consultation.ended and consultation.dictation_uploaded. The consult-outcome screen
   selects the consultation and needs intake.convert, the G3 approver capability.
+
+## Q-FEAT-INT-08 F-INT-10 AI receptionist: event, gate kind const and boot wiring
+
+- No event for an inbound call or chat exists on main or a pushed branch. F-INT-10 binds
+  `receptionist_conversation.started`, named after a2's `intake.receptionist_conversation`
+  row it starts with (intake.EventReceptionistConversationStarted).
+- `intake.lead_decision` is written as a literal in the Def: FEAT-INT-01 and FEAT-INT-05 both
+  add `intake.GateLeadDecision` on unmerged branches, so a third copy is not declared here.
+  Once one lands, the Def can use it.
+- Boot must bind every job feature and map every action screen (TestJobBindings,
+  TestActionScreensCoverFeatures), so `app/legal/boot/agent.go` gains the F-INT-10 binding and
+  the `ai-receptionist` screen (subject `intake.lead`, capability `intake.leads`, as the other
+  intake screens).

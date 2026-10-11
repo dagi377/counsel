@@ -123,5 +123,6 @@ func appDefs() []feature.Def {
 		intake.DeclineReferLetterDef(),
 		intake.ConsultNoteDef(),
 		intake.ConversionPrefillDef(),
+		intake.AIReceptionistDef(),
 	}
 }
