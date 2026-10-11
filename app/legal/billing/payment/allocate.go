@@ -119,7 +119,7 @@ type Row struct {
 
 // Allocator computes allocation rows. The split is computed here; callers cannot set it.
 type Allocator struct {
-	Money     money.Arithmetic
+	Money     money.Arithmetic // nil means money.Default
 	PreTax    PreTaxOrder
 	BillOrder BillOrder
 }
@@ -233,7 +233,7 @@ func (a Allocator) billShares(amount int64, bills []OpenBill) ([]int64, error) {
 		return shares, nil
 	}
 	if a.BillOrder == BillProportional && amount < total {
-		parts, err := a.Money.Allocate(money.Cents(amount), caps)
+		parts, err := a.arith().Allocate(money.Cents(amount), caps)
 		if err != nil {
 			return nil, fmt.Errorf("spread payment over bills: %w", err)
 		}
@@ -268,7 +268,7 @@ func (a Allocator) Split(p int64, open Buckets) (Buckets, error) {
 	if principal == po {
 		out.Tax = open.Tax
 	} else if principal > 0 {
-		t, err := a.Money.Rhu(principal*open.Tax, po)
+		t, err := a.arith().Rhu(principal*open.Tax, po)
 		if err != nil {
 			return Buckets{}, fmt.Errorf("tax share: %w", err)
 		}
@@ -278,7 +278,7 @@ func (a Allocator) Split(p int64, open Buckets) (Buckets, error) {
 	// rule: BIL-C-061
 	// Fee bucket takes min(pre, fee_open), the rest to dtx, then dnt.
 	if a.PreTax == PreTaxProportional && pre > 0 && pre < open.Fee+open.Dtx+open.Dnt {
-		parts, err := a.Money.Allocate(money.Cents(pre), []int64{open.Fee, open.Dtx, open.Dnt})
+		parts, err := a.arith().Allocate(money.Cents(pre), []int64{open.Fee, open.Dtx, open.Dnt})
 		if err != nil {
 			return Buckets{}, fmt.Errorf("pre-tax split: %w", err)
 		}
@@ -407,4 +407,12 @@ func CreditOverdue(createdOn, today time.Time, maxDays int, businessDays func(fr
 	// Client credit is client money in operating: past the limit the aging job opens a
 	// trust exception.
 	return businessDays(createdOn, today) > maxDays
+}
+
+// arith returns Money, or money.Default when Money is nil.
+func (a Allocator) arith() money.Arithmetic {
+	if a.Money == nil {
+		return money.Default
+	}
+	return a.Money
 }

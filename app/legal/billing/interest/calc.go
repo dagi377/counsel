@@ -14,7 +14,7 @@ const daysInYear int64 = 365
 
 // Calc computes simple interest, actual/365. All division goes through M.Rhu.
 type Calc struct {
-	M money.Arithmetic
+	M money.Arithmetic // nil means money.Default
 }
 
 // Simple returns rhu(principal*rate*days, 1e6*365). It never wraps: a product that does
@@ -31,7 +31,7 @@ func (c Calc) Simple(principal money.Cents, rate money.PPM, days int) (money.Cen
 	if !ok {
 		return 0, fmt.Errorf("simple interest: %w", money.ErrOverflow)
 	}
-	v, err := c.M.Rhu(num, money.PPMScale*daysInYear)
+	v, err := c.arith().Rhu(num, money.PPMScale*daysInYear)
 	if err != nil {
 		return 0, fmt.Errorf("simple interest: %w", err)
 	}
@@ -47,4 +47,12 @@ func mul(a, b int64) (int64, bool) {
 		return 0, false
 	}
 	return a * b, true
+}
+
+// arith returns M, or money.Default when M is nil.
+func (c Calc) arith() money.Arithmetic {
+	if c.M == nil {
+		return money.Default
+	}
+	return c.M
 }

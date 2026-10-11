@@ -3,9 +3,25 @@ package credit
 import (
 	"fmt"
 	"math"
+	"net/http"
 
+	"github.com/dagi377/counsel/kernel/api"
 	"github.com/dagi377/counsel/kernel/money"
+	"github.com/dagi377/counsel/kernel/server"
 )
+
+// CodeCreditExceedsBill is the problem code for a credit larger than what is left in a
+// bucket of the source bill (docs/QUESTIONS.md Q-005).
+const CodeCreditExceedsBill = "credit_exceeds_bill"
+
+// exceedsBill is the 409 problem CheckBucket wraps next to ErrExceedsBalance.
+//
+// rule: BIL-C-082
+func exceedsBill() *api.Problem {
+	p := server.NewProblem(http.StatusConflict, CodeCreditExceedsBill, "Credit exceeds what is left on the bill")
+	p.Rule = "BIL-C-082"
+	return &p
+}
 
 // Kind is why a credit note is issued.
 type Kind string
@@ -54,7 +70,7 @@ type TaxLine struct {
 
 // Calc holds the pure credit-note arithmetic. Every division goes through M.Rhu.
 type Calc struct {
-	M money.Arithmetic
+	M money.Arithmetic // nil means money.Default
 }
 
 // CheckDelivered rejects a credit on a bill that is not yet delivered: before delivery the
@@ -77,7 +93,7 @@ func CheckBucket(b Bucket, creditPreTax int64) error {
 		return fmt.Errorf("credit bucket %s: %w", b.Key, ErrInvalidAmount)
 	}
 	if creditPreTax > b.Remaining() {
-		return fmt.Errorf("credit bucket %s: %w", b.Key, ErrExceedsBalance)
+		return fmt.Errorf("credit bucket %s: %w: %w", b.Key, ErrExceedsBalance, exceedsBill())
 	}
 	return nil
 }
@@ -179,5 +195,13 @@ func (c Calc) ratio(a, b, den int64) (int64, error) {
 	if a != 0 && b != 0 && (a > math.MaxInt64/b || a < 0 || b < 0) {
 		return 0, money.ErrOverflow
 	}
-	return c.M.Rhu(a*b, den)
+	return c.arith().Rhu(a*b, den)
+}
+
+// arith returns M, or money.Default when M is nil.
+func (c Calc) arith() money.Arithmetic {
+	if c.M == nil {
+		return money.Default
+	}
+	return c.M
 }

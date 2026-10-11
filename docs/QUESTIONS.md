@@ -73,6 +73,16 @@ Template:
 
 ## Answered
 
+## Q-005 BIL-C-082 over-credit: which status and problem code
+
+- Task: T-023.1
+- Sources: spec/rules/b3.json BIL-C-082 test ("-> 409 credit_exceeds_bill"); api/openapi.yaml
+  requestCreditNote documents 409 but names no code.
+- Reading A: 409 with problem code `credit_exceeds_bill`, rule BIL-C-082, as the rule's test says.
+- Reading B: 422 validation error.
+- Answer: owner (2026-10-11): A. `credit.CheckBucket` wraps `ErrExceedsBalance` together with a
+  409 `credit_exceeds_bill` problem (rule BIL-C-082), so `server.WriteError` writes it as is.
+
 ## Q-003 GateKind has no field for the spec gate id
 
 - Task: T-002L.2

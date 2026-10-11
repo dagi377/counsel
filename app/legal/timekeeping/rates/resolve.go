@@ -21,8 +21,11 @@ var (
 	_ Table    = (*Store)(nil)
 )
 
-// NewStore returns an empty Store that divides with m.
+// NewStore returns an empty Store that divides with m; nil means money.Default.
 func NewStore(m money.Arithmetic) *Store {
+	if m == nil {
+		m = money.Default
+	}
 	return &Store{m: m}
 }
 

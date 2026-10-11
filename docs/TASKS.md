@@ -333,46 +333,46 @@ Max width 301.
 | [ ] | AI-203 | AI-203 | app | Fixtures and mock test: F-WRK-15 Explain failed or skipped run | AI-002, AI-003, AI-004, T-034.0 | `testdata/ai/f-wrk-15/explain-failed-or-skipped-run/`<br>`app/legal/work/ai_f_wrk_15_test.go` |  |
 | [ ] | AI-204 | AI-204 | app | Fixtures and mock test: F-WRK-16 Suggest categories | AI-002, AI-003, AI-004, T-034.0 | `testdata/ai/f-wrk-16/suggest-categories/`<br>`app/legal/work/ai_f_wrk_16_test.go` |  |
 | [ ] | AI-205 | AI-205 | app | Fixtures and mock test: F-WRK-17 Explain this number | AI-002, AI-003, AI-004, T-034.0 | `testdata/ai/f-wrk-17/explain-this-number/`<br>`app/legal/work/ai_f_wrk_17_test.go` |  |
-| [ ] | T-002.6 | T-002 | kernel | kernel/registry boot validation against spec/kernel schemas | T-001.1, T-001.2, T-001.3, T-001.4, T-002.0, T-002.3 +1 | `kernel/registry/validate.go`<br>`kernel/registry/validate_test.go` |  |
-| [ ] | T-003.1 | T-003 | kernel | kernel/money: Cents, PPM, Rhu | T-001.1, T-001.2, T-001.3, T-001.4, T-003.0 | `kernel/money/money.go`<br>`kernel/money/money_test.go` |  |
-| [ ] | T-003.3 | T-003 | kernel | No-float analyzer for kernel/ and app/ | T-001.1, T-001.2, T-001.3, T-001.4 | `tools/nofloat_test.go`<br>`tools/nofloat_allow.txt` |  |
-| [ ] | T-004.1 | T-004 | kernel | kernel/ids: monotonic ids | T-001.1, T-001.2, T-001.3, T-001.4, T-004.0 | `kernel/ids/ids.go`<br>`kernel/ids/ids_test.go` |  |
-| [ ] | T-004.2 | T-004 | kernel | kernel/clock: business date in cell zone | T-001.1, T-001.2, T-001.3, T-001.4, T-004.0 | `kernel/clock/clock.go`<br>`kernel/clock/clock_test.go` |  |
-| [ ] | T-004.3 | T-004 | kernel | kernel/numseq: gapless number series | T-001.1, T-001.2, T-001.3, T-001.4, T-004.0 | `kernel/numseq/numseq.go`<br>`kernel/numseq/numseq_integration_test.go` |  |
+| [x] | T-002.6 | T-002 | kernel | kernel/registry boot validation against spec/kernel schemas | T-001.1, T-001.2, T-001.3, T-001.4, T-002.0, T-002.3 +1 | `kernel/registry/validate.go`<br>`kernel/registry/validate_test.go` |  |
+| [x] | T-003.1 | T-003 | kernel | kernel/money: Cents, PPM, Rhu | T-001.1, T-001.2, T-001.3, T-001.4, T-003.0 | `kernel/money/money.go`<br>`kernel/money/money_test.go` |  |
+| [x] | T-003.3 | T-003 | kernel | No-float analyzer for kernel/ and app/ | T-001.1, T-001.2, T-001.3, T-001.4 | `tools/nofloat_test.go`<br>`tools/nofloat_allow.txt` |  |
+| [x] | T-004.1 | T-004 | kernel | kernel/ids: monotonic ids | T-001.1, T-001.2, T-001.3, T-001.4, T-004.0 | `kernel/ids/ids.go`<br>`kernel/ids/ids_test.go` |  |
+| [x] | T-004.2 | T-004 | kernel | kernel/clock: business date in cell zone | T-001.1, T-001.2, T-001.3, T-001.4, T-004.0 | `kernel/clock/clock.go`<br>`kernel/clock/clock_test.go` |  |
+| [x] | T-004.3 | T-004 | kernel | kernel/numseq: gapless number series | T-001.1, T-001.2, T-001.3, T-001.4, T-004.0 | `kernel/numseq/numseq.go`<br>`kernel/numseq/numseq_integration_test.go` |  |
 | [ ] | T-005.1 | T-005 | kernel | kernel/audit: Append with hash chain | T-002.0, T-004.0, T-005.0 | `kernel/audit/audit.go`<br>`kernel/audit/chain.go`<br>`kernel/audit/chain_test.go` |  |
 | [ ] | T-006.1 | T-006 | kernel | kernel/identity: roles, capabilities, Can() | T-002.0, T-006.0 | `kernel/identity/can.go`<br>`kernel/identity/roles.go`<br>`kernel/identity/can_test.go` |  |
 | [ ] | T-006L.1 | T-006L | app | Legal roles and capabilities from access.json | T-002L.1, T-002L.2, T-006.0, T-006L.0 | `app/legal/roles/roles.go`<br>`app/legal/roles/access_matrix_test.go` |  |
-| [ ] | T-007.1 | T-007 | kernel | kernel/gate: kind registration and Open | T-005.0, T-006.0, T-007.0, T-008.0 | `kernel/gate/kind.go`<br>`kernel/gate/open.go`<br>`kernel/gate/kind_test.go` |  |
-| [ ] | T-007L.1 | T-007L | app | Legal gate kinds from gates.json | T-006L.0, T-007.0, T-007L.0 | `app/legal/gates/kinds.go`<br>`app/legal/gates/kinds_test.go` |  |
+| [x] | T-007.1 | T-007 | kernel | kernel/gate: kind registration and Open | T-005.0, T-006.0, T-007.0, T-008.0 | `kernel/gate/kind.go`<br>`kernel/gate/open.go`<br>`kernel/gate/kind_test.go` |  |
+| [x] | T-007L.1 | T-007L | app | Legal gate kinds from gates.json | T-006L.0, T-007.0, T-007L.0 | `app/legal/gates/kinds.go`<br>`app/legal/gates/kinds_test.go` |  |
 | [ ] | T-008.1 | T-008 | kernel | kernel/idem: Idempotency-Key store and replay | T-002.0, T-004.0, T-008.0 | `kernel/idem/idem.go`<br>`kernel/idem/idem_test.go` |  |
 | [ ] | T-008.3 | T-008 | kernel | kernel/outbox: Emit in tx and relay | T-002.0, T-004.0, T-008.0 | `kernel/outbox/outbox.go`<br>`kernel/outbox/relay.go`<br>`kernel/outbox/relay_integration_test.go` |  |
 | [ ] | T-008b.1 | T-008b | kernel | kernel/inbound: provider registration and dedup | T-008.0, T-008b.0 | `kernel/inbound/inbound.go`<br>`kernel/inbound/inbound_test.go` |  |
-| [ ] | T-009.1 | T-009 | kernel | kernel/server: problem+json and log scan | T-006.0, T-008.0, T-009.0 | `kernel/server/problem.go`<br>`kernel/server/problem_test.go` |  |
-| [ ] | T-009.2 | T-009 | kernel | kernel/server: ETag and If-Match | T-006.0, T-008.0, T-009.0 | `kernel/server/etag.go`<br>`kernel/server/etag_test.go` |  |
-| [ ] | T-009.3 | T-009 | kernel | kernel/api: cursor paging | T-006.0, T-008.0, T-009.0 | `kernel/api/cursor.go`<br>`kernel/api/cursor_test.go` |  |
+| [x] | T-009.1 | T-009 | kernel | kernel/server: problem+json and log scan | T-006.0, T-008.0, T-009.0 | `kernel/server/problem.go`<br>`kernel/server/problem_test.go` |  |
+| [x] | T-009.2 | T-009 | kernel | kernel/server: ETag and If-Match | T-006.0, T-008.0, T-009.0 | `kernel/server/etag.go`<br>`kernel/server/etag_test.go` |  |
+| [x] | T-009.3 | T-009 | kernel | kernel/api: cursor paging | T-006.0, T-008.0, T-009.0 | `kernel/api/cursor.go`<br>`kernel/api/cursor_test.go` |  |
 | [ ] | T-010.1 | T-010 | kernel | kernel/ledger: balanced idempotent Post | T-003.0, T-005.0, T-010.0 | `kernel/ledger/post.go`<br>`kernel/ledger/post_integration_test.go`<br>`kernel/ledger/post_test.go` |  |
 | [ ] | T-010L.1 | T-010L | app | Operating and trust chart of accounts | T-002L.1, T-002L.2, T-010.0, T-010L.0 | `app/legal/books/chart.go`<br>`app/legal/books/chart_test.go` |  |
-| [ ] | T-010b.1 | T-010b | app | Matter core create API | T-006L.0, T-009.0, T-010b.0 | `app/legal/matter/core.go`<br>`app/legal/matter/core_test.go` |  |
-| [ ] | T-010b.2 | T-010b | app | Minimal party contact | T-006L.0, T-009.0, T-010b.0 | `app/legal/party/contact.go`<br>`app/legal/party/contact_test.go` |  |
+| [x] | T-010b.1 | T-010b | app | Matter core create API | T-006L.0, T-009.0, T-010b.0 | `app/legal/matter/core.go`<br>`app/legal/matter/core_test.go` |  |
+| [x] | T-010b.2 | T-010b | app | Minimal party contact | T-006L.0, T-009.0, T-010b.0 | `app/legal/party/contact.go`<br>`app/legal/party/contact_test.go` |  |
 | [ ] | T-011.1 | T-011 | app | Trust accounts and signatories | T-007L.0, T-010L.0, T-010b.0, T-011.0 | `app/legal/trust/account.go`<br>`app/legal/trust/account_test.go` | trust.bylaw9_verified |
-| [ ] | T-012.1 | T-012 | app | Withdrawal request validation | T-011.0, T-012.0 | `app/legal/trust/withdraw/request.go`<br>`app/legal/trust/withdraw/request_test.go` | trust.bylaw9_verified |
-| [ ] | T-013.1 | T-013 | app | Bank statement import | T-011.0, T-013.0 | `app/legal/trust/recon/bankimport.go`<br>`app/legal/trust/recon/bankimport_test.go` | trust.bylaw9_verified |
-| [ ] | T-014.1 | T-014 | app | Tax rates seed and lookup | T-003.0, T-004.0, T-014.0 | `app/legal/billing/tax/rates.go`<br>`app/legal/billing/tax/rates_test.go` |  |
-| [ ] | T-014.4 | T-014 | app | Business number check digit | T-003.0, T-004.0, T-014.0 | `app/legal/billing/tax/bn.go`<br>`app/legal/billing/tax/bn_test.go` |  |
-| [ ] | T-015.1 | T-015 | app | Rate resolution chain | T-003.0, T-006L.0, T-015.0 | `app/legal/timekeeping/rates/resolve.go`<br>`app/legal/timekeeping/rates/resolve_test.go` |  |
-| [ ] | T-015.3 | T-015 | app | Time rounding | T-003.0, T-006L.0, T-015.0 | `app/legal/timekeeping/rates/rounding.go`<br>`app/legal/timekeeping/rates/rounding_test.go` |  |
-| [ ] | T-016.1 | T-016 | app | Time entry state machine and suggestions | T-007L.0, T-010b.0, T-015.0, T-016.0 | `app/legal/timekeeping/entry.go`<br>`app/legal/timekeeping/state_test.go` |  |
-| [ ] | T-017.1 | T-017 | app | Bill draft lines and b3 golden examples | T-014.0, T-016.0, T-017.0 | `app/legal/billing/draft/lines.go`<br>`app/legal/billing/draft/examples_test.go` |  |
-| [ ] | T-018.1 | T-018 | app | Tax per tax line | T-017.0, T-018.0 | `app/legal/billing/total/tax.go`<br>`app/legal/billing/total/tax_test.go` |  |
-| [ ] | T-018.3 | T-018 | app | Tax point | T-017.0, T-018.0 | `app/legal/billing/total/taxpoint.go`<br>`app/legal/billing/total/taxpoint_test.go` |  |
+| [x] | T-012.1 | T-012 | app | Withdrawal request validation | T-011.0, T-012.0 | `app/legal/trust/withdraw/request.go`<br>`app/legal/trust/withdraw/request_test.go` | trust.bylaw9_verified |
+| [x] | T-013.1 | T-013 | app | Bank statement import | T-011.0, T-013.0 | `app/legal/trust/recon/bankimport.go`<br>`app/legal/trust/recon/bankimport_test.go` | trust.bylaw9_verified |
+| [x] | T-014.1 | T-014 | app | Tax rates seed and lookup | T-003.0, T-004.0, T-014.0 | `app/legal/billing/tax/rates.go`<br>`app/legal/billing/tax/rates_test.go` |  |
+| [x] | T-014.4 | T-014 | app | Business number check digit | T-003.0, T-004.0, T-014.0 | `app/legal/billing/tax/bn.go`<br>`app/legal/billing/tax/bn_test.go` |  |
+| [x] | T-015.1 | T-015 | app | Rate resolution chain | T-003.0, T-006L.0, T-015.0 | `app/legal/timekeeping/rates/resolve.go`<br>`app/legal/timekeeping/rates/resolve_test.go` |  |
+| [x] | T-015.3 | T-015 | app | Time rounding | T-003.0, T-006L.0, T-015.0 | `app/legal/timekeeping/rates/rounding.go`<br>`app/legal/timekeeping/rates/rounding_test.go` |  |
+| [x] | T-016.1 | T-016 | app | Time entry state machine and suggestions | T-007L.0, T-010b.0, T-015.0, T-016.0 | `app/legal/timekeeping/entry.go`<br>`app/legal/timekeeping/state_test.go` |  |
+| [x] | T-017.1 | T-017 | app | Bill draft lines and b3 golden examples | T-014.0, T-016.0, T-017.0 | `app/legal/billing/draft/lines.go`<br>`app/legal/billing/draft/examples_test.go` |  |
+| [x] | T-018.1 | T-018 | app | Tax per tax line | T-017.0, T-018.0 | `app/legal/billing/total/tax.go`<br>`app/legal/billing/total/tax_test.go` |  |
+| [x] | T-018.3 | T-018 | app | Tax point | T-017.0, T-018.0 | `app/legal/billing/total/taxpoint.go`<br>`app/legal/billing/total/taxpoint_test.go` |  |
 | [ ] | T-019.1 | T-019 | app | Bill approval effect and numbering | T-007L.0, T-010L.0, T-010b.0, T-018.0, T-019.0 | `app/legal/billing/bill/approve.go`<br>`app/legal/billing/bill/approve_integration_test.go` |  |
 | [ ] | T-020.1 | T-020 | app | Bill void | T-019.0 | `app/legal/billing/bill/void.go`<br>`app/legal/billing/bill/void_integration_test.go` |  |
-| [ ] | T-020.2 | T-020 | app | Place-of-supply change after delivery | T-019.0 | `app/legal/billing/bill/pos_change.go`<br>`app/legal/billing/bill/pos_change_test.go` |  |
-| [ ] | T-021.1 | T-021 | app | Payment capture and allocation | T-008.0, T-008b.0, T-019.0, T-021.0 | `app/legal/billing/payment/allocate.go`<br>`app/legal/billing/payment/allocate_test.go` |  |
-| [ ] | T-022.1 | T-022 | app | Apply trust to bill | T-012.0, T-021.0 | `app/legal/billing/trustapply/apply.go`<br>`app/legal/billing/trustapply/apply_test.go` | trust.bylaw9_verified |
-| [ ] | T-023.1 | T-023 | app | Credit notes with source tax proration | T-021.0, T-023.0 | `app/legal/billing/credit/credit.go`<br>`app/legal/billing/credit/credit_test.go` |  |
-| [ ] | T-024.2 | T-024 | app | Simple interest calculation | T-021.0, T-024.0 | `app/legal/billing/interest/calc.go`<br>`app/legal/billing/interest/calc_test.go` |  |
-| [ ] | T-024.3 | T-024 | app | months_after calendar months | T-021.0, T-024.0 | `app/legal/billing/interest/months.go`<br>`app/legal/billing/interest/months_test.go` | billing.solicitors_act_verified |
+| [x] | T-020.2 | T-020 | app | Place-of-supply change after delivery | T-019.0 | `app/legal/billing/bill/pos_change.go`<br>`app/legal/billing/bill/pos_change_test.go` |  |
+| [x] | T-021.1 | T-021 | app | Payment capture and allocation | T-008.0, T-008b.0, T-019.0, T-021.0 | `app/legal/billing/payment/allocate.go`<br>`app/legal/billing/payment/allocate_test.go` |  |
+| [x] | T-022.1 | T-022 | app | Apply trust to bill | T-012.0, T-021.0 | `app/legal/billing/trustapply/apply.go`<br>`app/legal/billing/trustapply/apply_test.go` | trust.bylaw9_verified |
+| [x] | T-023.1 | T-023 | app | Credit notes with source tax proration | T-021.0, T-023.0 | `app/legal/billing/credit/credit.go`<br>`app/legal/billing/credit/credit_test.go` |  |
+| [x] | T-024.2 | T-024 | app | Simple interest calculation | T-021.0, T-024.0 | `app/legal/billing/interest/calc.go`<br>`app/legal/billing/interest/calc_test.go` |  |
+| [x] | T-024.3 | T-024 | app | months_after calendar months | T-021.0, T-024.0 | `app/legal/billing/interest/months.go`<br>`app/legal/billing/interest/months_test.go` | billing.solicitors_act_verified |
 | [ ] | T-024b.1 | T-024b | app | Collection hold | T-023.0, T-024.0 | `app/legal/billing/assessment/collection.go`<br>`app/legal/billing/assessment/collection_test.go` | billing.solicitors_act_verified |
 | [ ] | T-024b.2 | T-024b | app | Assessment requisition | T-023.0, T-024.0 | `app/legal/billing/assessment/requisition.go`<br>`app/legal/billing/assessment/requisition_test.go` | billing.solicitors_act_verified |
 | [ ] | T-025.1 | T-025 | app | Split bills | T-019.0 | `app/legal/billing/split/split.go`<br>`app/legal/billing/split/split_test.go` |  |

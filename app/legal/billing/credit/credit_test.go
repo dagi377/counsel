@@ -3,8 +3,10 @@ package credit
 import (
 	"errors"
 	"math"
+	"net/http"
 	"testing"
 
+	"github.com/dagi377/counsel/kernel/api"
 	"github.com/dagi377/counsel/kernel/money/moneyfake"
 )
 
@@ -66,6 +68,29 @@ func TestBIL_C_082_CreditLimitPerBucket(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := CheckBucket(tt.b, tt.credit); !errors.Is(err, tt.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// rule: BIL-C-082
+func TestBIL_C_082_CreditExceedsBillIs409(t *testing.T) {
+	tests := []struct {
+		name   string
+		b      Bucket
+		credit int64
+	}{
+		{"prior CN 900 then 200 on 1000", Bucket{Key: "fees", BilledCents: 100000, CreditedCents: 90000}, 20000},
+		{"write-off counts", Bucket{Key: "fees", BilledCents: 100000, WrittenOff: 100000}, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var p *api.Problem
+			if err := CheckBucket(tt.b, tt.credit); !errors.As(err, &p) {
+				t.Fatalf("err = %v, want *api.Problem in chain", err)
+			}
+			if p.Status != http.StatusConflict || p.Code != CodeCreditExceedsBill || p.Rule != "BIL-C-082" {
+				t.Fatalf("problem = %+v, want 409 %s BIL-C-082", p, CodeCreditExceedsBill)
 			}
 		})
 	}

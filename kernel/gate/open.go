@@ -160,11 +160,9 @@ func canonical(b *bytes.Buffer, v any) error {
 			b.WriteString(strconv.FormatInt(i, 10))
 			return nil
 		}
-		f, err := t.Float64()
-		if err != nil {
-			return fmt.Errorf("payload number: %w", ErrInvalidPayload)
-		}
-		b.WriteString(strconv.FormatFloat(f, 'g', -1, 64))
+		// Amounts are integer cents and rates integer ppm, so a payload number with a
+		// fraction or exponent is never valid.
+		return fmt.Errorf("payload number: %w", ErrInvalidPayload)
 	case string:
 		writeString(b, t)
 	case []any:
