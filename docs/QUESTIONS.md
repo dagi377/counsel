@@ -52,6 +52,19 @@ Template:
 - Reading B: the tasks' `files` must be extended to list `main.go` first.
 - Proposed: A. AI-005 adds two route lines to `handler()` plus `chat_test.go`. The AI-006 and
   AI-007 branches add their lines next to them; merging gives a trivial conflict in `handler()`.
+## Q-AI-006 Fault layer and journal need main.go and messages_test.go
+
+- Task: AI-006
+- Sources: spec/tasks.json AI-006 `files` lists only `test/fakes/llm/faults.go` and
+  `journal.go`; the server struct, flags and routes live in `test/fakes/llm/main.go`, and
+  `TestFaultFixtureRefused` in `messages_test.go` asserted the pre-AI-006 501 refusal.
+- Reading A: those edits are implied by the task.
+- Reading B: the task's `files` must list them first.
+- Proposed: A. `main.go` gains `-dump-bodies`, `-speed`, three server fields, the
+  `/_journal` and `/_reset` routes and wraps `/v1/messages` in `s.instrument(...)`;
+  `TestFaultFixtureRefused` is replaced by `faults_test.go`. When AI-005 merges, wrap
+  `/v1/chat/completions` and `/v1/responses` the same way (a `decodeFunc` each, with
+  `writeOpenAIError`).
 - Answer: (owner)
 
 ## Q-AI-003 Wire the AI fixture lint into make check
