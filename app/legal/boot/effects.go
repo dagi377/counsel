@@ -38,12 +38,16 @@ type CreditPorts struct {
 	Ledger credit.BadDebtPoster
 	Gates  credit.GateOpener // opens the managing lawyer's second-approval gate
 	Second credit.SecondApproval
+	// Notes, when set, is the credit-note effect. billing.credit_note carries both credit
+	// notes and write-offs, so boot joins the two with credit.MergeEffects (PORT-17).
+	Notes *credit.NoteEffect
 }
 
 // creditSvcs are the write-off services built at boot.
 type creditSvcs struct {
 	WriteOff *credit.WriteOffEffect
 	Second   credit.SecondApproval
+	Notes    *credit.NoteEffect
 }
 
 // creditServices builds the G-B5 write-off effect and its second approval.
@@ -79,6 +83,7 @@ func creditServices(k *kboot.Kernel, p CreditPorts) (creditSvcs, error) {
 			Clock:  k.Clock,
 		},
 		Second: p.Second,
+		Notes:  p.Notes,
 	}, nil
 }
 
@@ -120,16 +125,30 @@ func effects(k *kboot.Kernel, s svcs) (map[string]registry.EffectFunc, error) {
 	if err != nil {
 		return nil, err
 	}
+	fx, err := creditEffects(s.credit)
+	if err != nil {
+		return nil, err
+	}
 	return mergeEffects([]effectSource{
 		{"core", map[string]registry.EffectFunc{signatory.KindChange: ag.Effects()[signatory.KindChange]}},
 		{"signatory alias", map[string]registry.EffectFunc{
-			signatory.KindSigningAuthority: signatory.Effects(s.trust.Signatories)[signatory.KindSigningAuthority],
+			signatory.KindSigningAuthority: signatoryEffects(s.trust.Signatories)[signatory.KindSigningAuthority],
 		}},
 		{"withdraw", map[string]registry.EffectFunc{withdraw.GateKind: s.trust.Withdraw.Apply}},
 		{"bill", bill.Effects(s.billing.Approve)},
 		{"bill void", bill.VoidEffects(s.billing.Void)},
-		{"credit", credit.Effects(s.credit.WriteOff, s.credit.Second)},
+		{"credit", fx},
 	})
+}
+
+// creditEffects is the write-off effect table, joined with the credit-note effect when one is
+// built: both handle billing.credit_note, dispatched on the payload kind (PORT-17).
+func creditEffects(c creditSvcs) (map[string]registry.EffectFunc, error) {
+	wo := credit.Effects(c.WriteOff, c.Second)
+	if c.Notes == nil {
+		return wo, nil
+	}
+	return credit.MergeEffects(credit.NoteEffects(c.Notes), wo)
 }
 
 // mergeEffects merges the sources into one table. A slug handled by two sources is an error
@@ -165,6 +184,8 @@ type wiring struct {
 	// those checks' runs. Both are built when Options.Clearance is set.
 	checks    *conflict.Checks
 	clearance *conflict.Clearance
+	// rest holds the services registerRest built.
+	rest *RestServices
 }
 
 // registerGates registers the gate kinds that have an effect (gates.RegisterWired), so no
@@ -182,6 +203,10 @@ func (w *wiring) registerGates(_ context.Context, k *kboot.Kernel) error {
 		if fx, err = effects(k, s); err != nil {
 			return fmt.Errorf("gate effects: %w", err)
 		}
+	}
+	fx, err := withRestEffects(k, w.opts.Rest, fx)
+	if err != nil {
+		return fmt.Errorf("gate effects: %w", err)
 	}
 	cat, unwired, err := gates.RegisterWired(k.Registry, gates.SpecData(), fx)
 	if err != nil {

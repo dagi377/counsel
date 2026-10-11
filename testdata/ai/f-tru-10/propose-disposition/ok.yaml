@@ -23,7 +23,7 @@ turns:
     reply:
       tool_calls:
         - name: prepare_trust_withdrawal
-          input: {matter_id: "00000000-0000-4000-8000-0000000000a1", amount_cents: 500000, purpose_category: refund, payee: "Synthetic Client Inc", method: cheque}
+          input: {matter_id: "00000000-0000-4000-8000-0000000000a1", amount_cents: 500000, purpose_category: refund, payee: "00000000-0000-4000-8000-0000000000d4", method: cheque}
       stop_reason: tool_use
       usage: {input_tokens: 880, output_tokens: 96}
   - expect_tool_results: [prepare_trust_withdrawal]

@@ -48,6 +48,38 @@ func (f Funds) Available() int64 {
 type FeeBill struct {
 	DeliveredAt     time.Time
 	BalanceDueCents int64
+	// MatterID is the bill's matter. When set, CheckFeeBill requires it to be the
+	// withdrawal's matter.
+	MatterID string
+}
+
+// ErrBillMatter is returned when a fee withdrawal names a bill on another matter, or a fee
+// withdrawal names no bill.
+var ErrBillMatter = errors.New("withdraw: bill is not on the withdrawal's matter")
+
+// feePurposes are the purposes of money leaving trust for the firm's fees: the agent tool's
+// "fees" and the stored purpose_category "fees_to_operating".
+var feePurposes = map[string]bool{"fees": true, "fees_to_operating": true}
+
+// NeedsFeeBill reports whether r must be checked against the bill it pays: it names a bill
+// or its purpose is fees.
+func NeedsFeeBill(r Request) bool { return r.BillID != "" || feePurposes[r.Reason] }
+
+// CheckFeeBill checks fee withdrawal r against bill b on business date on (By-Law 9 s.9(1)):
+// r names the bill, the bill is on r's matter, it is delivered on or before on, and r is no
+// more than its unpaid balance. It has no flag: the effect runs it at every authorization.
+func CheckFeeBill(r Request, b FeeBill, on time.Time) error {
+	// rule: BIL-L-035 (verify)
+	// rule: BIL-L-037 (verify)
+	switch {
+	case r.BillID == "" || b.MatterID == "" || b.MatterID != r.MatterID:
+		return fmt.Errorf("check fee bill: %w", ErrBillMatter)
+	case b.DeliveredAt.IsZero() || b.DeliveredAt.After(on):
+		return fmt.Errorf("check fee bill: %w", ErrBillNotDelivered)
+	case r.AmountCents > b.BalanceDueCents:
+		return fmt.Errorf("check fee bill: %w", ErrExceedsBillBalance)
+	}
+	return nil
 }
 
 // Signer is the user who authorizes a withdrawal.

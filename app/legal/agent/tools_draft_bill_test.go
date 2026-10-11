@@ -65,6 +65,21 @@ func (w *wipDrafts) Create(ctx context.Context, key string, t batch.Target, _ cl
 	return id, true, nil
 }
 
+// UnbilledEntryIDs is the matter's unbilled WIP: the two entries Create puts on the draft.
+func (w *wipDrafts) UnbilledEntryIDs(_ context.Context, matterID string, _ clock.Date) ([]string, error) {
+	if matterID != draftBillMatter {
+		return nil, nil
+	}
+	return []string{billEntryA, billEntryB}, nil
+}
+
+// created reports how many drafts Create built.
+func (w *wipDrafts) created() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return len(w.keys)
+}
+
 type draftBillWorld struct {
 	reg    *agenttools.Registry
 	drafts *wipDrafts
@@ -105,8 +120,9 @@ func newDraftBillWorld(t *testing.T, actorCaps map[string]bool) draftBillWorld {
 	pv := agenttools.NewProvenance()
 	pv.Observe(draftBillRun, json.RawMessage(`{"unbilled_cents":5000}`))
 	var drafts batch.Drafts = w.drafts
+	var wip agent.UnbilledWIP = w.drafts
 	var lines draft.Store = store
-	tool, err := agent.DraftBillHandler().Build(agent.NewDeps(can, walls, drafts, lines, open, pv))
+	tool, err := agent.DraftBillHandler().Build(agent.NewDeps(can, walls, drafts, wip, lines, open, pv))
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -177,6 +193,8 @@ func TestARC_I_035_DraftBill(t *testing.T) {
 		{"invented write-down amount", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, writeDown(4999)), agenttools.ErrUnsourcedValue, nil},
 		{"write-down without amount", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, `{"source_id":"`+billEntryA+`","action":"write_down"}`), agent.ErrInvalidInput, nil},
 		{"source not on the draft", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, `{"source_id":"`+billEntryX+`","action":"hold"}`), agent.ErrInvalidInput, nil},
+		{"one bad source among good ones", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, hold, `{"source_id":"`+billEntryX+`","action":"no_charge"}`), agent.ErrInvalidInput, nil},
+		{"bad source on the manual path", context.Background(), user, caps, billInput(draftBillMatter, `{"source_id":"`+billEntryX+`","action":"bill"}`), agent.ErrInvalidInput, nil},
 		{"period ends before it starts", inScope, agentP(draftBillRun, grant), caps, `{"matter_id":"` + draftBillMatter + `","period_from":"2026-09-30","period_to":"2026-09-01"}`, agent.ErrInvalidInput, nil},
 		{"no field to finalize", inScope, agentP(draftBillRun, grant), caps, `{"matter_id":"` + draftBillMatter + `","period_to":"2026-09-30","issue":true}`, agenttools.ErrInvalidInput, nil},
 	}
@@ -190,6 +208,11 @@ func TestARC_I_035_DraftBill(t *testing.T) {
 			if err != nil {
 				if *w.opened != 0 {
 					t.Fatalf("refused call opened a gate")
+				}
+				// rule: ARC-I-035
+				// A refused call, a bad line source included, creates no draft.
+				if n := w.drafts.created(); n != 0 {
+					t.Fatalf("refused call created %d drafts", n)
 				}
 				return
 			}

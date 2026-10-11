@@ -33,6 +33,10 @@ type Status string
 const (
 	StatusDraft    Status = "draft"
 	StatusApproved Status = "approved"
+	// StatusRejected: a write-off draft whose G-B5 gate was rejected. Final.
+	StatusRejected Status = "rejected"
+	// StatusWithdrawn: a write-off draft its preparer took back. Final.
+	StatusWithdrawn Status = "withdrawn"
 )
 
 // Line credits part of one bill line. Amounts are int64 cents; TaxCents is the sales tax

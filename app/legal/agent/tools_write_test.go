@@ -27,16 +27,50 @@ const (
 	matterA  = "00000000-0000-0000-0000-00000000000a"
 	matterW  = "00000000-0000-0000-0000-00000000000b"
 	account  = "acct-1"
+	// payeeA is a contact of matterA; payeeW is a contact of matterW only.
+	payeeA = "00000000-0000-0000-0000-0000000000c1"
+	payeeW = "00000000-0000-0000-0000-0000000000c2"
+	// firmPayee is the firm's general account; billDelivered and billDraft are bills on matterA.
+	firmPayee     = "00000000-0000-0000-0000-0000000000f1"
+	billDelivered = "00000000-0000-0000-0000-0000000000b1"
+	billDraft     = "00000000-0000-0000-0000-0000000000b2"
 )
+
+// errBillNotOnMatter is what fakeFeeBills answers for a bill that is not on the matter.
+var errBillNotOnMatter = errors.New("bill not on matter")
+
+// fakeFeeBills holds bills by matter, then bill id.
+type fakeFeeBills map[string]map[string]withdraw.FeeBill
+
+func (f fakeFeeBills) FeeBill(_ context.Context, matterID, billID string) (withdraw.FeeBill, error) {
+	b, ok := f[matterID][billID]
+	if !ok {
+		return withdraw.FeeBill{}, errBillNotOnMatter
+	}
+	return b, nil
+}
+
+// writeBills: billDelivered has 300000 unpaid; billDraft is approved but not delivered.
+var writeBills = fakeFeeBills{matterA: {
+	billDelivered: {DeliveredAt: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), BalanceDueCents: 300_000},
+	billDraft:     {BalanceDueCents: 300_000},
+}}
+
+func firmAccount(context.Context) (string, error) { return firmPayee, nil }
+
+// writeContacts are the matter contacts the write tests propose payments to.
+var writeContacts = fakeMatterContacts{matterA: {payeeA}, matterW: {payeeW}}
 
 // countingWithdrawals records every call so tests can see that the agent path only requests.
 type countingWithdrawals struct {
 	*withdrawfake.Fake
 	requests, authorizes, executions int
+	last                             withdraw.Request
 }
 
 func (c *countingWithdrawals) Request(ctx context.Context, r withdraw.Request) (withdraw.Withdrawal, error) {
 	c.requests++
+	c.last = r
 	return c.Fake.Request(ctx, r)
 }
 
@@ -50,26 +84,45 @@ func (c *countingWithdrawals) RecordExecution(ctx context.Context, id, by string
 	return c.Fake.RecordExecution(ctx, id, by, on)
 }
 
+// newWriteTools builds the write tools where run-1 read the figures 5000 and 900000.
 func newWriteTools(t *testing.T) (*agent.WriteTools, *countingWithdrawals) {
 	t.Helper()
-	return newSourcedWriteTools(t, nil)
+	pv := agenttools.NewProvenance()
+	pv.Observe("run-1", json.RawMessage(`{"fee_cents":5000,"bill_cents":900000}`))
+	return newWriteToolsWith(t, pv, writeContacts)
 }
 
-// newSourcedWriteTools is newWriteTools with the run figures in pv; nil checks no provenance.
+// newSourcedWriteTools is newWriteTools with the run figures in pv.
 func newSourcedWriteTools(t *testing.T, pv *agenttools.Provenance) (*agent.WriteTools, *countingWithdrawals) {
+	t.Helper()
+	return newWriteToolsWith(t, pv, writeContacts)
+}
+
+// newWriteToolsWith builds the write tools over pv and contacts; either may be nil.
+func newWriteToolsWith(t *testing.T, pv *agenttools.Provenance, contacts agent.MatterContacts) (*agent.WriteTools, *countingWithdrawals) {
+	t.Helper()
+	return newWriteToolsDeps(t, func(d *agent.WriteDeps) { d.Provenance, d.Contacts = pv, contacts })
+}
+
+// newWriteToolsDeps builds the write tools with every dependency set, then applies edit.
+func newWriteToolsDeps(t *testing.T, edit func(*agent.WriteDeps)) (*agent.WriteTools, *countingWithdrawals) {
 	t.Helper()
 	wf := withdrawfake.New(24 * time.Hour)
 	wf.SetBalance(account, matterA, 500_000, 0)
 	wd := &countingWithdrawals{Fake: wf}
 	rf := rolesfake.New()
 	rf.Wall(preparer, matterW)
-	tools, err := agent.NewWriteTools(agent.WriteDeps{
+	deps := agent.WriteDeps{
 		Can:          func(_ context.Context, user, capability string) (bool, error) { return user == preparer, nil },
 		Walls:        rf,
 		TrustAccount: func(context.Context, string) (string, error) { return account, nil },
 		Withdrawals:  wd,
-		Provenance:   pv,
-	})
+		Contacts:     writeContacts,
+		FirmAccount:  firmAccount,
+		Bills:        writeBills,
+	}
+	edit(&deps)
+	tools, err := agent.NewWriteTools(deps)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +130,11 @@ func newSourcedWriteTools(t *testing.T, pv *agenttools.Provenance) (*agent.Write
 }
 
 func withdrawalCall(run, matterID string, cents int64, method string) agent.Call {
-	in := map[string]any{"matter_id": matterID, "amount_cents": cents, "purpose_category": "fees", "payee": "Firm operating account"}
+	return payeeCall(run, matterID, cents, method, payeeA)
+}
+
+func payeeCall(run, matterID string, cents int64, method, payee string) agent.Call {
+	in := map[string]any{"matter_id": matterID, "amount_cents": cents, "purpose_category": "fees", "payee": payee}
 	if method != "" {
 		in["method"] = method
 	}
@@ -237,6 +294,118 @@ func TestARC_U_027_WithdrawalAmountProvenance(t *testing.T) {
 			}
 			if wd.requests != 1 || res.GateID == "" {
 				t.Fatalf("requests = %d, gate %q; want one proposal", wd.requests, res.GateID)
+			}
+		})
+	}
+}
+
+// rule: ARC-U-027
+// rule: BIL-L-037
+// The tool fails closed: without the run's figures or the matter's contacts it refuses, and
+// a payee that is not one of the matter's contact ids is refused. No refusal records anything.
+func TestARC_U_027_WithdrawalFailsClosed(t *testing.T) {
+	sourced := func() *agenttools.Provenance {
+		pv := agenttools.NewProvenance()
+		pv.Observe("run-1", json.RawMessage(`{"fee_cents":5000}`))
+		return pv
+	}
+	cases := []struct {
+		name     string
+		pv       *agenttools.Provenance
+		contacts agent.MatterContacts
+		call     agent.Call
+		wantErr  error
+	}{
+		{"contact payee with a sourced amount", sourced(), writeContacts, withdrawalCall("run-1", matterA, 5_000, ""), nil},
+		{"nil provenance refused", nil, writeContacts, withdrawalCall("run-1", matterA, 5_000, ""), agent.ErrMissingDep},
+		{"nil matter contacts refused", sourced(), nil, withdrawalCall("run-1", matterA, 5_000, ""), agent.ErrMissingDep},
+		{"free-text payee refused", sourced(), writeContacts, payeeCall("run-1", matterA, 5_000, "", "Firm operating account"), agent.ErrPayeeNotContact},
+		{"cash payee refused", sourced(), writeContacts, payeeCall("run-1", matterA, 5_000, "", "cash"), agent.ErrPayeeNotContact},
+		{"empty payee refused", sourced(), writeContacts, payeeCall("run-1", matterA, 5_000, "", ""), agent.ErrInvalidInput},
+		{"another matter's contact refused", sourced(), writeContacts, payeeCall("run-1", matterA, 5_000, "", payeeW), agent.ErrPayeeNotContact},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tools, wd := newWriteToolsWith(t, tc.pv, tc.contacts)
+			res, err := tools.Call(context.Background(), tc.call)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tc.wantErr)
+			}
+			if tc.wantErr != nil {
+				// No withdrawal row: the trust module was never asked.
+				if wd.requests != 0 || res.GateID != "" {
+					t.Fatalf("refused call made %d requests, gate %q", wd.requests, res.GateID)
+				}
+				return
+			}
+			if wd.requests != 1 || res.GateID == "" {
+				t.Fatalf("requests = %d, gate %q; want one proposal", wd.requests, res.GateID)
+			}
+		})
+	}
+}
+
+func feeCall(purpose, payee, billID string, cents int64) agent.Call {
+	in := map[string]any{"matter_id": matterA, "amount_cents": cents, "purpose_category": purpose, "payee": payee}
+	if billID != "" {
+		in["bill_id"] = billID
+	}
+	b, _ := json.Marshal(in)
+	return agent.Call{RunID: "run-1", ActingFor: preparer, Tool: agent.ToolPrepareTrustWithdrawal, Input: b}
+}
+
+// rule: BIL-L-037
+// rule: BIL-L-035
+// The firm's general account is a payee only for fees on a delivered bill of the same matter,
+// up to its unpaid balance (By-Law 9 s.9(1)); every other payee is a matter contact. The
+// tool fails closed without the firm account or bills port, and no refusal records anything.
+func TestBIL_L_037_FirmPayeeOnlyForDeliveredBillFees(t *testing.T) {
+	cases := []struct {
+		name    string
+		call    agent.Call
+		edit    func(*agent.WriteDeps)
+		wantErr error
+	}{
+		{"fees with a delivered bill allowed", feeCall("fees", firmPayee, billDelivered, 300_000), nil, nil},
+		{"fees over the bill balance refused", feeCall("fees", firmPayee, billDelivered, 300_001), nil, withdraw.ErrExceedsBillBalance},
+		{"fees with an undelivered bill refused", feeCall("fees", firmPayee, billDraft, 300_000), nil, withdraw.ErrBillNotDelivered},
+		{"fees with no bill refused", feeCall("fees", firmPayee, "", 300_000), nil, agent.ErrFirmPayeeNeedsBill},
+		{"fees with another matter's bill refused", feeCall("fees", firmPayee, "00000000-0000-0000-0000-0000000000b9", 300_000), nil, errBillNotOnMatter},
+		{"disbursement to the firm refused", feeCall("disbursement", firmPayee, billDelivered, 300_000), nil, agent.ErrFirmPayeeNeedsBill},
+		{"refund to the firm refused", feeCall("refund", firmPayee, "", 300_000), nil, agent.ErrFirmPayeeNeedsBill},
+		{"contact payee allowed", feeCall("client_payment", payeeA, "", 300_000), nil, nil},
+		{"nil firm account refused", feeCall("client_payment", payeeA, "", 300_000), func(d *agent.WriteDeps) { d.FirmAccount = nil }, agent.ErrMissingDep},
+		{"nil bills refused", feeCall("client_payment", payeeA, "", 300_000), func(d *agent.WriteDeps) { d.Bills = nil }, agent.ErrMissingDep},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			pv := agenttools.NewProvenance()
+			pv.Observe("run-1", json.RawMessage(`{"balance_due_cents":300000,"other_cents":300001}`))
+			tools, wd := newWriteToolsDeps(t, func(d *agent.WriteDeps) {
+				d.Provenance = pv
+				if tc.edit != nil {
+					tc.edit(d)
+				}
+			})
+			res, err := tools.Call(context.Background(), tc.call)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tc.wantErr)
+			}
+			if tc.wantErr != nil {
+				if wd.requests != 0 || res.GateID != "" {
+					t.Fatalf("refused call made %d requests, gate %q", wd.requests, res.GateID)
+				}
+				return
+			}
+			if wd.requests != 1 || res.GateID == "" || wd.authorizes != 0 {
+				t.Fatalf("requests = %d, authorizes = %d, gate %q; want one proposal only", wd.requests, wd.authorizes, res.GateID)
+			}
+			// The bill goes on to the trust module, which re-checks it at authorization.
+			var in struct {
+				BillID string `json:"bill_id"`
+			}
+			if err := json.Unmarshal(tc.call.Input, &in); err != nil || wd.last.BillID != in.BillID {
+				t.Fatalf("request bill = %q, want %q (%v)", wd.last.BillID, in.BillID, err)
 			}
 		})
 	}

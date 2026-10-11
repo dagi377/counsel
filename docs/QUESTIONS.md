@@ -1280,6 +1280,19 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   subject is ErrNotFound (404). The gate payload carries subject ids only; the model's note is
   not stored (AI-R-005).
 
+## FEAT-TOOL-21 prepare_trust_withdrawal amount provenance
+
+- Closed by FEAT-FIX-A: `WriteDeps.Provenance` is checked only when set. Now nil fails closed
+  (ErrMissingDep, nothing recorded). `agenttest.New` builds one Provenance per driver, and a
+  read stand-in whose text is JSON records its figures for the run, as the real read would.
+  Boot wiring (BOOT-FEAT-WIRE) must pass the run's Provenance.
+- `WriteDeps.Withdrawals` is now the narrow `agent.Withdrawals` interface (Request, Available).
+  `withdraw.Service` and `withdrawfake.Fake` satisfy it, so callers are unchanged.
+- Closed by FEAT-FIX-A: payee was free text. Now `WriteDeps.Contacts` (the FEAT-TOOL-12
+  `MatterContacts` port, required, nil fails closed) and payee must be one of the matter's
+  contact ids (`ErrPayeeNotContact`, 422, rule BIL-L-037). The F-TRU-02, F-TRU-10 and
+  F-BIL-03 fixtures now pay `agenttest.PayeeContact`.
+
 ## FEAT-CORE-10
 
 - Q-FEAT-CORE-10.1: `prompts/rules.md` is embedded and exposed as `feature.Rules()`, but
@@ -1647,8 +1660,28 @@ Done in PORT-18:
 - The result is outcome `proposal` with the run id as ref, not `gate`: G2 is decided on the run
   through `conflict.Clearer`, not a kernel gate the runner could park on. The run stays open.
 
-## FEAT-TOOL-21 prepare_trust_withdrawal amount provenance
+## FEAT-FIX-A trust withdrawal fails closed; draft_bill checks sources first
 
+- Closed by FEAT-FIX-B: a fee transfer to the firm's own general account (spec trust.json
+  "Payee is firm general account (known)") was refused because it is not a matter contact.
+  Decision: a separate firm-payee id. See the FEAT-FIX-B entry below.
+- draft_bill reads a new `agent.UnbilledWIP` port (matter's unbilled entry ids up to
+  period_to) from Deps; boot (BOOT-FEAT-WIRE) must wire it. Every line action source is
+  checked against it before `batch.Drafts.Create`, so a bad source creates no draft.
+
+## FEAT-FIX-B firm general account as a fee payee (By-Law 9 s.9(1))
+
+- Decision: `WriteDeps.FirmAccount` (the firm general account's payee id) and `WriteDeps.Bills`
+  (`agent.FeeBills`, returns `withdraw.FeeBill` for a bill on the matter) are new required
+  ports; nil fails closed (ErrMissingDep). No BillBalances port existed, so FeeBills is the
+  equivalent.
+- The firm account is a payee only when purpose_category is fees, bill_id is a bill on the
+  same matter, the bill is delivered and amount_cents <= its balance due (rules BIL-L-037,
+  BIL-L-035). Otherwise `ErrFirmPayeeNeedsBill` (422), `withdraw.ErrBillNotDelivered` or
+  `withdraw.ErrExceedsBillBalance`. Every other payee must still be a matter contact id.
+- `withdraw.Request` has no bill field, so the bill id is checked by the agent but not carried
+  into the trust request. Boot (BOOT-FEAT-WIRE) must wire FirmAccount and Bills; the trust
+  module's own ValidateFee remains the authoritative check at authorization.
 - `WriteDeps.Provenance` is checked only when set. `agenttest.New` (not this task's file) builds
   WriteTools without one, and its read stand-ins return quoted text with no numbers to observe,
   so a fail-closed nil would break the F-TRU/F-BIL/F-ACC feature tests. Boot wiring
@@ -1852,6 +1885,55 @@ Done in PORT-18:
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
 
+## Q-HTTP-16 Direct trust receipt posting versus the gate-owned receipt key
+
+- HTTP-16 accept said an unambiguous, under-limit POST /trust/receipts answers 201 and posts
+  the receipt in the route, but app/legal/gateowned.go gives `trust_txn.posted=receipt` to
+  trust.receipt_classification (ARC-I-012). Options were (A) split the key, or (B) send every
+  receipt through trust.receipt_classification.
+- **Closed (decided as counsel):** the gate-owned key is not split. Classifying money as trust
+  is the control, so every receipt goes through trust.receipt_classification. For By-law 9
+  same-day record-keeping, POST /trust/receipts records the receipt at once in the trust
+  receipts journal (`trust.receipt_journal`, migration 5520) in state
+  `received_pending_classification`, opens the gate with the proposed classification in the
+  same transaction and answers 202 with the Gate. Only the gate effect
+  (`trust.ReceiptClassificationEffect`) posts to the client ledger. Built in HTTP-16b; the
+  route declares `trust_receipt.status=received_pending_classification`, never the gate-owned
+  key. Follow-up: boot wires ReceiptHTTP and the effect (gates.RegisterWired).
+
+## REFUND-EFFECT billing.refund gate effect
+
+- Built `payment.RefundEffect` (app/legal/billing/payment/refund_effect.go), the G-B6
+  billing.refund effect HTTP-15 needs. Integer cents; the refund never exceeds the payment
+  less earlier refunds; replay by gate id records nothing twice; the approver must be a user
+  who is not the requester (BIL-C-064).
+- Operating refund: records billing.refund (status approved, approval_id = gate) and the
+  negative client credit through the `RefundStore` port, and posts Dr OP-2200 / Cr OP-1000
+  (gl source_type `refund`, source id = refund id).
+- Trust refund: never pays out in the effect. It becomes a trust withdrawal (cheque, payee
+  from the payload, prepared by the G-B6 approver so they cannot also authorise it) checked by
+  `withdraw.Validate` (bearer payee, overdraw, uncleared funds, By-law 9 flag) and opened
+  through the `TrustRefunds` port; the refund row links trust_withdrawal_id, and the trust book
+  moves when that withdrawal executes.
+- Follow-ups: Postgres `RefundStore` and `TrustRefunds` implementations, and boot wiring of
+  `payment.Gated` plus this effect in app/legal/boot/effects.go (gates.RegisterWired). No
+  migration: billing.refund already has approval_id, trust_withdrawal_id and status.
+
+## WD-BILL: trust withdrawal names its bill
+
+- Additive in `app/legal/trust/withdraw/contract.go`: `Request.BillID`
+  (`trust.withdrawal_request.bill_id`, already in 0001_init.sql, so no migration). The agent's
+  prepare_trust_withdrawal passes its `bill_id` on (FEAT-FIX-B). The trust.withdrawal gate
+  payload gains `bill_id` (omitempty), so an approval binds the bill.
+- `Effect.Apply` re-checks a fee withdrawal at authorization (By-Law 9 s.9(1), BIL-L-035/037):
+  it names a bill, the bill is on the same matter, delivered on or before now, and the amount
+  is no more than its unpaid balance. A withdrawal with a bill id, or purpose `fees` /
+  `fees_to_operating`, is a fee withdrawal. `Effect.Bills` (new port `withdraw.FeeBills`, read
+  in the gate tx) nil fails closed. Open (BOOT): wire a billing adapter returning the bill's
+  matter, delivery date and balance net of reserved fee transfers.
+- Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
+  resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.
+
 ## DL-EVENTS: the owning modules publish the deadline trigger events
 
 - Published now, each in the writer's tx through `outbox.Emitter`:
@@ -2019,3 +2101,36 @@ Done in PORT-18:
   The body is ids and a count, with acting_for set to the run's preparer. Dispositions are
   kept in memory (Q-PORT-18 C), so the event is emitted with no tx; boot must set Events, and
   while it is nil no event is published.
+## WO-FIX: write-off draft outcomes and the split after a trust fee transfer
+
+- Additive in `app/legal/billing/credit/contract.go`: `StatusRejected` and `StatusWithdrawn`.
+  `PGWriteOffs.Close(ctx, tx, id, status)` moves a submitted draft to one of them; both are
+  final. Migration 5620 widens the `billing.write_off_draft` status check (NOT VALID,
+  validated in 5621) and replaces the guard so a row that has left `draft` never changes.
+  Only `status = 'draft'` drafts count toward the second-approval total (BIL-C-085).
+  Open (BOOT): call `Close(..., StatusRejected)` from the G-B5 gate rejection outcome and
+  `Close(..., StatusWithdrawn)` from a preparer withdraw route.
+- Q-INTEG-12.1 applied: on a bill with trust fee transfers (authorized, executed or applied,
+  net of excess) the draft split uses `DraftOpenBuckets`: the bucket outstanding less the
+  transfer must equal the balance, and the balance less open interest is apportioned over
+  fees, disbursements and tax in the bill's issued proportions (BIL-C-205, ETA s.231). The
+  transfer itself is never re-split. An apportioned bucket above its outstanding fails closed.
+
+## BOOT-REST: services wired last
+
+- Wired in app/legal/boot/services_rest.go behind `Options.Rest` (nil builds nothing): PGGrants
+  (`matter.matter` / `matter_id`) with `AuditMasker` keeping `grant_id`; `recon.PGSignOff`
+  with audit; `core.firm.sole_practitioner` recomputed at Start and every 15 min (kind
+  `firm.sole_practitioner_sync`; no licensee-change event exists, and licence expiry is
+  date driven); the renewal job (still behind FlagSourceSync, off); `portal.PGSessions`;
+  `PGBook.Events` and `FilingStore.Events` set to the kernel emitter (DL-EVENTS); the
+  trust.receipt_classification and billing.refund effects; POST /trust/receipts.
+- Touched outside the new file: boot.go (Options.Rest, the hook, Start sync), effects.go
+  (wiring.rest, rest effects merged in registerGates), routes.go (ReceiptHTTP mount),
+  services_trust.go (`TrustPorts.FeeBills` -> withdraw `Effect.Bills`, WD-BILL; nil fails
+  every fee withdrawal closed).
+- Open: payment.Gated (HTTP-15 is not merged here); Postgres RefundStore, TrustRefunds and a
+  withdraw.FeeBills billing adapter (taken as ports); BOOT-21 (T-031.4 reminder worker does not
+  exist); WO-FIX Close on G-B5 rejection needs a kernel gate-rejection hook (registry.GateKind
+  has none) and a credit preparer-withdraw route; the portal Shell is not built at boot yet, so
+  PGSessions is exposed through `wiring.Wired()` only.
