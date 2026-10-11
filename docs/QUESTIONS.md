@@ -1851,3 +1851,21 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## REFUND-EFFECT billing.refund gate effect
+
+- Built `payment.RefundEffect` (app/legal/billing/payment/refund_effect.go), the G-B6
+  billing.refund effect HTTP-15 needs. Integer cents; the refund never exceeds the payment
+  less earlier refunds; replay by gate id records nothing twice; the approver must be a user
+  who is not the requester (BIL-C-064).
+- Operating refund: records billing.refund (status approved, approval_id = gate) and the
+  negative client credit through the `RefundStore` port, and posts Dr OP-2200 / Cr OP-1000
+  (gl source_type `refund`, source id = refund id).
+- Trust refund: never pays out in the effect. It becomes a trust withdrawal (cheque, payee
+  from the payload, prepared by the G-B6 approver so they cannot also authorise it) checked by
+  `withdraw.Validate` (bearer payee, overdraw, uncleared funds, By-law 9 flag) and opened
+  through the `TrustRefunds` port; the refund row links trust_withdrawal_id, and the trust book
+  moves when that withdrawal executes.
+- Follow-ups: Postgres `RefundStore` and `TrustRefunds` implementations, and boot wiring of
+  `payment.Gated` plus this effect in app/legal/boot/effects.go (gates.RegisterWired). No
+  migration: billing.refund already has approval_id, trust_withdrawal_id and status.
