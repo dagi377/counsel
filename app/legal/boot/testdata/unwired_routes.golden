@@ -13,7 +13,6 @@ GET /trust/requests
 GET /users
 GET /webhook-endpoints
 GET /work-items
-PATCH /matters/{matter_id}
 PATCH /time-entries/{time_entry_id}
 PATCH /webhook-endpoints/{webhook_id}
 PATCH /work-items/{work_item_id}
@@ -23,7 +22,6 @@ POST /documents
 POST /documents/{document_id}/release
 POST /gates/{gate_id}/decisions
 POST /gates/{gate_id}/withdraw
-POST /matters
 POST /payments
 POST /payments/{payment_id}/allocations
 POST /payments/{payment_id}/refunds

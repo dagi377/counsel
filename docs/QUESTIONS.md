@@ -3016,3 +3016,23 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   access directory or trust-request wiring; GatePorts (GL, Sealer, withdraw.Auditor, credit
   second approval) and AgentPorts have no Postgres composition. `HTTPPorts.AgentModel` and the
   HandlerSet are on `task/PG-RUNS-WEBHOOK`, which this branch could not merge.
+
+## PG-MATTER-UPDATER / PG-GATE-PORTS
+
+- `matter.PGUpdater` writes the plain fields (short name, practice area, court and property
+  province) at the If-Match version inside a tx bound to the principal (RLS walls apply);
+  it also refuses a user screened by an active wall (404) and a stale version (412).
+  `matter.PGWalls` reads active walls for the Lifecycle dry run; `AddWall` is refused
+  (walls are gate-owned). Boot mounts `matter.Writes` (POST and PATCH /matters).
+- `boot.gatePortsPG` composes the GatePorts from Postgres: `PGGL` (ledger.PG with posted_by
+  read in the gate tx: the latest approver, else the session user), `trust.AESSealer`,
+  `withdraw.AuditLog` on the kernel audit log, the signatory/signer/firm ports, the bill
+  effects and the write-off ports; the managing lawyer's second approval holds
+  `billing.writeoff_second_approve`. Gates with min_approvers >= 2 keep their quorum in the
+  kernel engine.
+- Open: `Production.SealKey` (and `BillPrefix`, default `INV`) has no config source yet:
+  `cmd/counseld` passes `Production{}`, so production registers no money gate effects until
+  the binary reads the seal key (env or mounted file). Files beyond the task list:
+  `app/legal/boot/production.go`, `routes.go`, `compose_test.go`.
+- Still unwired: `POST /gates/{gate_id}/decisions` and `/withdraw` need a step-up source
+  (`gates.DecideHTTP.StepUp`), which waits on request authentication.

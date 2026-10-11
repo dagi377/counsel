@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/dagi377/counsel/app/legal/trust"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/db/dbfake"
 	"github.com/dagi377/counsel/kernel/gate/gatefake"
@@ -145,7 +146,19 @@ func TestComposeOverFakes(t *testing.T) {
 // answers 503 is a route whose ports boot did not supply; testdata/unwired_routes.golden
 // lists the groups no Postgres implementation exists for yet, and no other may answer 503.
 func TestProductionRoutesHaveTheirPorts(t *testing.T) {
-	c := compose(t, legalFlagNames(t), Options{Production: &Production{}, Gates: testGatePorts()})
+	// The gate effects run on the Postgres GatePorts (gatePortsPG), not on fakes.
+	key := trust.SealKey{ID: 1, Key: make([]byte, 32)}
+	c := compose(t, legalFlagNames(t), Options{Production: &Production{SealKey: &key}})
+	var wired int
+	for _, call := range c.boot.Method(registry.MethodGateKind) {
+		if call.Args[0].(registry.GateKind).Effect == nil {
+			t.Errorf("gate kind %s has a nil Effect", call.Args[0].(registry.GateKind).Slug)
+		}
+		wired++
+	}
+	if wired != wantWiredGates {
+		t.Fatalf("production wired %d gate kinds, want %d", wired, wantWiredGates)
+	}
 	h := c.server.Handler()
 	param := regexp.MustCompile(`\{[^}]+\}`)
 	var unserved []string
@@ -164,7 +177,8 @@ func TestProductionRoutesHaveTheirPorts(t *testing.T) {
 	golden(t, filepath.Join("testdata", "unwired_routes.golden"), strings.Join(unserved, "\n")+"\n")
 	// rule: ARC-I-040
 	// The routes this task wires must be served.
-	for _, must := range []string{"GET /matters", "GET /contacts", "GET /firm/tax-registrations", "GET /bills"} {
+	for _, must := range []string{"GET /matters", "GET /contacts", "GET /firm/tax-registrations", "GET /bills",
+		"POST /matters", "PATCH /matters/{matter_id}"} {
 		if slices.Contains(unserved, must) {
 			t.Errorf("%s answers 503", must)
 		}
