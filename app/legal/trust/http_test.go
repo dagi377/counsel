@@ -185,6 +185,44 @@ func validate(t *testing.T, ref string, body []byte) {
 	}
 }
 
+const ledgerListSchema = "#/paths/~1trust~1ledgers/get/responses/200/content/application~1json/schema"
+
+// validateLedgerList validates the whole GET /trust/ledgers body against its openapi
+// response schema, and fails on any ledger field TrustLedger does not declare (the schema
+// allows extra properties, so an undeclared field would otherwise pass unchecked).
+func validateLedgerList(t *testing.T, body []byte) {
+	t.Helper()
+	validate(t, ledgerListSchema, body)
+	raw, err := os.ReadFile("../../../api/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Components struct {
+			Schemas map[string]struct {
+				Properties map[string]any `yaml:"properties"`
+			} `yaml:"schemas"`
+		} `yaml:"components"`
+	}
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	declared := doc.Components.Schemas["TrustLedger"].Properties
+	var page struct {
+		Items []map[string]json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(body, &page); err != nil {
+		t.Fatal(err)
+	}
+	for i, it := range page.Items {
+		for k := range it {
+			if _, ok := declared[k]; !ok {
+				t.Errorf("ledger %d field %q is not declared on openapi TrustLedger", i, k)
+			}
+		}
+	}
+}
+
 func checkProblem(t *testing.T, rec *httptest.ResponseRecorder, status int, code string) {
 	t.Helper()
 	if rec.Code != status {
@@ -300,6 +338,7 @@ func TestTrustLedgersBalanceFromService(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
 	}
+	validateLedgerList(t, rec.Body.Bytes())
 	var page struct {
 		Items []json.RawMessage `json:"data"`
 	}
@@ -346,6 +385,7 @@ func TestTrustLedgerOverdraftIsReported(t *testing.T) {
 			if rec.Code != http.StatusOK {
 				t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
 			}
+			validateLedgerList(t, rec.Body.Bytes())
 			var page struct {
 				Items []json.RawMessage `json:"data"`
 			}
@@ -401,6 +441,9 @@ func TestTrustListPages(t *testing.T) {
 				rec := do(h, http.MethodGet, path, userViewer)
 				if rec.Code != http.StatusOK {
 					t.Fatalf("page %d status = %d (%s)", i, rec.Code, rec.Body)
+				}
+				if tc.ref == "TrustLedger" {
+					validateLedgerList(t, rec.Body.Bytes())
 				}
 				var page struct {
 					Items []json.RawMessage `json:"data"`

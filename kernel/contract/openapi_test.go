@@ -18,7 +18,7 @@ import (
 const (
 	contractPath  = "../../api/openapi.yaml"
 	baselinePath  = "../../spec/eng/a2-interfaces.openapi.yaml"
-	additivePath  = "additive.txt"
+	additivePath  = "../../api/contract-additive.txt"
 	questionsPath = "../../docs/QUESTIONS.md"
 )
 
@@ -94,7 +94,7 @@ func pointerEscape(k string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(k, "~", "~0"), "/", "~1")
 }
 
-// approvedAdditions parses additive.txt: "<pointer> <Q-id>" per line, # comments.
+// approvedAdditions parses api/contract-additive.txt: "<pointer> <Q-id>" per line, # comments.
 func approvedAdditions(raw []byte) (map[string]string, error) {
 	out := map[string]string{}
 	for n, line := range strings.Split(string(raw), "\n") {
@@ -300,8 +300,8 @@ func TestARC_I_001_ContractIsHeaderPlusBaseline(t *testing.T) {
 		body = rest
 	}
 	// The body is the baseline, or the baseline plus additive changes each listed in
-	// additive.txt with the docs/QUESTIONS.md id that approved it (e.g. Q-004).
-	rawApproved, err := os.ReadFile(additivePath)
+	// api/contract-additive.txt with the docs/QUESTIONS.md id that approved it (e.g. Q-004).
+	rawApproved, err := os.ReadFile(filepath.FromSlash(additivePath))
 	if err != nil {
 		t.Fatalf("read %s: %v", additivePath, err)
 	}
@@ -362,7 +362,7 @@ func TestARC_I_001_UnlistedAdditionsFail(t *testing.T) {
 			mutate: func(d map[string]any) {
 				asMap(d["paths"])["/added"] = map[string]any{"get": map[string]any{"operationId": "added"}}
 			},
-			want: []string{"addition not listed in additive.txt: /paths/~1added"},
+			want: []string{"addition not listed in " + additivePath + ": /paths/~1added"},
 		},
 		{
 			name: "endpoint added and listed",
@@ -376,7 +376,7 @@ func TestARC_I_001_UnlistedAdditionsFail(t *testing.T) {
 			mutate: func(d map[string]any) {
 				asMap(schema(d, "Bill")["properties"])["foo"] = map[string]any{"type": "integer"}
 			},
-			want: []string{"addition not listed in additive.txt: /components/schemas/Bill/properties/foo"},
+			want: []string{"addition not listed in " + additivePath + ": /components/schemas/Bill/properties/foo"},
 		},
 		{
 			name: "extensible enum value added unlisted",
@@ -384,13 +384,13 @@ func TestARC_I_001_UnlistedAdditionsFail(t *testing.T) {
 				s := schema(d, "BillStatus")
 				s["enum"] = append(asList(s["enum"]), "future_state")
 			},
-			want: []string{fmt.Sprintf("addition not listed in additive.txt: /components/schemas/BillStatus/enum/%d", len(asList(schema(base, "BillStatus")["enum"])))},
+			want: []string{fmt.Sprintf("addition not listed in %s: /components/schemas/BillStatus/enum/%d", additivePath, len(asList(schema(base, "BillStatus")["enum"])))},
 		},
 		{
 			name:     "stale listing",
 			mutate:   func(map[string]any) {},
 			approved: map[string]string{hook: "Q-004"},
-			want:     []string{"listed in additive.txt but not an addition: " + hook},
+			want:     []string{"listed in " + additivePath + " but not an addition: " + hook},
 		},
 	}
 	for _, tt := range tests {
