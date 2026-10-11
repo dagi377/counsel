@@ -1,0 +1,32 @@
+synthetic: true
+feature: F-BIL-03
+match:
+  last_user_regex: '\[error_429\]'
+fault: rate_limit
+turns:
+  - expect_tools: [report_plan]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: balance, title: "Read the matter trust balance"}, {id: propose, title: "Propose the transfer to fees"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 640, output_tokens: 48}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: get_trust_balance
+          input: {id: "mat-synth-001"}
+      stop_reason: tool_use
+      usage: {input_tokens: 720, output_tokens: 30}
+  - expect_tool_results: [get_trust_balance]
+    reply:
+      tool_calls:
+        - name: prepare_trust_withdrawal
+          input: {bill: "bill-synth-001", matter: "mat-synth-001", amount_cents: 56500}
+      stop_reason: tool_use
+      usage: {input_tokens: 910, output_tokens: 120}
+  - expect_tool_results: [prepare_trust_withdrawal]
+    reply:
+      text: "Proposed a 565.00 transfer from trust to bill bill-synth-001 for your approval."
+      stop_reason: end_turn
+      usage: {input_tokens: 980, output_tokens: 24}
