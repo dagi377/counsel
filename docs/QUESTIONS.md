@@ -298,3 +298,23 @@ Template:
   cannot import app/legal (it imports them), so each keeps one exported mirror per package;
   the private copies in clio and billing/assessment were folded into it, and
   `TestFlagMirrorsMatchCanonicalNames` checks every mirror against app/legal.
+
+## T-011.2: trust book posting and files beyond the task list
+
+- Files: added `app/legal/trust/receipt_test.go` (unit tests against an in-memory store, as
+  the owner asked) and this entry; neither is in the task's file list.
+- Trust book: the migration header (CF-02) says `trust.trust_transaction` is the book of
+  record, TR-1500/TR-2500 are derived from it and `gl.*` holds the operating book only, and
+  the `gl.journal_entry.source_type` CHECK has no trust kind. The task asks to post
+  TR-1500/TR-2500 through the GL, so `LedgerStore` takes a `ledger.Ledger` for the trust book
+  (book `trust`, source kind `trust_transaction`, source id = txn id, TR-1500 lines carry the
+  trust account subject and TR-2500 lines the client ledger). Proposed: wire a trust-book
+  ledger, or approve an additive migration adding `trust_transaction` to the source_type
+  CHECK plus seeding TR-1500/TR-2500 in gl.account. Until then the integration test uses
+  ledgerfake for the trust book and checks BIL-I-009 on the derived views
+  (`LedgerStore.CheckJournal`).
+- `Balance.AvailableCents` subtracts authorized-not-executed withdrawal holds (ARC-I-025),
+  which the contract comment ("Cleared - Protected - Minimum") leaves out. Proposed: amend the
+  comment additively.
+- Flag: nothing in this task is marked (verify), so no code sits behind
+  `trust.bylaw9_verified`; the balance checks always apply.
