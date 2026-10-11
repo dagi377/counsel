@@ -1,0 +1,438 @@
+package tools
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"reflect"
+	"regexp"
+	"slices"
+	"sort"
+	"strings"
+	"testing"
+	"text/template"
+
+	"gopkg.in/yaml.v3"
+)
+
+// The cell chart is rendered by a small text/template shim so these tests need no helm
+// binary and no network. The shim supports only the Helm functions the chart uses; a
+// template that calls anything else fails to parse here, which keeps the chart simple.
+// When helm is on PATH, TestHelmShimMatchesHelm checks the shim against `helm template`.
+
+const (
+	chartDir   = "../deploy/helm/counsel"
+	valuesFile = chartDir + "/values.yaml"
+)
+
+// k8sObj is one rendered manifest.
+type k8sObj map[string]any
+
+func (o k8sObj) kind() string { s, _ := o["kind"].(string); return s }
+
+func (o k8sObj) meta(field string) string {
+	m, _ := o["metadata"].(map[string]any)
+	s, _ := m[field].(string)
+	return s
+}
+
+func (o k8sObj) id() string {
+	return o.kind() + "/" + o.meta("namespace") + "/" + o.meta("name")
+}
+
+func (o k8sObj) label(key string) string {
+	m, _ := o["metadata"].(map[string]any)
+	l, _ := m["labels"].(map[string]any)
+	s, _ := l[key].(string)
+	return s
+}
+
+// dig walks nested maps by key; it returns nil when any step is missing.
+func dig(v any, path ...string) any {
+	for _, p := range path {
+		m, ok := v.(map[string]any)
+		if !ok {
+			return nil
+		}
+		v = m[p]
+	}
+	return v
+}
+
+func helmFuncs() template.FuncMap {
+	return template.FuncMap{
+		"quote": func(v any) string { return fmt.Sprintf("%q", fmt.Sprint(v)) },
+		"default": func(d any, given ...any) any {
+			if len(given) == 0 || given[0] == nil || reflect.ValueOf(given[0]).IsZero() {
+				return d
+			}
+			return given[0]
+		},
+		"required": func(msg string, v any) (any, error) {
+			if v == nil || reflect.ValueOf(v).IsZero() {
+				return nil, errors.New(msg)
+			}
+			return v, nil
+		},
+		"fail":       func(msg string) (string, error) { return "", errors.New(msg) },
+		"regexMatch": func(re, s string) bool { return regexp.MustCompile(re).MatchString(s) },
+	}
+}
+
+// setPath sets a dotted key (e.g. "region.dr") in a values map, creating maps as needed.
+func setPath(m map[string]any, key string, v any) {
+	parts := strings.Split(key, ".")
+	for _, p := range parts[:len(parts)-1] {
+		next, ok := m[p].(map[string]any)
+		if !ok {
+			next = map[string]any{}
+			m[p] = next
+		}
+		m = next
+	}
+	m[parts[len(parts)-1]] = v
+}
+
+func loadValues(t *testing.T) map[string]any {
+	t.Helper()
+	raw, err := os.ReadFile(valuesFile)
+	if err != nil {
+		t.Fatalf("read values: %v", err)
+	}
+	vals := map[string]any{}
+	if err := yaml.Unmarshal(raw, &vals); err != nil {
+		t.Fatalf("parse values: %v", err)
+	}
+	return vals
+}
+
+// renderChart renders every template with values.yaml plus the dotted-key overrides.
+func renderChart(t *testing.T, set map[string]any) ([]k8sObj, error) {
+	t.Helper()
+	vals := loadValues(t)
+	for k, v := range set {
+		setPath(vals, k, v)
+	}
+	files, err := filepath.Glob(filepath.Join(chartDir, "templates", "*.yaml"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no chart templates found: %v", err)
+	}
+	sort.Strings(files)
+	data := map[string]any{
+		"Values":  vals,
+		"Release": map[string]any{"Name": "counsel", "Namespace": "default"},
+		"Chart":   map[string]any{"Name": "counsel"},
+	}
+	var out []k8sObj
+	for _, f := range files {
+		src, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatalf("read %s: %v", f, err)
+		}
+		tpl, err := template.New(filepath.Base(f)).Funcs(helmFuncs()).Option("missingkey=zero").Parse(string(src))
+		if err != nil {
+			t.Fatalf("parse %s: %v", f, err)
+		}
+		var buf bytes.Buffer
+		if err := tpl.Execute(&buf, data); err != nil {
+			return nil, fmt.Errorf("render %s: %w", filepath.Base(f), err)
+		}
+		objs, err := decodeManifests(buf.Bytes())
+		if err != nil {
+			t.Fatalf("decode %s: %v\n%s", f, err, buf.String())
+		}
+		out = append(out, objs...)
+	}
+	return out, nil
+}
+
+func mustRender(t *testing.T, set map[string]any) []k8sObj {
+	t.Helper()
+	objs, err := renderChart(t, set)
+	if err != nil {
+		t.Fatalf("render chart: %v", err)
+	}
+	return objs
+}
+
+func decodeManifests(b []byte) ([]k8sObj, error) {
+	dec := yaml.NewDecoder(bytes.NewReader(b))
+	var out []k8sObj
+	for {
+		// Decode into a plain map: yaml.v3 would reuse the named type for nested maps.
+		var o map[string]any
+		err := dec.Decode(&o)
+		if errors.Is(err, io.EOF) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if len(o) > 0 {
+			out = append(out, k8sObj(o))
+		}
+	}
+}
+
+// controlPlane reports whether a manifest belongs to the shared control plane (the edge
+// WAF) rather than to the cell. Those are the only resources allowed to repeat across cells.
+func controlPlane(o k8sObj) bool {
+	return o.label("app.kubernetes.io/part-of") == "counsel-controlplane"
+}
+
+// refKeys are keys whose string values name a per-cell resource.
+var refKeys = map[string]bool{
+	"namespace": true, "secretName": true, "serviceAccountName": true, "host": true, "hosts": true,
+	"destinationPath": true, "encryptionKeyId": true, "kmsKeyId": true, "storageClass": true,
+}
+
+// refParents are maps whose "name" key names another per-cell resource.
+var refParents = map[string]bool{
+	"metadata": true, "secretKeyRef": true, "secretRef": true, "configMapRef": true,
+	"configMapKeyRef": true, "secret": true, "service": true, "s3Credentials": true,
+}
+
+var refDataKey = regexp.MustCompile(`BUCKET|KMS|HOSTNAME|DSN|SECRET`)
+
+// cellRefs collects every string that names a per-cell resource: object names and
+// namespaces, secret and config refs, hostnames, buckets, KMS keys and DSN refs.
+func cellRefs(objs []k8sObj) map[string]string {
+	refs := map[string]string{}
+	var walk func(where string, parent string, v any)
+	walk = func(where, parent string, v any) {
+		switch x := v.(type) {
+		case map[string]any:
+			for k, c := range x {
+				switch s := c.(type) {
+				case string:
+					if refKeys[k] || (k == "name" && refParents[parent]) {
+						refs[s] = where + "." + k
+					}
+				case []any:
+					if refKeys[k] {
+						for _, e := range s {
+							if str, ok := e.(string); ok {
+								refs[str] = where + "." + k
+							}
+						}
+					}
+				}
+				walk(where+"."+k, k, c)
+			}
+		case []any:
+			for _, c := range x {
+				walk(where, parent, c)
+			}
+		}
+	}
+	for _, o := range objs {
+		if controlPlane(o) {
+			continue
+		}
+		walk(o.id(), "", map[string]any(o))
+		if o.kind() == "ConfigMap" {
+			data, _ := o["data"].(map[string]any)
+			for k, v := range data {
+				if s, ok := v.(string); ok && refDataKey.MatchString(k) {
+					refs[s] = o.id() + ".data." + k
+				}
+			}
+		}
+	}
+	return refs
+}
+
+// sharedRefs returns refs present in both renders.
+func sharedRefs(a, b map[string]string) []string {
+	var out []string
+	for s, where := range a {
+		if _, ok := b[s]; ok {
+			out = append(out, fmt.Sprintf("%q (%s)", s, where))
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// rule: ARC-U-001
+func TestARC_U_001_NoSharedResources(t *testing.T) {
+	a := cellRefs(mustRender(t, map[string]any{"cell": "alpha"}))
+	b := cellRefs(mustRender(t, map[string]any{"cell": "bravo"}))
+	if len(a) == 0 {
+		t.Fatal("render found no per-cell resource refs")
+	}
+	if shared := sharedRefs(a, b); len(shared) > 0 {
+		t.Fatalf("cells alpha and bravo share resources: %s", strings.Join(shared, ", "))
+	}
+	tests := []struct {
+		name string
+		cell string
+		refs map[string]string
+	}{
+		{"alpha", "alpha", a},
+		{"bravo", "bravo", b},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name+" derives every ref from the cell", func(t *testing.T) {
+			for s, where := range tt.refs {
+				if !strings.Contains(s, tt.cell) {
+					t.Errorf("%s = %q does not derive from cell %q", where, s, tt.cell)
+				}
+			}
+		})
+	}
+}
+
+// rule: ARC-U-001
+func TestARC_U_001_GuardCatchesSharedRef(t *testing.T) {
+	mk := func(cell, secret string) []k8sObj {
+		return []k8sObj{{
+			"kind":     "Deployment",
+			"metadata": map[string]any{"name": "counsel-" + cell + "-api", "namespace": "counsel-" + cell},
+			"spec":     map[string]any{"env": []any{map[string]any{"valueFrom": map[string]any{"secretKeyRef": map[string]any{"name": secret}}}}},
+		}}
+	}
+	tests := []struct {
+		name       string
+		a, b       []k8sObj
+		wantShared int
+	}{
+		{"per-cell secret", mk("alpha", "counsel-alpha-pg-app"), mk("bravo", "counsel-bravo-pg-app"), 0},
+		{"shared DSN secret", mk("alpha", "counsel-pg-app"), mk("bravo", "counsel-pg-app"), 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sharedRefs(cellRefs(tt.a), cellRefs(tt.b)); len(got) != tt.wantShared {
+				t.Fatalf("shared = %v, want %d", got, tt.wantShared)
+			}
+		})
+	}
+}
+
+// rule: ARC-U-001
+func TestARC_U_001_CellRequired(t *testing.T) {
+	tests := []struct {
+		name    string
+		cell    any
+		wantErr bool
+	}{
+		{"missing", "", true},
+		{"not a DNS label", "Firm_A", true},
+		{"valid", "firm-a", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := renderChart(t, map[string]any{"cell": tt.cell})
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// canadaRegions is the allow-list; it lives here, not in values, so a values change cannot
+// widen it.
+var canadaRegions = []string{"ca-central-1", "ca-west-1"}
+
+// regionShaped matches cloud region ids such as us-east-1, eu-west-2, ca-central-1.
+var regionShaped = regexp.MustCompile(`\b(?:af|ap|ca|eu|il|me|mx|sa|us)(?:-gov)?-(?:central|north|south|east|west|northeast|northwest|southeast|southwest)-\d+`)
+
+// nonCanadian returns every region-shaped string in the render that is not Canadian, and
+// every AWS endpoint that names no Canadian region.
+func nonCanadian(objs []k8sObj) []string {
+	var bad []string
+	var walk func(v any)
+	walk = func(v any) {
+		switch x := v.(type) {
+		case map[string]any:
+			for _, c := range x {
+				walk(c)
+			}
+		case []any:
+			for _, c := range x {
+				walk(c)
+			}
+		case string:
+			for _, r := range regionShaped.FindAllString(x, -1) {
+				if !slices.Contains(canadaRegions, r) {
+					bad = append(bad, x)
+				}
+			}
+			if strings.Contains(x, "amazonaws.com") && !slices.ContainsFunc(canadaRegions, func(r string) bool { return strings.Contains(x, r) }) {
+				bad = append(bad, x)
+			}
+		}
+	}
+	for _, o := range objs {
+		walk(map[string]any(o))
+	}
+	sort.Strings(bad)
+	return bad
+}
+
+// rule: ARC-U-002
+func TestARC_U_002_CanadaOnly(t *testing.T) {
+	vals := loadValues(t)
+	primary, _ := dig(vals, "region", "primary").(string)
+	dr, _ := dig(vals, "region", "dr").(string)
+	if primary != "ca-central-1" {
+		t.Errorf("region.primary = %q, want ca-central-1", primary)
+	}
+	if !slices.Contains(canadaRegions, dr) || dr == primary {
+		t.Errorf("region.dr = %q, want a second Canadian region", dr)
+	}
+	tests := []struct {
+		name    string
+		set     map[string]any
+		wantBad bool
+	}{
+		{"defaults", map[string]any{"cell": "alpha"}, false},
+		{"DR in the US", map[string]any{"cell": "alpha", "region.dr": "us-east-1"}, true},
+		{"primary in the EU", map[string]any{"cell": "alpha", "region.primary": "eu-west-1"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bad := nonCanadian(mustRender(t, tt.set))
+			if (len(bad) > 0) != tt.wantBad {
+				t.Fatalf("non-Canadian strings %v, wantBad %v", bad, tt.wantBad)
+			}
+		})
+	}
+}
+
+// TestHelmShimMatchesHelm checks that the shim renders the same objects as helm itself.
+func TestHelmShimMatchesHelm(t *testing.T) {
+	helm, err := exec.LookPath("helm")
+	if err != nil {
+		t.Skip("helm not on PATH; the shim render is the only check")
+	}
+	out, err := exec.Command(helm, "template", "counsel", chartDir, "--set", "cell=alpha").CombinedOutput()
+	if err != nil {
+		t.Fatalf("helm template: %v\n%s", err, out)
+	}
+	want, err := decodeManifests(out)
+	if err != nil {
+		t.Fatalf("decode helm output: %v", err)
+	}
+	got := mustRender(t, map[string]any{"cell": "alpha"})
+	index := func(objs []k8sObj) map[string]k8sObj {
+		m := map[string]k8sObj{}
+		for _, o := range objs {
+			m[o.id()] = o
+		}
+		return m
+	}
+	g, w := index(got), index(want)
+	if len(g) != len(w) {
+		t.Fatalf("shim rendered %d objects, helm %d", len(g), len(w))
+	}
+	for id, wo := range w {
+		if !reflect.DeepEqual(g[id], wo) {
+			t.Errorf("%s differs between shim and helm", id)
+		}
+	}
+}

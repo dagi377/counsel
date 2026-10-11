@@ -1,0 +1,148 @@
+{{- $cell := required "cell is required (ARC-U-001)" .Values.cell }}
+{{- if not (regexMatch "^[a-z][a-z0-9-]{0,30}[a-z0-9]$" $cell) }}{{ fail "cell must be a lower-case DNS label" }}{{ end }}
+{{- $ns := printf "counsel-%s" $cell }}
+{{- $host := printf "%s.%s" $cell .Values.domain }}
+# rule: ARC-U-001
+# One cell = its own namespaces, Postgres, bucket, KMS key, secrets and hostname, all
+# derived from .Values.cell. Nothing in this file is shared between cells.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: paploo-{{ $cell }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: paploo-{{ $cell }}-agents
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+---
+# rule: ARC-U-002
+# Region, bucket and key settings: primary region for the app and documents, DR region
+# for backups and the WAL archive. Both are Canadian.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: counsel-{{ $cell }}-config
+  namespace: {{ $ns }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+data:
+  COUNSEL_CELL: {{ $cell | quote }}
+  COUNSEL_HOSTNAME: {{ $host | quote }}
+  COUNSEL_REGION: {{ .Values.region.primary | quote }}
+  COUNSEL_DR_REGION: {{ .Values.region.dr | quote }}
+  COUNSEL_DOCS_BUCKET: {{ printf "counsel-%s-docs" $cell | quote }}
+  COUNSEL_DOCS_ENDPOINT: {{ printf "https://s3.%s.amazonaws.com" .Values.region.primary | quote }}
+  COUNSEL_WAL_BUCKET: {{ printf "counsel-%s-wal-dr" $cell | quote }}
+  COUNSEL_WAL_ENDPOINT: {{ printf "https://s3.%s.amazonaws.com" .Values.region.dr | quote }}
+  COUNSEL_KMS_KEY: {{ printf "arn:aws:kms:%s:%s:alias/counsel-%s" .Values.region.primary .Values.aws.accountId $cell | quote }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: counsel-{{ $cell }}
+  namespace: {{ $ns }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+{{- range .Values.components }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: counsel-{{ $cell }}-{{ .name }}
+  namespace: {{ $ns }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+    app.kubernetes.io/component: {{ .name }}
+spec:
+  selector:
+    matchLabels:
+      counsel.io/cell: {{ $cell | quote }}
+      app.kubernetes.io/component: {{ .name }}
+  template:
+    metadata:
+      labels:
+        counsel.io/cell: {{ $cell | quote }}
+        app.kubernetes.io/component: {{ .name }}
+    spec:
+      serviceAccountName: counsel-{{ $cell }}
+      containers:
+        - name: {{ .name }}
+          image: {{ printf "%s:%s" $.Values.image.repository $.Values.image.tag | quote }}
+          args:
+          {{- range .args }}
+            - {{ . | quote }}
+          {{- end }}
+          {{- if .port }}
+          ports:
+            - name: http
+              containerPort: {{ .port }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: counsel-{{ $cell }}-config
+          env:
+            - name: COUNSEL_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: counsel-{{ $cell }}-pg-app
+                  key: uri
+{{- if .port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: counsel-{{ $cell }}-{{ .name }}
+  namespace: {{ $ns }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+spec:
+  selector:
+    counsel.io/cell: {{ $cell | quote }}
+    app.kubernetes.io/component: {{ .name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- end }}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: counsel-{{ $cell }}
+  namespace: {{ $ns }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+spec:
+  tls:
+    - hosts: [{{ $host | quote }}]
+      secretName: counsel-{{ $cell }}-tls
+  rules:
+    - host: {{ $host | quote }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: counsel-{{ $cell }}-api
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: counsel-{{ $cell }}-web
+                port:
+                  name: http

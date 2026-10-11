@@ -1,0 +1,33 @@
+# Values for one Counsel cell. Every per-cell name, namespace, secret ref, bucket, KMS key
+# and hostname derives from `cell` in the templates; nothing per-cell is set here.
+# rule: ARC-U-001
+cell: ""            # required: lower-case DNS label, set with --set cell=<id>
+domain: counsel.example.ca
+
+# rule: ARC-U-002
+# All workloads in one Canadian region (3 zones); backups and WAL archive in a second
+# Canadian region. tools/helm_render_test.go fails on any region string outside Canada.
+region:
+  primary: ca-central-1
+  dr: ca-west-1
+  zones: [ca-central-1a, ca-central-1b, ca-central-1d]
+
+aws:
+  accountId: "000000000000"
+
+image:
+  repository: ghcr.io/dagi377/counsel
+  tag: "0.1.0"
+
+# Stateless tiers. `port` is set only for tiers that serve HTTP.
+components:
+  - name: web
+    args: [counseld, -addr=:8080]
+    port: 8080
+  - name: api
+    args: [counseld, -addr=:8080]
+    port: 8080
+  - name: worker
+    args: [counsel-worker]
+  - name: outbox
+    args: [counsel-worker]
