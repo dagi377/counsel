@@ -16,6 +16,9 @@ var alwaysMethods = map[string]bool{
 	registry.MethodGateKind:        true,
 	registry.MethodCapability:      true,
 	registry.MethodRole:            true,
+	// Routes always mount (HTTP-00): handlers fail closed per request when their feature is
+	// off, and the OpenAPI conformance check needs every route without features on.
+	registry.MethodRoutes: true,
 }
 
 func TestRegisterWithNoFeaturesRecordsOnlyAlwaysSet(t *testing.T) {

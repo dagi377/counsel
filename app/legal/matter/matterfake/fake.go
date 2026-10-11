@@ -8,10 +8,12 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
+	"github.com/dagi377/counsel/kernel/gate"
 )
 
 var _ matter.Service = (*Fake)(nil)
@@ -25,6 +27,41 @@ type Fake struct {
 	matters  map[matter.ID]matter.Matter
 	numbers  map[string]bool
 	members  map[matter.ID][]matter.Member
+	guard    testing.TB
+	effects  int
+}
+
+// GuardEffects makes the effect-owned methods (Create: the matter.opening effect; AddMember:
+// matter.team, the matter.widen_access effect) fail tb and refuse when called outside a gate
+// effect, so a handler test proves its route never reaches an effect-owned write.
+func (f *Fake) GuardEffects(tb testing.TB) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.guard = tb
+}
+
+// EffectCalls is how many effect-owned method calls the fake received, allowed or not.
+func (f *Fake) EffectCalls() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.effects
+}
+
+func (f *Fake) effectOnly(ctx context.Context, method string) error {
+	f.mu.Lock()
+	f.effects++
+	tb := f.guard
+	f.mu.Unlock()
+	if tb == nil {
+		return nil
+	}
+	// rule: ARC-I-012
+	if err := gate.RequireEffect(ctx); err != nil {
+		tb.Helper()
+		tb.Errorf("matterfake: effect-owned %s called outside a gate effect", method)
+		return fmt.Errorf("matterfake: %s: %w", method, err)
+	}
+	return nil
 }
 
 // New returns an empty fake. When contacts is not nil, Create checks that the client exists.
@@ -42,6 +79,9 @@ func New(now func() time.Time, contacts party.Contacts) *Fake {
 func (f *Fake) Create(ctx context.Context, m matter.NewMatter) (matter.Matter, error) {
 	if err := ctx.Err(); err != nil {
 		return matter.Matter{}, fmt.Errorf("create matter: %w", err)
+	}
+	if err := f.effectOnly(ctx, "Create"); err != nil {
+		return matter.Matter{}, err
 	}
 	if m.Number == "" || m.ShortName == "" || m.ClientID == "" || m.PracticeAreaID == "" || m.ResponsibleLawyerID == "" {
 		return matter.Matter{}, fmt.Errorf("create matter: missing field: %w", matter.ErrInvalid)
@@ -91,6 +131,9 @@ func (f *Fake) Create(ctx context.Context, m matter.NewMatter) (matter.Matter, e
 func (f *Fake) AddMember(ctx context.Context, m matter.NewMember) (matter.Member, error) {
 	if err := ctx.Err(); err != nil {
 		return matter.Member{}, fmt.Errorf("add member: %w", err)
+	}
+	if err := f.effectOnly(ctx, "AddMember"); err != nil {
+		return matter.Member{}, err
 	}
 	if m.UserID == "" || m.GrantedBy == "" {
 		return matter.Member{}, fmt.Errorf("add member: missing user: %w", matter.ErrInvalid)
