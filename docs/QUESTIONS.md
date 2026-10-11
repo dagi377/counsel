@@ -3765,3 +3765,18 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - Open: no migration creates River's tables (`river_job`, ...); nothing in the repo runs
   `rivermigrate`. The integration test migrates its own database. Decide whether
   counsel-migrate runs River's migrations or the schema goes into a numbered migration.
+
+## RIVER-MIGRATE: River's tables come from counsel-migrate
+
+- Closes the ENQUEUER open item. `counsel-migrate -mode=expand` now runs River's own
+  migrations (`rivermigrate up`, kernel/boot `migrateRiver`) after the numbered files, then
+  grants River's tables to `counsel_app` (insert) and `counsel_jobs` (work, clean, leader),
+  with `river_migration` read-only. Chosen over a numbered file so River's version
+  bookkeeping (`river_migration`) stays River's and a River upgrade needs no hand-copied SQL.
+- Idempotent: rivermigrate skips applied versions and the grants can run again. The grant
+  SQL sets `lock_timeout` 2s and `statement_timeout`; a unit test runs the migration lint on
+  it. The Helm migrate Job already runs `-mode=expand`, so it gets the step; the repo has no
+  compose migrate service.
+- River's tables live in the migrator's current schema (`public` by default), where the
+  clients resolve them. They are not recorded in `schema_meta.applied`, so `wait-version`
+  does not wait for them; the expand Job runs both before it completes.

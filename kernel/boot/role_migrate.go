@@ -20,7 +20,8 @@ const waitPoll = 2 * time.Second
 type applier func(ctx context.Context, dsn string, mode MigrateMode) error
 
 // pgApply connects to dsn and applies the files of mode through the migrations package:
-// expand runs the files without a "-- contract:" mark, contract runs only the marked ones.
+// expand runs the files without a "-- contract:" mark and then River's own migrations
+// (migrateRiver), contract runs only the marked ones.
 // pgx errors can name the DSN host and user, so the connect error is not wrapped.
 func pgApply(ctx context.Context, dsn string, mode MigrateMode) error {
 	conn, err := pgx.Connect(ctx, dsn)
@@ -30,7 +31,12 @@ func pgApply(ctx context.Context, dsn string, mode MigrateMode) error {
 	defer func() { _ = conn.Close(context.WithoutCancel(ctx)) }()
 	switch mode {
 	case MigrateExpand:
-		return migrations.ApplyExpand(ctx, conn)
+		if err := migrations.ApplyExpand(ctx, conn); err != nil {
+			return err
+		}
+		// River's job tables are additive, so they come with expand, after the numbered
+		// files have created the roles they are granted to.
+		return migrateRiver(ctx, dsn)
 	case MigrateContract:
 		return migrations.ApplyContract(ctx, conn)
 	}
