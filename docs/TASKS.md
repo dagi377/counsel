@@ -84,7 +84,7 @@ Max width 301.
 | [x] | T-002.4 | T-002 | kernel | kernel/registry: frozen Registry interface (k1) |  | `kernel/registry/registry.go`<br>`kernel/registry/types.go`<br>`kernel/registry/registry_test.go` |  |
 | [x] | T-002.5 | T-002 | kernel | Migration numbering scheme and per-module blocks |  | `migrations/README.md`<br>`tools/migration_blocks.txt`<br>`tools/migration_blocks_test.go` |  |
 | [x] | T-002L.1 | T-002L | app | spec/rules/*.json union of b1,b2,b3,a1,a2,a3 |  | `spec/rules/`<br>`tools/rules_union_test.go` |  |
-| [ ] | T-002L.2 | T-002L | app | spec/gates.json and spec/access.json |  | `spec/gates.json`<br>`spec/access.json`<br>`tools/gates_access_test.go` |  |
+| [x] | T-002L.2 | T-002L | app | spec/gates.json and spec/access.json |  | `spec/gates.json`<br>`spec/access.json`<br>`tools/gates_access_test.go` |  |
 | [x] | T-003.0 | T-003 | kernel | Contract and in-memory fake: kernel/money |  | `kernel/money/contract.go`<br>`kernel/money/moneyfake/fake.go`<br>`kernel/money/moneyfake/fake_test.go` |  |
 | [x] | T-004.0 | T-004 | kernel | Contract and in-memory fake: kernel/clock, kernel/ids, kernel/numseq |  | `kernel/clock/contract.go`<br>`kernel/clock/clockfake/fake.go`<br>`kernel/clock/clockfake/fake_test.go`<br>`kernel/ids/contract.go`<br>+5 more |  |
 | [x] | T-005.0 | T-005 | kernel | Contract and in-memory fake: kernel/audit |  | `kernel/audit/contract.go`<br>`kernel/audit/auditfake/fake.go`<br>`kernel/audit/auditfake/fake_test.go` |  |

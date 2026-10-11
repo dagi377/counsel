@@ -28,7 +28,10 @@ var (
 )
 
 // Kind is one legal gate kind. Code is the kind slug (billing.bill_approval) and SpecGate
-// keeps the spec id (G-B2).
+// keeps the spec id (G-B2). The legal approval policy must also apply the spec/gates.json
+// fields dual_when (two distinct approvers once the firm has two eligible signatories) and
+// sole_owner_delay (a sole eligible approver may decide alone after the delay, with
+// notification); see docs/QUESTIONS.md Q-002.
 type Kind struct {
 	Code       string
 	SpecGate   string
