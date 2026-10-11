@@ -4,6 +4,3 @@
 # neither served nor listed. Remove a line in the same change that mounts its handler.
 POST /agent/actions/{feature_id}
 POST /trust/transfers
-GET /webhook-endpoints
-POST /webhook-endpoints
-PATCH /webhook-endpoints/{webhook_id}
