@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"sort"
-	"sync"
 
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/roles"
@@ -46,40 +45,72 @@ type Handler struct {
 	Build func(d Deps) (registry.Tool, error)
 }
 
-var (
-	handlersMu sync.RWMutex
-	handlers   = map[string]Handler{}
-)
+// ErrDuplicateHandler means a handler set lists two handlers for one tool.
+var ErrDuplicateHandler = errors.New("agent: duplicate tool handler")
 
-// addHandler puts h in the handler set. Call it only from init(); a second handler for the
-// same tool panics at start-up.
-func addHandler(h Handler) {
-	handlersMu.Lock()
-	defer handlersMu.Unlock()
-	if _, dup := handlers[h.Name]; dup {
-		panic("agent: duplicate handler for tool " + h.Name)
-	}
-	handlers[h.Name] = h
+// HandlerSet is an explicit set of tool handlers, keyed by tool name. It is built from a list
+// at the call site; nothing registers itself from init(), so the set a caller gets is exactly
+// the list it was built from.
+type HandlerSet struct {
+	byName map[string]Handler
 }
 
-// HandlerFor returns the real handler of a tool, if its tool file registered one.
-func HandlerFor(name string) (Handler, bool) {
-	handlersMu.RLock()
-	defer handlersMu.RUnlock()
-	h, ok := handlers[name]
+// NewHandlerSet returns the set of hs. Two handlers for one tool, an empty name or a nil
+// Build fail with ErrDuplicateHandler or ErrMissingDep.
+func NewHandlerSet(hs ...Handler) (HandlerSet, error) {
+	s := HandlerSet{byName: make(map[string]Handler, len(hs))}
+	for _, h := range hs {
+		if h.Name == "" || h.Build == nil {
+			return HandlerSet{}, fmt.Errorf("handler %q: %w", h.Name, ErrMissingDep)
+		}
+		if _, dup := s.byName[h.Name]; dup {
+			return HandlerSet{}, fmt.Errorf("handler %s: %w", h.Name, ErrDuplicateHandler)
+		}
+		s.byName[h.Name] = h
+	}
+	return s, nil
+}
+
+// For returns the handler of a tool, if the set has one.
+func (s HandlerSet) For(name string) (Handler, bool) {
+	h, ok := s.byName[name]
 	return h, ok
 }
 
-// HandlerNames lists the tools that have a real handler, sorted.
-func HandlerNames() []string {
-	handlersMu.RLock()
-	defer handlersMu.RUnlock()
-	names := make([]string, 0, len(handlers))
-	for n := range handlers {
+// Names lists the tools in the set, sorted.
+func (s HandlerSet) Names() []string {
+	names := make([]string, 0, len(s.byName))
+	for n := range s.byName {
 		names = append(names, n)
 	}
 	sort.Strings(names)
 	return names
+}
+
+// Handlers is the app's handler set: every a2 tool with a real handler, listed here. A new
+// tool file adds its Handler to this list.
+func Handlers() HandlerSet {
+	s, err := NewHandlerSet(
+		Handler{Name: ToolListDocuments, Build: buildListDocuments},
+		Handler{Name: ToolListWorkItems, Build: buildListWorkItems},
+		Handler{Name: ToolSearchContacts, Build: buildSearchContacts},
+		Handler{Name: ToolSearchDocuments, Build: buildSearchDocuments},
+	)
+	if err != nil {
+		// The list above is static; a duplicate is a programming error caught by its test.
+		panic(err)
+	}
+	return s
+}
+
+// HandlerFor returns the real handler of a tool in Handlers().
+func HandlerFor(name string) (Handler, bool) {
+	return Handlers().For(name)
+}
+
+// HandlerNames lists the tools in Handlers(), sorted.
+func HandlerNames() []string {
+	return Handlers().Names()
 }
 
 // actor is the user whose capabilities and walls apply: the acting-for user of an agent run,
