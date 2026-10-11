@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/santhosh-tekuri/jsonschema/v5"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -27,6 +29,23 @@ const (
 )
 
 type txStub struct{}
+
+// listPage is the openapi list page shape, {data, next_cursor} as GET /bills declares it.
+// GET /time-entries and GET /expenses declares no 200 schema of its own, so its pages are checked against this shape.
+var listPage = jsonschema.MustCompileString("list-page.json",
+	`{"type":"object","required":["data","next_cursor"],"properties":{"data":{"type":"array"},"next_cursor":{"type":["string","null"]}}}`)
+
+// validatePage checks that body is a whole openapi list page.
+func validatePage(t *testing.T, body []byte) {
+	t.Helper()
+	var v any
+	if err := json.Unmarshal(body, &v); err != nil {
+		t.Fatalf("body is not JSON: %v", err)
+	}
+	if err := listPage.Validate(v); err != nil {
+		t.Errorf("body is not an openapi list page: %v (%s)", err, body)
+	}
+}
 
 func (txStub) InTx(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error {
 	return fn(ctx, nil)
@@ -259,9 +278,10 @@ func TestTimeEntryListOwnOrAll(t *testing.T) {
 			path := "/v1/time-entries" + tc.query
 			for i, want := range tc.pages {
 				rec := do(r.h, "GET", path, tc.user, "", nil)
+				validatePage(t, rec.Body.Bytes())
 				var page struct {
-					Items []map[string]any `json:"items"`
-					Next  string           `json:"next"`
+					Items []map[string]any `json:"data"`
+					Next  string           `json:"next_cursor"`
 				}
 				if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil || rec.Code != 200 {
 					t.Fatalf("page %d: %d %s", i, rec.Code, rec.Body)

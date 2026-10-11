@@ -3,7 +3,10 @@
 
 package api
 
-import "errors"
+import (
+	"encoding/json"
+	"errors"
+)
 
 // ProblemContentType is the media type of every error body.
 const ProblemContentType = "application/problem+json"
@@ -30,10 +33,27 @@ type Cursor struct {
 	Limit int    `json:"l"`
 }
 
-// Page is one page of a list response. Next is empty on the last page.
+// Page is one page of a list response. Next is empty on the last page. It encodes as the
+// openapi list page {"data": [...], "next_cursor": string|null}: data is never null and
+// next_cursor is null on the last page.
 type Page[T any] struct {
-	Items []T    `json:"items"`
-	Next  string `json:"next,omitempty"`
+	Items []T    `json:"data"`
+	Next  string `json:"next_cursor"`
+}
+
+// MarshalJSON writes p in the openapi list page shape.
+func (p Page[T]) MarshalJSON() ([]byte, error) {
+	out := struct {
+		Data       []T     `json:"data"`
+		NextCursor *string `json:"next_cursor"`
+	}{Data: p.Items}
+	if out.Data == nil {
+		out.Data = []T{}
+	}
+	if p.Next != "" {
+		out.NextCursor = &p.Next
+	}
+	return json.Marshal(out)
 }
 
 // CursorCodec turns cursors into opaque, tamper-evident strings and back.

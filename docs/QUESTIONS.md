@@ -1504,3 +1504,17 @@ Done in PORT-18:
   consumer that calls bill.Service.Deliver is a boot follow-up.
 - Gate subject kind for bills is `billing.bill` (bill.SubjectBill).
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+
+## HTTP-PAGE list routes return the openapi page shape
+
+- Decided (autopilot counsel): openapi declares every list page as `{data, next_cursor}`
+  (next_cursor string or null); `api.Page` encoded `{items, next}`. kernel/api/contract.go
+  `Page` keeps its Go fields (Items, Next) so callers compile unchanged, but its JSON tags are
+  now `data`/`next_cursor` and a `MarshalJSON` method writes `data: []` for no items and
+  `next_cursor: null` on the last page. This is a wire change, not additive; it fixes
+  GET /matters, /contacts, /time-entries, /expenses, /credit-notes (and the trust lists on the
+  HTTP-10/10b/11 branches, whose tests still decode `items`/`next` and must switch to
+  `data`/`next_cursor` when merged). GET /bills (HTTP-06) already used this shape.
+- openapi gives no 200 schema for GET /matters, /contacts, /time-entries, /expenses; their
+  tests check the whole body against the openapi list page envelope. Declaring those 200
+  schemas is an open additive openapi change.

@@ -476,9 +476,10 @@ func TestCreditNoteListPages(t *testing.T) {
 				if rec.Code != http.StatusOK {
 					t.Fatalf("page %d status = %d (%s)", i, rec.Code, rec.Body)
 				}
+				validate(t, "#/paths/~1credit-notes/get/responses/200/content/application~1json/schema", rec.Body.Bytes())
 				var page struct {
-					Items []json.RawMessage `json:"items"`
-					Next  string            `json:"next"`
+					Items []json.RawMessage `json:"data"`
+					Next  string            `json:"next_cursor"`
 				}
 				if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
 					t.Fatal(err)
