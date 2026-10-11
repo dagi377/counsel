@@ -14,10 +14,6 @@ import (
 	"github.com/dagi377/counsel/kernel/db"
 )
 
-// ErrNotImplemented means the PGService method is not built yet (Propose and Approve land in
-// PORT-11).
-var ErrNotImplemented = errors.New("signatory: not implemented")
-
 // PGService is the Postgres Service over trust.signatory. A row is one grant of signing
 // authority on one account for the dates [valid_from, valid_to). Business dates are the
 // kernel clock's (America/Toronto).
@@ -171,14 +167,4 @@ func (s *PGService) Freeze(ctx context.Context, userID string) (int, error) {
 		return 0, fmt.Errorf("freeze signatory: %w", err)
 	}
 	return int(tag.RowsAffected()), nil
-}
-
-// Propose implements Service. It is not built yet.
-func (s *PGService) Propose(_ context.Context, _ Change) (Change, error) {
-	return Change{}, fmt.Errorf("propose: %w", ErrNotImplemented)
-}
-
-// Approve implements Service. It is not built yet.
-func (s *PGService) Approve(_ context.Context, _ string, _ Approver) (Change, error) {
-	return Change{}, fmt.Errorf("approve: %w", ErrNotImplemented)
 }

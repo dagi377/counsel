@@ -275,11 +275,4 @@ func TestPGServiceErrors(t *testing.T) {
 			}
 		})
 	}
-	s := NewPGService(&tableDB{})
-	if _, err := s.Propose(ctx, Change{}); !errors.Is(err, ErrNotImplemented) {
-		t.Errorf("Propose err = %v", err)
-	}
-	if _, err := s.Approve(ctx, "c1", Approver{UserID: "u2"}); !errors.Is(err, ErrNotImplemented) {
-		t.Errorf("Approve err = %v", err)
-	}
 }
