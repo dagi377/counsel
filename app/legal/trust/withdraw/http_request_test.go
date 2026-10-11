@@ -37,7 +37,7 @@ const (
 	ledgerMiss   = "0190c000-0000-7000-8000-0000000000ee"
 	wdOpen       = "0190d000-0000-7000-8000-000000000001"
 	wdExecuted   = "0190d000-0000-7000-8000-000000000002"
-	wdHidden     = "0190d000-0000-7000-8000-000000000003"
+	reqHidden    = "0190d000-0000-7000-8000-000000000003"
 	billA        = "0190b000-0000-7000-8000-000000000001"
 )
 
@@ -148,9 +148,9 @@ func (txStub) InTx(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) 
 	return fn(ctx, nil)
 }
 
-type stubAccess map[string][]string
+type reqStubAccess map[string][]string
 
-func (a stubAccess) Can(_ context.Context, p registry.Principal, capability string, s registry.Subject) (bool, error) {
+func (a reqStubAccess) Can(_ context.Context, p registry.Principal, capability string, s registry.Subject) (bool, error) {
 	if s.ID == matterHidden {
 		return false, identity.ErrNotVisible
 	}
@@ -162,7 +162,7 @@ func (a stubAccess) Can(_ context.Context, p registry.Principal, capability stri
 	return false, nil
 }
 
-var testAccess = stubAccess{"alice": {withdraw.CapRequest}, "bob": {withdraw.CapRequest}, "viewer": {"trust.view"}}
+var testAccess = reqStubAccess{"alice": {withdraw.CapRequest}, "bob": {withdraw.CapRequest}, "viewer": {"trust.view"}}
 
 func testPrincipal(r *http.Request) (registry.Principal, bool) {
 	u := r.Header.Get("X-Test-User")
@@ -177,7 +177,7 @@ type rig struct {
 	openGID gate.GateID
 }
 
-func newRig(t *testing.T, svcErr error) rig {
+func newReqRig(t *testing.T, svcErr error) rig {
 	t.Helper()
 	now := func() time.Time { return time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC) }
 	eng := gatefake.New(now, gatefake.Caps{})
@@ -198,7 +198,7 @@ func newRig(t *testing.T, svcErr error) rig {
 			Request: withdraw.Request{MatterID: matterA, AmountCents: 500, Payee: "Payee", Method: withdraw.MethodCheque, Reason: "refund", PreparedBy: "alice"}},
 		wdExecuted: {ID: wdExecuted, Status: withdraw.StatusExecuted,
 			Request: withdraw.Request{MatterID: matterA, AmountCents: 500, Payee: "Payee", Method: withdraw.MethodCheque, PreparedBy: "alice"}},
-		wdHidden: {ID: wdHidden, Status: withdraw.StatusRequested, Request: withdraw.Request{MatterID: matterHidden}},
+		reqHidden: {ID: reqHidden, Status: withdraw.StatusRequested, Request: withdraw.Request{MatterID: matterHidden}},
 	}}
 	g.opens, g.kinds = 0, nil
 	c := &cancels{}
@@ -213,7 +213,7 @@ func newRig(t *testing.T, svcErr error) rig {
 	return rig{h: m.Handler(), svc: s, gates: g, cancels: c, openGID: gid}
 }
 
-func do(h http.Handler, path, user, body string, hdr map[string]string) *httptest.ResponseRecorder {
+func reqDo(h http.Handler, path, user, body string, hdr map[string]string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader([]byte(body)))
 	if user != "" {
 		req.Header.Set("X-Test-User", user)
@@ -226,7 +226,7 @@ func do(h http.Handler, path, user, body string, hdr map[string]string) *httptes
 	return rec
 }
 
-var openAPISchemas = sync.OnceValues(func() (*jsonschema.Compiler, error) {
+var reqOpenAPISchemas = sync.OnceValues(func() (*jsonschema.Compiler, error) {
 	raw, err := os.ReadFile("../../../../api/openapi.yaml")
 	if err != nil {
 		return nil, err
@@ -247,9 +247,9 @@ var openAPISchemas = sync.OnceValues(func() (*jsonschema.Compiler, error) {
 	return c, nil
 })
 
-func validate(t *testing.T, ref string, body []byte) {
+func reqValidate(t *testing.T, ref string, body []byte) {
 	t.Helper()
-	c, err := openAPISchemas()
+	c, err := reqOpenAPISchemas()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,11 +262,11 @@ func validate(t *testing.T, ref string, body []byte) {
 		t.Fatalf("body is not JSON: %v", err)
 	}
 	if err := s.Validate(v); err != nil {
-		t.Errorf("body does not validate against %s: %v", ref, err)
+		t.Errorf("body does not reqValidate against %s: %v", ref, err)
 	}
 }
 
-func checkProblem(t *testing.T, rec *httptest.ResponseRecorder, status int, code string) {
+func reqCheckProblem(t *testing.T, rec *httptest.ResponseRecorder, status int, code string) {
 	t.Helper()
 	if rec.Code != status {
 		t.Fatalf("status = %d, want %d (body %s)", rec.Code, status, rec.Body)
@@ -274,7 +274,7 @@ func checkProblem(t *testing.T, rec *httptest.ResponseRecorder, status int, code
 	if ct := rec.Header().Get("Content-Type"); ct != api.ProblemContentType {
 		t.Errorf("Content-Type = %q, want %q", ct, api.ProblemContentType)
 	}
-	validate(t, "#/components/schemas/Problem", rec.Body.Bytes())
+	reqValidate(t, "#/components/schemas/Problem", rec.Body.Bytes())
 	var p api.Problem
 	if err := json.Unmarshal(rec.Body.Bytes(), &p); err != nil {
 		t.Fatal(err)
@@ -324,7 +324,7 @@ func TestARC_I_051_WithdrawalRequestProblems(t *testing.T) {
 		// rule: ARC-I-042
 		{"request on walled ledger is 404", createPath, "alice", hiddenBody, key("105"), nil, 404, withdraw.CodeNotFound, true},
 		{"request on missing ledger is 404", createPath, "alice", missBody, key("106"), nil, 404, withdraw.CodeNotFound, true},
-		{"cancel walled withdrawal is 404", cancelPath(wdHidden), "alice", "", keyMatch("107", `"1"`), nil, 404, withdraw.CodeNotFound, false},
+		{"cancel walled withdrawal is 404", cancelPath(reqHidden), "alice", "", keyMatch("107", `"1"`), nil, 404, withdraw.CodeNotFound, false},
 		{"unknown body field", createPath, "alice", `{"ledger_id":"` + ledgerA + `","amount_cents":500,"purpose_category":"refund","payee":"C","method":"cheque","status":"authorized"}`, key("108"), nil, 400, server.CodeValidationFailed, true},
 		{"malformed ledger id", createPath, "alice", `{"ledger_id":"nope","amount_cents":500,"purpose_category":"refund","payee":"C","method":"cheque"}`, key("109"), nil, 400, server.CodeValidationFailed, true},
 		{"cancel malformed id", cancelPath("nope"), "alice", "", keyMatch("110", `"1"`), nil, 400, server.CodeValidationFailed, true},
@@ -341,9 +341,9 @@ func TestARC_I_051_WithdrawalRequestProblems(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			r := newRig(t, tc.svcErr)
-			rec := do(r.h, tc.path, tc.user, tc.body, tc.hdr)
-			checkProblem(t, rec, tc.status, tc.code)
+			r := newReqRig(t, tc.svcErr)
+			rec := reqDo(r.h, tc.path, tc.user, tc.body, tc.hdr)
+			reqCheckProblem(t, rec, tc.status, tc.code)
 			if tc.zeroCalls && r.svc.total() != 0 {
 				t.Errorf("service calls = %v, want 0", r.svc.calls)
 			}
@@ -366,12 +366,12 @@ func TestARC_I_012_WithdrawalRequestOpensGateOnly(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			r := newRig(t, nil)
-			rec := do(r.h, createPath, "alice", tc.body, key("201"))
+			r := newReqRig(t, nil)
+			rec := reqDo(r.h, createPath, "alice", tc.body, key("201"))
 			if rec.Code != http.StatusAccepted {
 				t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
 			}
-			validate(t, wrSchema, rec.Body.Bytes())
+			reqValidate(t, wrSchema, rec.Body.Bytes())
 			var got struct {
 				Status string `json:"status"`
 				GateID string `json:"gate_id"`
@@ -394,12 +394,12 @@ func TestARC_I_012_WithdrawalRequestOpensGateOnly(t *testing.T) {
 }
 
 func TestWithdrawalCancelWithdrawsGate(t *testing.T) {
-	r := newRig(t, nil)
-	rec := do(r.h, cancelPath(wdOpen), "alice", "", keyMatch("301", `"1"`))
+	r := newReqRig(t, nil)
+	rec := reqDo(r.h, cancelPath(wdOpen), "alice", "", keyMatch("301", `"1"`))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
 	}
-	validate(t, wrSchema, rec.Body.Bytes())
+	reqValidate(t, wrSchema, rec.Body.Bytes())
 	g, err := r.gates.Fake.Get(context.Background(), r.gates.ids[r.openGID])
 	if err != nil {
 		t.Fatal(err)
@@ -413,9 +413,9 @@ func TestWithdrawalCancelWithdrawsGate(t *testing.T) {
 }
 
 func TestARC_I_008_WithdrawalRequestIdempotency(t *testing.T) {
-	r := newRig(t, nil)
+	r := newReqRig(t, nil)
 	hdr := key("401")
-	first := do(r.h, createPath, "alice", goodBody, hdr)
+	first := reqDo(r.h, createPath, "alice", goodBody, hdr)
 	if first.Code != http.StatusAccepted {
 		t.Fatalf("first = %d %s", first.Code, first.Body)
 	}
@@ -432,7 +432,7 @@ func TestARC_I_008_WithdrawalRequestIdempotency(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			rec := do(r.h, createPath, "alice", tc.body, hdr)
+			rec := reqDo(r.h, createPath, "alice", tc.body, hdr)
 			if rec.Code != tc.status {
 				t.Fatalf("status = %d, want %d (%s)", rec.Code, tc.status, rec.Body)
 			}
@@ -447,7 +447,7 @@ func TestARC_I_008_WithdrawalRequestIdempotency(t *testing.T) {
 }
 
 func TestARC_I_012_WithdrawalRequestWritesDeclared(t *testing.T) {
-	writes, err := server.DeclaredWrites(newRig(t, nil).h)
+	writes, err := server.DeclaredWrites(newReqRig(t, nil).h)
 	if err != nil {
 		t.Fatal(err)
 	}
