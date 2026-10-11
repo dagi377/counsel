@@ -2398,7 +2398,7 @@
    "name": "propose_deadline",
    "kind": "write",
    "capability": "deadlines.edit",
-   "description": "Propose a deadline with its source; stays proposed until gate cal.confirm.",
+   "description": "Propose a deadline with its source; stays proposed until gate cal.confirm. With deadline_id, propose a new date for that stored deadline under gate cal.change; the date is applied only on approval.",
    "input_schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$defs": {
@@ -2463,6 +2463,10 @@
      "source"
     ],
     "properties": {
+     "deadline_id": {
+      "type": "string",
+      "minLength": 1
+     },
      "matter_id": {
       "$ref": "#/$defs/uuid"
      },

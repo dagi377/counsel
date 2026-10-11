@@ -172,3 +172,58 @@ func TestARC_I_039_CreateTaskNotApprovedByAgent(t *testing.T) {
 		})
 	}
 }
+
+// rule: AI-R-003
+// rule: ARC-I-035
+// An agent run whose feature declares a gate kind on work items gets a draft of the run, which
+// submit_for_approval may open that gate on; every other caller gets a proposal.
+func TestAI_R_003_CreateTaskDraft(t *testing.T) {
+	agentP := registry.Principal{Kind: registry.PrincipalAgent, RunID: taskRun, ActingFor: clerk, Grant: []string{taskCap}}
+	user := registry.Principal{Kind: registry.PrincipalUser, UserID: clerk}
+	cases := []struct {
+		name     string
+		p        registry.Principal
+		scopeRun string
+		scope    []string // gate kinds of the run scope; nil means no scope in ctx
+		want     agenttools.WriteOutcome
+	}{
+		{"feature declares work.absence", agentP, taskRun, []string{"work.absence"}, agenttools.OutcomeDraft},
+		{"feature declares work.output", agentP, taskRun, []string{"work.output"}, agenttools.OutcomeDraft},
+		{"feature declares no work item kind", agentP, taskRun, []string{"cal.confirm"}, agenttools.OutcomeProposal},
+		{"no run scope", agentP, "", nil, agenttools.OutcomeProposal},
+		{"scope of another run", agentP, "run-other", []string{"work.absence"}, agenttools.OutcomeProposal},
+		{"manual path", user, taskRun, []string{"work.absence"}, agenttools.OutcomeProposal},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			var scope *agenttools.Scope
+			if tc.scope != nil {
+				scope = agenttools.NewScope(tc.scopeRun, tc.scope)
+				ctx = agenttools.WithScope(ctx, scope)
+			}
+			w := newTaskWorld(t, map[string]bool{taskCap: true})
+			res, err := w.reg.Call(ctx, tc.p, agent.ToolCreateTask, json.RawMessage(taskInput(map[string]string{"title": "Cover the deadline", "assignee_id": taskAssignee})))
+			if err != nil {
+				t.Fatalf("call: %v", err)
+			}
+			if err := agenttools.CheckWriteResult(res); err != nil {
+				t.Fatalf("write result: %v", err)
+			}
+			var out agenttools.WriteOutput
+			if err := json.Unmarshal(res.Output, &out); err != nil || out.Outcome != tc.want || res.GateID != "" {
+				t.Fatalf("output = %s gate %q, want %s", res.Output, res.GateID, tc.want)
+			}
+			// The draft is recorded in the run, so submit_for_approval can find it.
+			if recorded := scope != nil && scope.HasDraft(out.Ref); recorded != (tc.want == agenttools.OutcomeDraft) {
+				t.Fatalf("draft recorded = %v, want %v", recorded, tc.want == agenttools.OutcomeDraft)
+			}
+			// rule: ARC-I-039
+			// A draft is still a task nobody accepted: no approver, in the proposed status.
+			it, err := w.items.Get(ctx, work.ItemID(out.Ref))
+			if err != nil || it.StatusID != taskProposed || it.ApproverID != "" {
+				t.Fatalf("item = %+v (%v), want proposed with no approver", it, err)
+			}
+		})
+	}
+}

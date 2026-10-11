@@ -1623,6 +1623,10 @@
     "source"
    ],
    "properties": {
+    "deadline_id": {
+     "type": "string",
+     "minLength": 1
+    },
     "matter_id": {
      "$ref": "#/$defs/uuid"
     },
