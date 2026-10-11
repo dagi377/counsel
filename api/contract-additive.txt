@@ -27,3 +27,4 @@
 /components/schemas/ProvinceCode Q-TAX-API
 /components/schemas/PlaceOfSupplyPatch Q-TAX-API
 /components/schemas/FirmTaxRegistrations Q-TAX-API
+/paths/~1leads~1{lead_id}~1awaiting-info Q-LEAD-STATUS

@@ -4255,3 +4255,15 @@ of FEAT-TIM-01 above.
   draft_document schema FORM-SUBJECT changed. list_unbilled now records provenance itself
   (sourcedRead) and boot also wraps every read tool (TIME-FIX); recording a value twice is
   harmless, but one of the two can go.
+
+## Q-LEAD-STATUS Route that sets a lead to awaiting info
+
+Done. Additive `api/openapi.yaml` path `POST /leads/{lead_id}/awaiting-info`
+(operationId `setLeadAwaitingInfo`, Idempotency-Key, no body). `intake.StatusHTTP` checks
+`intake.leads` firm-wide (403 without it), calls `Leads.SetStatus(..., awaiting_info)` and
+answers 200 `{lead_id, status}`; 404 for an unknown lead, 409 `lead_closed` for a converted,
+declined or sealed one. The first move into awaiting info publishes
+`intake.lead_awaiting_info` (F-INT-03 starts on it). Boot mounts it with the other event
+routes: `EventStores.LeadStatuses` is an `intake.Leads` on `intake.PGLeads`, publishing
+through the own-transaction emitter, as lead submission does. Open: moving back to `open`
+has no route yet.
