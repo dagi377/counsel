@@ -1871,3 +1871,21 @@ Done in PORT-18:
   - `claim.issued` and `service.affidavit_received`: comms records court filings only; there is
     no issued-claim or affidavit-of-service record to publish from.
 - BOOT: set `PGBook.Events` and `FilingStore.Events` to the outbox emitter.
+
+## EVENTS-2: publishers for the remaining F-DL-03 / F-DL-04 events
+
+- Branch carries origin/task/DL-EVENTS (merged in) because it reuses `PGBook.Events` and
+  `FilingStore.Events`; merge DL-EVENTS first or together.
+- New minimal write points (no schema change), each emitting in the writer's tx and refusing
+  before any write when its emitter is nil (DL-EVENTS pattern):
+  - `deadline.trigger_date_changed`: kernel/deadline `PGBook.ChangeTrigger(ctx, tx, id, date)`
+    updates `cal.deadline.trigger_on` only (due date stays until F-DL-03's proposal is
+    confirmed), subject `cal.deadline`/id, body ids plus old and new trigger. Same date is a
+    no-op. Not on the frozen `Engine` interface.
+  - `claim.issued`: comms `FilingStore.IssueClaim(ctx, filingID, courtFileNo, issuedOn)` sets
+    the court file number on a filed `legal.court_filing` row (ErrNotFound otherwise).
+  - `service.affidavit_received`: comms `FilingStore.RecordAffidavitOfService(ctx, f)` records
+    a filed filing whose document is the affidavit; it emits this event instead of
+    `filing.receipt_received`, so F-DL-04 runs once per record.
+- Open: no handler or route calls these yet (boot/handler task). Whether an affidavit of
+  service received but not filed with the court should also publish (verify).
