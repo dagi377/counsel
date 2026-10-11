@@ -42,6 +42,18 @@ Template:
   `/hooks/{provider}`; if A, add the responses additively and drop the skip.
 - Answer: (owner)
 
+## Q-AI-005 New fake-LLM endpoints must register routes in main.go
+
+- Task: AI-005 (same for AI-006 and AI-007)
+- Sources: spec/tasks.json AI-005/006/007 `files` list only the new protocol files; routes are
+  registered in `server.handler()` in `test/fakes/llm/main.go`, which none of them lists.
+- Reading A: touching `main.go` is implied; each task adds its `mux.HandleFunc` lines (and
+  AI-006 hooks the fault layer and journal into `route`).
+- Reading B: the tasks' `files` must be extended to list `main.go` first.
+- Proposed: A. AI-005 adds two route lines to `handler()` plus `chat_test.go`. The AI-006 and
+  AI-007 branches add their lines next to them; merging gives a trivial conflict in `handler()`.
+- Answer: (owner)
+
 ## Q-AI-003 Wire the AI fixture lint into make check
 
 - Task: AI-003
