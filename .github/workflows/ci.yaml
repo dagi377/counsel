@@ -8,10 +8,34 @@ on:
 permissions:
   contents: read
 
+# No live model in CI (AI-R-001, AI-011): COUNSEL_ENV=ci makes a live model config fail boot
+# with live_model_forbidden, every model key is empty, and public model hosts resolve to
+# 0.0.0.0. tools/no_live_model_test.go checks all three.
+env:
+  COUNSEL_ENV: ci
+  ANTHROPIC_API_KEY: ""
+  ANTHROPIC_AUTH_TOKEN: ""
+  CLAUDE_CODE_OAUTH_TOKEN: ""
+  OPENAI_API_KEY: ""
+  AZURE_OPENAI_API_KEY: ""
+  GEMINI_API_KEY: ""
+  GOOGLE_API_KEY: ""
+  MISTRAL_API_KEY: ""
+  COHERE_API_KEY: ""
+  GROQ_API_KEY: ""
+  TOGETHER_API_KEY: ""
+  XAI_API_KEY: ""
+  MODEL_HOSTS: >-
+    api.anthropic.com api.openai.com generativelanguage.googleapis.com
+    aiplatform.googleapis.com api.mistral.ai api.cohere.ai api.cohere.com
+    openai.azure.com bedrock-runtime.amazonaws.com api.groq.com api.together.xyz api.x.ai
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      - name: Block egress to public model hosts
+        run: for h in $MODEL_HOSTS; do echo "0.0.0.0 $h" | sudo tee -a /etc/hosts >/dev/null; done
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
@@ -44,6 +68,8 @@ jobs:
     env:
       COUNSEL_TEST_DB: postgres://counsel:counsel@localhost:5432/counsel_test?sslmode=disable
     steps:
+      - name: Block egress to public model hosts
+        run: for h in $MODEL_HOSTS; do echo "0.0.0.0 $h" | sudo tee -a /etc/hosts >/dev/null; done
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
@@ -55,6 +81,8 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     steps:
+      - name: Block egress to public model hosts
+        run: for h in $MODEL_HOSTS; do echo "0.0.0.0 $h" | sudo tee -a /etc/hosts >/dev/null; done
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
