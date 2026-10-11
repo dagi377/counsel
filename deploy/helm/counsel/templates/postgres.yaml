@@ -1,0 +1,92 @@
+{{- $cell := required "cell is required (ARC-U-001)" .Values.cell }}
+{{- $kms := printf "arn:aws:kms:%s:%s:alias/counsel-%s" .Values.region.primary .Values.aws.accountId $cell }}
+# rule: ARC-U-009
+# Volumes and snapshots are encrypted with the cell's own KMS key.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: counsel-{{ $cell }}-encrypted
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+parameters:
+  type: gp3
+  encrypted: "true"
+  kmsKeyId: {{ $kms | quote }}
+---
+# rule: ARC-U-006
+# Three instances, one per zone, quorum synchronous replication: a commit returns once
+# either standby has the WAL, so losing any one zone keeps RPO 0.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: counsel-{{ $cell }}-pg
+  namespace: counsel-{{ $cell }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+spec:
+  instances: 3
+  minSyncReplicas: 1
+  maxSyncReplicas: 2
+  priorityClassName: counsel-{{ $cell }}-db
+  affinity:
+    enablePodAntiAffinity: true
+    podAntiAffinityType: required
+    topologyKey: topology.kubernetes.io/zone
+    nodeSelector:
+      counsel.io/pool: {{ .Values.nodePools.db | quote }}
+    tolerations:
+      - key: counsel.io/pool
+        operator: Equal
+        value: {{ .Values.nodePools.db | quote }}
+        effect: NoSchedule
+  postgresql:
+    parameters:
+      synchronous_commit: "on"
+      # rule: ARC-U-008
+      archive_timeout: 60s
+      # rule: ARC-U-009
+      ssl_min_protocol_version: TLSv1.2
+    # rule: ARC-U-009
+    # TLS only: every non-TLS connection is rejected.
+    pg_hba:
+      - hostnossl all all all reject
+      - hostssl all all all scram-sha-256
+  storage:
+    storageClass: counsel-{{ $cell }}-encrypted
+    size: 100Gi
+  # rule: ARC-U-008
+  # WAL archive and base backups go to the cell's bucket in the DR region (Canada).
+  backup:
+    retentionPolicy: 35d
+    barmanObjectStore:
+      destinationPath: {{ printf "s3://counsel-%s-wal-dr/" $cell | quote }}
+      endpointURL: {{ printf "https://s3.%s.amazonaws.com" .Values.region.dr | quote }}
+      s3Credentials:
+        inheritFromIAMRole: true
+      # rule: ARC-U-009
+      # (verify) ARC-U-009 asks for client-side encryption before upload; barman encrypts
+      # with KMS at the bucket. Confirm SSE-KMS with the cell key is accepted.
+      wal:
+        compression: gzip
+        encryption: aws:kms
+      data:
+        compression: gzip
+        encryption: aws:kms
+---
+# rule: ARC-U-008
+# Daily base backup at 03:00 UTC (six-field cron: seconds first).
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: counsel-{{ $cell }}-pg-daily
+  namespace: counsel-{{ $cell }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+spec:
+  schedule: "0 0 3 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: counsel-{{ $cell }}-pg

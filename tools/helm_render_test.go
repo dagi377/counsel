@@ -198,7 +198,7 @@ var refKeys = map[string]bool{
 // refParents are maps whose "name" key names another per-cell resource.
 var refParents = map[string]bool{
 	"metadata": true, "secretKeyRef": true, "secretRef": true, "configMapRef": true,
-	"configMapKeyRef": true, "secret": true, "service": true, "s3Credentials": true,
+	"configMapKeyRef": true, "secret": true, "service": true, "s3Credentials": true, "cluster": true,
 }
 
 var refDataKey = regexp.MustCompile(`BUCKET|KMS|HOSTNAME|DSN|SECRET`)
@@ -669,4 +669,114 @@ func TestARC_U_041_Capacity(t *testing.T) {
 	if checked == 0 {
 		t.Fatal("no containers rendered")
 	}
+}
+
+// pgCluster returns the cell's CloudNativePG Cluster and the rest of the render.
+func pgCluster(t *testing.T, cell string) (k8sObj, []k8sObj) {
+	t.Helper()
+	objs := mustRender(t, map[string]any{"cell": cell})
+	c := byName(objs, "Cluster")["counsel-"+cell+"-pg"]
+	if c == nil {
+		t.Fatalf("no Cluster counsel-%s-pg rendered", cell)
+	}
+	return c, objs
+}
+
+type check struct {
+	name      string
+	got, want any
+}
+
+func runChecks(t *testing.T, tests []check) {
+	t.Helper()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Fatalf("got %v, want %v", tt.got, tt.want)
+			}
+		})
+	}
+}
+
+// rule: ARC-U-006
+func TestARC_U_006_QuorumSync(t *testing.T) {
+	c, _ := pgCluster(t, "alpha")
+	runChecks(t, []check{
+		{"3 instances", asInt(dig(c, "spec", "instances")), 3},
+		{"minSyncReplicas 1", asInt(dig(c, "spec", "minSyncReplicas")), 1},
+		{"maxSyncReplicas 2", asInt(dig(c, "spec", "maxSyncReplicas")), 2},
+		{"synchronous_commit on", dig(c, "spec", "postgresql", "parameters", "synchronous_commit"), "on"},
+		{"one instance per zone", dig(c, "spec", "affinity", "topologyKey"), "topology.kubernetes.io/zone"},
+		{"anti-affinity required", dig(c, "spec", "affinity", "podAntiAffinityType"), "required"},
+		{"anti-affinity on", dig(c, "spec", "affinity", "enablePodAntiAffinity"), true},
+		{"DB priority class", dig(c, "spec", "priorityClassName"), "counsel-alpha-db"},
+		{"DB node pool", dig(c, "spec", "affinity", "nodeSelector", "counsel.io/pool"), dig(loadValues(t), "nodePools", "db")},
+	})
+}
+
+// cronDaily reports whether a six-field CNPG cron runs once a day.
+func cronDaily(s string) bool {
+	f := strings.Fields(s)
+	if len(f) != 6 {
+		return false
+	}
+	isNum := regexp.MustCompile(`^\d+$`).MatchString
+	return isNum(f[0]) && isNum(f[1]) && isNum(f[2]) && f[3] == "*" && f[4] == "*" && f[5] == "*"
+}
+
+// rule: ARC-U-008
+func TestARC_U_008_WALArchive(t *testing.T) {
+	c, objs := pgCluster(t, "alpha")
+	dr, _ := dig(loadValues(t), "region", "dr").(string)
+	store := dig(c, "spec", "backup", "barmanObjectStore")
+	var daily bool
+	for _, b := range byName(objs, "ScheduledBackup") {
+		if dig(b, "spec", "cluster", "name") == "counsel-alpha-pg" && cronDaily(fmt.Sprint(dig(b, "spec", "schedule"))) {
+			daily = true
+		}
+	}
+	runChecks(t, []check{
+		{"archive to DR bucket", dig(store, "destinationPath"), "s3://counsel-alpha-wal-dr/"},
+		{"DR region endpoint", strings.Contains(fmt.Sprint(dig(store, "endpointURL")), "."+dr+"."), true},
+		{"archive_timeout 60s", dig(c, "spec", "postgresql", "parameters", "archive_timeout"), "60s"},
+		{"PITR retention 35d", dig(c, "spec", "backup", "retentionPolicy"), "35d"},
+		{"daily ScheduledBackup", daily, true},
+	})
+	for _, tt := range []struct {
+		cron string
+		want bool
+	}{{"0 0 3 * * *", true}, {"0 0 3 * * 0", false}, {"0 3 * * *", false}} {
+		if got := cronDaily(tt.cron); got != tt.want {
+			t.Errorf("cronDaily(%q) = %v, want %v", tt.cron, got, tt.want)
+		}
+	}
+}
+
+// rule: ARC-U-009
+func TestARC_U_009_Encryption(t *testing.T) {
+	c, objs := pgCluster(t, "alpha")
+	cm := byName(objs, "ConfigMap")["counsel-alpha-config"]
+	cellKey := dig(cm, "data", "COUNSEL_KMS_KEY")
+	scName, _ := dig(c, "spec", "storage", "storageClass").(string)
+	sc := byName(objs, "StorageClass")[scName]
+	store := dig(c, "spec", "backup", "barmanObjectStore")
+	hba, _ := dig(c, "spec", "postgresql", "pg_hba").([]any)
+	hbaOK := len(hba) > 0
+	for _, l := range hba {
+		f := strings.Fields(fmt.Sprint(l))
+		// Only TLS entries may accept; a non-TLS entry must reject.
+		if len(f) == 0 || !(f[0] == "hostssl" || (f[0] == "hostnossl" && f[len(f)-1] == "reject")) {
+			hbaOK = false
+		}
+	}
+	runChecks(t, []check{
+		{"cell KMS key set", cellKey != nil && cellKey != "", true},
+		{"storage class exists", sc != nil, true},
+		{"volumes encrypted", dig(sc, "parameters", "encrypted"), "true"},
+		{"volume key is the cell key", dig(sc, "parameters", "kmsKeyId"), cellKey},
+		{"WAL backup encrypted", dig(store, "wal", "encryption"), "aws:kms"},
+		{"base backup encrypted", dig(store, "data", "encryption"), "aws:kms"},
+		{"pg_hba hostssl only", hbaOK, true},
+		{"TLS 1.2+", dig(c, "spec", "postgresql", "parameters", "ssl_min_protocol_version"), "TLSv1.2"},
+	})
 }
