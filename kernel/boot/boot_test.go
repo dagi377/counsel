@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/migrations"
 )
 
 func TestValidate(t *testing.T) {
@@ -19,6 +21,7 @@ func TestValidate(t *testing.T) {
 		{name: "import", cfg: Config{Role: RoleImport}},
 		{name: "migrate expand", cfg: Config{Role: RoleMigrate, MigrateMode: MigrateExpand}},
 		{name: "migrate contract", cfg: Config{Role: RoleMigrate, MigrateMode: MigrateContract}},
+		{name: "migrate wait-version", cfg: Config{Role: RoleMigrate, MigrateMode: MigrateWaitVersion}},
 		{name: "migrate no mode", cfg: Config{Role: RoleMigrate}, want: ErrConfig},
 		{name: "unknown role", cfg: Config{Role: "x"}, want: ErrConfig},
 	}
@@ -89,6 +92,31 @@ func TestRunFlags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := Run(context.Background(), Config{Role: RoleServer, Flags: tt.flags}, define)
+			if !errors.Is(err, tt.want) {
+				t.Fatalf("Run() = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}
+
+// wait-version applies nothing and fails fast on a version this binary does not ship; with an
+// unreachable database it keeps retrying until ctx ends.
+func TestRunWaitVersion(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		want    error
+	}{
+		{name: "unknown version", version: "9999_nothing.sql", want: migrations.ErrUnknownVersion},
+		{name: "database unreachable until timeout", want: context.DeadlineExceeded},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+			defer cancel()
+			cfg := Config{Role: RoleMigrate, MigrateMode: MigrateWaitVersion, SchemaVersion: tt.version,
+				DatabaseURL: "postgres://nobody@127.0.0.1:1/none?connect_timeout=1"}
+			err := Run(ctx, cfg)
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("Run() = %v, want %v", err, tt.want)
 			}
