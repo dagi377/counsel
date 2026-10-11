@@ -5,6 +5,8 @@
 -- (AI-R-005): the digest text goes to the user through kernel/notify and is not stored.
 -- A flag is a proposal the user may dismiss. blocks_gate is set only for features whose
 -- definition says the flag blocks that gate kind (for example the GA1 duty scan).
+SET lock_timeout = '2s';
+SET statement_timeout = '5min';
 
 -- @module agent @retention RC-OPS @class flag:P4
 CREATE TABLE agent.agent_flag (
