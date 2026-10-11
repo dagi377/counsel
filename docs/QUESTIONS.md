@@ -3217,3 +3217,20 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
   screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
   as served by its screen actions instead of binding it.
+
+## FEAT-BIL-05 Evergreen watch: amount provenance in email text and wiring
+
+- draft_email has no cents field: the figures a retainer request states live in its subject
+  and body text. billing.SourcedEmailHandlers wraps draft_email so, for an agent principal,
+  every dollar ("$1,200.00") or cents ("60000 cents") figure in the text must be a value a
+  read tool of the run returned, else agenttools.ErrUnsourcedValue and no draft or gate row.
+  It also records list_unbilled's figures in the run's provenance (list_unbilled does not
+  wrap itself with Provenance.ReadTool, unlike get_bill and get_trust_balance).
+- The feature tests run over SourcedEmailHandlers(agent.Handlers()). Boot still builds one
+  registry from agent.Handlers() for every feature, so the guard is not yet live at boot.
+  Open: wire SourcedEmailHandlers in boot.AgentTools (it then applies to every feature's
+  draft_email, e.g. F-MAT-08 cites cents from quoted engagement terms, which the guard does
+  not accept), or give draft_email a per-run amount check; and wrap list_unbilled with
+  ReadTool in its own file (FEAT-TOOL-08).
+- The retainer-requests screen selects a matter (billing.view); main has no boot.FirmSubject.
+- F-BIL-05 binds with trigger.BindDesignated (daily, the designated lawyer).

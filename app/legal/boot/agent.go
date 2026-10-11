@@ -11,6 +11,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/featureset"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/billing/batch"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
@@ -312,6 +313,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.ConfigHygieneDef().ID:                matter.ConfigHygieneBinding,
 		matter.TemplateFitDef().ID:                  matter.TemplateFitBinding,
 		matter.MatterDigestDef().ID:                 matter.MatterDigestBinding,
+		billing.EvergreenWatchDef().ID:              billing.EvergreenWatchBinding,
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
@@ -418,6 +420,8 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Billing: a retainer request is drafted for the selected matter (FEAT-BIL-05).
+	"retainer-requests": {SubjectKind: "matter", Capability: "billing.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

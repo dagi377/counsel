@@ -6,19 +6,18 @@ turns:
   - reply:
       tool_calls:
         - name: get_trust_balance
-          input: {matter_id: "8c1f6a52-3d0e-4b7a-9a61-2f4e7b0c9d15"}
+          input: {matter_id: "00000000-0000-4000-8000-0000000000a1"}
+  - reply:
+      tool_calls:
+        - name: list_unbilled
+          input: {matter_id: "00000000-0000-4000-8000-0000000000a1"}
   - reply:
       tool_calls:
         - name: report_plan
-          input: {steps: [{id: draft-retainer-request, title: "Draft retainer request for M-2026-0007"}]}
+          input: {steps: [{step_id: draft-retainer-request, title: "Draft retainer request for the matter"}]}
   - reply:
       tool_calls:
-        - name: submit_for_approval
-          input:
-            kind: platform.outgoing_email
-            matter_id: "8c1f6a52-3d0e-4b7a-9a61-2f4e7b0c9d15"
-            to_contact_ids: ["4b2d9e10-7c3a-4f61-8e25-91a0c6d3b7f4"]
-            subject: "Request to top up your retainer for M-2026-0007"
-            body_markdown: "Your trust balance is $120.00, below the agreed $5,000.00 evergreen floor. Please deposit $4,880.00."
+        - name: draft_email
+          input: {matter_id: "00000000-0000-4000-8000-0000000000a1", to_contact_ids: ["00000000-0000-4000-8000-0000000000e1"], subject: "Request to top up your retainer", body_markdown: "Your available trust balance is $1,200.00. Unbilled work stands at 60000 cents. Please replenish the retainer to the agreed level.", submit: true}
   - reply:
       text: "Drafted 1 retainer request for your approval."
