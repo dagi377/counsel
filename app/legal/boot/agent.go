@@ -59,12 +59,15 @@ type AgentPorts struct {
 	Documents     agent.MatterDocuments
 	Folders       agent.MatterFolders
 
-	Bills          agent.BillReader
-	UnbilledWIP    agent.UnbilledWIP
-	WriteTools     *agent.WriteTools
-	BillBalances   agent.BillBalances
-	Trust          agent.TrustAvailable
-	TrustAccounts  agent.MatterTrustAccounts
+	Bills         agent.BillReader
+	UnbilledWIP   agent.UnbilledWIP
+	WriteTools    *agent.WriteTools
+	BillBalances  agent.BillBalances
+	Trust         agent.TrustAvailable
+	TrustAccounts agent.MatterTrustAccounts
+	// TrustTransfers records a transfer row and opens its trust.transfer gate in one tx
+	// (withdraw.TransferRequests over withdraw.PGTransferStore and the gate engine).
+	TrustTransfers agent.TrustTransfers
 	Entries        tk.Entries
 	MatterTime     agent.MatterTime
 	DraftCalc      draft.Calc
@@ -120,6 +123,7 @@ func (p AgentPorts) ports() []port {
 		{"BillBalances", p.BillBalances, p.BillBalances != nil},
 		{"Trust", p.Trust, p.Trust != nil},
 		{"TrustAccounts", p.TrustAccounts, p.TrustAccounts != nil},
+		{"TrustTransfers", p.TrustTransfers, p.TrustTransfers != nil},
 		{"Entries", p.Entries, p.Entries != nil},
 		{"MatterTime", p.MatterTime, p.MatterTime != nil},
 		{"DraftCalc", p.DraftCalc, p.DraftCalc != nil},

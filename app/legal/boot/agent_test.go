@@ -1,6 +1,8 @@
 package boot
 
 import (
+	"github.com/dagi377/counsel/app/legal/trust/withdraw/withdrawfake"
+
 	"context"
 	"encoding/json"
 	"errors"
@@ -90,6 +92,7 @@ func fullPorts() AgentPorts {
 		BillBalances:    stubBalances{},
 		Trust:           stubTrust{},
 		TrustAccounts:   stubTrustAccts{},
+		TrustTransfers:  withdrawfake.NewTransfers().Requests(nil),
 		Entries:         stubEntries{},
 		UnbilledWIP:     stubWIP{},
 		MatterTime:      stubMatterTime{},

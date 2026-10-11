@@ -19,6 +19,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw/withdrawfake"
 	"github.com/dagi377/counsel/kernel/agenttools"
 )
 
@@ -97,8 +98,14 @@ func trudFeature(t *testing.T, def feature.Def, narrative string, balance int64)
 	ports := trudPorts{fd}
 	// DepOf takes the first value of a type: the driver's Provenance (the one WriteTools
 	// checks) comes ahead of the Seed's.
+	// prepare_trust_transfer records its transfer row and opens its gate in one tx, over the
+	// same ledger balances.
+	transfers := withdrawfake.NewTransfers()
+	transfers.AddLedger(agenttest.TrustAccount, agenttest.TrustMatter, balance)
+	transfers.AddLedger(agenttest.TrustAccount, trudSplitMatter, 0)
 	vals := []any{fd.Provenance, fd.Write, agent.BillReader(ports), agent.BillBalances(ports),
-		agent.TrustAvailable(ports), agent.MatterTrustAccounts(ports)}
+		agent.TrustAvailable(ports), agent.MatterTrustAccounts(ports),
+		agent.TrustTransfers(transfers.Requests(fd.Seed.Gates))}
 	vals = trudDep[agent.CapabilityCheck](vals, seed)
 	vals = trudDep[roles.Walls](vals, seed)
 	vals = trudDep[agenttools.Plans](vals, seed)

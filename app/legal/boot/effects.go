@@ -137,10 +137,21 @@ func effects(k *kboot.Kernel, s svcs) (map[string]registry.EffectFunc, error) {
 		}},
 		{"withdraw", map[string]registry.EffectFunc{withdraw.GateKind: s.trust.Withdraw.Apply}},
 		{"withdraw fee", map[string]registry.EffectFunc{withdraw.GateFeeKind: withdraw.FeeEffect(s.trust.Withdraw)}},
+		// rule: ARC-I-024
+		// Approving trust.transfer posts the transfer recorded by prepare_trust_transfer.
+		{"transfer", transferEffects(s.trust.Transfer)},
 		{"bill", bill.Effects(s.billing.Approve)},
 		{"bill void", bill.VoidEffects(s.billing.Void)},
 		{"credit", fx},
 	})
+}
+
+// transferEffects is the trust.transfer effect table, empty when no effect is built.
+func transferEffects(e *withdraw.TransferEffect) map[string]registry.EffectFunc {
+	if e == nil {
+		return nil
+	}
+	return withdraw.TransferEffects(e)
 }
 
 // creditEffects is the write-off effect table, joined with the credit-note effect when one is

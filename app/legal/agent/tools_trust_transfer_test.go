@@ -12,6 +12,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/roles/rolesfake"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw/withdrawfake"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/agenttools/agenttoolsfake"
 	"github.com/dagi377/counsel/kernel/gate"
@@ -48,9 +49,9 @@ func (xferLedgers) TrustAccountsOf(_ context.Context, matterID string) ([]string
 }
 
 type xferWorld struct {
-	reg    *agenttools.Registry
-	gates  *gatefake.Fake
-	opened *int
+	reg       *agenttools.Registry
+	gates     *gatefake.Fake
+	transfers *withdrawfake.Transfers
 }
 
 // newXferWorld builds prepare_trust_transfer through its handler. The run read 50000 (the
@@ -64,8 +65,7 @@ func newXferWorld(t *testing.T, caps map[string]bool) xferWorld {
 		return user == clerk && caps[capability], nil
 	})
 	w := xferWorld{
-		gates:  gatefake.New(func() time.Time { return time.Date(2026, 10, 11, 9, 0, 0, 0, time.UTC) }, gatefake.Caps{clerk: {agent.CapTrustRequest}}),
-		opened: new(int),
+		gates: gatefake.New(func() time.Time { return time.Date(2026, 10, 11, 9, 0, 0, 0, time.UTC) }, gatefake.Caps{clerk: {agent.CapTrustRequest}}),
 	}
 	if err := w.gates.Register(gate.GateKind{
 		Slug: agent.GateTrustTransfer, Approver: "trust.approve", Risk: gate.RiskHigh, MinApprovers: 1, TTL: 72 * time.Hour,
@@ -73,10 +73,10 @@ func newXferWorld(t *testing.T, caps map[string]bool) xferWorld {
 	}); err != nil {
 		t.Fatalf("gate kind: %v", err)
 	}
-	open := agenttools.GateOpener(func(ctx context.Context, kind string, s registry.Subject, payload json.RawMessage, by agenttools.Principal) (gate.GateID, error) {
-		*w.opened++
-		return w.gates.Open(ctx, nil, kind, s, payload, by)
-	})
+	w.transfers = withdrawfake.NewTransfers()
+	w.transfers.AddLedger(xferAccount, xferFrom, xferHeld)
+	w.transfers.AddLedger(xferAccount, xferTo, 0)
+	open := agent.TrustTransfers(w.transfers.Requests(w.gates))
 	pv := agenttools.NewProvenance()
 	pv.Observe(xferRun, json.RawMessage(`{"balance_cents":50000,"part_cents":20000,"overdrawn_cents":-5000,"big_cents":60000}`))
 	ledgers := xferLedgers{}
@@ -150,8 +150,8 @@ func TestPrepareTrustTransfer(t *testing.T) {
 				if !errors.Is(err, tt.wantErr) {
 					t.Fatalf("err = %v, want %v", err, tt.wantErr)
 				}
-				if *w.opened != 0 || gatesOpened(w.gates) != 0 || res.GateID != "" {
-					t.Fatalf("refused call opened %d gates", *w.opened)
+				if len(w.transfers.Rows()) != 0 || gatesOpened(w.gates) != 0 || res.GateID != "" {
+					t.Fatalf("refused call recorded %d transfers", len(w.transfers.Rows()))
 				}
 				return
 			}
@@ -169,9 +169,17 @@ func TestPrepareTrustTransfer(t *testing.T) {
 				g.Preparer.ActingFor != clerk || g.Preparer.Kind != registry.PrincipalAgent {
 				t.Fatalf("gate = %+v, want one pending %s prepared for %s", g, agent.GateTrustTransfer, clerk)
 			}
+			// rule: ARC-I-027
+			// The transfer row is pending authorization, prepared by the acting user, and the
+			// gate's payload names it: approval moves exactly this row.
+			rows := w.transfers.Rows()
 			var p withdraw.TransferPayload
 			if err := json.Unmarshal(g.Payload, &p); err != nil || p.FromMatterID != xferFrom || p.ToMatterID != xferTo || p.AmountCents == nil {
 				t.Fatalf("payload = %s (%v)", g.Payload, err)
+			}
+			if len(rows) != 1 || rows[0].Status != "pending_authorization" || rows[0].RequestedBy != clerk ||
+				rows[0].GateID != res.GateID || p.TransferID != rows[0].ID || rows[0].AmountCents != *p.AmountCents {
+				t.Fatalf("rows = %+v, payload = %+v", rows, p)
 			}
 		})
 	}
@@ -182,9 +190,7 @@ func TestPrepareTrustTransfer(t *testing.T) {
 func TestPrepareTrustTransferNeedsEveryPort(t *testing.T) {
 	ledgers := xferLedgers{}
 	can := agent.CapabilityCheck(func(context.Context, string, string) (bool, error) { return true, nil })
-	open := agenttools.GateOpener(func(context.Context, string, registry.Subject, json.RawMessage, agenttools.Principal) (gate.GateID, error) {
-		return "", nil
-	})
+	open := agent.TrustTransfers(withdrawfake.NewTransfers().Requests(nil))
 	// Each port is its own value, so leaving one out leaves nothing else that serves it.
 	avail := struct{ agent.TrustAvailable }{ledgers}
 	accounts := struct{ agent.MatterTrustAccounts }{ledgers}

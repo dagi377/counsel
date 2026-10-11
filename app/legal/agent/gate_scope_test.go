@@ -225,10 +225,11 @@ func TestARC_I_035_NoUnscopedGateOpener(t *testing.T) {
 		}
 	}
 	// draft_note, draft_email, draft_bill, propose_time_entries, propose_deadline,
-	// propose_payment_allocation, prepare_trust_transfer and submit_for_approval read a
-	// GateOpener.
-	if sites < 8 {
-		t.Fatalf("found %d GateOpener reads, want at least 8: the guard no longer sees the tools", sites)
+	// propose_payment_allocation and submit_for_approval read a GateOpener.
+	// prepare_trust_transfer opens its gate through the trust module (TrustTransfers) after
+	// agenttools.CheckGateKind, like prepare_trust_withdrawal.
+	if sites < 7 {
+		t.Fatalf("found %d GateOpener reads, want at least 7: the guard no longer sees the tools", sites)
 	}
 }
 

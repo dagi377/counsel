@@ -4556,3 +4556,36 @@ of FEAT-TIM-01 above.
 - Boot: boot.BankFeedSyncJob runs the F-TRU-01 pipeline with trust.ReceiptGates as its sink
   in the run's scope. Open: nothing works the `agent_feature_run` River job yet, so no worker
   calls it; the job-run worker should dispatch F-TRU-01 to it.
+
+## Q-TRANSFER-STORE trust transfer row and the trust.transfer effect
+
+- Closes the Q-TRU-FIX open item. `withdraw.TransferRequests.Request` writes the
+  trust.trust_transfer row as `pending_authorization` and opens its trust.transfer gate in
+  one tx (a failed open leaves no row). Under both ledger locks it refuses an amount above
+  the source's `trust.available_cents` (By-Law 9). The gate payload now carries
+  `transfer_id`, which `TransferEffect` binds. Recording moves no money, so it is not
+  flag-gated; `Transfers.Post` at authorization still fails closed while
+  `trust.bylaw9_verified` is off.
+- prepare_trust_transfer reads a new agent port, `agent.TrustTransfers` (boot
+  `AgentPorts.TrustTransfers`), instead of a GateOpener. It calls
+  `agenttools.CheckGateKind` before the trust module is reached, as prepare_trust_withdrawal
+  does. The row's `requested_by` is the acting user, and the gate preparer is the agent run
+  acting for them. Open: production fill of `AgentPorts.TrustTransfers`
+  (`withdraw.TransferRequests{DB, Store: withdraw.PGTransferStore{}, Gates: engine}`) lands
+  with the rest of the agent port wiring. `OpenGate` is not filled in production either.
+- Boot registers `withdraw.TransferEffect` for trust.transfer (removed from
+  unwired_gates.txt). Approval by a signatory other than the preparer posts a transfer_out
+  line and a transfer_in line, equal and opposite in integer cents, plus one balanced trust
+  book entry. An overdraw at authorization is refused (insufficient_trust_funds). An agent
+  decision is refused with 403 agent_cannot_decide.
+- Migration 5540_trust_transfer_request.sql (additive) adds the nullable columns
+  `trust_transfer.requested_by` and `trust_transfer.reason`, and freezes both with the other
+  terms once the row leaves draft.
+- Fee kind in F-TRU-02 and F-TRU-10: left as is. spec/ai/features.json gives both
+  `gate.kind = [trust.withdrawal]` and output "draft withdrawal for G11" / "propose
+  disposition"; neither spec makes a fee transfer against a bill. That is F-BIL-03 (G-B4,
+  billing.trust_fee_withdrawal). F-TRU-02's trigger "bill delivered with trust applied" is
+  the event after a fee transfer, not a request for one. So a prepare_trust_withdrawal call
+  with a bill_id stays refused in those runs (ARC-I-035). If product wants F-TRU-02 to
+  draft the fee transfer itself, add billing.trust_fee_withdrawal to its spec gate kinds
+  first.
