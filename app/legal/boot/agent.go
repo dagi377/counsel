@@ -324,6 +324,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		intake.ConsultNoteDef().ID:                  intake.ConsultNoteBinding,
 		intake.AIReceptionistDef().ID:               intake.AIReceptionistBinding,
 		intake.PreConsultBriefDef().ID:              intake.PreConsultBriefBinding,
+		intake.PipelineFollowUpsDef().ID:            intake.PipelineFollowUpsBinding,
+		intake.WeeklyIntakeDigestDef().ID:           intake.WeeklyIntakeDigestBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -439,7 +441,9 @@ var actionScreens = map[string]trigger.Screen{
 	// Intake.
 	"intake-automations": {SubjectKind: "matter", Capability: "intake.forms"},
 	// Intake: the referral sources report selects referrer contacts (F-INT-21).
-	"referral-sources-report": {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
+	"referral-sources-report":   {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
+	"intake-dashboard":          {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	"intake-questionnaire-send": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

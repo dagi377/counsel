@@ -3421,3 +3421,36 @@ the same way as F-INT-06 (Q-FEAT-INT-06) and F-DL-02 (Q-FEAT-DL-04):
 - `platform.skill_autonomy` is a literal in the Def. The end-to-end tests use
   `app/legal/intake/ai_inte_helpers_test.go` (prefix `inte`), shared byte-for-byte with
   FEAT-INT-11 and FEAT-INT-12.
+
+## Q-FEAT-INT-16 F-INT-07 pipeline follow-ups: acting user and boot wiring
+
+- The hourly run acts for the feature's designated lawyer (`trigger.BindDesignated`,
+  JOB-ACTOR), never RuleAdmin; with no lawyer named it does not start.
+- search_contacts and search_matters return no document citations, so the digest cites the
+  contact records search_contacts returned (`contact:<id>`, page 1, line 1), which
+  `run.CheckAnswer` accepts as citations of this run.
+- Registering the Def in featureset makes boot's TestJobBindings need it, so this task adds
+  its binding to `boot.JobBindings`. The end-to-end tests use
+  `app/legal/intake/ai_intg_helpers_test.go` (prefix `intg`), shared with FEAT-INT-17 and
+  FEAT-INT-18. F-INT-07 is a chat Def, so it gets no plugin skill.
+
+## Q-FEAT-INT-17 F-INT-09 weekly intake digest: schedule and screen
+
+- "Monday 08:00 America/Toronto" binds the weekly cadence (the first business day of the
+  week; `trigger.ParseCadence` reads "monday"). The tick has no hour of day, so the run starts
+  at the first tick of that day. The run acts for the feature's designated lawyer
+  (`trigger.BindDesignated`, JOB-ACTOR).
+- The `intake-dashboard` screen is added to `actionScreens` with subject `intake.lead` and
+  capability `intake.leads`, the same as the other intake screens. The digest is firm-wide;
+  if firm-level screens move to a firm subject (as decided for conflict-search-settings), this
+  entry moves with them.
+
+## Q-FEAT-INT-18 F-INT-20 map answers to lead: output shape
+
+- F-INT-20 is an extraction Def with no OutputSchema: the screen-action route runs a
+  non-tool-use feature inline and checks its answer against `run.AnswerSchema` with
+  `run.CheckAnswer`, so the ranked rows and flag rows travel as the answer text, each row
+  cited to a contact record the run's search_contacts returned. A per-row extraction schema
+  would need the route to accept it (`run.Extract`); not done here.
+- The `intake-questionnaire-send` screen is added to `actionScreens` with subject
+  `intake.lead` and capability `intake.leads`. F-INT-20 is an extraction Def, so it gets no

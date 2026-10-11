@@ -131,5 +131,8 @@ func appDefs() []feature.Def {
 		intake.ReceptionistCriteriaDef(),
 		intake.ThankReferrerDef(),
 		intake.PreConsultBriefDef(),
+		intake.PipelineFollowUpsDef(),
+		intake.WeeklyIntakeDigestDef(),
+		intake.MapAnswersToLeadDef(),
 	}
 }
