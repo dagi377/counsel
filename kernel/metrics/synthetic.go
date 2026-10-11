@@ -92,14 +92,15 @@ func (s *Synthetic) RunOnce(ctx context.Context) []CheckResult {
 }
 
 // Run calls RunOnce on every tick until ctx is done. Production passes a
-// time.NewTicker(SyntheticInterval).C; tests pass their own channel.
+// time.NewTicker(SyntheticInterval).C; tests pass their own channel. A run that has started
+// finishes (each step is still bounded by its step timeout), so no step outlives Run.
 func (s *Synthetic) Run(ctx context.Context, tick <-chan time.Time) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-tick:
-			s.RunOnce(ctx)
+			s.RunOnce(context.WithoutCancel(ctx))
 		}
 	}
 }

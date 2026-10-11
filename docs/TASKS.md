@@ -136,7 +136,7 @@ Max width 301.
 |---|---|---|---|---|---|---|---|
 | [x] | AI-005 | AI-005 | kernel | test/fakes/llm: OpenAI-compatible Chat Completions and Responses protocol | AI-004 | `test/fakes/llm/chat.go`<br>`test/fakes/llm/responses.go` |  |
 | [x] | AI-006 | AI-006 | kernel | test/fakes/llm: faults, latency, token usage and request journal | AI-004 | `test/fakes/llm/faults.go`<br>`test/fakes/llm/journal.go` |  |
-| [ ] | AI-007 | AI-007 | kernel | test/fakes/llm: embeddings endpoint | AI-004 | `test/fakes/llm/embeddings.go` |  |
+| [x] | AI-007 | AI-007 | kernel | test/fakes/llm: embeddings endpoint | AI-004 | `test/fakes/llm/embeddings.go` |  |
 | [x] | AI-008 | AI-008 | kernel | Config switch model.mode = mock / live, HTTP ModelClient, live guard | AI-002, AI-004 | `kernel/ai/httpclient`<br>`kernel/ai/config.go`<br>`deploy/counsel.dev.yaml`<br>`deploy/counsel.prod.yaml` |  |
 | [x] | AI-010 | AI-010 | kernel | Eval runner reusing fixtures | AI-002, AI-003 | `tools/ai-eval`<br>`testdata/ai/evals` |  |
 | [ ] | AI-012 | AI-012 | app | Fixtures and mock test: F-ACC-01 Duty scan | AI-002, AI-003, AI-004, T-006.0, T-006L.0 | `testdata/ai/f-acc-01/duty-scan/`<br>`app/legal/access/ai_f_acc_01_test.go` |  |
@@ -160,7 +160,7 @@ Max width 301.
 | [x] | AI-030 | AI-030 | app | Fixtures and mock test: F-BIL-06 Aging and collections | AI-002, AI-003, AI-004, T-017.0, T-019.0, T-021.0 +2 | `testdata/ai/f-bil-06/aging-and-collections/`<br>`app/legal/billing/ai_f_bil_06_test.go` |  |
 | [x] | AI-031 | AI-031 | app | Fixtures and mock test: F-BIL-07 Monthly billing digest | AI-002, AI-003, AI-004, T-017.0, T-019.0, T-021.0 +1 | `testdata/ai/f-bil-07/monthly-billing-digest/`<br>`app/legal/billing/ai_f_bil_07_test.go` |  |
 | [x] | AI-032 | AI-032 | app | Fixtures and mock test: F-BIL-08 Draft credit note | AI-002, AI-003, AI-004, T-017.0, T-019.0, T-021.0 +2 | `testdata/ai/f-bil-08/draft-credit-note/`<br>`app/legal/billing/ai_f_bil_08_test.go` |  |
-| [ ] | AI-033 | AI-033 | app | Fixtures and mock test: F-CON-01 Party extraction | AI-002, AI-003, AI-004, T-029.0, T-037L.0 | `testdata/ai/f-con-01/party-extraction/`<br>`app/legal/conflicts/ai_f_con_01_test.go` |  |
+| [x] | AI-033 | AI-033 | app | Fixtures and mock test: F-CON-01 Party extraction | AI-002, AI-003, AI-004, T-029.0, T-037L.0 | `testdata/ai/f-con-01/party-extraction/`<br>`app/legal/conflicts/ai_f_con_01_test.go` |  |
 | [ ] | AI-034 | AI-034 | app | Fixtures and mock test: F-CON-02 Conflict search and ranking | AI-002, AI-003, AI-004, T-029.0, T-037L.0 | `testdata/ai/f-con-02/conflict-search-and-ranking/`<br>`app/legal/conflicts/ai_f_con_02_test.go` |  |
 | [x] | AI-035 | AI-035 | app | Fixtures and mock test: F-CON-03 Clearance memo | AI-002, AI-003, AI-004, T-029.0, T-037L.0 | `testdata/ai/f-con-03/clearance-memo/`<br>`app/legal/conflicts/ai_f_con_03_test.go` |  |
 | [x] | AI-036 | AI-036 | app | Fixtures and mock test: F-CON-04 Consent drafting and chasing | AI-002, AI-003, AI-004, T-029.0, T-037L.0 | `testdata/ai/f-con-04/consent-drafting-and-chasing/`<br>`app/legal/conflicts/ai_f_con_04_test.go` |  |
@@ -443,16 +443,16 @@ Max width 301.
 | [ ] | AI-009 | AI-009 | kernel | Paploo plugin path on the mock: Paploo dev stack with test/fakes/llm | AI-004, AI-008, T-037L.0 | `deploy/compose.paploo.yaml`<br>`paploo/counsel-plugin/paploo.yaml`<br>`test/e2e/suites/paploo-mock.sh` |  |
 | [ ] | AI-011 | AI-011 | kernel | CI guard: no live model anywhere in tests | AI-008 | `.github/workflows/ci.yaml`<br>`tools/no_live_model_test.go` |  |
 | [ ] | T-003.2 | T-003 | kernel | kernel/money: Allocate largest remainder | T-001.1, T-001.2, T-001.3, T-001.4, T-003.0, T-003.1 | `kernel/money/allocate.go`<br>`kernel/money/allocate_test.go` |  |
-| [ ] | T-005.2 | T-005 | kernel | kernel/audit: Verify and immutability triggers | T-002.0, T-004.0, T-005.0, T-005.1 | `kernel/audit/verify.go`<br>`kernel/audit/immutable_integration_test.go` |  |
+| [x] | T-005.2 | T-005 | kernel | kernel/audit: Verify and immutability triggers | T-002.0, T-004.0, T-005.0, T-005.1 | `kernel/audit/verify.go`<br>`kernel/audit/immutable_integration_test.go` |  |
 | [ ] | T-005.3 | T-005 | kernel | kernel/audit: detail masking | T-002.0, T-004.0, T-005.0, T-005.1 | `kernel/audit/mask.go`<br>`kernel/audit/mask_test.go` |  |
 | [ ] | T-006.2 | T-006 | kernel | kernel/identity: SubjectResolver visibility | T-002.0, T-006.0, T-006.1 | `kernel/identity/resolver.go`<br>`kernel/identity/resolver_test.go` |  |
-| [ ] | T-006.3 | T-006 | kernel | kernel/identity: AgentPrincipal capability intersection | T-002.0, T-006.0, T-006.1 | `kernel/identity/agent.go`<br>`kernel/identity/agent_test.go` |  |
+| [x] | T-006.3 | T-006 | kernel | kernel/identity: AgentPrincipal capability intersection | T-002.0, T-006.0, T-006.1 | `kernel/identity/agent.go`<br>`kernel/identity/agent_test.go` |  |
 | [ ] | T-006.4 | T-006 | kernel | kernel/identity: per-request RLS session | T-002.0, T-006.0, T-006.1 | `kernel/identity/session.go`<br>`kernel/identity/session_integration_test.go` |  |
 | [ ] | T-006L.2 | T-006L | app | Agent limits and module naming | T-002L.1, T-002L.2, T-006.0, T-006L.0, T-006L.1 | `app/legal/roles/agent.go`<br>`app/legal/roles/agent_test.go` |  |
 | [ ] | T-006L.3 | T-006L | app | Walls SubjectResolver | T-002L.1, T-002L.2, T-006.0, T-006L.0, T-006L.1 | `app/legal/roles/walls.go`<br>`app/legal/roles/walls_test.go` |  |
 | [ ] | T-007.2 | T-007 | kernel | kernel/gate: JCS payload hash and versions | T-005.0, T-006.0, T-007.0, T-007.1, T-008.0 | `kernel/gate/version.go`<br>`kernel/gate/jcs.go`<br>`kernel/gate/version_test.go` |  |
 | [ ] | T-007.3 | T-007 | kernel | kernel/gate: Decide with SoD and authority limits | T-005.0, T-006.0, T-007.0, T-007.1, T-008.0 | `kernel/gate/decide.go`<br>`kernel/gate/decide_test.go` |  |
-| [ ] | T-007L.2 | T-007L | app | Sole-practitioner self-approval policy | T-006L.0, T-007.0, T-007L.0, T-007L.1 | `app/legal/gates/selfapproval.go`<br>`app/legal/gates/selfapproval_test.go` |  |
+| [x] | T-007L.2 | T-007L | app | Sole-practitioner self-approval policy | T-006L.0, T-007.0, T-007L.0, T-007L.1 | `app/legal/gates/selfapproval.go`<br>`app/legal/gates/selfapproval_test.go` |  |
 | [ ] | T-007L.3 | T-007L | app | Trust cooling-off periods | T-006L.0, T-007.0, T-007L.0, T-007L.1 | `app/legal/gates/coolingoff.go`<br>`app/legal/gates/coolingoff_test.go` |  |
 | [ ] | T-007L.4 | T-007L | app | Human non-preparer decision check | T-006L.0, T-007.0, T-007L.0, T-007L.1 | `app/legal/gates/decision.go`<br>`app/legal/gates/decision_test.go` |  |
 | [ ] | T-008.2 | T-008 | kernel | Money POST requires Idempotency-Key (conformance) | T-002.0, T-004.0, T-008.0, T-008.1 | `kernel/server/middleware/require_idem.go`<br>`kernel/server/middleware/require_idem_test.go` |  |
