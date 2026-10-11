@@ -65,7 +65,7 @@ var _ Lists = PGLists{}
 
 const listedColumns = `SELECT w.id::text, w.ledger_id::text, l.account_id::text, l.matter_id::text, w.amount_cents,
   w.payee, w.method, coalesce(w.form_9a_doc_id::text, ''), w.purpose_category, w.initiated_by::text, w.status,
-  coalesce(w.approval_id::text, ''), coalesce(w.authorized_by::text, ''), w.authorized_at, w.expires_at,
+  coalesce(w.gate_id::text, w.approval_id::text, ''), coalesce(w.authorized_by::text, ''), w.authorized_at, w.expires_at,
   coalesce(w.executed_by::text, ''), w.executed_on
 FROM trust.withdrawal_request w JOIN trust.client_ledger l ON l.id = w.ledger_id`
 
@@ -166,7 +166,7 @@ type PGCancels struct {
 
 var _ Cancels = PGCancels{}
 
-const cancelRowSQL = `SELECT status, ledger_id::text, coalesce(bill_id::text, '')
+const cancelRowSQL = `SELECT status, ledger_id::text, coalesce(bill_id::text, ''), coalesce(gate_id::text, '')
 FROM trust.withdrawal_request WHERE id = $1::uuid`
 
 // Row implements Cancels.
@@ -174,7 +174,7 @@ func (p PGCancels) Row(ctx context.Context, id string) (Row, error) {
 	var out Row
 	err := p.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		var status string
-		if err := tx.QueryRow(ctx, cancelRowSQL, id).Scan(&status, &out.LedgerID, &out.BillID); err != nil {
+		if err := tx.QueryRow(ctx, cancelRowSQL, id).Scan(&status, &out.LedgerID, &out.BillID, &out.GateID); err != nil {
 			var pg *pgconn.PgError
 			if errors.Is(err, pgx.ErrNoRows) || (errors.As(err, &pg) && pg.Code == "22P02") {
 				return ErrNotFound
@@ -188,6 +188,22 @@ func (p PGCancels) Row(ctx context.Context, id string) (Row, error) {
 		return Row{}, fmt.Errorf("withdrawal row %s: %w", id, err)
 	}
 	return out, nil
+}
+
+const recordGateSQL = `UPDATE trust.withdrawal_request SET gate_id = $2::uuid
+WHERE id = $1::uuid AND gate_id IS NULL`
+
+// RecordGate implements Cancels: it stores the gate the request opened, once. A withdrawal
+// that already has a gate, or none at all, is ErrNotFound.
+func (PGCancels) RecordGate(ctx context.Context, tx pgx.Tx, id, gateID string) error {
+	tag, err := tx.Exec(ctx, recordGateSQL, id, gateID)
+	if err != nil {
+		return fmt.Errorf("record gate of withdrawal %s: %w", id, err)
+	}
+	if tag.RowsAffected() != 1 {
+		return fmt.Errorf("record gate of withdrawal %s: %w", id, ErrNotFound)
+	}
+	return nil
 }
 
 // cancelSQL cancels a withdrawal that is not yet authorized. An authorized one has an

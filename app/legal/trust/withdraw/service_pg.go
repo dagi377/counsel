@@ -35,20 +35,22 @@ var _ Service = PGService{}
 var ErrEffectOnly = errors.New("withdraw: authorize and execute run only through the gate effect")
 
 // dbPurpose maps the openapi purpose_category (Request.Reason) onto the stored one. A fee
-// withdrawal needs its bill (fees_to_operating requires bill_id) and Request carries none, so
-// fees are refused here rather than stored without one.
+// withdrawal is stored with its bill (fees_to_operating requires bill_id); one that names no
+// bill is refused here, and the effect re-checks the bill at authorization.
 var dbPurpose = map[string]string{
-	"disbursement":   "disbursement",
-	"third_party":    "third_party",
-	"client_payment": "client_refund",
-	"refund":         "client_refund",
+	"fees":              "fees_to_operating",
+	"fees_to_operating": "fees_to_operating",
+	"disbursement":      "disbursement",
+	"third_party":       "third_party",
+	"client_payment":    "client_refund",
+	"refund":            "client_refund",
 }
 
 const ledgerOfSQL = `SELECT id::text FROM trust.client_ledger WHERE account_id = $1::uuid AND matter_id = $2::uuid`
 
 const insertRequestSQL = `INSERT INTO trust.withdrawal_request
-  (ledger_id, purpose_category, payee, amount_cents, method, form_9a_doc_id, initiated_by, status)
-VALUES ($1::uuid, $2, $3, $4, $5, NULLIF($6, '')::uuid, $7::uuid, 'pending_authorization')
+  (ledger_id, purpose_category, payee, amount_cents, method, form_9a_doc_id, initiated_by, bill_id, status)
+VALUES ($1::uuid, $2, $3, $4, $5, NULLIF($6, '')::uuid, $7::uuid, NULLIF($8, '')::uuid, 'pending_authorization')
 RETURNING id::text`
 
 // ledgerOf returns the client ledger of the matter on the account, or ErrNotFound.
@@ -104,6 +106,17 @@ func (s PGService) Request(ctx context.Context, r Request) (Withdrawal, error) {
 	if !ok {
 		return Withdrawal{}, fmt.Errorf("request withdrawal: purpose %q: %w", r.Reason, ErrInvalid)
 	}
+	// rule: ARC-I-027
+	// The preparer is a person: for an agent request, the user the run acts for. A request
+	// with no preparer could later be authorized by anyone, so it is refused.
+	if r.PreparedBy == "" {
+		return Withdrawal{}, fmt.Errorf("request withdrawal: no preparer: %w", ErrInvalid)
+	}
+	// rule: BIL-L-035 (verify)
+	// A fee withdrawal names its bill; the effect re-checks it at authorization.
+	if purpose == "fees_to_operating" && r.BillID == "" {
+		return Withdrawal{}, fmt.Errorf("request withdrawal: %w: %w", ErrBillMatter, ErrInvalid)
+	}
 	out := Withdrawal{Request: r, Status: StatusRequested}
 	err := s.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		ledger, f, err := s.funds(ctx, tx, r.TrustAccountID, r.MatterID)
@@ -114,7 +127,7 @@ func (s PGService) Request(ctx context.Context, r Request) (Withdrawal, error) {
 			return err
 		}
 		return tx.QueryRow(ctx, insertRequestSQL, string(ledger), purpose, r.Payee, r.AmountCents, string(r.Method),
-			r.EFTAuthorizationID, r.PreparedBy).Scan(&out.ID)
+			r.EFTAuthorizationID, r.PreparedBy, r.BillID).Scan(&out.ID)
 	})
 	if err != nil {
 		return Withdrawal{}, fmt.Errorf("request withdrawal: %w", err)

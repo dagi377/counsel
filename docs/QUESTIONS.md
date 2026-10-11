@@ -1988,3 +1988,16 @@ Done in PORT-18:
   matter, delivery date and balance net of reserved fee transfers.
 - Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
   resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.
+
+## PG-WRITES-FIX
+
+- Additive: migration `5505_withdrawal_gate.sql` adds nullable `trust.withdrawal_request.gate_id`
+  (5504 is taken by another task branch). The request route stores the opened gate in the same tx;
+  cancel withdraws that gate; only the preparer (the user, or the user an agent acts for) may cancel.
+- Additive: `withdraw.Cancels` gains `RecordGate`, and `withdraw.Row` gains `GateID` (not contract files).
+- Open: no Postgres `withdraw.FeeBills` adapter exists yet (billing owns the bill balance), so
+  `Effect.Bills` is unwired at boot and every fee withdrawal fails closed at authorization.
+- Open: the route opens `billing.trust_fee_withdrawal` for a bill withdrawal, but that kind has no
+  effect wired (boot/unwired_gates.txt) and execution reads only `trust.withdrawal` approvals.
+- Open: `PGService.Request` opens no gate, so the agent tool's `w.GateID == ""` check refuses every
+  agent withdrawal on Postgres until the gate is opened in the service path.
