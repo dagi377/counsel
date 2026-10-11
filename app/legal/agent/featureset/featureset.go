@@ -68,5 +68,6 @@ func appDefs() []feature.Def {
 		conflict.EstimateImpactDef(),
 		// documents
 		legaldocs.TemplateCurrencyDef(),
+		legaldocs.AutoFileDef(),
 	}
 }
