@@ -323,6 +323,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		intake.ConversionPrefillDef().ID:            intake.ConversionPrefillBinding,
 		intake.ConsultNoteDef().ID:                  intake.ConsultNoteBinding,
 		intake.AIReceptionistDef().ID:               intake.AIReceptionistBinding,
+		intake.PreConsultBriefDef().ID:              intake.PreConsultBriefBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).

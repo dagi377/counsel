@@ -130,5 +130,6 @@ func appDefs() []feature.Def {
 		intake.DraftSequenceDef(),
 		intake.ReceptionistCriteriaDef(),
 		intake.ThankReferrerDef(),
+		intake.PreConsultBriefDef(),
 	}
 }
