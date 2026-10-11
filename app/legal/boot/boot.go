@@ -60,7 +60,7 @@ func App(opts Options) kboot.App {
 
 // registerHooks lists the Register steps, in order. Later boot tasks append theirs here.
 func registerHooks(w *wiring) []hook {
-	return []hook{w.registerModules, w.opts.registerPayment, w.registerGates, w.buildClearance, w.opts.registerNotify, w.addWithdrawJobs, w.registerWebhooks}
+	return []hook{w.registerModules, w.opts.registerPayment, w.registerGates, w.buildClearance, w.opts.registerNotify, w.addWithdrawJobs, w.registerWebhooks, addBillDelivery}
 }
 
 // startHooks lists the Start steps (seed and start jobs), in order.

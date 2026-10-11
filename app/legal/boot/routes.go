@@ -91,6 +91,7 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	if p.Gates == nil && k.Gates != nil {
 		p.Gates = k.Gates
 	}
+	p = p.withPostgresBilling(k)
 	if p.Expenses == nil && k.DB != nil && k.Clock != nil {
 		p.Expenses = timekeeping.NewExpenseStore(k.DB, k.Clock.Location())
 	}
