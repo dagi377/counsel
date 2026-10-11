@@ -1,0 +1,8 @@
+# Helm chart for one Counsel cell (one firm). Install once per cell with --set cell=<id>.
+# tools/helm_render_test.go renders it for two cells and checks the ARC-U guard rules.
+apiVersion: v2
+name: counsel
+description: One isolated Counsel cell (namespace, workloads, Postgres, secrets)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

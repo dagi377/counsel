@@ -1,0 +1,108 @@
+{{- $cell := required "cell is required (ARC-U-001)" .Values.cell }}
+{{- $p := .Values.priority }}
+# rule: ARC-U-005
+# Priority: DB > app > agent. Agents never preempt, so they cannot evict app or DB pods.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: counsel-{{ $cell }}-db
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+value: {{ $p.db | int }}
+description: Postgres pods of cell {{ $cell }}
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: counsel-{{ $cell }}-app
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+value: {{ $p.app | int }}
+description: Stateless app pods of cell {{ $cell }}
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: counsel-{{ $cell }}-agent
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+value: {{ $p.agent | int }}
+preemptionPolicy: Never
+description: Agent containers of cell {{ $cell }}
+---
+# rule: ARC-U-005
+# Quota and default limits for the cell namespace and for the agent namespace.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: counsel-{{ $cell }}
+  namespace: counsel-{{ $cell }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+spec:
+  hard:
+    requests.cpu: {{ .Values.quota.cell.cpu | quote }}
+    requests.memory: {{ .Values.quota.cell.memory | quote }}
+    pods: {{ .Values.quota.cell.pods | quote }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: counsel-{{ $cell }}
+  namespace: counsel-{{ $cell }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: {{ .Values.resources.requests.cpu | quote }}
+        memory: {{ .Values.resources.requests.memory | quote }}
+      default:
+        cpu: {{ .Values.resources.limits.cpu | quote }}
+        memory: {{ .Values.resources.limits.memory | quote }}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: paploo-{{ $cell }}-agents
+  namespace: paploo-{{ $cell }}-agents
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+spec:
+  hard:
+    requests.cpu: {{ .Values.quota.agents.cpu | quote }}
+    requests.memory: {{ .Values.quota.agents.memory | quote }}
+    pods: {{ .Values.quota.agents.pods | quote }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: paploo-{{ $cell }}-agents
+  namespace: paploo-{{ $cell }}-agents
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: {{ .Values.agentResources.requests.cpu | quote }}
+        memory: {{ .Values.agentResources.requests.memory | quote }}
+      default:
+        cpu: {{ .Values.agentResources.limits.cpu | quote }}
+        memory: {{ .Values.agentResources.limits.memory | quote }}
+---
+# rule: ARC-U-005
+# Scheduling the agent launcher applies to every agent pod: its own pool and toleration,
+# the lowest priority class.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: paploo-{{ $cell }}-agent-scheduling
+  namespace: paploo-{{ $cell }}-agents
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+data:
+  nodeSelector: {{ printf "counsel.io/pool=%s" .Values.nodePools.agent | quote }}
+  toleration: {{ printf "counsel.io/pool=%s:NoSchedule" .Values.nodePools.agent | quote }}
+  priorityClassName: counsel-{{ $cell }}-agent

@@ -1,0 +1,19 @@
+{{- $cell := required "cell is required (ARC-U-001)" .Values.cell }}
+{{- range .Values.components }}
+---
+# rule: ARC-U-003
+# One PodDisruptionBudget per stateless tier: a zone drain never takes the last pod.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: counsel-{{ $cell }}-{{ .name }}
+  namespace: counsel-{{ $cell }}
+  labels:
+    counsel.io/cell: {{ $cell | quote }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      counsel.io/cell: {{ $cell | quote }}
+      app.kubernetes.io/component: {{ .name }}
+{{- end }}

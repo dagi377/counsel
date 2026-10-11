@@ -585,3 +585,20 @@ Template:
   intended before the deliver route is wired, or turn the flag on once BIL-T-061 is verified.
 - BIL-I-008 has its text in spec/eng/b3-billing-engine.json; `CheckNumbering` implements it.
   It also lets a void bill have no number (voided before approval), as the 0001 CHECK does.
+## T-043.1c: app.yaml touched beyond the task file list
+
+- Task: T-043.1c
+- Sources: ARC-U-005, ARC-U-041; T-043.1c lists quota.yaml and values.yaml only.
+- Reading A: the app pods' priority class, node pool and per-container requests/limits live in templates/app.yaml, so the accept lines cannot pass without touching it.
+- Proposed: done. app.yaml Deployments get priorityClassName counsel-<cell>-app, the app pool nodeSelector and toleration, and resources from values. No other change.
+- Answer: (owner)
+
+## T-043.4b: lock_timeout limit differs between sources
+
+- Task: T-043.4b (also T-043.4c)
+- Sources: MIG-061 says lock_timeout = '3s'; ARC-U-018 and the task say 2 s.
+- Decision taken (owner instruction, strictest value, as T-043.1f did): tools/migration_lint.py
+  accepts lock_timeout > 0 and <= 2s, and the migration Job sets PGOPTIONS lock_timeout=2s.
+  Any value that passes also meets MIG-061 (<= 3s). The task's accept line says the lint
+  accepts <= 3s; that is looser than the owner's rule, so the lint uses 2s.
+- Answer: (owner)
