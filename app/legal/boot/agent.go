@@ -360,6 +360,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
 		platform.GoalRunnerDef().ID:        platform.GoalRunnerBinding,
 		platform.RetainerCoverageDef().ID:  platform.RetainerCoverageBinding,
+		platform.ClosingStarterDef().ID:    platform.ClosingStarterBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).

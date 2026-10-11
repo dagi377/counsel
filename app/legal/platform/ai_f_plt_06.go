@@ -92,15 +92,15 @@ func ClosingStarterDef() feature.Def {
 		Trigger: "event: matter reaches concluded stage, or N days with no activity",
 		Kind:    ai.KindToolUse,
 		Tools: []string{
-			agent.ToolGetMatter, agent.ToolSearchDocuments, agent.ToolReadDocument, agent.ToolPrepareTrustWithdrawal,
-			"report_plan", "report_step", agent.ToolSubmitForApproval,
+			agent.ToolGetMatter, agent.ToolSearchDocuments, agent.ToolReadDocument, agent.ToolDraftDocument,
+			agent.ToolPrepareTrustWithdrawal, "report_plan", "report_step", agent.ToolSubmitForApproval,
 		},
 		// rule: ARC-I-035
 		// prepare_trust_withdrawal opens G11; G-B2 and G13 are tool-gap kinds a run opens with
-		// submit_for_approval on a draft of its own.
+		// submit_for_approval on a draft_document of its own (Q-FEAT-PLT-08).
 		GateKinds: []string{bill.GateBillApproval, agent.GateTrustWithdrawal, matter.GateClosing},
 		// The run's agent principal holds the capabilities of its tools and no other.
-		Grant:        []string{agent.CapMattersView, agent.CapDocumentsView, agent.CapTrustRequest, agent.CapAsk},
+		Grant:        []string{agent.CapMattersView, agent.CapDocumentsView, "documents.edit", agent.CapTrustRequest, agent.CapAsk},
 		Prompt:       promptFPLT06,
 		PromptPath:   "prompts/f-plt-06.md",
 		Fixture:      "testdata/ai/f-plt-06/closing-starter",

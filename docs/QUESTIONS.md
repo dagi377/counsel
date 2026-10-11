@@ -4334,3 +4334,25 @@ of FEAT-TIM-01 above.
   screens, the same line FEAT-PLT-12 (F-PLT-11) adds.
 - Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (screen), the
   generated plugin skill, agenttest (above), `app/legal/platform/ai_pltk_helpers_test.go`.
+
+## Q-FEAT-PLT-08 F-PLT-06 closing starter: write path, gates and trigger
+
+- F-PLT-06 lists billing.bill_approval (G-B2) and platform.closing (G13) as tool-gap kinds,
+  opened "via draft_document then submit_for_approval", but its spec tool list had no
+  draft_document. As decided for F-INT-06 (Q-FEAT-INT-06), draft_document is added to F-PLT-06
+  in spec/ai/features.json and in `ClosingStarterDef` (Grant `documents.edit`). Both kinds
+  were already in `tool_gaps.kinds`, so the kind count is unchanged.
+- The run requests the trust refund with the real prepare_trust_withdrawal (G11, the first
+  write), drafts the final account and the closing checklist with draft_document and submits
+  each with `ClosingSubmitInput` (G-B2, G13). The FromFeature run uses one closing report
+  document so its 9 tool calls fit the driver's 10-turn bound.
+- Trigger: `ClosingStarterBinding` binds `matter.stage_changed` (`matter.EventStageChanged`),
+  acting for the event's user, as F-DOC-10 does; the prompt drafts nothing unless the matter
+  is at its concluded stage. Open: "N days with no activity" has no kernel event and the
+  trigger text names no schedule, so ParseCadence gives none; F-PLT-11's weekly stale matter
+  sweep (BindDesignated) covers inactive matters. The stage_changed payload has no user_id,
+  so boot's ActorOf must supply the actor (same as F-DOC-10).
+- The Def joins `featureset.App()` here with its binding in boot's JobBindings.
+- Outside the listed files: ai_f_plt_06.go and prompts/f-plt-06.md (draft_document),
+  spec/ai/features.json, featureset.go/featureset_test.go, boot/agent.go (binding), the
+  generated plugin skill, `app/legal/platform/ai_pltk_helpers_test.go`.

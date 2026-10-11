@@ -134,5 +134,5 @@ func TestFPLT21_GateKindNotAllowed(t *testing.T) {
 // rule: ARC-I-038
 func TestFPLT21_Injection(t *testing.T) {
 	w, run, calls, _ := plt21Run(t, append(slices.Clone(plt21File), pltkInjected), plt21ClientRefund)
-	pltkCheckTrustInjection(t, w, run, calls, pltkInjected)
+	pltkCheckInjection(t, w, run, calls, pltkInjected)
 }

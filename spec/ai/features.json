@@ -4021,6 +4021,7 @@
     "get_matter",
     "search_documents",
     "read_document",
+    "draft_document",
     "prepare_trust_withdrawal",
     "report_plan",
     "report_step",

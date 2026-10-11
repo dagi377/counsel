@@ -174,5 +174,6 @@ func appDefs() []feature.Def {
 		platform.RetainerCoverageDef(),
 		platform.RequestPortalDocumentsDef(),
 		platform.PrepareTrustRefundDef(),
+		platform.ClosingStarterDef(),
 	}
 }

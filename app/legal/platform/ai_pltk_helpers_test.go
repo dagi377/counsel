@@ -21,6 +21,8 @@ import (
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
+	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/registry"
 )
 
 // The pltk helpers drive the closing features F-PLT-06 and F-PLT-21: the closing starter's
@@ -135,7 +137,6 @@ func pltkWithdrawalID(t *testing.T, run agenttest.FeatureRun, gateID string) str
 // agent requests, it never authorizes or pays (By-Law 9).
 func pltkCheckTrustRun(t *testing.T, w pltfWorld, run agenttest.FeatureRun, calls []pltfCall, r pltkRefund, balance int64) {
 	t.Helper()
-	ctx := context.Background()
 	if run.Err != nil || len(run.Refused) != 0 {
 		t.Fatalf("run err = %v, refused = %v", run.Err, run.Refused)
 	}
@@ -154,7 +155,15 @@ func pltkCheckTrustRun(t *testing.T, w pltfWorld, run agenttest.FeatureRun, call
 	if len(run.GateIDs) != 1 {
 		t.Fatalf("gates = %v, want one", run.GateIDs)
 	}
-	id := run.GateIDs[0]
+	pltkCheckWithdrawal(t, w, run, run.GateIDs[0], r, balance)
+}
+
+// pltkCheckWithdrawal fails t unless gate id is the trust.withdrawal gate of a withdrawal of r
+// the run requested on w's matter, prepared for the acting user and pending, the trust
+// balance is untouched, and only another lawyer can decide the gate.
+func pltkCheckWithdrawal(t *testing.T, w pltfWorld, run agenttest.FeatureRun, id string, r pltkRefund, balance int64) {
+	t.Helper()
+	ctx := context.Background()
 	p, ok := w.fd.Proposal(id)
 	// rule: ARC-I-035
 	if !ok || !p.Real || p.GateKind != agent.GateTrustWithdrawal || p.Preparer != agenttest.FeatureActingFor || p.Decision != "" {
@@ -235,10 +244,10 @@ func pltkCheckRefused(t *testing.T, w pltfWorld, run agenttest.FeatureRun, want 
 	}
 }
 
-// pltkCheckTrustInjection fails t unless run made exactly calls, a read_document result
-// carried injected, the text reached the model only as quoted data and is absent from every
-// write input and from the withdrawal the run requested.
-func pltkCheckTrustInjection(t *testing.T, w pltfWorld, run agenttest.FeatureRun, calls []pltfCall, injected string) {
+// pltkCheckInjection fails t unless run made exactly calls, a read_document result carried
+// injected, the text reached the model only as quoted data and is absent from every write
+// input, from the withdrawal the run requested and from every gate payload.
+func pltkCheckInjection(t *testing.T, w pltfWorld, run agenttest.FeatureRun, calls []pltfCall, injected string) {
 	t.Helper()
 	if run.Err != nil || len(run.Refused) != 0 {
 		t.Fatalf("run err = %v, refused = %v", run.Err, run.Refused)
@@ -269,8 +278,51 @@ func pltkCheckTrustInjection(t *testing.T, w pltfWorld, run agenttest.FeatureRun
 		}
 	}
 	for _, id := range run.GateIDs {
-		if p, ok := w.fd.Proposal(id); !ok || strings.Contains(string(p.Input), injected) {
-			t.Fatalf("proposal %s carries the injected text or is missing", id)
+		if p, ok := w.fd.Proposal(id); ok {
+			if strings.Contains(string(p.Input), injected) {
+				t.Fatalf("withdrawal proposal %s carries the injected text", id)
+			}
+			continue
 		}
+		g, err := w.fd.Seed.Gates.Get(context.Background(), gate.GateID(id))
+		if err != nil || strings.Contains(string(g.Payload), injected) {
+			t.Fatalf("gate %s payload carries the injected text (%v)", id, err)
+		}
+	}
+}
+
+// pltkCheckKernelGate fails t unless gate id in the Seed's gate store is pending, of kind,
+// prepared for the acting user, and neither an agent principal nor the acting user can
+// decide it while another lawyer can.
+func pltkCheckKernelGate(t *testing.T, fd *agenttest.FeatureDriver, id, kind string) {
+	t.Helper()
+	ctx := context.Background()
+	g, err := fd.Seed.Gates.Get(ctx, gate.GateID(id))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// rule: ARC-I-035
+	if g.Kind != kind || g.Status != gate.StatusPending || g.Preparer.ActingFor != agenttest.FeatureActingFor {
+		t.Fatalf("gate = %s %s preparer %+v; want pending %s prepared for %s", g.Kind, g.Status, g.Preparer, kind, agenttest.FeatureActingFor)
+	}
+	tests := []struct {
+		name       string
+		by         registry.Principal
+		wantErr    error
+		wantStatus int
+	}{
+		// rule: ARC-I-038
+		{"agent principal", registry.Principal{Kind: registry.PrincipalAgent, RunID: "run-" + id, ActingFor: agenttest.FeatureActingFor}, gate.ErrAgentApprover, http.StatusForbidden},
+		// rule: ARC-I-039
+		{"acting user decides own gate", registry.Principal{Kind: registry.PrincipalUser, UserID: agenttest.FeatureActingFor}, gate.ErrSelfApproval, http.StatusForbidden},
+		{"another lawyer", registry.Principal{Kind: registry.PrincipalUser, UserID: pltfOtherLawyer}, nil, http.StatusOK},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := pltfDecide(ctx, fd.Seed.Gates, id, tt.by)
+			if !errors.Is(err, tt.wantErr) || pltfStatus(err) != tt.wantStatus {
+				t.Fatalf("decide = %v (%d), want %v (%d)", err, pltfStatus(err), tt.wantErr, tt.wantStatus)
+			}
+		})
 	}
 }
