@@ -73,6 +73,22 @@ func (m matterContacts) MatterContactIDs(_ context.Context, matterID string) ([]
 	return m[matterID], nil
 }
 
+// contactsPort is the write tools' matter contacts: the fixed synthetic matters' first, then
+// the Seed's, once FromFeatureWith points it there, so a feature run can pay a contact of the
+// matter it seeded (prepare_trust_withdrawal's payee is a matter contact id).
+type contactsPort struct {
+	fixed matterContacts
+	seed  agent.MatterContacts
+}
+
+// MatterContactIDs implements agent.MatterContacts.
+func (p *contactsPort) MatterContactIDs(ctx context.Context, matterID string) ([]string, error) {
+	if ids, ok := p.fixed[matterID]; ok || p.seed == nil {
+		return ids, nil
+	}
+	return p.seed.MatterContactIDs(ctx, matterID)
+}
+
 // maxTurns ends a run that never stops calling tools.
 const maxTurns = 10
 
@@ -133,6 +149,8 @@ type Driver struct {
 	// amounts against it.
 	Provenance *agenttools.Provenance
 
+	contacts *contactsPort
+
 	mu        sync.Mutex
 	reads     map[string]string
 	proposals map[string]Proposal
@@ -150,6 +168,7 @@ func New(t testing.TB, f Feature) *Driver {
 	walls := rolesfake.New()
 	walls.Wall(f.ActingFor, WalledMatter)
 	pv := agenttools.NewProvenance()
+	contacts := &contactsPort{fixed: matterContacts{TrustMatter: {PayeeContact}, WalledMatter: {WalledPayee}}}
 	write, err := agent.NewWriteTools(agent.WriteDeps{
 		Can: func(_ context.Context, user, capability string) (bool, error) {
 			return user == f.ActingFor && slices.Contains(f.Grant, capability), nil
@@ -158,7 +177,7 @@ func New(t testing.TB, f Feature) *Driver {
 		TrustAccount: func(context.Context, string) (string, error) { return TrustAccount, nil },
 		Withdrawals:  wd,
 		Provenance:   pv,
-		Contacts:     matterContacts{TrustMatter: {PayeeContact}, WalledMatter: {WalledPayee}},
+		Contacts:     contacts,
 		FirmAccount:  func(context.Context) (string, error) { return FirmPayee, nil },
 		Bills:        noFeeBills{},
 	})
@@ -166,7 +185,7 @@ func New(t testing.TB, f Feature) *Driver {
 		t.Fatalf("write tools: %v", err)
 	}
 	d := &Driver{
-		Feature: f, Registry: agenttools.NewRegistry(plans), Plans: plans, Write: write, Withdrawals: wd, Provenance: pv,
+		Feature: f, Registry: agenttools.NewRegistry(plans), Plans: plans, Write: write, Withdrawals: wd, Provenance: pv, contacts: contacts,
 		reads: map[string]string{}, proposals: map[string]Proposal{}, realGates: map[string]bool{},
 	}
 	real := map[string]bool{}

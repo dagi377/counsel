@@ -527,6 +527,9 @@ var actionScreens = map[string]trigger.Screen{
 	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
 	"work-categories": {SubjectKind: "matter", Capability: "work.view"},
 	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
+	// Platform. matter-closing is a matter screen (/matters/:id/close) every matter role
+	// views (F-PLT-11).
+	"matter-closing": {SubjectKind: "matter", Capability: "matters.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

@@ -4,11 +4,20 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
+	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
+	"github.com/dagi377/counsel/app/legal/agent"
+	"github.com/dagi377/counsel/app/legal/agent/agenttest"
+	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/gates/gatesfake"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
@@ -80,4 +89,188 @@ func pltkCaptureLogs(t *testing.T) *bytes.Buffer {
 func pltkCite(c agenttools.Citation) string {
 	b, _ := json.Marshal(map[string]any{"version_id": c.VersionID, "page": c.Page, "from_line": c.FromLine, "to_line": c.ToLine})
 	return string(b)
+}
+
+// pltkRefund is one prepare_trust_withdrawal input: the amount in integer cents, the payee
+// contact id and the purpose.
+type pltkRefund struct {
+	cents   int64
+	payee   string
+	purpose string
+}
+
+// pltkTrustWrites plans and prepares refund on w's matter with the real
+// prepare_trust_withdrawal, by cheque.
+func pltkTrustWrites(t *testing.T, w pltfWorld, r pltkRefund) []pltfCall {
+	t.Helper()
+	return []pltfCall{
+		{agenttools.ToolReportPlan, pltfPlan},
+		{agent.ToolPrepareTrustWithdrawal, pltfJSON(t, map[string]any{
+			"matter_id": w.matterID, "amount_cents": r.cents, "purpose_category": r.purpose, "payee": r.payee, "method": "cheque",
+		})},
+	}
+}
+
+// pltkWithdrawalID is the withdrawal the real prepare_trust_withdrawal recorded for gateID.
+func pltkWithdrawalID(t *testing.T, run agenttest.FeatureRun, gateID string) string {
+	t.Helper()
+	for i, name := range run.Tools {
+		var out struct {
+			GateID       string `json:"gate_id"`
+			WithdrawalID string `json:"withdrawal_id"`
+		}
+		b := run.ToolResults[i]
+		if name == agent.ToolPrepareTrustWithdrawal && !b.IsError && json.Unmarshal([]byte(b.Text), &out) == nil && out.GateID == gateID {
+			return out.WithdrawalID
+		}
+	}
+	t.Fatalf("no withdrawal recorded for gate %s", gateID)
+	return ""
+}
+
+// pltkCheckTrustRun fails t unless run used no stand-in, ran every call, planned before
+// prepare_trust_withdrawal, read every seeded document for real and left exactly one
+// withdrawal of r requested on w's matter, prepared for the acting user, whose
+// trust.withdrawal gate only another lawyer can decide. The trust balance is untouched: the
+// agent requests, it never authorizes or pays (By-Law 9).
+func pltkCheckTrustRun(t *testing.T, w pltfWorld, run agenttest.FeatureRun, calls []pltfCall, r pltkRefund, balance int64) {
+	t.Helper()
+	ctx := context.Background()
+	if run.Err != nil || len(run.Refused) != 0 {
+		t.Fatalf("run err = %v, refused = %v", run.Err, run.Refused)
+	}
+	// rule: ARC-I-035
+	if len(w.fd.StandIns) != 0 || len(run.StandIns) != 0 {
+		t.Fatalf("stand-ins = %v, run used %v; want every tool on its real handler", w.fd.StandIns, run.StandIns)
+	}
+	if want := pltfToolNames(calls); !slices.Equal(run.Tools, want) {
+		t.Fatalf("tools = %v, want %v", run.Tools, want)
+	}
+	// rule: ARC-I-039
+	if run.PlanAt < 0 || run.FirstWrite <= run.PlanAt || run.Tools[run.FirstWrite] != agent.ToolPrepareTrustWithdrawal {
+		t.Fatalf("plan at %d, first write %d in %v; want report_plan before %s", run.PlanAt, run.FirstWrite, run.Tools, agent.ToolPrepareTrustWithdrawal)
+	}
+	pltfCheckReads(t, w, run)
+	if len(run.GateIDs) != 1 {
+		t.Fatalf("gates = %v, want one", run.GateIDs)
+	}
+	id := run.GateIDs[0]
+	p, ok := w.fd.Proposal(id)
+	// rule: ARC-I-035
+	if !ok || !p.Real || p.GateKind != agent.GateTrustWithdrawal || p.Preparer != agenttest.FeatureActingFor || p.Decision != "" {
+		t.Fatalf("proposal = %+v, want pending real %s prepared by %s", p, agent.GateTrustWithdrawal, agenttest.FeatureActingFor)
+	}
+	wd, err := w.fd.Withdrawals.Get(ctx, pltkWithdrawalID(t, run, id))
+	if err != nil {
+		t.Fatalf("get withdrawal: %v", err)
+	}
+	req := wd.Request
+	if wd.Status != withdraw.StatusRequested || wd.GateID != id || wd.AuthorizedBy != "" || req.MatterID != w.matterID ||
+		req.AmountCents != r.cents || req.Payee != r.payee || req.Reason != r.purpose || req.PreparedBy != agenttest.FeatureActingFor {
+		t.Fatalf("withdrawal = %+v, want %d cents requested on %s prepared by %s", wd, r.cents, w.matterID, agenttest.FeatureActingFor)
+	}
+	if n, err := w.fd.Withdrawals.Available(ctx, agenttest.TrustAccount, w.matterID); err != nil || n != balance {
+		t.Fatalf("available = %d (%v), want %d untouched", n, err, balance)
+	}
+	pltkCheckTrustDecisions(t, w.fd, id)
+}
+
+// pltkCheckTrustDecisions fails t unless an agent principal deciding gate id is 403, the
+// acting user deciding the gate they prepared is ErrSelfApproval, and another lawyer decides
+// it.
+func pltkCheckTrustDecisions(t *testing.T, fd *agenttest.FeatureDriver, id string) {
+	t.Helper()
+	ctx := context.Background()
+	gf, err := gatesfake.New(gates.Kind{Code: agent.GateTrustWithdrawal, Approver: "trust.approve"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := gates.Gate{ID: id, Code: agent.GateTrustWithdrawal, Preparer: gates.Principal{UserID: "agent", Agent: true, ActingFor: agenttest.FeatureActingFor}}
+	tests := []struct {
+		name       string
+		decide     func() error
+		wantErr    error
+		wantStatus int
+	}{
+		// rule: ARC-I-038
+		{"agent principal", func() error {
+			by := gates.Principal{UserID: "agent", Agent: true, ActingFor: agenttest.FeatureActingFor, Capabilities: []string{"trust.approve"}}
+			return gf.CheckDecision(ctx, g, by, time.Unix(0, 0))
+		}, gates.ErrAgentApproves, http.StatusForbidden},
+		// rule: ARC-I-039
+		{"acting user decides own gate", func() error {
+			_, err := fd.Decided(ctx, agent.GateDecided{GateID: id, Decision: agent.Approved, By: agenttest.FeatureActingFor})
+			return err
+		}, agent.ErrSelfApproval, 0},
+		{"another lawyer", func() error {
+			_, err := fd.Decided(ctx, agent.GateDecided{GateID: id, Decision: agent.Approved, By: pltfOtherLawyer})
+			return err
+		}, nil, http.StatusOK},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.decide()
+			if !errors.Is(err, tt.wantErr) || (tt.wantStatus != 0 && agenttest.DecisionStatus(err) != tt.wantStatus) {
+				t.Fatalf("decide = %v (%d), want %v (%d)", err, agenttest.DecisionStatus(err), tt.wantErr, tt.wantStatus)
+			}
+		})
+	}
+}
+
+// pltkCheckRefused fails t unless the run's one prepare_trust_withdrawal was refused with
+// want before anything was recorded: no gate, no withdrawal, the balance untouched.
+func pltkCheckRefused(t *testing.T, w pltfWorld, run agenttest.FeatureRun, want error, balance int64) {
+	t.Helper()
+	if run.Err != nil {
+		t.Fatalf("run err = %v", run.Err)
+	}
+	if len(run.Refused) != 1 || run.Refused[0].Tool != agent.ToolPrepareTrustWithdrawal || !errors.Is(run.Refused[0].Err, want) {
+		t.Fatalf("refused = %v, want %s refused with %v", run.Refused, agent.ToolPrepareTrustWithdrawal, want)
+	}
+	if len(run.GateIDs) != 0 {
+		t.Fatalf("gates opened: %v", run.GateIDs)
+	}
+	if n, err := w.fd.Withdrawals.Available(context.Background(), agenttest.TrustAccount, w.matterID); err != nil || n != balance {
+		t.Fatalf("available = %d (%v), want %d untouched", n, err, balance)
+	}
+}
+
+// pltkCheckTrustInjection fails t unless run made exactly calls, a read_document result
+// carried injected, the text reached the model only as quoted data and is absent from every
+// write input and from the withdrawal the run requested.
+func pltkCheckTrustInjection(t *testing.T, w pltfWorld, run agenttest.FeatureRun, calls []pltfCall, injected string) {
+	t.Helper()
+	if run.Err != nil || len(run.Refused) != 0 {
+		t.Fatalf("run err = %v, refused = %v", run.Err, run.Refused)
+	}
+	if want := pltfToolNames(calls); !slices.Equal(run.Tools, want) {
+		t.Fatalf("tools = %v, want %v (no extra call)", run.Tools, want)
+	}
+	seen := false
+	for i, name := range run.Tools {
+		if name == agent.ToolReadDocument && strings.Contains(run.ToolResults[i].Text, injected) {
+			seen = true
+		}
+	}
+	if !seen {
+		t.Fatalf("no read_document result carries the seeded text")
+	}
+	// rule: ARC-I-038
+	if err := agenttest.QuotedOnly(run.Run, injected); err != nil {
+		t.Fatal(err)
+	}
+	for _, req := range run.Requests {
+		for _, m := range req.Messages {
+			for _, b := range m.Content {
+				if b.Type == "tool_use" && b.ToolName != agent.ToolReadDocument && strings.Contains(string(b.Input), injected) {
+					t.Fatalf("%s input carries the injected text", b.ToolName)
+				}
+			}
+		}
+	}
+	for _, id := range run.GateIDs {
+		if p, ok := w.fd.Proposal(id); !ok || strings.Contains(string(p.Input), injected) {
+			t.Fatalf("proposal %s carries the injected text or is missing", id)
+		}
+	}
 }

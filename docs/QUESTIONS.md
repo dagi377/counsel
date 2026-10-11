@@ -4311,3 +4311,26 @@ of FEAT-TIM-01 above.
 - The Def joins `featureset.App()` in FEAT-PLT-08 together with its trigger binding: boot's
   JobBindings refuses a job feature with no binding.
 - Outside the listed files: the shared test helpers `app/legal/platform/ai_pltk_helpers_test.go`.
+
+## Q-FEAT-PLT-19 F-PLT-21 prepare trust refund / transfer: real withdrawal in FromFeature
+
+- The run calls the real prepare_trust_withdrawal, which records the withdrawal as requested
+  and opens trust.withdrawal (G11); the agent never authorizes and the trust balance is
+  untouched. By-Law 9 refusals (an amount no read stated, more than the balance, a payee that
+  is not a matter contact, fees to the firm without a delivered bill) are checked through the
+  run and leave no gate and no withdrawal.
+- agenttest changed (outside the listed files) so FromFeature can run that tool on a seeded
+  matter, as boot wires production:
+  - every real read tool is wrapped with the driver's Provenance (`Provenance.ReadTool`, as
+    `boot/agent.go` does), and `Seed.Provenance` is that same set (the line BIL-FIX also
+    adds), so an amount a read_document line stated is sourced;
+  - the write tools' matter contacts fall back to `Seed.Store` for a matter the Seed holds
+    (`contactsPort`), so the payee can be the seeded client.
+  The fixed TrustMatter/WalledMatter contacts are unchanged.
+- The agent-principal 403 check uses `gatesfake.CheckDecision` and the self-approval check
+  `Driver.Decided`, as F-TRU-10 does: the withdrawal's gate lives in the trust module, not in
+  the Seed's kernel gate store.
+- `matter-closing` maps to the matter with capability `matters.view` in boot's action
+  screens, the same line FEAT-PLT-12 (F-PLT-11) adds.
+- Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (screen), the
+  generated plugin skill, agenttest (above), `app/legal/platform/ai_pltk_helpers_test.go`.
