@@ -26,6 +26,7 @@ type fakeTx struct {
 	lines   [][]any             // selectLinesSQL answer, one row per line
 	execs   []execCall          // recorded Exec calls
 	queries map[string]struct{} // statements seen
+	rowArgs map[string][]any    // last QueryRow arguments per statement
 }
 
 type execCall struct {
@@ -40,8 +41,12 @@ func (f *fakeTx) seen(sql string) {
 	f.queries[sql] = struct{}{}
 }
 
-func (f *fakeTx) QueryRow(_ context.Context, sql string, _ ...any) pgx.Row {
+func (f *fakeTx) QueryRow(_ context.Context, sql string, args ...any) pgx.Row {
 	f.seen(sql)
+	if f.rowArgs == nil {
+		f.rowArgs = map[string][]any{}
+	}
+	f.rowArgs[sql] = args
 	switch {
 	case sql == sqlFindBySource || sql == sqlReversalOf:
 		return fakeRow{err: pgx.ErrNoRows}

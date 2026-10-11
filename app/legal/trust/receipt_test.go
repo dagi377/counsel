@@ -247,7 +247,8 @@ func TestBIL_I_009_ReceiptPostsLedgerAndTrustBook(t *testing.T) {
 			}
 			for _, txn := range r.repo.posted {
 				e, ok := r.gl.Entry(mustEntry(t, r, txn.ID))
-				if !ok || e.Book != books.BookTrust || len(e.Lines) != 2 {
+				// The trust book and the 'trust' source kind the gl schema accepts.
+				if !ok || e.Book != books.BookTrust || e.SourceKind != "trust" || len(e.Lines) != 2 {
 					t.Fatalf("trust book entry for %s = %+v", txn.ID, e)
 				}
 				for _, l := range e.Lines {

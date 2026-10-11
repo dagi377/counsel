@@ -24,8 +24,8 @@ const (
 	sqlFindBySource = `SELECT id::text FROM gl.journal_entry
 WHERE source_type = $1 AND source_id = $2::uuid AND reverses_id IS NULL`
 	sqlAccountID   = `SELECT id FROM gl.account WHERE code = $1 AND active`
-	sqlInsertEntry = `INSERT INTO gl.journal_entry (entry_date, memo, source_type, source_id, posted_by)
-VALUES ($1, $2, $3, $4::uuid, $5::uuid)
+	sqlInsertEntry = `INSERT INTO gl.journal_entry (entry_date, memo, source_type, source_id, posted_by, book)
+VALUES ($1, $2, $3, $4::uuid, $5::uuid, $6)
 ON CONFLICT (source_type, source_id) WHERE reverses_id IS NULL AND source_id IS NOT NULL DO NOTHING
 RETURNING id::text`
 	sqlInsertLine = `INSERT INTO gl.journal_line (entry_id, account_id, debit_cents, credit_cents)
@@ -70,7 +70,8 @@ func Validate(e Entry) error {
 // Post writes e inside tx and returns its id. It is idempotent per (SourceKind, SourceID):
 // a second Post of the same source returns the first entry's id and writes nothing. The
 // deferred trigger journal_balanced re-checks the balance at commit. An entry dated in a
-// closed period is ErrPeriodClosed (CheckOpen), before anything is written.
+// period closed for e.Book is ErrPeriodClosed (CheckOpen), before anything is written. The
+// entry is stored in e.Book.
 func (g *PG) Post(ctx context.Context, tx pgx.Tx, e Entry) (EntryID, error) {
 	if err := Validate(e); err != nil {
 		return "", err
@@ -84,7 +85,7 @@ func (g *PG) Post(ctx context.Context, tx pgx.Tx, e Entry) (EntryID, error) {
 		return "", fmt.Errorf("post %s/%s: find source: %w", e.SourceKind, e.SourceID, err)
 	}
 	// rule: BIL-I-025
-	if err := g.CheckOpen(ctx, tx, e.Date); err != nil {
+	if err := g.CheckOpen(ctx, tx, e.Book, e.Date); err != nil {
 		return "", fmt.Errorf("post %s/%s: %w", e.SourceKind, e.SourceID, err)
 	}
 	if g.PostedBy == nil {
@@ -121,7 +122,7 @@ func (g *PG) Post(ctx context.Context, tx pgx.Tx, e Entry) (EntryID, error) {
 	}
 
 	date := time.Date(e.Date.Year, e.Date.Month, e.Date.Day, 0, 0, 0, 0, time.UTC)
-	err = tx.QueryRow(ctx, sqlInsertEntry, date, e.Memo, e.SourceKind, e.SourceID, by).Scan(&id)
+	err = tx.QueryRow(ctx, sqlInsertEntry, date, e.Memo, e.SourceKind, e.SourceID, by, e.Book).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		// A concurrent transaction posted the same source first and has committed.
 		if err := tx.QueryRow(ctx, sqlFindBySource, e.SourceKind, e.SourceID).Scan(&id); err != nil {

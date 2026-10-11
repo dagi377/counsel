@@ -18,9 +18,11 @@ import (
 // ErrJournalMismatch means the trust journal disagrees with its client ledgers (BIL-I-009).
 var ErrJournalMismatch = errors.New("trust: journal and client ledgers disagree")
 
-// GLSourceKind is the journal source kind of every trust book entry; the source id is the
-// trust transaction id, so a replayed posting returns the first entry.
-const GLSourceKind = "trust_transaction"
+// GLSourceKind is the journal source kind of every trust book entry: the 'trust' value of
+// the gl.journal_entry source_type CHECK (migrations/0400_ledger_book.sql). Entries go to
+// book books.BookTrust. The source id is the trust transaction id, so a replayed posting
+// returns the first entry.
+const GLSourceKind = "trust"
 
 // Subject kinds on trust book lines: TR-1500 lines carry the trust account, TR-2500 lines the
 // client ledger, so the per-account split of BIL-I-009 survives in the journal.

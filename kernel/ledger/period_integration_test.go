@@ -81,7 +81,7 @@ func TestBIL_I_025_ClosedPeriodRefusesPostingCorrectionInCurrent(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer func() { _ = tx.Rollback(ctx) }()
-			if err := g.CheckOpen(ctx, tx, tt.date); errors.Is(err, ErrPeriodClosed) != tt.refused {
+			if err := g.CheckOpen(ctx, tx, "main", tt.date); errors.Is(err, ErrPeriodClosed) != tt.refused {
 				t.Fatalf("CheckOpen = %v, refused want %v", err, tt.refused)
 			}
 			_, err = g.Post(ctx, tx, entry(10+i, tt.date))
@@ -90,7 +90,7 @@ func TestBIL_I_025_ClosedPeriodRefusesPostingCorrectionInCurrent(t *testing.T) {
 					t.Fatalf("post = %v, want ErrPeriodClosed", err)
 				}
 				// The trigger still refuses a direct insert that skips CheckOpen.
-				_, err = tx.Exec(ctx, sqlInsertEntry, monthStart(tt.date), "t", "manual", uuidish(50+i), user)
+				_, err = tx.Exec(ctx, sqlInsertEntry, monthStart(tt.date), "t", "manual", uuidish(50+i), user, "main")
 				if err == nil || !strings.Contains(err.Error(), "DM-062") {
 					t.Fatalf("direct insert = %v, want DM-062", err)
 				}
