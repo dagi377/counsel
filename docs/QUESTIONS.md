@@ -1877,3 +1877,11 @@ Done in PORT-18:
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-FEAT-DOC-05 F-DOC-04 trigger event and gated subject
+
+- "document enters the review queue" binds `document.draft_created`: a new draft is what
+  enters the review queue.
+- The spec gives F-DOC-04 only draft_document and submit_for_approval as writes, so the
+  pre-check report is a draft the run submits under docs.outgoing (G8); the reviewing lawyer
+  reads it beside the document under review.
