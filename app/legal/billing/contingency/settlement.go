@@ -1,6 +1,7 @@
 package contingency
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -72,8 +73,8 @@ type Statement struct {
 }
 
 // CheckReceipt refuses a CFA settlement receipt recorded anywhere but trust.
-func (s Agreements) CheckReceipt(st Settlement) error {
-	if err := s.on(); err != nil {
+func (s Agreements) CheckReceipt(ctx context.Context, st Settlement) error {
+	if err := s.on(ctx); err != nil {
 		return err
 	}
 	// rule: BIL-L-022
@@ -87,8 +88,8 @@ func (s Agreements) CheckReceipt(st Settlement) error {
 // SettlementStatement builds the statement for st: the firm's disbursements and their taxes
 // first, then the fee and its taxes, then the balance to the client. When the recovery does
 // not cover every claim, earlier lines are paid in full before later ones get anything.
-func (s Agreements) SettlementStatement(st Settlement) (Statement, error) {
-	if err := s.CheckReceipt(st); err != nil {
+func (s Agreements) SettlementStatement(ctx context.Context, st Settlement) (Statement, error) {
+	if err := s.CheckReceipt(ctx, st); err != nil {
 		return Statement{}, err
 	}
 	claims := []StatementLine{
@@ -121,8 +122,8 @@ func (s Agreements) SettlementStatement(st Settlement) (Statement, error) {
 
 // CheckPaymentFromRecovery refuses any payment out of the recovery at at unless the client's
 // direction to pay the lawyer in trust was recorded at or before at.
-func (s Agreements) CheckPaymentFromRecovery(st Settlement, at time.Time) error {
-	if err := s.CheckReceipt(st); err != nil {
+func (s Agreements) CheckPaymentFromRecovery(ctx context.Context, st Settlement, at time.Time) error {
+	if err := s.CheckReceipt(ctx, st); err != nil {
 		return err
 	}
 	// rule: BIL-L-022

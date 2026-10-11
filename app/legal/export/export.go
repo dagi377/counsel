@@ -10,7 +10,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
 // Format is the published export format id written into every manifest.
@@ -21,7 +21,7 @@ const Currency = "CAD"
 
 // FlagPostCancelWindow gates exports for cancelled firms. The 90-day window depends on the
 // customer contract, which is unverified, so cancelled firms are refused while it is off.
-const FlagPostCancelWindow = "export.post_cancel_window"
+const FlagPostCancelWindow = legalflags.ExportPostCancelWindow
 
 const (
 	// PostCancelWindow is how long after cancellation an owner may still request an export.
@@ -58,7 +58,7 @@ func CanRequest(ctx context.Context, cancelledAt, now time.Time) error {
 		return nil
 	}
 	// rule: MIG-070 (verify)
-	if !flags.Enabled(ctx, FlagPostCancelWindow) {
+	if !legalflags.Enabled(ctx, FlagPostCancelWindow) {
 		return ErrUnverified
 	}
 	if now.Sub(cancelledAt) > PostCancelWindow {

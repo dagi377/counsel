@@ -8,6 +8,7 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/billing/payment/paymentfake"
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 )
 
 // rule: BIL-I-016
@@ -36,10 +37,10 @@ func TestBIL_I_016_BIL_L_042_ReceiptsJournal(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := legalflagstest.Context(t, payment.FlagReceiptsJournalVerified, true)
 			svc := paymentfake.New()
 			svc.AddBill("b1", "c1", 100000, 13000)
-			j := payment.ReceiptsJournal{Flags: receiptsFlag(true)}
+			var j payment.ReceiptsJournal
 			// The journal refuses a retainer even if capture let it through.
 			p := payment.Payment{ID: "pay_r", Capture: tc.capture, Status: payment.StatusCaptured}
 			var as []payment.Allocation
@@ -49,7 +50,7 @@ func TestBIL_I_016_BIL_L_042_ReceiptsJournal(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			r, err := j.Record(p, as)
+			r, err := j.Record(ctx, p, as)
 			if !errors.Is(err, tc.err) {
 				t.Fatalf("err=%v, want %v", err, tc.err)
 			}
@@ -60,7 +61,7 @@ func TestBIL_I_016_BIL_L_042_ReceiptsJournal(t *testing.T) {
 				return
 			}
 			// Recording the same payment again keeps one entry.
-			if _, err := j.Record(p, as); err != nil {
+			if _, err := j.Record(ctx, p, as); err != nil {
 				t.Fatal(err)
 			}
 			if n := len(j.Entries()); n != 1 {
@@ -95,7 +96,7 @@ func TestBIL_L_042_ClientCreditFailsClosedWhenUnverified(t *testing.T) {
 	on := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
 	tests := []struct {
 		name   string
-		flags  payment.Enabler
+		flags  interface{ Enabled(string) bool }
 		amount int64
 		err    error
 	}{
@@ -111,8 +112,12 @@ func TestBIL_L_042_ClientCreditFailsClosedWhenUnverified(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			j := payment.ReceiptsJournal{Flags: tc.flags}
-			if _, err := j.Record(p, as); !errors.Is(err, tc.err) {
+			jctx := context.Background()
+			if tc.flags != nil {
+				jctx = legalflagstest.Context(t, payment.FlagReceiptsJournalVerified, tc.flags.Enabled(payment.FlagReceiptsJournalVerified))
+			}
+			var j payment.ReceiptsJournal
+			if _, err := j.Record(jctx, p, as); !errors.Is(err, tc.err) {
 				t.Fatalf("err=%v, want %v", err, tc.err)
 			}
 			if tc.err != nil && len(j.Entries()) != 0 {
@@ -138,7 +143,7 @@ func TestReceiptsJournalRefusesBadInput(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var j payment.ReceiptsJournal
-			if _, err := j.Record(tc.p, tc.allocs); !errors.Is(err, tc.err) {
+			if _, err := j.Record(context.Background(), tc.p, tc.allocs); !errors.Is(err, tc.err) {
 				t.Fatalf("err=%v, want %v", err, tc.err)
 			}
 		})

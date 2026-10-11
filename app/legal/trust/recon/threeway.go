@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
 // FlagBylaw9Verified gates the three-way reconciliation, which is built on unconfirmed
 // By-Law 9 text. It mirrors legal.FlagTrustBylaw9Verified; this package cannot import
 // app/legal (import cycle).
-const FlagBylaw9Verified = "trust.bylaw9_verified"
+const FlagBylaw9Verified = legalflags.TrustBylaw9Verified
 
 var (
 	// ErrUnverified is returned while FlagBylaw9Verified is off.
@@ -25,7 +25,7 @@ var (
 // comparison together with an error wrapping ErrUnbalanced: the month stays unreconciled
 // until a reconciling item explains every difference. Nothing here corrects the book.
 func ComputeThreeWay(ctx context.Context, bankCents, bookCents int64, ledgerCents []int64, items []ReconcilingItem) (ThreeWay, error) {
-	if !flags.Enabled(ctx, FlagBylaw9Verified) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return ThreeWay{}, ErrUnverified
 	}
 	t := ThreeWay{BankCents: bankCents, AdjustedBankCents: bankCents, BookCents: bookCents, Items: items}

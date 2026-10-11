@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/money"
 )
 
-// FlagVerifyRules gates rates whose taxability is unconfirmed (SK PST). It mirrors
-// legal.FlagTaxVerifyRules; this package cannot import app/legal (import cycle).
-const FlagVerifyRules = "tax.verify_rules"
+// FlagVerifyRules gates rates whose taxability is unconfirmed (SK PST). It is
+// legalflags.TaxVerifyRules.
+const FlagVerifyRules = legalflags.TaxVerifyRules
 
 // DefaultPerformedProvince is where the firm primarily performs its work. It is the place of
 // supply for a Canadian-resident client with no Canadian address on file.
@@ -143,7 +143,7 @@ func (t *RateTable) Lookup(ctx context.Context, province string, c Component, on
 		return 0, fmt.Errorf("lookup %q: %w", province, ErrUnknownProvince)
 	}
 	// rule: BIL-T-024 (verify)
-	if province == "SK" && c == PST && !flags.Enabled(ctx, FlagVerifyRules) {
+	if province == "SK" && c == PST && !legalflags.Enabled(ctx, FlagVerifyRules) {
 		return 0, fmt.Errorf("lookup SK PST: %w", ErrUnverified)
 	}
 	// rule: BIL-T-002

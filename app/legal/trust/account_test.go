@@ -11,12 +11,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 	"github.com/dagi377/counsel/app/legal/trust/signatory"
 )
-
-type flagSet map[string]bool
-
-func (f flagSet) Enabled(name string) bool { return f[name] }
 
 type users map[string]signatory.User
 
@@ -84,12 +81,12 @@ func (t *stubTx) Exec(_ context.Context, sql string, _ ...any) (pgconn.CommandTa
 	return pgconn.CommandTag{}, nil
 }
 
-func newStore(on bool) *AccountStore {
+func newStore() *AccountStore {
 	return NewAccountStore(nil, users{
 		"lic":  {ID: "lic", Licensee: true, Active: true},
 		"left": {ID: "left", Licensee: true},
 		"para": {ID: "para", Active: true},
-	}, sealer{}, flagSet{FlagBylaw9Verified: on})
+	}, sealer{})
 }
 
 func TestMIG_035_NoReceiptWithoutActiveSignatory(t *testing.T) {
@@ -106,7 +103,7 @@ func TestMIG_035_NoReceiptWithoutActiveSignatory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &stubTx{signers: tt.signers, lockErr: tt.lockErr}
-			if err := newStore(false).RequireSignatory(context.Background(), tx, "acct"); !errors.Is(err, tt.err) {
+			if err := newStore().RequireSignatory(context.Background(), tx, "acct"); !errors.Is(err, tt.err) {
 				t.Fatalf("err = %v, want %v", err, tt.err)
 			}
 		})
@@ -128,7 +125,7 @@ func TestMIG_035_LastSignatoryStays(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &stubTx{signers: tt.signers}
-			err := newStore(false).RemoveSignatory(context.Background(), tx, "acct", tt.user)
+			err := newStore().RemoveSignatory(context.Background(), tx, "acct", tt.user)
 			if !errors.Is(err, tt.err) {
 				t.Fatalf("err = %v, want %v", err, tt.err)
 			}
@@ -158,7 +155,7 @@ func TestARC_U_026_LockBeforeSignatoryCheck(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &stubTx{signers: []string{"a", "lic"}}
-			if err := tt.run(newStore(false), tx); err != nil {
+			if err := tt.run(newStore(), tx); err != nil {
 				t.Fatal(err)
 			}
 			if len(tx.sql) == 0 || !strings.HasSuffix(tx.sql[0], "FOR UPDATE") {
@@ -204,7 +201,7 @@ func TestBIL_L_034_FundsInTrustGoToTrust(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := newStore(tt.on).CheckDepositTarget(tt.inTrust, tt.toTrA); !errors.Is(err, tt.err) {
+			if err := newStore().CheckDepositTarget(legalflagstest.Context(t, FlagBylaw9Verified, tt.on), tt.inTrust, tt.toTrA); !errors.Is(err, tt.err) {
 				t.Fatalf("err = %v, want %v", err, tt.err)
 			}
 		})
@@ -222,7 +219,7 @@ func TestBIL_L_034_FlagOffDoesNotAllowOperatingDeposit(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := newStore(false).CheckDepositTarget(tt.inTrust, tt.toTrA)
+			err := newStore().CheckDepositTarget(legalflagstest.Context(t, FlagBylaw9Verified, false), tt.inTrust, tt.toTrA)
 			if err == nil || !errors.Is(err, ErrUnverified) {
 				t.Fatalf("err = %v, want ErrUnverified", err)
 			}
@@ -245,7 +242,7 @@ func TestBIL_L_036_LedgerNeverNegative(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := newStore(tt.on).CheckOverdraw(tt.b, 0, tt.amount); !errors.Is(err, tt.err) {
+			if err := newStore().CheckOverdraw(legalflagstest.Context(t, FlagBylaw9Verified, tt.on), tt.b, 0, tt.amount); !errors.Is(err, tt.err) {
 				t.Fatalf("err = %v, want %v", err, tt.err)
 			}
 		})
@@ -267,13 +264,13 @@ func TestARC_I_025_AvailableCountsHolds(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := newStore(true).CheckOverdraw(tt.b, tt.held, tt.amount); !errors.Is(err, tt.err) {
+			if err := newStore().CheckOverdraw(legalflagstest.Context(t, FlagBylaw9Verified, true), tt.b, tt.held, tt.amount); !errors.Is(err, tt.err) {
 				t.Fatalf("err = %v, want %v", err, tt.err)
 			}
 		})
 	}
 	if got := AvailableCents(500000, 100000, 50000, 25000); got != 325000 {
-		t.Fatalf("AvailableCents = %d, want 325000", got)
+		t.Fatalf("Available = %d, want 325000", got)
 	}
 }
 
@@ -297,7 +294,7 @@ func TestOpenAccount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &stubTx{}
-			id, err := newStore(false).OpenAccountNumber(context.Background(), tx, tt.in(valid), tt.no)
+			id, err := newStore().OpenAccountNumber(context.Background(), tx, tt.in(valid), tt.no)
 			if !errors.Is(err, tt.err) {
 				t.Fatalf("err = %v, want %v", err, tt.err)
 			}
@@ -306,7 +303,7 @@ func TestOpenAccount(t *testing.T) {
 			}
 		})
 	}
-	if _, err := newStore(false).OpenAccount(context.Background(), &stubTx{}, valid); !errors.Is(err, ErrNeedsApproval) {
+	if _, err := newStore().OpenAccount(context.Background(), &stubTx{}, valid); !errors.Is(err, ErrNeedsApproval) {
 		t.Fatalf("OpenAccount err = %v, want ErrNeedsApproval", err)
 	}
 }
@@ -326,7 +323,7 @@ func TestAddApprovedSignatory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &stubTx{}
-			err := newStore(false).AddApprovedSignatory(context.Background(), tx, "acct", tt.user, tt.approval, day)
+			err := newStore().AddApprovedSignatory(context.Background(), tx, "acct", tt.user, tt.approval, day)
 			if !errors.Is(err, tt.err) {
 				t.Fatalf("err = %v, want %v", err, tt.err)
 			}
@@ -335,7 +332,7 @@ func TestAddApprovedSignatory(t *testing.T) {
 			}
 		})
 	}
-	if err := newStore(false).AddSignatory(context.Background(), &stubTx{}, "acct", "lic"); !errors.Is(err, ErrNeedsApproval) {
+	if err := newStore().AddSignatory(context.Background(), &stubTx{}, "acct", "lic"); !errors.Is(err, ErrNeedsApproval) {
 		t.Fatalf("AddSignatory err = %v, want ErrNeedsApproval", err)
 	}
 }

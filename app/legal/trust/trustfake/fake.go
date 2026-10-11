@@ -205,7 +205,7 @@ func (f *Fake) balance(l trust.Ledger) trust.Balance {
 			b.ClearedCents += t.AmountCents
 		}
 	}
-	b.AvailableCents = b.ClearedCents - b.ProtectedCents - b.MinimumCents
+	b.AvailableCents = trust.AvailableCents(b.ClearedCents, b.ProtectedCents, b.MinimumCents, 0)
 	return b
 }
 
@@ -252,7 +252,7 @@ func (f *Fake) Disburse(_ context.Context, _ pgx.Tx, d trust.Disbursement) (trus
 	}
 	b := f.balance(l)
 	if d.AmountCents > b.AvailableCents {
-		if d.AmountCents <= b.PostedCents-b.ProtectedCents-b.MinimumCents {
+		if d.AmountCents <= trust.AvailableCents(b.PostedCents, b.ProtectedCents, b.MinimumCents, 0) {
 			return "", fmt.Errorf("disburse: %w", trust.ErrUnclearedFunds)
 		}
 		return "", fmt.Errorf("disburse: %w", trust.ErrInsufficientFunds)

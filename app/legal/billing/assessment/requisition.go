@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/billing/interest"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/clock"
-	"github.com/dagi377/counsel/kernel/flags"
 )
 
 // Requisition errors.
@@ -73,7 +73,6 @@ type Windows struct {
 type Requisitions struct {
 	Calendar interest.Calendar // the one shared months_after
 	Clock    clock.Clock
-	Flags    flags.Flags
 
 	mu     sync.Mutex
 	byBill map[string]Requisition
@@ -115,7 +114,7 @@ func (r *Requisitions) Windows(ctx context.Context, b AssessedBill) (Windows, er
 // paid, it needs a special-circumstances note. A bill paid more than 12 months ago is
 // refused with ErrPaidReferralBarred.
 func (r *Requisitions) Record(ctx context.Context, b AssessedBill, note string) (Requisition, error) {
-	if !r.Flags.Enabled(FlagSolicitorsActVerified) {
+	if !legalflags.Enabled(ctx, FlagSolicitorsActVerified) {
 		return Requisition{}, ErrRequisitionUnverified
 	}
 	w, err := r.Windows(ctx, b)

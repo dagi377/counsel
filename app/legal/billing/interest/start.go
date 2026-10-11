@@ -1,14 +1,17 @@
 package interest
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
 // FlagSolicitorsActVerified gates interest accrual (V-BILL, off by default). It mirrors
 // app/legal.FlagSolicitorsActVerified, which this package cannot import.
-const FlagSolicitorsActVerified = "billing.solicitors_act_verified"
+const FlagSolicitorsActVerified = legalflags.SolicitorsActVerified
 
 // Accrual start errors.
 var (
@@ -18,21 +21,15 @@ var (
 	ErrNotDelivered = errors.New("interest: bill not delivered")
 )
 
-// Enabler is the part of kernel/flags the accrual start reads.
-type Enabler interface {
-	Enabled(name string) bool
-}
-
 // Start decides the first business date interest may accrue on one bill.
 type Start struct {
 	Calendar Calendar // the one shared months_after
-	Flags    Enabler
 }
 
 // From returns the first business date interest accrues on b: the later of due (a
 // business date; zero means none) and Calendar.AccrualStart(b.DeliveredAt).
-func (s Start) From(b Bill, due time.Time) (time.Time, error) {
-	if !s.Flags.Enabled(FlagSolicitorsActVerified) {
+func (s Start) From(ctx context.Context, b Bill, due time.Time) (time.Time, error) {
+	if !legalflags.Enabled(ctx, FlagSolicitorsActVerified) {
 		return time.Time{}, ErrAccrualUnverified
 	}
 	// rule: BIL-C-071
@@ -60,8 +57,8 @@ func (s Start) From(b Bill, due time.Time) (time.Time, error) {
 // Accrues reports whether interest accrues on the business date day. Any error from From
 // means no interest for that day.
 // rule: BIL-I-023
-func (s Start) Accrues(b Bill, due, day time.Time) bool {
-	start, err := s.From(b, due)
+func (s Start) Accrues(ctx context.Context, b Bill, due, day time.Time) bool {
+	start, err := s.From(ctx, b, due)
 	if err != nil {
 		return false
 	}
@@ -72,11 +69,11 @@ func (s Start) Accrues(b Bill, due, day time.Time) bool {
 // Clip returns the part of the half-open period p on which interest accrues. A posting
 // (BIL-C-072) only ever covers days on or after the start.
 // rule: BIL-C-072
-func (s Start) Clip(b Bill, due time.Time, p Period) (Period, error) {
+func (s Start) Clip(ctx context.Context, b Bill, due time.Time, p Period) (Period, error) {
 	if !p.From.Before(p.To) {
 		return Period{}, fmt.Errorf("bill %s: %w", b.ID, ErrBadPeriod)
 	}
-	start, err := s.From(b, due)
+	start, err := s.From(ctx, b, due)
 	if err != nil {
 		return Period{}, err
 	}

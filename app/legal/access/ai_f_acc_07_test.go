@@ -5,18 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"os"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/agent"
-	"github.com/dagi377/counsel/app/legal/agent/agentfake"
+	"github.com/dagi377/counsel/app/legal/agent/agenttest"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/gates/gatesfake"
+	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/ai"
-	"github.com/dagi377/counsel/kernel/ai/aifake"
 )
 
 // F-ACC-07 Invite list check: on "list or CSV uploaded" the agent checks each invite row,
@@ -33,117 +31,60 @@ const (
 
 const acc07Schema = `{"type":"object","required":["rows"],"properties":{"rows":{"type":"array"}}}`
 
-func acc07Specs() []agent.ToolSpec {
-	return []agent.ToolSpec{
-		{Name: "search_matters", Kind: agent.Read, Capability: "matter.read"},
-		{Name: "report_plan", Kind: agent.Report, Capability: "agent.report"},
-		{Name: "report_step", Kind: agent.Report, Capability: "agent.report"},
-		{Name: "draft_document", Kind: agent.Write, Capability: "user.invite", GateKind: acc07GateKind},
-		{Name: "submit_for_approval", Kind: agent.Write, Capability: "user.invite", GateKind: acc07GateKind},
-	}
-}
-
 type acc07Row struct {
 	Row    int    `json:"row"`
 	Email  string `json:"email"`
 	Result string `json:"result"`
 }
 
-// acc07Run is what one run of the feature left behind.
-type acc07Run struct {
-	calls       []string   // tool names in call order
-	gateIDs     []string   // gates opened by write tools
-	rows        []acc07Row // row results recorded on user-list
-	badOutput   bool
-	retryQueued bool
-	toolResults []ai.ContentBlock // tool_result blocks sent back to the model
+// acc07Model asks the fixture model for the extraction output and keeps its last answer,
+// whose JSON holds the row results.
+type acc07Model struct {
+	ai.ModelClient
+	last ai.Response
 }
 
-// runACC07 drives one run: model turn, tool calls, tool results, until the model stops with
-// the extraction output.
-func runACC07(ctx context.Context, t *testing.T, model ai.ModelClient, tools *agentfake.Fake, runID, variant string) acc07Run {
-	t.Helper()
-	var aiTools []ai.ToolSpec
-	for _, s := range tools.Specs() {
-		aiTools = append(aiTools, ai.ToolSpec{Name: s.Name, InputSchema: json.RawMessage(`{"type":"object"}`)})
-	}
-	msgs := []ai.Message{{Role: "user", Content: []ai.ContentBlock{{
-		Type: "text", Text: "Invite list uploaded " + acc07List + " [" + variant + "]",
-	}}}}
-	var r acc07Run
-	for range 10 {
-		resp, err := model.Complete(ctx, ai.Request{
-			FeatureID: acc07Feature,
-			Kind:      ai.KindExtraction,
-			Model:     "fast",
-			System:    "Check each invite row and propose the ready rows for activation.",
-			Messages:  msgs,
-			Tools:     aiTools,
-			Schema:    json.RawMessage(acc07Schema),
-			Metadata:  map[string]string{"run_id": runID, "acting_for": acc07Actor},
-		})
-		if err != nil {
-			// rule: AI-R-003
-			if errors.Is(err, ai.ErrRateLimited) || errors.Is(err, ai.ErrOverloaded) || errors.Is(err, ai.ErrTimeout) {
-				r.retryQueued = true
-				return r
-			}
-			t.Fatalf("complete: %v", err)
-		}
-		if len(resp.ToolCalls) == 0 {
-			var out struct {
-				Rows []acc07Row `json:"rows"`
-			}
-			// rule: AI-R-002
-			if err := json.Unmarshal(resp.JSON, &out); err != nil || out.Rows == nil {
-				r.badOutput = true
-				return r
-			}
-			r.rows = out.Rows
-			return r
-		}
-		asst := ai.Message{Role: "assistant"}
-		res := ai.Message{Role: "tool"}
-		for _, tc := range resp.ToolCalls {
-			asst.Content = append(asst.Content, ai.ContentBlock{Type: "tool_use", ToolUseID: tc.ID, ToolName: tc.Name, Input: tc.Input})
-			r.calls = append(r.calls, tc.Name)
-			out, err := tools.Call(ctx, agent.Call{RunID: runID, ActingFor: acc07Actor, Tool: tc.Name, Input: tc.Input})
-			block := ai.ContentBlock{Type: "tool_result", ToolUseID: tc.ID, ToolName: tc.Name, Text: string(out.Output)}
-			if err != nil {
-				block.IsError, block.Text = true, err.Error()
-			}
-			if out.GateID != "" {
-				r.gateIDs = append(r.gateIDs, out.GateID)
-			}
-			// rule: ARC-I-038
-			res.Content = append(res.Content, block)
-			r.toolResults = append(r.toolResults, block)
-		}
-		msgs = append(msgs, asst, res)
-	}
-	t.Fatal("run did not stop")
-	return r
+func (m *acc07Model) Complete(ctx context.Context, req ai.Request) (ai.Response, error) {
+	req.Kind, req.Model, req.Schema = ai.KindExtraction, "fast", json.RawMessage(acc07Schema)
+	resp, err := m.ModelClient.Complete(ctx, req)
+	m.last = resp
+	return resp, err
 }
 
-func acc07Tools(searchResult string) *agentfake.Fake {
-	f := agentfake.New(acc07Specs()...)
-	for _, c := range []string{"matter.read", "agent.report", "user.invite"} {
-		f.Grant(acc07Actor, c)
+// fire runs d once and returns the row results the extraction output recorded; bad is set
+// when the output does not hold a rows list.
+func (m *acc07Model) fire(ctx context.Context, d *agenttest.Driver, runID, prompt string) (run agenttest.Run, rows []acc07Row, bad bool) {
+	m.last = ai.Response{}
+	run = d.Fire(ctx, m, runID, prompt)
+	if run.Err != nil || run.RetryQueued {
+		return run, nil, false
 	}
-	f.SetResult("search_matters", agent.Result{Output: json.RawMessage(searchResult)})
-	f.SetResult("report_plan", agent.Result{Output: json.RawMessage(`{"status":"ok"}`)})
-	return f
+	var out struct {
+		Rows []acc07Row `json:"rows"`
+	}
+	// rule: AI-R-002
+	if err := json.Unmarshal(m.last.JSON, &out); err != nil || out.Rows == nil {
+		return run, nil, true
+	}
+	return run, out.Rows, false
 }
 
-// acc07Status maps a gate decision error to the HTTP status the API returns.
-func acc07Status(err error) int {
-	switch {
-	case err == nil:
-		return http.StatusOK
-	case errors.Is(err, gates.ErrAgentApproves), errors.Is(err, gates.ErrPreparerApproves), errors.Is(err, gates.ErrMissingCapability):
-		return http.StatusForbidden
-	}
-	return http.StatusInternalServerError
+func acc07Driver(t *testing.T, search string) *agenttest.Driver {
+	d := agenttest.New(t, agenttest.Feature{
+		ID: acc07Feature, ActingFor: acc07Actor,
+		System: "Check each invite row and propose the ready rows for activation.",
+		Tools: []agent.ToolSpec{
+			{Name: "search_matters", Kind: agent.Read, Capability: "matter.read"},
+			{Name: "report_plan", Kind: agent.Report, Capability: "agent.report"},
+			{Name: "report_step", Kind: agent.Report, Capability: "agent.report"},
+			{Name: "draft_document", Kind: agent.Write, Capability: "user.invite", GateKind: acc07GateKind},
+			{Name: "submit_for_approval", Kind: agent.Write, Capability: "user.invite", GateKind: acc07GateKind},
+		},
+		Grant:   []string{"matter.read", "agent.report", "user.invite"},
+		RetryOn: []error{ai.ErrRateLimited, ai.ErrOverloaded, ai.ErrTimeout},
+	})
+	d.SetRead("search_matters", search)
+	return d
 }
 
 func TestAI_R_002_ACC07_InviteListCheck(t *testing.T) {
@@ -168,50 +109,55 @@ func TestAI_R_002_ACC07_InviteListCheck(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.variant, func(t *testing.T) {
-			model := aifake.New(os.DirFS("../../../testdata/ai"))
-			if model.Mode() != ai.ModeMock {
-				t.Fatalf("mode = %s, want mock", model.Mode())
+			model := &acc07Model{ModelClient: agenttest.Models(t)}
+			d := acc07Driver(t, tc.search)
+			prompt := "Invite list uploaded " + acc07List + " [" + tc.variant + "]"
+			r, rows, bad := model.fire(ctx, d, "run-acc07-"+tc.variant, prompt)
+			if r.Err != nil {
+				t.Fatalf("run: %v", r.Err)
 			}
-			tools := acc07Tools(tc.search)
-			r := runACC07(ctx, t, model, tools, "run-acc07-"+tc.variant, tc.variant)
 
 			// rule: AI-R-003
-			if r.retryQueued != tc.wantRetry {
-				t.Fatalf("retry queued = %v, want %v", r.retryQueued, tc.wantRetry)
+			if r.RetryQueued != tc.wantRetry {
+				t.Fatalf("retry queued = %v, want %v", r.RetryQueued, tc.wantRetry)
 			}
-			if r.badOutput != tc.wantBad {
-				t.Fatalf("bad output = %v, want %v", r.badOutput, tc.wantBad)
+			if bad != tc.wantBad {
+				t.Fatalf("bad output = %v, want %v", bad, tc.wantBad)
 			}
 			if tc.wantRetry || tc.wantBad {
-				if len(r.calls) != 0 || len(r.gateIDs) != 0 || r.rows != nil {
-					t.Fatalf("partial write: calls %v gates %v rows %v", r.calls, r.gateIDs, r.rows)
+				if len(r.Tools) != 0 || len(r.GateIDs) != 0 || rows != nil {
+					t.Fatalf("partial write: calls %v gates %v rows %v", r.Tools, r.GateIDs, rows)
 				}
 				if tc.wantNoWrite {
 					return
 				}
-				r = runACC07(ctx, t, model, tools, "run-acc07-"+tc.variant, tc.variant)
+				r, rows, _ = model.fire(ctx, d, "run-acc07-"+tc.variant, prompt)
 			}
 
+			calls := wantCalls
+			if tc.wantQuoted {
+				calls = append(slices.Clone(wantCalls), agent.ToolPrepareTrustWithdrawal)
+			}
 			// rule: ARC-I-038
-			if !slices.Equal(r.calls, wantCalls) {
-				t.Fatalf("calls = %v, want %v (no extra tool call)", r.calls, wantCalls)
+			if !slices.Equal(r.Tools, calls) {
+				t.Fatalf("calls = %v, want %v (no extra tool call)", r.Tools, calls)
 			}
 			// rule: ARC-I-039
-			if slices.Index(r.calls, "report_plan") != 0 {
-				t.Fatalf("report_plan must precede the first write: %v", r.calls)
+			if r.PlanAt != 0 || r.FirstWrite < r.PlanAt {
+				t.Fatalf("report_plan must precede the first write: %v", r.Tools)
 			}
 			want := []acc07Row{
 				{Row: 1, Email: "ada.synth@example.test", Result: "ready"},
 				{Row: 2, Email: "bo.synth@example.test", Result: "duplicate"},
 				{Row: 3, Email: "cy.synth@example.test", Result: "ready"},
 			}
-			if !slices.Equal(r.rows, want) {
-				t.Fatalf("row results = %+v, want %+v", r.rows, want)
+			if !slices.Equal(rows, want) {
+				t.Fatalf("row results = %+v, want %+v", rows, want)
 			}
-			if len(r.gateIDs) != 1 {
-				t.Fatalf("gates = %v, want one", r.gateIDs)
+			if len(r.GateIDs) != 1 {
+				t.Fatalf("gates = %v, want one", r.GateIDs)
 			}
-			p, ok := tools.Proposal(r.gateIDs[0])
+			p, ok := d.Proposal(r.GateIDs[0])
 			// rule: ARC-I-035
 			if !ok || p.GateKind != acc07GateKind || p.Preparer != acc07Actor || p.Decision != "" {
 				t.Fatalf("proposal = %+v, want pending %s prepared by %s", p, acc07GateKind, acc07Actor)
@@ -224,15 +170,16 @@ func TestAI_R_002_ACC07_InviteListCheck(t *testing.T) {
 				t.Fatalf("ready rows = %s (%v)", p.Input, err)
 			}
 			if tc.wantQuoted {
-				quoted := false
-				for _, b := range r.toolResults {
-					if b.Type == "tool_result" && strings.Contains(b.Text, acc07Injection) {
-						quoted = true
-					}
+				// rule: ARC-I-038
+				if err := agenttest.QuotedOnly(r, acc07Injection); err != nil {
+					t.Fatal(err)
 				}
-				if !quoted {
-					t.Fatal("injected text must reach the model only inside a tool_result block")
+				// rule: ARC-I-036
+				if err := d.RefusedInjectedWrite(ctx, r, agenttools.ErrMissingCapability); err != nil {
+					t.Fatal(err)
 				}
+			} else if len(r.Refused) != 0 {
+				t.Fatalf("refused calls: %v", r.Refused)
 			}
 
 			// The agent never approves; the acting-for user never decides its own gate.
@@ -242,10 +189,10 @@ func TestAI_R_002_ACC07_InviteListCheck(t *testing.T) {
 			}
 			g := gates.Gate{ID: p.GateID, Code: p.GateKind, Preparer: gates.Principal{UserID: "agent", Agent: true, ActingFor: acc07Actor}}
 			agentBy := gates.Principal{UserID: "agent", Agent: true, ActingFor: acc07Actor, Capabilities: []string{"user.activate.approve"}}
-			if got := acc07Status(gf.CheckDecision(ctx, g, agentBy, time.Unix(0, 0))); got != http.StatusForbidden {
+			if got := agenttest.DecisionStatus(gf.CheckDecision(ctx, g, agentBy, time.Unix(0, 0))); got != http.StatusForbidden {
 				t.Fatalf("agent decides gate: status %d, want 403", got)
 			}
-			if _, err := tools.Decided(ctx, agent.GateDecided{GateID: p.GateID, Decision: agent.Approved, By: acc07Actor}); !errors.Is(err, agent.ErrSelfApproval) {
+			if _, err := d.Decided(ctx, agent.GateDecided{GateID: p.GateID, Decision: agent.Approved, By: acc07Actor}); !errors.Is(err, agent.ErrSelfApproval) {
 				t.Fatalf("acting-for user decides own gate: err %v, want ErrSelfApproval", err)
 			}
 		})

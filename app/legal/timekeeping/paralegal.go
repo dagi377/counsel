@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
 // FlagParalegalScopeVerified gates the paralegal scope check until the LSO rule is confirmed.
 // It mirrors the app/legal flag of the same name and is off by default.
-const FlagParalegalScopeVerified = "timekeeping.paralegal_scope_verified"
+const FlagParalegalScopeVerified = legalflags.ParalegalScopeVerified
 
 // FlagOutOfScope is the entry flag set on a paralegal entry outside the scope list.
 const FlagOutOfScope = "W-SCOPE"
@@ -30,7 +30,7 @@ var _ ScopeChecker = Scope{}
 // rule: BIL-L-046 (verify)
 // A paralegal may only bill for work within the paralegal scope of practice.
 func (s Scope) CheckScope(ctx context.Context, userID, activityCode string) error {
-	if !flags.Enabled(ctx, FlagParalegalScopeVerified) {
+	if !legalflags.Enabled(ctx, FlagParalegalScopeVerified) {
 		return nil
 	}
 	if s.Paralegals[userID] && !s.Activities[activityCode] {

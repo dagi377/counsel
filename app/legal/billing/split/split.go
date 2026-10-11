@@ -9,13 +9,13 @@ import (
 	"math"
 	"sort"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/money"
 )
 
 // FlagJointRetainerVerified gates per-payer billing of a joint retainer (BIL-L-029). It
 // mirrors legal.FlagJointRetainerVerified, which this package cannot import. Off by default.
-const FlagJointRetainerVerified = "billing.joint_retainer_verified"
+const FlagJointRetainerVerified = legalflags.JointRetainerVerified
 
 // Sentinel errors. Each maps to the problem+json code in its comment.
 var (
@@ -113,7 +113,7 @@ func Validate(ctx context.Context, payers []Payer) error {
 		return fmt.Errorf("sum %d ppm: %w", sum, ErrSplitNot100)
 	}
 	// rule: BIL-L-029 (verify)
-	if !flags.Enabled(ctx, FlagJointRetainerVerified) {
+	if !legalflags.Enabled(ctx, FlagJointRetainerVerified) {
 		return fmt.Errorf("validate split: %w", ErrUnverified)
 	}
 	return nil

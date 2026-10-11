@@ -7,8 +7,8 @@ import (
 	"math"
 	"net/http"
 
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/api"
-	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/money"
 	"github.com/dagi377/counsel/kernel/server"
 )
@@ -136,7 +136,7 @@ type Route struct {
 // FlagCreditRouteVerified gates routing a credit beyond the bill's open AR (back to trust,
 // then client credit). It mirrors legal.FlagCreditRouteVerified, which this package cannot
 // import. Off by default.
-const FlagCreditRouteVerified = "billing.credit_route_verified"
+const FlagCreditRouteVerified = legalflags.CreditRouteVerified
 
 // ErrUnverified is returned when a credit must be routed past the bill's open AR while
 // FlagCreditRouteVerified is off: the excess is refused, never silently routed.
@@ -155,7 +155,7 @@ func RouteCredit(ctx context.Context, totalCents, openARCents, trustPaidCents in
 	r.ARCents = min(totalCents, openARCents)
 	left := totalCents - r.ARCents
 	// rule: BIL-C-081 (verify)
-	if left > 0 && !flags.Enabled(ctx, FlagCreditRouteVerified) {
+	if left > 0 && !legalflags.Enabled(ctx, FlagCreditRouteVerified) {
 		return Route{}, fmt.Errorf("route credit past open AR: %w", ErrUnverified)
 	}
 	r.TrustCents = min(left, trustPaidCents)

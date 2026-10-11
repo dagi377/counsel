@@ -1,17 +1,18 @@
 package contingency
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"slices"
 
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/api"
-	"github.com/dagi377/counsel/kernel/flags"
 )
 
-// templateFlag is legal.FlagContingencyFees (V-CFA). It is spelled out here because app/legal
-// imports this package. Every Templates method refuses with ErrTemplatesOff while it is off.
-const templateFlag = "billing.contingency_fees"
+// templateFlag is legalflags.ContingencyFees (V-CFA). Every Templates method refuses with
+// ErrTemplatesOff while it is off.
+const templateFlag = legalflags.ContingencyFees
 
 // ErrTemplatesOff is returned by every Templates method while billing.contingency_fees is off.
 var ErrTemplatesOff = errors.New("contingency: fee agreement templates are not enabled")
@@ -63,11 +64,10 @@ type FeeAgreement struct {
 
 // Templates checks fee agreement templates. It is pure: callers load and store.
 type Templates struct {
-	Flags flags.Flags
 }
 
-func (s Templates) on() error {
-	if s.Flags == nil || !s.Flags.Enabled(templateFlag) {
+func (s Templates) on(ctx context.Context) error {
+	if !legalflags.Enabled(ctx, templateFlag) {
 		return ErrTemplatesOff
 	}
 	return nil
@@ -75,8 +75,8 @@ func (s Templates) on() error {
 
 // CheckPublish refuses to publish a template that contains a clause relieving the lawyer of
 // liability for negligence. The agent drafting path runs the same check before proposing.
-func (s Templates) CheckPublish(t Template) error {
-	if err := s.on(); err != nil {
+func (s Templates) CheckPublish(ctx context.Context, t Template) error {
+	if err := s.on(ctx); err != nil {
 		return err
 	}
 	// rule: BIL-L-014
@@ -91,8 +91,8 @@ func (s Templates) CheckPublish(t Template) error {
 
 // CourtApprovalWarnings returns the preflight warnings for applying a payment to bills under a.
 // It warns, never blocks; hourly retainers and contingency agreements get no warning.
-func (s Templates) CourtApprovalWarnings(a FeeAgreement) ([]string, error) {
-	if err := s.on(); err != nil {
+func (s Templates) CourtApprovalWarnings(ctx context.Context, a FeeAgreement) ([]string, error) {
+	if err := s.on(ctx); err != nil {
 		return nil, err
 	}
 	// rule: BIL-L-013 (verify)

@@ -1,6 +1,7 @@
 package assessment
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -8,7 +9,7 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/billing/credit"
 	"github.com/dagi377/counsel/app/legal/billing/interest"
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/money"
 )
 
@@ -57,16 +58,15 @@ type Repayment struct {
 
 // Outcome turns an assessment result into a credit note and a refund task.
 type Outcome struct {
-	Calc  interest.Calculator
-	Flags flags.Flags
+	Calc interest.Calculator
 	// RepaymentDays is the firm's repayment window in days after the certificate.
 	RepaymentDays int
 }
 
 // Apply computes the credit note, the refund of any overpayment and the interest on it.
 // preparedBy prepares the credit note; someone else approves it.
-func (o Outcome) Apply(r Result, preparedBy string) (Repayment, error) {
-	if !o.Flags.Enabled(FlagSolicitorsActVerified) {
+func (o Outcome) Apply(ctx context.Context, r Result, preparedBy string) (Repayment, error) {
+	if !legalflags.Enabled(ctx, FlagSolicitorsActVerified) {
 		return Repayment{}, ErrResultUnverified
 	}
 	if r.AssessedCents < 0 || r.AssessedCents > r.BilledCents || o.RepaymentDays < 0 {

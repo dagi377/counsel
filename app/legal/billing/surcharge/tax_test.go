@@ -8,7 +8,7 @@ import (
 
 // rule: BIL-T-044 (verify)
 func TestSurchargeTaxOnHSTBill(t *testing.T) {
-	c := calc(t, true)
+	c, ctx := calc(t, true)
 	tests := []struct {
 		name     string
 		flagOn   bool
@@ -22,11 +22,11 @@ func TestSurchargeTaxOnHSTBill(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cc := c
+			cc, cctx := c, ctx
 			if !tc.flagOn {
-				cc = calc(t, false)
+				cc, cctx = calc(t, false)
 			}
-			ch, err := cc.Compute(tc.snap, 113000, 24000, 24000, 113000, 13000, onBill)
+			ch, err := cc.Compute(cctx, tc.snap, 113000, 24000, 24000, 113000, 13000, onBill)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -40,8 +40,8 @@ func TestSurchargeTaxOnHSTBill(t *testing.T) {
 // rule: BIL-C-102
 // rule: BIL-T-044 (verify)
 func TestRefundNext(t *testing.T) {
-	c := calc(t, true)
-	ch, err := c.Compute(eligible(), 113000, 24000, 24000, 113000, 13000, onBill)
+	c, ctx := calc(t, true)
+	ch, err := c.Compute(ctx, eligible(), 113000, 24000, 24000, 113000, 13000, onBill)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,8 +83,8 @@ func TestRefundNext(t *testing.T) {
 
 // rule: BIL-C-102
 func TestRefundNextSumsToCharge(t *testing.T) {
-	c := calc(t, true)
-	ch, err := c.Compute(eligible(), 113000, 24000, 24000, 113000, 13000, onBill)
+	c, ctx := calc(t, true)
+	ch, err := c.Compute(ctx, eligible(), 113000, 24000, 24000, 113000, 13000, onBill)
 	if err != nil {
 		t.Fatal(err)
 	}

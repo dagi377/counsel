@@ -6,6 +6,8 @@ import (
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 )
 
 type proposer struct{ got []Proposal }
@@ -38,9 +40,9 @@ func TestBIL_C_052_AutoApplyProposesOnly(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			s := &store{bill: tc.bill, avail: tc.avail}
 			pr := &proposer{}
-			a := AutoApplier{Applier: applier(t, tc.flag, s), Proposer: pr}
+			a := AutoApplier{Applier: applier(t, s), Proposer: pr}
 			ev := Approved{BillID: "b1", MatterID: "m1", TrustAccountID: "t1", AutoApply: tc.setting, On: day(10)}
-			p, ok, err := a.OnApproved(context.Background(), ev)
+			p, ok, err := a.OnApproved(legalflagstest.Context(t, FlagBylaw9Verified, tc.flag), ev)
 			if !errors.Is(err, tc.err) {
 				t.Fatalf("err = %v, want %v", err, tc.err)
 			}

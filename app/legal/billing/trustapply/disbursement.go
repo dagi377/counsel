@@ -1,8 +1,11 @@
 package trustapply
 
 import (
+	"context"
 	"errors"
 	"fmt"
+
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
 // GateTrustWithdrawal is the gate kind (spec G11) that authorizes a trust withdrawal.
@@ -50,8 +53,8 @@ type BillDisbursements struct {
 
 // CheckDisbursement validates an expense paid from trust before it is listed on a bill.
 // It fails closed: while FlagBylaw9Verified is off it returns ErrUnverified (also ErrDisabled).
-func CheckDisbursement(a Applier, d TrustDisbursement) error {
-	if !a.Flags.Enabled(FlagBylaw9Verified) {
+func CheckDisbursement(ctx context.Context, d TrustDisbursement) error {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return fmt.Errorf("trust disbursement: %w: %w", ErrUnverified, ErrDisabled)
 	}
 	if d.AmountCents <= 0 || d.ExpenseID == "" || d.MatterID == "" {

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dagi377/counsel/kernel/flags"
-	"github.com/dagi377/counsel/kernel/flags/flagsfake"
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 )
 
 type store struct {
@@ -22,20 +22,16 @@ func (s *store) LockBill(_ context.Context, id string) (Bill, error) {
 	return s.bill, nil
 }
 
-func (s *store) LockAvailable(context.Context, string, string) (int64, error) { return s.avail, nil }
+// LockFunds holds back a protected amount so the test sees Available, not raw cleared cents.
+func (s *store) LockFunds(context.Context, string, string) (withdraw.Funds, error) {
+	return withdraw.Funds{ClearedCents: s.avail + 1000, ProtectedCents: 1000}, nil
+}
 
 func day(d int) time.Time { return time.Date(2026, 3, d, 0, 0, 0, 0, time.UTC) }
 
-func applier(t *testing.T, on bool, s *store) Applier {
+func applier(t *testing.T, s *store) Applier {
 	t.Helper()
-	f := flagsfake.New()
-	if err := f.Define(flags.Def{Name: FlagBylaw9Verified, Owner: "billing", Expiry: day(28).AddDate(1, 0, 0)}); err != nil {
-		t.Fatalf("define flag: %v", err)
-	}
-	if err := f.Set(FlagBylaw9Verified, on); err != nil {
-		t.Fatalf("set flag: %v", err)
-	}
-	return Applier{Flags: f, Store: s}
+	return Applier{Store: s}
 }
 
 func delivered(on time.Time) Bill {
@@ -48,7 +44,7 @@ func transfer(amount int64) Transfer {
 
 func check(t *testing.T, flag bool, b Bill, avail int64, tr Transfer) error {
 	t.Helper()
-	_, err := applier(t, flag, &store{bill: b, avail: avail}).Check(context.Background(), tr)
+	_, err := applier(t, &store{bill: b, avail: avail}).Check(legalflagstest.Context(t, FlagBylaw9Verified, flag), tr)
 	return err
 }
 
@@ -103,14 +99,15 @@ func TestBIL_C_050_AmountCap(t *testing.T) {
 // rule: BIL-C-051
 func TestBIL_C_051_SecondAuthorizationFails(t *testing.T) {
 	s := &store{bill: delivered(day(1)), avail: 60000}
-	a := applier(t, true, s)
-	if _, err := a.Check(context.Background(), transfer(60000)); err != nil {
+	a := applier(t, s)
+	ctx := legalflagstest.Context(t, FlagBylaw9Verified, true)
+	if _, err := a.Check(ctx, transfer(60000)); err != nil {
 		t.Fatalf("first: %v", err)
 	}
 	// The first authorization reserves the funds; the second sees the reduced balance.
 	s.avail -= 60000
 	s.bill.ReservedCents += 60000
-	if _, err := a.Check(context.Background(), transfer(10000)); !errors.Is(err, ErrTrustOverdraw) {
+	if _, err := a.Check(ctx, transfer(10000)); !errors.Is(err, ErrTrustOverdraw) {
 		t.Fatalf("second err = %v, want ErrTrustOverdraw", err)
 	}
 }

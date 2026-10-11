@@ -1,25 +1,18 @@
 package surcharge
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
 
-	"github.com/dagi377/counsel/kernel/flags"
-	"github.com/dagi377/counsel/kernel/flags/flagsfake"
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 	"github.com/dagi377/counsel/kernel/money/moneyfake"
 )
 
-func calc(t *testing.T, on bool) Calc {
+func calc(t *testing.T, on bool) (Calc, context.Context) {
 	t.Helper()
-	f := flagsfake.New()
-	if err := f.Define(flags.Def{Name: Flag, Owner: "test"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Set(Flag, on); err != nil {
-		t.Fatal(err)
-	}
-	return Calc{Money: moneyfake.New(), Flags: f}
+	return Calc{Money: moneyfake.New()}, legalflagstest.Context(t, Flag, on)
 }
 
 func eligible() Snapshot {
@@ -52,13 +45,13 @@ func TestBIL_C_100(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := calc(t, tc.flagOn)
+			c, ctx := calc(t, tc.flagOn)
 			s := eligible()
 			tc.edit(&s)
-			if got := c.Eligible(s); got != tc.want {
+			if got := c.Eligible(ctx, s); got != tc.want {
 				t.Fatalf("Eligible = %v, want %v", got, tc.want)
 			}
-			ch, err := c.Compute(s, 113000, 24000, 30000, 113000, 13000, onBill)
+			ch, err := c.Compute(ctx, s, 113000, 24000, 30000, 113000, 13000, onBill)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -85,7 +78,8 @@ func TestBIL_C_101(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ch, err := calc(t, true).Compute(eligible(), tc.applied, tc.configured, tc.cost, 113000, 13000, onBill)
+			c, ctx := calc(t, true)
+			ch, err := c.Compute(ctx, eligible(), tc.applied, tc.configured, tc.cost, 113000, 13000, onBill)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -112,7 +106,8 @@ func TestBIL_C_208(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ch, err := calc(t, true).Compute(eligible(), 113000, 24000, 24000, tc.billTotal, tc.billTax, tc.lines)
+			c, ctx := calc(t, true)
+			ch, err := c.Compute(ctx, eligible(), 113000, 24000, 24000, tc.billTotal, tc.billTax, tc.lines)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -125,8 +120,8 @@ func TestBIL_C_208(t *testing.T) {
 
 // rule: BIL-C-102
 func TestBIL_C_102(t *testing.T) {
-	c := calc(t, true)
-	ch, err := c.Compute(eligible(), 113000, 24000, 24000, 113000, 13000, onBill)
+	c, ctx := calc(t, true)
+	ch, err := c.Compute(ctx, eligible(), 113000, 24000, 24000, 113000, 13000, onBill)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +174,8 @@ func TestBIL_I_022(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := calc(t, tc.flagOn).Check(tc.snap, tc.surcharge); !errors.Is(err, tc.want) {
+			c, ctx := calc(t, tc.flagOn)
+			if err := c.Check(ctx, tc.snap, tc.surcharge); !errors.Is(err, tc.want) {
 				t.Fatalf("Check = %v, want %v", err, tc.want)
 			}
 		})

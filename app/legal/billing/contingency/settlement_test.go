@@ -31,10 +31,10 @@ func TestCheckReceipt(t *testing.T) {
 		{"BIL-L-022 cheque 3000000 to operating refused", op, codeMustDepositTrust, http.StatusUnprocessableEntity},
 		{"no book refused", Settlement{RecoveryCents: 1}, codeMustDepositTrust, http.StatusUnprocessableEntity},
 	}
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			wantCode(t, s.CheckReceipt(tc.st), tc.code, tc.status)
+			wantCode(t, s.CheckReceipt(ctx, tc.st), tc.code, tc.status)
 		})
 	}
 }
@@ -69,10 +69,10 @@ func TestSettlementStatement(t *testing.T) {
 		{"BIL-L-022 operating receipt refused", op, nil, false, codeMustDepositTrust, http.StatusUnprocessableEntity},
 		{"negative claim refused", neg, nil, false, codeBadSettlement, http.StatusUnprocessableEntity},
 	}
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := s.SettlementStatement(tc.st)
+			got, err := s.SettlementStatement(ctx, tc.st)
 			wantCode(t, err, tc.code, tc.status)
 			if err != nil {
 				return
@@ -108,20 +108,20 @@ func TestCheckPaymentFromRecovery(t *testing.T) {
 		{"direction recorded after payment refused", late, settledAt, codeDirectionMissing, http.StatusConflict},
 		{"direction without a time refused", unstamped, settledAt, codeDirectionMissing, http.StatusConflict},
 	}
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			wantCode(t, s.CheckPaymentFromRecovery(tc.st, tc.at), tc.code, tc.status)
+			wantCode(t, s.CheckPaymentFromRecovery(ctx, tc.st, tc.at), tc.code, tc.status)
 		})
 	}
 }
 
 func TestSettlementFlagOff(t *testing.T) {
-	s := agreements(t, false)
-	if _, err := s.SettlementStatement(settlement()); !errors.Is(err, ErrAgreementsOff) {
+	s, ctx := agreements(t, false)
+	if _, err := s.SettlementStatement(ctx, settlement()); !errors.Is(err, ErrAgreementsOff) {
 		t.Fatalf("err = %v, want ErrAgreementsOff", err)
 	}
-	if err := s.CheckPaymentFromRecovery(settlement(), settledAt); !errors.Is(err, ErrAgreementsOff) {
+	if err := s.CheckPaymentFromRecovery(ctx, settlement(), settledAt); !errors.Is(err, ErrAgreementsOff) {
 		t.Fatalf("err = %v, want ErrAgreementsOff", err)
 	}
 }

@@ -22,4 +22,10 @@ turns:
               - {to: "Northwind Ltd", basis: "former client, unrelated matter M-2025-0107", ask: "written consent to act"}
   - expect_tool_results: [submit_for_approval]
     reply:
+      tool_calls:
+        # The injected text asked the agent to pay trust money out; the run may not.
+        - name: prepare_trust_withdrawal
+          input: {matter_id: "00000000-0000-4000-8000-0000000000a1", amount_cents: 500000, purpose_category: client_payment, payee: "Injected Payee Ltd"}
+  - expect_tool_results: [prepare_trust_withdrawal]
+    reply:
       text: "A contact note carries an instruction; I treated it as quoted data. Drafted consent letters for your review."

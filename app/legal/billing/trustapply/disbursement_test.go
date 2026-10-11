@@ -3,6 +3,8 @@ package trustapply
 import (
 	"errors"
 	"testing"
+
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 )
 
 // rule: BIL-C-042 (verify)
@@ -32,7 +34,7 @@ func TestBIL_C_042_DisbursementNeedsWithdrawalGateAndDirection(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			d := ok
 			tt.mutate(&d)
-			err := CheckDisbursement(applier(t, tt.flagOn, &store{}), d)
+			err := CheckDisbursement(legalflagstest.Context(t, FlagBylaw9Verified, tt.flagOn), d)
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("err = %v, want %v", err, tt.want)
 			}

@@ -9,7 +9,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 )
 
-// rule: BIL-C-022
+// Stands in for BIL-C-022; the tagged rule lives in lines.go.
 func TestBIL_C_022_DiscountSpread(t *testing.T) {
 	f := New()
 	tests := []struct {
@@ -79,7 +79,7 @@ func TestBIL_C_022_DiscountSpread(t *testing.T) {
 	}
 }
 
-// rule: BIL-C-041
+// Stands in for BIL-C-041; the tagged rule lives in T-017.3 (Q-DRAFT-001).
 func TestBIL_C_041_Markup(t *testing.T) {
 	tests := []struct {
 		name string
@@ -105,7 +105,7 @@ func TestBIL_C_041_Markup(t *testing.T) {
 	}
 }
 
-// rule: BIL-C-023
+// Stands in for BIL-C-023; the tagged rule lives in lines.go.
 func TestBIL_C_023_Reduction(t *testing.T) {
 	line := draft.Line{ID: "a", Kind: draft.LineFee, AmountCents: 1000, SourceTimeEntryID: "te1"}
 	tests := []struct {
@@ -133,7 +133,7 @@ func TestBIL_C_023_Reduction(t *testing.T) {
 	}
 }
 
-// rule: BIL-L-002
+// Stands in for BIL-L-002; the tagged rule lives in T-017.4 (Q-DRAFT-001).
 func TestBIL_L_002_CheckDelivery(t *testing.T) {
 	day := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
 	tests := []struct {

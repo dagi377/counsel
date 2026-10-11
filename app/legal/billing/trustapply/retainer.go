@@ -1,10 +1,11 @@
 package trustapply
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
 // IssuedBill is the slice of an issued bill a retainer application reads for tax.
@@ -22,13 +23,11 @@ type TaxPoint struct {
 }
 
 // Retainer decides the tax timing of retainers held in trust.
-type Retainer struct {
-	Flags flags.Flags
-}
+type Retainer struct{}
 
 // OnReceipt returns the tax points a retainer received into trust creates: none.
-func (r Retainer) OnReceipt(amountCents int64) ([]TaxPoint, error) {
-	if !r.Flags.Enabled(FlagBylaw9Verified) {
+func (r Retainer) OnReceipt(ctx context.Context, amountCents int64) ([]TaxPoint, error) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return nil, ErrDisabled
 	}
 	if amountCents <= 0 {
@@ -42,8 +41,8 @@ func (r Retainer) OnReceipt(amountCents int64) ([]TaxPoint, error) {
 // OnApply returns the tax point when amountCents of a retainer is applied on appliedOn to
 // bill b. The tax is the bill's own tax, unchanged by the application, and is payable on
 // the earlier of the bill date and the application date (BIL-T-050).
-func (r Retainer) OnApply(b IssuedBill, appliedOn time.Time, amountCents int64) (TaxPoint, error) {
-	if !r.Flags.Enabled(FlagBylaw9Verified) {
+func (r Retainer) OnApply(ctx context.Context, b IssuedBill, appliedOn time.Time, amountCents int64) (TaxPoint, error) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return TaxPoint{}, ErrDisabled
 	}
 	if amountCents <= 0 || b.ID == "" || appliedOn.IsZero() || b.TaxCents < 0 {

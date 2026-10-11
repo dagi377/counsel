@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
 // StatusProposed is the only state auto-apply creates a trust fee transfer in.
@@ -50,7 +52,7 @@ func (a AutoApplier) OnApproved(ctx context.Context, ev Approved) (Proposal, boo
 	if !ev.AutoApply {
 		return Proposal{}, false, nil
 	}
-	if !a.Applier.Flags.Enabled(FlagBylaw9Verified) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return Proposal{}, false, ErrDisabled
 	}
 	if ev.BillID == "" || ev.MatterID == "" || ev.TrustAccountID == "" {
@@ -60,10 +62,11 @@ func (a AutoApplier) OnApproved(ctx context.Context, ev Approved) (Proposal, boo
 	if err != nil {
 		return Proposal{}, false, fmt.Errorf("lock bill %s: %w", ev.BillID, err)
 	}
-	avail, err := a.Applier.Store.LockAvailable(ctx, ev.TrustAccountID, ev.MatterID)
+	funds, err := a.Applier.Store.LockFunds(ctx, ev.TrustAccountID, ev.MatterID)
 	if err != nil {
 		return Proposal{}, false, fmt.Errorf("lock trust ledger: %w", err)
 	}
+	avail := funds.Available()
 	amount := min(b.BalanceCents-b.ReservedCents, avail)
 	if amount <= 0 {
 		return Proposal{}, false, nil

@@ -1,27 +1,21 @@
 package contingency
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 	"github.com/dagi377/counsel/kernel/api"
 	"github.com/dagi377/counsel/kernel/clock"
-	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/money"
 	"github.com/dagi377/counsel/kernel/money/moneyfake"
 )
 
-func agreements(t *testing.T, on bool) Agreements {
+func agreements(t *testing.T, on bool) (Agreements, context.Context) {
 	t.Helper()
-	s := flags.New()
-	if err := s.Define(flags.Def{Name: agreementFlag, Owner: "lawyer/LSO", Expiry: time.Date(2027, 6, 30, 0, 0, 0, 0, time.UTC)}); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Set(agreementFlag, on); err != nil {
-		t.Fatal(err)
-	}
-	return Agreements{Flags: s, Money: moneyfake.New()}
+	return Agreements{Money: moneyfake.New()}, legalflagstest.Context(t, agreementFlag, on)
 }
 
 // wantCode fails unless err is a problem with code (or nil when code is empty).
@@ -49,18 +43,18 @@ func valid() Agreement {
 }
 
 func TestAgreementsFlagOff(t *testing.T) {
-	s := agreements(t, false)
-	if err := s.CheckArrangement(valid()); !errors.Is(err, ErrAgreementsOff) {
+	s, ctx := agreements(t, false)
+	if err := s.CheckArrangement(ctx, valid()); !errors.Is(err, ErrAgreementsOff) {
 		t.Fatalf("err = %v, want ErrAgreementsOff", err)
 	}
-	if _, err := s.Fee(100, 1); !errors.Is(err, ErrAgreementsOff) {
+	if _, err := s.Fee(ctx, 100, 1); !errors.Is(err, ErrAgreementsOff) {
 		t.Fatalf("err = %v, want ErrAgreementsOff", err)
 	}
 }
 
 // rule: BIL-L-016
 func TestBIL_L_016_NoContingencyInFamilyOrCriminal(t *testing.T) {
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	for _, tc := range []struct {
 		area PracticeArea
 		code string
@@ -73,14 +67,14 @@ func TestBIL_L_016_NoContingencyInFamilyOrCriminal(t *testing.T) {
 		t.Run(string(tc.area), func(t *testing.T) {
 			a := valid()
 			a.PracticeArea = tc.area
-			wantCode(t, s.CheckArrangement(a), tc.code, 422)
+			wantCode(t, s.CheckArrangement(ctx, a), tc.code, 422)
 		})
 	}
 }
 
 // rule: BIL-L-015
 func TestBIL_L_015_SignedDocumentRequired(t *testing.T) {
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	for _, tc := range []struct {
 		name, doc, code string
 	}{
@@ -90,14 +84,14 @@ func TestBIL_L_015_SignedDocumentRequired(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			a := valid()
 			a.SignedDocID = tc.doc
-			wantCode(t, s.CheckArrangement(a), tc.code, 422)
+			wantCode(t, s.CheckArrangement(ctx, a), tc.code, 422)
 		})
 	}
 }
 
 // rule: BIL-L-017
 func TestBIL_L_017_StandardFormRequired(t *testing.T) {
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	for _, tc := range []struct {
 		name string
 		form string
@@ -117,14 +111,14 @@ func TestBIL_L_017_StandardFormRequired(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			a := valid()
 			a.Form, a.Exemption = tc.form, tc.ex
-			wantCode(t, s.Activate(a), tc.code, 422)
+			wantCode(t, s.Activate(ctx, a), tc.code, 422)
 		})
 	}
 }
 
 // rule: BIL-L-018
 func TestBIL_L_018_PrescribedStatements(t *testing.T) {
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	ticked := func(items ...int) map[int]string {
 		m := map[int]string{}
 		for _, n := range items {
@@ -146,14 +140,14 @@ func TestBIL_L_018_PrescribedStatements(t *testing.T) {
 			a := valid()
 			a.Kind, a.Stages, a.Statements = KindNonPercentage, nil, tc.statements
 			a.ClientUnderDisability, a.ReviewUnderR708 = tc.disability, true
-			wantCode(t, s.Activate(a), tc.code, 422)
+			wantCode(t, s.Activate(ctx, a), tc.code, 422)
 		})
 	}
 }
 
 // rule: BIL-L-019
 func TestBIL_L_019_ImpermissibleTerms(t *testing.T) {
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	for _, tc := range []struct {
 		tag, code string
 	}{
@@ -165,14 +159,14 @@ func TestBIL_L_019_ImpermissibleTerms(t *testing.T) {
 		t.Run(tc.tag, func(t *testing.T) {
 			a := valid()
 			a.ClauseTags = []string{"parties", tc.tag}
-			wantCode(t, s.Activate(a), tc.code, 422)
+			wantCode(t, s.Activate(ctx, a), tc.code, 422)
 		})
 	}
 }
 
 // rule: BIL-L-025
 func TestBIL_L_025_DisabilityApproval(t *testing.T) {
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	for _, tc := range []struct {
 		name          string
 		judge         string
@@ -187,26 +181,26 @@ func TestBIL_L_025_DisabilityApproval(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			a := valid()
 			a.ClientUnderDisability, a.JudgeApprovalDocID, a.ReviewUnderR708 = true, tc.judge, tc.review
-			wantCode(t, s.Activate(a), tc.activate, 422)
-			wantCode(t, s.CheckFeeFromSettlement(a, tc.order), tc.pay, 409)
+			wantCode(t, s.Activate(ctx, a), tc.activate, 422)
+			wantCode(t, s.CheckFeeFromSettlement(ctx, a, tc.order), tc.pay, 409)
 		})
 	}
 }
 
 // rule: BIL-L-026
 func TestBIL_L_026_ParalegalMattersSameRules(t *testing.T) {
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	a := valid()
 	a.Paralegal, a.PracticeArea, a.Form = true, "small_claims", "firm-custom"
 	a.Stages = []Stage{{Name: "trial", PctPPM: 250000}}
-	wantCode(t, s.Activate(a), "CFA_STANDARD_FORM_REQUIRED", 422)
+	wantCode(t, s.Activate(ctx, a), "CFA_STANDARD_FORM_REQUIRED", 422)
 	a.PracticeArea = AreaFamily
-	wantCode(t, s.CheckArrangement(a), "CONTINGENCY_NOT_PERMITTED", 422)
+	wantCode(t, s.CheckArrangement(ctx, a), "CONTINGENCY_NOT_PERMITTED", 422)
 }
 
 // rule: BIL-C-032
 func TestBIL_C_032_ContingencyFee(t *testing.T) {
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	for _, tc := range []struct {
 		name string
 		base money.Cents
@@ -219,35 +213,35 @@ func TestBIL_C_032_ContingencyFee(t *testing.T) {
 		{"zero", 0, 300_000, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := s.Fee(tc.base, tc.pct)
+			got, err := s.Fee(ctx, tc.base, tc.pct)
 			if err != nil || got != tc.want {
 				t.Fatalf("Fee = %d, %v; want %d", got, err, tc.want)
 			}
 		})
 	}
-	if _, err := s.Fee(1, 1_000_001); err == nil {
+	if _, err := s.Fee(ctx, 1, 1_000_001); err == nil {
 		t.Fatal("pct over 100% accepted")
 	}
 	a := valid()
 	a.Stages = []Stage{{Name: "pleadings", PctPPM: 200_000}, {Name: "trial", PctPPM: 330_000}}
-	if p, err := s.StagePct(a, "trial"); err != nil || p != 330_000 {
+	if p, err := s.StagePct(ctx, a, "trial"); err != nil || p != 330_000 {
 		t.Fatalf("StagePct = %d, %v", p, err)
 	}
-	wantCode(t, func() error { _, err := s.StagePct(a, "appeal"); return err }(), "CFA_UNKNOWN_STAGE", 422)
+	wantCode(t, func() error { _, err := s.StagePct(ctx, a, "appeal"); return err }(), "CFA_UNKNOWN_STAGE", 422)
 	a.InterimBillsAllowed = false
-	wantCode(t, s.CheckInterimBill(a), "CFA_INTERIM_BILL_NOT_ALLOWED", 409)
+	wantCode(t, s.CheckInterimBill(ctx, a), "CFA_INTERIM_BILL_NOT_ALLOWED", 409)
 	a.InterimBillsAllowed = true
-	wantCode(t, s.CheckInterimBill(a), "", 0)
+	wantCode(t, s.CheckInterimBill(ctx, a), "", 0)
 }
 
 // rule: BIL-L-021
 func TestBIL_L_021_FeeExcludesRecoverableDisbursements(t *testing.T) {
-	s := agreements(t, true)
-	base, err := s.RecoveryBase(Recovery{DamagesCents: 1_000_000, DisbursementsCents: 80_000})
+	s, ctx := agreements(t, true)
+	base, err := s.RecoveryBase(ctx, Recovery{DamagesCents: 1_000_000, DisbursementsCents: 80_000})
 	if err != nil || base != 920_000 {
 		t.Fatalf("base = %d, %v; want 920000", base, err)
 	}
-	fee, err := s.Fee(base, 300_000)
+	fee, err := s.Fee(ctx, base, 300_000)
 	if err != nil || fee != 276_000 {
 		t.Fatalf("fee = %d, %v; want 276000", fee, err)
 	}
@@ -255,7 +249,7 @@ func TestBIL_L_021_FeeExcludesRecoverableDisbursements(t *testing.T) {
 
 // rule: BIL-L-020
 func TestBIL_L_020_RecoveryBase(t *testing.T) {
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	for _, tc := range []struct {
 		name string
 		r    Recovery
@@ -267,7 +261,7 @@ func TestBIL_L_020_RecoveryBase(t *testing.T) {
 		{"disbursements exceed recovery", Recovery{DamagesCents: 100, DisbursementsCents: 200}, 0, "CFA_BAD_RECOVERY"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := s.RecoveryBase(tc.r)
+			got, err := s.RecoveryBase(ctx, tc.r)
 			wantCode(t, err, tc.code, 422)
 			if got != tc.want {
 				t.Fatalf("base = %d, want %d", got, tc.want)
@@ -278,7 +272,7 @@ func TestBIL_L_020_RecoveryBase(t *testing.T) {
 
 // rule: BIL-C-033
 func TestBIL_C_033_ContingencyCap(t *testing.T) {
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	for _, tc := range []struct {
 		name      string
 		fee, base money.Cents
@@ -291,7 +285,7 @@ func TestBIL_C_033_ContingencyCap(t *testing.T) {
 		{"fee over recovery base", 1_000_001, 1_000_000, 1_000_000, "CFA_FEE_EXCEEDS_RECOVERY"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := s.CheckCap(tc.fee, tc.base)
+			got, err := s.CheckCap(ctx, tc.fee, tc.base)
 			wantCode(t, err, tc.code, 409)
 			if got != tc.want {
 				t.Fatalf("proposal = %d, want %d", got, tc.want)
@@ -302,7 +296,7 @@ func TestBIL_C_033_ContingencyCap(t *testing.T) {
 
 // rule: BIL-L-024
 func TestBIL_L_024_AssessmentDeadlines(t *testing.T) {
-	s := agreements(t, true)
+	s, ctx := agreements(t, true)
 	d := func(y int, m time.Month, day int) clock.Date { return clock.Date{Year: y, Month: m, Day: day} }
 	paid := d(2026, 5, 20)
 	for _, tc := range []struct {
@@ -318,7 +312,7 @@ func TestBIL_L_024_AssessmentDeadlines(t *testing.T) {
 		{"over-maximum: six months", d(2026, 5, 1), nil, true, d(2026, 11, 1), nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := s.AssessmentDeadlines(tc.delivered, tc.paid, tc.over)
+			got, err := s.AssessmentDeadlines(ctx, tc.delivered, tc.paid, tc.over)
 			if err != nil {
 				t.Fatal(err)
 			}

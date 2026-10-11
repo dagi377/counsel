@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 )
 
 // FlagBylaw9Verified gates trust-to-fees transfers until the By-Law 9 provisions are
 // verified. It is off by default.
-const FlagBylaw9Verified = "trust.bylaw9_verified"
+const FlagBylaw9Verified = legalflags.TrustBylaw9Verified
 
 // Sentinel errors.
 var (
@@ -53,20 +54,19 @@ type Transfer struct {
 type Store interface {
 	// LockBill returns the bill, locked.
 	LockBill(ctx context.Context, billID string) (Bill, error)
-	// LockAvailable locks the client ledger row and returns available cents: cleared
-	// minus protected minus minimum minus authorized (BIL-C-053).
-	LockAvailable(ctx context.Context, trustAccountID, matterID string) (int64, error)
+	// LockFunds locks the client ledger row and returns its trust position; Check takes
+	// the available balance from it with withdraw.Funds.Available (BIL-C-053).
+	LockFunds(ctx context.Context, trustAccountID, matterID string) (withdraw.Funds, error)
 }
 
 // Applier checks and applies trust fee transfers.
 type Applier struct {
-	Flags flags.Flags
 	Store Store
 }
 
 // Check validates t at proposal, authorization and execution. It returns the locked bill.
 func (a Applier) Check(ctx context.Context, t Transfer) (Bill, error) {
-	if !a.Flags.Enabled(FlagBylaw9Verified) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return Bill{}, ErrDisabled
 	}
 	if t.AmountCents <= 0 || t.BillID == "" || t.TrustAccountID == "" || t.MatterID == "" {
@@ -98,10 +98,11 @@ func (a Applier) Check(ctx context.Context, t Transfer) (Bill, error) {
 	// rule: BIL-C-051
 	// The client ledger row is locked and must have available >= amount, so concurrent
 	// authorizations against the same funds serialize and the second fails.
-	avail, err := a.Store.LockAvailable(ctx, t.TrustAccountID, t.MatterID)
+	funds, err := a.Store.LockFunds(ctx, t.TrustAccountID, t.MatterID)
 	if err != nil {
 		return Bill{}, fmt.Errorf("lock trust ledger: %w", err)
 	}
+	avail := funds.Available()
 	// rule: BIL-C-050
 	// amount <= min(bill balance - reserved, trust available).
 	if t.AmountCents > avail {

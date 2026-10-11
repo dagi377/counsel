@@ -5,17 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 	"github.com/dagi377/counsel/kernel/money"
 )
-
-type flagStub bool
-
-func (f flagStub) Enabled(name string) bool { return bool(f) && name == FlagSolicitorsActVerified }
 
 func startFixture(t *testing.T) (Start, func(y int, mo time.Month, d int) time.Time) {
 	t.Helper()
 	loc := toronto(t)
-	return Start{Calendar: Months{Loc: loc}, Flags: flagStub(true)},
+	return Start{Calendar: Months{Loc: loc}},
 		func(y int, mo time.Month, d int) time.Time { return time.Date(y, mo, d, 0, 0, 0, 0, loc) }
 }
 
@@ -23,10 +20,11 @@ func startFixture(t *testing.T) (Start, func(y int, mo time.Month, d int) time.T
 // rule: BIL-L-008 (verify one-month computation)
 func TestBIL_I_023_NoInterestBeforeOneMonth(t *testing.T) {
 	s, day := startFixture(t)
+	ctx := legalflagstest.Context(t, FlagSolicitorsActVerified, true)
 	b := Bill{ID: "b1", DeliveredAt: day(2026, 1, 15).Add(10 * time.Hour), Principal: 100000, RatePPM: 60000}
 	for d := day(2026, 1, 15); d.Before(day(2026, 3, 1)); d = d.AddDate(0, 0, 1) {
 		want := !d.Before(day(2026, 2, 15)) // s.33: from one month after delivery
-		if got := s.Accrues(b, time.Time{}, d); got != want {
+		if got := s.Accrues(ctx, b, time.Time{}, d); got != want {
 			t.Fatalf("Accrues(%s) = %v, want %v", d.Format(time.DateOnly), got, want)
 		}
 	}
@@ -39,7 +37,7 @@ func TestBIL_I_023_NoInterestBeforeOneMonth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if s.Accrues(tt.b, time.Time{}, day(2027, 1, 1)) {
+			if s.Accrues(ctx, tt.b, time.Time{}, day(2027, 1, 1)) {
 				t.Fatal("interest accrues on a bill that must never accrue")
 			}
 		})
@@ -49,6 +47,7 @@ func TestBIL_I_023_NoInterestBeforeOneMonth(t *testing.T) {
 // rule: BIL-L-008 (verify one-month computation)
 func TestBIL_L_008_AccrualFromOneMonthAfterDelivery(t *testing.T) {
 	s, day := startFixture(t)
+	ctx := legalflagstest.Context(t, FlagSolicitorsActVerified, true)
 	tests := []struct {
 		name      string
 		delivered time.Time
@@ -59,7 +58,7 @@ func TestBIL_L_008_AccrualFromOneMonthAfterDelivery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := s.From(Bill{ID: "b", DeliveredAt: tt.delivered, RatePPM: 60000}, time.Time{})
+			got, err := s.From(ctx, Bill{ID: "b", DeliveredAt: tt.delivered, RatePPM: 60000}, time.Time{})
 			if err != nil || !got.Equal(tt.want) {
 				t.Fatalf("From = %s, %v; want %s", got.Format(time.DateOnly), err, tt.want.Format(time.DateOnly))
 			}
@@ -70,6 +69,7 @@ func TestBIL_L_008_AccrualFromOneMonthAfterDelivery(t *testing.T) {
 // rule: BIL-C-070
 func TestBIL_C_070_StartIsLaterOfDueAndOneMonth(t *testing.T) {
 	s, day := startFixture(t)
+	ctx := legalflagstest.Context(t, FlagSolicitorsActVerified, true)
 	b := Bill{ID: "b", DeliveredAt: day(2026, 1, 15).Add(9 * time.Hour), RatePPM: 60000}
 	tests := []struct {
 		name string
@@ -82,7 +82,7 @@ func TestBIL_C_070_StartIsLaterOfDueAndOneMonth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := s.From(b, tt.due)
+			got, err := s.From(ctx, b, tt.due)
 			if err != nil || !got.Equal(tt.want) {
 				t.Fatalf("From = %s, %v; want %s", got.Format(time.DateOnly), err, tt.want.Format(time.DateOnly))
 			}
@@ -94,6 +94,7 @@ func TestBIL_C_070_StartIsLaterOfDueAndOneMonth(t *testing.T) {
 // rule: BIL-L-009
 func TestBIL_C_071_RateMustBeAgreed(t *testing.T) {
 	s, day := startFixture(t)
+	ctx := legalflagstest.Context(t, FlagSolicitorsActVerified, true)
 	tests := []struct {
 		name string
 		rate money.PPM
@@ -105,7 +106,7 @@ func TestBIL_C_071_RateMustBeAgreed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := Bill{ID: "b", DeliveredAt: day(2026, 1, 15), RatePPM: tt.rate}
-			_, err := s.From(b, time.Time{})
+			_, err := s.From(ctx, b, time.Time{})
 			if !errors.Is(err, tt.want) {
 				t.Fatalf("From err = %v, want %v", err, tt.want)
 			}
@@ -116,6 +117,7 @@ func TestBIL_C_071_RateMustBeAgreed(t *testing.T) {
 // rule: BIL-L-009
 func TestBIL_L_009_NoPrintedRateNoInterest(t *testing.T) {
 	s, day := startFixture(t)
+	ctx := legalflagstest.Context(t, FlagSolicitorsActVerified, true)
 	b := Bill{ID: "b", DeliveredAt: day(2026, 1, 15), Principal: 500000}
 	tests := []struct {
 		name string
@@ -126,7 +128,7 @@ func TestBIL_L_009_NoPrintedRateNoInterest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if s.Accrues(b, time.Time{}, tt.day) {
+			if s.Accrues(ctx, b, time.Time{}, tt.day) {
 				t.Fatal("interest accrues without a rate shown on the bill")
 			}
 		})
@@ -136,6 +138,7 @@ func TestBIL_L_009_NoPrintedRateNoInterest(t *testing.T) {
 // rule: BIL-L-012
 func TestBIL_L_012_NoInterestBeforeDelivery(t *testing.T) {
 	s, day := startFixture(t)
+	ctx := legalflagstest.Context(t, FlagSolicitorsActVerified, true)
 	tests := []struct {
 		name      string
 		delivered time.Time
@@ -150,7 +153,7 @@ func TestBIL_L_012_NoInterestBeforeDelivery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := Bill{ID: "b", DeliveredAt: tt.delivered, RatePPM: 60000}
-			if got := s.Accrues(b, time.Time{}, tt.day); got != tt.want {
+			if got := s.Accrues(ctx, b, time.Time{}, tt.day); got != tt.want {
 				t.Fatalf("Accrues = %v, want %v", got, tt.want)
 			}
 		})
@@ -160,6 +163,7 @@ func TestBIL_L_012_NoInterestBeforeDelivery(t *testing.T) {
 // rule: BIL-C-072
 func TestBIL_C_072_PostingClippedToStart(t *testing.T) {
 	s, day := startFixture(t)
+	ctx := legalflagstest.Context(t, FlagSolicitorsActVerified, true)
 	b := Bill{ID: "b", DeliveredAt: day(2026, 1, 15), RatePPM: 60000}
 	tests := []struct {
 		name    string
@@ -174,7 +178,7 @@ func TestBIL_C_072_PostingClippedToStart(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := s.Clip(b, time.Time{}, tt.p)
+			got, err := s.Clip(ctx, b, time.Time{}, tt.p)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Clip err = %v, want %v", err, tt.wantErr)
 			}
@@ -188,6 +192,7 @@ func TestBIL_C_072_PostingClippedToStart(t *testing.T) {
 // rule: BIL-C-073
 func TestBIL_C_073_TorontoDeliveryDate(t *testing.T) {
 	s, day := startFixture(t)
+	ctx := legalflagstest.Context(t, FlagSolicitorsActVerified, true)
 	tests := []struct {
 		name      string
 		delivered time.Time
@@ -198,7 +203,7 @@ func TestBIL_C_073_TorontoDeliveryDate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := s.From(Bill{ID: "b", DeliveredAt: tt.delivered, RatePPM: 60000}, time.Time{})
+			got, err := s.From(ctx, Bill{ID: "b", DeliveredAt: tt.delivered, RatePPM: 60000}, time.Time{})
 			if err != nil || !got.Equal(tt.want) {
 				t.Fatalf("From = %s, %v; want %s", got.Format(time.DateOnly), err, tt.want.Format(time.DateOnly))
 			}
@@ -208,8 +213,9 @@ func TestBIL_C_073_TorontoDeliveryDate(t *testing.T) {
 
 func TestStartFlagOff(t *testing.T) {
 	s, day := startFixture(t)
-	s.Flags = flagStub(false)
-	_, err := s.From(Bill{ID: "b", DeliveredAt: day(2026, 1, 15), RatePPM: 60000}, time.Time{})
+	ctx := legalflagstest.Context(t, FlagSolicitorsActVerified, true)
+	ctx = legalflagstest.Context(t, FlagSolicitorsActVerified, false)
+	_, err := s.From(ctx, Bill{ID: "b", DeliveredAt: day(2026, 1, 15), RatePPM: 60000}, time.Time{})
 	if !errors.Is(err, ErrAccrualUnverified) {
 		t.Fatalf("From err = %v, want ErrAccrualUnverified", err)
 	}

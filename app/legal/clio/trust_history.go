@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/clock"
-	"github.com/dagi377/counsel/kernel/flags"
 )
 
 // ErrHistoryUnverified is returned while the By-Law 9 flag is off.
@@ -39,7 +39,7 @@ type TrustBook struct {
 
 // LedgerBalance is the live balance of one client ledger: the sum of live rows only.
 func (b TrustBook) LedgerBalance(ctx context.Context, ledgerID string) (int64, error) {
-	if !flags.Enabled(ctx, FlagBylaw9Verified) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return 0, ErrHistoryUnverified
 	}
 	// rule: MIG-037 (verify)
@@ -54,7 +54,7 @@ func (b TrustBook) LedgerBalance(ctx context.Context, ledgerID string) (int64, e
 
 // AccountBalance is the live balance of the whole account: the sum of live rows only.
 func (b TrustBook) AccountBalance(ctx context.Context) (int64, error) {
-	if !flags.Enabled(ctx, FlagBylaw9Verified) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return 0, ErrHistoryUnverified
 	}
 	// rule: MIG-037 (verify)

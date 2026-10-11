@@ -1,27 +1,20 @@
 package assessment
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/billing/credit"
 	"github.com/dagi377/counsel/app/legal/billing/interest"
-	"github.com/dagi377/counsel/kernel/flags"
-	"github.com/dagi377/counsel/kernel/flags/flagsfake"
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 	"github.com/dagi377/counsel/kernel/money"
 )
 
-func resultOutcome(t *testing.T, on bool) Outcome {
+func resultOutcome(t *testing.T, on bool) (Outcome, context.Context) {
 	t.Helper()
-	f := flagsfake.New()
-	if err := f.Define(flags.Def{Name: FlagSolicitorsActVerified, Owner: "lawyer/LSO"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Set(FlagSolicitorsActVerified, on); err != nil {
-		t.Fatal(err)
-	}
-	return Outcome{Calc: interest.Calc{}, Flags: f, RepaymentDays: 30}
+	return Outcome{Calc: interest.Calc{}, RepaymentDays: 30}, legalflagstest.Context(t, FlagSolicitorsActVerified, on)
 }
 
 // rule: BIL-L-011
@@ -74,10 +67,10 @@ func TestBIL_L_011_AssessmentResultRepayment(t *testing.T) {
 			wantErr: ErrBadResult,
 		},
 	}
-	o := resultOutcome(t, true)
+	o, ctx := resultOutcome(t, true)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := o.Apply(tt.r, "clerk1")
+			got, err := o.Apply(ctx, tt.r, "clerk1")
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Apply err = %v, want %v", err, tt.wantErr)
 			}
@@ -102,7 +95,8 @@ func TestBIL_L_011_AssessmentResultRepayment(t *testing.T) {
 }
 
 func TestAssessmentResultFlagOff(t *testing.T) {
-	_, err := resultOutcome(t, false).Apply(Result{BillID: "b", BilledCents: 1, AssessedCents: 1}, "clerk1")
+	o, ctx := resultOutcome(t, false)
+	_, err := o.Apply(ctx, Result{BillID: "b", BilledCents: 1, AssessedCents: 1}, "clerk1")
 	if !errors.Is(err, ErrResultUnverified) {
 		t.Fatalf("Apply err = %v, want ErrResultUnverified", err)
 	}

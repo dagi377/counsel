@@ -19,8 +19,8 @@ import (
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 )
 
-// Module packages that app/legal imports cannot import app/legal back, so they mirror the
-// flag names they read. This test keeps every mirror equal to the canonical name.
+// Module packages name the flags they read through app/legal/legalflags (they cannot import
+// app/legal back). This test keeps every package-level name equal to the canonical one.
 func TestFlagMirrorsMatchCanonicalNames(t *testing.T) {
 	tests := []struct {
 		name   string

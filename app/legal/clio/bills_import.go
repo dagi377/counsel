@@ -1,17 +1,18 @@
 package clio
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/money"
 )
 
 // FlagBylaw9Verified gates bill history import until the trust rules are confirmed (V-TRUST).
-// It mirrors legal.FlagTrustBylaw9Verified, which this package cannot import.
-const FlagBylaw9Verified = "trust.bylaw9_verified"
+// It is legalflags.TrustBylaw9Verified.
+const FlagBylaw9Verified = legalflags.TrustBylaw9Verified
 
 var (
 	// ErrBillImportDisabled is returned while FlagBylaw9Verified is off.
@@ -52,9 +53,9 @@ type ImportedBill struct {
 
 // ImportBill turns a source bill into an imported historical bill. It never recomputes tax:
 // a difference from base x rate is a warning, not a correction.
-func ImportBill(f flags.Flags, b SourceBill) (ImportedBill, error) {
+func ImportBill(ctx context.Context, b SourceBill) (ImportedBill, error) {
 	// rule: MIG-023 (verify)
-	if !f.Enabled(FlagBylaw9Verified) {
+	if !legalflags.Enabled(ctx, FlagBylaw9Verified) {
 		return ImportedBill{}, ErrBillImportDisabled
 	}
 	if b.SourceID == "" || b.SubtotalCents < 0 {

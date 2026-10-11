@@ -5,21 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dagi377/counsel/kernel/flags"
-	"github.com/dagi377/counsel/kernel/flags/flagsfake"
+	"github.com/dagi377/counsel/app/legal/legalflags/legalflagstest"
 )
-
-func retainer(t *testing.T, on bool) Retainer {
-	t.Helper()
-	f := flagsfake.New()
-	if err := f.Define(flags.Def{Name: FlagBylaw9Verified, Owner: "billing", Expiry: day(28).AddDate(1, 0, 0)}); err != nil {
-		t.Fatalf("define flag: %v", err)
-	}
-	if err := f.Set(FlagBylaw9Verified, on); err != nil {
-		t.Fatalf("set flag: %v", err)
-	}
-	return Retainer{Flags: f}
-}
 
 func date(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
 
@@ -37,7 +24,7 @@ func TestBIL_T_051_RetainerReceiptPostsNoTax(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := retainer(t, tc.flag).OnReceipt(tc.amount)
+			got, err := Retainer{}.OnReceipt(legalflagstest.Context(t, FlagBylaw9Verified, tc.flag), tc.amount)
 			if !errors.Is(err, tc.err) {
 				t.Fatalf("err = %v, want %v", err, tc.err)
 			}
@@ -70,7 +57,7 @@ func TestBIL_T_051_TaxArisesOnApplication(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := retainer(t, tc.flag).OnApply(tc.bill, tc.applied, tc.amount)
+			got, err := Retainer{}.OnApply(legalflagstest.Context(t, FlagBylaw9Verified, tc.flag), tc.bill, tc.applied, tc.amount)
 			if !errors.Is(err, tc.err) {
 				t.Fatalf("err = %v, want %v", err, tc.err)
 			}

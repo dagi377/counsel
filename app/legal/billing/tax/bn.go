@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 )
 
 // FlagBNCheckVerified gates acceptance of a GST/HST registration number under BIL-T-061. It
 // mirrors legal.FlagTaxBNCheckVerified, which this package cannot import. Off by default:
 // a malformed number is always refused, a well-formed one returns ErrUnverified.
-const FlagBNCheckVerified = "tax.bn_check_verified"
+const FlagBNCheckVerified = legalflags.TaxBNCheckVerified
 
 // Sentinel errors for the tax approval preconditions (BIL-C-201).
 var (
@@ -52,7 +52,7 @@ func CheckBN(ctx context.Context, bn string) error {
 		return err
 	}
 	// rule: BIL-T-061 (verify)
-	if !flags.Enabled(ctx, FlagBNCheckVerified) {
+	if !legalflags.Enabled(ctx, FlagBNCheckVerified) {
 		return fmt.Errorf("check bn: %w", ErrUnverified)
 	}
 	return nil

@@ -19,6 +19,36 @@ Template:
 
 ## Open
 
+## Q-DRAFT-001 Draft rules enforced only in draftfake (gap record)
+
+- Task: T-017.2 (BIL-C-021), T-017.3 (BIL-C-041), T-017.4 (BIL-L-002)
+- Sources: review L3; `app/legal/billing/draft/draftfake/fake.go` was the only code tagged
+  `// rule:` for these ids. BIL-C-022 and BIL-C-023 are already tagged in `draft/lines.go`
+  and `draft/examples_test.go`.
+- Gap: no production code enforces the bill discount total (BIL-C-021), the no-markup-on-agent
+  disbursement rule (BIL-C-041) or the itemized-disbursement delivery block (BIL-L-002). The
+  fake keeps its logic for callers' tests but no longer carries `// rule:` tags, so a grep for
+  rule enforcement no longer counts it.
+- Proposed: the three open tasks add `discount.go`, `disbursement.go`, `itemize.go` with the
+  tags and `TestBIL_C_021_*`, `TestBIL_C_041_*`, `TestBIL_L_002_*`; then delete the matching
+  fake logic.
+- Answer: (owner)
+
+## Q-AGENT-002 F-BIL-03 gate kind differs from the real trust withdrawal tool
+
+- Task: T-037L.2 (agent write tools), F-BIL-03 acceptance test
+- Sources: the F-BIL-03 acceptance test expected gate `billing.trust_fee_withdrawal` and
+  capability `trust.prepare`; `agent.WriteTools` (app/legal/agent/tools_write.go) opens
+  `trust.withdrawal` and needs `trust.request`. The fixture input also did not match the real
+  `prepare_trust_withdrawal` schema.
+- Change made: the F-BIL-03 test now runs the real `agent.WriteTools` through
+  `app/legal/agent/agenttest`; fixtures send the real schema and the test asserts the real
+  gate kind and capability.
+- Reading A: a trust-to-fees transfer is a trust withdrawal; keep `trust.withdrawal`.
+- Reading B: add a separate fee-transfer write tool over `billing/trustapply` with gate
+  `billing.trust_fee_withdrawal`.
+- Answer: (owner)
+
 ## Q-T-045.1 Generated API client cannot live in web/src/kernel
 
 - Task: T-045.1

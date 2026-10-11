@@ -1,6 +1,7 @@
 package contingency
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -8,15 +9,15 @@ import (
 	"slices"
 	"time"
 
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	"github.com/dagi377/counsel/kernel/api"
 	"github.com/dagi377/counsel/kernel/clock"
-	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/money"
 )
 
-// agreementFlag is legal.FlagContingencyFees (V-CFA). It is spelled out here because app/legal
-// imports this package. Every Agreements method refuses with ErrAgreementsOff while it is off.
-const agreementFlag = "billing.contingency_fees"
+// agreementFlag is legalflags.ContingencyFees (V-CFA). Every Agreements method refuses with
+// ErrAgreementsOff while it is off.
+const agreementFlag = legalflags.ContingencyFees
 
 // ErrAgreementsOff is returned by every Agreements method while billing.contingency_fees is off.
 var ErrAgreementsOff = errors.New("contingency: contingency fees are not enabled")
@@ -144,12 +145,11 @@ type Deadlines struct {
 
 // Agreements checks and computes contingency fee agreements. It is pure: callers load and store.
 type Agreements struct {
-	Flags flags.Flags
 	Money money.Arithmetic
 }
 
-func (s Agreements) on() error {
-	if s.Flags == nil || !s.Flags.Enabled(agreementFlag) {
+func (s Agreements) on(ctx context.Context) error {
+	if !legalflags.Enabled(ctx, agreementFlag) {
 		return ErrAgreementsOff
 	}
 	return nil
@@ -161,8 +161,8 @@ func cfaProblem(status int, code, rule, title string) error {
 }
 
 // CheckArrangement is run when a matter's fee arrangement is set to contingency.
-func (s Agreements) CheckArrangement(a Agreement) error {
-	if err := s.on(); err != nil {
+func (s Agreements) CheckArrangement(ctx context.Context, a Agreement) error {
+	if err := s.on(ctx); err != nil {
 		return err
 	}
 	// rule: BIL-L-026
@@ -182,8 +182,8 @@ func (s Agreements) CheckArrangement(a Agreement) error {
 }
 
 // Activate checks that a CFA may be made active. It runs CheckArrangement first.
-func (s Agreements) Activate(a Agreement) error {
-	if err := s.CheckArrangement(a); err != nil {
+func (s Agreements) Activate(ctx context.Context, a Agreement) error {
+	if err := s.CheckArrangement(ctx, a); err != nil {
 		return err
 	}
 	// rule: BIL-L-019
@@ -231,8 +231,8 @@ func (s Agreements) Activate(a Agreement) error {
 
 // RecoveryBase returns damages + costs - designated disbursements - taxes. It is the base of
 // the fee and of the cap.
-func (s Agreements) RecoveryBase(r Recovery) (money.Cents, error) {
-	if err := s.on(); err != nil {
+func (s Agreements) RecoveryBase(ctx context.Context, r Recovery) (money.Cents, error) {
+	if err := s.on(ctx); err != nil {
 		return 0, err
 	}
 	// rule: BIL-C-032
@@ -247,8 +247,8 @@ func (s Agreements) RecoveryBase(r Recovery) (money.Cents, error) {
 }
 
 // StagePct returns the percentage for the named stage of a.
-func (s Agreements) StagePct(a Agreement, stage string) (money.PPM, error) {
-	if err := s.on(); err != nil {
+func (s Agreements) StagePct(ctx context.Context, a Agreement, stage string) (money.PPM, error) {
+	if err := s.on(ctx); err != nil {
 		return 0, err
 	}
 	// rule: BIL-C-032
@@ -262,8 +262,8 @@ func (s Agreements) StagePct(a Agreement, stage string) (money.PPM, error) {
 }
 
 // Fee returns rhu(base * pct, 1e6).
-func (s Agreements) Fee(base money.Cents, pct money.PPM) (money.Cents, error) {
-	if err := s.on(); err != nil {
+func (s Agreements) Fee(ctx context.Context, base money.Cents, pct money.PPM) (money.Cents, error) {
+	if err := s.on(ctx); err != nil {
 		return 0, err
 	}
 	if base < 0 || pct < 0 || pct > money.PPM(money.PPMScale) {
@@ -283,8 +283,8 @@ func (s Agreements) Fee(base money.Cents, pct money.PPM) (money.Cents, error) {
 
 // CheckCap refuses approval of a contingency bill whose fee, excluding disbursements and taxes,
 // exceeds the recovery base. On refusal it also returns the capped proposal (the base).
-func (s Agreements) CheckCap(fee, base money.Cents) (money.Cents, error) {
-	if err := s.on(); err != nil {
+func (s Agreements) CheckCap(ctx context.Context, fee, base money.Cents) (money.Cents, error) {
+	if err := s.on(ctx); err != nil {
 		return 0, err
 	}
 	// rule: BIL-C-033
@@ -297,8 +297,8 @@ func (s Agreements) CheckCap(fee, base money.Cents) (money.Cents, error) {
 }
 
 // CheckInterimBill refuses an interim fee bill unless the agreement allows one.
-func (s Agreements) CheckInterimBill(a Agreement) error {
-	if err := s.on(); err != nil {
+func (s Agreements) CheckInterimBill(ctx context.Context, a Agreement) error {
+	if err := s.on(ctx); err != nil {
 		return err
 	}
 	// rule: BIL-C-032
@@ -311,8 +311,8 @@ func (s Agreements) CheckInterimBill(a Agreement) error {
 
 // CheckFeeFromSettlement refuses paying any fee from the settlement of a party under disability
 // until the r.7.08 order is linked.
-func (s Agreements) CheckFeeFromSettlement(a Agreement, r708OrderDocID string) error {
-	if err := s.on(); err != nil {
+func (s Agreements) CheckFeeFromSettlement(ctx context.Context, a Agreement, r708OrderDocID string) error {
+	if err := s.on(ctx); err != nil {
 		return err
 	}
 	// rule: BIL-L-025
@@ -326,8 +326,8 @@ func (s Agreements) CheckFeeFromSettlement(a Agreement, r708OrderDocID string) e
 // AssessmentDeadlines returns the assessment deadlines of a contingency bill delivered on
 // delivered and paid on paid (nil if unpaid). overMaximum is a court-approved agreement above
 // the maximum (s.28.1(6)): six months after delivery, for client or lawyer.
-func (s Agreements) AssessmentDeadlines(delivered clock.Date, paid *clock.Date, overMaximum bool) (Deadlines, error) {
-	if err := s.on(); err != nil {
+func (s Agreements) AssessmentDeadlines(ctx context.Context, delivered clock.Date, paid *clock.Date, overMaximum bool) (Deadlines, error) {
+	if err := s.on(ctx); err != nil {
 		return Deadlines{}, err
 	}
 	// rule: BIL-L-024
