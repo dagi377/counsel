@@ -4344,3 +4344,36 @@ and has a one-outbox-event test.
   answer should need only `work.view` (that would need a per-action capability).
 - FEAT-WRK-09's `ai_wrkc_helpers_test.go` additions (read-only prompt and Def checks, answer and
   outcome helpers) were folded into the shared `ai_wrk_helpers_test.go`.
+
+## FEAT-BIL-01 F-BIL-01 billing cycle drafts
+
+- Gap (FEAT-TOOL-08): list_unbilled does not record its figures in the run's provenance
+  (get_bill and get_trust_balance wrap with pv.ReadTool; buildListUnbilled reads no
+  *agenttools.Provenance). So in production a draft_bill write-down taken from list_unbilled
+  is refused with ErrUnsourcedValue. The billing feature tests wrap list_unbilled with
+  pv.ReadTool in their handler set (bilHandlers). Proposed: buildListUnbilled reads the
+  Provenance and wraps its tool the same way.
+- Manual trigger: no kernel event exists for "run the billing cycle now", so F-BIL-01 binds
+  the new event type billing.cycle_requested (EventBillingCycleRequested) next to the daily
+  designated-lawyer schedule. Open: which screen or route emits it.
+- The Seed has no billing ports (MatterTime, UnbilledWIP, batch.Drafts, BillReader,
+  BillBalances, TrustAvailable, MatterTrustAccounts), so the billing tests supply them from
+  in-memory fakes ahead of the Seed's (ai_bil_helpers_test.go).
+
+## FEAT-BIL-02 F-BIL-02 bill render and pre-flight
+
+- draft_document's input has no cents field, so the provenance of a rendered bill's amounts
+  is checked in its text: billing.SourcedBillDraftHandler wraps draft_document and refuses an
+  agent draft whose title or body states an "<n> cents" figure no read returned in the run
+  (ErrUnsourcedValue, before the draft is stored). A HandlerSet holds one handler per tool,
+  so boot still serves the plain draft_document to every feature. Open: serve the sourced
+  wrapper as the boot draft_document (it only refuses invented cents figures), or let a Def
+  name per-feature handler overrides.
+- F-BIL-02 binds gate.decided (billing.EventGateDecided) for the event's user; the run renders
+  only when the decided gate is a G-B1 pre-bill review.
+
+## FEAT-BIL-04 F-BIL-04 payment matching
+
+- No kernel event exists for an imported bank feed line, so F-BIL-04 binds
+  payment.received (already used by F-MAT-03) and the new bank_feed.line_imported
+  (billing.EventBankFeedLineAdded). Open: which module emits the bank feed event.

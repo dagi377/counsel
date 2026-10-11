@@ -4,29 +4,28 @@ match:
   last_user_regex: '\[error_429\]'
 fault: rate_limit
 turns:
-  - expect_tools: [report_plan]
-    reply:
+  - reply:
       tool_calls:
         - name: report_plan
-          input: {steps: [{id: bills, title: "Read open bills on the matter"}, {id: allocate, title: "Propose an allocation"}]}
+          input: {"steps": [{"step_id": "read", "title": "Read the open bill"}, {"step_id": "allocate", "title": "Propose an allocation"}]}
       stop_reason: tool_use
-      usage: {input_tokens: 640, output_tokens: 48}
+      usage: {input_tokens: 700, output_tokens: 40}
   - expect_tool_results: [report_plan]
     reply:
       tool_calls:
         - name: get_bill
-          input: {matter: "mat-synth-001", status: open}
+          input: {"bill_id": "00000000-0000-4000-8000-0000000b1b01"}
       stop_reason: tool_use
-      usage: {input_tokens: 720, output_tokens: 30}
+      usage: {input_tokens: 780, output_tokens: 40}
   - expect_tool_results: [get_bill]
     reply:
       tool_calls:
         - name: propose_payment_allocation
-          input: {payment: "pay-synth-001", allocations: [{bill: "bill-synth-001", amount_cents: 50000}, {bill: "bill-synth-002", amount_cents: 25000}]}
+          input: {"payment_id": "00000000-0000-4000-8000-0000000b1a01", "allocations": [{"target_type": "bill", "target_id": "00000000-0000-4000-8000-0000000b1b01", "amount_cents": 50000}, {"target_type": "unapplied", "amount_cents": 20000}]}
       stop_reason: tool_use
-      usage: {input_tokens: 910, output_tokens: 120}
+      usage: {input_tokens: 860, output_tokens: 40}
   - expect_tool_results: [propose_payment_allocation]
     reply:
-      text: "Payment pay-synth-001 matches two open bills; proposed an allocation for your approval."
+      text: "{\"payment_id\":\"00000000-0000-4000-8000-0000000b1a01\",\"ambiguous\":true}"
       stop_reason: end_turn
-      usage: {input_tokens: 980, output_tokens: 24}
+      usage: {input_tokens: 940, output_tokens: 30}

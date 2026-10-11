@@ -11,6 +11,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/featureset"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/billing/batch"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
@@ -359,6 +360,9 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		work.AbsenceCoverPlannerDef().ID:   work.AbsenceCoverPlannerBinding,
 		work.DailyDigestDef().ID:           work.DailyDigestBinding,
 		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
+		billing.FeaturePaymentMatching:     billing.PaymentMatchingBinding,
+		billing.FeatureBillRender:          billing.BillRenderBinding,
+		billing.FeatureBillingCycleDrafts:  billing.BillingCycleDraftsBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).

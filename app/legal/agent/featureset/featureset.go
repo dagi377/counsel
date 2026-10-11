@@ -14,6 +14,7 @@ package featureset
 
 import (
 	"github.com/dagi377/counsel/app/legal/agent/feature"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
@@ -172,5 +173,9 @@ func appDefs() []feature.Def {
 		work.AskQuestionDef(),
 		work.SuggestRebalanceDef(),
 		work.PlainLanguageFilterDef(),
+		// billing
+		billing.BillingCycleDraftsDef(),
+		billing.BillRenderDef(),
+		billing.PaymentMatchingDef(),
 	}
 }
