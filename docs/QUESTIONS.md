@@ -1548,3 +1548,15 @@ Done in PORT-18:
   text, so no quoted envelope; due dates are YYYY-MM-DD and recorded by Provenance.ReadTool.
 - Not yet in `agent.Handlers()`: `ComputeDeadlineHandler()` is added there (and to its test)
   when boot wires PublishedPacks.
+## FEAT-TOOL-08 list_unbilled
+
+- `timekeeping.Entries` has no list by matter and carries no amounts, so the tool reads a new
+  consumer-side `agent.MatterTime` (wired at boot over timekeeping entries priced with
+  timekeeping/rates, as reports.WIPReporter prices WIP). No timekeeping contract change.
+- Unbilled = state approved, billable, no BillID (b3 WIP). `period_to` is inclusive on the
+  work date read in America/Toronto. Amounts and the total are int64 cents; a negative amount
+  or an overflowing total fails closed. Provenance.ReadTool records every amount and the total.
+- The narrative is client text: returned as an untrusted Quoted envelope cited to the entry
+  record (`time_entry:<id>`, page 1, line 1), as search_contacts does for contact names.
+- Not yet in `agent.Handlers()`: `ListUnbilledHandler()` is added there (and to its test)
+  when boot wires MatterTime.
