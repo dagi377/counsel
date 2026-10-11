@@ -2232,3 +2232,13 @@ Done in PORT-18:
 - search_matters and get_matter return matter short names unquoted (not as
   agenttools.Quoted), so an instruction in a matter name reaches the model outside quoted
   data (ARC-I-038). That is a handler follow-up.
+
+## TOOL16-DESC: work item description
+
+- Additive in `kernel/work/contract.go`: `Item.Description *string` (Markdown, nil for none),
+  answering the FEAT-TOOL-16 note above. `PrepareItem` refuses one longer than
+  `MaxDescriptionLen` (10000, the create_task schema maximum) and turns a blank one into nil.
+  `create_task` now stores `description_markdown` on the proposed item.
+- `work.work_item.description` already exists as a nullable column in 0001_init.sql, so the
+  migration (1003, validated in 1004) adds only the matching length/non-blank check, NOT VALID.
+  There is no Postgres `work.Service` yet; when one is written it reads and writes the column.

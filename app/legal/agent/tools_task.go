@@ -90,6 +90,8 @@ type createTaskIn struct {
 	Title      string `json:"title"`
 	AssigneeID string `json:"assignee_id"`
 	DueOn      string `json:"due_on"`
+	// Description is the task's Markdown body; it is stored on the work item.
+	Description string `json:"description_markdown"`
 }
 
 func (t createTask) handle(ctx context.Context, p registry.Principal, raw json.RawMessage) (registry.ToolResult, error) {
@@ -107,6 +109,10 @@ func (t createTask) handle(ctx context.Context, p registry.Principal, raw json.R
 		return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolCreateTask, ErrInvalidInput)
 	}
 	it := work.Item{Type: WorkTypeTask, Title: in.Title, ReporterID: user, AssigneeUserID: in.AssigneeID}
+	if in.Description != "" {
+		d := in.Description
+		it.Description = &d
+	}
 	if in.MatterID != "" {
 		// rule: ARC-I-036
 		if err := visibleTo(ctx, t.walls, user, in.MatterID); err != nil {

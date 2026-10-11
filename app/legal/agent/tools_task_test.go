@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/dagi377/counsel/app/legal/agent"
@@ -168,6 +169,51 @@ func TestARC_I_039_CreateTaskNotApprovedByAgent(t *testing.T) {
 			err = w.items.SetApprover(ctx, nil, work.ItemID(out.Ref), tc.by, tc.isAgent)
 			if !errors.Is(err, tc.wantErr) {
 				t.Fatalf("set approver err = %v, want %v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+// rule: ARC-I-035
+// create_task stores description_markdown on the proposed work item; a blank one is none.
+func TestCreateTaskDescription(t *testing.T) {
+	p := registry.Principal{Kind: registry.PrincipalAgent, RunID: taskRun, ActingFor: clerk, Grant: []string{taskCap}}
+	cases := []struct {
+		name    string
+		desc    string
+		want    string // "" means no description stored
+		wantErr error
+	}{
+		{name: "markdown stored", desc: "See **para 4** of the claim.", want: "See **para 4** of the claim."},
+		{name: "absent", desc: ""},
+		{name: "at the schema limit", desc: strings.Repeat("a", 10000), want: strings.Repeat("a", 10000)},
+		{name: "over the schema limit", desc: strings.Repeat("a", 10001), wantErr: agenttools.ErrInvalidInput},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			w := newTaskWorld(t, map[string]bool{taskCap: true})
+			fields := map[string]string{"title": "Draft reply"}
+			if tc.desc != "" {
+				fields["description_markdown"] = tc.desc
+			}
+			res, err := w.reg.Call(ctx, p, agent.ToolCreateTask, json.RawMessage(taskInput(fields)))
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tc.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			var out agenttools.WriteOutput
+			if err := json.Unmarshal(res.Output, &out); err != nil {
+				t.Fatalf("output: %v", err)
+			}
+			it, err := w.items.Get(ctx, work.ItemID(out.Ref))
+			if err != nil {
+				t.Fatalf("item: %v", err)
+			}
+			if (it.Description == nil) != (tc.want == "") || (it.Description != nil && *it.Description != tc.want) {
+				t.Fatalf("description = %v, want %q", it.Description, tc.want)
 			}
 		})
 	}
