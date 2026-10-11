@@ -273,6 +273,10 @@ func gateKindCodes() ([]string, error) {
 // F-MAT-05, F-MAT-09, F-MAT-14 and F-TIM-03 act for their designated lawyer in firm settings
 // instead (JOB-ACTOR); F-TIM-01 runs once per active timekeeper. A job feature with no binding
 // listed here fails, so a new job feature cannot ship unbound.
+// F-CON-09, F-CON-11, F-CON-12, F-DOC-09; Q-INTEG-15A-SCHEDULED); empty fails with
+// trigger.ErrBadBinding. F-DL-05, F-DL-06, F-CON-05, F-CON-10, F-DOC-06, F-DOC-07, F-MAT-05,
+// F-MAT-09, F-MAT-14 and F-WRK-05 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
+// job feature cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
 		return func() (trigger.Binding, error) { return bind(ruleAdmin) }
@@ -341,18 +345,20 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		intake.WeeklyIntakeDigestDef().ID:           intake.WeeklyIntakeDigestBinding,
 		// F-TIM-01 runs at the end of each business day once per active timekeeper, each
 		// run acting for that timekeeper (TIME-FIX); the screen actions cover on-request runs.
-		tk.RebuildDayDef().ID:            tk.RebuildDayBinding,
-		tk.ReceiptCaptureDef().ID:        tk.ReceiptCaptureBinding,
-		tk.PreBillCheckDef().ID:          tk.PreBillCheckBinding,
-		tk.TimesheetPreReviewDef().ID:    tk.TimesheetPreReviewBinding,
-		tk.EngagementTermsDef().ID:       tk.EngagementTermsBinding,
-		tk.RateChangeImpactDef().ID:      tk.RateChangeImpactBinding,
-		work.PickUpAgentReadyDef().ID:    work.PickUpAgentReadyBinding,
-		work.ProposeMatterPlanDef().ID:   work.ProposeMatterPlanBinding,
-		work.DateShiftDef().ID:           work.DateShiftBinding,
-		work.WorkflowLintDef().ID:        work.WorkflowLintBinding,
-		work.RuleSuggesterDef().ID:       work.RuleSuggesterBinding,
-		work.AbsenceCoverPlannerDef().ID: work.AbsenceCoverPlannerBinding,
+		tk.RebuildDayDef().ID:              tk.RebuildDayBinding,
+		tk.ReceiptCaptureDef().ID:          tk.ReceiptCaptureBinding,
+		tk.PreBillCheckDef().ID:            tk.PreBillCheckBinding,
+		tk.TimesheetPreReviewDef().ID:      tk.TimesheetPreReviewBinding,
+		tk.EngagementTermsDef().ID:         tk.EngagementTermsBinding,
+		tk.RateChangeImpactDef().ID:        tk.RateChangeImpactBinding,
+		work.PickUpAgentReadyDef().ID:      work.PickUpAgentReadyBinding,
+		work.ProposeMatterPlanDef().ID:     work.ProposeMatterPlanBinding,
+		work.DateShiftDef().ID:             work.DateShiftBinding,
+		work.WorkflowLintDef().ID:          work.WorkflowLintBinding,
+		work.RuleSuggesterDef().ID:         work.RuleSuggesterBinding,
+		work.AbsenceCoverPlannerDef().ID:   work.AbsenceCoverPlannerBinding,
+		work.DailyDigestDef().ID:           work.DailyDigestBinding,
+		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).

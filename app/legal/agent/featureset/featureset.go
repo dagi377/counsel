@@ -163,5 +163,7 @@ func appDefs() []feature.Def {
 		work.AbsenceCoverPlannerDef(),
 		work.CreateFromNoteDef(),
 		work.DraftTemplateDef(),
+		work.DailyDigestDef(),
+		work.ExplainAutomationRunsDef(),
 	}
 }
