@@ -230,3 +230,95 @@ func TestARC_I_039_ProposeDeadlineGateNotDecidedByAgent(t *testing.T) {
 		})
 	}
 }
+
+// changePayload is the part of the cal.change payload the approver decides on.
+type changePayload struct {
+	DeadlineID string `json:"deadline_id"`
+	DueOn      string `json:"due_on"`
+	CurrentDue string `json:"current_due_on"`
+}
+
+// rule: ARC-I-035
+// rule: ARC-I-036
+// rule: ARC-I-039
+// With deadline_id, propose_deadline opens cal.change on the stored deadline and holds the new
+// date in the gate payload: nothing is stored and the deadline keeps its date.
+func TestARC_I_035_ProposeDeadlineChange(t *testing.T) {
+	edit := map[string]bool{dlCap: true}
+	grant := []string{dlCap}
+	agentP := registry.Principal{Kind: registry.PrincipalAgent, RunID: dlRun, ActingFor: clerk, Grant: grant}
+	user := registry.Principal{Kind: registry.PrincipalUser, UserID: clerk}
+	changeOnly := []string{agent.GateCalChange}
+	cases := []struct {
+		name    string
+		p       registry.Principal
+		scope   []string
+		matter  string // the deadline's matter; "" means the deadline_id names no deadline
+		wantErr error
+	}{
+		{"agent proposes a new date", agentP, changeOnly, dlMatter, nil},
+		{"manual path", user, nil, dlMatter, nil},
+		{"feature declares only cal.confirm", agentP, []string{agent.GateCalConfirm}, dlMatter, agenttools.ErrGateKindNotAllowed},
+		{"no run scope", agentP, nil, dlMatter, agenttools.ErrGateKindNotAllowed},
+		{"unknown deadline", agentP, changeOnly, "", agenttools.ErrNotFound},
+		{"deadline on another matter", agentP, changeOnly, "d3333333-3333-4333-8333-333333333333", agenttools.ErrNotFound},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			if tc.scope != nil {
+				ctx = agenttools.WithScope(ctx, agenttools.NewScope(dlRun, tc.scope))
+			}
+			w := newDeadlineWorld(t, edit)
+			if err := w.gates.Register(gate.GateKind{
+				Slug: agent.GateCalChange, Approver: "deadlines.verify", Risk: gate.RiskHigh, MinApprovers: 1, TTL: 24 * time.Hour,
+				PayloadSchema: []byte(`{"type":"object","required":["deadline_id","due_on","reason"]}`),
+				Effect:        func(context.Context, pgx.Tx, gate.Approved) error { return nil },
+			}); err != nil {
+				t.Fatalf("register gate kind: %v", err)
+			}
+			id := deadline.DeadlineID("dl-missing")
+			if tc.matter != "" {
+				var err error
+				id, err = w.deadlines.Fake.Save(ctx, nil, deadline.Proposed{
+					PackID: "p", PackVersion: "1", RuleID: "rcp-30.03",
+					Due:     deadline.Date{Year: 2026, Month: 10, Day: 26},
+					Subject: registry.Subject{Kind: agent.WorkSubjectMatter, ID: tc.matter},
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			in := deadlineInput(dlMatter, dlDue, map[string]any{"deadline_id": string(id)})
+			res, err := w.reg.Call(ctx, tc.p, agent.ToolProposeDeadline, json.RawMessage(in))
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tc.wantErr)
+			}
+			if len(w.deadlines.saved) != 0 {
+				t.Fatalf("stored %d deadlines, want none", len(w.deadlines.saved))
+			}
+			if err != nil {
+				return
+			}
+			if err := agenttools.CheckWriteResult(res); err != nil {
+				t.Fatalf("write result: %v", err)
+			}
+			dl, err := w.deadlines.Get(ctx, id)
+			if err != nil || dl.Proposed.Due != (deadline.Date{Year: 2026, Month: 10, Day: 26}) {
+				t.Fatalf("deadline = %+v (%v), want its date unchanged", dl, err)
+			}
+			g, err := w.gates.Get(ctx, gate.GateID(res.GateID))
+			if err != nil {
+				t.Fatalf("gate: %v", err)
+			}
+			var payload changePayload
+			if err := json.Unmarshal(g.Payload, &payload); err != nil {
+				t.Fatalf("payload: %v", err)
+			}
+			if g.Kind != agent.GateCalChange || g.Status != gate.StatusPending || g.Subject != (registry.Subject{Kind: agent.SubjectDeadline, ID: string(id)}) ||
+				payload != (changePayload{string(id), dlDue, "2026-10-26"}) {
+				t.Errorf("gate = %s %s %+v payload %+v, want a pending cal.change holding %s", g.Kind, g.Status, g.Subject, payload, dlDue)
+			}
+		})
+	}
+}

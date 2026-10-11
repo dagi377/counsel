@@ -39,7 +39,7 @@ func ProposeConflictPartiesHandler() Handler {
 }
 
 // buildProposeConflictParties reads Deps: CapabilityCheck, roles.Walls, ConflictCheckParties
-// and conflict.Checker.
+// conflict.Checker and RunScope.
 func buildProposeConflictParties(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)
 	if err != nil {
@@ -57,12 +57,16 @@ func buildProposeConflictParties(d Deps) (registry.Tool, error) {
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolProposeConflictParties, err)
 	}
+	scope, err := DepOf[RunScope](d)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", ToolProposeConflictParties, err)
+	}
 	specs, _, err := a2Specs([]ToolSpec{{Name: ToolProposeConflictParties, Kind: Write, GateKind: conflict.GateClearance}})
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolProposeConflictParties, err)
 	}
 	s := specs[0]
-	t := proposeConflictParties{can: can, walls: walls, parties: parties, checker: checker, capability: s.Capability}
+	t := proposeConflictParties{can: can, walls: walls, parties: parties, checker: checker, scope: scope, capability: s.Capability}
 	// rule: ARC-I-035
 	// WriteTool holds every result to a draft, a proposal or an opened gate.
 	tool, err := agenttools.WriteTool(registry.Tool{
@@ -79,6 +83,7 @@ type proposeConflictParties struct {
 	walls      roles.Walls
 	parties    ConflictCheckParties
 	checker    conflict.Checker
+	scope      RunScope
 	capability string
 }
 
@@ -135,6 +140,18 @@ func (t proposeConflictParties) handle(ctx context.Context, p registry.Principal
 			// rule: ARC-I-038
 			if err := agenttools.ValidCitation(src); err != nil {
 				return registry.ToolResult{}, fmt.Errorf("%s: party %d: %w", ToolProposeConflictParties, i, err)
+			}
+			// rule: ARC-U-027
+			// An agent cites only a passage a tool result of its run returned; an invented
+			// source never reaches the check. The manual path cites what the user saw.
+			if p.Kind == registry.PrincipalAgent {
+				read, err := t.scope.Returned(ctx, p.RunID, src)
+				if err != nil {
+					return registry.ToolResult{}, fmt.Errorf("%s: party %d: %w", ToolProposeConflictParties, i, err)
+				}
+				if !read {
+					return registry.ToolResult{}, fmt.Errorf("%s: party %d source: %w", ToolProposeConflictParties, i, agenttools.ErrUnsourcedValue)
+				}
 			}
 			pp.Source = &src
 			cites = append(cites, src)

@@ -11,7 +11,7 @@ import (
 // rule: AI-R-003
 // rule: ARC-I-035
 func TestFCON03_DefMatchesSpec(t *testing.T) {
-	conSpecMatches(t, conflict.ClearanceMemoDef())
+	conCheckDefMatchesSpec(t, conflict.ClearanceMemoDef())
 }
 
 // rule: AI-R-005

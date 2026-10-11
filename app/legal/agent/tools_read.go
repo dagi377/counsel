@@ -13,6 +13,7 @@ import (
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/roles"
+	"github.com/dagi377/counsel/kernel/agenttools"
 	kdocs "github.com/dagi377/counsel/kernel/docs"
 )
 
@@ -147,15 +148,22 @@ func (t *ReadTools) Call(ctx context.Context, c Call) (Result, error) {
 	}
 }
 
+// matterOut is one matter as the read tools return it. The short name is user-written text,
+// so it travels as quoted untrusted data, never as instructions; it has no document source to
+// cite. The number is firm-assigned and the status an enum, so neither is free text.
 type matterOut struct {
-	MatterID  string `json:"matter_id"`
-	Number    string `json:"number"`
-	ShortName string `json:"short_name"`
-	Status    string `json:"status"`
+	MatterID  string            `json:"matter_id"`
+	Number    string            `json:"number"`
+	ShortName agenttools.Quoted `json:"short_name"`
+	Status    string            `json:"status"`
 }
 
 func toMatterOut(m matter.Matter) matterOut {
-	return matterOut{MatterID: string(m.ID), Number: m.Number, ShortName: m.ShortName, Status: string(m.Status)}
+	return matterOut{
+		MatterID: string(m.ID), Number: m.Number, Status: string(m.Status),
+		// rule: ARC-I-038
+		ShortName: agenttools.Quoted{Untrusted: true, Text: m.ShortName},
+	}
 }
 
 func (t *ReadTools) visible(ctx context.Context, userID, matterID string) error {

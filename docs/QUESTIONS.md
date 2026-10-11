@@ -2181,6 +2181,12 @@ Done in PORT-18:
 - Event types `calendar.event_moved` and `calendar.event_cancelled` are named here; no calendar
   module publishes them yet.
 
+- Resolved by TOOL-FIX-C: `propose_deadline` with a `deadline_id` opens `cal.change` on that
+  stored deadline and holds the new date in the gate payload without applying it; without one
+  it saves a new deadline under `cal.confirm`. The run scope's gate-kind check still applies.
+  `TestFDL08_FromFeature` now checks the pending gate, the 403 for the agent, `ErrSelfApproval`
+  for the acting user and another lawyer's approval; a Def without `cal.change` is refused.
+
 ## Q-FEAT-DL-10 create_task returns a proposal, so F-DL-09 cannot open work.absence
 
 - Task: FEAT-DL-10 (F-DL-09 Absence coverage check)
@@ -2846,3 +2852,139 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   `allOf` of the plain fields and `PlaceOfSupplyPatch`.
 - Not wired at boot: no Postgres `matter.Updater` exists yet and boot mounts neither `matter.Writes` nor
   `tax.RegistrationsHTTP`. The boot follow-up wires both (and the Updater writes the two columns).
+- Resolved by TOOL-FIX-C: when the run scope declares a gate kind on work items
+  (`agent.WorkItemGateKinds`: `work.absence`, `work.output`), `create_task` returns its task
+  (still proposed, no approver) as an `OutcomeDraft` of the run, so `submit_for_approval` can
+  open the gate on it. `TestFDL09_FromFeature` now checks the pending gate, the 403 for the
+  agent, `ErrSelfApproval` for the acting user and another lawyer's approval; a Def without
+  `work.absence` still gets a proposal and the submit is refused.
+
+## Q-TOOL-FIX-C propose_deadline input gains deadline_id (additive a2 change)
+
+- Task: TOOL-FIX-C (FEAT-TOOL-15, FEAT-TOOL-16 follow-up; closes Q-FEAT-DL-09, Q-FEAT-DL-10)
+- `propose_deadline`'s input schema gains an optional `deadline_id` (string) in
+  `spec/eng/a2-interfaces.json` and its copy `app/legal/agent/schemas/tools.json`. Additive:
+  every input valid before is still valid. The cal.change payload's `reason` is the input
+  `title`; there is no separate reason field.
+- `propose_deadline` now also reads a `DeadlineGetter` dep (kernel/deadline `Get`), which the
+  deadline engine and its fakes already implement.
+- `work.output` is counted as a work-item gate kind beside `work.absence` because its payload
+  names an `item_id`; confirm when the F-WRK features that use it are built.
+## Q-FEAT-CON-04 Conflict feature tests: stand-ins, test helpers and files beyond the task list
+
+- Tasks: FEAT-CON-04, FEAT-CON-05, FEAT-CON-06 (F-CON-04 to F-CON-06).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (each Def in
+  appDefs, as FEAT-CORE-17 asks) and the generated plugin skills under
+  `paploo/counsel-plugin/skills/f-con-0N-*/SKILL.md`.
+- The task lists `app/legal/conflicts/ai_f_con_04_test.go`; the landed AI-036 test lives in
+  `app/legal/conflict/` (package `conflict`), so it was moved to FromFeature there.
+- The agenttest Seed's Deps carry no `agent.SubjectMatters`, so `submit_for_approval` would run
+  as a stand-in, and its draft ids are not a2 uuids. The conflict feature tests add both through
+  `conHandlers` / `conDrafts` in `ai_f_con_04_feature_test.go` (reused by F-CON-05 and F-CON-06).
+  Proposed: a `SubjectMatters` and uuid draft ids in `agenttest.Seed`.
+- `search_matters` and `read_document` have no `Handler`, so they still register as stand-ins.
+  The ok scripts call neither; the injection scripts call `read_document` to carry the injected
+  text, since `agenttest.QuotedOnly` reads only a top-level `agenttools.Quoted` result and
+  `search_contacts` returns its quotes under `quotes[]`.
+- Defs set `Grant` to the capabilities of their tools: an empty grant refuses every call.
+- The event types named here (`conflict.clearance_subject_to_consent`, ...) have no publisher yet.
+- F-CON-05: `propose_conflict_parties` opens no kernel gate. Its G2 is the open conflict run
+  that `conflict.Clearance` decides through app/legal/gates, so the F-CON-05 test checks the
+  run is open and prepared by the acting user, and that the agent (`conflict.ErrAgentApproves`)
+  and the acting user (`conflict.ErrPreparerApproves`, the G2 self-approval refusal; kernel
+  `gate.ErrSelfApproval` does not apply) are refused with 403. `submit_for_approval` cannot open
+  conflict.clearance on a run: the run scope only records drafts, not proposals.
+
+## Q-FEAT-CORE-15 Read and trust withdrawal handlers join the explicit handler set
+
+- `handlerset.go` `Handlers()` lists four more handlers (search_matters, get_matter,
+  read_document, prepare_trust_withdrawal) so the set covers all 25 a2 tools;
+  `handlerset_test.go` lists them too. The handlers live in `handlers.go`.
+- prepare_trust_withdrawal builds from the `*agent.WriteTools` boot passes in Deps, so the
+  run it parks is the one that WriteTools resumes on gate.decided.
+- `agenttest/seed.go`: `SeedStore.Document` implements `agent.DocumentLookup`, so
+  read_document runs its real handler in feature tests instead of a stand-in.
+
+## Q-FEAT-CON-07 Conflict features F-CON-07 to F-CON-09 on top of FEAT-CORE-15
+
+- Tasks: FEAT-CON-07, FEAT-CON-08, FEAT-CON-09. Same layout as Q-FEAT-CON-04: each Def joins
+  `featureset.appDefs` and its test; tool-use Defs get their generated plugin skill.
+- The branches merge `task/FEAT-CORE-15`, which gives `read_document` and `search_matters` real
+  handlers. The conflict scripts and the F-CON-04 fixtures read a fixed doc id without
+  `version_id` through `SetRead`, so `conHandlers` (in `ai_f_con_04_feature_test.go`) now leaves
+  both tools out of the handler set and they stay stand-ins. Proposed follow-up: seed the
+  documents with `agenttest.Seed.Document`, pass `version_id`, and check the injection with a
+  helper that accepts read_document's `{"untrusted": true}` envelope (F-CON-02 has one,
+  `conQuotedOnly`).
+- `task/FEAT-CON-02`/`03` and `task/FEAT-CON-04`..`06` both declare `conFeature`, `conScript`,
+  `conCall` and others in package `conflict_test` with different signatures; merging both
+  chains will not compile until one set is renamed.
+- F-CON-07's model call is extraction (spec): its Def sets `Kind: ai.KindExtraction`, so it
+  exports no plugin skill.
+- Event types with no publisher yet: `identity.portal_submission` (F-CON-07),
+  `party.organization_client_created` (F-CON-08), `roles.walled_matter_accessed` (F-CON-09).
+- F-CON-09's "schedule: review dates" is a per-wall date, so its binding checks daily
+  (`trigger.ParseCadence`) and needs the acting user boot names, like F-CON-05. The F-CON-07
+  and F-CON-08 gate-kind tests now use `conflict.GateWall` for the out-of-Def kind.
+- Event types with no publisher yet: `identity.portal_submission` (F-CON-07).
+
+## Q-FEAT-CON-10 Conflict features F-CON-10, F-CON-15 and F-CON-16
+
+- Tasks: FEAT-CON-10, FEAT-CON-11, FEAT-CON-12. Same layout as Q-FEAT-CON-07: each Def joins
+  `featureset.appDefs` and its test, and gets its generated plugin skill. The branches stack on
+  `task/FEAT-CON-07` (which carries FEAT-CORE-15); `featureset.go` and its test take one line
+  each per task, so they merge with FEAT-CON-08/09 by keeping both lines.
+- F-CON-15 and F-CON-16 are screen actions. The spec words the button in `trigger`
+  ("on request: ethical-walls > Propose wall") and leaves `on_request` empty, while the screen
+  action route reads `Def.Actions`. The Defs set `Actions` to the trigger's button; their spec
+  test checks that and compares the rest of the Def with `Actions` cleared. Proposed: fill
+  `on_request` for screen-action features in `spec/ai/features.json`.
+- Gate kind constants `GateIDDestruction` (G14), `GateWall` (G2b) and `GateLateral` (G2c)
+  live in the Def files. `conflict.id_destruction` needs two approvers; the feature test checks only
+  that another lawyer may decide, not that the batch is fully approved.
+- F-CON-10's weekly binding needs an acting user from boot (the records officer); boot wiring
+  is not in these tasks.
+  `party.organization_client_created` (F-CON-08).
+
+## Q-FEAT-CON-13 Read-only conflict features F-CON-11 to F-CON-14 and F-CON-17
+
+- Tasks: FEAT-CON-13 (F-CON-11), FEAT-CON-14 (F-CON-12), FEAT-CON-15 (F-CON-13, F-CON-14,
+  F-CON-17). Each Def joins `featureset.appDefs` (outside the task's file list); chat and
+  embedding Defs export no plugin skill.
+- The shared read-only harness lives in `ai_f_con_11_feature_test.go`: `search_contacts` and
+  `read_document` run their real handlers over `agenttest.Seed`, with read_document's first
+  page re-quoted as `agenttools.Quoted` so `agenttest.QuotedOnly` and `run.CheckAnswer` see
+  its citation. `search_matters` stays a stand-in the scripts never call (the Seed has no
+  `matter.Query`).
+- None of the three read tools returns a date as a JSON value, so the unsourced-date check
+  counts a date inside a quoted document line as read in the run. Proposed follow-up: have
+  read_document return `agenttools.Quoted` itself so the harness needs no re-quote.
+- The agent-never-approves check goes through `conflict.Clearance` on a check the agent
+  prepared for the acting user: agent principal -> `ErrAgentApproves`, acting user ->
+  `ErrPreparerApproves`, both 403.
+## Q-FEAT-DOC-03 QuotedOnly accepts a real read handler's untrusted output
+
+- The document drafting features run read_document's real handler over Seed documents (no
+  stand-ins). Its output is `{"untrusted": true, "doc_id", "version_id", "pages": [...]}`, not
+  an `agenttools.Quoted`, so `agenttest.QuotedOnly` reported the quoted lines as unquoted.
+- `agenttest/agenttest.go`: QuotedOnly now also accepts a tool_result marked untrusted at its
+  top level whose string values hold the text (additive; the Quoted path is unchanged).
+  `agenttest/quoted_test.go` covers both shapes and the refusals.
+- F-DOC-02 binds both `conflict.cleared` and `lead.converted` (the spec trigger names G2 and
+  G1); the prompt has the agent draft only when the matter shows both done.
+## Q-FEAT-DOC-02 F-DOC-01 drafts its filing review: draft_document added to the Def and spec
+
+- FEAT-DOC-02 asks that the tool-gap kind docs.filing_privilege (G-D1) be opened "via
+  draft_document then submit_for_approval". submit_for_approval opens a gate only for a
+  subject the run drafted, and F-DOC-01 listed no draft tool, so its run could not open G-D1.
+- As decided for F-DL-02 (Q-FEAT-DL-04), draft_document is added to F-DOC-01 in
+  spec/ai/features.json and in IngestDocumentDef (app/legal/docs/ai_f_doc_01.go), with its
+  capability documents.edit in the Grant. The change is additive; the extraction pipeline
+  (IngestPipeline and its IngestSink) is unchanged.
+- The four intake channels (upload, email-in, portal upload, scan) all file a document
+  version, and a2 names one event for that, document.uploaded, so the binding has one event.
+
+## Q-FEAT-DOC-04 F-DOC-03 trigger event
+
+- "user instruction or task from the matter plan": the task half binds `work_item.created`;
+  a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
