@@ -1560,3 +1560,15 @@ Done in PORT-18:
   record (`time_entry:<id>`, page 1, line 1), as search_contacts does for contact names.
 - Not yet in `agent.Handlers()`: `ListUnbilledHandler()` is added there (and to its test)
   when boot wires MatterTime.
+## FEAT-TOOL-09 get_bill
+
+- The frozen app/legal/billing/bill contract has no balance: `Bill` carries totals only and no
+  module returns what is still owed on a bill. get_bill reads it through a new
+  `agent.BillBalances` port (`BalanceCents(ctx, bill.ID)`), to be wired at boot from billing
+  payments, credits and write-offs. Proposed fix: an additive balance read in billing.
+- Registered through the explicit `GetBillHandler()`, not init().
+- An unknown bill id is `ErrNotVisible` (404), the same as a bill on a walled matter.
+- Line narratives are quoted as untrusted text cited to the bill line (`bill:<id>`, page 1,
+  line = ordinal); a bill has no document version.
+- The tool wraps itself with `Provenance.ReadTool`, so the cents it returns are what a later
+  write in the run may carry; it needs the run's `*agenttools.Provenance` in Deps.
