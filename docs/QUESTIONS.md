@@ -2280,3 +2280,13 @@ Done in PORT-18:
   matter, delivery date and balance net of reserved fee transfers.
 - Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
   resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.
+
+## PORT-16b: written-off interest to OP-1110
+
+- Additive in `app/legal/billing/credit/contract.go`: `WriteOff.InterestCents`, read by
+  `PGWriteOffs.Lock` from the draft's `interest_cents` bucket. `BadDebtEntry` now follows
+  BIL-J-009 in full: Cr OP-1100 the amount less interest, Cr OP-1110 the interest; Dr OP-6100
+  still takes the pre-tax amount plus interest. Tax plus interest above the amount fails.
+- Open: `ApproveWriteOff` computes the tax adjustment on the whole amount, interest included
+  (`BadDebtTax(amount, billTax, billTotal)`). Interest carries no HST, so the relief should
+  probably be on the amount less interest, or simply the draft's tax bucket. Not changed here.

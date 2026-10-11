@@ -27,13 +27,19 @@ func (m writeOffMap) Lock(_ context.Context, _ pgx.Tx, id string) (WriteOff, err
 
 func badDebtLedger() *ledgerfake.Fake {
 	all := []string{
-		books.AcctBadDebt, books.AcctSalesTaxPayable, books.AcctARFees,
+		books.AcctBadDebt, books.AcctSalesTaxPayable, books.AcctARFees, books.AcctARInterest,
 		books.AcctTrustBank, books.AcctClientTrustLedger,
 	}
 	return ledgerfake.New(ledger.Date{Year: 2026, Month: 11, Day: 15}, all...)
 }
 
+func withInterest(w WriteOff, cents int64) WriteOff {
+	w.InterestCents = cents
+	return w
+}
+
 // rule: BIL-C-205
+// BIL-J-009: Dr OP-6100 pre-tax open + interest, Dr OP-2100 open tax / Cr OP-1100, Cr OP-1110.
 func TestGLBadDebt(t *testing.T) {
 	loc, err := time.LoadLocation("America/Toronto")
 	if err != nil {
@@ -75,6 +81,28 @@ func TestGLBadDebt(t *testing.T) {
 				{Account: books.AcctARFees, Side: ledger.Credit, Amount: 130},
 			},
 		},
+		{
+			name: "interest comes off OP-1110", w: withInterest(approved("w9", 59500), 500),
+			adj: BadDebtAdjustment{BillID: "b1", TaxCents: 6500, On: on},
+			wantLines: []ledger.Line{
+				{Account: books.AcctBadDebt, Side: ledger.Debit, Amount: 53000},
+				{Account: books.AcctSalesTaxPayable, Side: ledger.Debit, Amount: 6500},
+				{Account: books.AcctARFees, Side: ledger.Credit, Amount: 59000},
+				{Account: books.AcctARInterest, Side: ledger.Credit, Amount: 500},
+			},
+		},
+		{
+			name: "interest only: no fees AR line", w: withInterest(approved("w10", 700), 700),
+			adj: BadDebtAdjustment{BillID: "b1", On: on},
+			wantLines: []ledger.Line{
+				{Account: books.AcctBadDebt, Side: ledger.Debit, Amount: 700},
+				{Account: books.AcctARInterest, Side: ledger.Credit, Amount: 700},
+			},
+		},
+		{name: "interest above amount", w: withInterest(approved("w11", 100), 101), adj: BadDebtAdjustment{BillID: "b1", On: on}, wantErr: ErrInvalidAmount},
+		{name: "negative interest", w: withInterest(approved("w12", 100), -1), adj: BadDebtAdjustment{BillID: "b1", On: on}, wantErr: ErrInvalidAmount},
+		{name: "tax and interest above amount", w: withInterest(approved("w13", 100), 50),
+			adj: BadDebtAdjustment{BillID: "b1", TaxCents: 51, On: on}, wantErr: ErrInvalidAmount},
 		{name: "draft write-off", w: WriteOff{ID: "w4", BillID: "b1", AmountCents: 100, Status: StatusDraft},
 			adj: BadDebtAdjustment{BillID: "b1", On: on}, wantErr: ErrInvalidState},
 		{name: "other bill", w: approved("w5", 100), adj: BadDebtAdjustment{BillID: "b2", On: on}, wantErr: ErrInvalidState},
@@ -121,8 +149,12 @@ func TestGLBadDebt(t *testing.T) {
 			if _, ok := l.Entry("je-2"); ok {
 				t.Fatal("repeat posted a second entry")
 			}
-			if bal, _ := l.Balance(context.Background(), books.AcctARFees, ledger.Date{Year: 2026, Month: 11, Day: 30}); int64(bal) != -tt.w.AmountCents {
-				t.Fatalf("AR balance = %d, want %d", bal, -tt.w.AmountCents)
+			end := ledger.Date{Year: 2026, Month: 11, Day: 30}
+			if bal, _ := l.Balance(context.Background(), books.AcctARFees, end); int64(bal) != -(tt.w.AmountCents - tt.w.InterestCents) {
+				t.Fatalf("AR balance = %d, want %d", bal, -(tt.w.AmountCents - tt.w.InterestCents))
+			}
+			if bal, _ := l.Balance(context.Background(), books.AcctARInterest, end); int64(bal) != -tt.w.InterestCents {
+				t.Fatalf("AR interest balance = %d, want %d", bal, -tt.w.InterestCents)
 			}
 		})
 	}
@@ -161,5 +193,30 @@ func TestGLBadDebtNeedsDeps(t *testing.T) {
 	err := GLBadDebt{}.PostBadDebt(context.Background(), nil, "w1", BadDebtAdjustment{})
 	if !errors.Is(err, ErrInvalidState) {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+// rule: BIL-C-205
+// The store reads the draft's interest bucket, so GLBadDebt posts it to OP-1110.
+func TestPGWriteOffLockReadsInterest(t *testing.T) {
+	tests := []struct {
+		name     string
+		interest int64
+	}{
+		{"no interest", 0},
+		{"interest bucket", 500},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := newDraftTx()
+			tx.drafts["w1"].split.Interest = tt.interest
+			w, err := PGWriteOffs{}.Lock(context.Background(), tx, "w1")
+			if err != nil {
+				t.Fatalf("Lock: %v", err)
+			}
+			if w.InterestCents != tt.interest {
+				t.Fatalf("InterestCents = %d, want %d", w.InterestCents, tt.interest)
+			}
+		})
 	}
 }
