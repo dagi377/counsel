@@ -81,5 +81,8 @@ func appDefs() []feature.Def {
 		legaldocs.ProposeFieldsDef(),
 		legaldocs.AskClientForMissingAnswersDef(),
 		legaldocs.AnonymizeDef(),
+		legaldocs.RequestDocumentsDef(),
+		legaldocs.CitationStalenessDef(),
+		legaldocs.PlaceSigningFieldsDef(),
 	}
 }

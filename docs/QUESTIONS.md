@@ -2610,3 +2610,32 @@ Done in PORT-18:
   yet (add them to EVENTS-WIRE).
 - F-DOC-11 binds `document.revision_requested`; no module publishes it yet (add it to EVENTS-WIRE with the
   revise request route).
+## Q-FEAT-DOC-16 F-DOC-19 request documents from client
+
+- Files beyond the task list: `app/legal/agent/featureset/featureset.go` and its test register
+  `docs.RequestDocumentsDef()`, and `go generate` added its plugin skill.
+- F-DOC-19 is a screen action: the spec words its button in the trigger and leaves
+  `on_request` empty, so the Def's `Actions` hold that button and the spec sync test checks
+  them against the trigger (as F-CON-15 does).
+- The request goes out as a draft email; `submit_for_approval` on the `email_draft` subject
+  opens `platform.portal_message`. `draft_email` is called without `submit`, so it never opens
+  `platform.outgoing_email`, which is outside the Def's gate kinds.
+
+## Q-FEAT-DOC-17 F-DOC-05 citation-staleness
+
+- Files beyond the task list: the featureset registration of `docs.CitationStalenessDef()`
+  and its generated plugin skill. The branch builds on task/FEAT-DOC-16 for the shared
+  `docf` test helpers.
+- a2 has no "new version" event; a new version is a `document.uploaded` (it carries
+  `version_id`), so F-DOC-05 binds that event. The prompt has the agent flag only drafts that
+  cite an older version.
+- The flags are the run's extraction output (`OutputSchema`: ranked items with a citation);
+  there is no write tool, so nothing is stored and no gate opens.
+
+## Q-FEAT-DOC-18 F-DOC-12 place signing fields
+
+- Files beyond the task list: the featureset registration of `docs.PlaceSigningFieldsDef()`.
+  The branch builds on task/FEAT-DOC-17 for the shared `docf` test helpers.
+- F-DOC-12 is a read-only screen action: the proposed fields are the run's extraction output
+  (`OutputSchema`: items in signing order with signer role, field, template anchor or detected
+  block, and a citation). No write tool places them; the user does, so no gate opens.
