@@ -46,5 +46,6 @@ func appDefs() []feature.Def {
 		conflict.IDEvidenceCheckDef(),
 		conflict.ExpiryRetentionDef(),
 		conflict.ProposeWallDef(),
+		conflict.LateralCheckDef(),
 	}
 }
