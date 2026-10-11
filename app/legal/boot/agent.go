@@ -339,15 +339,18 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		intake.WeeklyIntakeDigestDef().ID:           intake.WeeklyIntakeDigestBinding,
 		// F-TIM-01 runs at the end of each business day once per active timekeeper, each
 		// run acting for that timekeeper (TIME-FIX); the screen actions cover on-request runs.
-		tk.RebuildDayDef().ID:          tk.RebuildDayBinding,
-		tk.ReceiptCaptureDef().ID:      tk.ReceiptCaptureBinding,
-		tk.PreBillCheckDef().ID:        tk.PreBillCheckBinding,
-		tk.TimesheetPreReviewDef().ID:  tk.TimesheetPreReviewBinding,
-		tk.EngagementTermsDef().ID:     tk.EngagementTermsBinding,
-		tk.RateChangeImpactDef().ID:    tk.RateChangeImpactBinding,
-		work.PickUpAgentReadyDef().ID:  work.PickUpAgentReadyBinding,
-		work.ProposeMatterPlanDef().ID: work.ProposeMatterPlanBinding,
-		work.DateShiftDef().ID:         work.DateShiftBinding,
+		tk.RebuildDayDef().ID:            tk.RebuildDayBinding,
+		tk.ReceiptCaptureDef().ID:        tk.ReceiptCaptureBinding,
+		tk.PreBillCheckDef().ID:          tk.PreBillCheckBinding,
+		tk.TimesheetPreReviewDef().ID:    tk.TimesheetPreReviewBinding,
+		tk.EngagementTermsDef().ID:       tk.EngagementTermsBinding,
+		tk.RateChangeImpactDef().ID:      tk.RateChangeImpactBinding,
+		work.PickUpAgentReadyDef().ID:    work.PickUpAgentReadyBinding,
+		work.ProposeMatterPlanDef().ID:   work.ProposeMatterPlanBinding,
+		work.DateShiftDef().ID:           work.DateShiftBinding,
+		work.WorkflowLintDef().ID:        work.WorkflowLintBinding,
+		work.RuleSuggesterDef().ID:       work.RuleSuggesterBinding,
+		work.AbsenceCoverPlannerDef().ID: work.AbsenceCoverPlannerBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -492,6 +495,12 @@ var actionScreens = map[string]trigger.Screen{
 	"timekeeper-targets":  {SubjectKind: "matter", Capability: "reports.firm"},
 	// Work: the work-item screen selects the item the agent posts its result on.
 	"work-item": {SubjectKind: "work_item", Capability: "work.edit"},
+	// Work. The workflow editor, work automations, workload and team availability are
+	// firm-level; they map to matter until boot has a firm subject (Q-FEAT-WRK-04).
+	"workflow-editor":   {SubjectKind: "matter", Capability: "work.workflows"},
+	"work-automations":  {SubjectKind: "matter", Capability: "work.workflows"},
+	"workload":          {SubjectKind: "matter", Capability: "work.edit"},
+	"team-availability": {SubjectKind: "matter", Capability: "work.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

@@ -158,5 +158,8 @@ func appDefs() []feature.Def {
 		work.PickUpAgentReadyDef(),
 		work.ProposeMatterPlanDef(),
 		work.DateShiftDef(),
+		work.WorkflowLintDef(),
+		work.RuleSuggesterDef(),
+		work.AbsenceCoverPlannerDef(),
 	}
 }

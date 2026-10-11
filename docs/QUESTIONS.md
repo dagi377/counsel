@@ -3630,3 +3630,41 @@ of FEAT-TIM-01 above.
 - `matter.key_date_changed` is not in spec/eng/a2-interfaces.json; nothing publishes it yet.
 - Files beyond the list: featureset.go and its test, boot/agent.go (the job binding) and the
   generated skill `paploo/counsel-plugin/skills/f-wrk-04-date-shift-on-key-date-change/SKILL.md`.
+## Q-FEAT-WRK-04 F-WRK-06 workflow lint: event, screen subject and G-W3 subject
+
+- Task: FEAT-WRK-04 (F-WRK-06). New event `work.workflow_draft_saved` (work.EventWorkflowDraftSaved)
+  has no publisher yet; add it to the next events task with the workflow editor's save.
+- boot.FirmSubject is not on main, so the firm-level `workflow-editor` screen maps to the matter
+  subject (capability work.workflows) until BOOT-24 merges; then switch it to FirmSubject.
+- work.workflow_publish is a tool-gap kind: the run drafts the lint report with draft_document
+  and opens G-W3 on that draft. The G-W3 payload schema names {workflow_id, version}; the gate
+  payload is the draft. Open: carry workflow_id/version once the workflow editor exists.
+
+## Q-FEAT-WRK-05 F-WRK-07 rule suggester: draft rule subject and PROPOSAL-DRAFT
+
+- Task: FEAT-WRK-05 (F-WRK-07). work.automation is not a work-item gate kind
+  (agent.WorkItemGateKinds), so create_task returns a proposal. The branch carries the
+  PROPOSAL-DRAFT change to app/legal/agent/tools_task.go and its test (db1212d, byte-identical),
+  which records a proposal as a run draft, so the run submits the proposed rule task for
+  work.automation in the run. Merge after (or with) task/PROPOSAL-DRAFT; the files merge clean.
+- The G-AR payload schema names {rule_id}; until work.automation_rule has a store the draft rule
+  is a proposed work item. Open: create an automation_rule draft once the work-automations
+  service exists.
+- The weekly run acts for the designated lawyer (BindDesignated, JOB-ACTOR); the firm-level
+  work-automations screen maps to matter until boot.FirmSubject lands (see Q-FEAT-WRK-04).
+
+## Q-FEAT-WRK-06 F-WRK-09 absence cover planner: absence events and screens
+
+- Task: FEAT-WRK-06 (F-WRK-09). New event `work.absence_requested` (work.EventAbsenceRequested)
+  has no publisher yet; the approved event reuses deadlines.EventAbsenceApproved
+  (`work.absence_approved`, F-DL-09). Add both publishers to the next events task with the
+  team-availability service.
+- The daily run and both events act for the designated lawyer (BindDesignated, JOB-ACTOR) and
+  fail closed with none set.
+- workload and team-availability are firm-level screens (capability work.edit); they map to
+  matter until boot.FirmSubject lands (see Q-FEAT-WRK-04).
+- FEAT-WRK-06 carries PROPOSAL-DRAFT's tools_task.go: create_task now records each agent
+  proposal as a run draft, so F-WRK-02 and F-WRK-04's in-run submit_for_approval opens the
+  work.plan gate instead of failing closed (Q-FEAT-WRK-02). Their tests now assert the one
+  in-run gate on a proposed item, pending, prepared for the acting user, decided only by
+  another lawyer.

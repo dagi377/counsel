@@ -487,27 +487,24 @@ func wrkCheckBinding(t *testing.T, b trigger.Binding, err error, d feature.Def, 
 	}
 }
 
-// wrkCheckPlanGate covers a work.plan run: create_task returns proposals, not run drafts,
-// so the in-run submit_for_approval is refused with ErrNotFound and no gate opens (fail
-// closed; Q-FEAT-WRK-02). The acting user then submits the proposed plan, refs, as a person,
-// and the gate is pending with that user as preparer, which neither the agent (403) nor
-// that user (ErrSelfApproval) can decide.
+// wrkCheckPlanGate covers a work.plan run: create_task records each proposal, refs, as a
+// draft of the run (PROPOSAL-DRAFT), so the in-run submit_for_approval opens the gate on one
+// of them. The gate is pending with the acting user as preparer, which neither the agent
+// (403) nor that user (ErrSelfApproval) can decide.
 func wrkCheckPlanGate(t *testing.T, w wrkWorld, run agenttest.FeatureRun, kind string, refs []string) {
 	t.Helper()
-	if len(run.Refused) != 1 || run.Refused[0].Tool != agent.ToolSubmitForApproval || !errors.Is(run.Refused[0].Err, agenttools.ErrNotFound) {
-		t.Fatalf("refused = %v, want submit_for_approval refused with ErrNotFound", run.Refused)
+	if len(run.Refused) != 0 {
+		t.Fatalf("refused = %v, want none", run.Refused)
 	}
-	if len(run.GateIDs) != 0 {
-		t.Fatalf("gates = %v, want none opened in the run", run.GateIDs)
+	if len(run.GateIDs) != 1 {
+		t.Fatalf("gates = %v, want one opened in the run", run.GateIDs)
 	}
-	payload, err := json.Marshal(map[string]any{"matter_id": w.matter, "item_ids": refs})
+	g, err := w.fd.Seed.Gates.Get(context.Background(), gate.GateID(run.GateIDs[0]))
 	if err != nil {
 		t.Fatal(err)
 	}
-	id, err := w.fd.Seed.Gates.Open(context.Background(), nil, kind, registry.Subject{Kind: roles.SubjectMatter, ID: w.matter}, payload,
-		registry.Principal{Kind: registry.PrincipalUser, UserID: agenttest.FeatureActingFor})
-	if err != nil {
-		t.Fatalf("open %s: %v", kind, err)
+	if !slices.Contains(refs, g.Subject.ID) {
+		t.Fatalf("gate subject = %+v, want one of the proposed items %v", g.Subject, refs)
 	}
-	wrkCheckGate(t, w.fd, string(id), kind)
+	wrkCheckGate(t, w.fd, run.GateIDs[0], kind)
 }
