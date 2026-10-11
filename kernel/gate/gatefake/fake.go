@@ -5,8 +5,6 @@ package gatefake
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -71,19 +69,14 @@ func (f *Fake) SetSelfApprovalPolicy(p gate.SelfApprovalPolicy) {
 	f.policy = p
 }
 
-// PayloadHash returns "sha256:" + hex of the SHA-256 of payload with object keys sorted
-// and whitespace removed. It stands in for the JCS hash of the real engine.
+// PayloadHash is the real engine's RFC 8785 hash (gate.PayloadHash) of an object payload,
+// so fake and engine agree on every payload's hash.
 func PayloadHash(payload json.RawMessage) (string, error) {
 	var v map[string]any
 	if err := json.Unmarshal(payload, &v); err != nil {
 		return "", fmt.Errorf("payload: %w", gate.ErrInvalidPayload)
 	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return "", fmt.Errorf("payload: %w", gate.ErrInvalidPayload)
-	}
-	sum := sha256.Sum256(b)
-	return "sha256:" + hex.EncodeToString(sum[:]), nil
+	return gate.PayloadHash(payload)
 }
 
 // preparerUser is the user who counts as preparer: an agent's acting-for user.

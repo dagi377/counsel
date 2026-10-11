@@ -32,8 +32,10 @@ RETURNING id::text`
 VALUES ($1::uuid, $2, $3, $4)`
 )
 
-// postStatements lists every statement Post may run, for the append-only check.
-var postStatements = []string{sqlFindBySource, sqlAccountID, sqlInsertEntry, sqlInsertLine}
+// postStatements returns every statement Post may run over dims, for the append-only check.
+func postStatements(dims []dimension) []string {
+	return []string{sqlFindBySource, sqlPeriodClosed, sqlLineDimensions, sqlAccountID, sqlInsertEntry, sqlInsertLine, insertLineSQL(dims)}
+}
 
 // Validate checks e before it reaches the database: a book, a source, at least two lines,
 // valid sides, positive amounts and debits equal to credits.
@@ -67,7 +69,8 @@ func Validate(e Entry) error {
 
 // Post writes e inside tx and returns its id. It is idempotent per (SourceKind, SourceID):
 // a second Post of the same source returns the first entry's id and writes nothing. The
-// deferred trigger journal_balanced re-checks the balance at commit.
+// deferred trigger journal_balanced re-checks the balance at commit. An entry dated in a
+// closed period is ErrPeriodClosed (CheckOpen), before anything is written.
 func (g *PG) Post(ctx context.Context, tx pgx.Tx, e Entry) (EntryID, error) {
 	if err := Validate(e); err != nil {
 		return "", err
@@ -79,6 +82,10 @@ func (g *PG) Post(ctx context.Context, tx pgx.Tx, e Entry) (EntryID, error) {
 		return EntryID(id), nil
 	case !errors.Is(err, pgx.ErrNoRows):
 		return "", fmt.Errorf("post %s/%s: find source: %w", e.SourceKind, e.SourceID, err)
+	}
+	// rule: BIL-I-025
+	if err := g.CheckOpen(ctx, tx, e.Date); err != nil {
+		return "", fmt.Errorf("post %s/%s: %w", e.SourceKind, e.SourceID, err)
 	}
 	if g.PostedBy == nil {
 		return "", fmt.Errorf("post %s/%s: %w", e.SourceKind, e.SourceID, ErrNoPoster)
@@ -103,6 +110,16 @@ func (g *PG) Post(ctx context.Context, tx pgx.Tx, e Entry) (EntryID, error) {
 		accounts[l.Account] = aid
 	}
 
+	var dims []dimension
+	if hasDimensions(e.Lines) {
+		if dims, err = lineDimensions(ctx, tx); err != nil {
+			return "", fmt.Errorf("post %s/%s: %w", e.SourceKind, e.SourceID, err)
+		}
+		if err := checkDimensions(e.Lines, dims); err != nil {
+			return "", fmt.Errorf("post %s/%s: %w", e.SourceKind, e.SourceID, err)
+		}
+	}
+
 	date := time.Date(e.Date.Year, e.Date.Month, e.Date.Day, 0, 0, 0, 0, time.UTC)
 	err = tx.QueryRow(ctx, sqlInsertEntry, date, e.Memo, e.SourceKind, e.SourceID, by).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -115,6 +132,10 @@ func (g *PG) Post(ctx context.Context, tx pgx.Tx, e Entry) (EntryID, error) {
 	if err != nil {
 		return "", fmt.Errorf("post %s/%s: insert entry: %w", e.SourceKind, e.SourceID, err)
 	}
+	insertLine := sqlInsertLine
+	if dims != nil {
+		insertLine = insertLineSQL(dims)
+	}
 	for i, l := range e.Lines {
 		var dr, cr Cents
 		if l.Side == Debit {
@@ -122,9 +143,23 @@ func (g *PG) Post(ctx context.Context, tx pgx.Tx, e Entry) (EntryID, error) {
 		} else {
 			cr = l.Amount
 		}
-		if _, err := tx.Exec(ctx, sqlInsertLine, id, accounts[l.Account], int64(dr), int64(cr)); err != nil {
+		args := []any{id, accounts[l.Account], int64(dr), int64(cr)}
+		if dims != nil {
+			args = append(args, dimArgs(lineDims(l.Dimensions), dims)...)
+		}
+		if _, err := tx.Exec(ctx, insertLine, args...); err != nil {
 			return "", fmt.Errorf("post %s/%s: insert line %d: %w", e.SourceKind, e.SourceID, i, err)
 		}
 	}
 	return EntryID(id), nil
+}
+
+// hasDimensions reports whether any line carries a dimension value.
+func hasDimensions(lines []Line) bool {
+	for _, l := range lines {
+		if len(l.Dimensions) > 0 {
+			return true
+		}
+	}
+	return false
 }

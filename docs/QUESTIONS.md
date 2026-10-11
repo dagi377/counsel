@@ -298,3 +298,31 @@ Template:
   cannot import app/legal (it imports them), so each keeps one exported mirror per package;
   the private copies in clio and billing/assessment were folded into it, and
   `TestFlagMirrorsMatchCanonicalNames` checks every mirror against app/legal.
+
+## Q-GL-DIM: generic line dimensions on kernel/ledger.Line
+
+- `gl.journal_line` carries optional columns beyond the core ones (`party`, `tax_code`,
+  `bank_line_id`, and the app's `matter_id`). Reverse copied only the three kernel ones, so a
+  reversal lost the app's link; the kernel may not name it.
+- Done (additive): `ledger.Line.Dimensions map[string]string`, keyed by column name. Post
+  writes any listed column the table has (unknown name is `ErrInvalidEntry`); Reverse reads
+  the optional columns from the catalog and copies every one unchanged, with sides swapped.
+  Post also calls `CheckOpen`, so a closed period is `ErrPeriodClosed` before any write.
+
+## Q-JCS-FLOAT: canonical JSON numbers without floats (resolved)
+
+- Resolved: no float formatting. Gate payload numbers are integers within +-(2^53-1), and
+  the ES6 form of such an integer is its decimal form, so the one canonical writer
+  (`kernel/canon`) formats numbers with integer math only and rejects a fraction, an
+  exponent or an out-of-range integer (`canon.ErrNumber`). `kernel/gate` (`JCS`,
+  `PayloadHash`, API unchanged) and `kernel/ai/fixture` (`PromptHash`) both use it, and
+  neither is in `tools/nofloat_allow.txt`. RFC 8785 Appendix B float vectors are tested as
+  rejected inputs.
+
+## Q-INTAKE-PARTY: intake/party import cycle
+
+- intake imports party (Leads create party contacts); party/merge.go imported intake for
+  `Submission` and `Lead`. Done: party declares two small interfaces, `party.Submission`
+  (`SubmittedContactName`) and `party.Lead` (`LeadContact`), which `intake.Submission` and
+  `intake.Lead` implement (additive methods in `app/legal/intake/party.go`). party no longer
+  imports intake.

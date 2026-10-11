@@ -1,9 +1,11 @@
 package fixture
 
 import (
-	"bytes"
 	"encoding/json"
+	"errors"
 	"testing"
+
+	"github.com/dagi377/counsel/kernel/canon"
 )
 
 type block struct {
@@ -91,32 +93,37 @@ func TestPromptHashPinned(t *testing.T) {
 	}
 }
 
-func TestCanonical(t *testing.T) {
+// PromptHash uses kernel/canon, whose numbers are integer-only: integers hash by their
+// decimal form, and a fraction or exponent is canon.ErrNumber.
+func TestPromptHashNumbers(t *testing.T) {
 	tests := []struct {
-		name string
-		in   string
-		want string
+		name    string
+		a, b    string // Tools JSON
+		same    bool
+		wantErr bool
 	}{
-		{name: "sorted keys no space", in: `{"b": 1, "a": [true, null]}`, want: `{"a":[true,null],"b":1}`},
-		{name: "integers", in: `[0, -0, 1.0, 100, 1e21]`, want: `[0,0,1,100,1e+21]`},
-		{name: "fractions", in: `[0.5, 1e-7, 0.000001, 123.456, 4.5e-10]`, want: `[0.5,1e-7,0.000001,123.456,4.5e-10]`},
-		{name: "string escapes", in: `["a\"b\\c\n\u0001<>& é"]`, want: "[\"a\\\"b\\\\c\\n\\u0001<>& é\"]"},
-		{name: "utf16 key order", in: `{"😀": 1, "דּ": 2}`, want: "{\"\U0001F600\":1,\"דּ\":2}"},
+		{name: "minus zero is zero", a: `[{"n":-0}]`, b: `[{"n":0}]`, same: true},
+		{name: "integer spacing", a: `[{"n": 100}]`, b: `[{"n":100}]`, same: true},
+		{name: "integer differs", a: `[{"n":100}]`, b: `[{"n":101}]`},
+		{name: "fraction rejected", a: `[{"n":0.5}]`, wantErr: true},
+		{name: "integral fraction rejected", a: `[{"n":1.0}]`, wantErr: true},
+		{name: "exponent rejected", a: `[{"n":1e21}]`, wantErr: true},
+		{name: "beyond 2^53-1 rejected", a: `[{"n":9007199254740992}]`, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dec := json.NewDecoder(bytes.NewReader([]byte(tt.in)))
-			dec.UseNumber()
-			var v any
-			if err := dec.Decode(&v); err != nil {
+			ha, err := PromptHash(Prompt{Feature: "F-TST-01", Tools: json.RawMessage(tt.a)})
+			if tt.wantErr {
+				if !errors.Is(err, canon.ErrNumber) {
+					t.Fatalf("PromptHash err = %v, want canon.ErrNumber", err)
+				}
+				return
+			}
+			if err != nil {
 				t.Fatal(err)
 			}
-			var buf bytes.Buffer
-			if err := canonical(&buf, v); err != nil {
-				t.Fatal(err)
-			}
-			if buf.String() != tt.want {
-				t.Fatalf("canonical = %s, want %s", buf.String(), tt.want)
+			if got := ha == mustHash(t, Prompt{Feature: "F-TST-01", Tools: json.RawMessage(tt.b)}); got != tt.same {
+				t.Fatalf("same hash = %v, want %v", got, tt.same)
 			}
 		})
 	}

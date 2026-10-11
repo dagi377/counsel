@@ -1,16 +1,14 @@
 package fixture
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math"
 	"regexp"
-	"sort"
-	"strconv"
 	"strings"
+
+	"github.com/dagi377/counsel/kernel/canon"
 )
 
 // Prompt is the part of a model request the prompt hash covers. Messages and Tools are any
@@ -40,28 +38,27 @@ var (
 // volatileKeys are object keys (normalised, see normKey) whose whole value is masked.
 var volatileKeys = map[string]bool{"id": true, "tooluseid": true, "runid": true}
 
-// PromptHash returns the hex sha256 of the canonical JSON (RFC 8785) of p after masking
-// volatile values: ULIDs, RFC 3339 timestamps, {{seed.*}} placeholders and the values of
-// id, tool_use_id and run_id keys. Object keys are lower-cased with underscores removed and
+// PromptHash returns the hex sha256 of the canonical JSON (RFC 8785, kernel/canon) of p
+// after masking volatile values: ULIDs, RFC 3339 timestamps, {{seed.*}} placeholders and
+// the values of id, tool_use_id and run_id keys. Object keys are lower-cased with underscores removed and
 // null, "", false and empty arrays/objects are dropped, so a Go struct and its protocol
-// (snake_case, omitempty) encoding hash the same.
+// (snake_case, omitempty) encoding hash the same. Numbers must be integers within
+// +-(2^53-1) (canon.ErrNumber otherwise).
 func PromptHash(p Prompt) (string, error) {
 	raw, err := json.Marshal(p)
 	if err != nil {
 		return "", fmt.Errorf("prompt hash: encode: %w", err)
 	}
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.UseNumber()
-	var v any
-	if err := dec.Decode(&v); err != nil {
-		return "", fmt.Errorf("prompt hash: decode: %w", err)
-	}
-	v, _ = normalise(v)
-	var buf bytes.Buffer
-	if err := canonical(&buf, v); err != nil {
+	v, err := canon.Decode(raw)
+	if err != nil {
 		return "", fmt.Errorf("prompt hash: %w", err)
 	}
-	sum := sha256.Sum256(buf.Bytes())
+	v, _ = normalise(v)
+	b, err := canon.Marshal(v)
+	if err != nil {
+		return "", fmt.Errorf("prompt hash: %w", err)
+	}
+	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:]), nil
 }
 
@@ -115,156 +112,4 @@ func normalise(v any) (any, bool) {
 		return out, len(out) > 0
 	}
 	return v, true
-}
-
-// canonical writes v as RFC 8785 JSON: sorted keys (UTF-16 order), no whitespace,
-// ECMAScript number form, minimal string escaping.
-func canonical(buf *bytes.Buffer, v any) error {
-	switch x := v.(type) {
-	case nil:
-		buf.WriteString("null")
-	case bool:
-		buf.WriteString(strconv.FormatBool(x))
-	case string:
-		writeString(buf, x)
-	case json.Number:
-		f, err := x.Float64()
-		if err != nil {
-			return fmt.Errorf("number %s: %w", x, err)
-		}
-		s, err := esNumber(f)
-		if err != nil {
-			return err
-		}
-		buf.WriteString(s)
-	case []any:
-		buf.WriteByte('[')
-		for i, e := range x {
-			if i > 0 {
-				buf.WriteByte(',')
-			}
-			if err := canonical(buf, e); err != nil {
-				return err
-			}
-		}
-		buf.WriteByte(']')
-	case map[string]any:
-		keys := make([]string, 0, len(x))
-		for k := range x {
-			keys = append(keys, k)
-		}
-		sort.Slice(keys, func(i, j int) bool { return utf16Less(keys[i], keys[j]) })
-		buf.WriteByte('{')
-		for i, k := range keys {
-			if i > 0 {
-				buf.WriteByte(',')
-			}
-			writeString(buf, k)
-			buf.WriteByte(':')
-			if err := canonical(buf, x[k]); err != nil {
-				return err
-			}
-		}
-		buf.WriteByte('}')
-	default:
-		return fmt.Errorf("unsupported value %T", v)
-	}
-	return nil
-}
-
-func utf16Less(a, b string) bool {
-	ra, rb := []rune(a), []rune(b)
-	for i := 0; i < len(ra) && i < len(rb); i++ {
-		ua, ub := utf16Units(ra[i]), utf16Units(rb[i])
-		for j := 0; j < len(ua) && j < len(ub); j++ {
-			if ua[j] != ub[j] {
-				return ua[j] < ub[j]
-			}
-		}
-		if len(ua) != len(ub) {
-			return len(ua) < len(ub)
-		}
-	}
-	return len(ra) < len(rb)
-}
-
-func utf16Units(r rune) []uint16 {
-	if r < 0x10000 {
-		return []uint16{uint16(r)}
-	}
-	r -= 0x10000
-	return []uint16{uint16(0xD800 + (r >> 10)), uint16(0xDC00 + (r & 0x3FF))}
-}
-
-func writeString(buf *bytes.Buffer, s string) {
-	buf.WriteByte('"')
-	for _, r := range s {
-		switch r {
-		case '"':
-			buf.WriteString(`\"`)
-		case '\\':
-			buf.WriteString(`\\`)
-		case '\b':
-			buf.WriteString(`\b`)
-		case '\f':
-			buf.WriteString(`\f`)
-		case '\n':
-			buf.WriteString(`\n`)
-		case '\r':
-			buf.WriteString(`\r`)
-		case '\t':
-			buf.WriteString(`\t`)
-		default:
-			if r < 0x20 {
-				fmt.Fprintf(buf, `\u%04x`, r)
-			} else {
-				buf.WriteRune(r)
-			}
-		}
-	}
-	buf.WriteByte('"')
-}
-
-// esNumber formats f the way ECMAScript Number.prototype.toString does (RFC 8785 sec. 3.2.2.3).
-func esNumber(f float64) (string, error) {
-	if math.IsNaN(f) || math.IsInf(f, 0) {
-		return "", fmt.Errorf("number %v not allowed", f)
-	}
-	if f == 0 {
-		return "0", nil
-	}
-	sign := ""
-	if f < 0 {
-		sign, f = "-", -f
-	}
-	// Shortest round-trip digits and exponent: "d.ddde±XX".
-	e := strconv.FormatFloat(f, 'e', -1, 64)
-	mant, expPart, _ := strings.Cut(e, "e")
-	digits := strings.Replace(mant, ".", "", 1)
-	exp, err := strconv.Atoi(expPart)
-	if err != nil {
-		return "", fmt.Errorf("number %v: %w", f, err)
-	}
-	k := len(digits)
-	n := exp + 1 // value = 0.digits * 10^n
-	var s string
-	switch {
-	case k <= n && n <= 21:
-		s = digits + strings.Repeat("0", n-k)
-	case 0 < n && n <= 21:
-		s = digits[:n] + "." + digits[n:]
-	case -6 < n && n <= 0:
-		s = "0." + strings.Repeat("0", -n) + digits
-	default:
-		m := digits[:1]
-		if k > 1 {
-			m += "." + digits[1:]
-		}
-		es := strconv.Itoa(n - 1)
-		if n-1 >= 0 {
-			es = "+" + es
-		}
-		s = m + "e" + es
-	}
-	return sign + s, nil
 }

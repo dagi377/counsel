@@ -43,6 +43,11 @@ type Line struct {
 	Side    Side
 	Amount  Cents
 	Subject Subject // optional: the business object the line is about
+	// Dimensions are optional extra gl.journal_line columns by column name, e.g. an app's
+	// link to its own business object. The kernel names none of them: Post writes any
+	// column the table has beyond the core ones, and Reverse copies every one unchanged.
+	// An empty value is NULL. Additive (docs/QUESTIONS.md, Q-GL-DIM).
+	Dimensions map[string]string
 }
 
 // Entry is a balanced journal entry: debits equal credits. It is idempotent per
