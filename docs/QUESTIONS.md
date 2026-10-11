@@ -2377,3 +2377,17 @@ Done in PORT-18:
 - A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008), not
   the 409 the accept line names; same as the other HTTP routes.
 - openapi has no body schemas for these operations; the views are documented here.
+
+## Q-FEAT-DOC-10 Document features on real reads (F-DOC-09, F-DOC-10, F-DOC-11)
+
+- The branch merges `task/AGENTTEST-FIX` for its envelope-aware `agenttest.QuotedOnly`: the feature tests
+  run read_document's real handler over `Seed.Document` (with its version_id), whose result is
+  `{"untrusted": true, "pages": ...}`, not an `agenttools.Quoted`.
+- The shared test helpers carry the `docd` prefix (`ai_f_doc_09_feature_test.go`); FEAT-DOC-11 and
+  FEAT-DOC-12 stack on this branch and reuse them.
+- Gate kind constants are per feature (`GateCourtFormRepublish`, ...) because other unmerged DOC
+  branches declare `GateTemplatePublish` and `GateOutgoing`; the integrator may fold them into those.
+- F-DOC-09 is scheduled (daily): `CourtFormCurrencyBinding(actingFor)` takes the designated lawyer, as
+  `deadlines.RuleWatchBinding` does; it can move to `trigger.BindDesignated` once JOB-ACTOR merges.
+- None of these Defs' write tools is a sourced write (draft_document carries no amount or date
+  pointers), so `agenttools.ErrUnsourcedValue` cannot arise in their runs; no test asserts it.
