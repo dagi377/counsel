@@ -2256,6 +2256,19 @@ Done in PORT-18:
   agenttools.Quoted), so an instruction in a matter name reaches the model outside quoted
   data (ARC-I-038). That is a handler follow-up.
 
+## PORT-WORK: Postgres kernel work.Service
+
+- `work.PG` (kernel/work/pg.go) implements `work.Service` over work.work_item, work.status and
+  work.transition. Boot must wire it (with the app's `SubjectKinds`) for the HTTP-23 routes.
+- Shared contract tests live in `kernel/work/worktest`; workfake runs them in unit tests and
+  work.PG runs them in `pg_integration_test.go` (vet-only for now).
+- Carries the HTTP-23 additive `work.Filter.After` cursor (same hunk as task/HTTP-23, so the
+  merge is clean). PG pages in id order (uuidv7, creation order).
+- Keys: an empty Item.Key becomes `W-` plus the random 12-hex tail of the uuidv7 id; rank
+  starts as the id. A readable per-firm series (kernel/numseq) is a later choice.
+- Merges task/TOOL16-DESC: work.PG writes and reads `Item.Description` (work_item.description,
+  NULL for none; the 1003 check bounds it).
+- Automations (work.Automations) have no Postgres implementation yet.
 ## TOOL16-DESC: work item description
 
 - Additive in `kernel/work/contract.go`: `Item.Description *string` (Markdown, nil for none),
