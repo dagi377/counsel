@@ -1,0 +1,23 @@
+synthetic: true
+feature: F-CON-03
+match: {last_user_regex: "clearance memo for matter"}
+fault: rate_limit
+turns:
+  - reply:
+      tool_calls:
+        - name: search_contacts
+          input: {query: "M-2026-0042 parties", limit: 20}
+  - reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: draft-memo, title: "Draft clearance memo for M-2026-0042"}]}
+  - reply:
+      tool_calls:
+        - name: submit_for_approval
+          input:
+            kind: conflict.clearance
+            matter: "M-2026-0042"
+            memo:
+              - {party: "Northwind Ltd", hit: "M-2025-0107", disposition: "no conflict", reason: "former matter closed, unrelated subject"}
+  - reply:
+      text: "Drafted the clearance memo for your review."
