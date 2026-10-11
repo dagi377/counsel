@@ -169,5 +169,8 @@ func appDefs() []feature.Def {
 		work.SuggestCategoriesDef(),
 		work.ExplainNumberDef(),
 		work.TriageDef(),
+		work.AskQuestionDef(),
+		work.SuggestRebalanceDef(),
+		work.PlainLanguageFilterDef(),
 	}
 }

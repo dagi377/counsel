@@ -527,6 +527,9 @@ var actionScreens = map[string]trigger.Screen{
 	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
 	// work-list triage selects the matter whose untriaged items get suggestions.
 	"work-list": {SubjectKind: "matter", Capability: "work.view"},
+	// saved-filters is firm-wide, but no firm subject exists yet, so it selects the matter
+	// (Q-FEAT-WRK-12). workload and work-item are listed once above.
+	"saved-filters": {SubjectKind: "matter", Capability: "work.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

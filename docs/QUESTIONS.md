@@ -4323,3 +4323,24 @@ and has a one-outbox-event test.
   the client portal request publishing `work_item.created`.
 - `work-list` selects subject kind `matter` with `work.view`. F-WRK-03 is an embedding
   feature, so no plugin skill is generated for it.
+
+
+## Q-FEAT-WRK-12 F-WRK-10, F-WRK-12 and F-WRK-13 screens
+
+- Task: FEAT-WRK-12 (read-only screen answers F-WRK-10, F-WRK-12, F-WRK-13).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Defs in
+  appDefs) and `app/legal/boot/agent.go` (the action screens). Built on task/FEAT-WRK-11 for
+  the shared read tools and `ai_wrkd_helpers_test.go`.
+- `work-item` selects subject kind `work_item` with `work.edit`, the same entry as
+  FEAT-WRK-01; keep one copy when both merge.
+- `workload` and `saved-filters` are firm-wide screens, but main has no `boot.FirmSubject`, so
+  both select the matter with `work.view`. Switch them to the firm subject when it lands.
+
+## Q-INTEG-18-WRK pass 18 work screens
+
+- FEAT-WRK-12 asked for `workload` with `work.view`; main already maps `workload` to
+  `work.edit` (F-WRK-07, absence cover), so the one entry keeps `work.edit` and F-WRK-12's
+  "Suggest rebalance" action needs `work.edit`. Open: decide whether the read-only rebalance
+  answer should need only `work.view` (that would need a per-action capability).
+- FEAT-WRK-09's `ai_wrkc_helpers_test.go` additions (read-only prompt and Def checks, answer and
+  outcome helpers) were folded into the shared `ai_wrk_helpers_test.go`.
