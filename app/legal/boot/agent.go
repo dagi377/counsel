@@ -47,20 +47,19 @@ type AgentPorts struct {
 	ClientMatters agent.ClientMatters
 	Matters       matter.Query
 	DocLookup     agent.DocumentLookup
-	// WriteTools serves prepare_trust_withdrawal; boot builds it with agent.NewWriteTools.
-	WriteTools *agent.WriteTools
-	Work       agent.WorkList
-	Text       agent.DocumentText
-	Documents  agent.MatterDocuments
-	Folders    agent.MatterFolders
+	Work          agent.WorkList
+	Text          agent.DocumentText
+	Documents     agent.MatterDocuments
+	Folders       agent.MatterFolders
 
 	Bills          agent.BillReader
+	UnbilledWIP    agent.UnbilledWIP
+	WriteTools     *agent.WriteTools
 	BillBalances   agent.BillBalances
 	Trust          agent.TrustAvailable
 	TrustAccounts  agent.MatterTrustAccounts
 	Entries        tk.Entries
 	MatterTime     agent.MatterTime
-	UnbilledWIP    agent.UnbilledWIP
 	DraftCalc      draft.Calc
 	DraftStore     draft.Store
 	BatchDrafts    batch.Drafts
@@ -103,18 +102,18 @@ func (p AgentPorts) ports() []port {
 		{"ClientMatters", p.ClientMatters, p.ClientMatters != nil},
 		{"Matters", p.Matters, p.Matters != nil},
 		{"DocLookup", p.DocLookup, p.DocLookup != nil},
-		{"WriteTools", p.WriteTools, p.WriteTools != nil},
 		{"Work", p.Work, p.Work != nil},
 		{"Text", p.Text, p.Text != nil},
 		{"Documents", p.Documents, p.Documents != nil},
 		{"Folders", p.Folders, p.Folders != nil},
 		{"Bills", p.Bills, p.Bills != nil},
+		{"UnbilledWIP", p.UnbilledWIP, p.UnbilledWIP != nil},
+		{"WriteTools", p.WriteTools, p.WriteTools != nil},
 		{"BillBalances", p.BillBalances, p.BillBalances != nil},
 		{"Trust", p.Trust, p.Trust != nil},
 		{"TrustAccounts", p.TrustAccounts, p.TrustAccounts != nil},
 		{"Entries", p.Entries, p.Entries != nil},
 		{"MatterTime", p.MatterTime, p.MatterTime != nil},
-		{"UnbilledWIP", p.UnbilledWIP, p.UnbilledWIP != nil},
 		{"DraftCalc", p.DraftCalc, p.DraftCalc != nil},
 		{"DraftStore", p.DraftStore, p.DraftStore != nil},
 		{"BatchDrafts", p.BatchDrafts, p.BatchDrafts != nil},
@@ -313,11 +312,11 @@ func AddTickJob(j *kboot.Jobs, b *trigger.Bindings) error {
 var actionScreens = map[string]trigger.Screen{
 	"matter-deadlines":      {SubjectKind: "matter", Capability: "deadlines.view"},
 	"limitation-assessment": {SubjectKind: "matter", Capability: "deadlines.view"},
-	// Conflict checks belong to a matter (conflict.conflict_check.matter_id); the user
-	// needs to be able to run checks on it (Q-INTEG-15A-SCREENS).
+	// A new conflict check selects the matter it is for; results and clearance select the
+	// check run (EVENTS-WIRE, Q-INTEG-15A-SCREENS).
 	"conflict-check-new": {SubjectKind: "matter", Capability: "conflicts.run"},
-	"conflict-results":   {SubjectKind: "matter", Capability: "conflicts.run"},
-	"conflict-clearance": {SubjectKind: "matter", Capability: "conflicts.run"},
+	"conflict-results":   {SubjectKind: conflict.SubjectRun, Capability: "conflicts.run"},
+	"conflict-clearance": {SubjectKind: conflict.SubjectRun, Capability: "conflicts.run"},
 	// Calendar screens act on the matter the event or deadline belongs to.
 	"event-detail":        {SubjectKind: "matter", Capability: "deadlines.view"},
 	"firm-calendar":       {SubjectKind: "matter", Capability: "deadlines.view"},

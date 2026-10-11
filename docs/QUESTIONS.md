@@ -2093,14 +2093,21 @@ Done in PORT-18:
   transfer itself is never re-split. An apportioned bucket above its outstanding fails closed.
 
 ## Q-FEAT-CORE-15 Read and trust withdrawal handlers join the explicit handler set
+## Q-HTTP-16 Direct trust receipt posting versus the gate-owned receipt key
 
-- `handlerset.go` `Handlers()` lists four more handlers (search_matters, get_matter,
-  read_document, prepare_trust_withdrawal) so the set covers all 25 a2 tools;
-  `handlerset_test.go` lists them too. The handlers live in `handlers.go`.
-- prepare_trust_withdrawal builds from the `*agent.WriteTools` boot passes in Deps, so the
-  run it parks is the one that WriteTools resumes on gate.decided.
-- `agenttest/seed.go`: `SeedStore.Document` implements `agent.DocumentLookup`, so
-  read_document runs its real handler in feature tests instead of a stand-in.
+- HTTP-16 accept said an unambiguous, under-limit POST /trust/receipts answers 201 and posts
+  the receipt in the route, but app/legal/gateowned.go gives `trust_txn.posted=receipt` to
+  trust.receipt_classification (ARC-I-012). Options were (A) split the key, or (B) send every
+  receipt through trust.receipt_classification.
+- **Closed (decided as counsel):** the gate-owned key is not split. Classifying money as trust
+  is the control, so every receipt goes through trust.receipt_classification. For By-law 9
+  same-day record-keeping, POST /trust/receipts records the receipt at once in the trust
+  receipts journal (`trust.receipt_journal`, migration 5520) in state
+  `received_pending_classification`, opens the gate with the proposed classification in the
+  same transaction and answers 202 with the Gate. Only the gate effect
+  (`trust.ReceiptClassificationEffect`) posts to the client ledger. Built in HTTP-16b; the
+  route declares `trust_receipt.status=received_pending_classification`, never the gate-owned
+  key. Follow-up: boot wires ReceiptHTTP and the effect (gates.RegisterWired).
 
 ## Q-FEAT-DL-08 Deadline feature tests: stand-ins and files beyond the task list
 
@@ -2228,20 +2235,25 @@ Done in PORT-18:
   test sets it as the landed test did.
 
 ## Q-FEAT-CON-02 F-CON-02 opens G2 through propose_conflict_parties
+## REFUND-EFFECT billing.refund gate effect
 
-- No F-CON tool drafts, so the run scope never holds a draft and an agent's
-  submit_for_approval is refused (404). The run's G2 gate is the conflict run that
-  propose_conflict_parties starts: conflict.Clearance decides it with gate kind
-  conflict.clearance, and the run's preparer is the acting user. The feature test checks that
-  run is open, that an agent principal deciding is 403 (ErrAgentApproves) and that the
-  acting user deciding is 403 (conflict.ErrPreparerApproves, the conflict module's
-  self-approval refusal).
-- The Def starts from the a2 event `conflict.check_completed` ("event: check run").
-- No F-CON-02 write carries an amount or a date, so ErrUnsourcedValue (ARC-U-027) has no
-  case here. propose_conflict_parties checks a party source's shape but not that the run
-  read it (Scope.Cites); that is a handler follow-up.
+- Built `payment.RefundEffect` (app/legal/billing/payment/refund_effect.go), the G-B6
+  billing.refund effect HTTP-15 needs. Integer cents; the refund never exceeds the payment
+  less earlier refunds; replay by gate id records nothing twice; the approver must be a user
+  who is not the requester (BIL-C-064).
+- Operating refund: records billing.refund (status approved, approval_id = gate) and the
+  negative client credit through the `RefundStore` port, and posts Dr OP-2200 / Cr OP-1000
+  (gl source_type `refund`, source id = refund id).
+- Trust refund: never pays out in the effect. It becomes a trust withdrawal (cheque, payee
+  from the payload, prepared by the G-B6 approver so they cannot also authorise it) checked by
+  `withdraw.Validate` (bearer payee, overdraw, uncleared funds, By-law 9 flag) and opened
+  through the `TrustRefunds` port; the refund row links trust_withdrawal_id, and the trust book
+  moves when that withdrawal executes.
+- Follow-ups: Postgres `RefundStore` and `TrustRefunds` implementations, and boot wiring of
+  `payment.Gated` plus this effect in app/legal/boot/effects.go (gates.RegisterWired). No
+  migration: billing.refund already has approval_id, trust_withdrawal_id and status.
 
-## Q-FEAT-CON-03 Clearance memo is the run's answer; new event conflict.hits_disposed
+## WD-BILL: trust withdrawal names its bill
 
 - As in Q-FEAT-CON-02, the G2 gate is the conflict run propose_conflict_parties starts; no
   F-CON tool drafts, so the memo is the run's final answer, not a stored draft. A memo draft
@@ -2426,6 +2438,23 @@ Done in PORT-18:
 - A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008), not
   the 409 the accept line names; same as the other HTTP routes.
 - openapi has no body schemas for these operations; the views are documented here.
+## EVENTS-2: publishers for the remaining F-DL-03 / F-DL-04 events
+
+- Branch carries origin/task/DL-EVENTS (merged in) because it reuses `PGBook.Events` and
+  `FilingStore.Events`; merge DL-EVENTS first or together.
+- New minimal write points (no schema change), each emitting in the writer's tx and refusing
+  before any write when its emitter is nil (DL-EVENTS pattern):
+  - `deadline.trigger_date_changed`: kernel/deadline `PGBook.ChangeTrigger(ctx, tx, id, date)`
+    updates `cal.deadline.trigger_on` only (due date stays until F-DL-03's proposal is
+    confirmed), subject `cal.deadline`/id, body ids plus old and new trigger. Same date is a
+    no-op. Not on the frozen `Engine` interface.
+  - `claim.issued`: comms `FilingStore.IssueClaim(ctx, filingID, courtFileNo, issuedOn)` sets
+    the court file number on a filed `legal.court_filing` row (ErrNotFound otherwise).
+  - `service.affidavit_received`: comms `FilingStore.RecordAffidavitOfService(ctx, f)` records
+    a filed filing whose document is the affidavit; it emits this event instead of
+    `filing.receipt_received`, so F-DL-04 runs once per record.
+- Open: no handler or route calls these yet (boot/handler task). Whether an affidavit of
+  service received but not filed with the court should also publish (verify).
 ## Q-BOOT-WIRE-A agent layer at boot
 
 - `Options.Agent` (`AgentWiring`) registers every `agent.Handlers()` tool, the job bindings
@@ -2719,37 +2748,44 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   route declares `trust_receipt.status=received_pending_classification`, never the gate-owned
   key. Follow-up: boot wires ReceiptHTTP and the effect (gates.RegisterWired).
 ## REFUND-EFFECT billing.refund gate effect
+## Q-FEAT-CORE-15 Read and trust withdrawal handlers join the explicit handler set
 
-- Built `payment.RefundEffect` (app/legal/billing/payment/refund_effect.go), the G-B6
-  billing.refund effect HTTP-15 needs. Integer cents; the refund never exceeds the payment
-  less earlier refunds; replay by gate id records nothing twice; the approver must be a user
-  who is not the requester (BIL-C-064).
-- Operating refund: records billing.refund (status approved, approval_id = gate) and the
-  negative client credit through the `RefundStore` port, and posts Dr OP-2200 / Cr OP-1000
-  (gl source_type `refund`, source id = refund id).
-- Trust refund: never pays out in the effect. It becomes a trust withdrawal (cheque, payee
-  from the payload, prepared by the G-B6 approver so they cannot also authorise it) checked by
-  `withdraw.Validate` (bearer payee, overdraw, uncleared funds, By-law 9 flag) and opened
-  through the `TrustRefunds` port; the refund row links trust_withdrawal_id, and the trust book
-  moves when that withdrawal executes.
-- Follow-ups: Postgres `RefundStore` and `TrustRefunds` implementations, and boot wiring of
-  `payment.Gated` plus this effect in app/legal/boot/effects.go (gates.RegisterWired). No
-  migration: billing.refund already has approval_id, trust_withdrawal_id and status.
+- `handlerset.go` `Handlers()` lists four more handlers (search_matters, get_matter,
+  read_document, prepare_trust_withdrawal) so the set covers all 25 a2 tools;
+  `handlerset_test.go` lists them too. The handlers live in `handlers.go`.
+- prepare_trust_withdrawal builds from the `*agent.WriteTools` boot passes in Deps, so the
+  run it parks is the one that WriteTools resumes on gate.decided.
+- `agenttest/seed.go`: `SeedStore.Document` implements `agent.DocumentLookup`, so
+  read_document runs its real handler in feature tests instead of a stand-in.
 
-## WD-BILL: trust withdrawal names its bill
+## Q-FEAT-CON-02 F-CON-02 opens G2 through propose_conflict_parties
 
-- Additive in `app/legal/trust/withdraw/contract.go`: `Request.BillID`
-  (`trust.withdrawal_request.bill_id`, already in 0001_init.sql, so no migration). The agent's
-  prepare_trust_withdrawal passes its `bill_id` on (FEAT-FIX-B). The trust.withdrawal gate
-  payload gains `bill_id` (omitempty), so an approval binds the bill.
-- `Effect.Apply` re-checks a fee withdrawal at authorization (By-Law 9 s.9(1), BIL-L-035/037):
-  it names a bill, the bill is on the same matter, delivered on or before now, and the amount
-  is no more than its unpaid balance. A withdrawal with a bill id, or purpose `fees` /
-  `fees_to_operating`, is a fee withdrawal. `Effect.Bills` (new port `withdraw.FeeBills`, read
-  in the gate tx) nil fails closed. Open (BOOT): wire a billing adapter returning the bill's
-  matter, delivery date and balance net of reserved fee transfers.
-- Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
-  resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.
+- No F-CON tool drafts, so the run scope never holds a draft and an agent's
+  submit_for_approval is refused (404). The run's G2 gate is the conflict run that
+  propose_conflict_parties starts: conflict.Clearance decides it with gate kind
+  conflict.clearance, and the run's preparer is the acting user. The feature test checks that
+  run is open, that an agent principal deciding is 403 (ErrAgentApproves) and that the
+  acting user deciding is 403 (conflict.ErrPreparerApproves, the conflict module's
+  self-approval refusal).
+- The Def starts from the a2 event `conflict.check_completed` ("event: check run").
+- No F-CON-02 write carries an amount or a date, so ErrUnsourcedValue (ARC-U-027) has no
+  case here. propose_conflict_parties checks a party source's shape but not that the run
+  read it (Scope.Cites); that is a handler follow-up.
+
+## Q-FEAT-CON-03 Clearance memo is the run's answer; new event conflict.hits_disposed
+
+- As in Q-FEAT-CON-02, the G2 gate is the conflict run propose_conflict_parties starts; no
+  F-CON tool drafts, so the memo is the run's final answer, not a stored draft. A memo draft
+  store with a draft tool would let submit_for_approval carry it.
+- a2 lists no event for "all hits disposed"; F-CON-03 binds `conflict.hits_disposed`, which
+  the conflict module does not publish yet.
+- The AI-035 test (app/legal/conflict/ai_f_con_03_test.go; the task's
+  app/legal/conflicts/ path is a typo) now runs through agenttest.FromFeature with no
+  stand-ins. The f-con-03 fixtures use a2 inputs, the injection variant no longer makes an
+  extra tool call, and ok pins match.prompt_hash.
+- search_matters and get_matter return matter short names unquoted (not as
+  agenttools.Quoted), so an instruction in a matter name reaches the model outside quoted
+  data (ARC-I-038). That is a handler follow-up.
 
 ## DL-EVENTS: the owning modules publish the deadline trigger events
 
@@ -2771,6 +2807,22 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
     no issued-claim or affidavit-of-service record to publish from.
 - BOOT: set `PGBook.Events` and `FilingStore.Events` to the outbox emitter.
 
+## Q-CON-03-MEMO Clearance memo kept on file; conflict.hits_disposed published
+
+- Decided as counsel (LSO Rule 3.4 records): F-CON-03 files the memo as a draft document on
+  the check's matter through draft_document (DocumentDrafts), not only as the run's answer.
+  F-CON-03 gains draft_document in its Def and in spec/ai/features.json, and the grant
+  documents.edit.
+- The a2 draft_document input has no field that links a draft to a conflict run, so the
+  memo is titled "Conflict clearance memo, run <ref>" with the ref propose_conflict_parties
+  returned, and the draft carries the agent run id. A structured link (an additive subject on
+  NewDraftDocument, or the run storing the memo draft id) is a follow-up. A check on a lead
+  with no matter has nowhere to file the memo yet.
+- conflict.Checks publishes conflict.hits_disposed (subject conflict.run) through its
+  Events outbox.Emitter once, on the disposition that leaves every hit of the run disposed.
+  The body is ids and a count, with acting_for set to the run's preparer. Dispositions are
+  kept in memory (Q-PORT-18 C), so the event is emitted with no tx; boot must set Events, and
+  while it is nil no event is published.
 ## WO-FIX: write-off draft outcomes and the split after a trust fee transfer
 
 - Additive in `app/legal/billing/credit/contract.go`: `StatusRejected` and `StatusWithdrawn`.
@@ -2989,3 +3041,24 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
 - HTTP-26 webhook row_version: not done (time limit). Needs an additive migration on platform.webhook and the Postgres reads in kernel/webhook to compare it for If-Match.
 - STMT-IMPORT: recon.CSVParser (generic kind,date,description,amount_cents CSV, integer cents only) and recon.PGImports replace NoParser and PGService's import refusal at boot. Touched recon/http_write.go to put a ParseError's line and reason (never file text) in the 422 problem detail. Line descriptions go in StatementLine.Reference (the frozen contract has no description field).
 - Merge fixes: recon read/write HTTP files declared the shared problem codes, Access and reconView twice (kept the read file's, Version int64); trust.TxRunner declared twice (kept receipt_http.go's).
+
+## EVENTS-WIRE: event emitters at boot, walled-matter publisher (partial)
+
+- Merges DL-EVENTS, EVENTS-2, DRAFT-FIX, CON-03-MEMO and BOOT-REST. Integration fix in
+  app/legal/boot/agent.go (outside the listed files): FEAT-CORE-15's handlers read
+  `matter.Query`, `agent.DocumentLookup`, `agent.UnbilledWIP` and `*agent.WriteTools`, so
+  AgentPorts gains Matters, DocLookup, UnbilledWIP and WriteTools; JobBindings binds F-CON-02
+  and F-CON-03; the action route maps the conflict-results and conflict-clearance screens to
+  subject `conflict.run` with `conflicts.run`.
+- New app/legal/boot/events.go: `newEventStores` builds PGBook, FilingStore and
+  EmailFilingStore on the kernel emitter (RestServices gains Emails); `setCheckEvents` sets
+  `conflict.Checks.Events` in buildClearance.
+- `roles.walled_matter_accessed`: `WallResolver.WithEvents(em)` publishes once per wall check
+  of a walled matter (allowed or refused, body ids plus `allowed`), outside a tx. It needs the
+  wall store to implement `roles.WalledStore` (Walled(matterID)); the matter wall store does
+  not yet, and boot does not build a WallResolver, so nothing calls WithEvents yet.
+- Left (not done in this pass): HTTP routes calling PGBook.ChangeTrigger, IssueClaim,
+  RecordAffidavitOfService and FileEmail (plus openapi entries); publishers for
+  `identity.portal_submission` (no portal identity-evidence write point exists) and
+  `party.organization_client_created` (no write point turns an organization into a client;
+  `party.ClientOfLead` only reads); draft_document `subject_ref`.

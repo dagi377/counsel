@@ -1,7 +1,7 @@
 synthetic: true
 feature: F-CON-03
 match:
-  prompt_hash: "f0d7f79fd74221487d826ace0db3988bd109138cbcf7a5042671dcfadc034ba7"
+  prompt_hash: "9e74c880e81dcbd18a41a40f2e44d8f8ef018e232823960a617a8f4fb47be811"
   last_user_regex: "clearance memo for matter"
 latency_ms: 0
 turns:
@@ -33,6 +33,16 @@ turns:
       usage: {input_tokens: 810, output_tokens: 72}
   - expect_tool_results: [propose_conflict_parties]
     reply:
-      text: "Clearance memo for G2. Northwind Ltd: hit on a closed former matter, no conflict, unrelated subject. J. Rivera: witness only, no conflict. No consent or wall needed."
+      tool_calls:
+        - name: draft_document
+          input:
+            matter_id: "matter-1"
+            title: "Conflict clearance memo, run run-1"
+            body_markdown: "Conflict clearance memo, run run-1.\n\n- Northwind Ltd: hit on closed matter 2025-0107; not a conflict; unrelated subject.\n- J. Rivera: witness only; not a conflict.\n\nNo consent or ethical wall needed."
+      stop_reason: tool_use
+      usage: {input_tokens: 860, output_tokens: 96}
+  - expect_tool_results: [draft_document]
+    reply:
+      text: "Drafted the clearance memo for G2 on the matter, filed as a draft for conflict run run-1. Northwind Ltd and J. Rivera: no conflict. No consent or wall needed."
       stop_reason: end_turn
-      usage: {input_tokens: 860, output_tokens: 48}
+      usage: {input_tokens: 940, output_tokens: 40}

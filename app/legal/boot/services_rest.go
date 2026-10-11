@@ -74,6 +74,8 @@ type RestServices struct {
 	// (DL-EVENTS).
 	Book    *deadline.PGBook
 	Filings *comms.FilingStore
+	// Emails files emails to matters and publishes email.filed (DRAFT-FIX).
+	Emails *comms.EmailFilingStore
 }
 
 // AuditMasker is the audit masker the legal app stores detail through. It keeps only ids,
@@ -109,16 +111,14 @@ func restServices(k *kboot.Kernel) (RestServices, error) {
 	}
 	log := audit.New(q, AuditMasker(), audit.Options{})
 	grants := identity.PGGrants{DB: k.DB, SubjectKind: matterkind.Subject, SubjectColumn: BreakGlassSubjectColumn}
-	book := deadline.NewPGBook(k.DB)
-	book.Events = k.Emitter
-	filings := comms.NewFilingStore(k.DB)
-	filings.Events = k.Emitter
+	ev := newEventStores(k.DB, k.Emitter)
 	return RestServices{
 		BreakGlass: identity.NewBreakGlassWith(k.Clock, log, grants),
 		SignOff:    recon.NewPGSignOff(q).WithAudit(log),
 		Sessions:   portal.PGSessions{DB: k.DB},
-		Book:       book,
-		Filings:    filings,
+		Book:       ev.Book,
+		Filings:    ev.Filings,
+		Emails:     ev.Emails,
 	}, nil
 }
 
