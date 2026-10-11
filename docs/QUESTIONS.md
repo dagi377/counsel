@@ -361,3 +361,18 @@ Template:
   comment additively.
 - Flag: nothing in this task is marked (verify), so no code sits behind
   `trust.bylaw9_verified`; the balance checks always apply.
+
+## T-012.2: withdrawal effect files and split with T-012.3
+
+- Files: added `app/legal/trust/withdraw/effect_test.go` (unit tests on trustfake and an
+  in-memory store, as the owner asked) and this entry; neither is in the task's file list.
+- `Effect.Apply` is the trust.withdrawal EffectFunc (authorisation by a signatory, never the
+  preparer or an agent, balance re-checked). `Effect.Execute` posts the disbursement through
+  `Disburse` (ledger lock + re-check) when a different user records execution, with the
+  sole-practitioner exception audited. T-012.3 (execute.go, RecordExecution) should call
+  `Effect.Execute` rather than post on its own.
+- `Apply` re-checks with `Ledgers.Balance`, which reads outside the caller's tx; the locked
+  re-check happens at `Execute` and in the DB guard (DM-064). Proposed: an additive
+  `Ledgers.BalanceTx(ctx, tx, id)` if the authorisation check must run under the lock too.
+- Branch: task/T-012.2 is cut from task/T-011.2 (it uses `trust.LedgerStore`); merge T-011.2
+  first.
