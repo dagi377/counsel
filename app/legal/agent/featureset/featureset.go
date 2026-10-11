@@ -45,5 +45,6 @@ func appDefs() []feature.Def {
 		deadlines.ExplainStepDef(),
 		deadlines.DraftAgendaDef(),
 		deadlines.AdjournmentWatcherDef(),
+		deadlines.AbsenceCoverageCheckDef(),
 	}
 }

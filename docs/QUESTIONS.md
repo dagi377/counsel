@@ -2163,3 +2163,22 @@ Done in PORT-18:
   appDefs). F-DL-08 is an extraction feature, so it gets no plugin skill.
 - Event types `calendar.event_moved` and `calendar.event_cancelled` are named here; no calendar
   module publishes them yet.
+
+## Q-FEAT-DL-10 create_task returns a proposal, so F-DL-09 cannot open work.absence
+
+- Task: FEAT-DL-10 (F-DL-09 Absence coverage check)
+- `create_task` creates the cover task in the proposed status and returns
+  `OutcomeProposal`; only an `OutcomeDraft` result is recorded as a draft of the run, so
+  `submit_for_approval` refuses `work.absence` on the cover proposal with `ErrNotFound`, and
+  no write tool in the Def opens `work.absence` itself. The run fails closed (the task stays
+  proposed, no gate), and the pending-gate, 403 and ErrSelfApproval checks cannot run for
+  F-DL-09 yet. `TestFDL09_FromFeature` pins this and checks a kind outside the Def is
+  `ErrGateKindNotAllowed`.
+- Proposed: `create_task` records its proposed task as a draft of the run when the run scope
+  allows `work.absence` (or returns `OutcomeDraft`), so `submit_for_approval` can open the
+  gate. That changes `app/legal/agent/tools_task.go` (FEAT-TOOL-16), not this task's files.
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (F-DL-09 in
+  appDefs) and the generated skill
+  `paploo/counsel-plugin/skills/f-dl-09-absence-coverage-check/SKILL.md`.
+- Event type `work.absence_approved` is named here; work/team-availability does not publish
+  it yet.
