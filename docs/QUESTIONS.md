@@ -2032,3 +2032,13 @@ Done in PORT-18:
 - Submit is refused 422 unexplained_difference unless the three-way totals agree after
   reconciling items; a signed-off reconciliation answers 409 period_locked.
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+## PORT-STMT: Postgres recon Statements.Closing
+
+- `recon.PGStatements` (statements_pg.go) implements the HTTP-18b `Statements` port: the
+  closing balance, in cents, of the latest trust.bank_import whose period covers the month's
+  last day. No statement (or only imports without a stored balance) is `ErrNotFound`.
+- trust.bank_import had no balance columns, so `5530_bank_import_balances.sql` (app/legal/trust
+  block) adds nullable `opening_cents` and `closing_cents`. The Postgres ImportStatement (boot
+  follow-up; none on main) must write both.
+- Built on main without HTTP-18b, so the interface check is in the test; after HTTP-18b merges,
+  add `var _ Statements = (*PGStatements)(nil)` and wire it as `WriteHTTP.Statements` at boot.
