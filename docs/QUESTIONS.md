@@ -3239,3 +3239,14 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   `app/legal/agent/tools_task.go`. Note that none of the F-WRK tools returns a bare
   `YYYY-MM-DD` value (list_work_items gives RFC 3339 `due_at`), so once wrapped an agent can
   write no due date until a read tool returns one.
+
+## Q-FEAT-WRK-07 F-WRK-11 base branch, the work-item-create screen and its skill
+
+- Task: FEAT-WRK-07 (F-WRK-11 Create from email / call note).
+- Based on `task/FEAT-WRK-01` (not yet on main) to reuse `work.GateWorkOutput` and the wrk
+  test helpers; `origin/main` is merged in.
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Def in
+  appDefs), `app/legal/boot/agent.go` (the `work-item-create` action screen) and
+  `app/legal/work/ai_wrkc_helpers_test.go` (shared wrkc test helpers).
+- `work-item-create` selects subject kind `matter` with `work.edit`: the drafted items go on
+  that matter. F-WRK-11 is an extraction feature, so no plugin skill is generated for it.

@@ -422,6 +422,8 @@ var actionScreens = map[string]trigger.Screen{
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
 	// Work: the work-item screen selects the item the agent posts its result on.
 	"work-item": {SubjectKind: "work_item", Capability: "work.edit"},
+	// work-item-create selects the matter the drafted items go on.
+	"work-item-create": {SubjectKind: "matter", Capability: "work.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

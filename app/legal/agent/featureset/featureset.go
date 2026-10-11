@@ -118,5 +118,6 @@ func appDefs() []feature.Def {
 		matter.SummarizeThisWeekDef(),
 		// work
 		work.PickUpAgentReadyDef(),
+		work.CreateFromNoteDef(),
 	}
 }
