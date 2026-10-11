@@ -513,6 +513,9 @@ type AgentWiring struct {
 	// Runners are every other agent runner boot hands out (the job-run worker's among them).
 	// Boot wraps each in place so it forgets a run's provenance values when the run ends.
 	Runners []*agentrun.Runner
+	// Unready, when set, serves a tool whose port has no implementation in this process as not
+	// served and reports its features not ready, instead of failing boot (Production).
+	Unready *AgentReadiness
 }
 
 // registerAgent registers the agent tools and features: every handler tool, the job
@@ -548,6 +551,9 @@ func registerAgent(w *AgentWiring) hook {
 			w.Ports.WriteTools = wt
 		}
 		tools, err := AgentTools(w.Ports)
+		if w.Unready != nil {
+			tools, err = servedTools(w.Ports, w.Unready, features)
+		}
 		if err != nil {
 			return err
 		}
@@ -665,4 +671,10 @@ func soleTrustAccount(src agent.MatterTrustAccounts) func(ctx context.Context, m
 		}
 		return accts[0], nil
 	}
+}
+
+// registerAgent registers Options.Agent as it stands when the step runs, so the wiring
+// bindProduction built is the one registered.
+func (w *wiring) registerAgent(ctx context.Context, k *kboot.Kernel) error {
+	return registerAgent(w.opts.Agent)(ctx, k)
 }
