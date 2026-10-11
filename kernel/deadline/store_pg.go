@@ -344,3 +344,72 @@ func isUUID(s string) bool {
 	}
 	return true
 }
+
+// EventTriggerDateChanged is the outbox event type ChangeTrigger emits when a stored
+// deadline's trigger date changes. Subject is SubjectDeadline with the deadline id.
+const EventTriggerDateChanged = "deadline.trigger_date_changed"
+
+// SubjectDeadline is the outbox subject kind of a stored deadline.
+const SubjectDeadline = "cal.deadline"
+
+// TriggerDateChanged is the body of EventTriggerDateChanged: ids and dates only. OldTrigger
+// is empty when the deadline had no trigger date.
+type TriggerDateChanged struct {
+	DeadlineID  string `json:"deadline_id"`
+	SubjectKind string `json:"subject_kind"`
+	SubjectID   string `json:"subject_id"`
+	PackID      string `json:"pack_id"`
+	RuleID      string `json:"rule_id"`
+	OldTrigger  string `json:"old_trigger,omitempty"`
+	NewTrigger  string `json:"new_trigger"`
+}
+
+const triggerLockSQL = `SELECT trigger_on, subject_kind, subject_id::text, pack_code, rule_key
+  FROM cal.deadline WHERE id = $1 FOR UPDATE`
+
+const triggerUpdateSQL = `UPDATE cal.deadline
+   SET trigger_on = $2, updated_at = now(), row_version = row_version + 1
+ WHERE id = $1`
+
+// ChangeTrigger sets the trigger date of stored deadline id to trigger and emits
+// EventTriggerDateChanged in tx. The due date is not touched: the dependants are
+// recomputed and proposed for confirmation by whoever handles the event, and the old due
+// date stays in force until then. An unchanged date writes and emits nothing. Without
+// Events it writes nothing.
+func (b *PGBook) ChangeTrigger(ctx context.Context, tx pgx.Tx, id DeadlineID, trigger Date) error {
+	if b.Events == nil {
+		return fmt.Errorf("change trigger %s: no event emitter: %w", id, ErrInvalidPack)
+	}
+	if trigger == (Date{}) {
+		return fmt.Errorf("change trigger %s: no date: %w", id, ErrInvalidPack)
+	}
+	if !isUUID(string(id)) {
+		return fmt.Errorf("change trigger %s: %w", id, ErrNotFound)
+	}
+	var old *time.Time
+	var kind, subject, pack, rule string
+	err := tx.QueryRow(ctx, triggerLockSQL, string(id)).Scan(&old, &kind, &subject, &pack, &rule)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("change trigger %s: %w", id, ErrNotFound)
+	}
+	if err != nil {
+		return fmt.Errorf("change trigger %s: %w", id, err)
+	}
+	ev := TriggerDateChanged{DeadlineID: string(id), SubjectKind: kind, SubjectID: subject,
+		PackID: pack, RuleID: rule, NewTrigger: trigger.String()}
+	if old != nil {
+		if dateOf(*old) == trigger {
+			return nil
+		}
+		ev.OldTrigger = dateOf(*old).String()
+	}
+	if _, err := tx.Exec(ctx, triggerUpdateSQL, string(id), dateArg(trigger)); err != nil {
+		return fmt.Errorf("change trigger %s: %w", id, err)
+	}
+	// The event commits with the new trigger date, so F-DL-03 hears of every change and of
+	// nothing that rolled back.
+	if err := b.Events.Emit(ctx, tx, outbox.Subject{Kind: SubjectDeadline, ID: string(id)}, EventTriggerDateChanged, ev); err != nil {
+		return fmt.Errorf("change trigger %s: emit: %w", id, err)
+	}
+	return nil
+}

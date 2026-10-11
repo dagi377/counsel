@@ -10,7 +10,7 @@ import (
 )
 
 // The event types the deadline features bind to are the ones the owning modules publish
-// (Q-INTEG-13b, DL-EVENTS).
+// (Q-INTEG-13b, DL-EVENTS, EVENTS-2).
 func TestTriggerEventsArePublished(t *testing.T) {
 	tests := []struct {
 		name, bound, published string
@@ -18,6 +18,9 @@ func TestTriggerEventsArePublished(t *testing.T) {
 		{"rule pack published (cal)", deadlines.EventRulePackPublished, deadline.EventPackPublished},
 		{"holiday added (rulepacks)", deadlines.EventHolidayAdded, ontario.EventHolidayAdded},
 		{"filing receipt (comms)", deadlines.EventFilingReceiptReceived, comms.EventFilingReceiptReceived},
+		{"trigger date changed (cal)", deadlines.EventTriggerDateChanged, deadline.EventTriggerDateChanged},
+		{"claim issued (comms)", deadlines.EventClaimIssued, comms.EventClaimIssued},
+		{"affidavit of service (comms)", deadlines.EventAffidavitOfServiceReceived, comms.EventAffidavitOfServiceReceived},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

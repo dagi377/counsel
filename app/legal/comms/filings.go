@@ -2,6 +2,7 @@ package comms
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -35,6 +36,23 @@ type FilingReceipt struct {
 	MatterID   string `json:"matter_id"`
 	DocumentID string `json:"document_id,omitempty"`
 	FiledOn    string `json:"filed_on"`
+}
+
+// EventClaimIssued is the outbox event type IssueClaim emits when the court issues a filed
+// claim. EventAffidavitOfServiceReceived is the type RecordAffidavitOfService emits. F-DL-04
+// (app/legal/deadlines) starts on both.
+const (
+	EventClaimIssued                = "claim.issued"
+	EventAffidavitOfServiceReceived = "service.affidavit_received"
+)
+
+// ClaimIssued is the body of EventClaimIssued: ids, the court file number and the date.
+type ClaimIssued struct {
+	FilingID    string `json:"filing_id"`
+	MatterID    string `json:"matter_id"`
+	DocumentID  string `json:"document_id,omitempty"`
+	CourtFileNo string `json:"court_file_no"`
+	IssuedOn    string `json:"issued_on"`
 }
 
 // filingEvent returns the receipt event of a recorded filing, or ok false when the filing
@@ -109,16 +127,31 @@ func nullable(s string) any {
 // RecordFiling appends f and returns it with ID and RecordedAt set. A filed filing emits
 // EventFilingReceiptReceived in the same tx.
 func (s *FilingStore) RecordFiling(ctx context.Context, f Filing) (Filing, error) {
+	return s.record(ctx, "record filing", f, EventFilingReceiptReceived)
+}
+
+// RecordAffidavitOfService appends f, a filed affidavit of service (its document is the
+// affidavit), and emits EventAffidavitOfServiceReceived in the same tx instead of the
+// plain receipt event, so the deadline matcher runs once, on the more specific evidence.
+func (s *FilingStore) RecordAffidavitOfService(ctx context.Context, f Filing) (Filing, error) {
+	if f.Status != FilingFiled || strings.TrimSpace(f.DocumentID) == "" {
+		return Filing{}, fmt.Errorf("record affidavit of service: needs a filed filing with its document: %w", ErrInvalid)
+	}
+	return s.record(ctx, "record affidavit of service", f, EventAffidavitOfServiceReceived)
+}
+
+// record appends f and, when it is filed, emits event typ in the same tx.
+func (s *FilingStore) record(ctx context.Context, op string, f Filing, typ string) (Filing, error) {
 	c, err := clock.From(ctx)
 	if err != nil {
-		return Filing{}, fmt.Errorf("record filing: %w", err)
+		return Filing{}, fmt.Errorf("%s: %w", op, err)
 	}
 	r, err := normalizeFiling(f, c.Location())
 	if err != nil {
-		return Filing{}, fmt.Errorf("record filing: %w", err)
+		return Filing{}, fmt.Errorf("%s: %w", op, err)
 	}
 	if r.Status == FilingFiled && s.Events == nil {
-		return Filing{}, fmt.Errorf("record filing: no event emitter: %w", ErrInvalid)
+		return Filing{}, fmt.Errorf("%s: no event emitter: %w", op, ErrInvalid)
 	}
 	var filedOn any
 	if r.FiledOn != nil {
@@ -143,14 +176,67 @@ func (s *FilingStore) RecordFiling(ctx context.Context, f Filing) (Filing, error
 		}
 		// The receipt event commits with the filing row.
 		if ev, ok := filingEvent(out, r.FiledOn); ok {
-			return s.Events.Emit(ctx, tx, outbox.Subject{Kind: SubjectCourtFiling, ID: out.ID}, EventFilingReceiptReceived, ev)
+			return s.Events.Emit(ctx, tx, outbox.Subject{Kind: SubjectCourtFiling, ID: out.ID}, typ, ev)
 		}
 		return nil
 	})
 	if err != nil {
-		return Filing{}, fmt.Errorf("record filing: %w", err)
+		return Filing{}, fmt.Errorf("%s: %w", op, err)
 	}
 	return out, nil
+}
+
+// IssueClaim records that the court issued the claim filed as filing id: the filing gets
+// the court file number, and EventClaimIssued is emitted in the same tx. Only a filed
+// filing can be issued; a missing, unfiled or unseen filing is ErrNotFound.
+func (s *FilingStore) IssueClaim(ctx context.Context, id, courtFileNo string, issuedOn time.Time) (Filing, error) {
+	id, courtFileNo = strings.TrimSpace(id), strings.TrimSpace(courtFileNo)
+	if id == "" || courtFileNo == "" || issuedOn.IsZero() {
+		return Filing{}, fmt.Errorf("issue claim: needs filing, court file number and date: %w", ErrInvalid)
+	}
+	if s.Events == nil {
+		return Filing{}, fmt.Errorf("issue claim: no event emitter: %w", ErrInvalid)
+	}
+	c, err := clock.From(ctx)
+	if err != nil {
+		return Filing{}, fmt.Errorf("issue claim: %w", err)
+	}
+	on := clock.DateOf(issuedOn, c.Location())
+	var out Filing
+	err = s.db.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		var filedOn string
+		err := tx.QueryRow(ctx,
+			`UPDATE legal.court_filing SET reference = $2
+			  WHERE id = $1 AND status = 'filed' AND archived_at IS NULL
+			  RETURNING id::text, matter_id::text, coalesce(document_id::text, ''), court,
+			            status, coalesce(filed_by::text, ''), to_char(filed_on, 'YYYY-MM-DD'), created_at`,
+			id, courtFileNo).Scan(&out.ID, &out.MatterID, &out.DocumentID, &out.Court, &out.Status,
+			&out.FiledBy, &filedOn, &out.RecordedAt)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		out.Reference = courtFileNo
+		d, err := time.ParseInLocation(time.DateOnly, filedOn, c.Location())
+		if err != nil {
+			return fmt.Errorf("filed_on: %w", err)
+		}
+		out.FiledOn = d
+		// The issued event commits with the court file number.
+		return s.Events.Emit(ctx, tx, outbox.Subject{Kind: SubjectCourtFiling, ID: out.ID}, EventClaimIssued, claimIssuedEvent(out, on))
+	})
+	if err != nil {
+		return Filing{}, fmt.Errorf("issue claim %s: %w", id, err)
+	}
+	return out, nil
+}
+
+// claimIssuedEvent is the body of EventClaimIssued for issued filing f.
+func claimIssuedEvent(f Filing, on clock.Date) ClaimIssued {
+	return ClaimIssued{FilingID: f.ID, MatterID: f.MatterID, DocumentID: f.DocumentID,
+		CourtFileNo: f.Reference, IssuedOn: on.String()}
 }
 
 // FilingsFor lists a matter's live filings, oldest first. A matter with none, or one the
