@@ -77,5 +77,6 @@ func appDefs() []feature.Def {
 		intake.GuidedChatIntakeDef(),
 		intake.ProposeSlotsDef(),
 		intake.SuggestScoringWeightsDef(),
+		intake.DryRunLastLeadsDef(),
 	}
 }

@@ -361,6 +361,7 @@ var actionScreens = map[string]trigger.Screen{
 	"public-intake-form":   {SubjectKind: "intake.lead", Capability: "intake.leads"},
 	"consultation-booking": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 	"intake-settings":      {SubjectKind: "matter", Capability: "intake.forms"},
+	"intake-automations":   {SubjectKind: "matter", Capability: "intake.forms"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
