@@ -18,12 +18,15 @@ import (
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/trust/recon"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
+	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/api"
 	"github.com/dagi377/counsel/kernel/audit"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/idem"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/kernel/server"
+	"github.com/dagi377/counsel/kernel/webhook"
 )
 
 // Access is identity.Access as the route handlers use it. Every module's Access port has this
@@ -78,10 +81,17 @@ type HTTPPorts struct {
 	ReconStatements recon.Statements
 	ReconVersions   recon.Versions
 	ReconParser     recon.Parser
-	// Runs and RunAccess serve POST /agent/runs and GET /agent/runs/{run_id} (HTTP-25):
-	// the composition root supplies the run starter and store.
+	// Runs and RunAccess serve POST /agent/runs and GET /agent/runs/{run_id} (HTTP-25).
+	// Nil Runs, with AgentModel and AgentTools set and a kernel DB, is agent.RunStarter over the
+	// app features and run.PGRecords; nil RunAccess is Access when it builds agent principals.
 	Runs      agent.RunService
 	RunAccess agent.RunAccess
+	// AgentModel and AgentTools drive the runs Runs starts (mock model in tests).
+	AgentModel ai.ModelClient
+	AgentTools agenttools.Tools
+	// WebhookEndpoints serves the /webhook-endpoints reads (HTTP-26). Nil is
+	// webhook.PGEndpointReads on the kernel DB.
+	WebhookEndpoints webhook.EndpointReads
 	// Payments and PaymentProposals serve POST /payments/{payment_id}/allocations and
 	// /refunds (HTTP-15); both open their gates on Gates.
 	Payments         payment.Service
@@ -115,6 +125,9 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 		p.Gates = k.Gates
 	}
 	p = p.withImports(k).withReaders(k).withWrites(k)
+	if p, err = p.withAgentRuns(k); err != nil {
+		return nil, err
+	}
 	if p.Expenses == nil && k.DB != nil && k.Clock != nil {
 		p.Expenses = timekeeping.NewExpenseStore(k.DB, k.Clock.Location())
 	}
@@ -169,6 +182,9 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 		(&payment.Gated{HTTP: payment.HTTP{Payments: p.Payments, Access: p.Access, Cursors: p.Cursors, Idem: p.Idem,
 			Problems: p.Problems, Principal: p.Principal}, DB: p.DB, Gates: p.Gates, Proposals: p.PaymentProposals,
 			MinApprovers: approvers}).Routes)
+	if m := webhookMount(k, p, approvers[webhook.GateIntegrationScope]); m != nil {
+		add(true, m)
+	}
 	wg, canWithdraw := p.Gates.(credit.GateWithdrawer)
 	add(canWithdraw && p.DB != nil && p.Idem != nil, (&credit.WithdrawHTTP{Store: credit.PGWriteOffs{}, Gates: wg,
 		DB: p.DB, Access: p.Access, Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)

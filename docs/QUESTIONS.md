@@ -2202,3 +2202,21 @@ Done in PORT-18:
 - Open: Postgres payment.Proposals (HTTP-15). billing.payment_allocation has no proposed
   state and no Postgres payment.Service exists, so the gated payment routes still need both
   (a proposal table in the billing block, and a Postgres Service for Get) before they leave 503.
+
+## PG-RUNS-WEBHOOK
+
+- Webhooks: `webhook.PGEndpointReads` reads platform.webhook with `row_version` as
+  EndpointInfo.Version (never secret_ref). PATCH keeps 428 (no If-Match) and 412 (stale), and
+  with `PGExpiry.SetExpiryAt` (new `VersionedExpiry`) the renew is guarded by the version read,
+  so a write between the check and the renew is 412 (`ErrStaleVersion`). Boot mounts the
+  routes over the kernel DB (services_agent.go); `HTTPPorts.WebhookEndpoints` overrides the reads.
+- Agent runs: agent.agent_run (0001) needs `goal text NOT NULL`, a uuid skill FK and other
+  states, so 1901 adds `agent.run_record` (ids, feature, skill, acting-for, grant, subject,
+  state, error code, timestamps, tokens, cost in micro-cents; no conversation column).
+  `run.PGRecords` stores it; `agent.RunStarter` is the HTTP-25 RunService: a skill is a
+  feature id in lower case, the run is driven in the background by the kernel run loop as the
+  AgentPrincipal with the narrowed grant (the loop otherwise uses the feature's full grant).
+  The outcome text is dropped. Boot builds it when `HTTPPorts.AgentModel` and `AgentTools`
+  are set; RunAccess defaults to Access when it builds agent principals.
+- Open: no composition root sets AgentModel/AgentTools yet, so a live server still needs
+  them passed in; failed runs are not retried (agent_run_retry is not wired to run_record).
