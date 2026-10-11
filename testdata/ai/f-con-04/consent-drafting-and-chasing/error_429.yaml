@@ -1,0 +1,23 @@
+synthetic: true
+feature: F-CON-04
+match: {last_user_regex: "consent letters for matter"}
+fault: rate_limit
+turns:
+  - reply:
+      tool_calls:
+        - name: search_contacts
+          input: {query: "M-2026-0042 parties", limit: 20}
+  - reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: draft-letters, title: "Draft consent letters for M-2026-0042"}]}
+  - reply:
+      tool_calls:
+        - name: submit_for_approval
+          input:
+            kind: conflict.consent_text
+            matter: "M-2026-0042"
+            letters:
+              - {to: "Northwind Ltd", basis: "former client, unrelated matter M-2025-0107", ask: "written consent to act"}
+  - reply:
+      text: "Drafted consent letters for your review."
