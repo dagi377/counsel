@@ -2202,3 +2202,16 @@ Done in PORT-18:
 - Open: Postgres payment.Proposals (HTTP-15). billing.payment_allocation has no proposed
   state and no Postgres payment.Service exists, so the gated payment routes still need both
   (a proposal table in the billing block, and a Postgres Service for Get) before they leave 503.
+
+### PG-PAYMENT
+
+- Resolves the open HTTP-15 item above. 5630 (billing block) adds three tables, additive only:
+  `billing.payment_allocation_proposal` (proposed sets; superseded, never deleted; a deferred
+  trigger keeps the proposed total within the payment), and, because the frozen
+  `billing.payment` has no column for them, `billing.payment_capture_key` (a manual capture's
+  idempotency key) and `billing.payment_reversal` (the reversal reason).
+- Question: `billing.payment.payer_name` is NOT NULL but Capture carries no name and billing may
+  not read party tables (ARC-I-041), so PGService writes ''. The payer is `payer_contact_id`.
+- Question: Reverse has no actor, so its -1 x rows carry the original `allocated_by`.
+- Unapplied money (overpayment) is not a payment_allocation row; Allocations derives it as
+  amount minus applied, as paymentfake does. Turning it into client credit stays G-B3's.

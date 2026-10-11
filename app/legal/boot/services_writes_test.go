@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/dagi377/counsel/app/legal/billing/credit"
+	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/trust/recon"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	kboot "github.com/dagi377/counsel/kernel/boot"
@@ -42,6 +43,8 @@ func TestWithWritesFillsPostgresPorts(t *testing.T) {
 		{"WithdrawGates", is[withdrawingGates](p.WithdrawGates)},
 		{"Recons", is[recon.PGService](p.Recons)},
 		{"ReconStatements", is[recon.TxStatements](p.ReconStatements)},
+		{"Payments", is[payment.PGService](p.Payments)},
+		{"PaymentProposals", is[payment.PGProposals](p.PaymentProposals)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -63,13 +66,15 @@ func TestWithWritesKeepsGivenPorts(t *testing.T) {
 
 func TestWithWritesNeedsKernelDB(t *testing.T) {
 	p := writePorts().withWrites(&kboot.Kernel{})
-	if p.CreditBills != nil || p.WithdrawRequests != nil || p.Recons != nil || p.ReconStatements != nil {
+	if p.CreditBills != nil || p.WithdrawRequests != nil || p.Recons != nil || p.ReconStatements != nil ||
+		p.Payments != nil || p.PaymentProposals != nil {
 		t.Fatal("ports filled without a kernel DB")
 	}
 }
 
 // TestWriteRoutesServeOnPostgres: with only the shared ports and a kernel DB, the credit-note,
-// withdrawal and reconciliation POST routes are wired over Postgres and no longer answer 503.
+// withdrawal and reconciliation POST routes and the payment routes are wired over
+// Postgres and no longer answer 503.
 func TestWriteRoutesServeOnPostgres(t *testing.T) {
 	rec := &registry.Recorder{}
 	k := pgKernel()
@@ -90,6 +95,9 @@ func TestWriteRoutesServeOnPostgres(t *testing.T) {
 		"/trust/withdrawals/" + id + "/cancel",
 		"/trust/reconciliations",
 		"/trust/reconciliations/" + id + "/submit",
+		"/payments",
+		"/payments/" + id + "/allocations",
+		"/payments/" + id + "/refunds",
 	} {
 		t.Run("POST "+path, func(t *testing.T) {
 			if !seenPath(seen, http.MethodPost, path) {

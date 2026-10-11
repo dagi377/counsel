@@ -2,6 +2,7 @@ package boot
 
 import (
 	"github.com/dagi377/counsel/app/legal/billing/credit"
+	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/trust/recon"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
@@ -10,10 +11,11 @@ import (
 
 // withWrites fills every nil write port that has a Postgres implementation on the kernel DB:
 // the credit-note bill read (POST /credit-notes), the withdrawal service (POST
-// /trust/withdrawals), and the reconciliation service and statement balances (prepare and
-// submit). None of them approves: the withdrawal and sign-off decisions stay in their gate
-// effects. The withdrawal gates default to the route gates when those can withdraw. Ports
-// already set are kept. Without a kernel DB nothing is filled.
+// /trust/withdrawals), the reconciliation service and statement balances (prepare and
+// submit), and the payment service and proposed allocations (/payments). None of them
+// approves: the withdrawal, sign-off and allocation decisions stay in their gate effects.
+// The withdrawal gates default to the route gates when those can withdraw. Ports already set
+// are kept. Without a kernel DB nothing is filled.
 func (p HTTPPorts) withWrites(k *kboot.Kernel) HTTPPorts {
 	if k == nil || k.DB == nil {
 		return p
@@ -33,6 +35,18 @@ func (p HTTPPorts) withWrites(k *kboot.Kernel) HTTPPorts {
 	}
 	if g, ok := p.Gates.(withdraw.Gates); ok && p.WithdrawGates == nil {
 		p.WithdrawGates = g
+	}
+	if p.Payments == nil {
+		// rule: BIL-L-039 (verify)
+		// Operating cash shares the trust ledger's per-matter cash limit; without a clock cash fails closed.
+		svc := payment.PGService{DB: k.DB}
+		if k.Clock != nil {
+			svc.Cash = trust.NewLedgerStore(k.DB, nil, nil, k.Clock)
+		}
+		p.Payments = svc
+	}
+	if p.PaymentProposals == nil {
+		p.PaymentProposals = payment.PGProposals{}
 	}
 	if p.Recons == nil {
 		p.Recons = recon.PGService{DB: k.DB}
