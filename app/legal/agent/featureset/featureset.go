@@ -104,5 +104,6 @@ func appDefs() []feature.Def {
 		matter.TemplateFitDef(),
 		matter.RerunConflictDef(),
 		matter.ProposeRelationshipDef(),
+		matter.RequestIDDef(),
 	}
 }
