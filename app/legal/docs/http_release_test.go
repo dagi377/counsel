@@ -88,7 +88,7 @@ func newReleaseRig(t *testing.T) releaseRig {
 	now := func() time.Time { return time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC) }
 	effects := 0
 	eng := gatefake.New(now, gatefake.Caps{})
-	err = eng.Register(gate.GateKind{Slug: docs.OutgoingGate, Approver: docs.CapRelease, Risk: gate.RiskHigh, MinApprovers: 1,
+	err = eng.Register(gate.GateKind{Slug: docs.GateOutgoing, Approver: docs.CapRelease, Risk: gate.RiskHigh, MinApprovers: 1,
 		TTL: 72 * time.Hour, Effect: func(context.Context, pgx.Tx, registry.Approved) error { effects++; return nil }})
 	if err != nil {
 		t.Fatal(err)
@@ -184,8 +184,8 @@ func TestARC_I_012_ReleaseOpensOutgoingGate(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &g); err != nil {
 		t.Fatal(err)
 	}
-	if g.Kind != docs.OutgoingGate || g.State != "open" {
-		t.Errorf("gate = %+v, want open %s", g, docs.OutgoingGate)
+	if g.Kind != docs.GateOutgoing || g.State != "open" {
+		t.Errorf("gate = %+v, want open %s", g, docs.GateOutgoing)
 	}
 	if r.gates.opens != 1 {
 		t.Errorf("gate opens = %d, want 1", r.gates.opens)

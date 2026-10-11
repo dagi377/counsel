@@ -2771,6 +2771,7 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
 - Resolves the PORT-16b open point (decided as counsel): `ApproveWriteOff` computes the ETA
   s.231 relief as `BadDebtTax(amount - interest, billTax, billTotal)`. A write-off that is all
   interest gets no relief; interest above the amount fails with `ErrInvalidAmount`.
+
 ## Q-JOB-ACTOR Scheduled AI features act for a designated lawyer (decided as counsel)
 
 - A scheduled job feature acts for the lawyer the firm names for it in firm settings. The
@@ -3001,6 +3002,222 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+## Q-JOB-ACTOR Scheduled AI features act for a designated lawyer (decided as counsel)
+
+- A scheduled job feature acts for the lawyer the firm names for it in firm settings. The
+  setting is a new table `agent.designated_lawyer (feature_id, user_id)` (migration 6201,
+  additive, owned by app/legal/agent), not a column on core.firm, since a module writes only
+  its own tables. `agent.PGDesignatedLawyers` reads and sets it; Set accepts only an active
+  human lawyer in good standing, and a read of a user who no longer is answers "".
+- `trigger.BindDesignated(def, events...)` binds a scheduled feature whose runs act for its
+  designated lawyer, read at each tick (`Bindings.WithDesignated`). No lawyer named, or no
+  settings source, means the run does not start (fail closed, logged as a warning), and
+  `Bindings.Readiness` reports the feature as `no_designated_lawyer`. `Bind(def, actingFor)`
+  with a fixed acting user still works for bindings that need one.
+- F-DL-06 now binds with BindDesignated (`RuleWatchBinding()` takes no argument). At merge,
+  the scheduled bindings on unmerged branches (F-CON-05 ReverseSweepBinding, F-CON-10
+  ExpiryRetentionBinding, F-DL-05 DigestBinding) should switch the same way; until then they
+  keep compiling with a fixed acting user. Boot wiring and a readiness HTTP surface are not
+  built yet: boot calls `WithDesignated(agent.NewPGDesignatedLawyers(pool))` when it builds
+  the Bindings, and surfaces `Readiness` on the setup checks.
+
+## Q-FEAT-DOC-05 F-DOC-04 trigger event and gated subject
+
+- "document enters the review queue" binds `document.draft_created`: a new draft is what
+  enters the review queue.
+- The spec gives F-DOC-04 only draft_document and submit_for_approval as writes, so the
+  pre-check report is a draft the run submits under docs.outgoing (G8); the reviewing lawyer
+  reads it beside the document under review.
+## Q-FEAT-DOC-07 F-DOC-06 trigger events and test helpers
+
+- "A known rule or form change" binds two events: `rulepack.published` (the kernel deadline
+  event, reused as `docs.EventRulePackPublished`) and `court_form.changed`
+  (`docs.EventCourtFormChanged`, proposed). Nothing publishes `court_form.changed` yet; the
+  docs module emits it when a new docs.court_form version lands (EVENTS-WIRE follow-up).
+- The weekly run binds with `trigger.BindDesignated` (JOB-ACTOR), so this branch merges
+  task/JOB-ACTOR.
+- The end-to-end tests use `app/legal/docs/ai_docc_helpers_test.go` (prefix `docc`), a file
+  outside the task's list, shared byte-for-byte with FEAT-DOC-08 and FEAT-DOC-09 so the three
+  branches merge cleanly. FEAT-DOC-06 already covered one G-D2 gate end to end; this task's
+  test drives both gate kinds in one run.
+## Q-FEAT-DOC-08 F-DOC-07 precedent-candidates: base and helpers
+
+- Builds on task/FEAT-DOC-06 (the `prompts` embed and `GatePrecedent`) and task/JOB-ACTOR
+  (the monthly run binds with `trigger.BindDesignated`); both are merged into this branch.
+- The end-to-end tests use `app/legal/docs/ai_docc_helpers_test.go` (prefix `docc`), shared
+  byte-for-byte with FEAT-DOC-07 and FEAT-DOC-09. The featureset files and the generated
+  skill get one line or file for F-DOC-07.
+
+## Q-FEAT-DOC-09 F-DOC-08 email-filer: event name and gate constant
+
+- "Email arrives in connected mailbox" binds `email.received` (`docs.EventEmailReceived`,
+  proposed), carrying the filed message's ids and the mailbox owner as user_id. No mailbox
+  connector publishes it yet (EVENTS-WIRE follow-up).
+- FEAT-DOC-01 (unmerged) exports `GateFilingPrivilege`; to merge cleanly beside it this task
+  names the kind with the unexported `emailFilerGate`. Once both are on main, the Def can use
+  GateFilingPrivilege and the private constant can go.
+- The end-to-end tests use `app/legal/docs/ai_docc_helpers_test.go` (prefix `docc`), shared
+  byte-for-byte with FEAT-DOC-07 and FEAT-DOC-08. F-DOC-08 is an extraction Def, so it gets
+  no plugin skill.
+
+## Q-FEAT-DOC-10 Document features on real reads (F-DOC-09, F-DOC-10, F-DOC-11)
+
+- The branch merges `task/AGENTTEST-FIX` for its envelope-aware `agenttest.QuotedOnly`: the feature tests
+  run read_document's real handler over `Seed.Document` (with its version_id), whose result is
+  `{"untrusted": true, "pages": ...}`, not an `agenttools.Quoted`.
+- The shared test helpers carry the `docd` prefix (`ai_f_doc_09_feature_test.go`); FEAT-DOC-11 and
+  FEAT-DOC-12 stack on this branch and reuse them.
+- Gate kind constants are per feature (`GateCourtFormRepublish`, ...) because other unmerged DOC
+  branches declare `GateTemplatePublish` and `GateOutgoing`; the integrator may fold them into those.
+- F-DOC-09 is scheduled (daily): `CourtFormCurrencyBinding(actingFor)` takes the designated lawyer, as
+  `deadlines.RuleWatchBinding` does; it can move to `trigger.BindDesignated` once JOB-ACTOR merges.
+- None of these Defs' write tools is a sourced write (draft_document carries no amount or date
+  pointers), so `agenttools.ErrUnsourcedValue` cannot arise in their runs; no test asserts it.
+- F-DOC-10 binds `matter.opened` and `matter.stage_changed`; the matter module does not publish either
+  yet (add them to EVENTS-WIRE).
+- F-DOC-11 binds `document.revision_requested`; no module publishes it yet (add it to EVENTS-WIRE with the
+  revise request route).
+## Q-FEAT-DOC-16 F-DOC-19 request documents from client
+
+- Files beyond the task list: `app/legal/agent/featureset/featureset.go` and its test register
+  `docs.RequestDocumentsDef()`, and `go generate` added its plugin skill.
+- F-DOC-19 is a screen action: the spec words its button in the trigger and leaves
+  `on_request` empty, so the Def's `Actions` hold that button and the spec sync test checks
+  them against the trigger (as F-CON-15 does).
+- The request goes out as a draft email; `submit_for_approval` on the `email_draft` subject
+  opens `platform.portal_message`. `draft_email` is called without `submit`, so it never opens
+  `platform.outgoing_email`, which is outside the Def's gate kinds.
+
+## Q-FEAT-DOC-17 F-DOC-05 citation-staleness
+
+- Files beyond the task list: the featureset registration of `docs.CitationStalenessDef()`
+  and its generated plugin skill. The branch builds on task/FEAT-DOC-16 for the shared
+  `docf` test helpers.
+- a2 has no "new version" event; a new version is a `document.uploaded` (it carries
+  `version_id`), so F-DOC-05 binds that event. The prompt has the agent flag only drafts that
+  cite an older version.
+- The flags are the run's extraction output (`OutputSchema`: ranked items with a citation);
+  there is no write tool, so nothing is stored and no gate opens.
+
+## Q-FEAT-DOC-18 F-DOC-12 place signing fields
+
+- Files beyond the task list: the featureset registration of `docs.PlaceSigningFieldsDef()`.
+  The branch builds on task/FEAT-DOC-17 for the shared `docf` test helpers.
+- F-DOC-12 is a read-only screen action: the proposed fields are the run's extraction output
+  (`OutputSchema`: items in signing order with signer role, field, template anchor or detected
+  block, and a citation). No write tool places them; the user does, so no gate opens.
+## Q-FEAT-DOC-20 F-DOC-13 screen action binding and run write path (files outside the task)
+
+- `app/legal/docs/ai_f_doc_13.go` (FEAT-DOC-19): `AutoFileDef` gains
+  `Actions: []string{ActionAutoFile}` and its trigger is built from that constant, so
+  `POST /api/agent/actions/F-DOC-13` from matter-documents queues a run (the route only
+  accepts a screen listed in `Def.Actions`). features.json has `on_request: []` for the
+  read-only screen actions and names the action only in `trigger`.
+- `app/legal/docs/ai_doc_helpers_test.go` (FEAT-DOC-06): the spec sync check reads the
+  on-request actions from `on_request`, else from the `on request: ` trigger (`docOnRequest`).
+- `AutoFileFromRun` (ai_f_doc_13_write.go) is the screen-action write path: the run's
+  output reaches the FilingSink only when every citation's page and line numbers came from
+  the run's reads (Provenance, `ErrUnsourcedValue`) and fall inside a citation the run
+  returned (`run.ErrUncitedAnswer`). It opens no gate and calls no write tool.
+- The shared `docg*` test helpers for the read-only document screen actions (F-DOC-13,
+  F-DOC-18, F-DOC-23) live in `ai_f_doc_13_feature_test.go`; FEAT-DOC-21 and FEAT-DOC-22
+  build on this branch.
+## Q-FEAT-MAT-01 Brief refresh events; shared matter AI helpers
+
+- a2 names only `document.uploaded` of F-MAT-01's trigger ("document, email, note or event
+  added to a matter"). The Def also binds `email.filed`, `matter.note_added` and
+  `calendar_event.added` (app/legal/matter/ai_f_mat_01.go), which the owning modules do not
+  publish yet.
+- No F-MAT-01 write carries an amount or a date field, so ErrUnsourcedValue has no case. The
+  feature test covers the draft tool's source check instead: a key-fact draft citing a
+  version the run did not read is refused with agent.ErrUncitedSource.
+- FEAT-MAT-06, -10 and -01 share one test helper file, app/legal/matter/ai_mat_helpers_test.go
+  (mat prefix), so task/FEAT-MAT-10 is based on task/FEAT-MAT-06 and task/FEAT-MAT-01 on
+  task/FEAT-MAT-10.
+## Q-FEAT-MAT-02 F-MAT-03 stage advance watcher
+
+- Besides the listed files, `app/legal/agent/featureset/featureset.go` gains
+  `matter.StageAdvanceDef()` and `go generate` adds its plugin skill
+  (`paploo/counsel-plugin/skills/f-mat-03-stage-advance-watcher`), as every feature does.
+- The spec's "evidence event (signed, filed, paid, deadline passed)" has no event of its own in
+  spec/eng/a2-interfaces.json, so the binding uses the nearest a2 events: `document.released`
+  (signed), `document.uploaded` (filed), `payment.received` (paid) and `deadline.met`
+  (deadline passed). A dedicated e-sign or deadline-passed event can be added to
+  `matter.StageEvidenceEvents` when one exists.
+- `matter.stage_move` is a tool-gap kind: the run drafts the proposal with draft_document and
+  opens G-ST with submit_for_approval on that draft. The feature tests answer
+  `agent.SubjectMatters` from the seed's drafts (agenttest.Seed.Deps has none).
+
+## Q-FEAT-MAT-03 F-MAT-04 party extraction
+
+- Besides the listed files, `app/legal/agent/featureset/featureset.go` gains
+  `matter.PartyExtractionDef()`. It is an extraction Def, so no plugin skill is generated.
+- As in Q-FEAT-CON-01, propose_conflict_parties opens no kernel gate: it runs the matter's
+  conflict check, and the open check run is the pending matter.party_conflict (G2). The tests
+  assert the run is open with the acting user as preparer, an agent decider is 403
+  (`gates.ErrAgentApproves`) and the acting user is refused as preparer
+  (`gates.ErrPreparerApproves` / `conflict.ErrPreparerApproves`, the app's self-approval
+  refusal), not the kernel `gate.ErrSelfApproval`.
+- The spec trigger "new pleading, correspondence or closing document" binds to the a2
+  `document.uploaded` event (`matter.PartyDocumentEvents`); a2 has no email event yet.
+- The branch is based on task/FEAT-MAT-02 for the shared matb test helpers.
+
+## Q-FEAT-MAT-04 F-MAT-05 contact dedupe and enrichment
+
+- Besides the listed files, `app/legal/agent/featureset/featureset.go` gains
+  `matter.ContactDedupeDef()`. It is an embedding Def, so no plugin skill is generated.
+- The daily schedule binds with `trigger.BindDesignated` (Q-JOB-ACTOR): scheduled runs act for
+  the feature's designated lawyer; `contact.created` runs act for the event's user. The branch
+  is based on task/FEAT-MAT-03, which carries task/JOB-ACTOR and the shared matb helpers.
+- `matter.contact_merge` is a tool-gap kind: the run drafts the proposal with draft_document
+  and opens G-CM with submit_for_approval on that draft.
+## Q-FEAT-MAT-12 F-MAT-14's "weekly sweep" has no "schedule" word
+
+- spec/ai/features.json words F-MAT-14's trigger "event: matter opened without a template;
+  weekly sweep". trigger.ParseCadence finds a schedule only where the trigger says
+  "schedule" (or "monthly"), so it reads this trigger as CadenceNone and BindDesignated
+  refuses it.
+- FEAT-MAT-12 keeps Def.Trigger equal to the spec and has TemplateFitBinding bind a copy of
+  the Def whose trigger reads "schedule: weekly sweep" (weekly, designated lawyer), plus
+  the matter.opened event. app/legal/agent/trigger is not in the task's files.
+- Proposed: ParseCadence also treats "sweep" as a schedule word; the binding then uses the
+  Def unchanged. "Without a template" is checked by the run (get_matter), since
+  matter.opened carries no template field.
+
+## Q-FEAT-MAT-13 propose_conflict_parties and create_task return proposals, so their gates open outside the run
+
+- Tasks: FEAT-MAT-13 (F-MAT-16), FEAT-MAT-14 (F-MAT-17), FEAT-MAT-15 (F-MAT-18). Same gap as Q-FEAT-DL-10.
+- `propose_conflict_parties` and `create_task` return `OutcomeProposal`, which the run scope does not record as a draft,
+  so an in-run `submit_for_approval` for `matter.party_conflict` or `work.plan` is refused with `ErrNotFound`.
+- The FromFeature tests check the real proposal (the open re-run check, prepared by the acting user, or the proposed task),
+  then open the Def's gate on it as the acting user and check: pending, agent principal 403, acting user `ErrSelfApproval`.
+- Proposed: record a proposal as a run draft when the run scope allows the Def's gate kind (FEAT-TOOL-16/19), so the agent
+  can submit it in the run.
+
+## Q-INTEG-16-SCREENS Action screens and job bindings for the pass 16 document and matter features
+
+- The action route's screen map adds, as matter subjects: document-assembly, client-sharing
+  and signature-request (documents.edit); email-filing, bundle-builder,
+  multi-document-analysis, document-review, matter-documents and document-search
+  (documents.view); matter-overview, matter-chronology, matter-stage-board,
+  matter-financial-summary, matter-open-wizard, matter-parties and practice-area-settings
+  (matters.view); matter-notes-activity (matters.edit). template-library (documents.edit),
+  precedent-library and firm-library (documents.view) select a docs.document;
+  contact-list and contact-detail select a party.contact (contacts.view). Open: confirm
+  practice-area-settings (a firm setting, not a matter record) and matter-open-wizard (no
+  matter yet) should select another subject kind.
+- JobBindings: F-CON-05, F-CON-10 and F-DL-05 now act for their designated lawyer
+  (JOB-ACTOR), and so do F-DOC-06 (TemplateCurrencyBinding, which also starts on
+  court_form.changed), F-DOC-07, F-MAT-05, F-MAT-09 and F-MAT-14. F-DOC-09 still takes the
+  rule admin; open: switch CourtFormCurrencyBinding to BindDesignated. F-MAT-12 binds to
+  document.uploaded for the event's user (ChronologyBinding).
+- Later pass 16 merges (F-MAT-02, 10, 11, 13, 15, 17 to 23): firm-home, matter-access,
+  matter-access-report, matter-ask, global-search, matter-list, matter-templates and
+  firm-feed select a matter (matters.view); contact-import and contact-field-settings select a
+  party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
+  screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
+  as served by its screen actions instead of binding it.
+
 
 ## Q-FEAT-WRK-01 F-WRK-01 events, the work-item screen and create_task's due date
 

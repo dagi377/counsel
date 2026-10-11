@@ -26,28 +26,12 @@ func TestFCON10_Prompt(t *testing.T) {
 		"Expiry and retention", "Destruction batch for gate G14", conflict.GateIDDestruction, "report_plan", "draft_document")
 }
 
-// F-CON-10 runs weekly for the user boot names; it has no event and no screen action.
+// F-CON-10 runs weekly for its designated lawyer; with none named it does not run. It has no
+// event and no screen action.
 func TestFCON10_TriggerBinding(t *testing.T) {
-	tests := []struct {
-		name      string
-		actingFor string
-		wantErr   error
-	}{
-		{"acting user", "user-synthetic-records-officer", nil},
-		{"no acting user", "", trigger.ErrBadBinding},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b, err := conflict.ExpiryRetentionBinding(tt.actingFor)
-			if tt.wantErr != nil {
-				if !errors.Is(err, tt.wantErr) {
-					t.Fatalf("Binding = %v, want %v", err, tt.wantErr)
-				}
-				return
-			}
-			conCheckBinding(t, b, err, "F-CON-10", nil, trigger.CadenceWeekly, tt.actingFor)
-		})
-	}
+	b, err := conflict.ExpiryRetentionBinding()
+	conCheckBinding(t, b, err, "F-CON-10", nil, trigger.CadenceWeekly, "")
+	conCheckDesignated(t, b)
 	if got := conflict.ExpiryRetentionDef().Actions; len(got) != 0 {
 		t.Fatalf("actions = %v, want none", got)
 	}

@@ -257,10 +257,10 @@ func gateKindCodes() ([]string, error) {
 }
 
 // JobBindings binds every job feature of s to the events and schedule that start it.
-// ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-05,
-// F-DL-09, F-CON-05, F-CON-09 to 12, F-DOC-06; Q-INTEG-15A-SCHEDULED); empty fails with
-// trigger.ErrBadBinding. The F-DL-06 rule watch acts for its designated lawyer in firm
-// settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
+// ruleAdmin is the user the scheduled runs without a designated lawyer act for (F-DL-09,
+// F-CON-09, F-CON-11, F-CON-12, F-DOC-09; Q-INTEG-15A-SCHEDULED); empty fails with
+// trigger.ErrBadBinding. F-DL-05, F-DL-06, F-CON-05, F-CON-10, F-DOC-06, F-DOC-07, F-MAT-05,
+// F-MAT-09 and F-MAT-14 act for their designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding listed here fails, so a new
 // job feature cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
@@ -276,7 +276,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		deadlines.RecomputeDependantsDef().ID:       deadlines.RecomputeDependantsBinding,
 		deadlines.ComplianceEvidenceMatcherDef().ID: deadlines.ComplianceEvidenceMatcherBinding,
 		deadlines.RuleWatchDef().ID:                 deadlines.RuleWatchBinding,
-		deadlines.DigestDef().ID:                    scheduled(deadlines.DigestBinding),
+		deadlines.DigestDef().ID:                    deadlines.DigestBinding,
 		deadlines.PostEventFollowUpDef().ID:         deadlines.PostEventFollowUpBinding,
 		deadlines.AdjournmentWatcherDef().ID:        deadlines.AdjournmentWatcherBinding,
 		deadlines.AbsenceCoverageCheckDef().ID:      scheduled(deadlines.AbsenceCoverageCheckBinding),
@@ -284,26 +284,53 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		conflict.SearchRankingDef().ID:              conflict.SearchRankingBinding,
 		conflict.ClearanceMemoDef().ID:              conflict.ClearanceMemoBinding,
 		conflict.ConsentDraftingDef().ID:            conflict.ConsentDraftingBinding,
-		conflict.ReverseSweepDef().ID:               scheduled(conflict.ReverseSweepBinding),
+		conflict.ReverseSweepDef().ID:               conflict.ReverseSweepBinding,
 		conflict.IDObligationWatcherDef().ID:        conflict.IDObligationWatcherBinding,
 		conflict.IDEvidenceCheckDef().ID:            conflict.IDEvidenceCheckBinding,
 		conflict.BeneficialOwnershipDef().ID:        conflict.BeneficialOwnershipBinding,
 		conflict.WallMonitorDef().ID:                scheduled(conflict.WallMonitorBinding),
-		conflict.ExpiryRetentionDef().ID:            scheduled(conflict.ExpiryRetentionBinding),
+		conflict.ExpiryRetentionDef().ID:            conflict.ExpiryRetentionBinding,
 		conflict.AuditAnomalyDigestDef().ID:         scheduled(conflict.AuditAnomalyDigestBinding),
 		conflict.DuplicateFinderDef().ID:            scheduled(conflict.DuplicateFinderBinding),
 		legaldocs.IngestDocumentDef().ID:            legaldocs.IngestDocumentBinding,
 		legaldocs.EngagementLetterDef().ID:          legaldocs.EngagementLetterBinding,
 		legaldocs.DraftWithCitationsDef().ID:        legaldocs.DraftWithCitationsBinding,
 		work.PickUpAgentReadyDef().ID:               work.PickUpAgentReadyBinding,
-		legaldocs.FeatureTemplateCurrency: func() (trigger.Binding, error) {
-			// F-DOC-06 runs weekly and on a known rule change; no form-change event exists
-			// yet (Q-INTEG-15A-SCHEDULED).
-			return trigger.Bind(legaldocs.TemplateCurrencyDef(), ruleAdmin, deadlines.EventRulePackPublished)
-		},
+		legaldocs.FeatureTemplateCurrency:           legaldocs.TemplateCurrencyBinding,
+		legaldocs.PrecheckOutgoingDef().ID:          legaldocs.PrecheckOutgoingBinding,
+		legaldocs.CitationStalenessDef().ID:         legaldocs.CitationStalenessBinding,
+		legaldocs.PrecedentCandidatesDef().ID:       legaldocs.PrecedentCandidatesBinding,
+		legaldocs.EmailFilerDef().ID:                legaldocs.EmailFilerBinding,
+		legaldocs.AssemblyOnStageDef().ID:           legaldocs.AssemblyOnStageBinding,
+		legaldocs.TrackedRevisionDef().ID:           legaldocs.TrackedRevisionBinding,
+		legaldocs.CourtFormCurrencyDef().ID:         scheduled(legaldocs.CourtFormCurrencyBinding),
+		matter.BriefRefreshDef().ID:                 matter.BriefRefreshBinding,
+		matter.StageAdvanceDef().ID:                 matter.StageAdvanceBinding,
+		matter.PartyExtractionDef().ID:              matter.PartyExtractionBinding,
+		matter.ContactDedupeDef().ID:                matter.ContactDedupeBinding,
+		matter.OpeningPrefillDef().ID:               matter.OpeningPrefillBinding,
+		matter.CallSummaryDef().ID:                  matter.CallSummaryBinding,
+		matter.RetainerWatchDef().ID:                matter.RetainerWatchBinding,
+		matter.ConfigHygieneDef().ID:                matter.ConfigHygieneBinding,
+		matter.TemplateFitDef().ID:                  matter.TemplateFitBinding,
+		matter.MatterDigestDef().ID:                 matter.MatterDigestBinding,
+		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
+		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
+		matter.FeatureChronology:                    matter.ChronologyBinding,
+	}
+	// onRequest lists the job features that only their screen actions start (trigger.Actions
+	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
+	onRequest := map[string]bool{
+		matter.FeatureMatterQuestionAnswering: true,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
+			continue
+		}
+		if onRequest[d.ID] {
+			if len(d.Actions) == 0 {
+				return fmt.Errorf("job feature %s: on request with no screen action: %w", d.ID, trigger.ErrBadBinding)
+			}
 			continue
 		}
 		bind, ok := byID[d.ID]
@@ -358,6 +385,41 @@ var actionScreens = map[string]trigger.Screen{
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
+	// Document and matter features of pass 16 (Q-INTEG-16-SCREENS): a screen on a matter's
+	// documents selects the matter; a library screen selects the documents themselves.
+	"document-assembly":       {SubjectKind: "matter", Capability: "documents.edit"},
+	"client-sharing":          {SubjectKind: "matter", Capability: "documents.edit"},
+	"email-filing":            {SubjectKind: "matter", Capability: "documents.view"},
+	"bundle-builder":          {SubjectKind: "matter", Capability: "documents.view"},
+	"multi-document-analysis": {SubjectKind: "matter", Capability: "documents.view"},
+	"template-library":        {SubjectKind: legaldocs.SubjectKind, Capability: "documents.edit"},
+	"precedent-library":       {SubjectKind: legaldocs.SubjectKind, Capability: "documents.view"},
+	"firm-library":            {SubjectKind: legaldocs.SubjectKind, Capability: "documents.view"},
+	// Matters and contacts.
+	"matter-overview":          {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-chronology":        {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-stage-board":       {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-financial-summary": {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-open-wizard":       {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-parties":           {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-notes-activity":    {SubjectKind: "matter", Capability: "matters.edit"},
+	"practice-area-settings":   {SubjectKind: "matter", Capability: "matters.view"},
+	"contact-list":             {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
+	"firm-home":                {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-access":            {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-access-report":     {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-ask":               {SubjectKind: "matter", Capability: "matters.view"},
+	"global-search":            {SubjectKind: "matter", Capability: "matters.view"},
+	"contact-import":           {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
+	"matter-list":              {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-templates":         {SubjectKind: "matter", Capability: "matters.view"},
+	"contact-field-settings":   {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
+	"firm-feed":                {SubjectKind: "matter", Capability: "matters.view"},
+	"contact-detail":           {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
+	"document-review":          {SubjectKind: "matter", Capability: "documents.view"},
+	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
+	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
+	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
 	// Work: the work-item screen selects the item the agent posts its result on.
 	"work-item": {SubjectKind: "work_item", Capability: "work.edit"},
 }

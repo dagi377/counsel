@@ -17,6 +17,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
+	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/work"
 )
 
@@ -73,6 +74,48 @@ func appDefs() []feature.Def {
 		legaldocs.EngagementLetterDef(),
 		legaldocs.IngestDocumentDef(),
 		legaldocs.DraftWithCitationsDef(),
+		legaldocs.PrecheckOutgoingDef(),
+		legaldocs.PrecedentCandidatesDef(),
+		legaldocs.EmailFilerDef(),
+		legaldocs.CourtFormCurrencyDef(),
+		legaldocs.AssemblyOnStageDef(),
+		legaldocs.TrackedRevisionDef(),
+		legaldocs.ProposeFieldsDef(),
+		legaldocs.AskClientForMissingAnswersDef(),
+		legaldocs.AnonymizeDef(),
+		legaldocs.RequestDocumentsDef(),
+		legaldocs.CitationStalenessDef(),
+		legaldocs.PlaceSigningFieldsDef(),
+		legaldocs.EmailAutoFileDef(),
+		legaldocs.DetectMatterContentDef(),
+		legaldocs.AnswerWithCitationsDef(),
+		legaldocs.AnalyzeDef(),
+		legaldocs.FollowUpQuestionDef(),
+		legaldocs.SuggestOrderAndTabsDef(),
+		// matters
+		matter.BriefRefreshDef(),
+		matter.CallSummaryDef(),
+		matter.ChronologyDef(),
+		matter.StageAdvanceDef(),
+		matter.PartyExtractionDef(),
+		matter.ContactDedupeDef(),
+		matter.OpeningPrefillDef(),
+		matter.RetainerWatchDef(),
+		matter.ConfigHygieneDef(),
+		matter.TemplateFitDef(),
+		matter.RerunConflictDef(),
+		matter.OpeningPlanDef(),
+		matter.ProposeRelationshipDef(),
+		matter.RequestIDDef(),
+		matter.MatterDigestDef(),
+		matter.RelatedMattersDef(),
+		matter.AccessHygieneDef(),
+		matter.MatterQuestionAnsweringDef(),
+		matter.AutoMapColumnsDef(),
+		matter.ProposeNextActionsDef(),
+		matter.SuggestFromPastMattersDef(),
+		matter.SuggestCleanupDef(),
+		matter.SummarizeThisWeekDef(),
 		// work
 		work.PickUpAgentReadyDef(),
 	}

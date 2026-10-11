@@ -24,10 +24,6 @@ import (
 // CapRelease requests the release of a document outside the firm.
 const CapRelease = "documents.release"
 
-// OutgoingGate is the gate kind that approves sending a document out (spec gate G8). Only
-// its effect marks a document released.
-const OutgoingGate = "docs.outgoing"
-
 // Gates is the part of the gate engine the release route uses.
 type Gates interface {
 	Open(ctx context.Context, tx pgx.Tx, kind string, subject gate.Subject, payload json.RawMessage, preparer gate.Principal) (gate.GateID, error)
@@ -63,7 +59,7 @@ type Drafts interface {
 }
 
 // ReleaseHTTP serves POST /documents/{document_id}/release and GET /drafts. Release opens
-// OutgoingGate and returns 202; it never releases a document itself. Every dependency is
+// GateOutgoing and returns 202; it never releases a document itself. Every dependency is
 // required; a route answers 503 and calls nothing while one is missing.
 type ReleaseHTTP struct {
 	Documents DocumentStore
@@ -193,7 +189,7 @@ func (h *ReleaseHTTP) openRelease(w http.ResponseWriter, r *http.Request, p regi
 	var gid gate.GateID
 	err = h.DB.InTx(r.Context(), func(ctx context.Context, tx pgx.Tx) error {
 		var err error
-		gid, err = h.Gates.Open(ctx, tx, OutgoingGate, gate.Subject{Kind: SubjectKind, ID: id}, payload, p)
+		gid, err = h.Gates.Open(ctx, tx, GateOutgoing, gate.Subject{Kind: SubjectKind, ID: id}, payload, p)
 		return err
 	})
 	if err != nil {
