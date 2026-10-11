@@ -47,3 +47,36 @@ func (p PGAssignments) RolesOf(ctx context.Context, u UserID) ([]string, error) 
 	}
 	return []string{key}, nil
 }
+
+var _ RoleGrants = PGAssignments{}
+
+const sqlGrantsOf = `SELECT g.capability_id, g.level FROM core.role_grant g JOIN core.role r ON r.id = g.role_id
+WHERE r.key = $1 AND r.status = 'active' AND r.archived_at IS NULL`
+
+// GrantsOf implements RoleGrants: an active, unarchived role's grants from core.role_grant,
+// in the spec's shape (capability id -> level name). Any other role has none.
+func (p PGAssignments) GrantsOf(ctx context.Context, role string) (map[string]string, error) {
+	if p.DB == nil {
+		return nil, fmt.Errorf("grants of role: no database: %w", ErrForbidden)
+	}
+	out := map[string]string{}
+	err := p.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, sqlGrantsOf, role)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var c, l string
+			if err := rows.Scan(&c, &l); err != nil {
+				return err
+			}
+			out[c] = l
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("grants of role: %w", err)
+	}
+	return out, nil
+}

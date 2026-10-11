@@ -32,6 +32,13 @@ components:
   - name: outbox
     args: [counsel-worker]
 
+# The trust seal key (32 bytes, standard base64) comes from the cell's secret store as the
+# counsel-<cell>-seal-key Secret. It is mounted read-only and passed as -seal-key-file to
+# counseld and counsel-worker; it is never an env var, a value or a log line.
+sealKey:
+  mountPath: /var/run/counsel/seal-key
+  file: key
+
 # rule: ARC-U-005
 # Scheduling isolation. Database pods run on a dedicated pool with the highest priority;
 # agent containers run on their own pool with the lowest priority and never preempt, so

@@ -271,15 +271,20 @@ func (s *Service) start(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		return err
 	}
 	if cur, _, err := s.session(r); err == nil && cur.UserID == userID && !mfa.IsZero() {
-		s.setSession(w, cur.ID, mfa)
+		s.setSession(w, cur, mfa)
 		return nil
 	}
 	id, err := s.store.Start(ctx, userID, clientIP(r), deviceOf(r), s.now())
 	if err != nil {
 		return err
 	}
+	// The new row carries the firm's sign-in policy limits.
+	sess, err := s.store.Get(ctx, id)
+	if err != nil {
+		return err
+	}
 	slog.InfoContext(ctx, "member signed in", "user", userID, "session", id, "mfa", !mfa.IsZero())
-	s.setSession(w, id, mfa)
+	s.setSession(w, sess, mfa)
 	return nil
 }
 
@@ -316,12 +321,19 @@ func (s *Service) devLogin(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Service) setSession(w http.ResponseWriter, id string, mfa time.Time) {
+// setSession sets the session cookie. Its Max-Age is what is left of the session lifetime:
+// the firm's sign-in policy limit when set, else the config limit.
+func (s *Service) setSession(w http.ResponseWriter, sess Session, mfa time.Time) {
 	m := "0"
 	if !mfa.IsZero() {
 		m = strconv.FormatInt(mfa.Unix(), 10)
 	}
-	s.setCookie(w, CookieName, s.sign.seal(purposeSession, id, m), s.cfg.lifetime())
+	// rule: ARC-I-036
+	ttl := limit(sess.Lifetime, s.cfg.lifetime())
+	if !sess.StartedAt.IsZero() {
+		ttl = sess.StartedAt.Add(ttl).Sub(s.now())
+	}
+	s.setCookie(w, CookieName, s.sign.seal(purposeSession, sess.ID, m), max(ttl, time.Second))
 }
 
 func (s *Service) setCookie(w http.ResponseWriter, name, value string, ttl time.Duration) {

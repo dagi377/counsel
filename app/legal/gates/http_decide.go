@@ -159,7 +159,15 @@ func (h *DecideHTTP) action(decide bool, fn decideStep) http.HandlerFunc {
 				}
 				// rule: ARC-I-018
 				// The capability is re-evaluated at decision time; a walled subject is 404.
-				allowed, err := h.Access.Can(ctx, p, k.Approver, registry.Subject{Kind: g.Subject.Kind, ID: g.Subject.ID})
+				subject := registry.Subject{Kind: g.Subject.Kind, ID: g.Subject.ID}
+				// A decision needs the approver capability at the decide level.
+				check := h.Access.Can
+				if decide {
+					check = func(ctx context.Context, p registry.Principal, c string, s registry.Subject) (bool, error) {
+						return canDecide(ctx, h.Access, p, c, s)
+					}
+				}
+				allowed, err := check(ctx, p, k.Approver, subject)
 				switch {
 				case errors.Is(err, identity.ErrNotVisible):
 					rd.fail(w, r, http.StatusNotFound, CodeNotFound, "No such gate")
