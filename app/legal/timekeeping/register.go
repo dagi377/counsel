@@ -24,3 +24,13 @@ func Register(r registry.Registry) error {
 	}
 	return nil
 }
+
+func init() { add(registerEntryRoutes) }
+
+// registerEntryRoutes mounts GET /time-entries, POST /time-entries and
+// PATCH /time-entries/{time_entry_id} through Registry.Routes. Boot wiring supplies the
+// dependencies; until it does, the routes answer 503.
+func registerEntryRoutes(r registry.Registry) error {
+	r.Routes((&HTTP{}).Routes)
+	return nil
+}

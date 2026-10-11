@@ -5,6 +5,7 @@ package timekeepingfake
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -89,7 +90,7 @@ func (f *Fake) save(ctx context.Context, e tk.TimeEntry, state tk.State, origin 
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	e.ID = tk.EntryID(f.nextID("te-"))
-	e.State, e.BillID, e.BilledMinutes = state, "", e.Minutes
+	e.State, e.BillID, e.BilledMinutes, e.RowVersion = state, "", e.Minutes, 1
 	if e.Origin == "" {
 		e.Origin = origin
 	}
@@ -145,6 +146,7 @@ func (f *Fake) Transition(_ context.Context, _ pgx.Tx, id tk.EntryID, to tk.Stat
 		e.BillID = ""
 	}
 	e.State = to
+	e.RowVersion++
 	f.entries[id] = e
 	return nil
 }
@@ -170,6 +172,7 @@ func (f *Fake) Edit(_ context.Context, _ pgx.Tx, e tk.TimeEntry, by tk.Actor) er
 		return fmt.Errorf("edit %s: %w", e.ID, tk.ErrInvalid)
 	}
 	cur.Minutes, cur.BilledMinutes, cur.Narrative, cur.ActivityCode = e.Minutes, e.Minutes, e.Narrative, e.ActivityCode
+	cur.RowVersion++
 	f.entries[e.ID] = cur
 	return nil
 }
@@ -246,4 +249,21 @@ func (f *Fake) WriteDownsFor(id tk.EntryID) []tk.WriteDown {
 		}
 	}
 	return out
+}
+
+// List returns entries by id after f.After, at most f.Limit (0: all), only f.UserID's when set.
+func (f *Fake) List(_ context.Context, flt tk.EntryFilter) ([]tk.TimeEntry, error) {
+	f.mu.Lock()
+	out := []tk.TimeEntry{}
+	for _, e := range f.entries {
+		if (flt.UserID == "" || e.UserID == flt.UserID) && (flt.After == "" || e.ID > flt.After) {
+			out = append(out, e)
+		}
+	}
+	f.mu.Unlock()
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	if flt.Limit > 0 && len(out) > flt.Limit {
+		out = out[:flt.Limit]
+	}
+	return out, nil
 }

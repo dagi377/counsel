@@ -69,6 +69,7 @@ type TimeEntry struct {
 	State         State
 	BillID        string // set while the entry is on a non-void bill
 	Flags         []string
+	RowVersion    int // time_entry.row_version; the HTTP ETag (added for HTTP-04)
 }
 
 // TimerState is the state of a running timer.
@@ -140,6 +141,16 @@ type Entries interface {
 	Edit(ctx context.Context, tx pgx.Tx, e TimeEntry, by Actor) error
 	// Get returns one entry.
 	Get(ctx context.Context, id EntryID) (TimeEntry, error)
+	// List returns entries by id after f.After, at most f.Limit, only f.UserID's when it is
+	// set. Added for GET /time-entries (HTTP-04).
+	List(ctx context.Context, f EntryFilter) ([]TimeEntry, error)
+}
+
+// EntryFilter selects one page of Entries.List.
+type EntryFilter struct {
+	UserID string // empty: every user's entries
+	After  EntryID
+	Limit  int
 }
 
 // Timers runs per-user timers. Stop returns raw minutes; rounding happens at billing.
