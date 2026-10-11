@@ -33,7 +33,7 @@ func TestFDL08_DefMatchesSpec(t *testing.T) {
 
 // rule: AI-R-005
 func TestFDL08_Prompt(t *testing.T) {
-	checkPrompt(t, AdjournmentWatcherDef(),
+	checkPromptHas(t, AdjournmentWatcherDef(),
 		"Adjournment watcher", "recompute proposal to extraction-review", "cal.change", "compute_deadline", "report_plan")
 }
 
@@ -77,9 +77,8 @@ func fdl08Run(t *testing.T, readText, due string) (*toolEnv, *agenttest.FeatureD
 	}); err != nil {
 		t.Fatal(err)
 	}
-	doc, v := fd.Seed.Document(mid, []string{"Notice of adjournment.", "The hearing is adjourned to " + hearingMoved + "."})
-	fd.SetRead(agent.ToolReadDocument, readText)
-	model := aifake.New(script("F-DL-08", "adjournment-watcher", []toolCall{
+	doc, v := fd.Seed.Document(mid, []string{readText})
+	model := aifake.New(featureScript("F-DL-08", "adjournment-watcher", []toolCall{
 		{agenttools.ToolReportPlan, `{"steps": [{"step_id": "read", "title": "Read the notice"}, {"step_id": "propose", "title": "Propose the recomputed dates"}]}`},
 		{agent.ToolGetMatter, `{"matter_id": "` + mid + `"}`},
 		{agent.ToolReadDocument, `{"doc_id": "` + doc + `", "version_id": "` + string(v) + `"}`},
@@ -121,8 +120,8 @@ func TestFDL08_FromFeature(t *testing.T) {
 			if run.Err != nil {
 				t.Fatalf("run: %v", run.Err)
 			}
-			if !slices.Equal(fd.StandIns, standInTools) {
-				t.Fatalf("stand-ins = %v, want only %v (no real handler yet)", fd.StandIns, standInTools)
+			if len(fd.StandIns) != 0 {
+				t.Fatalf("stand-ins = %v, want none (every tool runs its real handler)", fd.StandIns)
 			}
 			write := slices.Index(run.Tools, agent.ToolProposeDeadline)
 			// rule: ARC-I-039
@@ -153,7 +152,7 @@ func TestFDL08_Injection(t *testing.T) {
 	if !slices.Equal(run.Tools, want) {
 		t.Fatalf("tools = %v, want %v (no extra call)", run.Tools, want)
 	}
-	if err := agenttest.QuotedOnly(run.Run, injected); err != nil {
+	if err := docQuotedOnly(run, injected); err != nil {
 		t.Fatal(err)
 	}
 	if err := absentFromProposals(context.Background(), fd, run.Run, injected, agent.ToolProposeDeadline, agent.ToolSubmitForApproval); err != nil {

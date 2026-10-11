@@ -169,8 +169,8 @@ type toolCall struct {
 	input string // JSON
 }
 
-// dl07Script is an inline aifake fixture for feature: one tool call per turn, then text.
-func dl07Script(feature, dir string, calls []toolCall, text string) fstest.MapFS {
+// featureScript is an inline aifake fixture for feature: one tool call per turn, then text.
+func featureScript(feature, dir string, calls []toolCall, text string) fstest.MapFS {
 	var b strings.Builder
 	fmt.Fprintf(&b, "synthetic: true\nfeature: %s\nmatch:\n  last_user_regex: '.'\nturns:\n", feature)
 	for _, c := range calls {
@@ -292,9 +292,9 @@ func checkDefMatchesSpec(t *testing.T, d feature.Def) {
 	}
 }
 
-// dl07CheckPrompt fails t unless d's prompt passes lint, starts with the feature preamble, sits
+// checkPromptHas fails t unless d's prompt passes lint, starts with the feature preamble, sits
 // under the shared rules and holds every phrase in want.
-func dl07CheckPrompt(t *testing.T, d feature.Def, want ...string) {
+func checkPromptHas(t *testing.T, d feature.Def, want ...string) {
 	t.Helper()
 	names, err := feature.FixtureNames(os.DirFS("../../.."), "testdata/ai")
 	if err != nil {
@@ -325,7 +325,7 @@ func TestFDL07_DefMatchesSpec(t *testing.T) {
 
 // rule: AI-R-005
 func TestFDL07_Prompt(t *testing.T) {
-	dl07CheckPrompt(t, PostEventFollowUpDef(),
+	checkPromptHas(t, PostEventFollowUpDef(),
 		"Post-event follow-up", "draft note for G-NT, suggested time entry", "matter.agent_note", "report_plan")
 }
 
@@ -364,7 +364,7 @@ func fdl07Run(t *testing.T, readText string) (*agenttest.FeatureDriver, agenttes
 	m := fd.Seed.Matter("2026-0107", "Synth v Example")
 	mid := string(m.ID)
 	doc, v := fd.Seed.Document(mid, []string{readText})
-	model := aifake.New(dl07Script("F-DL-07", "post-event-follow-up", []toolCall{
+	model := aifake.New(featureScript("F-DL-07", "post-event-follow-up", []toolCall{
 		{agenttools.ToolReportPlan, `{"steps": [{"step_id": "read", "title": "Read the event"}, {"step_id": "note", "title": "Draft the note"}]}`},
 		{agent.ToolGetMatter, `{"matter_id": "` + mid + `"}`},
 		{agent.ToolReadDocument, `{"doc_id": "` + doc + `", "version_id": "` + string(v) + `"}`},
