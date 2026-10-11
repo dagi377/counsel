@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -106,6 +107,46 @@ func (s *Store) Get(ctx context.Context, id ContactID) (Contact, error) {
 	})
 	if err != nil {
 		return Contact{}, fmt.Errorf("get contact %s: %w", id, err)
+	}
+	return out, nil
+}
+
+const searchContactsSQL = `SELECT id::text, kind, legal_name, display_name, preferred_language, is_client, state, created_at, row_version
+FROM party.contact
+WHERE state <> 'merged'
+  AND (lower(legal_name) LIKE $1 ESCAPE '\' OR lower(display_name) LIKE $1 ESCAPE '\')
+ORDER BY lower(display_name), id
+LIMIT $2`
+
+// likePattern is a case-folded LIKE pattern matching query anywhere, with LIKE wildcards in
+// query matched literally.
+func likePattern(query string) string {
+	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return "%" + r.Replace(strings.ToLower(strings.TrimSpace(query))) + "%"
+}
+
+// Search implements Contacts. The query is client data: errors never echo it.
+func (s *Store) Search(ctx context.Context, query string) ([]Contact, error) {
+	out := []Contact{}
+	err := s.db.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, searchContactsSQL, likePattern(query), SearchLimit)
+		if err != nil {
+			return fmt.Errorf("select: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var c Contact
+			var kind, state string
+			if err := rows.Scan(&c.ID, &kind, &c.LegalName, &c.DisplayName, &c.PreferredLanguage, &c.IsClient, &state, &c.CreatedAt, &c.RowVersion); err != nil {
+				return fmt.Errorf("scan: %w", err)
+			}
+			c.Kind, c.State = Kind(kind), State(state)
+			out = append(out, c)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("search contacts: %w", err)
 	}
 	return out, nil
 }
