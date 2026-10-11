@@ -1203,3 +1203,12 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   stand-in for draft_document.
 - The docs module has no draft API yet; the handler writes through `DocumentDrafts`
   (`CreateDraft`), which app/legal/docs implements at boot.
+## FEAT-TOOL-12 draft_email
+
+- No init(): `DraftEmailHandler()` returns the Handler and boot adds it to the explicit
+  HandlerSet (owner decision); agenttest.FromFeature keeps its stand-in until boot does.
+- No email-draft or matter-contact API exists yet. The handler writes through `EmailDrafts`
+  (`CreateEmailDraft`, deliberately without a send method) and checks recipients with
+  `MatterContacts` (`MatterContactIDs`: client and parties of the matter); boot wires both.
+  submit=true opens `platform.outgoing_email` through `agenttools.GateOpener` with subject
+  kind `email_draft`; the caller is the preparer.
