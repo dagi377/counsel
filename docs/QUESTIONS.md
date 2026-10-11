@@ -2809,3 +2809,32 @@ Done in PORT-18:
   (`deadlines.CalendarEvents.Add`). Payloads carry ids only, never text. Boot builds each on the
   kernel emitter (`EventStores`). Open: no HTTP route calls them yet.
 - F-CON-04 ok fixture rehashed: the merged branch tool schemas change its prompt hash; prompt text unchanged.
+
+## Q-EVENTS-WIRE-5 Routes for the EVENTS-WIRE-4 write points, matter.opening creates and opens
+
+- Additive openapi paths (api/contract-additive.txt), each POST with Idempotency-Key and
+  problem+json, placeholder 503 until boot wires it (`HTTPPorts.Events`):
+  `POST /matters/{matter_id}/stage` (`matter.Store.ChangeStage`, matter.stage_changed),
+  `POST /matters/{matter_id}/notes` (`AddNote`, matter.note_added; the body is a `body_ref`,
+  never text), both on `matters.edit`; `POST /documents/{document_id}/revision-requests`
+  (`docs.Revisions.Request`, `documents.edit`); `POST /court-forms` (`docs.CourtForms.Record`,
+  `documents.templates`, firm-wide); `POST /emails/inbound` (`comms.Inbound.Receive`,
+  `comms.comm_item`, firm-wide: an inbound email has no matter until filed);
+  `POST /calendar-events` (`deadlines.CalendarEvents.Add`, `deadlines.edit`).
+- Matter-scoped routes (stage, notes, revision on a matter document, calendar event with a
+  matter_id) check the capability firm-wide and then on the matter, as the EVENTS-WIRE-3 routes
+  do: a walled matter answers 404, a missing capability 403. The shared flow is the new
+  `app/legal/eventroute` package; the revision route reads the document's matter through the new
+  `docs.Revisions.MatterOf`.
+- The stage route is a person's direct move (approved_by is the acting user; an agent run is
+  403). It does not open `matter.stage_move`; that gate's effect stays unwired. Open: whether a
+  direct move should instead always go through `matter.stage_move`.
+- matter.opening: POST /matters now requires `number`, chooses the new matter's id and puts
+  `matter_id` and `practice_area` on the gate payload (the spec gate schema requires them, with
+  `responsible_lawyer_id`); PATCH status=open adds `responsible_lawyer_id` and `practice_area`.
+  `OpeningEffect` applies either shape in the gate tx: a status change opens the pending matter,
+  the create shape inserts the matter already open. Both publish matter.opened. The effect
+  refuses a gate with no approver, an agent approver, or an approver who is the preparer (or the
+  user an agent run prepared it for). `matter.opening` leaves unwired_gates.txt; its effect is
+  registered whenever boot has the kernel DB, emitter and clock (the unwired test kernel now has
+  an emitter).

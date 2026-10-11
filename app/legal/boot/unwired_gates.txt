@@ -38,7 +38,6 @@ matter.apply_template
 matter.bulk_change
 matter.contact_merge
 matter.key_fact
-matter.opening
 matter.party_conflict
 matter.practice_config
 matter.renumber

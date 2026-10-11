@@ -72,17 +72,63 @@ func TestMatterWritesNeedEmitter(t *testing.T) {
 	}
 }
 
-// The opening effect applies only a status change to open; the create shape is refused.
-func TestOpeningEffectRefusesCreateShape(t *testing.T) {
+// rule: ARC-I-016
+// rule: ARC-I-017
+// rule: ARC-I-030
+// The opening effect opens a pending matter or creates the matter already open, in one
+// approval, publishing matter.opened once; the agent and the preparer never approve, and any
+// other payload is refused with nothing published.
+func TestOpeningEffect(t *testing.T) {
 	clk, err := clock.New("America/Toronto")
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := NewStore(&stubDB{tx: &stubTx{}}, nil)
-	em := outboxfake.New()
-	s.Events = em
-	err = s.OpeningEffect(clk)(context.Background(), &stubTx{}, registry.Approved{GateID: "g1", Payload: []byte(`{"client_id":"c1"}`)})
-	if err == nil || len(em.Messages()) != 0 {
-		t.Fatalf("err = %v, events = %d", err, len(em.Messages()))
+	lawyer := registry.Principal{Kind: registry.PrincipalUser, UserID: "u3"}
+	preparer := registry.Principal{Kind: registry.PrincipalUser, UserID: "u1"}
+	const create = `{"matter_id":"0190c000-0000-4000-8000-0000000000aa","number":"2026-0042","short_name":"Delta",` +
+		`"client_id":"c1","practice_area_id":"pa1","practice_area":"pa1","responsible_lawyer_id":"u9"}`
+	tests := []struct {
+		name      string
+		payload   string
+		preparer  registry.Principal
+		approvers []registry.Principal
+		ok        bool
+		wantArgs  int // SQL arguments of the write: 3 for open, 10 for create-and-open
+	}{
+		{"status change opens", `{"matter_id":"m1","status":"open"}`, preparer, []registry.Principal{lawyer}, true, 3},
+		{"create shape creates and opens", create, preparer, []registry.Principal{lawyer}, true, 10},
+		{"agent-prepared, another lawyer approves", create,
+			registry.Principal{Kind: registry.PrincipalAgent, RunID: "r1", ActingFor: "u1"}, []registry.Principal{lawyer}, true, 10},
+		{"agent approver refused", create, preparer, []registry.Principal{{Kind: registry.PrincipalAgent, RunID: "r1", ActingFor: "u3"}}, false, 0},
+		{"preparer approving refused", create, preparer, []registry.Principal{preparer}, false, 0},
+		{"user the agent acted for approving refused", create,
+			registry.Principal{Kind: registry.PrincipalAgent, RunID: "r1", ActingFor: "u3"}, []registry.Principal{lawyer}, false, 0},
+		{"no approver refused", create, preparer, nil, false, 0},
+		{"create shape without number refused", `{"matter_id":"m1","short_name":"Delta","client_id":"c1","practice_area_id":"pa1","responsible_lawyer_id":"u9"}`,
+			preparer, []registry.Principal{lawyer}, false, 0},
+		{"no matter refused", `{"client_id":"c1"}`, preparer, []registry.Principal{lawyer}, false, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := NewStore(&stubDB{tx: &stubTx{}}, nil)
+			em := outboxfake.New()
+			s.Events = em
+			tx := &stubTx{row: stubRow{vals: []any{"2026-0042", "c1", "pa1", "u9"}}}
+			err := s.OpeningEffect(clk)(context.Background(), tx, registry.Approved{GateID: "g1", Kind: GateOpening,
+				Payload: []byte(tt.payload), Preparer: tt.preparer, Approvers: tt.approvers})
+			if (err == nil) != tt.ok {
+				t.Fatalf("err = %v, want ok %v", err, tt.ok)
+			}
+			want := 0
+			if tt.ok {
+				want = 1
+			}
+			if n := len(em.Messages()); n != want || len(tx.args) != tt.wantArgs {
+				t.Fatalf("events = %d args = %d, want %d and %d", n, len(tx.args), want, tt.wantArgs)
+			}
+			if tt.ok && em.Messages()[0].Type != EventOpened {
+				t.Fatalf("event = %s", em.Messages()[0].Type)
+			}
+		})
 	}
 }

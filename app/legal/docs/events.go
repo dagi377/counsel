@@ -88,6 +88,28 @@ func (r *Revisions) Request(ctx context.Context, documentID, versionID, by strin
 	return nil
 }
 
+const documentMatterSQL = `SELECT COALESCE(matter_id::text, '') FROM docs.document WHERE id = $1::uuid AND archived_at IS NULL`
+
+// MatterOf returns the matter of document documentID, or empty for a firm document. A
+// missing document is ErrNoRecord. The revision route checks access on this matter.
+func (r *Revisions) MatterOf(ctx context.Context, documentID string) (string, error) {
+	if r.DB == nil {
+		return "", fmt.Errorf("document matter: %w", ErrNoWritePoint)
+	}
+	var matterID string
+	err := r.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		err := tx.QueryRow(ctx, documentMatterSQL, documentID).Scan(&matterID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNoRecord
+		}
+		return err
+	})
+	if err != nil {
+		return "", fmt.Errorf("document matter %s: %w", documentID, err)
+	}
+	return matterID, nil
+}
+
 // CourtFormVersion is one published version of a court form.
 type CourtFormVersion struct {
 	Jurisdiction string // default "ON"

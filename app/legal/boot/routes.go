@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -13,7 +14,10 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/credit"
 	"github.com/dagi377/counsel/app/legal/comms"
 	"github.com/dagi377/counsel/app/legal/deadlines"
+	legaldocs "github.com/dagi377/counsel/app/legal/docs"
+	"github.com/dagi377/counsel/app/legal/eventroute"
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/trust/recon"
@@ -66,7 +70,8 @@ type HTTPPorts struct {
 	// Expenses serves /expenses (HTTP-05). Nil uses the Postgres ExpenseStore on the kernel DB.
 	Expenses timekeeping.Expenses
 	// Events serves the trigger change, claim issue, affidavit of service and email filing
-	// routes (EVENTS-WIRE-2). Nil builds them on the kernel DB and emitter.
+	// routes (EVENTS-WIRE-2) and the stage, note, revision, court form, inbound email and
+	// calendar routes (EVENTS-WIRE-5). Nil builds them on the kernel DB and emitter.
 	Events *EventStores
 }
 
@@ -143,6 +148,18 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 			Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
 		add(ev.Filings != nil && ev.Emails != nil, (&comms.FilingHTTP{Filings: ev.Filings, Emails: ev.Emails,
 			Access: p.Access, Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
+		// The stage, note, revision, court form, inbound email and calendar routes
+		// (Q-EVENTS-WIRE-5).
+		rt := eventroute.Route{Access: p.Access, Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}
+		var now func() time.Time
+		if k.Clock != nil {
+			now = k.Clock.Now
+		}
+		add(ev.Matters != nil && now != nil, (&matter.EventHTTP{Route: rt, Writes: ev.Matters, Now: now}).Routes)
+		add(ev.Revisions != nil && ev.CourtForms != nil && now != nil, (&legaldocs.EventHTTP{Route: rt,
+			Revisions: ev.Revisions, CourtForms: ev.CourtForms, Now: now}).Routes)
+		add(ev.Inbound != nil, (&comms.InboundHTTP{Route: rt, Inbound: ev.Inbound}).Routes)
+		add(ev.Calendar != nil, (&deadlines.CalendarHTTP{Route: rt, Calendar: ev.Calendar}).Routes)
 	}
 	return out, nil
 }

@@ -21,6 +21,7 @@ import (
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/outbox/outboxfake"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -257,6 +258,8 @@ func TestUnwiredGatesOnlyShrink(t *testing.T) {
 	}
 	w := &wiring{opts: Options{Gates: testGatePorts(), Rest: testRestPorts()}}
 	k := testKernel()
+	// The boot kernel always has an emitter; matter.opening's effect needs it.
+	k.Emitter = outboxfake.New()
 	k.Registry = recorderBooter{&registry.Recorder{}}
 	if err := w.registerGates(context.Background(), k); err != nil {
 		t.Fatalf("registerGates: %v", err)
