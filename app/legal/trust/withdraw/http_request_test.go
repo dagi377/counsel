@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -108,10 +109,22 @@ func (l ledgers) Ledger(_ context.Context, id trust.LedgerID) (trust.Ledger, err
 	return got, nil
 }
 
-type cancels struct{ cancelled []string }
+// cancels is the Cancels fake: it keeps the gate each request stored.
+type cancels struct {
+	cancelled []string
+	gates     map[string]string
+}
 
 func (c *cancels) Row(_ context.Context, id string) (withdraw.Row, error) {
-	return withdraw.Row{Version: 1, LedgerID: ledgerA}, nil
+	return withdraw.Row{Version: 1, LedgerID: ledgerA, GateID: c.gates[id]}, nil
+}
+
+func (c *cancels) RecordGate(_ context.Context, _ pgx.Tx, id, gateID string) error {
+	if c.gates[id] != "" {
+		return withdraw.ErrNotFound
+	}
+	c.gates[id] = gateID
+	return nil
 }
 
 func (c *cancels) Cancel(_ context.Context, _ pgx.Tx, id string, _ registry.Principal) (int64, error) {
@@ -154,7 +167,7 @@ func (a reqStubAccess) Can(_ context.Context, p registry.Principal, capability s
 	if s.ID == matterHidden {
 		return false, identity.ErrNotVisible
 	}
-	for _, c := range a[p.UserID] {
+	for _, c := range a[withdraw.PreparerOf(p)] {
 		if c == capability {
 			return true, nil
 		}
@@ -162,10 +175,20 @@ func (a reqStubAccess) Can(_ context.Context, p registry.Principal, capability s
 	return false, nil
 }
 
-var testAccess = reqStubAccess{"alice": {withdraw.CapRequest}, "bob": {withdraw.CapRequest}, "viewer": {"trust.view"}}
+// The "" entry lets an agent with no acting user past access, so the routes' own preparer
+// check is what refuses it.
+var testAccess = reqStubAccess{"": {withdraw.CapRequest}, "alice": {withdraw.CapRequest}, "bob": {withdraw.CapRequest}, "viewer": {"trust.view"}}
 
+// testPrincipal is X-Test-User; with X-Test-Agent it is that agent run acting for the user
+// ("none" for no acting user).
 func testPrincipal(r *http.Request) (registry.Principal, bool) {
 	u := r.Header.Get("X-Test-User")
+	if run := r.Header.Get("X-Test-Agent"); run != "" {
+		if u == "none" {
+			u = ""
+		}
+		return registry.Principal{Kind: registry.PrincipalAgent, RunID: run, ActingFor: u}, true
+	}
 	return registry.Principal{Kind: registry.PrincipalUser, UserID: u}, u != ""
 }
 
@@ -201,7 +224,7 @@ func newReqRig(t *testing.T, svcErr error) rig {
 		reqHidden: {ID: reqHidden, Status: withdraw.StatusRequested, Request: withdraw.Request{MatterID: matterHidden}},
 	}}
 	g.opens, g.kinds = 0, nil
-	c := &cancels{}
+	c := &cancels{gates: map[string]string{wdOpen: string(gid)}}
 	h := &withdraw.RequestHTTP{Withdrawals: s, Gates: g, Cancels: c, DB: txStub{}, Access: testAccess,
 		Ledgers: ledgers{ledgerA: {ID: ledgerA, AccountID: accountA, MatterID: matterA},
 			ledgerHidden: {ID: ledgerHidden, AccountID: accountA, MatterID: matterHidden}},
@@ -262,7 +285,7 @@ func reqValidate(t *testing.T, ref string, body []byte) {
 		t.Fatalf("body is not JSON: %v", err)
 	}
 	if err := s.Validate(v); err != nil {
-		t.Errorf("body does not reqValidate against %s: %v", ref, err)
+		t.Errorf("body does not validate against %s: %v", ref, err)
 	}
 }
 
@@ -460,5 +483,94 @@ func TestARC_I_012_WithdrawalRequestWritesDeclared(t *testing.T) {
 				t.Errorf("%s declares gate-owned %s", w.Pattern, k)
 			}
 		}
+	}
+}
+
+// rule: ARC-I-027
+// The preparer of a withdrawal is the acting user: the user, or the user an agent run acts
+// for; never the agent and never empty. The gate the request opens is stored on it.
+func TestARC_I_027_WithdrawalPreparerIsActingUser(t *testing.T) {
+	tests := []struct {
+		name     string
+		user     string
+		agent    string
+		status   int
+		preparer string
+	}{
+		{name: "user prepares", user: "alice", status: http.StatusAccepted, preparer: "alice"},
+		{name: "agent run prepares for its acting user", user: "alice", agent: "run-1", status: http.StatusAccepted, preparer: "alice"},
+		{name: "agent run with no acting user refused", user: "none", agent: "run-1", status: http.StatusForbidden},
+	}
+	for i, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newReqRig(t, nil)
+			hdr := key(fmt.Sprintf("27%d", i))
+			if tc.agent != "" {
+				hdr["X-Test-Agent"] = tc.agent
+			}
+			rec := reqDo(r.h, createPath, tc.user, goodBody, hdr)
+			if rec.Code != tc.status {
+				t.Fatalf("status = %d (%s), want %d", rec.Code, rec.Body, tc.status)
+			}
+			if tc.status != http.StatusAccepted {
+				if r.svc.calls["Request"] != 0 || r.gates.opens != 0 {
+					t.Fatalf("refused request reached service %v / gates %d", r.svc.calls, r.gates.opens)
+				}
+				return
+			}
+			var got struct {
+				ID     string `json:"id"`
+				GateID string `json:"gate_id"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if w := r.svc.byID[got.ID]; w.Request.PreparedBy != tc.preparer {
+				t.Errorf("PreparedBy = %q, want %q", w.Request.PreparedBy, tc.preparer)
+			}
+			if r.cancels.gates[got.ID] != got.GateID || got.GateID == "" {
+				t.Errorf("stored gate = %q, want %q", r.cancels.gates[got.ID], got.GateID)
+			}
+		})
+	}
+}
+
+// rule: ARC-I-027
+// Cancel withdraws the gate stored on the withdrawal, and only its preparer may cancel.
+func TestWithdrawalCancelOnlyPreparerWithdrawsStoredGate(t *testing.T) {
+	tests := []struct {
+		name        string
+		user        string
+		storedOnly  bool
+		status      int
+		wantWithdrn bool
+	}{
+		{name: "preparer cancels", user: "alice", status: http.StatusOK, wantWithdrn: true},
+		{name: "stored gate id is withdrawn", user: "alice", storedOnly: true, status: http.StatusOK, wantWithdrn: true},
+		{name: "another user may not cancel", user: "bob", status: http.StatusForbidden},
+	}
+	for i, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newReqRig(t, nil)
+			if tc.storedOnly {
+				w := r.svc.byID[wdOpen]
+				w.GateID = ""
+				r.svc.byID[wdOpen] = w
+			}
+			rec := reqDo(r.h, cancelPath(wdOpen), tc.user, "", keyMatch(fmt.Sprintf("31%d", i), `"1"`))
+			if rec.Code != tc.status {
+				t.Fatalf("status = %d (%s), want %d", rec.Code, rec.Body, tc.status)
+			}
+			g, err := r.gates.Fake.Get(context.Background(), r.gates.ids[r.openGID])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := g.Status == gate.StatusWithdrawn; got != tc.wantWithdrn {
+				t.Errorf("gate %s, withdrawn want %v", g.Status, tc.wantWithdrn)
+			}
+			if (len(r.cancels.cancelled) == 1) != tc.wantWithdrn {
+				t.Errorf("cancels = %v", r.cancels.cancelled)
+			}
+		})
 	}
 }

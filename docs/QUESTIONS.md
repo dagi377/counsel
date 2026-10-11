@@ -2602,3 +2602,32 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   read the book from the general-ledger trust bank control account so book vs ledgers is an
   independent check. Prepare re-prepares an open draft/ready month in place; a signed or
   imported month is ErrPeriodLocked. ImportStatement refuses with ErrNoParser.
+
+
+## WD-BILL: trust withdrawal names its bill
+
+- Additive in `app/legal/trust/withdraw/contract.go`: `Request.BillID`
+  (`trust.withdrawal_request.bill_id`, already in 0001_init.sql, so no migration). The agent's
+  prepare_trust_withdrawal passes its `bill_id` on (FEAT-FIX-B). The trust.withdrawal gate
+  payload gains `bill_id` (omitempty), so an approval binds the bill.
+- `Effect.Apply` re-checks a fee withdrawal at authorization (By-Law 9 s.9(1), BIL-L-035/037):
+  it names a bill, the bill is on the same matter, delivered on or before now, and the amount
+  is no more than its unpaid balance. A withdrawal with a bill id, or purpose `fees` /
+  `fees_to_operating`, is a fee withdrawal. `Effect.Bills` (new port `withdraw.FeeBills`, read
+  in the gate tx) nil fails closed. Open (BOOT): wire a billing adapter returning the bill's
+  matter, delivery date and balance net of reserved fee transfers.
+- Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
+  resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.
+
+## PG-WRITES-FIX
+
+- Additive: migration `5505_withdrawal_gate.sql` adds nullable `trust.withdrawal_request.gate_id`
+  (5504 is taken by another task branch). The request route stores the opened gate in the same tx;
+  cancel withdraws that gate; only the preparer (the user, or the user an agent acts for) may cancel.
+- Additive: `withdraw.Cancels` gains `RecordGate`, and `withdraw.Row` gains `GateID` (not contract files).
+- Open: no Postgres `withdraw.FeeBills` adapter exists yet (billing owns the bill balance), so
+  `Effect.Bills` is unwired at boot and every fee withdrawal fails closed at authorization.
+- Open: the route opens `billing.trust_fee_withdrawal` for a bill withdrawal, but that kind has no
+  effect wired (boot/unwired_gates.txt) and execution reads only `trust.withdrawal` approvals.
+- Open: `PGService.Request` opens no gate, so the agent tool's `w.GateID == ""` check refuses every
+  agent withdrawal on Postgres until the gate is opened in the service path.

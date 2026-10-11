@@ -56,13 +56,18 @@ type Row struct {
 	Version  int64
 	LedgerID string
 	BillID   string
+	// GateID is the gate the request opened (trust.withdrawal_request.gate_id); empty for a
+	// withdrawal requested before it was stored.
+	GateID string
 }
 
 // Cancels reads a withdrawal's row and records its cancellation. Service has no Cancel
 // (its contract is frozen), so the cancel route uses this port.
 type Cancels interface {
-	// Row returns the withdrawal's row version, ledger and bill, or ErrNotFound.
+	// Row returns the withdrawal's row version, ledger, bill and gate, or ErrNotFound.
 	Row(ctx context.Context, id string) (Row, error)
+	// RecordGate stores the gate the request opened on the withdrawal, in tx.
+	RecordGate(ctx context.Context, tx pgx.Tx, id, gateID string) error
 	// Cancel marks the withdrawal cancelled in tx and returns its new version.
 	Cancel(ctx context.Context, tx pgx.Tx, id string, by registry.Principal) (int64, error)
 }
@@ -139,6 +144,13 @@ func (h *RequestHTTP) guarded(ifMatch bool, fn handler) http.HandlerFunc {
 			h.fail(w, r, http.StatusForbidden, CodeMissingCapability, "Missing capability")
 			return
 		}
+		// rule: ARC-I-027
+		// Every request and cancel has a person behind it: the user, or the user an agent run
+		// acts for. An agent with no acting user is refused before any call.
+		if PreparerOf(p) == "" {
+			h.fail(w, r, http.StatusForbidden, CodeMissingCapability, "Request has no acting user")
+			return
+		}
 		if id := chi.URLParam(r, "withdrawal_id"); ifMatch && !uuidPattern.MatchString(id) {
 			h.fail(w, r, http.StatusBadRequest, server.CodeValidationFailed, "withdrawal_id is not valid")
 			return
@@ -155,7 +167,7 @@ func (h *RequestHTTP) guarded(ifMatch bool, fn handler) http.HandlerFunc {
 			return
 		}
 		// rule: ARC-I-008
-		idem.New(h.Idem, func(*http.Request) string { return p.UserID }, idem.DefaultTTL)(
+		idem.New(h.Idem, func(*http.Request) string { return idemScope(p) }, idem.DefaultTTL)(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				body, err := io.ReadAll(r.Body)
 				if err != nil {
@@ -235,7 +247,8 @@ func (h *RequestHTTP) request(w http.ResponseWriter, r *http.Request, p registry
 	wd, err := h.Withdrawals.Request(ctx, Request{
 		TrustAccountID: string(l.AccountID), MatterID: l.MatterID, AmountCents: in.AmountCents,
 		Payee: in.Payee, Method: Method(in.Method), EFTAuthorizationID: in.DirectionDocumentID,
-		Reason: in.PurposeCategory, PreparedBy: p.UserID, IdempotencyKey: r.Header.Get(idem.HeaderName),
+		Reason: in.PurposeCategory, PreparedBy: PreparerOf(p), IdempotencyKey: r.Header.Get(idem.HeaderName),
+		BillID: in.BillID,
 	})
 	if err != nil {
 		h.writeErr(w, r, err)
@@ -258,7 +271,11 @@ func (h *RequestHTTP) request(w http.ResponseWriter, r *http.Request, p registry
 	err = h.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		var err error
 		gid, err = h.Gates.Open(ctx, tx, kind, gate.Subject{Kind: SubjectWithdrawal, ID: wd.ID}, payload, p)
-		return err
+		if err != nil {
+			return err
+		}
+		// The gate id is stored in the tx that opens it, so cancel can withdraw it.
+		return h.Cancels.RecordGate(ctx, tx, wd.ID, string(gid))
 	})
 	if err != nil {
 		h.writeErr(w, r, err)
@@ -291,6 +308,16 @@ func (h *RequestHTTP) cancel(w http.ResponseWriter, r *http.Request, p registry.
 		return
 	}
 	version := row.Version
+	// rule: ARC-I-027
+	// Only the preparer cancels: for an agent, the user it acts for.
+	if by := PreparerOf(p); by == "" || by != wd.Request.PreparedBy {
+		h.fail(w, r, http.StatusForbidden, CodeMissingCapability, "Only the preparer can cancel the request")
+		return
+	}
+	gateID := row.GateID
+	if gateID == "" {
+		gateID = wd.GateID
+	}
 	if err := server.CheckIfMatch(r, version); err != nil {
 		h.fail(w, r, http.StatusPreconditionFailed, server.CodeVersionConflict, "If-Match does not match the current version")
 		return
@@ -304,8 +331,8 @@ func (h *RequestHTTP) cancel(w http.ResponseWriter, r *http.Request, p registry.
 		return
 	}
 	err = h.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		if wd.GateID != "" {
-			if err := h.Gates.Withdraw(ctx, tx, gate.GateID(wd.GateID), p); err != nil {
+		if gateID != "" {
+			if err := h.Gates.Withdraw(ctx, tx, gate.GateID(gateID), p); err != nil {
 				return err
 			}
 		}
@@ -319,6 +346,26 @@ func (h *RequestHTTP) cancel(w http.ResponseWriter, r *http.Request, p registry.
 	}
 	wd.Status = StatusCancelled
 	writeJSON(w, http.StatusOK, viewOf(wd, row.LedgerID, row.BillID, version, registry.Principal{Kind: registry.PrincipalUser, UserID: wd.Request.PreparedBy}))
+}
+
+// idemScope keys idempotency replays by actor: the user, or the agent run and its user.
+func idemScope(p registry.Principal) string {
+	if p.Kind == registry.PrincipalAgent {
+		return "agent:" + p.RunID + ":" + p.ActingFor
+	}
+	return p.UserID
+}
+
+// PreparerOf is the user who prepares what p requests: the user, or the user an agent acts
+// for. It is empty for an agent with no acting user and for a guest.
+func PreparerOf(p registry.Principal) string {
+	switch p.Kind {
+	case registry.PrincipalAgent:
+		return p.ActingFor
+	case registry.PrincipalUser:
+		return p.UserID
+	}
+	return ""
 }
 
 // writeErr maps a service error to its problem. Error text never reaches the body.

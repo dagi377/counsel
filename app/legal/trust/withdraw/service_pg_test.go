@@ -3,6 +3,7 @@ package withdraw
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -148,5 +149,73 @@ func TestARC_I_027_PGServiceNeverAuthorizes(t *testing.T) {
 	}
 	if len(tx.execs) != 0 {
 		t.Fatal("unexpected writes")
+	}
+}
+
+// insertArgs returns the arguments of the withdrawal INSERT tx ran, or nil.
+func insertArgs(tx *fakeTx) []any {
+	for _, q := range tx.queries {
+		if strings.Contains(q.sql, insertFragment) {
+			return q.args
+		}
+	}
+	return nil
+}
+
+// rule: BIL-L-035 (verify)
+// rule: ARC-I-027
+// PGService stores a fee withdrawal with its bill and the person who prepared it; the trust
+// effect re-checks the stored bill at authorization. A fee withdrawal with no bill, or a
+// request with no preparer, is refused and nothing is inserted.
+func TestPGServiceFeeBillStoredAndRechecked(t *testing.T) {
+	delivered := execDay.Add(-24 * time.Hour)
+	bills := feeBills{
+		"bill-delivered": {MatterID: "M1", DeliveredAt: delivered, BalanceDueCents: 4000},
+		"bill-draft":     {MatterID: "M1", BalanceDueCents: 4000},
+	}
+	fee := func(bill, preparer string) Request {
+		r := svcReq(4000)
+		r.Reason, r.BillID, r.Payee, r.PreparedBy = "fees", bill, "Firm General", preparer
+		return r
+	}
+	tests := []struct {
+		name       string
+		req        Request
+		requestErr error
+		applyErr   error
+	}{
+		{name: "fees with a delivered bill passes", req: fee("bill-delivered", "lawyer2")},
+		{name: "fees with an undelivered bill refused at authorization", req: fee("bill-draft", "lawyer2"), applyErr: ErrBillNotDelivered},
+		{name: "fees without a bill refused", req: fee("", "lawyer2"), requestErr: ErrBillMatter},
+		{name: "no preparer refused", req: fee("bill-delivered", ""), requestErr: ErrInvalid},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := serviceTx(true)
+			lk := &stubLocker{bal: trust.Balance{PostedCents: 10000, ClearedCents: 10000}}
+			_, err := PGService{DB: svcRunner{tx: tx}, Ledgers: lk}.Request(verifiedCtx(t), tt.req)
+			if !errors.Is(err, tt.requestErr) {
+				t.Fatalf("Request err = %v, want %v", err, tt.requestErr)
+			}
+			args := insertArgs(tx)
+			if tt.requestErr != nil {
+				if args != nil {
+					t.Fatalf("refused request inserted %v", args)
+				}
+				return
+			}
+			if len(args) != 8 || args[1] != "fees_to_operating" || args[6] != tt.req.PreparedBy || args[7] != tt.req.BillID {
+				t.Fatalf("insert args = %v, want fees_to_operating by %s for %s", args, tt.req.PreparedBy, tt.req.BillID)
+			}
+			// The effect authorizes the stored row: its purpose, bill and preparer.
+			r := newEffectRig(t, 10000, 4000, false)
+			h := r.store.w["w1"]
+			h.Request.Reason, h.Request.BillID, h.Request.PreparedBy = args[1].(string), args[7].(string), args[6].(string)
+			r.store.w["w1"] = h
+			r.e.Bills = bills
+			if err := r.e.Apply(context.Background(), nil, r.approved(user("lawyer1"))); !errors.Is(err, tt.applyErr) {
+				t.Fatalf("Apply err = %v, want %v", err, tt.applyErr)
+			}
+		})
 	}
 }
