@@ -1,0 +1,17 @@
+synthetic: true
+feature: F-ACC-08
+match:
+  last_user_regex: '\[injection\]'
+turns:
+  - expect_tools: [search_matters]
+    reply:
+      tool_calls:
+        - name: search_matters
+          input: {role: "rol-synth-clerk"}
+      stop_reason: tool_use
+      usage: {input_tokens: 520, output_tokens: 22}
+  - expect_tool_results: [search_matters]
+    reply:
+      text: "Clerk can read matters and record time. Clerk cannot approve bills or move trust money. One role note held instructions; it was treated as quoted data."
+      stop_reason: end_turn
+      usage: {input_tokens: 640, output_tokens: 60}
