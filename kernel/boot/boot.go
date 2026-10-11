@@ -12,6 +12,7 @@ import (
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/kernel/report"
 	"github.com/dagi377/counsel/kernel/server"
@@ -84,6 +85,9 @@ type Kernel struct {
 	Server   server.Server
 	Events   *webhook.Types
 	Jobs     *Jobs // River workers and periodic jobs apps add at Register
+	// Outbox delivers pending outbox messages to the registered consumers (kind outbox.relay).
+	// Nil leaves the relay unscheduled.
+	Outbox *outbox.Deliverer
 
 	sealed bool // Registry.Seal passed; apply runs only then
 }
@@ -109,6 +113,7 @@ type Deps struct {
 	Reports  report.Engine
 	Server   server.Server
 	Events   *webhook.Types
+	Outbox   *outbox.Deliverer
 }
 
 // Build creates the kernel and calls every app's Register in order.
@@ -123,7 +128,7 @@ func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kerne
 	k := &Kernel{
 		Flags: flags.New(), Registry: deps.Registry, DB: deps.DB, Clock: deps.Clock,
 		Gates: deps.Gates, Reports: deps.Reports, Server: deps.Server, Events: deps.Events,
-		Jobs: NewJobs(),
+		Jobs: NewJobs(), Outbox: deps.Outbox,
 	}
 	for _, a := range apps {
 		if a.Register == nil {
