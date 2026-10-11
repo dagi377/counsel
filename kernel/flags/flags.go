@@ -21,9 +21,11 @@ type Def struct {
 	Owner  string    // who decides when the flag is turned on
 	Expiry time.Time // when the flag must be removed or made permanent
 	Doc    string    // one line: what the flag gates
+	On     bool      // initial state; false (off) unless a recorded decision says otherwise
 }
 
-// Set holds flag definitions and which of them are on. Every defined flag starts off.
+// Set holds flag definitions and which of them are on. A defined flag starts in its Def.On
+// state, which is off unless the definition says otherwise.
 // A Set is safe for concurrent use.
 type Set struct {
 	mu   sync.RWMutex
@@ -47,6 +49,9 @@ func (s *Set) Define(d Def) error {
 		return fmt.Errorf("define flag %q: %w", d.Name, ErrDuplicate)
 	}
 	s.defs[d.Name] = d
+	if d.On {
+		s.on[d.Name] = true
+	}
 	return nil
 }
 
@@ -61,7 +66,7 @@ func (s *Set) Set(name string, on bool) error {
 	return nil
 }
 
-// Enabled reports whether name is defined and explicitly turned on.
+// Enabled reports whether name is defined and on.
 func (s *Set) Enabled(name string) bool {
 	if s == nil {
 		return false

@@ -34,7 +34,7 @@ func (ConfigValidator) Validate(ctx context.Context, defs []Def, today time.Time
 	return errors.Join(errs...)
 }
 
-// Load validates defs and defines each on a new Set, all off. Any invalid flag fails the load.
+// Load validates defs and defines each on a new Set in its Def.On state (off by default). Any invalid flag fails the load.
 func Load(ctx context.Context, defs []Def, today time.Time) (*Set, error) {
 	// rule: ARC-U-019
 	if err := (ConfigValidator{}).Validate(ctx, defs, today); err != nil {

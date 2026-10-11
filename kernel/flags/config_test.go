@@ -63,6 +63,7 @@ func TestLoad(t *testing.T) {
 		{"loads all off", []Def{{Name: "a", Owner: "o", Expiry: exp}, {Name: "b", Owner: "o", Expiry: exp}}, nil, 2},
 		{"no owner fails load", []Def{{Name: "a", Expiry: exp}}, ErrNoOwner, 0},
 		{"no expiry fails load", []Def{{Name: "a", Owner: "o"}}, ErrNoExpiry, 0},
+		{"on by definition", []Def{{Name: "a", Owner: "o", Expiry: exp, On: true}, {Name: "b", Owner: "o", Expiry: exp}}, nil, 2},
 		{"duplicate fails load", []Def{{Name: "a", Owner: "o", Expiry: exp}, {Name: "a", Owner: "o", Expiry: exp}}, ErrDuplicate, 0},
 	}
 	for _, tc := range tests {
@@ -81,8 +82,8 @@ func TestLoad(t *testing.T) {
 				t.Fatalf("defs = %d, want %d", got, tc.wantN)
 			}
 			for _, d := range s.Defs() {
-				if s.Enabled(d.Name) {
-					t.Errorf("flag %q on after load, want off", d.Name)
+				if s.Enabled(d.Name) != d.On {
+					t.Errorf("flag %q enabled = %v after load, want %v", d.Name, s.Enabled(d.Name), d.On)
 				}
 			}
 		})

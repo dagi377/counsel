@@ -55,33 +55,37 @@ func TestVerifyFlagsDefinedOffWithOwnerAndExpiry(t *testing.T) {
 	for _, d := range s.Defs() {
 		defs[d.Name] = d
 	}
-	tests := []string{
-		"billing.card_surcharge",
-		"billing.contingency_fees",
-		"billing.credit_route_verified",
-		"billing.joint_retainer_verified",
-		"billing.receipts_journal_verified",
-		"billing.records_verified",
-		"billing.solicitors_act_verified",
-		"conflict.id_verification",
-		"deadline.ontario_pack",
-		"export.post_cancel_window",
-		"tax.bn_check_verified",
-		"tax.verify_rules",
-		"timekeeping.paralegal_scope_verified",
-		"trust.bylaw9_verified",
+	tests := []struct {
+		name string
+		on   bool
+	}{
+		{"billing.card_surcharge", false},
+		{"billing.contingency_fees", false},
+		{"billing.credit_route_verified", false},
+		{"billing.joint_retainer_verified", false},
+		{"billing.receipts_journal_verified", false},
+		{"billing.records_verified", false},
+		{"billing.solicitors_act_verified", false},
+		{"conflict.id_verification", false},
+		{"deadline.ontario_pack", false},
+		{"export.post_cancel_window", false},
+		{"tax.bn_check_verified", true},
+		{"tax.verify_rules", false},
+		{"timekeeping.paralegal_scope_verified", false},
+		{"trust.bylaw9_verified", false},
 	}
 	if len(defs) != len(tests) {
 		t.Errorf("defined %d flags, want %d", len(defs), len(tests))
 	}
-	for _, name := range tests {
+	for _, tc := range tests {
+		name := tc.name
 		t.Run(name, func(t *testing.T) {
 			d, ok := defs[name]
 			if !ok {
 				t.Fatalf("flag %q not defined", name)
 			}
-			if s.Enabled(name) {
-				t.Errorf("flag %q is on by default", name)
+			if got := s.Enabled(name); got != tc.on {
+				t.Errorf("flag %q enabled by default = %v, want %v", name, got, tc.on)
 			}
 			if d.Owner == "" {
 				t.Errorf("flag %q has no owner", name)

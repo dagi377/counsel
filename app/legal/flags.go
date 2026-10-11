@@ -40,7 +40,8 @@ func toronto() *time.Location {
 	return loc
 }
 
-// Flags returns every app/legal flag definition. All of them are off until turned on.
+// Flags returns every app/legal flag definition. All of them are off until turned on, except
+// tax.bn_check_verified, which is on by default.
 func Flags() []flags.Def {
 	return []flags.Def{
 		{Name: FlagCardSurcharge, Owner: "accountant/CRA, lawyer/LSO", Expiry: verifyExpiry,
@@ -51,8 +52,11 @@ func Flags() []flags.Def {
 			Doc: "BIL-C-081: credit beyond open AR repaid to trust first, then client credit; By-Law 9 reading unconfirmed"},
 		{Name: FlagJointRetainerVerified, Owner: "lawyer/LSO", Expiry: verifyExpiry,
 			Doc: "BIL-L-029: joint retainer fees apportioned per payer under r.3.6-4 unconfirmed"},
-		{Name: FlagTaxBNCheckVerified, Owner: "accountant/CRA", Expiry: verifyExpiry,
-			Doc: "BIL-T-061: GST/HST registration number format and CRA check digit unconfirmed"},
+		// The BN on GST/HST invoices is settled law (Input Tax Credit Information Regulations)
+		// and the format check is deterministic, so this flag is on by default; it stays a
+		// flag so a firm can turn it off.
+		{Name: FlagTaxBNCheckVerified, Owner: "accountant/CRA", Expiry: verifyExpiry, On: true,
+			Doc: "BIL-T-061: GST/HST registration number format and CRA check digit"},
 		{Name: FlagReceiptsJournalVerified, Owner: "lawyer/LSO", Expiry: verifyExpiry,
 			Doc: "BIL-L-042: receipts journal shows unapplied money as client credit; By-Law 9 record form unconfirmed"},
 		{Name: FlagParalegalScopeVerified, Owner: "lawyer/LSO", Expiry: verifyExpiry,
@@ -74,7 +78,7 @@ func Flags() []flags.Def {
 	}
 }
 
-// DefineFlags defines every app/legal flag in s, off.
+// DefineFlags defines every app/legal flag in s, each in its default state.
 func DefineFlags(s *flags.Set) error {
 	for _, d := range Flags() {
 		if err := s.Define(d); err != nil {
