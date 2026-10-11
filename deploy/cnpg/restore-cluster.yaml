@@ -1,0 +1,33 @@
+# rule: ARC-U-043
+# Recovery Cluster for a restore drill. restore-drill.sh fills the upper-case placeholders and
+# applies it in a scratch namespace: one instance, bootstrapped from the cell's base backup
+# and WAL archive in the DR bucket, replayed up to the target time (PITR).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: counsel-@CELL@-pg-restore
+  namespace: "@NAMESPACE@"
+  labels:
+    counsel.io/cell: "@CELL@"
+    counsel.io/drill: restore
+spec:
+  instances: 1
+  storage:
+    storageClass: counsel-@CELL@-encrypted
+    size: 100Gi
+  bootstrap:
+    recovery:
+      source: origin
+      recoveryTarget:
+        targetTime: "@TARGET_TIME@"
+  externalClusters:
+    - name: origin
+      barmanObjectStore:
+        # The source cluster's own archive: same bucket and server name as the cell writes.
+        destinationPath: "s3://counsel-@CELL@-wal-dr/"
+        endpointURL: "https://s3.@DR_REGION@.amazonaws.com"
+        serverName: counsel-@CELL@-pg
+        s3Credentials:
+          inheritFromIAMRole: true
+        wal:
+          maxParallel: 8
