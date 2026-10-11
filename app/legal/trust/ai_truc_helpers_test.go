@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"net/http"
 	"os"
 	"slices"
@@ -365,4 +368,35 @@ func trucCheckAgentNeverDecides(t *testing.T, kind string) {
 			}
 		})
 	}
+}
+
+// trucPlan is a report_plan call of two steps.
+func trucPlan() trucCall {
+	return trucCall{agenttools.ToolReportPlan, `{"steps": [{"step_id": "read", "title": "Read the matter, trust and bill"}, {"step_id": "prepare", "title": "Prepare the withdrawal"}]}`}
+}
+
+// trucNoWithdrawal fails t if the trust module holds any withdrawal row.
+func trucNoWithdrawal(t *testing.T, w *trucWorld) {
+	t.Helper()
+	if got, err := w.fd.Withdrawals.Get(context.Background(), "wd_1"); err == nil {
+		t.Fatalf("withdrawal row %+v recorded, want none", got)
+	}
+}
+
+// trucEffectMethods are the trust and billing methods only a gate effect or a person reaches.
+var trucEffectMethods = []string{"Authorize", "Approve", "Deliver", "RecordExecution"}
+
+// trucCheckNoEffectCalls fails t if file (in this package) calls any of trucEffectMethods.
+func trucCheckNoEffectCalls(t *testing.T, file string) {
+	t.Helper()
+	f, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
+	if err != nil {
+		t.Fatalf("parse %s: %v", file, err)
+	}
+	ast.Inspect(f, func(n ast.Node) bool {
+		if sel, ok := n.(*ast.SelectorExpr); ok && slices.Contains(trucEffectMethods, sel.Sel.Name) {
+			t.Errorf("%s reaches %s", file, sel.Sel.Name)
+		}
+		return true
+	})
 }

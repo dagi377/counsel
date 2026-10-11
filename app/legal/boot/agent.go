@@ -317,6 +317,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 		trust.FeaturePayeeFraudCheck:                trust.PayeeFraudCheckBinding,
+		trust.FeatureWithdrawalDrafter:              trust.WithdrawalDrafterBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -420,6 +421,8 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Trust. A withdrawal request is one matter's (Q-FEAT-TRU-03).
+	"withdrawal-request": {SubjectKind: "matter", Capability: "trust.request"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

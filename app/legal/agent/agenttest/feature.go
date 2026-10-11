@@ -67,6 +67,10 @@ func FromFeatureWith(t testing.TB, def feature.Def, hs agent.HandlerSet) *Featur
 		ID: def.ID, ActingFor: FeatureActingFor, System: spec.System, Kind: spec.Kind, Grant: slices.Clone(def.Grant),
 	})
 	fd := &FeatureDriver{Driver: d, Def: def, Seed: NewSeed(t, FeatureActingFor, d.Withdrawals)}
+	// rule: ARC-U-027
+	// One Provenance per run, as boot wires it: the figures the real read handlers record are
+	// the ones the real prepare_trust_withdrawal checks its amount against.
+	fd.Seed.Provenance = d.Provenance
 	for _, k := range def.GateKinds {
 		fd.Seed.GateKind(k)
 	}
