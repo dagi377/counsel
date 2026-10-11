@@ -1851,3 +1851,18 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## WO-FIX: write-off draft outcomes and the split after a trust fee transfer
+
+- Additive in `app/legal/billing/credit/contract.go`: `StatusRejected` and `StatusWithdrawn`.
+  `PGWriteOffs.Close(ctx, tx, id, status)` moves a submitted draft to one of them; both are
+  final. Migration 5620 widens the `billing.write_off_draft` status check (NOT VALID,
+  validated in 5621) and replaces the guard so a row that has left `draft` never changes.
+  Only `status = 'draft'` drafts count toward the second-approval total (BIL-C-085).
+  Open (BOOT): call `Close(..., StatusRejected)` from the G-B5 gate rejection outcome and
+  `Close(..., StatusWithdrawn)` from a preparer withdraw route.
+- Q-INTEG-12.1 applied: on a bill with trust fee transfers (authorized, executed or applied,
+  net of excess) the draft split uses `DraftOpenBuckets`: the bucket outstanding less the
+  transfer must equal the balance, and the balance less open interest is apportioned over
+  fees, disbursements and tax in the bill's issued proportions (BIL-C-205, ETA s.231). The
+  transfer itself is never re-split. An apportioned bucket above its outstanding fails closed.

@@ -17,8 +17,8 @@ var _ WriteOffTotals = PGWriteOffTotals{}
 // so two write-offs on one bill are decided one after the other, then sums approved
 // write-offs (billing.write_off) and submitted write-offs still in billing.write_off_draft
 // (status draft with a G-B5 gate). It reads only billing tables, never the kernel gate
-// table. A submitted draft whose gate was rejected still counts, which can only raise the
-// total toward the second approval (fails closed). Anything it cannot count fails closed.
+// table. A rejected or withdrawn draft does not count. Anything
+// it cannot count fails closed.
 type PGWriteOffTotals struct{}
 
 // lockBillSQL locks the bill a write-off reduces and reads its payer (the client).
@@ -34,7 +34,8 @@ FROM billing.write_off
 WHERE bill_id = $1::uuid OR (bill_id = ANY($2::uuid[]) AND created_at >= $3)
 ORDER BY id`
 
-// pendingWriteOffsSQL lists submitted write-off drafts that are not approved yet.
+// pendingWriteOffsSQL lists submitted write-off drafts that are not approved yet. Only
+// status draft counts, so rejected and withdrawn drafts are left out (BIL-C-085).
 const pendingWriteOffsSQL = `SELECT id::text, bill_id::text, amount_cents, created_at
 FROM billing.write_off_draft
 WHERE status = 'draft' AND credit_gate_id IS NOT NULL
