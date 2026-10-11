@@ -83,6 +83,13 @@ Template:
 - Answer: owner (2026-10-11): A. `credit.CheckBucket` wraps `ErrExceedsBalance` together with a
   409 `credit_exceeds_bill` problem (rule BIL-C-082), so `server.WriteError` writes it as is.
 
+## Q-004 Audit chain hashes `at` in the session time zone
+
+- Task: kernel/db (T-043), kernel/audit (T-005)
+- Sources: migrations/0001_init.sql audit.chain trigger (hashes `jsonb_build_object(..., 'at', NEW.at, ...)::text`); kernel/audit verification rebuilds the same text.
+- Problem: jsonb renders a timestamptz in the session's TimeZone, so a caller whose session zone is America/Toronto makes the trigger hash a different string than verification rebuilds, and Verify reports a broken chain.
+- Answer: owner (2026-10-11): kernel/db sets `SET LOCAL TIME ZONE 'UTC'` in every transaction (InTx and Bind), so the trigger and Verify hash `at` identically. Business dates stay America/Toronto through `clock`. Done in kernel/db/pool.go; integration test kernel/db/pool_test.go runs with session zone America/Toronto.
+
 ## Q-003 GateKind has no field for the spec gate id
 
 - Task: T-002L.2
