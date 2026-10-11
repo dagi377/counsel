@@ -64,9 +64,10 @@ const con16Record = "Lateral disclosure. Prior matter 1: client Example Co, adve
 
 // con16Calls is the F-CON-16 script: read the selected record, search, plan, draft, then
 // submit the draft under gateKind.
-func con16Calls(gateKind string) []conCall {
+// read is the read_document call of the filed document.
+func con16Calls(read conCall, gateKind string) []conCall {
 	return []conCall{
-		{agent.ToolReadDocument, `{"doc_id": "00000000-0000-4000-8000-0000000000e4"}`},
+		read,
 		{"search_contacts", `{"query": "Synth Holdings", "limit": 5}`},
 		{agenttools.ToolReportPlan, `{"steps": [{"step_id": "prior", "title": "Read the prior matters"}, {"step_id": "check", "title": "Draft the lateral check"}]}`},
 		{agent.ToolDraftDocument, `{"matter_id": "` + conMatter + `", "title": "Lateral check: incoming lawyer", "body_markdown": "1. Example Co (adverse Synth Holdings, 2023): the firm acts for Synth Holdings; needs a wall or consent. 2. Sample Ltd: no match."}`},
@@ -77,8 +78,8 @@ func con16Calls(gateKind string) []conCall {
 func con16Run(t *testing.T, readText, gateKind string) (*agenttest.FeatureDriver, *conDrafts, agenttest.FeatureRun) {
 	t.Helper()
 	fd, drafts := conFeature(t, conflict.LateralCheckDef())
-	fd.SetRead(agent.ToolReadDocument, readText)
-	model := aifake.New(conScript("F-CON-16", "run-lateral-check", con16Calls(gateKind), "Drafted the lateral check for clearance."))
+	read := conRead(fd, conMatter, readText)
+	model := aifake.New(conScript("F-CON-16", "run-lateral-check", con16Calls(read, gateKind), "Drafted the lateral check for clearance."))
 	return fd, drafts, fd.Fire(context.Background(), model, "run-fcon16", "screen: lateral-hire-intake\nrecords: 00000000-0000-4000-8000-0000000000e4")
 }
 
@@ -89,8 +90,8 @@ func TestFCON16_FromFeature(t *testing.T) {
 	if run.Err != nil || len(run.Refused) != 0 {
 		t.Fatalf("run err = %v, refused = %v", run.Err, run.Refused)
 	}
-	if !slices.Equal(fd.StandIns, conStandIns) || !slices.Equal(run.StandIns, []string{agent.ToolReadDocument}) {
-		t.Fatalf("stand-ins = %v, run used %v; want only %v registered and read_document called", fd.StandIns, run.StandIns, conStandIns)
+	if len(fd.StandIns) != 0 || len(run.StandIns) != 0 {
+		t.Fatalf("stand-ins = %v, run used %v; want every tool on its real handler", fd.StandIns, run.StandIns)
 	}
 	// rule: ARC-I-039
 	if run.PlanAt < 0 || run.FirstWrite <= run.PlanAt || run.Tools[run.FirstWrite] != agent.ToolDraftDocument {
@@ -127,7 +128,7 @@ func TestFCON16_Injection(t *testing.T) {
 	if run.Err != nil || len(run.Refused) != 0 {
 		t.Fatalf("run err = %v, refused = %v", run.Err, run.Refused)
 	}
-	if want := conToolNames(con16Calls(conflict.GateLateral)); !slices.Equal(run.Tools, want) {
+	if want := conToolNames(con16Calls(conCall{name: agent.ToolReadDocument}, conflict.GateLateral)); !slices.Equal(run.Tools, want) {
 		t.Fatalf("tools = %v, want %v (no extra call)", run.Tools, want)
 	}
 	if err := agenttest.QuotedOnly(run.Run, injected); err != nil {
