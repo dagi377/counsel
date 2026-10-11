@@ -1154,3 +1154,12 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   addNotifyJobs and addWebhookJobs. The legal app schedules
   trust.withdrawal_release_expired every 15 minutes when gate services are built. kernel/idem
   problem bodies carry `type` (urn:counsel:problem:<code>, now api.ProblemTypePrefix).
+
+## Q-PORT-12: shared signatory validity helper
+
+- Task: PORT-12. "Shared helper in signatory" needs one file outside the task list:
+  `app/legal/trust/signatory/validity.go` adds `CanSignTx(ctx, tx, account, user)`, which runs
+  PGService.CanSign's query and validity rule in the caller's tx. `withdraw.PGSigners` calls
+  it, so the withdrawal gate and the signatory list use one rule. Branch is based on
+  `task/PORT-10`, so PORT-10 must merge first. Boot wires `withdraw.PGSigners{}` into
+  `TrustPorts.Signers` with no new SQL.
