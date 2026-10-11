@@ -3001,3 +3001,15 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-FEAT-INT-16 F-INT-07 pipeline follow-ups: acting user and boot wiring
+
+- The hourly run acts for the feature's designated lawyer (`trigger.BindDesignated`,
+  JOB-ACTOR), never RuleAdmin; with no lawyer named it does not start.
+- search_contacts and search_matters return no document citations, so the digest cites the
+  contact records search_contacts returned (`contact:<id>`, page 1, line 1), which
+  `run.CheckAnswer` accepts as citations of this run.
+- Registering the Def in featureset makes boot's TestJobBindings need it, so this task adds
+  its binding to `boot.JobBindings`. The end-to-end tests use
+  `app/legal/intake/ai_intg_helpers_test.go` (prefix `intg`), shared with FEAT-INT-17 and
+  FEAT-INT-18. F-INT-07 is a chat Def, so it gets no plugin skill.

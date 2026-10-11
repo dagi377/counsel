@@ -19,6 +19,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
@@ -299,6 +300,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 			// yet (Q-INTEG-15A-SCHEDULED).
 			return trigger.Bind(legaldocs.TemplateCurrencyDef(), ruleAdmin, deadlines.EventRulePackPublished)
 		},
+		intake.PipelineFollowUpsDef().ID: intake.PipelineFollowUpsBinding,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
