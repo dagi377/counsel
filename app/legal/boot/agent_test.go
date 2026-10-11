@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/billing/batch"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
@@ -20,6 +22,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/kernel/agenttools"
+	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/deadline"
@@ -278,4 +281,70 @@ func mustWriteTools() *agent.WriteTools {
 		panic(err)
 	}
 	return w
+}
+
+// TestTrustDraftsWrapped is the guard: every trust feature (F-TRU-*) whose tools include
+// draft_document or draft_email must have that tool wrapped in the production handler set, as
+// must F-BIL-08's draft_document (a credit note changes what a client owes); any other
+// feature's drafts must not be.
+//
+// rule: ARC-U-027
+func TestTrustDraftsWrapped(t *testing.T) {
+	set, err := AgentHandlers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	features, err := Features()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var trustDrafts, creditNotes int
+	for _, d := range features.All() {
+		isTrust := strings.HasPrefix(d.ID, "F-TRU-") || d.Area == "trust"
+		for _, tool := range d.Tools {
+			if tool != agent.ToolDraftDocument && tool != agent.ToolDraftEmail {
+				continue
+			}
+			isCreditNote := d.ID == billing.FeatureDraftCreditNote && tool == agent.ToolDraftDocument
+			want := isTrust || isCreditNote
+			if isTrust {
+				trustDrafts++
+			}
+			if isCreditNote {
+				creditNotes++
+			}
+			if got := set.Wrapped(d.ID, tool); got != want {
+				t.Errorf("feature %s tool %s: wrapped = %v, want %v (trust drafts go through trust.SourcedCents, F-BIL-08 through billing.CheckCreditNote)", d.ID, tool, got, want)
+			}
+		}
+	}
+	if trustDrafts == 0 || creditNotes != 1 {
+		t.Fatalf("trust drafts %d, credit-note drafts %d: the guard checks nothing", trustDrafts, creditNotes)
+	}
+}
+
+// TestForgetRunnerScopesFeature checks that the production runner wrapper puts the run's
+// feature in ctx, so the per-feature wraps apply on the production run path.
+//
+// rule: ARC-U-027
+func TestForgetRunnerScopesFeature(t *testing.T) {
+	var got string
+	r := ForgetOnEnd(agenttools.NewProvenance(), runnerFunc(func(ctx context.Context) {
+		got = agent.FeatureOf(ctx)
+	}))
+	if _, err := r.Run(context.Background(), agentrun.Spec{FeatureID: "F-TRU-06"}, agentrun.Principal{RunID: "run-1"}, "go"); err != nil {
+		t.Fatal(err)
+	}
+	if got != "F-TRU-06" {
+		t.Fatalf("feature in ctx = %q, want F-TRU-06", got)
+	}
+}
+
+// runnerFunc is a run Runner that only observes its ctx.
+type runnerFunc func(ctx context.Context)
+
+// Run implements the run Runner.
+func (f runnerFunc) Run(ctx context.Context, _ agentrun.Spec, _ agentrun.Principal, _ string, _ ...agentrun.Trigger) (agentrun.Outcome, error) {
+	f(ctx)
+	return agentrun.Outcome{}, nil
 }

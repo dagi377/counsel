@@ -68,9 +68,11 @@ func FromFeatureWith(t testing.TB, def feature.Def, hs agent.HandlerSet) *Featur
 	})
 	fd := &FeatureDriver{Driver: d, Def: def, Seed: NewSeed(t, FeatureActingFor, d.Withdrawals)}
 	// rule: ARC-U-027
-	// One Provenance per run, as boot wires it: the figures the real read handlers record are
-	// the ones the real prepare_trust_withdrawal checks its amount against.
+	// One run, one Provenance, as in production (boot builds the read and write tools over
+	// one): what the real read tools record is what the real write tools check.
 	fd.Seed.Provenance = d.Provenance
+	// A fee transfer to the firm reads the Seed's bills (By-Law 9 s.9(1)).
+	d.FeeBills(fd.Seed.FeeBills())
 	for _, k := range def.GateKinds {
 		fd.Seed.GateKind(k)
 	}
@@ -119,6 +121,8 @@ func (fd *FeatureDriver) Fire(ctx context.Context, model ai.ModelClient, runID, 
 	// rule: ARC-I-039
 	// The run scope is the Def's gate kinds; every gate the run opens is checked against it.
 	ctx = agenttools.WithScope(ctx, agenttools.NewScope(runID, fd.Def.GateKinds))
+	// The run serves fd.Def, as boot's runner scopes it, so a feature wrap applies.
+	ctx = agent.WithFeature(ctx, fd.Def.ID)
 	run := fd.Driver.Fire(ctx, model, runID, prompt)
 	out := FeatureRun{Run: run}
 	for _, name := range run.Tools {

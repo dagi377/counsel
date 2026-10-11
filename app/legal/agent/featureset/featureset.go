@@ -14,11 +14,16 @@ package featureset
 
 import (
 	"github.com/dagi377/counsel/app/legal/agent/feature"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
+	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/timekeeping"
+	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
+	"github.com/dagi377/counsel/app/legal/work"
 )
 
 // App returns the set of the app's feature definitions. Each feature task adds its Def to
@@ -117,6 +122,9 @@ func appDefs() []feature.Def {
 		matter.SuggestCleanupDef(),
 		matter.SummarizeThisWeekDef(),
 		// trust
+		trust.AnnualReportPrepDef(),
+		trust.RetainerCoverageScanDef(),
+		trust.SpotAuditPackDef(),
 		trust.BankFeedSyncDef(),
 		trust.MonthEndReconciliationDef(),
 		trust.RetainerReplenishmentDef(),
@@ -124,5 +132,58 @@ func appDefs() []feature.Def {
 		trust.ProposeDispositionDef(),
 		trust.PayeeFraudCheckDef(),
 		trust.WithdrawalDrafterDef(),
+		// billing
+		billing.TrustApplicationDef(),
+		billing.DraftCreditNoteDef(),
+		billing.MonthlyDigestDef(),
+		// intake
+		intake.TriageNewLeadDef(),
+		intake.MailboxWatcherDef(),
+		intake.MissingInfoChaserDef(),
+		intake.DeclineReferLetterDef(),
+		intake.ConsultNoteDef(),
+		intake.NonEngagementLetterDef(),
+		intake.ConversionPrefillDef(),
+		intake.AIReceptionistDef(),
+		intake.DraftFormFromDescriptionDef(),
+		intake.EngagementLetterDraftDef(),
+		intake.DraftSequenceDef(),
+		intake.ReceptionistCriteriaDef(),
+		intake.ThankReferrerDef(),
+		intake.PreConsultBriefDef(),
+		intake.PipelineFollowUpsDef(),
+		intake.WeeklyIntakeDigestDef(),
+		intake.MapAnswersToLeadDef(),
+		intake.GuidedChatIntakeDef(),
+		intake.ProposeSlotsDef(),
+		intake.SuggestScoringWeightsDef(),
+		intake.DryRunLastLeadsDef(),
+		// time
+		tk.RebuildDayDef(),
+		timekeeping.ReceiptCaptureDef(),
+		timekeeping.PreBillCheckDef(),
+		timekeeping.TimesheetPreReviewDef(),
+		timekeeping.EngagementTermsDef(),
+		timekeeping.RateChangeImpactDef(),
+		timekeeping.RewriteNarrativeDef(),
+		timekeeping.FindInconsistenciesDef(),
+		timekeeping.FlagOutOfScopeDef(),
+		timekeeping.ExplainTrendDef(),
+		timekeeping.SuggestCategoriesDef(),
+		timekeeping.ExplainShortfallDef(),
+		// work
+		work.PickUpAgentReadyDef(),
+		work.ProposeMatterPlanDef(),
+		work.DateShiftDef(),
+		work.WorkflowLintDef(),
+		work.RuleSuggesterDef(),
+		work.AbsenceCoverPlannerDef(),
+		work.CreateFromNoteDef(),
+		work.DraftTemplateDef(),
+		work.DailyDigestDef(),
+		work.ExplainAutomationRunsDef(),
+		work.ExplainFailedRunDef(),
+		work.SuggestCategoriesDef(),
+		work.ExplainNumberDef(),
 	}
 }

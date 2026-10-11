@@ -1434,6 +1434,10 @@
         "limitation_date": {
           "type": "string",
           "format": "date"
+        },
+        "draft_id": {
+          "type": "string",
+          "format": "uuid"
         }
       }
     }

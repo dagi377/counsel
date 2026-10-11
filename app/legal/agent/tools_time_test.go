@@ -60,7 +60,11 @@ func newTimeWorld(t *testing.T, actorCaps map[string]bool) timeWorld {
 		return w.gates.Open(ctx, nil, kind, s, payload, by)
 	})
 	var entries tk.Entries = w.entries
-	tool, err := agent.ProposeTimeEntriesHandler().Build(agent.NewDeps(can, walls, entries, open))
+	// timeRun read a transcript quoting the dates and minutes the cases propose.
+	pv := agenttools.NewProvenance()
+	pv.Observe(timeRun, json.RawMessage(`{"untrusted":true,"text":"Calls on 2026-10-09 (30 minutes) and 2026-10-10 (6 minutes)."}`))
+	pv.Observe(timeNoPlan, json.RawMessage(`{"work_date":"2026-10-09","minutes":30}`))
+	tool, err := agent.ProposeTimeEntriesHandler().Build(agent.NewDeps(can, walls, entries, open, pv))
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -130,6 +134,12 @@ func TestARC_I_035_ProposeTimeEntries(t *testing.T) {
 		{"gate kind outside the run scope", timeScope(timeRun, "matter.agent_note"), agentP(timeRun, grant), record, one, agenttools.ErrGateKindNotAllowed, 0},
 		{"no entries", timeScope(timeRun, agent.GateTimeAccept), agentP(timeRun, grant), record, `{"entries":[]}`, agenttools.ErrInvalidInput, 0},
 		{"zero minutes", timeScope(timeRun, agent.GateTimeAccept), agentP(timeRun, grant), record, timeInput(timeEntry(timeMatter, "2026-10-09", 0)), agenttools.ErrInvalidInput, 0},
+		// rule: LSO-3.6
+		{"invented minutes", timeScope(timeRun, agent.GateTimeAccept), agentP(timeRun, grant), record,
+			timeInput(timeEntry(timeMatter, "2026-10-09", 45)), agenttools.ErrUnsourcedValue, 0},
+		{"invented work date", timeScope(timeRun, agent.GateTimeAccept), agentP(timeRun, grant), record,
+			timeInput(timeEntry(timeMatter, "2026-10-08", 30)), agenttools.ErrUnsourcedValue, 0},
+		{"manual path not checked", context.Background(), user, record, timeInput(timeEntry(timeMatter, "2026-10-08", 45)), nil, 1},
 		{"entry for another user", timeScope(timeRun, agent.GateTimeAccept), agentP(timeRun, grant), record,
 			timeInput(`{"matter_id":"` + timeMatter + `","work_date":"2026-10-09","minutes":30,"narrative":"x","user_id":"someone"}`), agenttools.ErrInvalidInput, 0},
 	}

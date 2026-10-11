@@ -53,11 +53,15 @@ type Unready struct {
 // lawyer in firm settings.
 const ReasonNoDesignatedLawyer = "no_designated_lawyer"
 
-// Readiness reports every designated binding whose feature has no designated lawyer, in
-// the order they were added. An empty result means every scheduled feature can start.
+// Readiness reports every designated binding whose feature has no designated lawyer, and
+// every per-user binding with no active-user source, in the order they were added. An empty result means every scheduled feature can start.
 func (s *Bindings) Readiness(ctx context.Context) ([]Unready, error) {
 	var out []Unready
 	for _, b := range s.sched {
+		if b.PerUser && s.users == nil {
+			out = append(out, Unready{FeatureID: b.FeatureID, Reason: ReasonNoUserSource})
+			continue
+		}
 		if !b.Designated {
 			continue
 		}

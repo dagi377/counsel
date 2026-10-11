@@ -11,6 +11,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/featureset"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/billing/batch"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
@@ -19,12 +20,14 @@ import (
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
+	"github.com/dagi377/counsel/app/legal/work"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
@@ -163,13 +166,92 @@ func (p AgentPorts) Deps() agent.Deps {
 	return agent.NewDeps(values...)
 }
 
-// AgentTools builds every tool in agent.Handlers() over p. A port the set needs and p lacks
+// draftTools are the write tools whose free text carries figures a trust feature drafts.
+var draftTools = []string{agent.ToolDraftDocument, agent.ToolDraftEmail}
+
+// AgentHandlers is the production handler set: agent.Handlers() with every read tool
+// recording what it returns into the run's Provenance, and these per-feature wraps:
+//   - for every trust feature in trust.SourcedFeatures(), draft_document and draft_email
+//     wrapped with trust.SourcedCents;
+//   - for F-BIL-08, draft_document wrapped with billing.CheckCreditNote, since a credit note
+//     changes what a client owes.
+//
+// The wraps are listed here, not registered from init(); the set resolves them per
+// (feature, tool), so another feature's draft runs the default handler.
+func AgentHandlers() (agent.HandlerSet, error) {
+	set, err := recordedReads(agent.Handlers())
+	if err != nil {
+		return agent.HandlerSet{}, err
+	}
+	for _, id := range trust.SourcedFeatures() {
+		for _, tool := range draftTools {
+			// rule: ARC-U-027
+			// A trust draft carries figures for the regulator or a client: every amount in it
+			// must be one the run read.
+			if set, err = set.WithFeatureWrap(id, tool, sourcedTrustDraft); err != nil {
+				return agent.HandlerSet{}, fmt.Errorf("trust draft wrap: %w", err)
+			}
+		}
+	}
+	// rule: ARC-U-027
+	// A credit note changes what a client owes: every amount in it must be one the run read.
+	if set, err = set.WithFeatureWrap(billing.FeatureDraftCreditNote, agent.ToolDraftDocument, billing.CreditNoteWrap); err != nil {
+		return agent.HandlerSet{}, fmt.Errorf("credit note wrap: %w", err)
+	}
+	return set, nil
+}
+
+// recordedReads returns base with every read tool recording the dates and numbers it
+// returns, quoted text included, into the run's Provenance (from the tool's Deps), so a
+// sourced write (propose_time_entries, propose_deadline, a trust or credit-note draft) can
+// carry them. A read tool built without a Provenance fails with agent.ErrMissingDep.
+func recordedReads(base agent.HandlerSet) (agent.HandlerSet, error) {
+	var hs []agent.Handler
+	for _, name := range base.Names() {
+		h, _ := base.For(name)
+		build := h.Build
+		hs = append(hs, agent.Handler{Name: name, Build: func(d agent.Deps) (registry.Tool, error) {
+			t, err := build(d)
+			if err != nil || t.Kind != registry.ToolRead {
+				return t, err
+			}
+			pv, err := agent.DepOf[*agenttools.Provenance](d)
+			if err != nil {
+				return registry.Tool{}, fmt.Errorf("read tool %s: %w", name, err)
+			}
+			// rule: ARC-U-027
+			return pv.ReadTool(t)
+		}})
+	}
+	set, err := agent.NewHandlerSet(hs...)
+	if err != nil {
+		return agent.HandlerSet{}, fmt.Errorf("recorded reads: %w", err)
+	}
+	return set, nil
+}
+
+// sourcedTrustDraft wraps a built draft tool with trust.SourcedCents over the Provenance in
+// d. With no Provenance it fails with agent.ErrMissingDep, so a trust draft is never served
+// unchecked.
+func sourcedTrustDraft(d agent.Deps, t registry.Tool) (registry.Tool, error) {
+	pv, err := agent.DepOf[*agenttools.Provenance](d)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("sourced trust draft %s: %w", t.Name, err)
+	}
+	return trust.SourcedCents(pv, t)
+}
+
+// AgentTools builds every tool in AgentHandlers() over p; every read tool records into
+// p.Provenance (a fresh one when p has none). A port the set needs and p lacks
 // fails with agent.ErrMissingDep naming the tool; nothing is half-built.
 func AgentTools(p AgentPorts) ([]registry.Tool, error) {
 	if p.Provenance == nil {
 		p.Provenance = agenttools.NewProvenance()
 	}
-	set := agent.Handlers()
+	set, err := AgentHandlers()
+	if err != nil {
+		return nil, err
+	}
 	deps := p.Deps()
 	var (
 		tools []registry.Tool
@@ -258,9 +340,9 @@ func gateKindCodes() ([]string, error) {
 }
 
 // JobBindings binds every job feature of s to the events and schedule that start it.
-// Every scheduled run (F-DL-05, F-DL-09, F-CON-05, F-CON-09 to 12, F-DOC-06, F-DOC-09 and the
-// F-DL-06 rule watch) acts for its feature's designated lawyer in firm settings, read at each
-// tick (JOB-ACTOR). A job feature with no binding listed here fails, so a new job feature
+// Every scheduled run (F-DL-05, F-DL-09, F-CON-05, F-CON-09 to 12, F-DOC-06, F-DOC-09,
+// F-TIM-03, F-WRK-05 and the F-DL-06 rule watch) acts for its feature's designated lawyer in
+// firm settings, read at each tick (JOB-ACTOR); F-TIM-01 runs once per active timekeeper. A job feature with no binding listed here fails, so a new job feature
 // cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 	// rule: ARC-I-040
@@ -298,6 +380,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		legaldocs.IngestDocumentDef().ID:            legaldocs.IngestDocumentBinding,
 		legaldocs.EngagementLetterDef().ID:          legaldocs.EngagementLetterBinding,
 		legaldocs.DraftWithCitationsDef().ID:        legaldocs.DraftWithCitationsBinding,
+		work.PickUpAgentReadyDef().ID:               work.PickUpAgentReadyBinding,
 		legaldocs.FeatureTemplateCurrency:           legaldocs.TemplateCurrencyBinding,
 		legaldocs.PrecheckOutgoingDef().ID:          legaldocs.PrecheckOutgoingBinding,
 		legaldocs.CitationStalenessDef().ID:         legaldocs.CitationStalenessBinding,
@@ -318,12 +401,43 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		matter.MatterDigestDef().ID:                 matter.MatterDigestBinding,
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
+		work.WorkflowLintDef().ID:                   work.WorkflowLintBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
+		trust.AnnualReportPrepDef().ID:              trust.AnnualReportPrepBinding,
+		trust.RetainerCoverageScanDef().ID:          trust.RetainerCoverageScanBinding,
 		trust.FeatureMonthEndReconciliation:         trust.MonthEndReconciliationBinding,
 		trust.FeatureRetainerReplenishment:          trust.RetainerReplenishmentBinding,
 		trust.FeaturePayeeFraudCheck:                trust.PayeeFraudCheckBinding,
 		trust.FeatureBankFeedSync:                   trust.BankFeedSyncBinding,
 		trust.FeatureWithdrawalDrafter:              trust.WithdrawalDrafterBinding,
+		billing.FeatureTrustApplication:             billing.TrustApplicationBinding,
+		billing.FeatureMonthlyDigest:                billing.MonthlyDigestBinding,
+		intake.FeatureTriageNewLead:                 intake.TriageNewLeadBinding,
+		intake.MailboxWatcherDef().ID:               intake.MailboxWatcherBinding,
+		intake.MissingInfoChaserDef().ID:            intake.MissingInfoChaserBinding,
+		intake.DeclineReferLetterDef().ID:           intake.DeclineReferLetterBinding,
+		intake.ConversionPrefillDef().ID:            intake.ConversionPrefillBinding,
+		intake.ConsultNoteDef().ID:                  intake.ConsultNoteBinding,
+		intake.AIReceptionistDef().ID:               intake.AIReceptionistBinding,
+		intake.PreConsultBriefDef().ID:              intake.PreConsultBriefBinding,
+		intake.PipelineFollowUpsDef().ID:            intake.PipelineFollowUpsBinding,
+		intake.WeeklyIntakeDigestDef().ID:           intake.WeeklyIntakeDigestBinding,
+		// F-TIM-01 runs at the end of each business day once per active timekeeper, each
+		// run acting for that timekeeper (TIME-FIX); the screen actions cover on-request runs.
+		tk.RebuildDayDef().ID:              tk.RebuildDayBinding,
+		tk.ReceiptCaptureDef().ID:          tk.ReceiptCaptureBinding,
+		tk.PreBillCheckDef().ID:            tk.PreBillCheckBinding,
+		tk.TimesheetPreReviewDef().ID:      tk.TimesheetPreReviewBinding,
+		tk.EngagementTermsDef().ID:         tk.EngagementTermsBinding,
+		tk.RateChangeImpactDef().ID:        tk.RateChangeImpactBinding,
+		work.PickUpAgentReadyDef().ID:      work.PickUpAgentReadyBinding,
+		work.ProposeMatterPlanDef().ID:     work.ProposeMatterPlanBinding,
+		work.DateShiftDef().ID:             work.DateShiftBinding,
+		work.WorkflowLintDef().ID:          work.WorkflowLintBinding,
+		work.RuleSuggesterDef().ID:         work.RuleSuggesterBinding,
+		work.AbsenceCoverPlannerDef().ID:   work.AbsenceCoverPlannerBinding,
+		work.DailyDigestDef().ID:           work.DailyDigestBinding,
+		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -432,6 +546,13 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Trust. Main has no firm subject yet, so a firm-level trust screen selects the matters
+	// it covers (Q-FEAT-TRU-06).
+	"lso-annual-report": {SubjectKind: "matter", Capability: "trust.view"},
+	// A client trust ledger is one matter's (Q-FEAT-TRU-07).
+	"client-trust-ledger": {SubjectKind: "matter", Capability: "trust.view"},
+	"retainer-coverage":   {SubjectKind: "matter", Capability: "trust.view"},
+	"trust-audit-trail":   {SubjectKind: "matter", Capability: "trust.view"},
 	// Trust. The bank feed, the receipts journal and the monthly reconciliation are firm-level
 	// screens; with no firm subject yet they select a matter (docs/QUESTIONS.md Q-FEAT-TRU-01).
 	"trust-receipts-journal": {SubjectKind: "matter", Capability: "trust.view"},
@@ -445,6 +566,68 @@ var actionScreens = map[string]trigger.Screen{
 	"trust-balance-clearance": {SubjectKind: "matter", Capability: "trust.request"},
 	// A withdrawal request is one matter's (Q-FEAT-TRU-03).
 	"withdrawal-request": {SubjectKind: "matter", Capability: "trust.request"},
+	// Billing: a trust-to-fees transfer is requested on the matter whose trust pays the bill.
+	"trust-to-fees": {SubjectKind: "matter", Capability: "trust.request"},
+	// A credit note is drafted on the matter of the selected bill.
+	"credit-notes": {SubjectKind: "matter", Capability: "documents.edit"},
+	// Intake screens select the lead ("intake.lead", the outbox subject of a lead).
+	"phone-and-email-capture": {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	"lead-detail":             {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	// Intake screens select the lead.
+	"lead-conversion": {SubjectKind: "intake.lead", Capability: "intake.convert"},
+	"ai-receptionist": {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	// Intake screens. The form builder selects the intake form it edits.
+	"intake-form-builder": {SubjectKind: "intake.intake_form", Capability: "intake.forms"},
+	"consult-outcome":     {SubjectKind: "intake.lead", Capability: "intake.convert"},
+	// Intake.
+	"intake-automations": {SubjectKind: "matter", Capability: "intake.forms"},
+	// Intake: the referral sources report selects referrer contacts (F-INT-21).
+	"referral-sources-report":   {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
+	"intake-dashboard":          {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	"intake-questionnaire-send": {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	// Intake screens select the lead ("intake.lead", the outbox subject of a lead); the
+	// settings screen selects the matter it is opened from.
+	"public-intake-form":   {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	"consultation-booking": {SubjectKind: "intake.lead", Capability: "intake.leads"},
+	"intake-settings":      {SubjectKind: "matter", Capability: "intake.forms"},
+	// Time screens act on the matters the acting user records time on (FEAT-TIM-01).
+	"my-time":           {SubjectKind: "matter", Capability: "time.record"},
+	"suggested-entries": {SubjectKind: "matter", Capability: "time.record"},
+	"activity-ledger":   {SubjectKind: "matter", Capability: "time.record"},
+	// Time: an expense is recorded on its matter.
+	"expenses": {SubjectKind: "matter", Capability: "time.record"},
+	// A pre-bill check reviews the matter's unbilled time.
+	"matter-wip":  {SubjectKind: "matter", Capability: agent.CapBillingView},
+	"write-downs": {SubjectKind: "matter", Capability: agent.CapBillingView},
+	// Time. A fee arrangement is the matter's; the screen selects the matter.
+	"matter-fee-arrangement": {SubjectKind: "matter", Capability: "billing.view"},
+	// A time entry is checked on its matter (timekeeping HTTP does the same).
+	"time-entry-detail": {SubjectKind: "matter", Capability: "time.record"},
+	// Time. Firm-level time screens select the matters of the rows on screen until boot has a
+	// firm subject (Q-FEAT-TIM-08-SCREENS).
+	"activity-list":       {SubjectKind: "matter", Capability: "time.record"},
+	"utilization":         {SubjectKind: "matter", Capability: "reports.firm"},
+	"activity-categories": {SubjectKind: "matter", Capability: "time.view_all"},
+	"timekeeper-targets":  {SubjectKind: "matter", Capability: "reports.firm"},
+	// Work: the work-item screen selects the item the agent posts its result on.
+	"work-item": {SubjectKind: "work_item", Capability: "work.edit"},
+	// Work. The workflow editor, work automations, workload and team availability are
+	// firm-level; they map to matter until boot has a firm subject (Q-FEAT-WRK-04).
+	"workflow-editor":   {SubjectKind: "matter", Capability: "work.workflows"},
+	"work-automations":  {SubjectKind: "matter", Capability: "work.workflows"},
+	"workload":          {SubjectKind: "matter", Capability: "work.edit"},
+	"team-availability": {SubjectKind: "matter", Capability: "work.edit"},
+	// work-item-create selects the matter the drafted items go on.
+	"work-item-create": {SubjectKind: "matter", Capability: "work.edit"},
+	// Work. The workflow editor is firm-level; it maps to matter until boot has a firm
+	// subject (Q-FEAT-WRK-04).
+	// workflow-templates is firm-level too; it selects the completed matters to mine
+	// (Q-FEAT-WRK-08).
+	"workflow-templates": {SubjectKind: "matter", Capability: "work.workflows"},
+	// Work screens of F-WRK-15 to F-WRK-17: no firm subject kind exists yet, so each selects a
+	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
+	"work-categories": {SubjectKind: "matter", Capability: "work.view"},
+	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
@@ -497,15 +680,19 @@ func NewFlagSink(store agent.FlagStore, notify agent.Sender) *agent.FlagSink {
 	return &agent.FlagSink{Store: store, Notify: notify, BlocksGate: blocks}
 }
 
-// ForgetRunner drops a run's provenance values when the run ends, whatever its outcome.
+// ForgetRunner drops a run's provenance values when the run ends, whatever its outcome, and
+// scopes the run's tool calls to its feature.
 type ForgetRunner struct {
 	agentrun.Runner
 	Provenance *agenttools.Provenance
 }
 
-// Run implements the run Runner.
+// Run implements the run Runner. It also puts the run's feature in ctx (agent.WithFeature),
+// so a tool with a feature wrap (AgentHandlers) runs the wrapped handler for that feature.
 func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Principal, prompt string, triggers ...agentrun.Trigger) (agentrun.Outcome, error) {
 	defer r.Provenance.Forget(p.RunID)
+	// rule: ARC-U-027
+	ctx = agent.WithFeature(ctx, spec.FeatureID)
 	return r.Runner.Run(ctx, spec, p, prompt, triggers...)
 }
 
@@ -522,6 +709,9 @@ type AgentWiring struct {
 	Designated trigger.DesignatedLawyers
 	// Bindings receives the job-feature bindings; nil skips triggers and the tick job.
 	Bindings *trigger.Bindings
+	// Timekeepers lists the users a per-user scheduled feature (F-TIM-01) runs for on each
+	// tick. Nil leaves those features unready (trigger.ReasonNoUserSource).
+	Timekeepers trigger.ActiveUsers
 	// Actions, when set, is mounted as the screen-action route. Boot sets its Features,
 	// Screens and Queue.
 	Actions *trigger.Actions
@@ -576,6 +766,9 @@ func registerAgent(w *AgentWiring) hook {
 		if w.Bindings != nil {
 			if d := designatedOrPG(k, w.Designated); d != nil {
 				w.Bindings.WithDesignated(d)
+			}
+			if w.Timekeepers != nil {
+				w.Bindings.WithUsers(w.Timekeepers)
 			}
 			if err := JobBindings(features, w.Bindings); err != nil {
 				return err

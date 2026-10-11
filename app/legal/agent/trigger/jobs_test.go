@@ -32,7 +32,8 @@ func (q *fakeQueue) Insert(_ context.Context, args river.JobArgs, opts *river.In
 	if opts == nil || !opts.UniqueOpts.ByArgs {
 		return nil, errors.New("run job must be unique by args")
 	}
-	key := a.FeatureID + "|" + a.EventID + "|" + a.Slot
+	// The fields RunArgs marks river:"unique".
+	key := a.FeatureID + "|" + a.EventID + "|" + a.Slot + "|" + a.ForUser
 	if q.seen == nil {
 		q.seen = map[string]bool{}
 	}

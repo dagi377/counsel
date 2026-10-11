@@ -23,6 +23,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/bill/billfake"
+	"github.com/dagi377/counsel/app/legal/boot"
 	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/kernel/agenttools"
@@ -258,12 +259,16 @@ func truDepOf[T any](vals []any, d agent.Deps) []any {
 	return vals
 }
 
-// handlers is agent.Handlers() with each Build given the env's ports ahead of the Seed's.
-// Every read tool records the values it returns into the run's provenance, and the draft
-// tools run behind trust.SourcedCents, as the trust features wire them.
+// handlers is the production handler set, boot.AgentHandlers(), with each Build given the
+// env's ports ahead of the Seed's. Every read tool records the values it returns into the
+// run's provenance and the draft tools run behind trust.SourcedCents because boot's set does
+// both, not because this helper does.
 func (e *truEnv) handlers(t *testing.T) agent.HandlerSet {
 	t.Helper()
-	app := agent.Handlers()
+	app, err := boot.AgentHandlers()
+	if err != nil {
+		t.Fatalf("production handler set: %v", err)
+	}
 	var hs []agent.Handler
 	for _, name := range app.Names() {
 		h, _ := app.For(name)
@@ -278,17 +283,7 @@ func (e *truEnv) handlers(t *testing.T) agent.HandlerSet {
 			vals = truDepOf[agent.ClientMatters](vals, d)
 			vals = truDepOf[agent.ContactSearch](vals, d)
 			vals = truDepOf[*agenttest.SeedStore](vals, d)
-			tool, err := build(agent.NewDeps(vals...))
-			switch {
-			case err != nil:
-				return tool, err
-			case tool.Kind == registry.ToolRead:
-				return e.provenance.ReadTool(tool)
-			case name == agent.ToolDraftDocument || name == agent.ToolDraftEmail:
-				// rule: ARC-U-027
-				return trust.SourcedCents(e.provenance, tool)
-			}
-			return tool, nil
+			return build(agent.NewDeps(vals...))
 		}})
 	}
 	set, err := agent.NewHandlerSet(hs...)
