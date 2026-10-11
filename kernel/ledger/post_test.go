@@ -99,7 +99,7 @@ func TestRandomBalancedEntriesValidateAndNetToZero(t *testing.T) {
 // rule: BIL-I-003
 func TestBIL_I_003_PostOnlyInserts(t *testing.T) {
 	mutating := regexp.MustCompile(`(?i)\b(UPDATE|DELETE|TRUNCATE)\b`)
-	for i, s := range postStatements {
+	for i, s := range postStatements(testDims) {
 		if mutating.MatchString(s) {
 			t.Errorf("statement %d mutates journal rows: %s", i, s)
 		}

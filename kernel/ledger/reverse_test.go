@@ -21,6 +21,8 @@ func TestBIL_I_019_MirrorSwapsSidesOnly(t *testing.T) {
 	}{
 		{"empty", nil, []Line{}},
 		{"two lines", []Line{line("1000", Debit, 500), line("4000", Credit, 500)}, []Line{line("1000", Credit, 500), line("4000", Debit, 500)}},
+		{"dimensions kept", []Line{{Account: "1000", Side: Debit, Amount: 5, Dimensions: map[string]string{"link_id": "m1"}}, line("4000", Credit, 5)},
+			[]Line{{Account: "1000", Side: Credit, Amount: 5, Dimensions: map[string]string{"link_id": "m1"}}, line("4000", Debit, 5)}},
 		{"three lines with subject", []Line{{Account: "1000", Side: Debit, Amount: 300, Subject: subj}, line("1010", Debit, 200), line("4000", Credit, 500)},
 			[]Line{{Account: "1000", Side: Credit, Amount: 300, Subject: subj}, line("1010", Credit, 200), line("4000", Debit, 500)}},
 	}
@@ -59,8 +61,10 @@ func TestBIL_I_019_MirrorRowsKeepsEveryColumn(t *testing.T) {
 	}{
 		{"debit and credit", []lineRow{{AccountID: "a", Debit: 500}, {AccountID: "b", Credit: 500}},
 			[]lineRow{{AccountID: "a", Credit: 500}, {AccountID: "b", Debit: 500}}},
-		{"optional columns copied", []lineRow{{AccountID: "a", Debit: 7, Party: strp("p"), TaxCode: strp("t"), BankLineID: strp("bl")}, {AccountID: "b", Credit: 7}},
-			[]lineRow{{AccountID: "a", Credit: 7, Party: strp("p"), TaxCode: strp("t"), BankLineID: strp("bl")}, {AccountID: "b", Debit: 7}}},
+		{"optional columns copied", []lineRow{{AccountID: "a", Debit: 7, Dims: map[string]*string{"party": strp("p"), "tax_code": strp("t"), "bank_line_id": strp("bl")}}, {AccountID: "b", Credit: 7}},
+			[]lineRow{{AccountID: "a", Credit: 7, Dims: map[string]*string{"party": strp("p"), "tax_code": strp("t"), "bank_line_id": strp("bl")}}, {AccountID: "b", Debit: 7}}},
+		{"app link column copied", []lineRow{{AccountID: "a", Debit: 9, Dims: map[string]*string{"link_id": strp("m1")}}, {AccountID: "b", Credit: 9, Dims: map[string]*string{"link_id": strp("m1")}}},
+			[]lineRow{{AccountID: "a", Credit: 9, Dims: map[string]*string{"link_id": strp("m1")}}, {AccountID: "b", Debit: 9, Dims: map[string]*string{"link_id": strp("m1")}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -97,7 +101,7 @@ func TestBIL_I_019_ReverseRefusesBadInputBeforeIO(t *testing.T) {
 // rule: BIL-I-019
 func TestBIL_I_019_ReverseOnlyInsertsAndJournalIsImmutable(t *testing.T) {
 	mutating := regexp.MustCompile(`(?i)\b(UPDATE|DELETE|TRUNCATE)\b`)
-	for i, s := range reverseStatements {
+	for i, s := range reverseStatements(testDims) {
 		if mutating.MatchString(s) {
 			t.Errorf("statement %d mutates journal rows: %s", i, s)
 		}
