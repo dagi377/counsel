@@ -40,5 +40,6 @@ func appDefs() []feature.Def {
 		deadlines.RuleWatchDef(),
 		deadlines.PostEventFollowUpDef(),
 		deadlines.AdjournmentWatcherDef(),
+		deadlines.AbsenceCoverageCheckDef(),
 	}
 }
