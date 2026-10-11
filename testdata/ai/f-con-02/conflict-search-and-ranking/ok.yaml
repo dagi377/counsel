@@ -1,0 +1,42 @@
+synthetic: true
+feature: F-CON-02
+match:
+  last_user_regex: '\[ok\]'
+clusters:
+  synth: ["Synth Holdings Inc.", "SYNTH Holdings Ltd", "Synth Holdings"]
+  far: ["Riverbend Bakery Co-op"]
+turns:
+  - expect_tools: [report_plan]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: search, title: "Search contacts and matters"}, {id: rank, title: "Rank hits by name similarity"}, {id: propose, title: "Propose dispositions"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 610, output_tokens: 52}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: search_contacts
+          input: {query: "Synth Holdings Inc.", limit: 20}
+        - name: search_matters
+          input: {query: "Synth Holdings Inc.", limit: 20}
+      stop_reason: tool_use
+      usage: {input_tokens: 700, output_tokens: 40}
+  - expect_tool_results: [search_contacts, search_matters]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input:
+            kind: conflict.clearance
+            check: "chk-synth-002"
+            hits:
+              - {name: "SYNTH Holdings Ltd", record: "con-synth-101", matter: "M-2025-0107", rank: 1, proposed_disposition: needs_consent, reason: "same name stem; former adverse party"}
+              - {name: "Synth Holdings", record: "con-synth-102", matter: "M-2024-0311", rank: 2, proposed_disposition: needs_consent, reason: "same name stem; current client affiliate"}
+              - {name: "Riverbend Bakery Co-op", record: "con-synth-103", matter: "M-2023-0019", rank: 3, proposed_disposition: not_a_conflict, reason: "unrelated name"}
+      stop_reason: tool_use
+      usage: {input_tokens: 940, output_tokens: 150}
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      text: "Ranked 3 hits for chk-synth-002 and proposed dispositions for your review."
+      stop_reason: end_turn
+      usage: {input_tokens: 990, output_tokens: 22}
