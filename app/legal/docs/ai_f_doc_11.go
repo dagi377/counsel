@@ -30,7 +30,7 @@ func TrackedRevisionDef() feature.Def {
 			"report_plan", "report_step", "submit_for_approval",
 		},
 		// rule: ARC-I-035
-		GateKinds: []string{GateOutgoingReview},
+		GateKinds: []string{GateOutgoing},
 		// The run's agent principal holds the capabilities of its tools and no other.
 		Grant:      []string{"matters.view", "documents.view", "documents.edit", "agent.ask"},
 		Prompt:     promptFDOC11,

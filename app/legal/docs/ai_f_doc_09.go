@@ -10,10 +10,6 @@ import (
 // ActionFlagOldFormVersions is the template-library action that runs F-DOC-09 on request.
 const ActionFlagOldFormVersions = "template-library > Flag templates on old form versions"
 
-// GateCourtFormRepublish is the gate kind F-DOC-09 opens: spec gate G-D2, a lawyer approves
-// republishing a template moved to the current court form version.
-const GateCourtFormRepublish = "docs.template_publish"
-
 //go:embed prompts/f-doc-09.md
 var promptFDOC09 embed.FS
 
@@ -34,7 +30,7 @@ func CourtFormCurrencyDef() feature.Def {
 			"report_plan", "report_step", "submit_for_approval",
 		},
 		// rule: ARC-I-035
-		GateKinds: []string{GateCourtFormRepublish},
+		GateKinds: []string{GateTemplatePublish},
 		// The run's agent principal holds the capabilities of its tools and no other.
 		Grant:      []string{"matters.view", "documents.view", "documents.edit", "agent.ask"},
 		Prompt:     promptFDOC09,

@@ -18,10 +18,6 @@ const FeatureEmailFiler = "F-DOC-08"
 // filed message's ids and the mailbox owner as user_id. It starts F-DOC-08.
 const EventEmailReceived = "email.received"
 
-// emailFilerGate is docs.filing_privilege (G-D1), the filing-queue review an email the run
-// cannot file plainly goes to.
-const emailFilerGate = "docs.filing_privilege"
-
 // EmailFilerDef is F-DOC-08: when an email arrives in a connected mailbox the agent reads it,
 // finds the matter it belongs to and drafts the filing. Where the matter is uncertain or the
 // email may be privileged it submits a G-D1 review item to docs.filing_privilege, a tool-gap
@@ -41,7 +37,7 @@ func EmailFilerDef() feature.Def {
 		// rule: ARC-I-035
 		// docs.filing_privilege has no dedicated write tool: the run drafts the review item and
 		// submits it.
-		GateKinds:  []string{emailFilerGate},
+		GateKinds:  []string{GateFilingPrivilege},
 		Grant:      []string{"agent.ask", "documents.edit", "documents.view", "matters.view"},
 		Prompt:     promptFDOC08,
 		PromptPath: "prompts/f-doc-08.md",

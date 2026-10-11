@@ -10,10 +10,6 @@ import (
 // ActionProposeFields is the template-library action that runs F-DOC-15 on request.
 const ActionProposeFields = "template-library > Propose fields"
 
-// GateTemplatePublish is the gate kind a person decides before a template with its merge
-// fields is published to the library.
-const GateTemplatePublish = "docs.template_publish"
-
 //go:embed prompts/f-doc-15.md
 var promptFDOC15 embed.FS
 

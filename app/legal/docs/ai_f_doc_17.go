@@ -10,10 +10,6 @@ import (
 // ActionAnonymize is the precedent-library action that runs F-DOC-17 on request.
 const ActionAnonymize = "precedent-library > Anonymize"
 
-// GatePrecedent is the gate kind a person decides before an anonymized document joins the
-// precedent library.
-const GatePrecedent = "docs.precedent"
-
 //go:embed prompts/f-doc-17.md
 var promptFDOC17 embed.FS
 

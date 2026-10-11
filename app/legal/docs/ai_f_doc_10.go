@@ -20,10 +20,6 @@ const (
 	ActionAssemblyGenerate = "document-assembly > Generate"
 )
 
-// GateOutgoingReview is the gate kind the assembly and revision features open: spec gate G8,
-// a lawyer approves a document before it goes out.
-const GateOutgoingReview = "docs.outgoing"
-
 //go:embed prompts/f-doc-10.md
 var promptFDOC10 embed.FS
 
@@ -44,7 +40,7 @@ func AssemblyOnStageDef() feature.Def {
 			"report_plan", "report_step", "submit_for_approval",
 		},
 		// rule: ARC-I-035
-		GateKinds: []string{GateOutgoingReview},
+		GateKinds: []string{GateOutgoing},
 		// The run's agent principal holds the capabilities of its tools and no other.
 		Grant:      []string{"matters.view", "documents.view", "documents.edit", "agent.ask"},
 		Prompt:     promptFDOC10,
