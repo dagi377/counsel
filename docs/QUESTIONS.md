@@ -1912,3 +1912,11 @@ Done in PORT-18:
   cite an older version.
 - The flags are the run's extraction output (`OutputSchema`: ranked items with a citation);
   there is no write tool, so nothing is stored and no gate opens.
+
+## Q-FEAT-DOC-18 F-DOC-12 place signing fields
+
+- Files beyond the task list: the featureset registration of `docs.PlaceSigningFieldsDef()`.
+  The branch builds on task/FEAT-DOC-17 for the shared `docf` test helpers.
+- F-DOC-12 is a read-only screen action: the proposed fields are the run's extraction output
+  (`OutputSchema`: items in signing order with signer role, field, template anchor or detected
+  block, and a citation). No write tool places them; the user does, so no gate opens.

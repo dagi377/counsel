@@ -46,5 +46,6 @@ func appDefs() []feature.Def {
 		// documents
 		docs.RequestDocumentsDef(),
 		docs.CitationStalenessDef(),
+		docs.PlaceSigningFieldsDef(),
 	}
 }
