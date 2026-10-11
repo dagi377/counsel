@@ -1583,3 +1583,16 @@ Done in PORT-18:
 - Registered through the explicit `GetTrustBalanceHandler()`, not init(). The result holds ids
   and cents only, so it quotes nothing; it wraps itself with `Provenance.ReadTool` and needs
   the run's `*agenttools.Provenance` in Deps.
+## FEAT-TOOL-15 propose_deadline
+
+- Built on origin/task/FEAT-CORE-06 (run Scope) with origin/task/FEAT-CORE-07 (provenance)
+  merged in. Registered through the explicit `ProposeDeadlineHandler()`, not init().
+- The frozen kernel/deadline `Proposed` has no title and no pack id, and the a2 input has no
+  pack. The deadline is saved with rule id, trigger and due dates and the matter subject; the
+  title and the source citation travel in the cal.confirm gate payload the confirming person
+  sees. Proposed fix: an additive `Proposed.Title` (and pack id in the a2 input).
+- `due_on` and `trigger_date` go through `Provenance.SourcedWrite`: an agent may only carry a
+  date a read tool returned in the same run (a compute_deadline result, or a date a document
+  read returned with its citation). The manual path is not checked.
+- The gate kind is checked against the run scope before the deadline is saved, so a run whose
+  feature does not declare cal.confirm leaves no proposed deadline behind.
