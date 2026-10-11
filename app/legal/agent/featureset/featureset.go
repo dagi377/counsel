@@ -45,5 +45,6 @@ func appDefs() []feature.Def {
 		conflict.IDObligationWatcherDef(),
 		conflict.IDEvidenceCheckDef(),
 		conflict.ExpiryRetentionDef(),
+		conflict.ProposeWallDef(),
 	}
 }
