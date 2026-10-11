@@ -61,5 +61,6 @@ func appDefs() []feature.Def {
 		conflict.ProposeWallDef(),
 		conflict.LateralCheckDef(),
 		conflict.AuditAnomalyDigestDef(),
+		conflict.DuplicateFinderDef(),
 	}
 }
