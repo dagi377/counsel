@@ -332,3 +332,13 @@ Template:
 - Sources: migrations/0001_init.sql (gate.approval_request stores no payload; gate.gate_decision.decision allows only approve/reject/changes_requested; core.authority_limit.kind values are app terms); ARC-I-016, ARC-I-020.
 - Done for now: `PG.SetDecideHooks(DecideHooks{Preparers, Payload, LimitKinds})` in decide.go supplies editors of the underlying item, the payload (re-hashed against payload_hash) and the gate kind -> authority_limit kind map. The hooks sit in a package-level map keyed by *PG, because the PG struct lives in open.go (not this task's file).
 - Proposed: (1) move the hooks into a `PG` field at integration; (2) an approval above the limit returns `ErrRecommendOnly` and stores nothing, since the decision CHECK has no 'recommend' value and the trigger counts every 'approve'. Recording recommendations needs an additive table or decision value.
+## Q-T035.4 PortalPage.Capability is registered but not enforced
+
+- Task: T-035.4 (kernel/portal page registration)
+- Source: `PortalPage.Capability` says "capability the guest's grant must carry", but
+  `portal.Guest` (frozen contract) has only `Grants []string` (subject ids), so the shell
+  has nothing to check the capability against.
+- Done: `RegisterPage` requires a module-prefixed capability (portalpage schema); `Load`
+  enforces the session and the subject grant only.
+- Question: add `Guest.Capabilities []string` (additive) so `Load` refuses a page whose
+  capability the guest does not carry, failing closed when the list is empty?
