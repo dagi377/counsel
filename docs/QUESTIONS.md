@@ -3217,3 +3217,16 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
   screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
   as served by its screen actions instead of binding it.
+
+## Q-FEAT-INT-02 F-INT-01 triage new lead: write path and trigger
+
+- The trigger stays as FEAT-INT-01 bound it: `lead.created` only, since a received submission
+  creates its lead. Note that intake does not publish `lead.created` yet; a portal submission
+  publishes `identity.portal_submission` (EVENTS-WIRE-2/3), which starts F-CON-07. The
+  EVENTS-WIRE follow-up should publish `lead.created` for every new lead, or F-INT-01 never
+  starts.
+- Lead passages are not filed documents, so the triage card keeps its citations (version,
+  page, lines) in the draft body rather than in draft_document's `citations`, whose a2 schema
+  needs a document uuid and a quote hash.
+- The end-to-end tests use `app/legal/intake/ai_intb_helpers_test.go` (prefix `intb`), shared
+  byte-for-byte with FEAT-INT-03 and FEAT-INT-04.

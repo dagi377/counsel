@@ -17,6 +17,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
+	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 )
 
@@ -115,5 +116,7 @@ func appDefs() []feature.Def {
 		matter.SuggestFromPastMattersDef(),
 		matter.SuggestCleanupDef(),
 		matter.SummarizeThisWeekDef(),
+		// intake
+		intake.TriageNewLeadDef(),
 	}
 }
