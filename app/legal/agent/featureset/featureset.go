@@ -17,6 +17,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
+	"github.com/dagi377/counsel/app/legal/matter"
 )
 
 // App returns the set of the app's feature definitions. Each feature task adds its Def to
@@ -90,5 +91,9 @@ func appDefs() []feature.Def {
 		legaldocs.AnalyzeDef(),
 		legaldocs.FollowUpQuestionDef(),
 		legaldocs.SuggestOrderAndTabsDef(),
+		// matters
+		matter.BriefRefreshDef(),
+		matter.CallSummaryDef(),
+		matter.ChronologyDef(),
 	}
 }
