@@ -37,6 +37,12 @@ type Roles struct {
 	resolvers map[string]SubjectResolver
 	approvers map[string]bool
 	errs      []error
+	// Levels (levels.go): rank by level name, weakest first; per role and capability the
+	// rank held; the least rank that may decide a gate. Empty when the app sets no levels.
+	rank   map[string]int
+	top    int
+	levels map[string]map[string]int
+	decide int
 }
 
 // NewRoles returns an empty Roles.
@@ -46,6 +52,8 @@ func NewRoles() *Roles {
 		roles:     map[string][]string{},
 		resolvers: map[string]SubjectResolver{},
 		approvers: map[string]bool{},
+		rank:      map[string]int{},
+		levels:    map[string]map[string]int{},
 	}
 }
 
@@ -104,7 +112,8 @@ func (r *Roles) Validate() error {
 				errs = append(errs, fmt.Errorf("role %q: capability %q: %w", id, c, ErrUnknownCapability))
 			}
 			// rule: ARC-I-018
-			if reservedRoles[id] && r.approvers[c] {
+			// A role with levels is capped below the decide level instead (levels.go).
+			if reservedRoles[id] && r.approvers[c] && r.levels[id] == nil {
 				errs = append(errs, fmt.Errorf("role %q: holds gate approver capability %q: %w", id, c, ErrForbidden))
 			}
 		}
@@ -133,16 +142,4 @@ func (r *Roles) resolver(kind string) (SubjectResolver, bool) {
 	defer r.mu.RUnlock()
 	res, ok := r.resolvers[kind]
 	return res, ok
-}
-
-// rolesHold reports whether any of roles grants capability.
-func (r *Roles) rolesHold(roles []string, capability string) bool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	for _, role := range roles {
-		if slices.Contains(r.roles[role], capability) {
-			return true
-		}
-	}
-	return false
 }

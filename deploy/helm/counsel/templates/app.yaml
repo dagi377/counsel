@@ -135,6 +135,7 @@ spec:
           {{- range .args }}
             - {{ . | quote }}
           {{- end }}
+            - {{ printf "-seal-key-file=%s/%s" $.Values.sealKey.mountPath $.Values.sealKey.file | quote }}
           {{- if .port }}
           ports:
             - name: http
@@ -169,6 +170,15 @@ spec:
                 secretKeyRef:
                   name: counsel-{{ $cell }}-pg-app
                   key: uri
+          volumeMounts:
+            - name: seal-key
+              mountPath: {{ $.Values.sealKey.mountPath | quote }}
+              readOnly: true
+      volumes:
+        - name: seal-key
+          secret:
+            secretName: counsel-{{ $cell }}-seal-key
+            defaultMode: 0400
 {{- if .port }}
 ---
 apiVersion: v1

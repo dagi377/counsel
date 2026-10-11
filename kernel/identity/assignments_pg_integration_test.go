@@ -60,3 +60,45 @@ VALUES ($1 || '@example.test', $1, $2::uuid, $3) RETURNING id::text`, u.name, u.
 		})
 	}
 }
+
+// TestPGGrantsOfOnPostgres: a custom role's grants load in the spec's shape; a pending or
+// unknown role has none (fail closed).
+func TestPGGrantsOfOnPostgres(t *testing.T) {
+	pool := breakGlassDB(t)
+	ctx := context.Background()
+	err := pool.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO core.capability(id, name, area) VALUES ('thing.edit', 'Edit things', 'thing') ON CONFLICT DO NOTHING`); err != nil {
+			return err
+		}
+		for _, r := range []struct{ key, status string }{{"senior_clerk", "active"}, {"draft_clerk", "pending"}} {
+			var id string
+			if err := tx.QueryRow(ctx, `INSERT INTO core.role(key, name, status) VALUES ($1, $1, $2) RETURNING id::text`, r.key, r.status).Scan(&id); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO core.role_grant(role_id, capability_id, level) VALUES ($1::uuid, 'thing.edit', 'own')`, id); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	a := identity.PGAssignments{DB: pool}
+	tests := []struct {
+		role string
+		want string
+	}{
+		{"senior_clerk", "own"},
+		{"draft_clerk", ""},
+		{"nobody", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.role, func(t *testing.T) {
+			got, err := a.GrantsOf(ctx, tt.role)
+			if err != nil || got["thing.edit"] != tt.want {
+				t.Fatalf("GrantsOf = %v, %v; want thing.edit=%q", got, err, tt.want)
+			}
+		})
+	}
+}

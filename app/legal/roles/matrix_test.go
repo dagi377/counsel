@@ -19,9 +19,9 @@ func TestAccessDataMatchesSpec(t *testing.T) {
 	}
 }
 
-// TestARC_I_018_RegisterMatrix: the registered roles hold approver capabilities only at
-// level all or approve, and admin and agent hold none.
-func TestARC_I_018_RegisterMatrix(t *testing.T) {
+// TestRegisterMatrix: every role is registered with each capability it holds at any level
+// above none; levels themselves are checked in TestARC_I_018_SpecLevels.
+func TestRegisterMatrix(t *testing.T) {
 	rec := &registry.Recorder{}
 	if err := registerMatrix(rec); err != nil {
 		t.Fatalf("registerMatrix: %v", err)
@@ -35,15 +35,12 @@ func TestARC_I_018_RegisterMatrix(t *testing.T) {
 		role, capability string
 		want             bool
 	}{
-		{"lawyer", "billing.approve", true},      // approve
-		{"bookkeeper", "billing.payments", true}, // all
-		{"lawyer", "billing.payments", false},    // view on an approver capability
-		{"auditor", "billing.credit", false},     // view on an approver capability
-		{"associate", "matters.open", false},     // own on an approver capability
-		{"admin", "admin.users", false},          // reserved role
-		{"agent", "billing.payments", false},     // reserved role
-		{"associate", "matters.view", true},      // own on a plain capability
-		{"auditor", "matters.directory", true},   // view on a plain capability
+		{"lawyer", "billing.payments", true},  // view
+		{"associate", "matters.edit", true},   // own
+		{"admin", "admin.users", true},        // all
+		{"auditor", "billing.credit", true},   // view
+		{"admin", "matters.view", false},      // none
+		{"bookkeeper", "matters.edit", false}, // none
 	}
 	for _, tt := range tests {
 		t.Run(tt.role+"/"+tt.capability, func(t *testing.T) {

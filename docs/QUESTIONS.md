@@ -3582,3 +3582,23 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   `role` to, cc or bcc and an `address` or `email`), never nil. This relaxes the earlier
   "never addresses" note for recipients only (the firm's own mailboxes in practice), so F-INT-02
   can ignore mail not sent to the intake address. The sender, subject and body stay out.
+
+## ROLE-LEVELS (supersedes the BOOT-CONFIG role-level choice above)
+
+- **Level model:** capability levels are the access.json names, ordered
+  none < view < own < all < approve. `kernel/identity` gains additive `Roles.LevelOrder`,
+  `Roles.DecideLevel`, `Roles.Grant` and `Checker.CanAt(ctx, p, capability, level, s)`; `Can`
+  is `CanAt` at the weakest holding level. Boot loads the spec levels with
+  `roles.ApplyLevels` after the registrations; every role registers each capability it holds
+  above none (associate/paralegal edit matters, admin manages users, auditor views).
+- **Deciding:** a check at `roles.DecideLevel` (all) or above on a gate approver capability
+  is a decision. The gate decision route uses `CanAt(..., "all")` (`gates.LevelAccess`); the
+  agent and admin never pass it; preparer != approver stays in the gate engine. Caveat: a
+  future non-decision route that needs `all` scope on an approver capability would be read
+  as a decision; such a route should check `own` and rely on the subject resolver.
+- **Custom roles:** a role key the app did not register is read per check from
+  `core.role_grant` (`PGAssignments.GrantsOf`, active roles only), capped at the strongest
+  built-in level per capability. An unknown role holds nothing (403).
+- **Helm:** the chart syncs `counsel-<cell>-seal-key` from the cell secret store, mounts it
+  read-only and passes `-seal-key-file`. **Cookie:** Max-Age is what is left of the
+  sign-in policy lifetime (config lifetime with no policy row).

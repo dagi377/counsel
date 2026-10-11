@@ -14,6 +14,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
+	legalroles "github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/kernel/api"
 	"github.com/dagi377/counsel/kernel/audit"
@@ -225,6 +226,12 @@ func (w *wiring) loadRoles(_ context.Context, k *kboot.Kernel) error {
 		return fmt.Errorf("production roles: registry %T cannot list its calls: %w", k.Registry, ErrMissingDependency)
 	}
 	w.roles.Load(lister.Calls())
+	// rule: ARC-I-018
+	// Built-in roles hold each capability at its spec level; custom roles come from
+	// core.role_grant per check (identity.PGAssignments).
+	if err := legalroles.ApplyLevels(w.roles); err != nil {
+		return fmt.Errorf("production roles: %w", err)
+	}
 	if err := w.roles.Validate(); err != nil {
 		return fmt.Errorf("production roles: %w", err)
 	}

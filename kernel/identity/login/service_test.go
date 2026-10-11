@@ -600,3 +600,27 @@ func TestSafeReturn(t *testing.T) {
 		}
 	}
 }
+
+// TestARC_I_036_CookieMaxAgeFromPolicy: the session cookie lives as long as the firm's
+// sign-in policy lifetime, or the config lifetime when the firm has no policy row.
+func TestARC_I_036_CookieMaxAgeFromPolicy(t *testing.T) {
+	tests := []struct {
+		name     string
+		lifetime time.Duration
+		want     int
+	}{
+		{"no policy uses the config lifetime", 0, int(DefaultLifetime.Seconds())},
+		{"policy lifetime 20 min", 20 * time.Minute, 1200},
+		{"policy lifetime 24 h", 24 * time.Hour, 86400},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t, devConfig(), nil)
+			h.store.lifetime = tc.lifetime
+			// rule: ARC-I-036
+			if c := h.devSession(t); c.MaxAge != tc.want {
+				t.Fatalf("Max-Age = %d, want %d", c.MaxAge, tc.want)
+			}
+		})
+	}
+}
