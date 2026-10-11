@@ -86,23 +86,58 @@ func TestBIL_L_005_RequisitionWindowAndHold(t *testing.T) {
 }
 
 // rule: BIL-L-006
-func TestBIL_L_006_PaidBillStillAssessable(t *testing.T) {
+func TestBIL_L_006_PaidBillNeedsSpecialCircumstancesWithinTwelveMonths(t *testing.T) {
+	// Bill 0141 delivered 2026-04-20 for 120000 cents. Solicitors Act s.11: once paid, a
+	// referral needs special circumstances and is barred 12 months after payment.
 	tests := []struct {
-		name string
-		paid bool
+		name       string
+		today      string
+		paidCents  int64
+		paidOn     string // empty when not paid
+		note       string
+		wantErr    error
+		wantStatus string
+		wantHeld   bool
 	}{
-		{"unpaid", false},
-		{"paid in full", true},
+		{"unpaid within one month", "2026-05-01", 0, "", "", nil, StatusWindowOpen, true},
+		{"part payment is not payment", "2026-05-01", 60000, "2026-04-25", "", nil, StatusWindowOpen, true},
+		{"paid in full needs a note", "2026-05-01", 120000, "2026-04-25", "", ErrSpecialCircumstances, StatusSpecialCircumstances, false},
+		{"paid in full with a note", "2026-05-01", 120000, "2026-04-25", "fees far above estimate", nil, StatusSpecialCircumstances, true},
+		{"overpaid counts as paid", "2026-05-01", 130000, "2026-04-25", "", ErrSpecialCircumstances, StatusSpecialCircumstances, false},
+		{"twelve months after payment still open", "2027-04-25", 120000, "2026-04-25", "fees far above estimate", nil, StatusSpecialCircumstances, true},
+		{"day after twelve months barred even with a note", "2027-04-26", 120000, "2026-04-25", "fees far above estimate", ErrPaidReferralBarred, StatusPaidBarred, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, loc := requisitionFixture(t, "2026-05-01", true)
-			b := AssessedBill{ID: "0141", DeliveredAt: time.Date(2026, 4, 20, 10, 0, 0, 0, loc), Paid: tt.paid}
-			if _, err := r.Record(context.Background(), b, ""); err != nil {
-				t.Fatalf("Record: %v", err)
+			r, loc := requisitionFixture(t, tt.today, true)
+			b := AssessedBill{ID: "0141", DeliveredAt: time.Date(2026, 4, 20, 10, 0, 0, 0, loc), TotalCents: 120000, PaidCents: tt.paidCents}
+			if tt.paidOn != "" {
+				paid, err := time.ParseInLocation(time.DateOnly, tt.paidOn, loc)
+				if err != nil {
+					t.Fatal(err)
+				}
+				b.PaidAt = paid.Add(14 * time.Hour)
 			}
-			if !r.OnHold(b.ID) {
-				t.Error("requisition not recorded")
+			w, err := r.Windows(context.Background(), b)
+			if err != nil {
+				t.Fatalf("Windows: %v", err)
+			}
+			if w.Status != tt.wantStatus {
+				t.Errorf("Status = %q, want %q", w.Status, tt.wantStatus)
+			}
+			if b.Paid() {
+				if got := w.PaidReferralTo.Format(time.DateOnly); got != "2027-04-25" {
+					t.Errorf("PaidReferralTo = %s, want 2027-04-25", got)
+				}
+			} else if !w.PaidReferralTo.IsZero() {
+				t.Errorf("PaidReferralTo = %s on an unpaid bill", w.PaidReferralTo)
+			}
+			_, err = r.Record(context.Background(), b, tt.note)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("Record = %v, want %v", err, tt.wantErr)
+			}
+			if r.OnHold(b.ID) != tt.wantHeld {
+				t.Errorf("OnHold = %v, want %v", r.OnHold(b.ID), tt.wantHeld)
 			}
 		})
 	}

@@ -19,6 +19,44 @@ type Searcher interface {
 // errNoPreparer is returned for a check with no preparing user.
 var errNoPreparer = errors.New("conflict: check has no preparer")
 
+// Clearance errors.
+var (
+	// ErrUndisposedHits means G2 cannot clear: a hit has no disposition, or is a conflict.
+	ErrUndisposedHits = errors.New("conflict: every hit needs a clearing disposition before G2 clears")
+	// ErrDispositionNote means a disposition, or a clearance of a run with hits, has no reason.
+	ErrDispositionNote = errors.New("conflict: disposition needs a reason")
+	// ErrBadDisposition means an unknown disposition or a hit index outside the run.
+	ErrBadDisposition = errors.New("conflict: invalid disposition")
+)
+
+// Disposition is a lawyer's finding on one hit. Values mirror the
+// conflict.check_hit.disposition check constraint.
+type Disposition string
+
+// Dispositions. Only NotAConflict, NeedsConsent and NeedsWall let G2 clear; Conflict means
+// the run can only be rejected.
+const (
+	// DispositionNotAConflict: cleared; the note says why it is not a conflict.
+	DispositionNotAConflict Disposition = "not_a_conflict"
+	// DispositionNeedsConsent: the conflict is waived; the note references the written consent.
+	DispositionNeedsConsent Disposition = "needs_consent"
+	// DispositionNeedsWall: walled off with consent; the note references the wall and consent.
+	DispositionNeedsWall Disposition = "needs_wall"
+	// DispositionConflict: a real conflict; G2 cannot clear.
+	DispositionConflict Disposition = "conflict"
+)
+
+// dispositionOf is one disposition of one hit. Dispositions are appended; the latest per
+// hit counts.
+type dispositionOf struct {
+	runID string
+	hit   int
+	d     Disposition
+	note  string
+	by    string
+	at    time.Time
+}
+
 // decision is one G2 decision on a run. Decisions are appended, never edited.
 type decision struct {
 	runID   string
@@ -40,9 +78,10 @@ type Checks struct {
 	search Searcher
 	now    func() time.Time
 
-	mu        sync.Mutex
-	runs      []Run
-	decisions []decision
+	mu           sync.Mutex
+	runs         []Run
+	decisions    []decision
+	dispositions []dispositionOf
 }
 
 // NewChecks returns a Checks that searches with s and stamps times from now.
@@ -105,7 +144,42 @@ func (c *Checks) Runs(ctx context.Context, matterID string) ([]Run, error) {
 	return out, nil
 }
 
-// Decide implements Clearer: gate G2 on an open run.
+// Dispose records a lawyer's disposition of hit (its index in the run's Hits) on an open run.
+// Every disposition needs a note: why it is not a conflict, or the consent and wall it relies
+// on. The agent and the preparer may not dispose, for the same reason they may not clear.
+func (c *Checks) Dispose(ctx context.Context, runID string, hit int, lawyer Actor, d Disposition, note string) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("conflict dispose: %w", err)
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	i := c.find(runID)
+	if i < 0 {
+		return fmt.Errorf("conflict dispose %s: %w", runID, ErrNotFound)
+	}
+	run := c.view(c.runs[i])
+	if err := approverErr(run, lawyer); err != nil {
+		return fmt.Errorf("conflict dispose %s: %w", runID, err)
+	}
+	switch d {
+	case DispositionNotAConflict, DispositionNeedsConsent, DispositionNeedsWall, DispositionConflict:
+	default:
+		return fmt.Errorf("conflict dispose %s: %w", runID, ErrBadDisposition)
+	}
+	if hit < 0 || hit >= len(run.Hits) {
+		return fmt.Errorf("conflict dispose %s hit %d: %w", runID, hit, ErrBadDisposition)
+	}
+	note = strings.TrimSpace(note)
+	if note == "" {
+		return fmt.Errorf("conflict dispose %s hit %d: %w", runID, hit, ErrDispositionNote)
+	}
+	c.dispositions = append(c.dispositions, dispositionOf{runID: runID, hit: hit, d: d, note: note, by: lawyer.UserID, at: c.now()})
+	return nil
+}
+
+// Decide implements Clearer: gate G2 on an open run. Clearing needs every hit disposed as
+// not a conflict, waived by consent, or walled off with consent, and a reason when the run
+// has any hit. Rejecting needs neither.
 func (c *Checks) Decide(ctx context.Context, runID string, approver Actor, approve bool, reason string) (Run, error) {
 	if err := ctx.Err(); err != nil {
 		return Run{}, fmt.Errorf("conflict decide: %w", err)
@@ -117,19 +191,51 @@ func (c *Checks) Decide(ctx context.Context, runID string, approver Actor, appro
 		return Run{}, fmt.Errorf("conflict decide %s: %w", runID, ErrNotFound)
 	}
 	run := c.view(c.runs[i])
-	// The agent never approves; its acting-for user is a preparer, not an approver.
-	switch {
-	case approver.IsAgent:
-		return run, fmt.Errorf("conflict decide %s: %w", runID, ErrAgentApproves)
-	case approver.UserID == "" || approver.UserID == run.PreparedBy:
-		return run, fmt.Errorf("conflict decide %s: %w", runID, ErrPreparerApproves)
-	case !approver.IsLawyer:
-		return run, fmt.Errorf("conflict decide %s: %w", runID, ErrNotLawyer)
-	case run.Status != StatusOpen:
-		return run, fmt.Errorf("conflict decide %s: %w", runID, ErrDecided)
+	if err := approverErr(run, approver); err != nil {
+		return run, fmt.Errorf("conflict decide %s: %w", runID, err)
+	}
+	if approve && len(run.Hits) > 0 {
+		latest := c.latestDispositions(runID)
+		for h := range run.Hits {
+			switch latest[h] {
+			case DispositionNotAConflict, DispositionNeedsConsent, DispositionNeedsWall:
+			default:
+				return run, fmt.Errorf("conflict decide %s hit %d: %w", runID, h, ErrUndisposedHits)
+			}
+		}
+		if strings.TrimSpace(reason) == "" {
+			return run, fmt.Errorf("conflict decide %s: %w", runID, ErrDispositionNote)
+		}
 	}
 	c.decisions = append(c.decisions, decision{runID: runID, by: approver.UserID, approve: approve, reason: reason, at: c.now()})
 	return c.view(c.runs[i]), nil
+}
+
+// approverErr checks who may dispose or decide on run: a lawyer, not the agent and not the
+// preparer, while the run is open. The agent's acting-for user is a preparer.
+func approverErr(run Run, a Actor) error {
+	switch {
+	case a.IsAgent:
+		return ErrAgentApproves
+	case a.UserID == "" || a.UserID == run.PreparedBy:
+		return ErrPreparerApproves
+	case !a.IsLawyer:
+		return ErrNotLawyer
+	case run.Status != StatusOpen:
+		return ErrDecided
+	}
+	return nil
+}
+
+// latestDispositions maps each disposed hit of runID to its latest disposition.
+func (c *Checks) latestDispositions(runID string) map[int]Disposition {
+	out := map[int]Disposition{}
+	for _, d := range c.dispositions {
+		if d.runID == runID {
+			out[d.hit] = d.d
+		}
+	}
+	return out
 }
 
 func (c *Checks) find(runID string) int {

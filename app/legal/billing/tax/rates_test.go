@@ -257,3 +257,98 @@ func TestBIL_T_025_GSTOnlyTerritoriesAndAlberta(t *testing.T) {
 		})
 	}
 }
+
+// rule: BIL-T-001
+// rule: BIL-T-002
+func TestBIL_T_001_RateHistoryBands(t *testing.T) {
+	s := flags.New()
+	if err := s.Define(flags.Def{Name: FlagVerifyRules}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set(FlagVerifyRules, true); err != nil {
+		t.Fatal(err)
+	}
+	ctx := flags.WithSet(context.Background(), s)
+	// A credit note looks up at its source bill's tax point; an imported historic bill at its
+	// own. Both are exercised on each side of every band edge.
+	creditNote := func(billDate time.Time) time.Time {
+		return TaxPointDate(time.Time{}, billDate)
+	}
+	imported := func(billDate time.Time) time.Time {
+		return TaxPointDate(billDate.AddDate(0, 0, 10), billDate)
+	}
+	kinds := []struct {
+		name  string
+		point func(time.Time) time.Time
+	}{{"credit note", creditNote}, {"import", imported}}
+	cases := []struct {
+		prov string
+		c    Component
+		on   time.Time
+		want money.PPM
+		err  error
+	}{
+		{"AB", GST, day(1990, time.December, 31), 0, ErrRateUnknown},
+		{"AB", GST, day(1991, time.January, 1), 70000, nil},
+		{"AB", GST, day(2006, time.June, 30), 70000, nil},
+		{"AB", GST, day(2006, time.July, 1), 60000, nil},
+		{"AB", GST, day(2007, time.December, 31), 60000, nil},
+		{"AB", GST, day(2008, time.January, 1), 50000, nil},
+		{"ON", HST, day(2009, time.June, 1), 0, ErrRateUnknown},
+		{"ON", HST, day(2010, time.June, 30), 0, ErrRateUnknown},
+		{"ON", HST, day(2010, time.July, 1), 130000, nil},
+		{"ON", GST, day(2010, time.June, 30), 50000, nil},
+		{"NS", HST, day(1997, time.March, 31), 0, ErrRateUnknown},
+		{"NS", HST, day(1997, time.April, 1), 150000, nil},
+		{"NS", HST, day(2006, time.July, 1), 140000, nil},
+		{"NS", HST, day(2008, time.January, 1), 130000, nil},
+		{"NS", HST, day(2010, time.June, 30), 130000, nil},
+		{"NS", HST, day(2010, time.July, 1), 150000, nil},
+		{"NS", HST, day(2025, time.March, 31), 150000, nil},
+		{"NS", HST, day(2025, time.April, 1), 140000, nil},
+		{"NB", HST, day(1997, time.March, 31), 0, ErrRateUnknown},
+		{"NB", HST, day(2006, time.June, 30), 150000, nil},
+		{"NB", HST, day(2007, time.June, 1), 140000, nil},
+		{"NB", HST, day(2016, time.June, 30), 130000, nil},
+		{"NB", HST, day(2016, time.July, 1), 150000, nil},
+		{"NL", HST, day(2008, time.January, 1), 130000, nil},
+		{"NL", HST, day(2016, time.June, 30), 130000, nil},
+		{"NL", HST, day(2016, time.July, 1), 150000, nil},
+		{"PE", HST, day(2013, time.March, 31), 0, ErrRateUnknown},
+		{"PE", HST, day(2013, time.April, 1), 140000, nil},
+		{"PE", HST, day(2016, time.September, 30), 140000, nil},
+		{"PE", HST, day(2016, time.October, 1), 150000, nil},
+		{"BC", PST, day(2013, time.March, 31), 0, ErrRateUnknown},
+		{"BC", PST, day(2013, time.April, 1), 70000, nil},
+		{"QC", QST, day(2012, time.December, 31), 0, ErrRateUnknown},
+		{"QC", QST, day(2013, time.January, 1), 99750, nil},
+		{"MB", PST, day(2019, time.June, 30), 0, ErrRateUnknown},
+		{"MB", PST, day(2019, time.July, 1), 70000, nil},
+		{"SK", PST, day(2017, time.March, 22), 0, ErrRateUnknown},
+		{"SK", PST, day(2017, time.March, 23), 60000, nil},
+	}
+	for _, k := range kinds {
+		for _, c := range cases {
+			t.Run(k.name+"/"+c.prov+string(c.c)+c.on.Format(time.DateOnly), func(t *testing.T) {
+				lookupCase(t, ctx, c.prov, c.c, k.point(c.on), c.want, c.err)
+				if c.err != nil {
+					_, err := NewRateTable(Seed()).Lookup(ctx, c.prov, c.c, k.point(c.on))
+					if !errors.Is(err, ErrNoRate) {
+						t.Fatalf("ErrRateUnknown must also match ErrNoRate, got %v", err)
+					}
+				}
+			})
+		}
+	}
+}
+
+// rule: BIL-T-001
+func TestBIL_T_001_EverySeedRowCitesItsSource(t *testing.T) {
+	for _, r := range Seed() {
+		t.Run(r.TaxCode+r.EffectiveFrom.Format(time.DateOnly), func(t *testing.T) {
+			if r.SourceCite == "" || r.EffectiveFrom.IsZero() {
+				t.Fatalf("row %+v lacks source or start date", r)
+			}
+		})
+	}
+}

@@ -130,6 +130,9 @@ func TestDecideG2(t *testing.T) {
 			ctx := context.Background()
 			c := newChecks()
 			r, _ := c.Check(ctx, Request{MatterID: "m1", Terms: []string{"acme"}, Preparer: preparer})
+			if err := c.Dispose(ctx, r.ID, 0, Actor{UserID: "u-law3", IsLawyer: true}, DispositionNotAConflict, "different Acme, other address"); err != nil {
+				t.Fatal(err)
+			}
 			if tt.decideTwice {
 				if _, err := c.Decide(ctx, r.ID, Actor{UserID: "u-law2", IsLawyer: true}, true, "ok"); err != nil {
 					t.Fatal(err)
@@ -149,6 +152,104 @@ func TestDecideG2(t *testing.T) {
 	}
 	t.Run("unknown run", func(t *testing.T) {
 		if _, err := newChecks().Decide(context.Background(), "run-x", lawyer, true, ""); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("err = %v", err)
+		}
+	})
+}
+
+func TestG2ClearNeedsEveryHitDisposed(t *testing.T) {
+	law3 := Actor{UserID: "u-law3", IsLawyer: true}
+	type disp struct {
+		hit  int
+		d    Disposition
+		note string
+	}
+	tests := []struct {
+		name       string
+		terms      []string
+		disps      []disp
+		approve    bool
+		reason     string
+		wantErr    error
+		wantStatus Status
+	}{
+		{"no hits clears without dispositions", []string{"other"}, nil, true, "", nil, StatusCleared},
+		{"undisposed hit blocks clearance", []string{"acme", "beta"}, []disp{{0, DispositionNotAConflict, "different party"}}, true, "ok", ErrUndisposedHits, StatusOpen},
+		{"no dispositions blocks clearance", []string{"acme"}, nil, true, "ok", ErrUndisposedHits, StatusOpen},
+		{"cleared with reason", []string{"acme"}, []disp{{0, DispositionNotAConflict, "different party"}}, true, "ok", nil, StatusCleared},
+		{"waived by consent", []string{"acme"}, []disp{{0, DispositionNeedsConsent, "written consent doc-77"}}, true, "ok", nil, StatusCleared},
+		{"walled off with consent", []string{"acme"}, []disp{{0, DispositionNeedsWall, "wall w-3 and consent doc-78"}}, true, "ok", nil, StatusCleared},
+		{"every hit disposed", []string{"acme", "beta"}, []disp{{0, DispositionNeedsConsent, "consent doc-77"}, {1, DispositionNeedsWall, "wall w-3"}}, true, "ok", nil, StatusCleared},
+		{"real conflict cannot clear", []string{"acme"}, []disp{{0, DispositionConflict, "acts against client"}}, true, "ok", ErrUndisposedHits, StatusOpen},
+		{"latest disposition counts", []string{"acme"}, []disp{{0, DispositionNotAConflict, "first look"}, {0, DispositionConflict, "second look"}}, true, "ok", ErrUndisposedHits, StatusOpen},
+		{"clearing hits needs a reason", []string{"acme"}, []disp{{0, DispositionNotAConflict, "different party"}}, true, "  ", ErrDispositionNote, StatusOpen},
+		{"reject needs no dispositions", []string{"acme"}, nil, false, "", nil, StatusRejected},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			idx := nameIndex{
+				"acme": {{Term: "acme", PartyID: "p1", MatterID: "m9", Role: "adverse"}},
+				"beta": {{Term: "beta", PartyID: "p2", MatterID: "m8", Role: "adverse"}},
+			}
+			c := NewChecks(idx, func() time.Time { return time.Date(2026, 3, 2, 14, 0, 0, 0, time.UTC) })
+			r, err := c.Check(ctx, Request{MatterID: "m1", Terms: tt.terms, Preparer: preparer})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, d := range tt.disps {
+				if err := c.Dispose(ctx, r.ID, d.hit, law3, d.d, d.note); err != nil {
+					t.Fatalf("Dispose: %v", err)
+				}
+			}
+			got, err := c.Decide(ctx, r.ID, lawyer, tt.approve, tt.reason)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			}
+			if got.Status != tt.wantStatus {
+				t.Fatalf("status = %s, want %s", got.Status, tt.wantStatus)
+			}
+		})
+	}
+}
+
+func TestDisposeChecks(t *testing.T) {
+	tests := []struct {
+		name    string
+		hit     int
+		by      Actor
+		d       Disposition
+		note    string
+		decided bool
+		wantErr error
+	}{
+		{"lawyer disposes", 0, lawyer, DispositionNotAConflict, "different party", false, nil},
+		{"note required", 0, lawyer, DispositionNeedsConsent, " ", false, ErrDispositionNote},
+		{"unknown disposition", 0, lawyer, Disposition("waived-ish"), "x", false, ErrBadDisposition},
+		{"hit out of range", 1, lawyer, DispositionNotAConflict, "x", false, ErrBadDisposition},
+		{"negative hit", -1, lawyer, DispositionNotAConflict, "x", false, ErrBadDisposition},
+		{"agent cannot dispose", 0, agent, DispositionNotAConflict, "x", false, ErrAgentApproves},
+		{"preparer cannot dispose", 0, preparer, DispositionNotAConflict, "x", false, ErrPreparerApproves},
+		{"non-lawyer cannot dispose", 0, Actor{UserID: "u-clerk"}, DispositionNotAConflict, "x", false, ErrNotLawyer},
+		{"decided run is closed", 0, lawyer, DispositionNotAConflict, "x", true, ErrDecided},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			c := newChecks()
+			r, _ := c.Check(ctx, Request{MatterID: "m1", Terms: []string{"acme"}, Preparer: preparer})
+			if tt.decided {
+				if _, err := c.Decide(ctx, r.ID, lawyer, false, "adverse party"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := c.Dispose(ctx, r.ID, tt.hit, tt.by, tt.d, tt.note); !errors.Is(err, tt.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+	t.Run("unknown run", func(t *testing.T) {
+		if err := newChecks().Dispose(context.Background(), "run-x", 0, lawyer, DispositionNotAConflict, "x"); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("err = %v", err)
 		}
 	})
