@@ -1184,3 +1184,11 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
 - Drafts are keyed by the write output ref (the subject id); submit_for_approval on any other
   subject is ErrNotFound (404). The gate payload carries subject ids only; the model's note is
   not stored (AI-R-005).
+
+## FEAT-CORE-10
+
+- Q-FEAT-CORE-10.1: `prompts/rules.md` is embedded and exposed as `feature.Rules()`, but
+  `Def.Spec()` (feature.go, FEAT-CORE-08, outside this task's files) still builds
+  `System = Preamble(id) + prompt`. Proposed one-line change at merge: `Preamble(id) + Rules() +
+  "\n" + prompt`. `feature.PromptHash` hashes `Spec()`, so it follows that change by itself;
+  no fixture pins a prompt_hash yet, so nothing needs rehashing.
