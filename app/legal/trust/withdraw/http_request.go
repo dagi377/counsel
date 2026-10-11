@@ -32,11 +32,7 @@ const SubjectWithdrawal = "trust.withdrawal"
 
 // Problem codes the request routes write besides the shared ones.
 const (
-	CodeAlreadyExecuted   = "already_executed"
-	CodeUnavailable       = "unavailable"
-	CodeUnauthenticated   = "unauthenticated"
-	CodeMissingCapability = "missing_capability"
-	CodeNotFound          = "not_found"
+	CodeAlreadyExecuted = "already_executed"
 )
 
 // StatusCancelled is a withdrawal cancelled before execution. Only RequestHTTP's cancel
@@ -69,11 +65,6 @@ type Cancels interface {
 	Row(ctx context.Context, id string) (Row, error)
 	// Cancel marks the withdrawal cancelled in tx and returns its new version.
 	Cancel(ctx context.Context, tx pgx.Tx, id string, by registry.Principal) (int64, error)
-}
-
-// Access is the part of identity.Access the routes use.
-type Access interface {
-	Can(ctx context.Context, p registry.Principal, capability string, s registry.Subject) (bool, error)
 }
 
 // RequestHTTP serves POST /trust/withdrawals and POST /trust/withdrawals/{withdrawal_id}/cancel.
@@ -354,37 +345,6 @@ func (h *RequestHTTP) writeErr(w http.ResponseWriter, r *http.Request, err error
 	}
 }
 
-// apiStatuses maps service statuses to the openapi WithdrawalStatus.
-var apiStatuses = map[Status]string{
-	StatusRequested:  "awaiting_authorization",
-	StatusAuthorized: "authorized",
-	StatusExecuted:   "executed",
-	StatusRejected:   "rejected",
-	StatusCancelled:  "cancelled",
-}
-
-type actorView struct {
-	Type      string `json:"type"`
-	ID        string `json:"id"`
-	ActingFor string `json:"acting_for,omitempty"`
-}
-
-type withdrawalView struct {
-	ID              string    `json:"id"`
-	Version         int64     `json:"version"`
-	LedgerID        string    `json:"ledger_id"`
-	AmountCents     int64     `json:"amount_cents"`
-	PurposeCategory string    `json:"purpose_category"`
-	Payee           string    `json:"payee"`
-	Method          string    `json:"method"`
-	BillID          string    `json:"bill_id,omitempty"`
-	Status          string    `json:"status"`
-	GateID          string    `json:"gate_id,omitempty"`
-	InitiatedBy     actorView `json:"initiated_by"`
-	AuthorizedBy    []string  `json:"authorized_by,omitempty"`
-	ExecutedBy      string    `json:"executed_by,omitempty"`
-}
-
 func viewOf(wd Withdrawal, ledgerID, billID string, version int64, by registry.Principal) withdrawalView {
 	actor := actorView{Type: "user", ID: by.UserID}
 	if by.Kind == registry.PrincipalAgent {
@@ -392,16 +352,10 @@ func viewOf(wd Withdrawal, ledgerID, billID string, version int64, by registry.P
 	}
 	v := withdrawalView{ID: wd.ID, Version: version, LedgerID: ledgerID, AmountCents: wd.Request.AmountCents,
 		PurposeCategory: wd.Request.Reason, Payee: wd.Request.Payee, Method: string(wd.Request.Method),
-		BillID: billID, Status: apiStatuses[wd.Status], GateID: wd.GateID, InitiatedBy: actor,
+		BillID: billID, Status: apiStatus[wd.Status], GateID: wd.GateID, InitiatedBy: actor,
 		ExecutedBy: wd.ExecutedBy}
 	if wd.AuthorizedBy != "" {
 		v.AuthorizedBy = []string{wd.AuthorizedBy}
 	}
 	return v
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
 }

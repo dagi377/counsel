@@ -1878,3 +1878,23 @@ Done in PORT-18:
 - Submit is refused 422 unexplained_difference unless the three-way totals agree after
   reconciling items; a signed-off reconciliation answers 409 period_locked.
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+
+## PG-READERS: Postgres read ports at boot
+
+- Branch merges task/HTTP-17 and task/HTTP-18b onto task/BOOT-WIRE-B (their ports did not
+  exist on the base). Their duplicate declarations with HTTP-11 (problem codes, Access,
+  views, writeJSON, test helpers) are folded into one; the withdrawal view gains bill_id and
+  acting_for, and both read views report version as int64.
+- trust.withdrawal_request and trust.reconciliation have no row_version column. The
+  Postgres Cancels.Row and recon Versions report a version ranked by status, which only moves
+  forward, so If-Match still detects every status change. Proposed: an expand migration adding
+  row_version with the core.touch trigger; open for the owner.
+- Ledger balances: Ledgers.Balance (and NewLedgerReads) return the true signed posted and
+  available figures; nothing is clamped in the reader. GET /trust/ledgers still reports per
+  HTTP-10b (overdrawn + shortfall_cents beside a 0 Cents field) until openapi TrustLedger
+  allows a signed balance.
+- recon.NoParser is the boot default Parser: uploads answer 422 `no_statement_parser`
+  ("No bank statement parser is configured") until a CSV/OFX parser lands.
+- Still caller-supplied: credit.Bills (credit-note POST), withdraw.Service, recon.Service and
+  recon.Statements have no Postgres implementation, so POST /credit-notes, POST
+  /trust/withdrawals and the reconciliation write routes keep answering 503 until they do.

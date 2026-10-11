@@ -39,12 +39,9 @@ const (
 	CodePeriodLocked          = "period_locked"
 	CodeUnexplainedDifference = "unexplained_difference"
 	CodeUnparseableStatement  = "unparseable_statement"
+	CodeNoStatementParser     = "no_statement_parser"
 	CodeBankBalanceMismatch   = "bank_balance_mismatch"
 	CodeUnverified            = "trust_rules_unverified"
-	CodeUnavailable           = "unavailable"
-	CodeUnauthenticated       = "unauthenticated"
-	CodeMissingCapability     = "missing_capability"
-	CodeNotFound              = "not_found"
 )
 
 // ErrUnparseable is returned by a Parser for a statement file it cannot read (422).
@@ -82,11 +79,6 @@ type Gates interface {
 // TxRunner runs fn in one transaction; kernel/db's pool implements it.
 type TxRunner interface {
 	InTx(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error
-}
-
-// Access is the part of identity.Access the routes use.
-type Access interface {
-	Can(ctx context.Context, p registry.Principal, capability string, s registry.Subject) (bool, error)
 }
 
 // WriteHTTP serves POST /trust/bank-lines/imports, POST /trust/reconciliations and POST
@@ -397,27 +389,13 @@ func (h *WriteHTTP) writeErr(w http.ResponseWriter, r *http.Request, err error) 
 		h.fail(w, r, http.StatusConflict, CodePeriodLocked, "The month is reconciled and locked")
 	case errors.Is(err, ErrUnbalanced):
 		h.fail(w, r, http.StatusUnprocessableEntity, CodeUnexplainedDifference, "Reconciliation has an unexplained difference")
+	case errors.Is(err, ErrNoParser):
+		h.fail(w, r, http.StatusUnprocessableEntity, CodeNoStatementParser, "No bank statement parser is configured")
 	case errors.Is(err, ErrUnparseable), errors.Is(err, ErrStatementMismatch):
 		h.fail(w, r, http.StatusUnprocessableEntity, CodeUnparseableStatement, "Statement cannot be read or does not sum to its closing balance")
 	default:
 		h.fail(w, r, http.StatusInternalServerError, server.CodeInternal, "Internal error")
 	}
-}
-
-type reconView struct {
-	ID                      string `json:"id"`
-	Version                 int64  `json:"version"`
-	AccountID               string `json:"account_id"`
-	Month                   string `json:"month"`
-	BankBalanceCents        int64  `json:"bank_balance_cents"`
-	OutstandingItemsCents   int64  `json:"outstanding_items_cents"`
-	AdjustedBankCents       int64  `json:"adjusted_bank_cents"`
-	JournalBalanceCents     int64  `json:"journal_balance_cents"`
-	ClientListingTotalCents int64  `json:"client_listing_total_cents"`
-	Balanced                bool   `json:"balanced"`
-	Status                  string `json:"status"`
-	SignedBy                string `json:"signed_by,omitempty"`
-	SignedAt                string `json:"signed_at,omitempty"`
 }
 
 func viewOf(rec Reconciliation, version int64) reconView {

@@ -63,6 +63,19 @@ type HTTPPorts struct {
 	GateList gates.Lister
 	// Expenses serves /expenses (HTTP-05). Nil uses the Postgres ExpenseStore on the kernel DB.
 	Expenses timekeeping.Expenses
+	// WithdrawRequests, with WithdrawLedgers and WithdrawCancels, serves POST
+	// /trust/withdrawals and its cancel action (HTTP-17).
+	WithdrawRequests withdraw.Service
+	WithdrawLedgers  withdraw.LedgerReader
+	WithdrawCancels  withdraw.Cancels
+	// WithdrawGates opens and withdraws the withdrawal gates. Nil uses the kernel gate engine.
+	WithdrawGates withdraw.Gates
+	// Recons, with ReconStatements, ReconVersions and ReconParser, serves the bank-line
+	// import and the reconciliation prepare and submit routes (HTTP-18).
+	Recons          recon.Service
+	ReconStatements recon.Statements
+	ReconVersions   recon.Versions
+	ReconParser     recon.Parser
 }
 
 // TxRunner runs fn in one transaction; kernel/db implements it.
@@ -91,6 +104,7 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	if p.Gates == nil && k.Gates != nil {
 		p.Gates = k.Gates
 	}
+	p = p.withReaders(k)
 	if p.Expenses == nil && k.DB != nil && k.Clock != nil {
 		p.Expenses = timekeeping.NewExpenseStore(k.DB, k.Clock.Location())
 	}
@@ -125,6 +139,15 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 	add(p.Expenses != nil && p.DB != nil && p.Idem != nil, (&timekeeping.ExpenseHTTP{
 		Expenses: p.Expenses, DB: p.DB, Access: p.Access, Cursors: p.Cursors, Idem: p.Idem,
 		Problems: p.Problems, Principal: p.Principal}).Routes)
+	add(p.WithdrawRequests != nil && p.WithdrawLedgers != nil && p.WithdrawCancels != nil && p.WithdrawGates != nil &&
+		p.DB != nil && p.Idem != nil, (&withdraw.RequestHTTP{Withdrawals: p.WithdrawRequests,
+		Ledgers: p.WithdrawLedgers, Gates: p.WithdrawGates, Cancels: p.WithdrawCancels, DB: p.DB, Access: p.Access,
+		Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}).Routes)
+	add(p.Recons != nil && p.ReconStatements != nil && p.ReconVersions != nil && p.ReconParser != nil &&
+		p.Gates != nil && p.DB != nil && p.Idem != nil, (&recon.WriteHTTP{Recons: p.Recons, Parser: p.ReconParser,
+		Statements: p.ReconStatements, Versions: p.ReconVersions, Gates: p.Gates, DB: p.DB, Access: p.Access,
+		Idem: p.Idem, Problems: p.Problems, Principal: p.Principal,
+		MinApprovers: approvers[recon.GateSignOff]}).Routes)
 	return out, nil
 }
 
