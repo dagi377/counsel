@@ -1520,10 +1520,23 @@ Done in PORT-18:
 
 ## FEAT-FIX-A trust withdrawal fails closed; draft_bill checks sources first
 
-- Open: a fee transfer to the firm's own general account (spec trust.json "Payee is firm
-  general account (known)") is not a matter contact, so prepare_trust_withdrawal now refuses
-  it. Boot must decide whether `MatterContacts` includes the firm's general account for fee
-  withdrawals, or whether a separate firm-payee id is allowed.
+- Closed by FEAT-FIX-B: a fee transfer to the firm's own general account (spec trust.json
+  "Payee is firm general account (known)") was refused because it is not a matter contact.
+  Decision: a separate firm-payee id. See the FEAT-FIX-B entry below.
 - draft_bill reads a new `agent.UnbilledWIP` port (matter's unbilled entry ids up to
   period_to) from Deps; boot (BOOT-FEAT-WIRE) must wire it. Every line action source is
   checked against it before `batch.Drafts.Create`, so a bad source creates no draft.
+
+## FEAT-FIX-B firm general account as a fee payee (By-Law 9 s.9(1))
+
+- Decision: `WriteDeps.FirmAccount` (the firm general account's payee id) and `WriteDeps.Bills`
+  (`agent.FeeBills`, returns `withdraw.FeeBill` for a bill on the matter) are new required
+  ports; nil fails closed (ErrMissingDep). No BillBalances port existed, so FeeBills is the
+  equivalent.
+- The firm account is a payee only when purpose_category is fees, bill_id is a bill on the
+  same matter, the bill is delivered and amount_cents <= its balance due (rules BIL-L-037,
+  BIL-L-035). Otherwise `ErrFirmPayeeNeedsBill` (422), `withdraw.ErrBillNotDelivered` or
+  `withdraw.ErrExceedsBillBalance`. Every other payee must still be a matter contact id.
+- `withdraw.Request` has no bill field, so the bill id is checked by the agent but not carried
+  into the trust request. Boot (BOOT-FEAT-WIRE) must wire FirmAccount and Bills; the trust
+  module's own ValidateFee remains the authoritative check at authorization.

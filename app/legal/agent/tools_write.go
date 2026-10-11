@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
@@ -31,6 +32,13 @@ const GateTrustWithdrawal = "trust.withdrawal"
 // contacts (422).
 var ErrPayeeNotContact = fmt.Errorf("agent: payee is not a matter contact: %w", ErrInvalidInput)
 
+// ErrFirmPayeeNeedsBill: a trust withdrawal to the firm's general account is not a fee transfer
+// for a bill on the matter (422). Fees out of trust need a delivered bill (By-Law 9 s.9(1)).
+var ErrFirmPayeeNeedsBill = fmt.Errorf("agent: firm payee needs fees and a bill: %w", ErrInvalidInput)
+
+// purposeFees is the purpose_category of a fee transfer to the firm.
+const purposeFees = "fees"
+
 // errNotProposed means the trust module left a request in a state other than requested.
 var errNotProposed = errors.New("agent: withdrawal not left proposed")
 
@@ -51,6 +59,18 @@ type WriteDeps struct {
 	// Contacts lists a matter's contacts: payee must be one of their ids. Required: without
 	// it prepare_trust_withdrawal refuses every call.
 	Contacts MatterContacts
+	// FirmAccount returns the payee id of the firm's general account. Required: without it
+	// prepare_trust_withdrawal refuses every call.
+	FirmAccount func(ctx context.Context) (string, error)
+	// Bills reads the bill a fee transfer to the firm pays. Required: without it
+	// prepare_trust_withdrawal refuses every call.
+	Bills FeeBills
+}
+
+// FeeBills reads the bill a fee transfer out of trust pays: its delivery date and unpaid
+// balance. It returns an error when billID is not a bill on matterID.
+type FeeBills interface {
+	FeeBill(ctx context.Context, matterID, billID string) (withdraw.FeeBill, error)
 }
 
 // Withdrawals is the part of the trust withdrawal module the agent may reach: it requests and
@@ -125,6 +145,7 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 		MatterID    string `json:"matter_id"`
 		AmountCents int64  `json:"amount_cents"`
 		Purpose     string `json:"purpose_category"`
+		BillID      string `json:"bill_id"`
 		Payee       string `json:"payee"`
 		Method      string `json:"method"`
 	}
@@ -140,6 +161,12 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 	if t.deps.Contacts == nil {
 		return Result{}, fmt.Errorf("call %s: matter contacts: %w", c.Tool, ErrMissingDep)
 	}
+	if t.deps.FirmAccount == nil {
+		return Result{}, fmt.Errorf("call %s: firm account: %w", c.Tool, ErrMissingDep)
+	}
+	if t.deps.Bills == nil {
+		return Result{}, fmt.Errorf("call %s: bills: %w", c.Tool, ErrMissingDep)
+	}
 	visible, err := t.deps.Walls.Visible(ctx, c.ActingFor, in.MatterID)
 	if err != nil {
 		return Result{}, fmt.Errorf("call %s: walls: %w", c.Tool, err)
@@ -153,15 +180,8 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 	if err := t.deps.Provenance.Check(c.RunID, []string{"/amount_cents"}, c.Input); err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}
-	// rule: BIL-L-037
-	// The payee is one of the matter's contacts by id, never free text the model wrote (so
-	// never "cash" or "bearer"); anything else is refused before any withdrawal row exists.
-	contacts, err := t.deps.Contacts.MatterContactIDs(ctx, in.MatterID)
-	if err != nil {
-		return Result{}, fmt.Errorf("call %s: matter contacts: %w", c.Tool, err)
-	}
-	if in.Payee == "" || !slices.Contains(contacts, in.Payee) {
-		return Result{}, fmt.Errorf("call %s: payee: %w", c.Tool, ErrPayeeNotContact)
+	if err := t.checkPayee(ctx, in.MatterID, in.Payee, in.Purpose, in.BillID, in.AmountCents); err != nil {
+		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}
 	method := withdraw.MethodCheque
 	switch in.Method {
@@ -216,6 +236,46 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}
 	return Result{Output: out, GateID: w.GateID}, nil
+}
+
+// checkPayee refuses a payee the agent may not propose. Every refusal happens before any
+// withdrawal row exists.
+func (t *WriteTools) checkPayee(ctx context.Context, matterID, payee, purpose, billID string, cents int64) error {
+	firm, err := t.deps.FirmAccount(ctx)
+	if err != nil {
+		return fmt.Errorf("firm account: %w", err)
+	}
+	if firm != "" && payee == firm {
+		// rule: BIL-L-037
+		// rule: BIL-L-035
+		// The firm's general account is a payee only for fees, for a bill on this matter that
+		// is delivered, and for no more than its unpaid balance (By-Law 9 s.9(1)).
+		if purpose != purposeFees || billID == "" {
+			return fmt.Errorf("payee: %w", ErrFirmPayeeNeedsBill)
+		}
+		b, err := t.deps.Bills.FeeBill(ctx, matterID, billID)
+		if err != nil {
+			return fmt.Errorf("bill: %w", err)
+		}
+		if b.DeliveredAt.IsZero() || b.DeliveredAt.After(time.Now()) {
+			return fmt.Errorf("bill: %w", withdraw.ErrBillNotDelivered)
+		}
+		if cents > b.BalanceDueCents {
+			return fmt.Errorf("bill: %w", withdraw.ErrExceedsBillBalance)
+		}
+		return nil
+	}
+	// rule: BIL-L-037
+	// Any other payee is one of the matter's contacts by id, never free text the model wrote
+	// (so never "cash" or "bearer").
+	contacts, err := t.deps.Contacts.MatterContactIDs(ctx, matterID)
+	if err != nil {
+		return fmt.Errorf("matter contacts: %w", err)
+	}
+	if payee == "" || !slices.Contains(contacts, payee) {
+		return fmt.Errorf("payee: %w", ErrPayeeNotContact)
+	}
+	return nil
 }
 
 // idempotencyKey makes a retried call of the same run and input propose once.
