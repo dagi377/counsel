@@ -3001,3 +3001,28 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-FEAT-INT-11 F-INT-15 non-engagement letter: draft_note cannot open intake.consult_outcome (blocked)
+
+The spec has F-INT-15 (and F-INT-06) open `intake.consult_outcome` (G3) through `draft_note`,
+with no tool gap. The real `draft_note` handler cannot do that:
+
+- It always opens `matter.agent_note` (`agent.GateAgentNote`), whatever the feature declares.
+- It opens through the raw `GateOpener`, not `agenttools.ScopedOpener`, so an agent run opens
+  `matter.agent_note` even when its run scope does not declare it (every other gate-opening
+  write tool is scoped; ARC-I-035). In the F-INT-15 run the note draft is also stored before
+  the gate open fails.
+- `draft_note` returns a gate, not a draft, so `submit_for_approval` cannot open G3 on it.
+- The G3 payload schema is a lead decision (`lead_id`, `outcome`, optional `limitation_date`),
+  not a note (`matter_id`, `body_markdown`), so opening G3 with the note payload would fail the
+  real gate kind.
+
+Proposal: (a) wrap `draft_note`'s opener in `ScopedOpener` (a fix, independent of F-INT-15);
+(b) decide how a consult letter reaches G3: either draft_note returns a draft (outcome
+`draft`) when the run scope does not declare `matter.agent_note`, so `submit_for_approval`
+opens G3 with a lead-decision payload, or add `intake.consult_outcome` to `tool_gaps` and give
+F-INT-06/15 `draft_document`. Until then this branch ships the Def, prompt and the spec, prompt
+and screen-action tests; the FromFeature and injection tests are written in full and skip on
+this question. The Def is not added to featureset or the boot screen map, so no live route
+runs a feature that cannot finish; add `intake.NonEngagementLetterDef()` there and the
+`consult-outcome` screen (subject `intake.lead`, capability `intake.leads`) once answered.
