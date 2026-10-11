@@ -4255,3 +4255,13 @@ of FEAT-TIM-01 above.
   draft_document schema FORM-SUBJECT changed. list_unbilled now records provenance itself
   (sourcedRead) and boot also wraps every read tool (TIME-FIX); recording a value twice is
   harmless, but one of the two can go.
+
+## Q-BILL-PERIOD draft_bill's period dates are a production SourcedWrite
+
+- draft_bill now checks `/period_from` and `/period_to` with the run's provenance, as well as
+  `/line_actions/*/write_down_cents`: an agent's invented period date is `ErrUnsourcedValue`
+  (422 unsourced_value). The manual path is not checked.
+- list_unbilled does not echo its `period_to`, so a run must read its period dates elsewhere:
+  F-BIL-01 from get_trust_balance's `as_of` (today, the billing day), a work_date, or the
+  trigger; F-PLT-20 from a document it read. Open: should the billing-day trigger payload
+  count as read (it is not observed today)?
