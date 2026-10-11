@@ -1861,3 +1861,32 @@ Done in PORT-18:
   run it parks is the one that WriteTools resumes on gate.decided.
 - `agenttest/seed.go`: `SeedStore.Document` implements `agent.DocumentLookup`, so
   read_document runs its real handler in feature tests instead of a stand-in.
+
+## Q-FEAT-CON-02 F-CON-02 opens G2 through propose_conflict_parties
+
+- No F-CON tool drafts, so the run scope never holds a draft and an agent's
+  submit_for_approval is refused (404). The run's G2 gate is the conflict run that
+  propose_conflict_parties starts: conflict.Clearance decides it with gate kind
+  conflict.clearance, and the run's preparer is the acting user. The feature test checks that
+  run is open, that an agent principal deciding is 403 (ErrAgentApproves) and that the
+  acting user deciding is 403 (conflict.ErrPreparerApproves, the conflict module's
+  self-approval refusal).
+- The Def starts from the a2 event `conflict.check_completed` ("event: check run").
+- No F-CON-02 write carries an amount or a date, so ErrUnsourcedValue (ARC-U-027) has no
+  case here. propose_conflict_parties checks a party source's shape but not that the run
+  read it (Scope.Cites); that is a handler follow-up.
+
+## Q-FEAT-CON-03 Clearance memo is the run's answer; new event conflict.hits_disposed
+
+- As in Q-FEAT-CON-02, the G2 gate is the conflict run propose_conflict_parties starts; no
+  F-CON tool drafts, so the memo is the run's final answer, not a stored draft. A memo draft
+  store with a draft tool would let submit_for_approval carry it.
+- a2 lists no event for "all hits disposed"; F-CON-03 binds `conflict.hits_disposed`, which
+  the conflict module does not publish yet.
+- The AI-035 test (app/legal/conflict/ai_f_con_03_test.go; the task's
+  app/legal/conflicts/ path is a typo) now runs through agenttest.FromFeature with no
+  stand-ins. The f-con-03 fixtures use a2 inputs, the injection variant no longer makes an
+  extra tool call, and ok pins match.prompt_hash.
+- search_matters and get_matter return matter short names unquoted (not as
+  agenttools.Quoted), so an instruction in a matter name reaches the model outside quoted
+  data (ARC-I-038). That is a handler follow-up.
