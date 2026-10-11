@@ -1,0 +1,26 @@
+# Counsel's Paploo app manifest (spec/legal/counsel-spec.html sec. 4.3, ADR 0014 sec. 3).
+# rule: ARC-I-046 - the agent gets no connector that sends outside the firm (no mail send,
+# no payment, no e-filing). External sends happen only in Counsel effect handlers.
+app:
+  id: counsel
+  api:
+    base_url: https://${COUNSEL_CELL_HOST}
+    auth: { kind: oauth_client }
+  skills:
+    - draft-letter
+    - prebill-review
+    - deadline-extract
+    - intake-summary
+    - trust-fee-prep
+    - continue-after-gate
+  connections:
+    # The only connection, and the only write connection (ARC-I-046).
+    - { connector: counsel/app-api, scope: org_service, access: write }
+  capabilities: []   # Counsel decides its own gates (ARC-I-045)
+  gates: []          # same
+  data:
+    read: [matters, contacts, documents, deadlines, work, time, billing, trust_balance]
+    write: [drafts, notes, tasks, agent_runs, gates]
+  events:
+    emit: [run.started, run.finished, artifact.published]
+    accept: [matter.updated, document.uploaded, gate.decided]
