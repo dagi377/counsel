@@ -16,6 +16,7 @@ import (
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/deadline"
+	"github.com/dagi377/counsel/kernel/outbox"
 )
 
 // Matter-side agent ports over Postgres (Q-BOOT-PORTS-B). Each adapter reads or writes the
@@ -277,17 +278,31 @@ func (s PGProposedTasks) ProposedTaskStatus(ctx context.Context) (string, string
 	return wf, st, nil
 }
 
-// PGConflictParties keeps proposed parties on conflict.check_party.
-type PGConflictParties struct{ DB db.DB }
+// PGConflictParties keeps proposed parties on conflict.check_party. Parties added to a
+// matter's check publish matter.party_added through Events in the same transaction; with no
+// Events such a call is refused, so the event is never lost.
+type PGConflictParties struct {
+	DB     db.DB
+	Events outbox.Emitter
+}
+
+// partyAddedEvent is the matter.party_added payload: ids only.
+type partyAddedEvent struct {
+	MatterID        string   `json:"matter_id"`
+	ConflictCheckID string   `json:"conflict_check_id"`
+	CheckPartyIDs   []string `json:"check_party_ids"`
+	AddedBy         string   `json:"added_by"`
+}
 
 const (
 	sqlCheckMatter = `SELECT COALESCE(matter_id::text, '') FROM conflict.conflict_check WHERE id = $1`
 	// sqlCheckTouch records who prepared the proposal and refuses a closed check.
 	sqlCheckTouch = `UPDATE conflict.conflict_check
 SET updated_by = $2, updated_at = now(), row_version = row_version + 1
-WHERE id = $1 RETURNING status`
-	sqlPartyInsert = `INSERT INTO conflict.check_party (check_id, name, kind, role, source) VALUES ($1, $2, $3, $4, $5)`
-	sqlPartyTerms  = `SELECT t FROM (
+WHERE id = $1 RETURNING status, COALESCE(matter_id::text, '')`
+	sqlPartyInsert = `INSERT INTO conflict.check_party (check_id, name, kind, role, source) VALUES ($1, $2, $3, $4, $5)
+RETURNING id::text`
+	sqlPartyTerms = `SELECT t FROM (
   SELECT name AS t FROM conflict.check_party WHERE check_id = $1
   UNION SELECT unnest(aliases) FROM conflict.check_party WHERE check_id = $1) x ORDER BY t`
 )
@@ -363,16 +378,29 @@ func (s PGConflictParties) ProposeParties(ctx context.Context, checkID string, p
 	}
 	var terms []string
 	err := inTx(ctx, s.DB, func(ctx context.Context, tx pgx.Tx) error {
-		var status string
-		if err := tx.QueryRow(ctx, sqlCheckTouch, checkID, preparedBy).Scan(&status); err != nil {
+		var status, matterID string
+		if err := tx.QueryRow(ctx, sqlCheckTouch, checkID, preparedBy).Scan(&status, &matterID); err != nil {
 			return notFound(err)
 		}
 		if status == "cleared" || status == "declined" {
 			return ErrCheckClosed
 		}
+		if matterID != "" && s.Events == nil {
+			return fmt.Errorf("no event emitter: %w", agent.ErrMissingDep)
+		}
+		ids := make([]string, len(parties))
 		for i, p := range parties {
-			if _, err := tx.Exec(ctx, sqlPartyInsert, checkID, p.Name, kinds[i], p.Role, sources[i]); err != nil {
+			if err := tx.QueryRow(ctx, sqlPartyInsert, checkID, p.Name, kinds[i], p.Role, sources[i]).Scan(&ids[i]); err != nil {
 				return err
+			}
+		}
+		if matterID != "" {
+			// rule: ARC-I-030
+			// One matter.party_added per call, committed with the parties. A check on a lead
+			// only adds no party to a matter and publishes nothing.
+			ev := partyAddedEvent{MatterID: matterID, ConflictCheckID: checkID, CheckPartyIDs: ids, AddedBy: preparedBy}
+			if err := s.Events.Emit(ctx, tx, outbox.Subject{Kind: "matter", ID: matterID}, matter.EventPartyAdded, ev); err != nil {
+				return fmt.Errorf("emit %s: %w", matter.EventPartyAdded, err)
 			}
 		}
 		rows, err := tx.Query(ctx, sqlPartyTerms, checkID)

@@ -88,6 +88,18 @@ func (o ownTxEmitter) Emit(ctx context.Context, tx pgx.Tx, s outbox.Subject, typ
 	})
 }
 
+// SetMatterPortEvents makes the matter-side agent ports that publish emit through em:
+// PGConflictParties publishes matter.party_added. Call it after WireMatterPorts.
+func SetMatterPortEvents(p *AgentPorts, em outbox.Emitter) {
+	if p == nil {
+		return
+	}
+	if cp, ok := p.ConflictParties.(PGConflictParties); ok {
+		cp.Events = em
+		p.ConflictParties = cp
+	}
+}
+
 // setCheckEvents makes checks publish conflict.hits_disposed through em (CON-03-MEMO).
 func setCheckEvents(checks *conflict.Checks, em outbox.Emitter) {
 	if checks != nil {
