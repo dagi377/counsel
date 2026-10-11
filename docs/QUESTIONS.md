@@ -1851,3 +1851,22 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## Q-JOB-ACTOR Scheduled AI features act for a designated lawyer (decided as counsel)
+
+- A scheduled job feature acts for the lawyer the firm names for it in firm settings. The
+  setting is a new table `agent.designated_lawyer (feature_id, user_id)` (migration 6201,
+  additive, owned by app/legal/agent), not a column on core.firm, since a module writes only
+  its own tables. `agent.PGDesignatedLawyers` reads and sets it; Set accepts only an active
+  human lawyer in good standing, and a read of a user who no longer is answers "".
+- `trigger.BindDesignated(def, events...)` binds a scheduled feature whose runs act for its
+  designated lawyer, read at each tick (`Bindings.WithDesignated`). No lawyer named, or no
+  settings source, means the run does not start (fail closed, logged as a warning), and
+  `Bindings.Readiness` reports the feature as `no_designated_lawyer`. `Bind(def, actingFor)`
+  with a fixed acting user still works for bindings that need one.
+- F-DL-06 now binds with BindDesignated (`RuleWatchBinding()` takes no argument). At merge,
+  the scheduled bindings on unmerged branches (F-CON-05 ReverseSweepBinding, F-CON-10
+  ExpiryRetentionBinding, F-DL-05 DigestBinding) should switch the same way; until then they
+  keep compiling with a fixed acting user. Boot wiring and a readiness HTTP surface are not
+  built yet: boot calls `WithDesignated(agent.NewPGDesignatedLawyers(pool))` when it builds
+  the Bindings, and surfaces `Readiness` on the setup checks.
