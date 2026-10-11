@@ -47,5 +47,8 @@ func appDefs() []feature.Def {
 		conflict.BeneficialOwnershipDef(),
 		conflict.AuditAnomalyDigestDef(),
 		conflict.DuplicateFinderDef(),
+		conflict.DetermineObligationDef(),
+		conflict.KYCSummaryDef(),
+		conflict.EstimateImpactDef(),
 	}
 }
