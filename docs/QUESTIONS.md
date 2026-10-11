@@ -1520,3 +1520,22 @@ Done in PORT-18:
   matter answers 404.
 - Routes register from http.go's init through `add`, so register.go is unchanged.
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+
+## HTTP-21: document release and agent draft routes
+
+- Built on task/HTTP-20 (same package; it reuses that branch's helpers). http.go gains one
+  split: `authorize` now calls `check`, so the release routes share the principal and
+  capability checks.
+- POST /documents/{document_id}/release takes `{channel, version_ids}` (channel per the
+  docs.outgoing payload schema; each version must belong to the document, else 422) and
+  opens `docs.outgoing` with `{matter_id, document_version_ids, channel}`. It answers 202
+  with the Gate body and declares `document.release_requested`; `document.released` stays
+  gate-owned. The release effect itself is boot work (docs.outgoing is still in
+  app/legal/boot/unwired_gates.txt).
+- The route checks `documents.release` as the accept line says; the gate still refuses the
+  preparer as approver.
+- GET /drafts reads a `Drafts` port in http_release.go (List by DraftFilter); boot
+  implements it over docs.document and the agent run log. Item shape:
+  `{document_id, version_id, matter_id, kind, run_id, acting_for, created_at}`.
+- The Gate body copies bill's gate rendering (min_approvers 1 per spec/gates.json); a
+  shared renderer in kernel/gate would be a follow-up.

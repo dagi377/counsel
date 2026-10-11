@@ -161,6 +161,12 @@ func (h *HTTP) authorize(w http.ResponseWriter, r *http.Request, capability stri
 		h.fail(w, r, http.StatusServiceUnavailable, CodeUnavailable, "Service not configured")
 		return registry.Principal{}, false
 	}
+	return h.check(w, r, capability, s)
+}
+
+// check answers 401, 403 or 404 itself and returns false when the principal may not go on.
+// The caller has already checked its own dependencies.
+func (h *HTTP) check(w http.ResponseWriter, r *http.Request, capability string, s registry.Subject) (registry.Principal, bool) {
 	p, ok := h.Principal(r)
 	if !ok {
 		h.fail(w, r, http.StatusUnauthorized, CodeUnauthenticated, "Authentication required")
