@@ -1,0 +1,53 @@
+# Migration number blocks. One line per module: "<first>-<last> <owner>".
+# A migration file migrations/NNNN_<subject>.sql must declare its owner on its first
+# line ("-- module: <owner>") and NNNN must fall inside that owner's block.
+# tools/migration_blocks_test.go enforces this in make check.
+#
+# Blocks are 100 numbers wide and never overlap. Add a block for a new module at the end
+# of its layer; never move or shrink an existing block once a migration uses it.
+#
+# 0001-0099 is the frozen contract: 0001_init.sql is the only file in it.
+0001-0099 contract
+
+# kernel modules: 0100-4999
+0100-0199 kernel/audit
+0200-0299 kernel/identity
+0300-0399 kernel/gate
+0400-0499 kernel/ledger
+0500-0599 kernel/outbox
+0600-0699 kernel/idem
+0700-0799 kernel/numseq
+0800-0899 kernel/flags
+0900-0999 kernel/docs
+1000-1099 kernel/work
+1100-1199 kernel/deadline
+1200-1299 kernel/notify
+1300-1399 kernel/inbound
+1400-1499 kernel/webhook
+1500-1599 kernel/portal
+1600-1699 kernel/report
+1700-1799 kernel/retention
+1800-1899 kernel/importer
+1900-1999 kernel/agenttools
+2000-2099 kernel/ai
+2100-2199 kernel/backup
+2200-2299 kernel/registry
+
+# app modules: 5000-9999
+5000-5099 app/legal/party
+5100-5199 app/legal/matter
+5200-5299 app/legal/conflict
+5300-5399 app/legal/intake
+5400-5499 app/legal/timekeeping
+5500-5599 app/legal/trust
+5600-5699 app/legal/billing
+5700-5799 app/legal/books
+5800-5899 app/legal/docs
+5900-5999 app/legal/deadlines
+6000-6099 app/legal/comms
+6100-6199 app/legal/work
+6200-6299 app/legal/agent
+6300-6399 app/legal/access
+6400-6499 app/legal/platform
+6500-6599 app/legal/clio
+6600-6699 app/legal/reports
