@@ -401,6 +401,12 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Work: the work-item screen selects the item the agent posts its result on.
+	"work-item": {SubjectKind: "work_item", Capability: "work.edit"},
+	// The workload and saved-filters screens are firm-wide, but no firm subject exists yet, so
+	// they select the matter (Q-FEAT-WRK-12).
+	"workload":      {SubjectKind: "matter", Capability: "work.view"},
+	"saved-filters": {SubjectKind: "matter", Capability: "work.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

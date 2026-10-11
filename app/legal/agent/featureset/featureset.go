@@ -109,5 +109,8 @@ func appDefs() []feature.Def {
 		// work
 		work.DailyDigestDef(),
 		work.ExplainAutomationRunsDef(),
+		work.AskQuestionDef(),
+		work.SuggestRebalanceDef(),
+		work.PlainLanguageFilterDef(),
 	}
 }

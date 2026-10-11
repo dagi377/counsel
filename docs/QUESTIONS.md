@@ -3231,3 +3231,14 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   skipped". The Def binds `work.automation_run_failed` and `work.automation_run_skipped`
   (consts in app/legal/work); nothing publishes them yet. Confirm the names when kernel/work
   publishes automation run events.
+
+## Q-FEAT-WRK-12 F-WRK-10, F-WRK-12 and F-WRK-13 screens
+
+- Task: FEAT-WRK-12 (read-only screen answers F-WRK-10, F-WRK-12, F-WRK-13).
+- Files beyond the list: `app/legal/agent/featureset/featureset.go` and its test (the Defs in
+  appDefs) and `app/legal/boot/agent.go` (the action screens). Built on task/FEAT-WRK-11 for
+  the shared read tools and `ai_wrkd_helpers_test.go`.
+- `work-item` selects subject kind `work_item` with `work.edit`, the same entry as
+  FEAT-WRK-01; keep one copy when both merge.
+- `workload` and `saved-filters` are firm-wide screens, but main has no `boot.FirmSubject`, so
+  both select the matter with `work.view`. Switch them to the firm subject when it lands.
