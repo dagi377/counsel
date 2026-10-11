@@ -3,23 +3,33 @@
 {{- $m := .Values.migrate }}
 {{- if $m.enabled }}
 {{- if lt (int $m.retries) 3 }}{{ fail "migrate.retries must be at least 3 (ARC-U-018)" }}{{ end }}
+{{- range $m.hooks }}{{ if ne . "pre-upgrade" }}{{ fail "migrate.hooks may only be pre-upgrade: on install the Job is a release resource (its namespace, service account and database secret do not exist before install)" }}{{ end }}{{ end }}
 # rule: ARC-U-018
 # rule: MIG-061
 # Schema migrations run as a separate Job before the rollout: expand only, every lock wait
 # capped by lock_timeout (the strictest value, 2s) and retried by the Job. Backfills never run
 # here; they are batched resumable jobs (kernel/migrate).
+# On upgrade the Job is a pre-upgrade hook, so it finishes before the new pods roll out. On
+# install it is an ordinary release resource, created with the namespace, service account and
+# database it needs; the app pods' wait-schema init container holds them until it is done.
 apiVersion: batch/v1
 kind: Job
 metadata:
+  {{- if .Release.IsUpgrade }}
   name: counsel-{{ $cell }}-migrate
+  {{- else }}
+  name: counsel-{{ $cell }}-migrate-install
+  {{- end }}
   namespace: {{ $ns }}
   labels:
     counsel.io/cell: {{ $cell | quote }}
     app.kubernetes.io/component: migrate
+  {{- if .Release.IsUpgrade }}
   annotations:
     helm.sh/hook: {{ range $i, $h := $m.hooks }}{{ if $i }},{{ end }}{{ $h }}{{ end }}
     helm.sh/hook-weight: "0"
     helm.sh/hook-delete-policy: before-hook-creation
+  {{- end }}
 spec:
   backoffLimit: {{ int $m.retries }}
   template:

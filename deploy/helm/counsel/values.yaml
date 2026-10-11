@@ -63,9 +63,12 @@ agentResources:
 # rule: ARC-U-018
 # Migrations run as a separate Job before the rollout (the Job template is
 # templates/migrate-job.yaml). Backfills never run here: they are batched jobs.
+# The Job is a pre-upgrade hook on upgrade and an ordinary release resource on install (a
+# pre-install hook would run before its namespace, service account and database exist). App
+# pods wait for the schema in a wait-schema init container either way.
 migrate:
   enabled: true
-  hooks: [pre-install, pre-upgrade]
+  hooks: [pre-upgrade]
   lockTimeout: 2s
   retries: 5
 

@@ -734,3 +734,48 @@ s.33 as amended and either the rules or the decision change.
   ultimate periods and ignores suspensions.
 - No Assessor or production wiring exists yet, so nothing used the fake outside tests. The
   BOOT task set should construct `limitation.NewStatute(schedule)` as the Calculator.
+
+
+## Q-MIG-LINT-SHIPPED Migration lint on migrations/: edits in place on unreleased files
+
+- Review item 19 (migrations) and 18 (deploy). `make migration-lint` and
+  `TestMIG_061_ShippedMigrationsPass` now lint every numbered file in migrations/. Only the
+  frozen `0001_init.sql` is baselined (`tools/migration_lint_baseline.txt`, two lines: no
+  timeouts; it builds an empty database). The lint itself is unchanged except `--baseline` and
+  skipping non-numbered files (smoke.sql).
+- The lint is per file, so a forward migration cannot make an earlier failing file pass. No
+  release has shipped and no cell has run the migrate Job (boot's migrate role is not
+  implemented yet), so these unreleased files were edited in place, each with its fix in a
+  new forward file:
+  - 0300, 0400, 0500, 1000, 1400, 5500, 5600, 6000, 6100: add `SET lock_timeout = '2s'` and
+    `SET statement_timeout = '5min'` (RESET at the end).
+  - 0300, 0400, 0500, 1000, 1400: VALIDATE CONSTRAINT moved to 0301, 0401, 0501, 1001, 1401.
+  - 0400, 0500, 1000, 1400: CREATE INDEX moved to no-transaction files 0402, 0502, 1002, 1402
+    (`CREATE INDEX CONCURRENTLY IF NOT EXISTS`).
+  - 1400: `payload_ref ... REFERENCES platform.outbox(id)` inline became
+    `webhook_delivery_payload_ref_fk ... NOT VALID`, validated in 1401.
+  - Forward only: 5501 narrows the trust.exception UPDATE grant to (resolved_at, resolved_by,
+    resolution).
+- A dev database migrated before this change has no `schema_meta.applied` and would re-run
+  0001; recreate it.
+- Still open: 6100 is a backfill in a migration (ARC-U-018 says backfills never run there);
+  move it to a kernel/migrate backfill job. The migrate Job still uses the app DB secret;
+  give it a dedicated migrator role secret.
+
+## Q-HELM-NAMES Cell namespaces use Counsel names (ARC-U-001)
+
+- ARC-U-001 (spec/eng/a1-uptime.html) lists namespaces counsel-<cell>, paploo-<cell>,
+  paploo-<cell>-agents. The chart now creates counsel-<cell>, counsel-<cell>-runtime (agent
+  runtime) and counsel-<cell>-agents (agent containers), plus counsel-<cell>-agents quota,
+  limit range and counsel-<cell>-agent-scheduling. Owner decision (W3 review item 18): no other
+  product name in this repo. The spec text needs the same rename; it was not edited here.
+
+## Q-HELM-MIGRATE First install and the migrate Job
+
+- Decision (autopilot): the migrate Job is a `pre-upgrade` hook only. On install it is an
+  ordinary release resource (`counsel-<cell>-migrate-install`), because a pre-install hook runs
+  before its namespace, service account, priority class and database secret exist. The chart
+  fails on any other hook value.
+- Every Deployment has a `wait-schema` init container: `counsel-migrate -mode=wait-version`
+  waits, with the app credentials, until `schema_meta.applied` holds the newest migration
+  built into the image.
