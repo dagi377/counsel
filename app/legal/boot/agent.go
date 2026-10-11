@@ -22,6 +22,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
+	"github.com/dagi377/counsel/app/legal/platform"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
@@ -357,6 +358,11 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		work.AbsenceCoverPlannerDef().ID:   work.AbsenceCoverPlannerBinding,
 		work.DailyDigestDef().ID:           work.DailyDigestBinding,
 		work.ExplainAutomationRunsDef().ID: work.ExplainAutomationRunsBinding,
+		// F-PLT-02 starts when new mail arrives through a connected mailbox, acting for the
+		// mailbox owner.
+		platform.FeatureMailFiling: func() (trigger.Binding, error) {
+			return trigger.Bind(platform.MailFilingDef(), "", comms.EventEmailReceived)
+		},
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -523,6 +529,8 @@ var actionScreens = map[string]trigger.Screen{
 	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
 	"work-categories": {SubjectKind: "matter", Capability: "work.view"},
 	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
+	// Platform: the comms log selects the matter the email, reply or call is filed on.
+	"comms-log": {SubjectKind: "matter", Capability: "matters.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

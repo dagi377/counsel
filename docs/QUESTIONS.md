@@ -4255,3 +4255,15 @@ of FEAT-TIM-01 above.
   draft_document schema FORM-SUBJECT changed. list_unbilled now records provenance itself
   (sourcedRead) and boot also wraps every read tool (TIME-FIX); recording a value twice is
   harmless, but one of the two can go.
+
+## Q-FEAT-PLT-02 F-PLT-02 mail filing: registration, event and shared helpers
+
+- The Def is added to featureset.App() (FEAT-CORE-17), so the boot test needs a job binding
+  and the `comms-log` screen. F-PLT-02 binds to the existing `comms.EventEmailReceived`
+  (`email.received`), acting for the mailbox owner; the binding lives inline in
+  `boot.JobBindings` until FEAT-PLT-03 adds `MailFilingBinding` in its write file. `comms-log`
+  maps to subject `matter`, capability `matters.view` (the access map lets every role view it).
+- Gate kinds reuse `legaldocs.GateFilingPrivilege`, `agent.GateCalConfirm` and
+  `agent.GateTimeAccept`; the auto-file threshold reuses `legaldocs.AutoFileReviewBelowPPM`.
+- The platform test helpers of F-PLT-02, F-PLT-03 and F-PLT-04 share one file,
+  `app/legal/platform/ai_pltc_helpers_test.go` (prefix `pltc`), identical on the three branches.
