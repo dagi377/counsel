@@ -734,3 +734,20 @@ s.33 as amended and either the rules or the decision change.
   ultimate periods and ignores suspensions.
 - No Assessor or production wiring exists yet, so nothing used the fake outside tests. The
   BOOT task set should construct `limitation.NewStatute(schedule)` as the Calculator.
+
+
+## Q-FEAT-TOOL agent handler set (FEAT-TOOL-03, FEAT-TOOL-04, FEAT-TOOL-07)
+
+- The tool tasks say each handler registers itself from init() into "the agent handler set"
+  that `agenttest.FromFeature` (FEAT-CORE-14) reads, but no handler set exists on main. Each
+  of these tasks adds the same file, `app/legal/agent/handlerset.go` (identical in all three
+  branches, so they merge cleanly): `Handler{Name, Build(Deps)}`, `addHandler` (init only),
+  `HandlerFor`, `HandlerNames`, typed `Deps`/`DepOf`, and shared helpers (`handlerTool`,
+  `visibleTo`, cursor paging, `MatterDocuments`). FEAT-CORE-14/15 should build on it.
+- app/legal/docs has no "documents of a matter" query and kernel/docs has no text search, so
+  list_documents and search_documents read through a narrow `MatterDocuments` interface
+  (document + current version) that the docs module must implement when wired at boot.
+- list_work_items: a work item title is user text with no document citation. It is returned
+  as an untrusted `agenttools.Quoted` envelope without a source; CheckCitations passes because
+  only the "quotes" array needs citations. Matter-scoped items are those whose subject kind is
+  "matter".
