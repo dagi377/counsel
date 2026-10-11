@@ -71,5 +71,6 @@ func appDefs() []feature.Def {
 		legaldocs.AutoFileDef(),
 		legaldocs.EngagementLetterDef(),
 		legaldocs.IngestDocumentDef(),
+		legaldocs.DraftWithCitationsDef(),
 	}
 }

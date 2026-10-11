@@ -2530,3 +2530,8 @@ Done in PORT-18:
   (IngestPipeline and its IngestSink) is unchanged.
 - The four intake channels (upload, email-in, portal upload, scan) all file a document
   version, and a2 names one event for that, document.uploaded, so the binding has one event.
+
+## Q-FEAT-DOC-04 F-DOC-03 trigger event
+
+- "user instruction or task from the matter plan": the task half binds `work_item.created`;
+  a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
