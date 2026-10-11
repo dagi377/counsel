@@ -696,3 +696,19 @@ s.33 as amended and either the rules or the decision change.
   opens the row in the reversal's tx; the replenishment's operating leg is
   Dr OP-1100 / Cr OP-1000 with source kind `nsf_replenishment`. Resolving an exception is a
   later task.
+
+
+## Q-T-011.5 Ledger balance guard mapping
+
+- Task: T-011.5 (BIL-I-010, DM-052, DM-064).
+- DM-052 is a DEFERRABLE INITIALLY DEFERRED constraint trigger, so it fails at COMMIT, after
+  any insert-level mapping. `ledgerlock.go` adds `LedgerStore.InLedgerTx` and `ledgerCheck`:
+  SQLSTATE 23514 whose message starts with `DM-052:` or `DM-064:` becomes
+  ErrInsufficientFunds (409 insufficient_trust_funds); deadlocks and other CHECK violations
+  pass through unchanged.
+- Follow-up for the integrator (receipt.go is outside T-011.5's file list): `insertTxn` maps
+  every 23514 to ErrInsufficientFunds, so an unrelated CHECK on trust_transaction (cash payout,
+  kind/sign) reads as insufficient funds. Switch it to `ledgerCheck`.
+- The 32-goroutine integration test seeds 32 withdrawals, each authorised under its own
+  approved trust.withdrawal gate. It is vetted with `-tags integration` and not yet run
+  (integration runs are on hold).
