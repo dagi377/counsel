@@ -2631,3 +2631,24 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
   effect wired (boot/unwired_gates.txt) and execution reads only `trust.withdrawal` approvals.
 - Open: `PGService.Request` opens no gate, so the agent tool's `w.GateID == ""` check refuses every
   agent withdrawal on Postgres until the gate is opened in the service path.
+
+## Q-INTEG-15A-RECON One outstanding-items function for both reconciliation views
+
+- The read view (recon.Reads, GET) summed the reconciling items for outstanding_items_cents;
+  the write view (prepare/submit responses) used adjusted_bank_cents - bank_balance_cents.
+  They agree only while the stored adjusted balance matches the stored items. Both now call
+  ThreeWay.OutstandingItemsCents(): the signed sum of the items (outstanding deposits
+  positive, outstanding cheques negative), so By-law 9's comparison reads bank closing
+  balance + outstanding deposits - outstanding cheques = book balance = sum of client
+  ledgers. TestOutstandingItemsByLaw9 checks the identity and that both views agree.
+- Open: should a stored row whose adjusted_bank_cents disagrees with bank + items be
+  refused on read rather than reported? Today it is reported as stored.
+
+## Q-INTEG-15A-PAGELISTER Pass 14 renamed kernel deadline.Lister to PageLister
+
+- HTTP-22 added `deadline.Lister` (List(ctx, ListFilter)) in kernel/deadline/http.go, which
+  clashed with the existing deadline Lister that agent tools read through. Pass 14
+  (6c73876) renamed the HTTP one to `PageLister` with method `ListPage`, and the HTTP
+  struct's `Lister` field now has type PageLister. This is a kernel Go interface change
+  made at integration without a prior entry; it is recorded here. The field name `Lister`
+  was kept; open: rename the field to `Pages` when the Postgres store implements ListPage.

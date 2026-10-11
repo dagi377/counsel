@@ -63,3 +63,57 @@ func TestComputeThreeWay(t *testing.T) {
 		})
 	}
 }
+
+// TestOutstandingItemsByLaw9 checks the By-law 9 three-way comparison through the one
+// outstanding-items function: bank closing balance + outstanding deposits - outstanding
+// cheques = book balance = the sum of the client ledgers, and the read and write views both
+// report that same net.
+func TestOutstandingItemsByLaw9(t *testing.T) {
+	deposit := ReconcilingItem{Kind: OutstandingDeposit, Reference: "dep-7", AmountCents: 2500}
+	cheque := ReconcilingItem{Kind: OutstandingCheque, Reference: "chq-101", AmountCents: -4000}
+	tests := []struct {
+		name         string
+		bank, book   int64
+		ledgers      []int64
+		items        []ReconcilingItem
+		wantItems    int64
+		wantBalanced bool
+	}{
+		{"no items", 100000, 100000, []int64{60000, 40000}, nil, 0, true},
+		{"deposit only", 97500, 100000, []int64{100000}, []ReconcilingItem{deposit}, 2500, true},
+		{"cheque only", 104000, 100000, []int64{70000, 30000}, []ReconcilingItem{cheque}, -4000, true},
+		{"deposit and cheque", 101500, 100000, []int64{50000, 50000}, []ReconcilingItem{deposit, cheque}, -1500, true},
+		{"ledgers disagree with book", 101500, 100000, []int64{50000, 49999}, []ReconcilingItem{deposit, cheque}, -1500, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tw, err := ComputeThreeWay(verifiedCtx(t), tc.bank, tc.book, tc.ledgers, tc.items)
+			if tc.wantBalanced != (err == nil) {
+				t.Fatalf("err = %v, want balanced %v", err, tc.wantBalanced)
+			}
+			got := tw.OutstandingItemsCents()
+			if got != tc.wantItems {
+				t.Fatalf("outstanding items = %d, want %d", got, tc.wantItems)
+			}
+			// bank + outstanding deposits - outstanding cheques = adjusted bank.
+			var deposits, cheques int64
+			for _, it := range tc.items {
+				if it.AmountCents > 0 {
+					deposits += it.AmountCents
+				} else {
+					cheques -= it.AmountCents
+				}
+			}
+			if tw.BankCents+deposits-cheques != tw.AdjustedBankCents || tw.BankCents+got != tw.AdjustedBankCents {
+				t.Fatalf("bank %d + items %d != adjusted bank %d", tw.BankCents, got, tw.AdjustedBankCents)
+			}
+			if tc.wantBalanced && (tw.AdjustedBankCents != tw.BookCents || tw.BookCents != tw.ClientLedgerCents) {
+				t.Fatalf("balanced but adjusted %d, book %d, ledgers %d", tw.AdjustedBankCents, tw.BookCents, tw.ClientLedgerCents)
+			}
+			rec := Reconciliation{AccountID: "a", Period: Period{Year: 2026, Month: 8}, Result: tw}
+			if r, w := reconOf(rec).OutstandingItemsCents, viewOf(rec, 1).OutstandingItemsCents; r != got || w != got {
+				t.Fatalf("read view %d, write view %d, want %d", r, w, got)
+			}
+		})
+	}
+}

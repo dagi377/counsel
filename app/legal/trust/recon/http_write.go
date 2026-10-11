@@ -401,7 +401,7 @@ func (h *WriteHTTP) writeErr(w http.ResponseWriter, r *http.Request, err error) 
 func viewOf(rec Reconciliation, version int64) reconView {
 	v := reconView{ID: rec.ID, Version: version, AccountID: rec.AccountID,
 		Month:            fmt.Sprintf("%04d-%02d", rec.Period.Year, int(rec.Period.Month)),
-		BankBalanceCents: rec.Result.BankCents, OutstandingItemsCents: rec.Result.AdjustedBankCents - rec.Result.BankCents,
+		BankBalanceCents: rec.Result.BankCents, OutstandingItemsCents: rec.Result.OutstandingItemsCents(),
 		AdjustedBankCents: rec.Result.AdjustedBankCents, JournalBalanceCents: rec.Result.BookCents,
 		ClientListingTotalCents: rec.Result.ClientLedgerCents, Balanced: rec.Result.Balanced(), Status: "prepared"}
 	if rec.Status == StatusApproved {
