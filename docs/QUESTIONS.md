@@ -3217,3 +3217,15 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
   screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
   as served by its screen actions instead of binding it.
+
+## Q-FEAT-TRU-11 payee-fraud-check (F-TRU-03): event, files outside the task list
+
+- Registering F-TRU-03 in featureset.App() makes the boot tests require a job binding, so the
+  task also touches app/legal/agent/featureset and app/legal/boot/agent.go.
+- The a2 event list has no event for a new or changed receiving account. F-TRU-03 binds to
+  `trust.receiving_account_changed` (trust.EventReceivingAccountChanged). Open: add it to
+  spec/eng/a2-interfaces.json events and publish it where a payee's EFT receiving account is
+  added or edited.
+- The result is checked by trust.CheckPayeeFraud, which fails closed: any malformed output, an
+  uncited flag, an amount no read of the run returned (ErrUnsourcedValue) or a missing
+  Provenance is a block. A pass stands only with no flag; trust_overdrawn flags always lead.

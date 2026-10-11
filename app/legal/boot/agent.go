@@ -23,6 +23,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
+	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	kboot "github.com/dagi377/counsel/kernel/boot"
@@ -315,6 +316,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
 		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
+		trust.FeaturePayeeFraudCheck:                trust.PayeeFraudCheckBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
