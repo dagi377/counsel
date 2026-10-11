@@ -125,10 +125,18 @@ func TestLimitationsAct(t *testing.T) {
 		{"s15_4_c_concealment_continuing", limitation.Assessment{MatterID: "m", ActDate: d("2010-01-01"), DiscoveryDate: d("2024-06-01"),
 			Suspensions: []limitation.Suspension{susp(limitation.SuspendConcealment, "2010-01-01", "")}},
 			map[string]string{"basic": "2026-06-01"}, nil},
-		// s.22 (verify): an agreement suspends both periods.
+		// s.22(3) and (4) (verify): an agreement made after discovery suspends both periods.
 		{"s22_agreement_suspends_both", limitation.Assessment{MatterID: "m", ActDate: d("2020-01-01"), DiscoveryPresumed: true,
 			Suspensions: []limitation.Suspension{susp(limitation.SuspendAgreement, "2021-03-01", "2021-03-11")}},
 			map[string]string{"basic": "2022-01-11", "ultimate": "2035-01-11"}, nil},
+		{"s22_4_agreement_after_discovery_suspends_both", limitation.Assessment{MatterID: "m", ActDate: d("2020-01-01"), DiscoveryDate: d("2022-01-01"),
+			Suspensions: []limitation.Suspension{susp(limitation.SuspendAgreement, "2022-06-01", "2022-06-11")}},
+			map[string]string{"basic": "2024-01-11", "ultimate": "2035-01-11"}, nil},
+		// s.22(4) (verify): an agreement made before the claim was discovered cannot suspend
+		// or extend the s.15 ultimate period, business agreement or not (s.22(5) para. 2).
+		{"s22_4_agreement_before_discovery_leaves_ultimate", limitation.Assessment{MatterID: "m", ActDate: d("2020-01-01"), DiscoveryDate: d("2022-01-01"),
+			Suspensions: []limitation.Suspension{susp(limitation.SuspendAgreement, "2021-03-01", "2022-03-01")}},
+			map[string]string{"basic": "2024-03-01", "ultimate": "2035-01-01"}, nil},
 		{"suspension_ends_before_start", limitation.Assessment{MatterID: "m", ActDate: d("2020-01-01"), DiscoveryPresumed: true,
 			Suspensions: []limitation.Suspension{susp(limitation.SuspendIncapacity, "2021-03-11", "2021-03-01")}},
 			nil, limitation.ErrDates},
@@ -248,9 +256,10 @@ func TestLimitationsActScheduleErrors(t *testing.T) {
 	}
 }
 
-// Legislation Act, 2006 s.88 (verify): with the pack's holiday calendar attached, a period
-// whose last day is a weekend or a holiday runs to the next business day.
-func TestLegislationActS88RollsToBusinessDay(t *testing.T) {
+// Legislation Act, 2006 s.87 and s.88 (verify): with a holiday calendar attached, a period
+// whose last day is a holiday (a Sunday or a dated holiday) runs to the next day that is
+// not a holiday. Saturday is not an s.87 holiday, so a Saturday last day stands.
+func TestLegislationActS88RollsPastHolidays(t *testing.T) {
 	ctx := legalflagstest.Context(t, legalflags.DeadlineOntarioPack, true)
 	holiday := clock.Date{Year: 2028, Month: time.September, Day: 28}
 	tests := []struct {
@@ -259,15 +268,21 @@ func TestLegislationActS88RollsToBusinessDay(t *testing.T) {
 		a        limitation.Assessment
 		want     map[string]string
 	}{
-		{"saturday ultimate rolls to monday", nil,
+		{"saturday ultimate stands", nil,
 			limitation.Assessment{MatterID: "m", ActDate: d("2026-09-28"), DiscoveryPresumed: true},
-			map[string]string{"basic": "2028-09-28", "ultimate": "2041-09-30"}},
+			map[string]string{"basic": "2028-09-28", "ultimate": "2041-09-28"}},
 		{"holiday basic rolls to next day", []clock.Date{holiday},
 			limitation.Assessment{MatterID: "m", ActDate: d("2026-09-28"), DiscoveryPresumed: true},
-			map[string]string{"basic": "2028-09-29", "ultimate": "2041-09-30"}},
-		{"s89 feb 28 on a saturday rolls to monday", nil,
+			map[string]string{"basic": "2028-09-29", "ultimate": "2041-09-28"}},
+		{"s89 feb 28 on a saturday stands", nil,
 			limitation.Assessment{MatterID: "m", ActDate: d("2024-02-29"), DiscoveryPresumed: true},
-			map[string]string{"basic": "2026-03-02", "ultimate": "2039-02-28"}},
+			map[string]string{"basic": "2026-02-28", "ultimate": "2039-02-28"}},
+		{"sunday basic rolls to monday", nil,
+			limitation.Assessment{MatterID: "m", ActDate: d("2028-03-03"), DiscoveryPresumed: true},
+			map[string]string{"basic": "2030-03-04", "ultimate": "2043-03-03"}},
+		{"saturday holiday then sunday roll to monday", []clock.Date{{Year: 2026, Month: time.December, Day: 26}},
+			limitation.Assessment{MatterID: "m", ActDate: d("2024-12-26"), DiscoveryPresumed: true},
+			map[string]string{"basic": "2026-12-28", "ultimate": "2039-12-26"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
