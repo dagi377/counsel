@@ -69,6 +69,7 @@ func TestVerifyFlagsDefinedOffWithOwnerAndExpiry(t *testing.T) {
 		{"conflict.id_verification", false},
 		{"deadline.ontario_pack", false},
 		{"export.post_cancel_window", false},
+		{"import.source_sync", false},
 		{"interest.cja_default_rate", false},
 		{"tax.bn_check_verified", true},
 		{"tax.verify_rules", false},

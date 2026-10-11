@@ -9,6 +9,7 @@ import (
 	"github.com/riverqueue/river"
 
 	cliosync "github.com/dagi377/counsel/app/legal/clio/sync"
+	"github.com/dagi377/counsel/app/legal/legalflags"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 )
 
@@ -16,9 +17,8 @@ import (
 // error text names the dependency.
 var ErrJobDependency = errors.New("legal boot: job dependency missing")
 
-// FlagSourceSync gates the source import/sync jobs. No app/legal flag covers import/sync yet,
-// so the integrator defines it in app/legal/flags.go (default off). Undefined reads as off.
-const FlagSourceSync = "import.source_sync"
+// FlagSourceSync gates the source import/sync jobs. app/legal/flags.go defines it, default off.
+const FlagSourceSync = legalflags.ImportSourceSync
 
 // RenewPorts are the subscription renewal job's dependencies that other modules own.
 type RenewPorts struct {

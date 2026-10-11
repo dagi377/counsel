@@ -122,7 +122,7 @@ func TestSlotWorkerRunsSlotOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	w := slotWorker{k: k}
+	w := newSlotWorker(k)
 	job := &river.Job[report.SlotArgs]{Args: report.SlotArgs{ScheduleID: "weekly-ar", Slot: slot}}
 	tests := []struct {
 		name     string
@@ -150,7 +150,7 @@ func TestSlotWorkerRunsSlotOnce(t *testing.T) {
 func TestSlotWorkerUnknownScheduleFails(t *testing.T) {
 	k, _ := reportKernel(t)
 	job := &river.Job[report.SlotArgs]{Args: report.SlotArgs{ScheduleID: "nope", Slot: reportNow}}
-	if err := (slotWorker{k: k}).Work(context.Background(), job); !errors.Is(err, report.ErrNotFound) {
+	if err := newSlotWorker(k).Work(context.Background(), job); !errors.Is(err, report.ErrNotFound) {
 		t.Fatalf("Work() = %v, want %v", err, report.ErrNotFound)
 	}
 }

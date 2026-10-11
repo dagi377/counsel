@@ -113,10 +113,18 @@ type effectSource struct {
 }
 
 // effects is the gate effect table of s: the signatory, trust withdrawal, bill approval and
-// void, and write-off effects, keyed by gate kind slug.
-func effects(s svcs) (map[string]registry.EffectFunc, error) {
+// void, and write-off effects, keyed by gate kind slug. The core.trust_signatory effect comes
+// from the kernel's identity admin gates, built with CoreGateEffects on k.
+func effects(k *kboot.Kernel, s svcs) (map[string]registry.EffectFunc, error) {
+	ag, err := k.AdminGates(CoreGateEffects(s.trust.Signatories)...)
+	if err != nil {
+		return nil, err
+	}
 	return mergeEffects([]effectSource{
-		{"signatory", signatory.Effects(s.trust.Signatories)},
+		{"core", map[string]registry.EffectFunc{signatory.KindChange: ag.Effects()[signatory.KindChange]}},
+		{"signatory alias", map[string]registry.EffectFunc{
+			signatory.KindSigningAuthority: signatory.Effects(s.trust.Signatories)[signatory.KindSigningAuthority],
+		}},
 		{"withdraw", map[string]registry.EffectFunc{withdraw.GateKind: s.trust.Withdraw.Apply}},
 		{"bill", bill.Effects(s.billing.Approve)},
 		{"bill void", bill.VoidEffects(s.billing.Void)},
@@ -171,7 +179,7 @@ func (w *wiring) registerGates(_ context.Context, k *kboot.Kernel) error {
 		if err != nil {
 			return fmt.Errorf("gate effects: %w", err)
 		}
-		if fx, err = effects(s); err != nil {
+		if fx, err = effects(k, s); err != nil {
 			return fmt.Errorf("gate effects: %w", err)
 		}
 	}

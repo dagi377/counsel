@@ -67,11 +67,12 @@ func testGatePorts() *GatePorts {
 
 func testEffects(t *testing.T) map[string]registry.EffectFunc {
 	t.Helper()
-	s, err := buildServices(testKernel(), *testGatePorts())
+	k := testKernel()
+	s, err := buildServices(k, *testGatePorts())
 	if err != nil {
 		t.Fatalf("buildServices: %v", err)
 	}
-	fx, err := effects(s)
+	fx, err := effects(k, s)
 	if err != nil {
 		t.Fatalf("effects: %v", err)
 	}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/riverqueue/river"
 
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/report"
@@ -17,25 +16,10 @@ type ScheduleSource interface {
 	Schedules(ctx context.Context) ([]report.Schedule, error)
 }
 
-// slotWorker runs one report schedule slot (kind report.slot) on the kernel report engine.
-// It has report.SlotWorker's behaviour over the report.Engine contract, since the kernel hands
-// apps an Engine and report.SlotWorker needs the concrete *report.Reports.
-type slotWorker struct {
-	river.WorkerDefaults[report.SlotArgs]
-	k *kboot.Kernel
-}
-
-// Work runs the slot in one transaction. A slot that already ran (RunSlot created false) is a
-// success and runs nothing, so a retried or duplicated job creates no second run.
-func (w slotWorker) Work(ctx context.Context, job *river.Job[report.SlotArgs]) error {
-	err := w.k.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		_, _, err := w.k.Reports.RunSlot(ctx, tx, job.Args.ScheduleID, job.Args.Slot)
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("%s %q: %w", report.JobKindSlot, job.Args.ScheduleID, err)
-	}
-	return nil
+// newSlotWorker is the kernel report.SlotWorker (kind report.slot) on the kernel's report
+// engine and database.
+func newSlotWorker(k *kboot.Kernel) *report.SlotWorker {
+	return &report.SlotWorker{Reports: k.Reports, InTx: k.DB.InTx}
 }
 
 // addReportWorker adds the one worker for kind report.slot. It is added with or without
@@ -50,7 +34,7 @@ func addReportWorker(k *kboot.Kernel) error {
 	}); err != nil {
 		return err
 	}
-	if err := kboot.AddWorker[report.SlotArgs](k.Jobs, slotWorker{k: k}); err != nil {
+	if err := kboot.AddWorker[report.SlotArgs](k.Jobs, newSlotWorker(k)); err != nil {
 		return fmt.Errorf("report jobs: %w", err)
 	}
 	return nil

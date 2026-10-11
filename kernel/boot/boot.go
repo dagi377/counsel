@@ -11,6 +11,7 @@ import (
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/identity"
 	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -118,6 +119,10 @@ type Kernel struct {
 	// are required when Dispatcher is set.
 	WebhookEndpoints WebhookEndpoints
 	WebhookPoster    WebhookPoster
+	// AdminStore applies approved role changes and user activations. Admin is the identity
+	// admin gates built by AdminGates.
+	AdminStore identity.AdminStore
+	Admin      identity.AdminGates
 
 	sealed bool // Registry.Seal passed; apply runs only then
 }
@@ -153,6 +158,8 @@ type Deps struct {
 	Dispatcher       WebhookQueue
 	WebhookEndpoints WebhookEndpoints
 	WebhookPoster    WebhookPoster
+	// AdminStore is optional; it applies approved identity admin changes.
+	AdminStore identity.AdminStore
 }
 
 // Build creates the kernel and calls every app's Register in order.
@@ -170,6 +177,7 @@ func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kerne
 		Jobs: NewJobs(), Outbox: deps.Outbox, Emitter: deps.Emitter, Notify: deps.Notify,
 		NotifySender: deps.NotifySender, WebhookExpiry: deps.WebhookExpiry,
 		Dispatcher: deps.Dispatcher, WebhookEndpoints: deps.WebhookEndpoints, WebhookPoster: deps.WebhookPoster,
+		AdminStore: deps.AdminStore,
 	}
 	for _, a := range apps {
 		if a.Register == nil {

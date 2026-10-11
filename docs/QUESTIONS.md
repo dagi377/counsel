@@ -766,17 +766,30 @@ BOOT tasks are not in docs/TASKS.md, so their progress is tracked here.
 
 - Merged to main (wave 4a): BOOT-01, BOOT-02, BOOT-03, BOOT-04, BOOT-05, BOOT-06, BOOT-08,
   BOOT-10, BOOT-11, BOOT-12, BOOT-13, BOOT-14, BOOT-15.
-- In progress: BOOT-07, BOOT-09.
+- Merged to main (wave 4b): T-009.4, BOOT-07, BOOT-09, BOOT-16, BOOT-17, BOOT-19, BOOT-20,
+  BOOT-22, BOOT-23; with PORT-01, PORT-02, FEAT-CORE-01, FEAT-CORE-04, FEAT-TOOL-02,
+  FEAT-TOOL-03, FEAT-TOOL-04, FEAT-TOOL-07, fix/w3-gates and fix/w3-legal.
 - Applied at integration (logged decisions):
   - `identity.NewAdminGates(gates, store, opts...)` with `identity.WithCoreEffect(kind,
     effect)`: the app supplies handlers for core.* kinds the kernel owns.
-    `boot.CoreGateEffects(svc)` supplies the core.trust_signatory effect.
+  - Kernel boot builds them: `(*boot.Kernel).AdminGates(opts...)` calls
+    `identity.NewAdminGates` on the kernel gate engine and `Deps.AdminStore` and keeps the
+    result in `Kernel.Admin`. The legal app calls it with `boot.CoreGateEffects(svc)` when it
+    builds its effect table, so the core.trust_signatory effect is the kernel admin gates' one.
   - `boot.LimitationStatute(schedule)` attaches `ontario.Holidays()` (embedded
     holidays.yaml) with `WithHolidays`, so the s.88 roll applies; tested on 2027 holidays.
+    `boot.LimitationAssessor(schedule, store, deadlines)` builds the Assessor on it.
+  - `import.source_sync` is defined in app/legal/flags.go (`legalflags.ImportSourceSync`),
+    default off; the renewal job reads it.
+  - `report.SlotWorker` takes a `report.Engine`; the app's report.slot worker is
+    `report.SlotWorker` on the kernel Engine and DB, and its own copy is gone.
   - `withdraw.PGEFTRecords` has a unit test on a fake DB. Its integration test is still
     to be written (vet only).
-- Still open: kernel boot must call `identity.NewAdminGates` with `CoreGateEffects` and
-  register the result's effects; the limitation Assessor must take `LimitationStatute`.
+  - Kernel boot `Run` now uses the real kernel job adder (gate.run_due, outbox.relay); the
+    BOOT-09 stub is gone. `addNotifyJobs` and `addWebhookJobs` are not yet called from Run.
+- Still open: register the kernel admin kinds (core.role_change, core.user_activation) with
+  the admin gates' effects once a Postgres AdminStore exists; build the Assessor from the
+  app's Register once limitation ports have production implementations.
 
 
 ## T-009.4: concrete server, two-way OpenAPI check, unserved list (owner decision)
