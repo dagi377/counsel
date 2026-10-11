@@ -1968,3 +1968,22 @@ Done in PORT-18:
   transfer must equal the balance, and the balance less open interest is apportioned over
   fees, disbursements and tax in the bill's issued proportions (BIL-C-205, ETA s.231). The
   transfer itself is never re-split. An apportioned bucket above its outstanding fails closed.
+
+## BOOT-REST: services wired last
+
+- Wired in app/legal/boot/services_rest.go behind `Options.Rest` (nil builds nothing): PGGrants
+  (`matter.matter` / `matter_id`) with `AuditMasker` keeping `grant_id`; `recon.PGSignOff`
+  with audit; `core.firm.sole_practitioner` recomputed at Start and every 15 min (kind
+  `firm.sole_practitioner_sync`; no licensee-change event exists, and licence expiry is
+  date driven); the renewal job (still behind FlagSourceSync, off); `portal.PGSessions`;
+  `PGBook.Events` and `FilingStore.Events` set to the kernel emitter (DL-EVENTS); the
+  trust.receipt_classification and billing.refund effects; POST /trust/receipts.
+- Touched outside the new file: boot.go (Options.Rest, the hook, Start sync), effects.go
+  (wiring.rest, rest effects merged in registerGates), routes.go (ReceiptHTTP mount),
+  services_trust.go (`TrustPorts.FeeBills` -> withdraw `Effect.Bills`, WD-BILL; nil fails
+  every fee withdrawal closed).
+- Open: payment.Gated (HTTP-15 is not merged here); Postgres RefundStore, TrustRefunds and a
+  withdraw.FeeBills billing adapter (taken as ports); BOOT-21 (T-031.4 reminder worker does not
+  exist); WO-FIX Close on G-B5 rejection needs a kernel gate-rejection hook (registry.GateKind
+  has none) and a credit preparer-withdraw route; the portal Shell is not built at boot yet, so
+  PGSessions is exposed through `wiring.Wired()` only.

@@ -7,7 +7,6 @@ billing.collections_message
 billing.payment_allocation
 billing.payment_plan
 billing.prebill_review
-billing.refund
 billing.settings_change
 billing.trust_fee_withdrawal
 cal.calendar_delegation
@@ -71,7 +70,6 @@ timekeeping.fee_arrangement
 timekeeping.timesheet
 timekeeping.writedown
 trust.cash_over_limit
-trust.receipt_classification
 trust.reconciliation_signoff
 trust.regulatory_release
 trust.transfer

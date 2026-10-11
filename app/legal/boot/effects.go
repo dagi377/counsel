@@ -184,6 +184,8 @@ type wiring struct {
 	// those checks' runs. Both are built when Options.Clearance is set.
 	checks    *conflict.Checks
 	clearance *conflict.Clearance
+	// rest holds the services registerRest built.
+	rest *RestServices
 }
 
 // registerGates registers the gate kinds that have an effect (gates.RegisterWired), so no
@@ -201,6 +203,10 @@ func (w *wiring) registerGates(_ context.Context, k *kboot.Kernel) error {
 		if fx, err = effects(k, s); err != nil {
 			return fmt.Errorf("gate effects: %w", err)
 		}
+	}
+	fx, err := withRestEffects(k, w.opts.Rest, fx)
+	if err != nil {
+		return fmt.Errorf("gate effects: %w", err)
 	}
 	cat, unwired, err := gates.RegisterWired(k.Registry, gates.SpecData(), fx)
 	if err != nil {

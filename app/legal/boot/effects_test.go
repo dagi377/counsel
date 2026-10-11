@@ -255,7 +255,7 @@ func TestUnwiredGatesOnlyShrink(t *testing.T) {
 	if !slices.IsSorted(listed) || len(slices.Compact(slices.Clone(listed))) != len(listed) {
 		t.Fatal("unwired_gates.txt must be sorted with no duplicates")
 	}
-	w := &wiring{opts: Options{Gates: testGatePorts()}}
+	w := &wiring{opts: Options{Gates: testGatePorts(), Rest: testRestPorts()}}
 	k := testKernel()
 	k.Registry = recorderBooter{&registry.Recorder{}}
 	if err := w.registerGates(context.Background(), k); err != nil {
