@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 	"text/template"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -199,9 +200,10 @@ var refKeys = map[string]bool{
 var refParents = map[string]bool{
 	"metadata": true, "secretKeyRef": true, "secretRef": true, "configMapRef": true,
 	"configMapKeyRef": true, "secret": true, "service": true, "s3Credentials": true, "cluster": true,
+	"secretStoreRef": true, "target": true, "serviceAccountRef": true,
 }
 
-var refDataKey = regexp.MustCompile(`BUCKET|KMS|HOSTNAME|DSN|SECRET`)
+var refDataKey = regexp.MustCompile(`BUCKET|KMS|HOSTNAME|DSN|SECRET|^key_id$`)
 
 // cellRefs collects every string that names a per-cell resource: object names and
 // namespaces, secret and config refs, hostnames, buckets, KMS keys and DSN refs.
@@ -778,5 +780,68 @@ func TestARC_U_009_Encryption(t *testing.T) {
 		{"base backup encrypted", dig(store, "data", "encryption"), "aws:kms"},
 		{"pg_hba hostssl only", hbaOK, true},
 		{"TLS 1.2+", dig(c, "spec", "postgresql", "parameters", "ssl_min_protocol_version"), "TLSv1.2"},
+	})
+}
+
+// rule: ARC-U-018
+func TestARC_U_018_MigrationJobValues(t *testing.T) {
+	m, ok := dig(loadValues(t), "migrate").(map[string]any)
+	if !ok {
+		t.Fatal("values.migrate missing")
+	}
+	hooks, _ := m["hooks"].([]any)
+	runChecks(t, []check{
+		{"enabled", m["enabled"], true},
+		{"pre-upgrade hook", slices.Contains(hooks, any("pre-upgrade")), true},
+		{"lock_timeout 2s", m["lockTimeout"], "2s"},
+		{"retries", asInt(m["retries"]) >= 1, true},
+	})
+	// Backfills run as batched jobs, never inside the migration hook.
+	for k := range m {
+		if strings.Contains(strings.ToLower(k), "backfill") {
+			t.Errorf("values.migrate.%s: no backfill inside the migration hook", k)
+		}
+	}
+}
+
+// rule: ARC-U-039
+func TestARC_U_039_Rotation(t *testing.T) {
+	objs := mustRender(t, map[string]any{"cell": "alpha"})
+	ext := byName(objs, "ExternalSecret")
+	keys := func(name string) []string {
+		var out []string
+		list, _ := dig(ext[name], "spec", "data").([]any)
+		for _, d := range list {
+			out = append(out, fmt.Sprint(dig(d, "secretKey")))
+		}
+		return out
+	}
+	twoValues := func(name string) bool {
+		k := keys(name)
+		return slices.Contains(k, "current") && slices.Contains(k, "previous")
+	}
+	vals := loadValues(t)
+	roles, _ := dig(vals, "rotation", "dbRoles").([]any)
+	roleKeys := keys("counsel-alpha-db-roles")
+	cellKey := dig(byName(objs, "ConfigMap")["counsel-alpha-config"], "data", "COUNSEL_KMS_KEY")
+	cert := byName(objs, "Certificate")["counsel-alpha-tls"]
+	hours := func(v any) time.Duration {
+		d, err := time.ParseDuration(fmt.Sprint(v))
+		if err != nil {
+			return 0
+		}
+		return d
+	}
+	runChecks(t, []check{
+		{"webhook signing has two active values", twoValues("counsel-alpha-webhook-signing"), true},
+		{"API tokens have two active values", twoValues("counsel-alpha-api-tokens"), true},
+		{"two DB roles", len(roles) == 2 && roles[0] != roles[1], true},
+		{"both DB roles synced", len(roleKeys) == 2 && slices.Contains(roleKeys, fmt.Sprint(roles[0])) && slices.Contains(roleKeys, fmt.Sprint(roles[1])), true},
+		{"KMS key id is the cell key", dig(byName(objs, "ConfigMap")["counsel-alpha-kms"], "data", "key_id"), cellKey},
+		{"key id in every ciphertext", dig(byName(objs, "ConfigMap")["counsel-alpha-kms"], "data", "key_id_in_ciphertext"), "true"},
+		{"cert renews >= 30 days early", hours(dig(cert, "spec", "renewBefore")) >= 720*time.Hour, true},
+		{"cert renews before expiry", hours(dig(cert, "spec", "renewBefore")) < hours(dig(cert, "spec", "duration")), true},
+		{"cert alert at 14 days", hours(dig(cert, "metadata", "annotations", "counsel.io/expiry-alert-before")), 336 * time.Hour},
+		{"cert is the ingress TLS secret", dig(cert, "spec", "secretName"), "counsel-alpha-tls"},
 	})
 }

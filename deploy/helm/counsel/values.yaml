@@ -59,3 +59,24 @@ resources:
 agentResources:
   requests: {cpu: 500m, memory: 1Gi}
   limits: {cpu: "2", memory: 4Gi}
+
+# rule: ARC-U-018
+# Migrations run as a separate Job before the rollout (the Job template is
+# templates/migrate-job.yaml). Backfills never run here: they are batched jobs.
+migrate:
+  enabled: true
+  hooks: [pre-install, pre-upgrade]
+  lockTimeout: 2s
+  retries: 5
+
+# rule: ARC-U-039
+# Rotation without downtime: webhook signing secrets and API tokens keep two active values
+# (current, previous); DB credentials alternate between two roles; TLS renews 30 days
+# before expiry and alerts at 14 days.
+rotation:
+  dualValueSecrets: [webhook-signing, api-tokens]
+  dbRoles: [counsel_app_a, counsel_app_b]
+  certIssuer: letsencrypt
+  certDuration: 2160h
+  certRenewBefore: 720h
+  certAlertBefore: 336h
