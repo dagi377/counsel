@@ -1933,3 +1933,23 @@ Done in PORT-18:
   matter, delivery date and balance net of reserved fee transfers.
 - Branch is based on task/FEAT-FIX-B (not yet on main) with origin/main merged in; the merge
   resolved the draft_bill test rename (billWorld -> draftBillWorld) and QUESTIONS.md.
+
+## DL-EVENTS: the owning modules publish the deadline trigger events
+
+- Published now, each in the writer's tx through `outbox.Emitter`:
+  - `rulepack.published` (`deadline.EventPackPublished`): kernel/deadline `PGBook.Repack`,
+    subject `cal.rule_pack`/pack id, body pack id, version and recomputed count. New
+    `PGBook.Events` field; nil refuses Repack before any write.
+  - `filing.receipt_received` (`comms.EventFilingReceiptReceived`): `FilingStore.RecordFiling`
+    for a filing recorded as filed, subject `legal.court_filing`/filing id. New
+    `FilingStore.Events` field; nil refuses a filed filing before any tx.
+  - `holiday.added` (`ontario.EventHolidayAdded`): `ontario.PublishAddedHolidays(ctx, tx, em,
+    known)` emits one event per calendar holiday not in `known`. Boot calls it when it loads
+    the calendar, passing the holidays the engine used before.
+  - `app/legal/deadlines/events_test.go` pins the bound names to the published constants.
+- Open (no write point exists yet, so nothing publishes them):
+  - `deadline.trigger_date_changed`: cal has no operation that changes a stored trigger date
+    (`cal.deadline.trigger_on` is set once by Save). It belongs to that operation when added.
+  - `claim.issued` and `service.affidavit_received`: comms records court filings only; there is
+    no issued-claim or affidavit-of-service record to publish from.
+- BOOT: set `PGBook.Events` and `FilingStore.Events` to the outbox emitter.

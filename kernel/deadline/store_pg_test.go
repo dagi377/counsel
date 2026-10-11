@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/dagi377/counsel/kernel/deadline"
+	"github.com/dagi377/counsel/kernel/outbox/outboxfake"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -206,7 +207,9 @@ func pgProposal(t *testing.T, p deadline.Pack, rule string, trigger deadline.Dat
 
 func newPG() (*deadline.PGBook, *tableTx) {
 	tx := newTableTx()
-	return deadline.NewPGBook(txRunner{tx}), tx
+	b := deadline.NewPGBook(txRunner{tx})
+	b.Events = outboxfake.New()
+	return b, tx
 }
 
 func TestPGBookSaveGetRoundTrip(t *testing.T) {
@@ -569,5 +572,56 @@ func TestPGBookConfirmStoreErrorIsWrapped(t *testing.T) {
 	tx.failNext = boom
 	if err := b.Confirm(ctx, tx, id, person); !errors.Is(err, boom) {
 		t.Fatalf("Confirm err = %v, want %v", err, boom)
+	}
+}
+
+// rule: ARC-I-035
+// Repack publishes rulepack.published in its tx, so F-DL-03 recomputes the dependants; with no
+// emitter it writes nothing.
+func TestPGBookRepackPublishesPackEvent(t *testing.T) {
+	ctx := context.Background()
+	v1 := deadline.Pack{ID: "helpdesk_sla", Version: "1", Rules: []deadline.Rule{{ID: "auto_close", Mode: deadline.Calendar, Days: 14}}}
+	v2 := deadline.Pack{ID: "helpdesk_sla", Version: "2", Rules: []deadline.Rule{{ID: "auto_close", Mode: deadline.Calendar, Days: 21}}}
+	tests := []struct {
+		name      string
+		noEvents  bool
+		wantErr   error
+		wantEvent bool
+	}{
+		{name: "event with the recomputed count", wantEvent: true},
+		{name: "no emitter writes nothing", noEvents: true, wantErr: deadline.ErrInvalidPack},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b, tx := newPG()
+			ev := outboxfake.New()
+			b.Events = ev
+			if err := b.LoadPack(ctx, v1); err != nil {
+				t.Fatal(err)
+			}
+			id, err := b.Save(ctx, tx, pgProposal(t, v1, "auto_close", date(2026, time.March, 2)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tt.noEvents {
+				b.Events = nil
+			}
+			_, err = b.Repack(ctx, tx, v2)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("Repack err = %v, want %v", err, tt.wantErr)
+			}
+			msgs := ev.Messages()
+			if !tt.wantEvent {
+				if len(msgs) != 0 || tx.rows[string(id)].version != "1" {
+					t.Fatalf("refused Repack emitted %d events or changed the row", len(msgs))
+				}
+				return
+			}
+			if len(msgs) != 1 || msgs[0].Type != deadline.EventPackPublished ||
+				msgs[0].Subject != (deadline.Subject{Kind: deadline.SubjectRulePack, ID: "helpdesk_sla"}) ||
+				string(msgs[0].Payload) != `{"pack_id":"helpdesk_sla","version":"2","recomputed":1}` {
+				t.Fatalf("events = %+v", msgs)
+			}
+		})
 	}
 }
