@@ -1851,3 +1851,18 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## HTTP-24: admin users, role change, roles, audit events (files outside the task)
+
+- New package `app/legal/access` routes: one line in `app/legal/modules.go` and the module
+  count in `app/legal/register_test.go` (36 -> 37; 38 once HTTP-23's work module also merges).
+- Narrow read ports in http.go (the service gaps): `Directory` (Users, User, CheckRoleChange),
+  `RoleCatalog` (Roles) and `AuditQuery` (Events, after a decimal sequence). Boot must wire
+  Postgres ones; until then the routes answer 503. Audit detail leaves through `audit.Masker`.
+- PUT /users/{user_id}/roles takes `{"role_id": uuid}` (core.app_user holds one role) and opens
+  core.role_change with payload `{role_id, change: {user_id, from_role_id, user_version}}`
+  (the kinds.json schema). It assigns nothing; the gate effect does. If-Match is the user's
+  row version. `last_admin` (409) and `unknown_role` (422) come from CheckRoleChange.
+- A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008), not
+  the 409 the accept line names; same as the other HTTP routes.
+- openapi has no body schemas for these operations; the views are documented here.

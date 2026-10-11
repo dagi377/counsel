@@ -4,7 +4,6 @@
 # neither served nor listed. Remove a line in the same change that mounts its handler.
 POST /agent/runs
 GET /agent/runs/{run_id}
-GET /audit-events
 GET /deadlines
 POST /deadlines
 GET /deadlines/{deadline_id}
@@ -15,7 +14,6 @@ GET /documents/{document_id}/versions/{version_id}/pages/{page}
 GET /drafts
 POST /payments/{payment_id}/allocations
 POST /payments/{payment_id}/refunds
-GET /roles
 POST /trust/bank-lines/imports
 POST /trust/receipts
 POST /trust/reconciliations
@@ -25,8 +23,6 @@ POST /trust/requests
 POST /trust/transfers
 POST /trust/withdrawals
 POST /trust/withdrawals/{withdrawal_id}/cancel
-GET /users
-PUT /users/{user_id}/roles
 GET /webhook-endpoints
 POST /webhook-endpoints
 PATCH /webhook-endpoints/{webhook_id}

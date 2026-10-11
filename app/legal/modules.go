@@ -1,6 +1,7 @@
 package legal
 
 import (
+	"github.com/dagi377/counsel/app/legal/access"
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/billing/assessment"
 	"github.com/dagi377/counsel/app/legal/billing/batch"
@@ -51,6 +52,7 @@ type module struct {
 // a new feature inside a package adds a file that appends to that package's registrars.
 var modules = []module{
 	{"roles", roles.Register},
+	{"access", access.Register},
 	{"party", party.Register},
 	{"matter", matter.Register},
 	{"conflict", conflict.Register},
