@@ -3,6 +3,8 @@ package bill_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -35,14 +37,37 @@ func (c *countingBills) Update(ctx context.Context, tx pgx.Tx, id bill.ID, ch bi
 	return c.Fake.Update(ctx, tx, id, ch)
 }
 
-// countingGates counts Open calls on the gate engine fake.
+// submitSpy records the tx of each Submit and can fail it.
+type submitSpy struct {
+	*countingBills
+	tx   pgx.Tx
+	fail error
+}
+
+// Submit is the route's own write: draft to pending_approval, in the gate's tx.
+func (s *submitSpy) Submit(ctx context.Context, tx pgx.Tx, id bill.ID) (bill.Bill, error) {
+	s.count("Submit")
+	s.tx = tx
+	if s.fail != nil {
+		return bill.Bill{}, s.fail
+	}
+	return s.Fake.Submit(ctx, tx, id)
+}
+
+// countingGates counts Open calls on the gate engine fake and records the tx of the last.
 type countingGates struct {
 	*gatefake.Fake
-	opens int
+	opens    int
+	openTx   pgx.Tx
+	failOpen error
 }
 
 func (g *countingGates) Open(ctx context.Context, tx pgx.Tx, kind string, s gate.Subject, payload json.RawMessage, p gate.Principal) (gate.GateID, error) {
 	g.opens++
+	g.openTx = tx
+	if g.failOpen != nil {
+		return "", g.failOpen
+	}
 	return g.Fake.Open(ctx, tx, kind, s, payload, p)
 }
 
@@ -185,7 +210,7 @@ func TestARC_I_012_BillActionsOpenGatesOnly(t *testing.T) {
 				t.Errorf("effects = %d opens = %d, want 0 and 1", *r.effects, r.gates.opens)
 			}
 			b, _ := r.bills.Fake.Get(context.Background(), bill.ID(tc.path[len("/v1/bills/"):len("/v1/bills/")+36]))
-			if b.Status == bill.StatusVoid || (tc.kind == bill.GateBillApproval && b.Status == bill.StatusApproved) {
+			if b.Status == bill.StatusVoid || (tc.kind == bill.GateBillApproval && b.Status != bill.StatusPendingApproval) {
 				t.Errorf("route moved the bill to %s", b.Status)
 			}
 		})
@@ -262,5 +287,78 @@ func TestARC_I_012_BillActionWritesDeclared(t *testing.T) {
 	}
 	if len(writes) != 3 {
 		t.Fatalf("writes = %+v, want submit, void and deliver", writes)
+	}
+}
+
+// txMark is a distinct transaction value, so a test can see two calls shared one tx.
+type txMark struct{ pgx.Tx }
+
+// rollbackTx runs fn in one marked tx and, when fn fails, restores the bill fake to its
+// state before the tx, as a Postgres rollback would.
+type rollbackTx struct {
+	bills *countingBills
+	id    bill.ID
+}
+
+func (r rollbackTx) InTx(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error {
+	before, _ := r.bills.Fake.Get(ctx, r.id)
+	if err := fn(ctx, &txMark{}); err != nil {
+		if perr := r.bills.Fake.Put(before); perr != nil {
+			return perr
+		}
+		return err
+	}
+	return nil
+}
+
+// rule: BIL-C-120
+func TestBIL_C_120_SubmitMovesDraftInGateTx(t *testing.T) {
+	tests := []struct {
+		name       string
+		failOpen   error
+		failSubmit error
+		status     int
+		code       string
+		wantStatus bill.Status
+		wantOpens  int
+	}{
+		{name: "draft moves to pending_approval with the gate", status: http.StatusAccepted, wantStatus: bill.StatusPendingApproval, wantOpens: 1},
+		{name: "gate open fails: the move rolls back", failOpen: errors.New("engine down"),
+			status: http.StatusInternalServerError, code: server.CodeInternal, wantStatus: bill.StatusDraft, wantOpens: 1},
+		{name: "bill left draft meanwhile: no gate", failSubmit: fmt.Errorf("submit: %w", bill.ErrNotSubmittable),
+			status: http.StatusConflict, code: bill.CodeBillNotSubmittable, wantStatus: bill.StatusDraft, wantOpens: 0},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newActionRig(t)
+			r.gates.failOpen = tc.failOpen
+			spy := &submitSpy{countingBills: r.bills, fail: tc.failSubmit}
+			h := &bill.ActionHTTP{Bills: spy, Gates: r.gates, Outbox: r.outbox, DB: rollbackTx{bills: r.bills, id: billDraft},
+				Access: testAccess, Idem: idemfake.New(), Problems: &server.Problems{}, Principal: testPrincipal}
+			m := server.New(nil)
+			if err := m.Mount(h.Routes); err != nil {
+				t.Fatal(err)
+			}
+			rec := do(m.Handler(), "POST", "/v1/bills/"+billDraft+"/submit", "alice", `{"delivery_method":"mail"}`,
+				map[string]string{"If-Match": `"1"`, idem.HeaderName: "0190e000-0000-7000-8000-000000000501"})
+			if tc.code != "" {
+				checkProblem(t, rec, tc.status, tc.code)
+			} else if rec.Code != tc.status {
+				t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
+			}
+			if r.bills.calls["Submit"] != 1 || r.bills.calls["Approve"] != 0 {
+				t.Errorf("Submit = %d, Approve = %d; want 1, 0", r.bills.calls["Submit"], r.bills.calls["Approve"])
+			}
+			if r.gates.opens != tc.wantOpens {
+				t.Errorf("gate opens = %d, want %d", r.gates.opens, tc.wantOpens)
+			}
+			if tc.wantOpens > 0 && (spy.tx == nil || spy.tx != r.gates.openTx) {
+				t.Errorf("Submit tx %p and Open tx %p differ", spy.tx, r.gates.openTx)
+			}
+			b, _ := r.bills.Fake.Get(context.Background(), billDraft)
+			if b.Status != tc.wantStatus {
+				t.Errorf("bill status = %s, want %s", b.Status, tc.wantStatus)
+			}
+		})
 	}
 }

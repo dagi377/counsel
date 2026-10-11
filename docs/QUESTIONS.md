@@ -1504,3 +1504,18 @@ Done in PORT-18:
   consumer that calls bill.Service.Deliver is a boot follow-up.
 - Gate subject kind for bills is `billing.bill` (bill.SubjectBill).
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+
+## Q-HTTP-08b Submit moves the bill and adds delivery_method to the submit body
+
+- `bill.Service` gains `Submit(ctx, tx, id)` and `bill.ErrNotSubmittable` (contract.go,
+  additive); billfake implements it. Submit moves a draft to pending_approval and bumps its
+  version. POST /bills/{bill_id}/submit now calls it in the same transaction as the
+  billing.bill_approval gate open: a failed open rolls the move back, and a bill that left
+  draft between the read and the tx answers 409 bill_not_submittable with no gate.
+- api/openapi.yaml: POST /bills/{bill_id}/submit gains an optional request body
+  `{"delivery_method": "email" | "portal" | "mail"}` (default email, no other fields), the
+  value the bill approval payload needs. Optional request bodies are additive under
+  ARC-I-001; listed in kernel/contract/additive.txt as
+  `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
+- Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
+  implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.

@@ -188,3 +188,41 @@ func TestPut(t *testing.T) {
 		})
 	}
 }
+
+// rule: BIL-C-120
+func TestSubmit(t *testing.T) {
+	ctx := context.Background()
+	tests := []struct {
+		name    string
+		status  bill.Status
+		id      bill.ID
+		want    bill.Status
+		wantErr error
+	}{
+		{name: "draft moves to pending approval", status: bill.StatusDraft, id: "b1", want: bill.StatusPendingApproval},
+		{name: "pending bill is not submittable", status: bill.StatusPendingApproval, id: "b1", want: bill.StatusPendingApproval, wantErr: bill.ErrNotSubmittable},
+		{name: "approved bill is not submittable", status: bill.StatusApproved, id: "b1", want: bill.StatusApproved, wantErr: bill.ErrNotSubmittable},
+		{name: "unknown bill", status: bill.StatusDraft, id: "nope", want: bill.StatusDraft, wantErr: bill.ErrNotFound},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := New(func() time.Time { return now })
+			b := draft("b1")
+			b.Status = tt.status
+			if err := f.Put(b); err != nil {
+				t.Fatal(err)
+			}
+			got, err := f.Submit(ctx, nil, tt.id)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			}
+			stored, _ := f.Get(ctx, "b1")
+			if stored.Status != tt.want {
+				t.Errorf("stored status = %s, want %s", stored.Status, tt.want)
+			}
+			if tt.wantErr == nil && (got.Status != tt.want || got.Version != 2) {
+				t.Errorf("returned %s v%d, want %s v2", got.Status, got.Version, tt.want)
+			}
+		})
+	}
+}
