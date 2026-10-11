@@ -80,7 +80,10 @@ func TestRegisterNoFlagsRecordsOnlyAlwaysSet(t *testing.T) {
 			got := methods(rec.Calls())
 			for _, m := range got {
 				switch m {
-				case registry.MethodChartOfAccounts, registry.MethodGateKind, registry.MethodCapability, registry.MethodRole:
+				// Routes mount unconditionally (HTTP-00): an unwired route answers 503 and the
+				// openapi conformance test needs every served route mounted.
+				case registry.MethodChartOfAccounts, registry.MethodGateKind, registry.MethodCapability, registry.MethodRole,
+					registry.MethodRoutes:
 				default:
 					t.Errorf("feature-gated call %s with no flags on", m)
 				}

@@ -71,6 +71,9 @@ type Contacts interface {
 	// query (case-insensitive), by display name then id, at most SearchLimit. An empty query
 	// matches every contact. Added for the search_contacts agent tool (FEAT-TOOL-02).
 	Search(ctx context.Context, query string) ([]Contact, error)
+	// List returns one page of contacts, merged ones excluded, by id, starting after
+	// Filter.After. Added for GET /contacts (HTTP-03).
+	List(ctx context.Context, f Filter) ([]Contact, error)
 }
 
 // SearchLimit caps how many contacts one Search returns.

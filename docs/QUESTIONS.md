@@ -1034,3 +1034,17 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   CheckCitations validates it; quotes[i] is the name of contacts[i].
 - `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
   Q-FEAT-TOOL agent handler set), so the branches merge cleanly.
+
+## HTTP-03: contacts routes (files outside the task)
+
+- `party.Contacts` gains `List(ctx, Filter)` in contract.go (additive, as the task's accept
+  line asks), so `partyfake` gains `List` too. Pages run by id (uuidv7, so creation order);
+  `ListLimit` is 201, one more than the openapi page maximum, so the handler can see a next page.
+- `ErrDuplicate` (409 duplicate_contact, proposed code) maps a unique violation on insert;
+  party.contact has no unique key yet, so it fires only once one is added.
+- A malformed contact_id answers 400 validation_failed after the capability check (accept
+  line), unlike GET /matters/{id}, which answers 404.
+- app/legal/boot TestRegisterNoFlagsRecordsOnlyAlwaysSet failed on HTTP-02 merged with main
+  (main's test predates the matter routes): Routes calls join the "always" set, since
+  HTTP-00 mounts every handler route unconditionally (unwired routes answer 503). The exact
+  comparison with legal.Register's calls is unchanged.
