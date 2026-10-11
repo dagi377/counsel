@@ -408,6 +408,7 @@ var actionScreens = map[string]trigger.Screen{
 	"matter-access-report":     {SubjectKind: "matter", Capability: "matters.view"},
 	"matter-ask":               {SubjectKind: "matter", Capability: "matters.view"},
 	"global-search":            {SubjectKind: "matter", Capability: "matters.view"},
+	"contact-import":           {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
 	"contact-detail":           {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
 	"document-review":          {SubjectKind: "matter", Capability: "documents.view"},
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},

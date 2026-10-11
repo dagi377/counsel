@@ -110,5 +110,6 @@ func appDefs() []feature.Def {
 		matter.RelatedMattersDef(),
 		matter.AccessHygieneDef(),
 		matter.MatterQuestionAnsweringDef(),
+		matter.AutoMapColumnsDef(),
 	}
 }
