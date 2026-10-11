@@ -214,3 +214,24 @@ Template:
 - Proposed: the integrator replaces the zero-call check with a check that `Register` twice on a
   `registryfake` and `Seal` reports only `ErrDuplicateID`-free results for one call, or drops
   it. Every wave 1 task that registers anything hits the same failure.
+## T-035L.2 Court filing contract does not match comms.comm_filing; no registry kind for message templates
+
+- Task: T-035L.2
+- Sources: app/legal/comms/contract.go (`Filing`: Court, Reference, DocumentID, status
+  draft/filed/rejected, FiledOn); migrations/0001_init.sql `comms.comm_filing` (key
+  `(comm_item_id, matter_id)`, `rule`, `confidence_ppm`, status proposed/filed/rejected,
+  `filed_by`, `filed_at`): the table files a communication item to a matter, it is not a court
+  filing. `comms.message_template` is versioned (`key`, `version`, `channel`, `body_ref`,
+  approval columns) while the contract `Template` holds Subject and Body inline. The task says
+  templates are "registered by the app", but `kernel/registry.Registry` has no message-template
+  kind (only EventType, DocumentKind, PortalPage, ...).
+- Reading A: comm_filing is "file this message to a matter" (agent proposes with rule and
+  confidence, a user confirms). The contract `Filing` gets reshaped additively to match and a
+  court-filing record moves to a later task with its own table.
+- Reading B: court filings are a new additive table (e.g. `comms.court_filing`) matching the
+  contract; comm_filing stays as is for message-to-matter filing.
+- Templates: the app either seeds `comms.message_template` rows at boot through its own
+  store, or `Registry` gains an additive `MessageTemplate` kind.
+- Proposed: B for filings (contract already describes court filings), and app-side seeding
+  for templates (no Registry change).
+- Answer: open. T-035L.2 is stopped until answered.
