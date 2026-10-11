@@ -326,3 +326,9 @@ Template:
   (`SubmittedContactName`) and `party.Lead` (`LeadContact`), which `intake.Submission` and
   `intake.Lead` implement (additive methods in `app/legal/intake/party.go`). party no longer
   imports intake.
+## Q-T-007.3 Decide inputs the gate schema does not hold
+
+- Task: T-007.3
+- Sources: migrations/0001_init.sql (gate.approval_request stores no payload; gate.gate_decision.decision allows only approve/reject/changes_requested; core.authority_limit.kind values are app terms); ARC-I-016, ARC-I-020.
+- Done for now: `PG.SetDecideHooks(DecideHooks{Preparers, Payload, LimitKinds})` in decide.go supplies editors of the underlying item, the payload (re-hashed against payload_hash) and the gate kind -> authority_limit kind map. The hooks sit in a package-level map keyed by *PG, because the PG struct lives in open.go (not this task's file).
+- Proposed: (1) move the hooks into a `PG` field at integration; (2) an approval above the limit returns `ErrRecommendOnly` and stores nothing, since the decision CHECK has no 'recommend' value and the trigger counts every 'approve'. Recording recommendations needs an additive table or decision value.
