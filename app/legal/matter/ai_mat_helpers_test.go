@@ -19,6 +19,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/agenttest"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
+	"github.com/dagi377/counsel/app/legal/agent/schemas"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/gates"
@@ -26,6 +27,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/agenttools/run"
 	"github.com/dagi377/counsel/kernel/ai"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
 	kdocs "github.com/dagi377/counsel/kernel/docs"
@@ -2150,5 +2152,93 @@ func mateCheckConflictRun(t *testing.T, def feature.Def, partyName, line string)
 				}
 			}
 		})
+	}
+}
+
+// matfSeeded is what a read-only run is seeded with: the matter, a document on it and a
+// second matter of the same firm.
+type matfSeeded struct {
+	MatterID, DocID, VersionID, OtherMatterID string
+}
+
+// matfReadRun is one seeded run of a read-only matter feature.
+type matfReadRun struct {
+	fd  *agenttest.FeatureDriver
+	run agenttest.FeatureRun
+	matfSeeded
+}
+
+// matfFireRead seeds a matter with a document holding lines on page 1 and a second matter,
+// then runs def with an inline aifake script: calls, then the final answer.
+func matfFireRead(t *testing.T, def feature.Def, lines []string, calls func(matfSeeded) []matfCall, answer func(matfSeeded) string) matfReadRun {
+	t.Helper()
+	fd := matfFeature(t, def)
+	m := fd.Seed.Matter("2026-0302", "Synth")
+	docID, v := fd.Seed.Document(string(m.ID), lines)
+	other := fd.Seed.Matter("2026-0303", "Synth Appeal")
+	w := matfSeeded{MatterID: string(m.ID), DocID: docID, VersionID: string(v), OtherMatterID: string(other.ID)}
+	model := matfScript(def.ID, calls(w), answer(w))
+	r := fd.Fire(context.Background(), model, "run-"+strings.ToLower(def.ID), "run "+def.ID)
+	if r.Err != nil {
+		t.Fatalf("run: %v", r.Err)
+	}
+	return matfReadRun{fd: fd, run: r, matfSeeded: w}
+}
+
+// matfAnswer renders a final chat answer citing lines from..to of page 1 of version.
+func matfAnswer(t *testing.T, text, version string, from, to int) string {
+	t.Helper()
+	b, err := json.Marshal(map[string]any{
+		"answer":    text,
+		"citations": []map[string]any{{"version_id": version, "page": 1, "from_line": from, "to_line": to}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+// matfOutcome is the run.Outcome of r for run.CheckAnswer: its answer and the citation of
+// every page a read_document result of the run quoted.
+func matfOutcome(r agenttest.FeatureRun) run.Outcome {
+	out := run.Outcome{Text: r.Text, JSON: r.JSON, GateIDs: r.GateIDs}
+	for _, b := range r.ToolResults {
+		var doc struct {
+			Untrusted bool   `json:"untrusted"`
+			VersionID string `json:"version_id"`
+			Pages     []struct {
+				Page  int `json:"page"`
+				Lines []struct {
+					No int `json:"no"`
+				} `json:"lines"`
+			} `json:"pages"`
+		}
+		if b.IsError || b.ToolName != agent.ToolReadDocument || json.Unmarshal([]byte(b.Text), &doc) != nil || !doc.Untrusted {
+			continue
+		}
+		for _, p := range doc.Pages {
+			if len(p.Lines) == 0 {
+				continue
+			}
+			out.Citations = append(out.Citations, agenttools.Citation{
+				VersionID: doc.VersionID, Page: p.Page, FromLine: p.Lines[0].No, ToLine: p.Lines[len(p.Lines)-1].No,
+			})
+		}
+	}
+	return out
+}
+
+// matfCheckReadOnly fails t unless every tool of d reads and d opens no gate kind.
+func matfCheckReadOnly(t *testing.T, d feature.Def) {
+	t.Helper()
+	// rule: AI-R-003
+	for _, name := range d.Tools {
+		s, err := schemas.ByName(name)
+		if err != nil || s.Kind != registry.ToolRead {
+			t.Fatalf("tool %s: kind %v (%v), want read", name, s.Kind, err)
+		}
+	}
+	if len(d.GateKinds) != 0 {
+		t.Fatalf("gate kinds = %v, want none", d.GateKinds)
 	}
 }

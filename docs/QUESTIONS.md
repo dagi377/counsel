@@ -2771,6 +2771,7 @@ Done in TAX-FIELDS (decision Q-PG-BILL-FIX):
 - Resolves the PORT-16b open point (decided as counsel): `ApproveWriteOff` computes the ETA
   s.231 relief as `BadDebtTax(amount - interest, billTax, billTotal)`. A write-off that is all
   interest gets no relief; interest above the amount fails with `ErrInvalidAmount`.
+
 ## Q-JOB-ACTOR Scheduled AI features act for a designated lawyer (decided as counsel)
 
 - A scheduled job feature acts for the lawyer the firm names for it in firm settings. The

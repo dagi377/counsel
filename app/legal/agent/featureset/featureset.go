@@ -106,5 +106,7 @@ func appDefs() []feature.Def {
 		matter.OpeningPlanDef(),
 		matter.ProposeRelationshipDef(),
 		matter.RequestIDDef(),
+		matter.MatterDigestDef(),
+		matter.RelatedMattersDef(),
 	}
 }
