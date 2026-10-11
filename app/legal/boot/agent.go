@@ -437,6 +437,9 @@ var actionScreens = map[string]trigger.Screen{
 	"trust-receipts-journal": {SubjectKind: "matter", Capability: "trust.view"},
 	"bank-feed-import":       {SubjectKind: "matter", Capability: "trust.view"},
 	"monthly-reconciliation": {SubjectKind: "matter", Capability: "trust.view"},
+	// A transfer moves money between client ledgers, so the screen selects the matters
+	// (docs/QUESTIONS.md Q-FEAT-TRU-08).
+	"trust-transfers": {SubjectKind: "matter", Capability: "trust.request"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

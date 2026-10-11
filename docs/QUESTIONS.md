@@ -3763,3 +3763,29 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   Open: the event handler calls it and passes Prompt() as the run's request.
 - agent imports trust, so trust restates G-OUT as trust.GateOutgoingEmail; a test holds it
   equal to agent.GateOutgoingEmail.
+
+## Q-FEAT-TRU-08 F-TRU-08 Draft transfer: no write tool opens trust.transfer
+
+- features.json gives F-TRU-08 the tool `prepare_trust_withdrawal` and the gate kind
+  `trust.transfer` (G11t), with an empty tool_gap. `prepare_trust_withdrawal` requests a
+  withdrawal (money leaving the trust account to a payee) and opens `trust.withdrawal` (or
+  `billing.trust_fee_withdrawal` with a bill id). No agent write tool requests a
+  ledger-to-ledger transfer: `withdraw.Transfers` only posts an already-authorized transfer,
+  and there is no transfer request API.
+- Decision taken (fail closed, By-law 9): the Def declares `trust.transfer` only, as the spec
+  says. In its run the production `prepare_trust_withdrawal` handler refuses every call with
+  `agenttools.ErrGateKindNotAllowed` before the trust module records anything, so a transfer
+  is never filed as a withdrawal. The tests prove that path, the provenance refusals
+  (`ErrUnsourcedValue` for an invented or unsigned amount, via `trust.SourcedCents`) and the
+  deciders of a `trust.transfer` gate on the production gate catalog.
+- Open: the accept line "gate trust.transfer pending with the acting user as preparer" cannot
+  be met until a transfer write tool exists. Proposed: a `prepare_trust_transfer` write tool
+  (from/to matter, amount_cents sourced, reason) over a new `withdraw` transfer request that
+  holds the funds and opens `trust.transfer`; add it to F-TRU-08's tools in features.json.
+  This is new scope and needs owner approval.
+- The `trust-transfers` screen selects matters (subject `matter`, capability
+  `trust.request`): a transfer names its source and target matters.
+- The end-to-end tests build every Def tool from `agent.HandlerFor`, including
+  `agent.PrepareTrustWithdrawalHandler` (agenttest's driver registers its own unchecked
+  wrapper of `WriteTools`, which skips the handler's gate-kind check). Helpers:
+  `app/legal/trust/ai_trud_helpers_test.go` (prefix trud), shared with F-TRU-10.
