@@ -34,6 +34,12 @@ type Options struct {
 	// Sender, when set, delivers rendered notifications. Nil keeps the kernel's count-only
 	// sender.
 	Sender notify.Sender
+	// HTTP, when set, wires the module routes whose ports it carries; the rest keep their
+	// placeholder mounts, which answer 503.
+	HTTP *HTTPPorts
+	// Webhooks, when set, makes a signed HTTPPoster over PGTargets the kernel's webhook
+	// poster (PORT-07).
+	Webhooks *WebhookPorts
 }
 
 // PaymentHook is the configured payment provider. Webhook.ID is the hook provider name from
@@ -54,7 +60,7 @@ func App(opts Options) kboot.App {
 
 // registerHooks lists the Register steps, in order. Later boot tasks append theirs here.
 func registerHooks(w *wiring) []hook {
-	return []hook{registerModules, w.opts.registerPayment, w.registerGates, w.buildClearance, w.opts.registerNotify, w.addWithdrawJobs}
+	return []hook{w.registerModules, w.opts.registerPayment, w.registerGates, w.buildClearance, w.opts.registerNotify, w.addWithdrawJobs, w.registerWebhooks}
 }
 
 // startHooks lists the Start steps (seed and start jobs), in order.
@@ -82,11 +88,26 @@ func run(ctx context.Context, k *kboot.Kernel, hooks []hook) error {
 	return nil
 }
 
-func registerModules(_ context.Context, k *kboot.Kernel) error {
+// registerModules registers the legal modules. With Options.HTTP set, the route groups it
+// wires replace the modules' placeholder mounts.
+func (w *wiring) registerModules(_ context.Context, k *kboot.Kernel) error {
 	if k.Registry == nil {
 		return ErrNoRegistry
 	}
-	return legal.Register(k.Registry)
+	if w.opts.HTTP == nil {
+		return legal.Register(k.Registry)
+	}
+	wired, err := wiredRoutes(k, *w.opts.HTTP)
+	if err != nil {
+		return err
+	}
+	if err := legal.Register(newRouteFilter(k.Registry, wired)); err != nil {
+		return err
+	}
+	for _, m := range wired {
+		k.Registry.Routes(m)
+	}
+	return nil
 }
 
 // registerPayment registers the configured payment webhook as an inbound provider.
@@ -117,4 +138,9 @@ func registryProvider(p inbound.Provider) registry.Provider {
 			})
 		},
 	}
+}
+
+// registerWebhooks wires the webhook poster when Options.Webhooks is set.
+func (w *wiring) registerWebhooks(_ context.Context, k *kboot.Kernel) error {
+	return wireWebhooks(k, w.opts.Webhooks)
 }
