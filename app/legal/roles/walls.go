@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/dagi377/counsel/app/legal/matter/matterkind"
+	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -36,6 +37,7 @@ var (
 type WallResolver struct {
 	store   WallStore
 	matters map[string]MatterOf
+	events  outbox.Emitter // nil publishes nothing (WithEvents)
 }
 
 // NewWallResolver returns a resolver over store. matters maps each subject kind other than
@@ -56,6 +58,9 @@ func (w *WallResolver) Visible(ctx context.Context, userID, matterID string) (bo
 	screened, err := w.store.Screened(ctx, userID, matterID)
 	if err != nil {
 		return false, fmt.Errorf("walls: screened: %w", err)
+	}
+	if err := w.publishAccess(ctx, userID, matterID, !screened); err != nil {
+		return false, err
 	}
 	return !screened, nil
 }

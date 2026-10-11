@@ -86,6 +86,12 @@ func (u *stubUpdates) Update(_ context.Context, id ID, version int, c PlainChang
 		if c.PracticeAreaID != nil {
 			m.PracticeAreaID = *c.PracticeAreaID
 		}
+		if c.CourtProvince != nil {
+			m.CourtProvince = *c.CourtProvince
+		}
+		if c.PropertyProvince != nil {
+			m.PropertyProvince = *c.PropertyProvince
+		}
 		m.RowVersion++
 		u.q.matters[i] = m
 		return m, nil
@@ -350,5 +356,55 @@ func TestARC_I_012_MatterWriteDeclarationsOwnNoGateState(t *testing.T) {
 		rec := httptest.NewRecorder()
 		m.Handler().ServeHTTP(rec, httptest.NewRequest(method, path, nil))
 		checkProblem(t, rec, 503, CodeUnavailable)
+	}
+}
+
+// rule: BIL-T-011
+// rule: BIL-T-012
+func TestMatterPatchTaxProvinces(t *testing.T) {
+	tests := []struct {
+		name            string
+		body            string
+		status          int
+		court, property string
+	}{
+		{"court province", `{"court_province":"NS"}`, 200, "NS", ""},
+		{"property province", `{"property_province":"BC"}`, 200, "", "BC"},
+		{"both with a plain field", `{"short_name":"Alpha 2","court_province":"ON","property_province":"QC"}`, 200, "ON", "QC"},
+		{"territory", `{"court_province":"NU"}`, 200, "NU", ""},
+		{"empty clears", `{"court_province":""}`, 200, "", ""},
+		{"lower case refused", `{"court_province":"on"}`, 400, "", ""},
+		{"unknown code refused", `{"property_province":"ZZ"}`, 400, "", ""},
+		{"export code refused", `{"property_province":"EX"}`, 400, "", ""},
+		{"full name refused", `{"court_province":"Ontario"}`, 400, "", ""},
+		{"not a string refused", `{"court_province":13}`, 400, "", ""},
+		{"mixed with a gated field refused", `{"court_province":"ON","restricted":true}`, 400, "", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rig := newWriteRig(t)
+			rec := do(rig.h, "PATCH", "/v1/matters/"+idA, "editor", []byte(tc.body), map[string]string{"If-Match": `"3"`})
+			if tc.status != http.StatusOK {
+				checkProblem(t, rec, tc.status, server.CodeValidationFailed)
+				if rig.updates.calls != 0 || len(rig.gates.Opens()) != 0 {
+					t.Errorf("updates = %d, gates = %v, want none", rig.updates.calls, rig.gates.Opens())
+				}
+				return
+			}
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
+			}
+			var got map[string]any
+			if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			str := func(k string) string { v, _ := got[k].(string); return v }
+			if str("court_province") != tc.court || str("property_province") != tc.property {
+				t.Errorf("provinces = %q/%q, want %q/%q", str("court_province"), str("property_province"), tc.court, tc.property)
+			}
+			if len(rig.gates.Opens()) != 0 {
+				t.Errorf("gates opened = %v, want none", rig.gates.Opens())
+			}
+		})
 	}
 }

@@ -1,0 +1,4 @@
+kind,date,description,amount_cents
+opening,2026-08-01,,100000
+txn,2026-08-03,Deposit,250.00
+closing,2026-08-31,,100250

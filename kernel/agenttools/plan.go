@@ -117,6 +117,43 @@ func (pl *Planner) ReportStep(ctx context.Context, planID string, index int, sta
 	return nil
 }
 
+// SetStepIDs implements StepIDs. ids must name every step once, in step order; an empty id
+// leaves the step unnamed.
+func (pl *Planner) SetStepIDs(ctx context.Context, planID string, ids []string) error {
+	pl.mu.Lock()
+	defer pl.mu.Unlock()
+	p, err := pl.store.ByID(ctx, planID)
+	if err != nil {
+		return fmt.Errorf("set step ids %s: %w", planID, err)
+	}
+	if len(ids) != len(p.Steps) {
+		return fmt.Errorf("set step ids %s: %d ids for %d steps: %w", planID, len(ids), len(p.Steps), ErrStepTitle)
+	}
+	for i, id := range ids {
+		if id != "" && slices.Contains(ids[:i], id) {
+			return fmt.Errorf("set step ids %s: id repeated: %w", planID, ErrStepTitle)
+		}
+		p.Steps[i].ID = id
+	}
+	if err := pl.store.Save(ctx, p); err != nil {
+		return fmt.Errorf("set step ids %s: %w", planID, err)
+	}
+	return nil
+}
+
+// StepIndex returns the index of the step named id in p, or -1.
+func StepIndex(p Plan, id string) int {
+	if id == "" {
+		return -1
+	}
+	for i, s := range p.Steps {
+		if s.ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
 // Current implements Plans. The first unfinished step is the first step not done; a failed
 // step counts as unfinished, so a resumed run retries it.
 func (pl *Planner) Current(ctx context.Context, runID string) (Plan, int, error) {

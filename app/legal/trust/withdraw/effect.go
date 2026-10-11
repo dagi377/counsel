@@ -449,7 +449,7 @@ type PGApprovals struct{}
 var _ ApprovedPayloads = PGApprovals{}
 
 const approvedPayloadSQL = `SELECT payload_jcs FROM gate.approval_request
-WHERE id = $1::uuid AND gate_code = $2 AND status = 'approved' AND payload_id = $3::uuid AND payload_jcs IS NOT NULL`
+WHERE id = $1::uuid AND (gate_code = $2 OR gate_code = 'billing.trust_fee_withdrawal') AND status = 'approved' AND payload_id = $3::uuid AND payload_jcs IS NOT NULL`
 
 // ApprovedPayload implements ApprovedPayloads.
 func (PGApprovals) ApprovedPayload(ctx context.Context, tx pgx.Tx, gateID, withdrawalID string) (json.RawMessage, error) {

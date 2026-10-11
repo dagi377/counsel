@@ -11,3 +11,9 @@
 /paths/~1bills~1{bill_id}~1submit/post/requestBody Q-HTTP-08b
 /components/schemas/TrustLedger/properties/overdrawn Q-HTTP-10c
 /components/schemas/TrustLedger/properties/shortfall_cents Q-HTTP-10c
+/paths/~1agent~1actions~1{feature_id} Q-FEAT-CORE-12
+/paths/~1credit-notes~1{credit_note_id}~1withdraw Q-BOOT-REST-2a
+/paths/~1firm~1tax-registrations Q-TAX-API
+/components/schemas/ProvinceCode Q-TAX-API
+/components/schemas/PlaceOfSupplyPatch Q-TAX-API
+/components/schemas/FirmTaxRegistrations Q-TAX-API

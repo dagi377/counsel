@@ -60,6 +60,7 @@ func (w *wiring) buildClearance(_ context.Context, k *kboot.Kernel) error {
 	if err != nil {
 		return err
 	}
+	setCheckEvents(checks, k.Emitter)
 	w.checks, w.clearance = checks, c
 	return nil
 }

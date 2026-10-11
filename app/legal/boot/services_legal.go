@@ -47,6 +47,6 @@ func LimitationAssessor(schedule limitation.Schedule, store limitation.Store, de
 // kernel boot passes to identity.NewAdminGates. svc applies signatory changes.
 func CoreGateEffects(svc signatory.Service) []identity.AdminOption {
 	return []identity.AdminOption{
-		identity.WithCoreEffect(signatory.KindChange, signatory.Effects(svc)[signatory.KindChange]),
+		identity.WithCoreEffect(signatory.KindChange, signatoryEffects(svc)[signatory.KindChange]),
 	}
 }

@@ -58,6 +58,13 @@ func (f *tableTx) QueryRow(_ context.Context, sql string, args ...any) pgx.Row {
 			version: args[3].(string), rule: args[4].(string), trigger: args[5].(time.Time),
 			due: args[6].(time.Time), status: "proposed"}
 		return pgRowResult{vals: []any{id}}
+	case strings.Contains(sql, "SELECT trigger_on, subject_kind") && strings.Contains(sql, "FOR UPDATE"):
+		r := f.rows[args[0].(string)]
+		if r == nil {
+			return pgRowResult{err: pgx.ErrNoRows}
+		}
+		trig := r.trigger
+		return pgRowResult{vals: []any{&trig, r.kind, r.subject, r.pack, r.rule}}
 	case strings.Contains(sql, "FOR UPDATE") && strings.Contains(sql, "WHERE id = $1"):
 		r := f.rows[args[0].(string)]
 		if r == nil {
@@ -138,6 +145,14 @@ func (f *tableTx) Exec(_ context.Context, sql string, args ...any) (pgconn.Comma
 		}
 		f.log = append(f.log, pgConfirm{deadline: args[0].(string), user: args[1].(string), date: args[2].(time.Time)})
 		return pgconn.NewCommandTag("INSERT 0 1"), nil
+	case strings.Contains(sql, "SET trigger_on = $2"):
+		r := f.rows[args[0].(string)]
+		if r == nil {
+			return pgconn.NewCommandTag("UPDATE 0"), nil
+		}
+		r.trigger = args[1].(time.Time)
+		f.updates++
+		return pgconn.NewCommandTag("UPDATE 1"), nil
 	case strings.Contains(sql, "SET pack_version = $2"):
 		r := f.rows[args[0].(string)]
 		// The guard in the statement: a confirmed row is never re-computed.
@@ -621,6 +636,73 @@ func TestPGBookRepackPublishesPackEvent(t *testing.T) {
 				msgs[0].Subject != (deadline.Subject{Kind: deadline.SubjectRulePack, ID: "helpdesk_sla"}) ||
 				string(msgs[0].Payload) != `{"pack_id":"helpdesk_sla","version":"2","recomputed":1}` {
 				t.Fatalf("events = %+v", msgs)
+			}
+		})
+	}
+}
+
+// rule: ARC-I-035
+// ChangeTrigger publishes deadline.trigger_date_changed in its tx, so F-DL-03 recomputes the
+// dependants; the due date stays until a person confirms. With no emitter it writes nothing.
+func TestPGBookChangeTriggerPublishesEvent(t *testing.T) {
+	ctx := context.Background()
+	p := deadline.Pack{ID: "helpdesk_sla", Version: "1", Rules: []deadline.Rule{{ID: "auto_close", Mode: deadline.Calendar, Days: 14}}}
+	first := date(2026, time.March, 2)
+	tests := []struct {
+		name      string
+		noEvents  bool
+		unknown   bool
+		trigger   deadline.Date
+		wantErr   error
+		wantEvent bool
+	}{
+		{name: "new date emits old and new", trigger: date(2026, time.March, 9), wantEvent: true},
+		{name: "same date writes nothing", trigger: first},
+		{name: "no emitter writes nothing", noEvents: true, trigger: date(2026, time.March, 9), wantErr: deadline.ErrInvalidPack},
+		{name: "no date", trigger: deadline.Date{}, wantErr: deadline.ErrInvalidPack},
+		{name: "unknown deadline", unknown: true, trigger: date(2026, time.March, 9), wantErr: deadline.ErrNotFound},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b, tx := newPG()
+			ev := outboxfake.New()
+			b.Events = ev
+			if err := b.LoadPack(ctx, p); err != nil {
+				t.Fatal(err)
+			}
+			id, err := b.Save(ctx, tx, pgProposal(t, p, "auto_close", first))
+			if err != nil {
+				t.Fatal(err)
+			}
+			due := tx.rows[string(id)].due
+			if tt.noEvents {
+				b.Events = nil
+			}
+			target := id
+			if tt.unknown {
+				target = "00000000-0000-0000-0000-999999999999"
+			}
+			err = b.ChangeTrigger(ctx, tx, target, tt.trigger)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("ChangeTrigger err = %v, want %v", err, tt.wantErr)
+			}
+			row := tx.rows[string(id)]
+			if !row.due.Equal(due) {
+				t.Fatalf("due changed to %v", row.due)
+			}
+			msgs := ev.Messages()
+			if !tt.wantEvent {
+				if len(msgs) != 0 || tx.updates != 0 {
+					t.Fatalf("emitted %d events, %d updates; want none", len(msgs), tx.updates)
+				}
+				return
+			}
+			want := `{"deadline_id":"` + string(id) + `","subject_kind":"ticket","subject_id":"` + subjectID +
+				`","pack_id":"helpdesk_sla","rule_id":"auto_close","old_trigger":"2026-03-02","new_trigger":"2026-03-09"}`
+			if len(msgs) != 1 || msgs[0].Type != deadline.EventTriggerDateChanged ||
+				msgs[0].Subject != (deadline.Subject{Kind: deadline.SubjectDeadline, ID: string(id)}) ||
+				string(msgs[0].Payload) != want || !row.trigger.Equal(tt.trigger.Start(time.UTC)) {
+				t.Fatalf("events = %+v, trigger = %v", msgs, row.trigger)
 			}
 		})
 	}

@@ -307,6 +307,7 @@ Bookkeeper B (not the authorizer) pays at bank
 <tr><td><code>document.uploaded</code></td><td>docs</td><td>document</td><td>document_id, version_id, matter_id, sha256, bytes, mime</td></tr>
 <tr><td><code>document.draft_created</code></td><td>docs</td><td>draft</td><td>draft_id, matter_id, origin(agent|human), agent_run_id?, citation_count</td></tr>
 <tr><td><code>document.released</code></td><td>docs</td><td>document</td><td>document_id, version_id, channel, recipient_contact_ids[], gate_id</td></tr>
+<tr><td><code>email.filed</code></td><td>comms</td><td>comm_item</td><td>comm_item_id, matter_id, filed_by</td></tr>
 <tr><td><code>deadline.proposed</code></td><td>cal</td><td>deadline</td><td>deadline_id, matter_id, due_on, rule_ref?, origin</td></tr>
 <tr><td><code>deadline.confirmed</code></td><td>cal</td><td>deadline</td><td>deadline_id, matter_id, due_on, gate_id</td></tr>
 <tr><td><code>deadline.changed</code></td><td>cal</td><td>deadline</td><td>deadline_id, from_due_on, to_due_on, gate_id</td></tr>

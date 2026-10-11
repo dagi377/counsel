@@ -39,6 +39,7 @@ const (
 	CodePeriodLocked          = "period_locked"
 	CodeUnexplainedDifference = "unexplained_difference"
 	CodeUnparseableStatement  = "unparseable_statement"
+	CodeNoStatementParser     = "no_statement_parser"
 	CodeBankBalanceMismatch   = "bank_balance_mismatch"
 	CodeUnverified            = "trust_rules_unverified"
 )
@@ -388,7 +389,18 @@ func (h *WriteHTTP) writeErr(w http.ResponseWriter, r *http.Request, err error) 
 		h.fail(w, r, http.StatusConflict, CodePeriodLocked, "The month is reconciled and locked")
 	case errors.Is(err, ErrUnbalanced):
 		h.fail(w, r, http.StatusUnprocessableEntity, CodeUnexplainedDifference, "Reconciliation has an unexplained difference")
+	case errors.Is(err, ErrNoParser):
+		h.fail(w, r, http.StatusUnprocessableEntity, CodeNoStatementParser, "No bank statement parser is configured")
 	case errors.Is(err, ErrUnparseable), errors.Is(err, ErrStatementMismatch):
+		// A ParseError names only the line and the reason, never the file text, so it is
+		// safe as the problem detail.
+		var pe *ParseError
+		if errors.As(err, &pe) {
+			p := server.NewProblem(http.StatusUnprocessableEntity, CodeUnparseableStatement, "Statement cannot be read or does not sum to its closing balance")
+			p.Detail = pe.Error()
+			h.pw().WriteProblem(w, r, p)
+			return
+		}
 		h.fail(w, r, http.StatusUnprocessableEntity, CodeUnparseableStatement, "Statement cannot be read or does not sum to its closing balance")
 	default:
 		h.fail(w, r, http.StatusInternalServerError, server.CodeInternal, "Internal error")
@@ -398,7 +410,7 @@ func (h *WriteHTTP) writeErr(w http.ResponseWriter, r *http.Request, err error) 
 func viewOf(rec Reconciliation, version int64) reconView {
 	v := reconView{ID: rec.ID, Version: version, AccountID: rec.AccountID,
 		Month:            fmt.Sprintf("%04d-%02d", rec.Period.Year, int(rec.Period.Month)),
-		BankBalanceCents: rec.Result.BankCents, OutstandingItemsCents: rec.Result.AdjustedBankCents - rec.Result.BankCents,
+		BankBalanceCents: rec.Result.BankCents, OutstandingItemsCents: rec.Result.OutstandingItemsCents(),
 		AdjustedBankCents: rec.Result.AdjustedBankCents, JournalBalanceCents: rec.Result.BookCents,
 		ClientListingTotalCents: rec.Result.ClientLedgerCents, Balanced: rec.Result.Balanced(), Status: "prepared"}
 	if rec.Status == StatusApproved {
