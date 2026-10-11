@@ -78,5 +78,8 @@ func appDefs() []feature.Def {
 		legaldocs.CourtFormCurrencyDef(),
 		legaldocs.AssemblyOnStageDef(),
 		legaldocs.TrackedRevisionDef(),
+		legaldocs.ProposeFieldsDef(),
+		legaldocs.AskClientForMissingAnswersDef(),
+		legaldocs.AnonymizeDef(),
 	}
 }
