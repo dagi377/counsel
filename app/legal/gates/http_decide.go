@@ -240,7 +240,7 @@ func (h *DecideHTTP) decide(w http.ResponseWriter, r *http.Request, p registry.P
 	mfa := h.StepUp(r)
 	if mfa.IsZero() || mfa.After(now) ||
 		((k.Risk == registry.RiskHigh || k.Risk == registry.RiskIrreversible) && now.Sub(mfa) > StepUpWindow) {
-		rd.fail(w, r, http.StatusForbidden, CodeStepUpRequired, "Step-up authentication is required")
+		h.stepUp(w, r)
 		return
 	}
 	// rule: ARC-I-016
@@ -294,6 +294,17 @@ func (h *DecideHTTP) writeGate(w http.ResponseWriter, r *http.Request, id gate.G
 	writeJSON(w, http.StatusOK, h.read().view(out))
 }
 
+// StepUpChallenge is the RFC 9470 challenge a decision without fresh step-up auth answers.
+const StepUpChallenge = `Bearer error="insufficient_user_authentication"`
+
+// stepUp answers 401 step_up_required with the RFC 9470 challenge, matching kernel/gate's
+// problem table for ErrMFARequired.
+func (h *DecideHTTP) stepUp(w http.ResponseWriter, r *http.Request) {
+	// rule: ARC-I-017
+	w.Header().Set("WWW-Authenticate", StepUpChallenge)
+	h.read().fail(w, r, http.StatusUnauthorized, CodeStepUpRequired, "Step-up authentication is required")
+}
+
 // engineProblems maps engine and effect sentinels to problems, first match wins. Effect
 // errors come before ErrEffectFailed so their own code shows.
 var engineProblems = []struct {
@@ -306,7 +317,6 @@ var engineProblems = []struct {
 	{ErrAgentApproves, http.StatusForbidden, CodeAgentCannotDecide},
 	{gate.ErrSelfApproval, http.StatusForbidden, CodeSelfApproval},
 	{ErrPreparerApproves, http.StatusForbidden, CodeSelfApproval},
-	{gate.ErrMFARequired, http.StatusForbidden, CodeStepUpRequired},
 	{gate.ErrNotAuthorized, http.StatusForbidden, CodeMissingCapability},
 	{ErrMissingCapability, http.StatusForbidden, CodeMissingCapability},
 	{gate.ErrNotPreparer, http.StatusForbidden, CodeNotPreparer},
@@ -323,6 +333,10 @@ var engineProblems = []struct {
 // writeEngineErr maps a Decide or Withdraw error; the error text never reaches the body.
 func (h *DecideHTTP) writeEngineErr(w http.ResponseWriter, r *http.Request, err error) {
 	rd := h.read()
+	if errors.Is(err, gate.ErrMFARequired) {
+		h.stepUp(w, r)
+		return
+	}
 	for _, pr := range engineProblems {
 		if errors.Is(err, pr.err) {
 			rd.fail(w, r, pr.status, pr.code, http.StatusText(pr.status))
