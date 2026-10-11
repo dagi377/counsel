@@ -2573,3 +2573,10 @@ Done in PORT-18:
   outside the task's list, shared byte-for-byte with FEAT-DOC-08 and FEAT-DOC-09 so the three
   branches merge cleanly. FEAT-DOC-06 already covered one G-D2 gate end to end; this task's
   test drives both gate kinds in one run.
+## Q-FEAT-DOC-08 F-DOC-07 precedent-candidates: base and helpers
+
+- Builds on task/FEAT-DOC-06 (the `prompts` embed and `GatePrecedent`) and task/JOB-ACTOR
+  (the monthly run binds with `trigger.BindDesignated`); both are merged into this branch.
+- The end-to-end tests use `app/legal/docs/ai_docc_helpers_test.go` (prefix `docc`), shared
+  byte-for-byte with FEAT-DOC-07 and FEAT-DOC-09. The featureset files and the generated
+  skill get one line or file for F-DOC-07.
