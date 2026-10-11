@@ -5,6 +5,8 @@
 -- (computed at draft time); the G-B5 effect approves it once and only then inserts the
 -- billing.write_off row with the same id. Nothing is deleted; the only updates are setting each
 -- gate id once and draft -> approved once.
+SET LOCAL lock_timeout = '2s';
+SET LOCAL statement_timeout = '5s';
 
 -- @module billing @retention RC-FIN @class amounts:P1
 CREATE TABLE billing.write_off_draft (
