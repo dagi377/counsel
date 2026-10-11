@@ -19,6 +19,7 @@ import (
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/platform"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/work"
@@ -168,5 +169,7 @@ func appDefs() []feature.Def {
 		work.ExplainFailedRunDef(),
 		work.SuggestCategoriesDef(),
 		work.ExplainNumberDef(),
+		// platform
+		platform.GoalRunnerDef(),
 	}
 }

@@ -4255,3 +4255,16 @@ of FEAT-TIM-01 above.
   draft_document schema FORM-SUBJECT changed. list_unbilled now records provenance itself
   (sourcedRead) and boot also wraps every read tool (TIME-FIX); recording a value twice is
   harmless, but one of the two can go.
+
+## Q-FEAT-PLT-14 F-PLT-14 goal runner event and gate
+
+- F-PLT-14 binds a new `platform.EventGoalAccepted` (`agent.goal_accepted`), acting for the
+  lawyer who accepted the goal (the event's `user_id`). No module emits it yet: ask-agent has
+  no accept-goal endpoint on main. Open: the ask-agent goal flow should publish it with the
+  goal's matter id.
+- Each regulated step is drafted on the goal's matter with draft_document and opens the
+  tool-gap kind `platform.skill_autonomy` with submit_for_approval (the Q-FEAT-INT-06
+  pattern). No const names this kind in the app (intake also uses the literal).
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (binding), the generated plugin skill, and the shared test helpers
+  `app/legal/platform/ai_pltf_helpers_test.go`.
