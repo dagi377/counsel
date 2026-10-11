@@ -2873,7 +2873,9 @@
    "screens": [
     "consult-outcome"
    ],
-   "tool_gap": [],
+   "tool_gap": [
+    "intake.consult_outcome"
+   ],
    "trigger": "on request: consult-outcome > Generate non-engagement letter",
    "on_request": [],
    "inputs": "screen context of consult-outcome (selected record ids) plus tool reads: search_contacts, search_matters",
@@ -2882,6 +2884,7 @@
     "search_contacts",
     "search_matters",
     "draft_note",
+    "draft_document",
     "report_plan",
     "report_step",
     "submit_for_approval"

@@ -76,6 +76,7 @@ func appDefs() []feature.Def {
 		// intake
 		intake.DeclineReferLetterDef(),
 		intake.ConsultNoteDef(),
+		intake.NonEngagementLetterDef(),
 		intake.ConversionPrefillDef(),
 	}
 }
