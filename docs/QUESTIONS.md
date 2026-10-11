@@ -3024,3 +3024,16 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 - The letters go through docs.outgoing (G8), reusing docs.GateOutgoing. draft_document checks
   no provenance on main, so the rates in a letter are not checked against the run's reads; the
   prompt forbids invented values and a lawyer approves each letter before it is sent.
+
+## Q-FEAT-TIM-07 F-TIM-07 screen subject and value provenance
+
+- The time-entry-detail screen maps to subject kind matter with time.record in boot
+  actionScreens: no time-entry subject kind is registered, and the timekeeping HTTP routes
+  check access on the entry's matter as well.
+- propose_time_entries declares no provenance fields on main. F-TIM-07's prompt keeps the
+  selected entry's work date and minutes, and the feature test checks the suggestion carries
+  exactly the values list_unbilled returned. Wrapping the tool with
+  Provenance.SourcedWrite("/entries/*/minutes", "/entries/*/work_date") would break F-TIM-01,
+  whose proposals come from activity signals, so it is left to a tool-level decision.
+- The gate kind is spelled "timekeeping.accept" in the Def (as in F-TIM-01) because
+  app/legal/agent, which owns GateTimeAccept, imports this package.

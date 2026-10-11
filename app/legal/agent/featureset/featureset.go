@@ -76,5 +76,6 @@ func appDefs() []feature.Def {
 		// time
 		timekeeping.EngagementTermsDef(),
 		timekeeping.RateChangeImpactDef(),
+		timekeeping.RewriteNarrativeDef(),
 	}
 }

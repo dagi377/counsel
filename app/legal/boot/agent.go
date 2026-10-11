@@ -360,6 +360,8 @@ var actionScreens = map[string]trigger.Screen{
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
 	// Time. A fee arrangement is the matter's; the screen selects the matter.
 	"matter-fee-arrangement": {SubjectKind: "matter", Capability: "billing.view"},
+	// A time entry is checked on its matter (timekeeping HTTP does the same).
+	"time-entry-detail": {SubjectKind: "matter", Capability: "time.record"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
