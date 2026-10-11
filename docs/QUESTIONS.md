@@ -1504,3 +1504,20 @@ Done in PORT-18:
   consumer that calls bill.Service.Deliver is a boot follow-up.
 - Gate subject kind for bills is `billing.bill` (bill.SubjectBill).
 - A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+
+## HTTP-14: payment list, record and get routes (files outside the task)
+
+- `payment.Service` gains `List(ctx, ListFilter)` and `ListFilter` in contract.go (additive,
+  as the accept line asks); `paymentfake` gains `List` and an optional `NewID` so tests get
+  uuid payment ids. Pages run by id.
+- A body with a `trust_ledger` allocation, or a service ErrRetainerToOperating /
+  ErrTrustReceipt, answers 422 `use_trust_receipts` (proposed code) with detail and instance
+  pointing at /v1/trust/receipts; PaymentCreate has no account field, so "trust-account
+  payment body" is read as a trust_ledger target.
+- POST /payments captures to at most one bill; more than one bill allocation answers 422
+  validation_failed pointing at POST /payments/{payment_id}/allocations.
+- Payment has no row version or allocation ids yet: `version` is 1, ETag "1", and each
+  allocation id is a stable uuid derived from (payment id, index). received_at echoes the
+  business date (midnight America/Toronto), since Capture keeps only ReceivedOn.
+  processor_fee_cents is accepted and not stored (Capture has no field for it).
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).

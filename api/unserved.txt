@@ -20,9 +20,6 @@ GET /gates
 GET /gates/{gate_id}
 POST /gates/{gate_id}/decisions
 POST /gates/{gate_id}/withdraw
-GET /payments
-POST /payments
-GET /payments/{payment_id}
 POST /payments/{payment_id}/allocations
 POST /payments/{payment_id}/refunds
 GET /roles
