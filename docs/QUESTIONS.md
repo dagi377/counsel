@@ -4718,3 +4718,40 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   (agent.RunRecords, the agent_feature_run worker). Both are kept; both default to
   run.PGRecords on the kernel DB. Follow-up RUN-RECORDS-ONE: fold them into one field. The
   run_record_first test helper was renamed firstRecords (it clashed with the worker's).
+
+## ENQUEUER: kernel insert-only job client for apps
+
+- Additive kernel change: `kboot.JobInserter`, `Kernel.Enqueuer` and `Deps.Enqueuer`. `Run`
+  opens an insert-only River client (no workers, no queues) on the direct DSN (ARC-U-011)
+  in both the server and the worker role, before Register, and closes it when the role
+  ends. counseld only inserts; counsel-worker works the jobs on its own client.
+- `Production.Jobs` stays; when nil, the agent layer enqueues on `Kernel.Enqueuer`. This
+  closes the AGENT-PROD-2b open item: the screen-action route queues `agent_feature_run`,
+  and the job-feature bindings are built, so the tick job (worker role) enqueues the
+  scheduled runs.
+- New outbox consumer `agent.feature_trigger` (`TriggerConsumer`) hands each relayed event
+  to `Bindings.OnEvent`. It inserts outside the consumer's transaction; the run is unique by
+  feature and event id, so a redelivery inserts nothing. A bound event naming no acting user
+  is logged and skipped, not retried.
+- Open: no migration creates River's tables (`river_job`, ...); nothing in the repo runs
+  `rivermigrate`. The integration test migrates its own database. Decide whether
+  counsel-migrate runs River's migrations or the schema goes into a numbered migration.
+
+## RIVER-MIGRATE: River's tables come from counsel-migrate
+
+- Closes the ENQUEUER open item. `counsel-migrate -mode=expand` now runs River's own
+  migrations (`rivermigrate up`, kernel/boot `migrateRiver`) after the numbered files, then
+  grants River's tables to `counsel_app` (insert) and `counsel_jobs` (work, clean, leader),
+  with `river_migration` read-only. Chosen over a numbered file so River's version
+  bookkeeping (`river_migration`) stays River's and a River upgrade needs no hand-copied SQL.
+- Idempotent: rivermigrate skips applied versions and the grants can run again. The grant
+  SQL sets `lock_timeout` 2s and `statement_timeout`; a unit test runs the migration lint on
+  it. The Helm migrate Job already runs `-mode=expand`, so it gets the step; the repo has no
+  compose migrate service.
+- River's tables live in the migrator's current schema (`public` by default), where the
+  clients resolve them. They are not recorded in `schema_meta.applied`, so `wait-version`
+  does not wait for them; the expand Job runs both before it completes.
+- RIVER-MIGRATE's TestProductionTriggersEnqueue predates the F-TIM-01 per-user fan-out on
+  main: its tick reached the Postgres timekeepers over the fake DB. The test now wires one
+  timekeeper and checks more, not less: F-TIM-01 must enqueue a run acting for that
+  timekeeper, and every other scheduled run still acts for the designated lawyer.

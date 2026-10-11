@@ -110,6 +110,9 @@ type Kernel struct {
 	Server   server.Server
 	Events   *webhook.Types
 	Jobs     *Jobs // River workers and periodic jobs apps add at Register
+	// Enqueuer inserts jobs without working them, in every role; the worker role runs them.
+	// Nil when built without a database (Build, tests).
+	Enqueuer JobInserter
 	// Outbox delivers pending outbox messages to the registered consumers (kind outbox.relay).
 	// Nil leaves the relay unscheduled.
 	Outbox *outbox.Deliverer
@@ -169,6 +172,8 @@ type Deps struct {
 	WebhookPoster    WebhookPoster
 	// AdminStore is optional; it applies approved identity admin changes.
 	AdminStore identity.AdminStore
+	// Enqueuer is optional; it becomes Kernel.Enqueuer.
+	Enqueuer JobInserter
 }
 
 // Build creates the kernel and calls every app's Register in order.
@@ -186,7 +191,7 @@ func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kerne
 		Jobs: NewJobs(), Outbox: deps.Outbox, Emitter: deps.Emitter, Notify: deps.Notify,
 		NotifySender: deps.NotifySender, WebhookExpiry: deps.WebhookExpiry,
 		Dispatcher: deps.Dispatcher, WebhookEndpoints: deps.WebhookEndpoints, WebhookPoster: deps.WebhookPoster,
-		AdminStore: deps.AdminStore,
+		AdminStore: deps.AdminStore, Enqueuer: deps.Enqueuer,
 	}
 	for _, a := range apps {
 		if a.Register == nil {

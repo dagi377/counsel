@@ -82,8 +82,9 @@ type Production struct {
 	// FirmAccount is the payee id of the firm's general account, which fee transfers out of
 	// trust pay. Empty leaves the agent features not ready.
 	FirmAccount string
-	// Jobs enqueues the queued agent runs and the job features' triggers. Nil leaves the
-	// queued features not ready.
+	// Jobs enqueues the queued agent runs and the job features' triggers. Nil uses the
+	// kernel's insert-only job client (Kernel.Enqueuer); with neither, the queued features
+	// are not ready.
 	Jobs trigger.Enqueuer
 	// Readiness, when set, receives every agent feature that cannot run and why.
 	Readiness *AgentReadiness

@@ -37,7 +37,9 @@ import (
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/deadline"
 	"github.com/dagi377/counsel/kernel/notify"
+	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
+	"github.com/jackc/pgx/v5"
 )
 
 // AgentPorts are the module query APIs the agent tool handlers read through, one field per
@@ -469,6 +471,26 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 	return nil
 }
 
+// ConsumerTrigger is the outbox consumer that starts event-bound job features.
+const ConsumerTrigger = "agent.feature_trigger"
+
+// TriggerConsumer hands each outbox event to b, which enqueues one agent_feature_run per
+// feature bound to its type. An event no binding listens to is a no-op. A bound event that
+// names no acting user starts no run (fail closed) and is not retried.
+func TriggerConsumer(b *trigger.Bindings) outbox.Consumer {
+	return outbox.Consumer{Name: ConsumerTrigger, Handle: func(ctx context.Context, _ pgx.Tx, m outbox.Message) error {
+		// rule: AI-R-005
+		// The job carries the event's ids only; the run is unique by feature and event id, so
+		// a redelivered event inserts no second run.
+		_, err := b.OnEvent(ctx, m)
+		if errors.Is(err, trigger.ErrNoActingFor) {
+			slog.WarnContext(ctx, "agent feature not started: event names no acting user", "event", m.ID, "type", m.Type)
+			return nil
+		}
+		return err
+	}}
+}
+
 // AddTickJob adds the TickWorker and its periodic job, which enqueue the scheduled runs.
 func AddTickJob(j *kboot.Jobs, b *trigger.Bindings) error {
 	if err := kboot.AddWorker(j, &trigger.TickWorker{Bindings: b}); err != nil {
@@ -830,6 +852,11 @@ func registerAgent(w *AgentWiring) hook {
 			}
 			if k.Jobs != nil {
 				if err := AddTickJob(k.Jobs, w.Bindings); err != nil {
+					return err
+				}
+			}
+			if k.Outbox != nil {
+				if err := k.AddConsumer(TriggerConsumer(w.Bindings)); err != nil {
 					return err
 				}
 			}
