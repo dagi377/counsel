@@ -4294,3 +4294,12 @@ of FEAT-TIM-01 above.
   screens, like `client-sharing`.
 - Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (screen), the
   generated plugin skill, `app/legal/platform/ai_pltf_helpers_test.go`.
+
+## FEAT-PLT-26 Action screens of the read-only platform answers
+
+- F-PLT-18 runs from `ask-agent`, which selects a matter (`matters.view`). F-PLT-23 and
+  F-PLT-24 run from `custom-report-builder` and `firm-insights`, firm-level screens, so they
+  use `boot.FirmSubject` with `reports.firm`. Open: their tools (get_matter,
+  search_documents, read_document) take a matter id, so on a firm subject the run reads only
+  the matters the screen context names; a firm-wide read tool is out of this task's scope.
+- The pltj test helpers live in the platform helper file `ai_pltf_helpers_test.go`.

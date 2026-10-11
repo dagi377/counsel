@@ -430,6 +430,9 @@ var actionScreens = map[string]trigger.Screen{
 	// Firm-level screens act on the firm, not on a matter.
 	"conflict-search-settings": {SubjectKind: FirmSubject, Capability: "conflicts.run"},
 	"compliance-audit-log":     {SubjectKind: FirmSubject, Capability: "admin.audit_log"},
+	// Firm reports: the report builder and firm insights read firm-wide figures.
+	"custom-report-builder": {SubjectKind: FirmSubject, Capability: "reports.firm"},
+	"firm-insights":         {SubjectKind: FirmSubject, Capability: "reports.firm"},
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
@@ -458,6 +461,7 @@ var actionScreens = map[string]trigger.Screen{
 	"matter-access":            {SubjectKind: "matter", Capability: "matters.view"},
 	"matter-access-report":     {SubjectKind: "matter", Capability: "matters.view"},
 	"matter-ask":               {SubjectKind: "matter", Capability: "matters.view"},
+	"ask-agent":                {SubjectKind: "matter", Capability: "matters.view"},
 	"global-search":            {SubjectKind: "matter", Capability: "matters.view"},
 	"contact-import":           {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
 	"matter-list":              {SubjectKind: "matter", Capability: "matters.view"},

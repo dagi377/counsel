@@ -173,5 +173,8 @@ func appDefs() []feature.Def {
 		platform.GoalRunnerDef(),
 		platform.RetainerCoverageDef(),
 		platform.RequestPortalDocumentsDef(),
+		platform.AnswerWithCitationsDef(),
+		platform.DescribeReportDef(),
+		platform.ExplainChangeDef(),
 	}
 }
