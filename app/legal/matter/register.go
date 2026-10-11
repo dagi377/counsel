@@ -33,3 +33,12 @@ func registerReadRoutes(r registry.Registry) error {
 	r.Routes((&HTTP{}).Routes)
 	return nil
 }
+
+func init() { add(registerWriteRoutes) }
+
+// registerWriteRoutes mounts POST /matters and PATCH /matters/{matter_id} through
+// Registry.Routes. Boot wiring supplies the dependencies; until it does, the routes answer 503.
+func registerWriteRoutes(r registry.Registry) error {
+	r.Routes((&Writes{}).WriteRoutes)
+	return nil
+}

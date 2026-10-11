@@ -675,3 +675,25 @@ contract declares yet. Not built.
   matter.restricted -> matter.widen_access; matter.status=closed -> platform.closing;
   trust_account.signatories -> core.trust_signatory; trust_txn.posted is split into
   `=receipt` (trust.receipt_classification) and `=transfer` (trust.transfer).
+
+## HTTP-01 / HTTP-02: matter routes (decisions taken, open items)
+
+- Routes register a zero-value `matter.HTTP` / `matter.Writes` through `Registry.Routes`;
+  every route answers 503 `unavailable` and calls nothing until boot wiring supplies the
+  dependencies (same as the withdrawal execution route). The BOOT tasks must inject them.
+- GET /matters: one capability check per request (ARC-I-042); walled and restricted matters
+  are left out by Query under the caller's RLS session, not by per-row checks. openapi
+  declares no `cursor`/`limit` parameters and no 200 schema for /matters; the handler takes
+  both (api.FromRequest) and the 200 bodies are not schema-checked.
+- POST /matters: the rule wins over the task text. Same key + different body returns 422
+  `idempotency_key_reused` (ARC-I-008), not 409. kernel/idem's own problem bodies omit the
+  required `type` field of the Problem schema; the handler checks the missing key itself so
+  that 400 validates, but the 422/409 bodies from `idem.New` do not (fix in kernel/idem).
+- POST /matters opens `matter.opening` with subject `party.contact`/client_id: the matter
+  row does not exist until the effect creates it. Needed: the matter.opening effect
+  (service gap) and a confirmation of the subject.
+- PATCH: plain-field writes go through a new `matter.Updater` port (declared in
+  http_write.go, not the frozen contract); its Postgres implementation is a service gap.
+  status=open opens matter.opening; closing/closed/archived open platform.closing (verify);
+  team and restricted open matter.widen_access. One gated change per request; mixing plain
+  and gated fields is 400.
