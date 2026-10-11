@@ -1529,3 +1529,8 @@ Done in PORT-18:
   it, so the withdrawal gate and the signatory list use one rule. Branch is based on
   `task/PORT-10`, so PORT-10 must merge first. Boot wires `withdraw.PGSigners{}` into
   `TrustPorts.Signers` with no new SQL.
+- Q-PORT-22 (open): the Clio client (app/legal/clio) has no webhook-subscription renew call,
+  so nothing implements sync.SubscriptionRenewer yet. PORT-22 ships only OutboxNotifier.
+  Needed: a `Renew(ctx, remoteID) (time.Time, error)` PATCH on the Clio webhook endpoint in
+  app/legal/clio/client.go (with cliofake support). Until then BOOT-19 wires the renewal job
+  only behind its flag, which is off by default.
