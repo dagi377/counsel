@@ -3524,3 +3524,39 @@ of FEAT-TIM-01 above.
 - F-TIM-03's monthly run and F-DOC-09's daily run bind with `trigger.BindDesignated`: they act
   for the feature's designated lawyer in firm settings, never the rule admin. Their Binding
   funcs take no acting user; with no designated lawyer the feature is unready.
+
+## Q-FEAT-TIM-05 F-TIM-05 trigger event, screen subject and value provenance
+
+- No module publishes an engagement-letter-signed event yet; F-TIM-05 binds
+  `engagement_letter.signed` (timekeeping.EventEngagementLetterSigned). The documents module
+  publishes it when a letter reaches status signed.
+- The matter-fee-arrangement screen selects the matter (a fee arrangement belongs to one
+  matter), capability billing.view, in boot actionScreens.
+- draft_document declares no provenance fields on main, so the rates and amounts in the
+  drafted arrangement are not checked against the run's reads (ErrUnsourcedValue does not
+  apply). The prompt forbids invented amounts and a lawyer approves G9e before the
+  arrangement prices any time.
+- The Seed has no time ports: the feature tests add a timekeeping fake and an
+  agent.MatterTime over it (ai_timc_helpers_test.go), so list_unbilled runs its real handler.
+
+## Q-FEAT-TIM-06 F-TIM-06 trigger event
+
+- No module publishes a rate-change-drafted event yet; F-TIM-06 binds `rate_change.drafted`
+  (timekeeping.EventRateChangeDrafted). The rates module publishes it when a rate change is
+  drafted, before its effective date.
+- The letters go through docs.outgoing (G8), reusing docs.GateOutgoing. draft_document checks
+  no provenance on main, so the rates in a letter are not checked against the run's reads; the
+  prompt forbids invented values and a lawyer approves each letter before it is sent.
+
+## Q-FEAT-TIM-07 F-TIM-07 screen subject and value provenance
+
+- The time-entry-detail screen maps to subject kind matter with time.record in boot
+  actionScreens: no time-entry subject kind is registered, and the timekeeping HTTP routes
+  check access on the entry's matter as well.
+- propose_time_entries declares no provenance fields on main. F-TIM-07's prompt keeps the
+  selected entry's work date and minutes, and the feature test checks the suggestion carries
+  exactly the values list_unbilled returned. Wrapping the tool with
+  Provenance.SourcedWrite("/entries/*/minutes", "/entries/*/work_date") would break F-TIM-01,
+  whose proposals come from activity signals, so it is left to a tool-level decision.
+- The gate kind is spelled "timekeeping.accept" in the Def (as in F-TIM-01) because
+  app/legal/agent, which owns GateTimeAccept, imports this package.

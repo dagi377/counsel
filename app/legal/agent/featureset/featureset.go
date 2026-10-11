@@ -145,5 +145,8 @@ func appDefs() []feature.Def {
 		timekeeping.ReceiptCaptureDef(),
 		timekeeping.PreBillCheckDef(),
 		timekeeping.TimesheetPreReviewDef(),
+		timekeeping.EngagementTermsDef(),
+		timekeeping.RateChangeImpactDef(),
+		timekeeping.RewriteNarrativeDef(),
 	}
 }

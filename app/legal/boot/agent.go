@@ -342,6 +342,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		tk.ReceiptCaptureDef().ID:     tk.ReceiptCaptureBinding,
 		tk.PreBillCheckDef().ID:       tk.PreBillCheckBinding,
 		tk.TimesheetPreReviewDef().ID: tk.TimesheetPreReviewBinding,
+		tk.EngagementTermsDef().ID:    tk.EngagementTermsBinding,
+		tk.RateChangeImpactDef().ID:   tk.RateChangeImpactBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -474,6 +476,10 @@ var actionScreens = map[string]trigger.Screen{
 	// A pre-bill check reviews the matter's unbilled time.
 	"matter-wip":  {SubjectKind: "matter", Capability: agent.CapBillingView},
 	"write-downs": {SubjectKind: "matter", Capability: agent.CapBillingView},
+	// Time. A fee arrangement is the matter's; the screen selects the matter.
+	"matter-fee-arrangement": {SubjectKind: "matter", Capability: "billing.view"},
+	// A time entry is checked on its matter (timekeeping HTTP does the same).
+	"time-entry-detail": {SubjectKind: "matter", Capability: "time.record"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
