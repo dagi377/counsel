@@ -4688,3 +4688,33 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   test found propose_payment_allocation unserved: production bound the agent before the HTTP
   write ports filled Payments. `pgPayments(k)` now builds the Postgres payment service for
   both the routes and the agent port, so F-BIL-04 is ready in production.
+## AGENT-PROD / AGENT-PROD-2b: production agent wiring, draft bodies, feature-run worker
+- AGENT-PROD edited files outside the boot module's own list: `cmd/counseld/main.go` gained
+  the model flags (`-model-mode`, `-model-base-url`, `-model-protocol`, `-model`,
+  `-firm-account`; the key only from `$COUNSEL_MODEL_KEY`), and `app/legal/boot/boot.go`
+  registers the agent through `w.registerAgent`, so the wiring `bindProduction` builds is the
+  one registered. Both are wiring only: the flags fill `legalboot.Production`, which holds the
+  logic. AGENT-PROD-2b adds the same model flags to `cmd/counsel-worker/main.go`, since the
+  worker now runs the agent features. Confirm these files may be touched by agent wiring tasks.
+- Draft bodies: new table `agent.draft_body` (migration 6202, block app/legal/agent) holds
+  each agent draft's body sealed with AES-256-GCM under the boot seal key
+  (`PGDraftBodies`). Draft rows keep only `agent.draft_body:<uuid>`. DM-020 names encrypted
+  object storage; this is Postgres with app-side sealing until a bucket exists. Open: move
+  the bodies to the cell bucket (kernel/docs Blobs) when one is wired, and add a reader for
+  the review screens (`PGDraftBodies.Get`).
+- Feature-run worker: `FeatureRunWorker` runs `agent_feature_run` jobs. The run id is a UUID
+  derived from the River job id (`JobRunID`), so retries resume one run record and drafts reuse
+  their rows by idempotency key; the action route now answers that run id. A transient model
+  fault retries the job; an unknown feature or no acting user cancels it.
+- Open: production sets no `Production.Jobs` enqueuer (the River client lives inside the
+  kernel worker role), so counseld still queues no write action and no tick enqueues a
+  scheduled run. The kernel needs to expose an insert-only River client to apps.
+- Open: most gate kinds the agent features declare (`conflict.wall`, `docs.template_publish`,
+  ...) are not registered in the boot graph; only 9 kinds are. A run that submits for one of
+  those fails `gate: unknown kind`. The worker end-to-end test registers
+  `docs.template_publish` itself for the scheduled case.
+- AGENT-PROD-3 and AGENT-PROD-2b each added a run record store to AgentWiring: `Records`
+  (boot.RunRecords, the record-first wrap of the action and job runners) and `RunRecords`
+  (agent.RunRecords, the agent_feature_run worker). Both are kept; both default to
+  run.PGRecords on the kernel DB. Follow-up RUN-RECORDS-ONE: fold them into one field. The
+  run_record_first test helper was renamed firstRecords (it clashed with the worker's).

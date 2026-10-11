@@ -10,15 +10,15 @@ import (
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
-// memRecords is an in-memory run record store.
-type memRecords struct {
+// firstRecords is an in-memory run record store.
+type firstRecords struct {
 	recs      map[string]agentrun.Record
 	getErr    error
 	createErr error
 	creates   int
 }
 
-func (m *memRecords) Get(_ context.Context, id string) (agentrun.Record, error) {
+func (m *firstRecords) Get(_ context.Context, id string) (agentrun.Record, error) {
 	if m.getErr != nil {
 		return agentrun.Record{}, m.getErr
 	}
@@ -29,7 +29,7 @@ func (m *memRecords) Get(_ context.Context, id string) (agentrun.Record, error) 
 	return r, nil
 }
 
-func (m *memRecords) Create(_ context.Context, r agentrun.Record) error {
+func (m *firstRecords) Create(_ context.Context, r agentrun.Record) error {
 	if m.createErr != nil {
 		return m.createErr
 	}
@@ -41,7 +41,7 @@ func (m *memRecords) Create(_ context.Context, r agentrun.Record) error {
 // seenRunner reports whether the run was recorded when it started, the way a batch draft's
 // preparer lookup reads agent.run_record.acting_for.
 type seenRunner struct {
-	records *memRecords
+	records *firstRecords
 	ran     bool
 	actor   string
 }
@@ -66,20 +66,20 @@ func TestRecordFirst(t *testing.T) {
 	boom := errors.New("db down")
 	tests := []struct {
 		name    string
-		records func() *memRecords
+		records func() *firstRecords
 		nilRecs bool
 		p       agentrun.Principal
 		want    error
 		creates int
 	}{
-		{"unrecorded run is recorded first", func() *memRecords { return &memRecords{recs: map[string]agentrun.Record{}} }, false, p, nil, 1},
-		{"recorded run is not recorded again", func() *memRecords {
-			return &memRecords{recs: map[string]agentrun.Record{run: {ID: run, ActingFor: "u-lawyer"}}}
+		{"unrecorded run is recorded first", func() *firstRecords { return &firstRecords{recs: map[string]agentrun.Record{}} }, false, p, nil, 1},
+		{"recorded run is not recorded again", func() *firstRecords {
+			return &firstRecords{recs: map[string]agentrun.Record{run: {ID: run, ActingFor: "u-lawyer"}}}
 		}, false, p, nil, 0},
-		{"no store", func() *memRecords { return &memRecords{recs: map[string]agentrun.Record{}} }, true, p, agent.ErrMissingDep, 0},
-		{"store read fails", func() *memRecords { return &memRecords{recs: map[string]agentrun.Record{}, getErr: boom} }, false, p, boom, 0},
-		{"store write fails", func() *memRecords { return &memRecords{recs: map[string]agentrun.Record{}, createErr: boom} }, false, p, boom, 0},
-		{"run without an acting user", func() *memRecords { return &memRecords{recs: map[string]agentrun.Record{}} }, false,
+		{"no store", func() *firstRecords { return &firstRecords{recs: map[string]agentrun.Record{}} }, true, p, agent.ErrMissingDep, 0},
+		{"store read fails", func() *firstRecords { return &firstRecords{recs: map[string]agentrun.Record{}, getErr: boom} }, false, p, boom, 0},
+		{"store write fails", func() *firstRecords { return &firstRecords{recs: map[string]agentrun.Record{}, createErr: boom} }, false, p, boom, 0},
+		{"run without an acting user", func() *firstRecords { return &firstRecords{recs: map[string]agentrun.Record{}} }, false,
 			agentrun.Principal{Kind: registry.PrincipalAgent, RunID: run}, agentrun.ErrNotAgent, 0},
 	}
 	for _, tc := range tests {

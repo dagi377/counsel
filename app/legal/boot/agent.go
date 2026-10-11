@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/work"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
+	"github.com/dagi377/counsel/kernel/ai"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/deadline"
@@ -663,8 +665,13 @@ func (q RiverActionQueue) EnqueueAction(ctx context.Context, featureID string, s
 	// rule: AI-R-005
 	args := trigger.RunArgs{FeatureID: featureID, Subjects: subjects, ActingFor: actingFor, EventID: runID}
 	opts := args.InsertOpts()
-	if _, err := q.Q.Insert(ctx, args, &opts); err != nil {
+	res, err := q.Q.Insert(ctx, args, &opts)
+	if err != nil {
 		return "", fmt.Errorf("action queue %s: %w", featureID, err)
+	}
+	// The worker records the run under the job's run id, so the caller gets that one.
+	if res != nil && res.Job != nil {
+		return JobRunID(res.Job.ID), nil
 	}
 	return runID, nil
 }
@@ -739,6 +746,16 @@ type AgentWiring struct {
 	// Records is where Actions.Runner and Runners record a run before it starts (AGENT-PROD-3).
 	// Nil uses agent.run_record on the kernel DB; with no DB the runners are not wrapped.
 	Records RunRecords
+	// RunModel, RunTools and RunAccess drive the agent_feature_run worker (FeatureRunWorker):
+	// the model, the tool registry the action route uses, and the builder of agent
+	// principals (nil: Actions.Access). With all three set and a job set, boot adds the
+	// worker. RunRecords stores its runs; nil is run.PGRecords on the kernel DB.
+	RunModel   ai.ModelClient
+	RunTools   agenttools.Tools
+	RunAccess  RunPrincipals
+	RunRecords agent.RunRecords
+	// RunWorker is the agent_feature_run worker boot added; nil when it added none.
+	RunWorker *FeatureRunWorker
 }
 
 // timekeepers is the per-user features' user source: the wired one, else the active
@@ -816,6 +833,9 @@ func registerAgent(w *AgentWiring) hook {
 					return err
 				}
 			}
+		}
+		if err := addFeatureRunWorker(k, w, features); err != nil {
+			return err
 		}
 		if w.Actions != nil {
 			w.Actions.Features = features
@@ -921,4 +941,35 @@ func soleTrustAccount(src agent.MatterTrustAccounts) func(ctx context.Context, m
 // bindProduction built is the one registered.
 func (w *wiring) registerAgent(ctx context.Context, k *kboot.Kernel) error {
 	return registerAgent(w.opts.Agent)(ctx, k)
+}
+
+// addFeatureRunWorker adds the agent_feature_run worker to k's job set when w carries a model,
+// a tool registry and a principal builder. The run records default to agent.run_record on
+// the kernel DB; with neither, the worker is not added and the queued features stay queued.
+func addFeatureRunWorker(k *kboot.Kernel, w *AgentWiring, features *feature.Set) error {
+	if k.Jobs == nil || w.RunModel == nil || w.RunTools == nil {
+		return nil
+	}
+	access := w.RunAccess
+	if access == nil && w.Actions != nil && w.Actions.Access != nil {
+		access = w.Actions.Access
+	}
+	records := w.RunRecords
+	if records == nil && k.DB != nil {
+		records = agentrun.PGRecords{DB: k.DB}
+	}
+	if access == nil || records == nil {
+		slog.Warn("agent feature run worker not added: no principal builder or run store")
+		return nil
+	}
+	wk := &FeatureRunWorker{Features: features, Access: access, Model: w.RunModel, Tools: w.RunTools,
+		Provenance: w.Ports.Provenance, Records: records, Designated: designatedOrPG(k, w.Designated)}
+	if k.Clock != nil {
+		wk.Now = k.Clock.Now
+	}
+	if err := kboot.AddWorker(k.Jobs, wk); err != nil {
+		return fmt.Errorf("agent feature run worker: %w", err)
+	}
+	w.RunWorker = wk
+	return nil
 }
