@@ -1596,3 +1596,12 @@ Done in PORT-18:
   read returned with its citation). The manual path is not checked.
 - The gate kind is checked against the run scope before the deadline is saved, so a run whose
   feature does not declare cal.confirm leaves no proposed deadline behind.
+## FEAT-TOOL-16 create_task
+
+- The a2 `create_task` input has `description_markdown`, but the frozen kernel/work `Item`
+  has no description field (the `work.work_item.description` column exists). The tool accepts
+  the field (it is schema-valid) and does not store it. Proposed fix: an additive
+  `Item.Description` in kernel/work, then the tool passes it through.
+- The proposed status is config, not a constant: the tool reads the task workflow and its
+  proposed status through a new `agent.ProposedTasks` port, wired at boot from work config.
+- An assignee walled from the matter is refused as `ErrNotVisible` (404), like the acting user.
