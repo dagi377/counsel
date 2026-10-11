@@ -435,6 +435,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Intake screens. The form builder selects the intake form it edits.
 	"intake-form-builder": {SubjectKind: "intake.intake_form", Capability: "intake.forms"},
 	"consult-outcome":     {SubjectKind: "intake.lead", Capability: "intake.convert"},
+	// Intake.
+	"intake-automations": {SubjectKind: "matter", Capability: "intake.forms"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

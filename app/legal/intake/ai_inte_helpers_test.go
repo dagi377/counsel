@@ -33,6 +33,13 @@ import (
 // submit_for_approval ahead of the Seed's ports. The runs read through search_contacts and
 // search_matters, whose names come back quoted.
 
+// Gate kinds the intake screen-action features open. platform.skill_autonomy is a tool-gap
+// kind: draft_document then submit_for_approval opens it.
+const (
+	inteConsultOutcome = "intake.consult_outcome"
+	inteSkillAutonomy  = "platform.skill_autonomy"
+)
+
 // inteOtherLawyer is a second synthetic user who holds every gate kind's approver capability.
 const inteOtherLawyer = "user-synthetic-intake-reviewer"
 

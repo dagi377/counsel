@@ -3400,3 +3400,13 @@ the same way as F-INT-06 (Q-FEAT-INT-06) and F-DL-02 (Q-FEAT-DL-04):
 - The FromFeature and injection tests run unskipped. The Def is in featureset; the
   consult-outcome screen is the one F-INT-06 registered in boot.
 - The draft_note scoped-opener fix is SCOPE-FIX's.
+
+## Q-FEAT-INT-12 F-INT-17 draft sequence: screen subject and shared helpers
+
+- `intake-automations` is a firm-level settings screen; with no firm subject kind on main
+  (BOOT-24 adds `boot.FirmSubject`, unmerged), it maps to subject `matter` (the matter the
+  draft is filed on, which `draft_document` needs) with capability `intake.forms`. Move it to
+  `FirmSubject` when BOOT-24 lands.
+- `platform.skill_autonomy` is a literal in the Def: no exported constant exists on main or the
+  pushed branches. The end-to-end tests use `app/legal/intake/ai_inte_helpers_test.go` (prefix
+  `inte`), shared byte-for-byte with FEAT-INT-11 and FEAT-INT-13.
