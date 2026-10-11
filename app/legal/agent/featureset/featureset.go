@@ -108,5 +108,6 @@ func appDefs() []feature.Def {
 		matter.RequestIDDef(),
 		matter.MatterDigestDef(),
 		matter.RelatedMattersDef(),
+		matter.AccessHygieneDef(),
 	}
 }

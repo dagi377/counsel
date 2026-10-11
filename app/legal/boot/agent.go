@@ -313,6 +313,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		matter.TemplateFitDef().ID:                  matter.TemplateFitBinding,
 		matter.MatterDigestDef().ID:                 matter.MatterDigestBinding,
 		matter.RelatedMattersDef().ID:               matter.RelatedMattersBinding,
+		matter.AccessHygieneDef().ID:                matter.AccessHygieneBinding,
 		matter.FeatureChronology:                    matter.ChronologyBinding,
 	}
 	for _, d := range s.All() {
@@ -392,6 +393,8 @@ var actionScreens = map[string]trigger.Screen{
 	"practice-area-settings":   {SubjectKind: "matter", Capability: "matters.view"},
 	"contact-list":             {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
 	"firm-home":                {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-access":            {SubjectKind: "matter", Capability: "matters.view"},
+	"matter-access-report":     {SubjectKind: "matter", Capability: "matters.view"},
 	"contact-detail":           {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
 	"document-review":          {SubjectKind: "matter", Capability: "documents.view"},
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
