@@ -523,6 +523,9 @@ var actionScreens = map[string]trigger.Screen{
 	// matter (FEAT-WRK-13 in docs/QUESTIONS.md).
 	"work-categories": {SubjectKind: "matter", Capability: "work.view"},
 	"work-reports":    {SubjectKind: "matter", Capability: "work.view"},
+	// Readiness. The mobile app acts on the matter a voice note or client message belongs
+	// to; each tool still checks its own capability (time.record, documents.edit).
+	"mobile-app": {SubjectKind: "matter", Capability: "matters.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
