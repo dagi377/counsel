@@ -30,6 +30,20 @@ Template:
 - Reading B: the receiver is not a client operation; ARC-I-051 excludes it.
 - Proposed: B for now. `TestARC_I_051_OperationsDocumentProblemResponses` skips only
   `/hooks/{provider}`; if A, add the responses additively and drop the skip.
+
+## Q-004 trust.Accounts cannot fill NOT NULL columns of trust_account and signatory
+
+- Task: T-011.1
+- Sources: app/legal/trust/contract.go (`Account` has only `AccountLast4`; `AddSignatory` takes
+  only a user id); migrations/0001_init.sql (`trust_account.account_no_ciphertext NOT NULL`,
+  `signatory.approval_id NOT NULL`, `signatory.is_licensee NOT NULL`).
+- Reading A: the contract methods store placeholders (empty ciphertext, no approval id).
+- Reading B: the contract needs additive input: the full account number (sealed before
+  storage) and the GA1 approval id.
+- Proposed: B. T-011.1 ships additive `AccountStore.OpenAccountNumber` and
+  `AddApprovedSignatory`; the contract `OpenAccount` and `AddSignatory` validate and return
+  `ErrNeedsApproval` until the owner picks a shape (e.g. `Account.AccountNo` and an
+  `approvalID` argument).
 - Answer: (owner)
 
 ## Q-AI-003 Wire the AI fixture lint into make check
