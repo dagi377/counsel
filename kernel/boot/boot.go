@@ -8,7 +8,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/dagi377/counsel/kernel/clock"
+	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/flags"
+	"github.com/dagi377/counsel/kernel/registry"
 
 	// Every kernel package, so each can register itself from its own files.
 	_ "github.com/dagi377/counsel/kernel/all"
@@ -68,24 +71,70 @@ func (c Config) Validate() error {
 
 // Kernel is what an app sees at registration. Fields are added as kernel modules land.
 type Kernel struct {
-	Flags *flags.Set
+	Flags    *flags.Set
+	Registry registry.Booter // nil when built without one (Build)
+	DB       db.DB
+	Clock    clock.Clock
 }
 
 // App is one application that registers with the kernel at boot.
 type App struct {
-	Name     string
+	Name string
+	// Define declares the app's feature flags. It runs before any flag is turned on and
+	// before any Register, so a Register can read the flags it gates on. Optional.
+	Define func(s *flags.Set) error
+	// Register adds the app's registrations to the kernel. Required.
 	Register func(ctx context.Context, k *Kernel) error
+	// Start runs once the kernel is built and sealed, before the role runs. Optional.
+	Start func(ctx context.Context, k *Kernel) error
+}
+
+// Deps are the kernel dependencies BuildWith hands to every app.
+type Deps struct {
+	Registry registry.Booter // sealed after every Register; nil skips Seal
+	DB       db.DB
+	Clock    clock.Clock
 }
 
 // Build creates the kernel and calls every app's Register in order.
 func Build(ctx context.Context, apps ...App) (*Kernel, error) {
-	k := &Kernel{Flags: flags.New()}
+	return BuildWith(ctx, Deps{}, nil, apps...)
+}
+
+// BuildWith builds the kernel in a fixed order: every app's Define, then the flags in on are
+// turned on, then every app's Register (with the flag set in ctx), then Registry.Seal. A flag
+// in on that no app defined fails before any Register.
+func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kernel, error) {
+	k := &Kernel{Flags: flags.New(), Registry: deps.Registry, DB: deps.DB, Clock: deps.Clock}
 	for _, a := range apps {
 		if a.Register == nil {
 			return nil, fmt.Errorf("register app %q: nil Register: %w", a.Name, ErrConfig)
 		}
+	}
+	for _, a := range apps {
+		if a.Define == nil {
+			continue
+		}
+		if err := a.Define(k.Flags); err != nil {
+			return nil, fmt.Errorf("define flags of app %q: %w", a.Name, err)
+		}
+	}
+	for _, name := range on {
+		if err := k.Flags.Set(name, true); err != nil {
+			return nil, fmt.Errorf("turn on flag %q: %w: %w", name, ErrConfig, err)
+		}
+	}
+	ctx = flags.WithSet(ctx, k.Flags)
+	// rule: ARC-I-040
+	// Each app registers only its own modules' surface; the kernel seals the lot once.
+	for _, a := range apps {
 		if err := a.Register(ctx, k); err != nil {
 			return nil, fmt.Errorf("register app %q: %w", a.Name, err)
+		}
+	}
+	if k.Registry != nil {
+		if err := k.Registry.Seal(); err != nil {
+			return nil, fmt.Errorf("seal registry: %w", err)
 		}
 	}
 	return k, nil
