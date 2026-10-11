@@ -2377,3 +2377,15 @@ Done in PORT-18:
 - A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008), not
   the 409 the accept line names; same as the other HTTP routes.
 - openapi has no body schemas for these operations; the views are documented here.
+
+## Q-FEAT-DOC-09 F-DOC-08 email-filer: event name and gate constant
+
+- "Email arrives in connected mailbox" binds `email.received` (`docs.EventEmailReceived`,
+  proposed), carrying the filed message's ids and the mailbox owner as user_id. No mailbox
+  connector publishes it yet (EVENTS-WIRE follow-up).
+- FEAT-DOC-01 (unmerged) exports `GateFilingPrivilege`; to merge cleanly beside it this task
+  names the kind with the unexported `emailFilerGate`. Once both are on main, the Def can use
+  GateFilingPrivilege and the private constant can go.
+- The end-to-end tests use `app/legal/docs/ai_docc_helpers_test.go` (prefix `docc`), shared
+  byte-for-byte with FEAT-DOC-07 and FEAT-DOC-08. F-DOC-08 is an extraction Def, so it gets
+  no plugin skill.
