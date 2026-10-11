@@ -1,0 +1,439 @@
+package docs_test
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"os"
+	"slices"
+	"strings"
+	"sync"
+	"testing"
+	"testing/fstest"
+	"time"
+
+	"github.com/dagi377/counsel/app/legal/agent"
+	"github.com/dagi377/counsel/app/legal/agent/agenttest"
+	"github.com/dagi377/counsel/app/legal/agent/feature"
+	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/roles"
+	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/ai"
+	"github.com/dagi377/counsel/kernel/ai/aifake"
+	kdocs "github.com/dagi377/counsel/kernel/docs"
+	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/gate/gatefake"
+	"github.com/dagi377/counsel/kernel/registry"
+)
+
+// Test helpers of the document AI feature end-to-end tests (F-DOC-06 write path, F-DOC-07,
+// F-DOC-08). Every name carries the docc prefix.
+//
+// The end-to-end tests drive a Def with agenttest.FromFeatureWith over the app's real
+// handlers (agent.Handlers()). The Seed carries no subject lookup for submit_for_approval and
+// no provenance, so doccEnv adds a draft store whose ids are uuids, the deadline ports and the
+// run's provenance, which records every value a read tool returns.
+
+// doccOtherLawyer is a second synthetic user who holds every gate kind's approver capability.
+const doccOtherLawyer = "user-synthetic-docs-reviewer"
+
+// doccDecideAt is the fake gate store's clock: a weekday morning in America/Toronto.
+var doccDecideAt = time.Date(2026, 10, 5, 9, 0, 0, 0, time.FixedZone("EDT", -4*60*60))
+
+// doccDrafts stores drafts with deterministic uuid ids and maps each to its matter.
+type doccDrafts struct {
+	mu      sync.Mutex
+	seq     int
+	matters map[string]string
+	drafts  []agent.NewDraftDocument
+}
+
+// doccDraftID is the id of the n-th draft a run stores.
+func doccDraftID(n int) string { return fmt.Sprintf("00000000-0000-4000-8000-00000000c%03d", n) }
+
+// CreateDraft implements agent.DocumentDrafts.
+func (s *doccDrafts) CreateDraft(_ context.Context, d agent.NewDraftDocument) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.seq++
+	id := doccDraftID(s.seq)
+	s.matters[id] = d.MatterID
+	s.drafts = append(s.drafts, d)
+	return id, nil
+}
+
+// SubjectMatter implements agent.SubjectMatters.
+func (s *doccDrafts) SubjectMatter(_ context.Context, _, id string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.matters[id], nil
+}
+
+// doccEnv is what the real handlers read through beyond the agenttest Seed.
+type doccEnv struct {
+	drafts     *doccDrafts
+	provenance *agenttools.Provenance
+	extra      []any
+}
+
+// doccDepOf appends d's value of type T to vals, when d has one.
+func doccDepOf[T any](vals []any, d agent.Deps) []any {
+	if v, err := agent.DepOf[T](d); err == nil {
+		return append(vals, v)
+	}
+	return vals
+}
+
+// handlers is agent.Handlers() with each Build given the env's ports ahead of the Seed's,
+// and each read tool wrapped so the run's provenance records the values it returns.
+func (e *doccEnv) handlers(t *testing.T) agent.HandlerSet {
+	t.Helper()
+	app := agent.Handlers()
+	var hs []agent.Handler
+	for _, name := range app.Names() {
+		h, _ := app.For(name)
+		build := h.Build
+		hs = append(hs, agent.Handler{Name: name, Build: func(d agent.Deps) (registry.Tool, error) {
+			vals := append([]any{e.drafts, e.provenance}, e.extra...)
+			vals = doccDepOf[agent.CapabilityCheck](vals, d)
+			vals = doccDepOf[roles.Walls](vals, d)
+			vals = doccDepOf[agenttools.Plans](vals, d)
+			vals = doccDepOf[agenttools.GateOpener](vals, d)
+			vals = doccDepOf[agenttools.RunScopes](vals, d)
+			vals = doccDepOf[agent.DocumentText](vals, d)
+			vals = doccDepOf[agent.WorkList](vals, d)
+			vals = doccDepOf[agent.ClientMatters](vals, d)
+			vals = doccDepOf[matter.Query](vals, d)
+			vals = doccDepOf[agent.ContactSearch](vals, d)
+			vals = doccDepOf[*agenttest.SeedStore](vals, d)
+			tool, err := build(agent.NewDeps(vals...))
+			if err != nil || tool.Kind != registry.ToolRead {
+				return tool, err
+			}
+			return e.provenance.ReadTool(tool)
+		}})
+	}
+	set, err := agent.NewHandlerSet(hs...)
+	if err != nil {
+		t.Fatalf("handler set: %v", err)
+	}
+	return set
+}
+
+// doccWorld is one feature driver over the real handlers with a seeded matter and document.
+type doccWorld struct {
+	fd      *agenttest.FeatureDriver
+	drafts  *doccDrafts
+	matter  string
+	doc     string
+	version kdocs.VersionID
+}
+
+// doccFeature builds def's FeatureDriver over the real handlers with an approvable gate store,
+// a seeded matter and one seeded document holding lines on page 1.
+func doccFeature(t *testing.T, def feature.Def, lines []string, extra ...any) doccWorld {
+	t.Helper()
+	env := &doccEnv{drafts: &doccDrafts{matters: map[string]string{}}, provenance: agenttools.NewProvenance(), extra: extra}
+	fd := agenttest.FromFeatureWith(t, def, env.handlers(t))
+	doccApprovableGates(fd)
+	m := fd.Seed.Matter("2026-0301", "Synth v Example")
+	doc, ver := fd.Seed.Document(string(m.ID), lines)
+	return doccWorld{fd: fd, drafts: env.drafts, matter: string(m.ID), doc: doc, version: ver}
+}
+
+// doccApprovableGates gives the Seed a gate store in which the acting user and doccOtherLawyer
+// hold every gate kind's approver capability, so the preparer rule, not a missing capability,
+// is what stops the acting user.
+func doccApprovableGates(fd *agenttest.FeatureDriver) {
+	caps := gatefake.Caps{}
+	for _, k := range fd.Def.GateKinds {
+		for _, u := range []string{agenttest.FeatureActingFor, doccOtherLawyer} {
+			caps[u] = append(caps[u], k+".approve")
+		}
+	}
+	fd.Seed.Gates = gatefake.New(func() time.Time { return doccDecideAt }, caps)
+	for _, k := range fd.Def.GateKinds {
+		fd.Seed.GateKind(k)
+	}
+}
+
+// doccDecide approves gate id as by, with a fresh step-up and the payload hash shown.
+func doccDecide(ctx context.Context, gates *gatefake.Fake, id string, by registry.Principal) error {
+	g, err := gates.Get(ctx, gate.GateID(id))
+	if err != nil {
+		return err
+	}
+	return gates.Decide(ctx, nil, g.ID, g.Version, gate.Decision{
+		Verdict: gate.VerdictApprove, PayloadHash: g.PayloadHash, MFAVerifiedAt: doccDecideAt.Add(-time.Minute),
+	}, by)
+}
+
+// doccStatus is the HTTP status the API returns for a gate decision error.
+func doccStatus(err error) int {
+	if err == nil {
+		return http.StatusOK
+	}
+	if p := gate.Problem(err); p != nil {
+		return p.Status
+	}
+	return http.StatusInternalServerError
+}
+
+// doccCheckGate fails t unless gate id is pending, of kind, prepared for the acting user, and
+// neither an agent principal (403) nor the acting user (self-approval, 403) can decide it
+// while another lawyer can.
+func doccCheckGate(t *testing.T, fd *agenttest.FeatureDriver, id, kind string) {
+	t.Helper()
+	ctx := context.Background()
+	g, err := fd.Seed.Gates.Get(ctx, gate.GateID(id))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// rule: AI-R-003
+	if g.Kind != kind || g.Status != gate.StatusPending || g.Preparer.ActingFor != agenttest.FeatureActingFor {
+		t.Fatalf("gate = %s %s preparer %+v; want pending %s prepared for %s", g.Kind, g.Status, g.Preparer, kind, agenttest.FeatureActingFor)
+	}
+	tests := []struct {
+		name       string
+		by         registry.Principal
+		wantErr    error
+		wantStatus int
+	}{
+		{"agent principal", registry.Principal{Kind: registry.PrincipalAgent, RunID: "run-" + id, ActingFor: agenttest.FeatureActingFor}, gate.ErrAgentApprover, http.StatusForbidden},
+		{"acting user decides own gate", registry.Principal{Kind: registry.PrincipalUser, UserID: agenttest.FeatureActingFor}, gate.ErrSelfApproval, http.StatusForbidden},
+		{"another lawyer", registry.Principal{Kind: registry.PrincipalUser, UserID: doccOtherLawyer}, nil, http.StatusOK},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := doccDecide(ctx, fd.Seed.Gates, id, tt.by)
+			if !errors.Is(err, tt.wantErr) || doccStatus(err) != tt.wantStatus {
+				t.Fatalf("decide = %v (%d), want %v (%d)", err, doccStatus(err), tt.wantErr, tt.wantStatus)
+			}
+		})
+	}
+}
+
+// doccCall is one scripted model tool call.
+type doccCall struct {
+	name  string
+	input map[string]any
+}
+
+// doccScript is an inline aifake model for featureID: one tool call per turn, then text.
+func doccScript(t *testing.T, featureID string, calls []doccCall, text string) *aifake.Fake {
+	t.Helper()
+	var turns []map[string]any
+	for _, c := range calls {
+		turns = append(turns, map[string]any{"reply": map[string]any{
+			"tool_calls": []map[string]any{{"name": c.name, "input": c.input}}, "stop_reason": "tool_use",
+		}})
+	}
+	turns = append(turns, map[string]any{"reply": map[string]any{"text": text, "stop_reason": "end_turn"}})
+	b, err := json.Marshal(map[string]any{
+		"synthetic": true, "feature": featureID, "match": map[string]any{"last_user_regex": "."}, "turns": turns,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return aifake.New(fstest.MapFS{strings.ToLower(featureID) + "/inline/ok.yaml": {Data: b}})
+}
+
+// doccToolNames lists the tool names of calls.
+func doccToolNames(calls []doccCall) []string {
+	out := make([]string, 0, len(calls))
+	for _, c := range calls {
+		out = append(out, c.name)
+	}
+	return out
+}
+
+// doccQuotedRun reports an error unless text reached the model only inside a tool_result
+// that marks its content untrusted, no tool call carries it and the final answer does not
+// repeat it (ARC-I-038).
+func doccQuotedRun(run agenttest.FeatureRun, text string) error {
+	if err := agenttest.QuotedOnly(run.Run, text); err == nil {
+		return nil
+	}
+	seen := false
+	for _, req := range run.Requests {
+		for _, m := range req.Messages {
+			for _, b := range m.Content {
+				if !strings.Contains(b.Text, text) && !strings.Contains(string(b.Input), text) {
+					continue
+				}
+				var env struct {
+					Untrusted bool `json:"untrusted"`
+				}
+				if b.Type != "tool_result" || json.Unmarshal([]byte(b.Text), &env) != nil || !env.Untrusted {
+					return fmt.Errorf("injected text sent outside quoted data: %s block of %s", b.Type, b.ToolName)
+				}
+				seen = true
+			}
+		}
+	}
+	if !seen {
+		return errors.New("injected text never reached the model")
+	}
+	if strings.Contains(run.Text, text) {
+		return errors.New("final answer repeats the injected text")
+	}
+	return nil
+}
+
+// doccAbsent reports an error when text is in any write input of run or in the payload of
+// any gate the run opened.
+func doccAbsent(ctx context.Context, fd *agenttest.FeatureDriver, run agenttest.FeatureRun, text string) error {
+	kinds := map[string]bool{}
+	for _, s := range fd.Feature.Tools {
+		kinds[s.Name] = s.Kind == agent.Write
+	}
+	for _, req := range run.Requests {
+		for _, m := range req.Messages {
+			for _, b := range m.Content {
+				if b.Type == "tool_use" && kinds[b.ToolName] && strings.Contains(string(b.Input), text) {
+					return fmt.Errorf("write input carries the injected text: %s", b.Input)
+				}
+			}
+		}
+	}
+	for _, id := range run.GateIDs {
+		g, err := fd.Seed.Gates.Get(ctx, gate.GateID(id))
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(g.Payload), text) {
+			return fmt.Errorf("gate %s payload carries the injected text", id)
+		}
+	}
+	return nil
+}
+
+// doccFeatureSpec is one spec/ai/features.json feature.
+type doccFeatureSpec struct {
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Source    string   `json:"source"`
+	Trigger   string   `json:"trigger"`
+	OnRequest []string `json:"on_request"`
+	Outputs   string   `json:"outputs"`
+	Tools     []string `json:"tools"`
+	ModelCall string   `json:"model_call"`
+	Fixture   string   `json:"fixture"`
+	Gate      struct {
+		Kind []string `json:"kind"`
+	} `json:"gate"`
+}
+
+// doccSpec returns id's spec/ai/features.json entry.
+func doccSpec(t *testing.T, id string) doccFeatureSpec {
+	t.Helper()
+	var spec struct {
+		Features []doccFeatureSpec `json:"features"`
+	}
+	b, err := os.ReadFile("../../../spec/ai/features.json")
+	if err != nil {
+		t.Fatalf("read spec: %v", err)
+	}
+	if err := json.Unmarshal(b, &spec); err != nil {
+		t.Fatalf("decode spec: %v", err)
+	}
+	i := slices.IndexFunc(spec.Features, func(f doccFeatureSpec) bool { return f.ID == id })
+	if i < 0 {
+		t.Fatalf("%s not in spec/ai/features.json", id)
+	}
+	return spec.Features[i]
+}
+
+// doccModelCall maps a Def kind to the features.json model_call it implements.
+func doccModelCall(d feature.Def, embedded bool) string {
+	switch {
+	case d.Kind == ai.KindExtraction && embedded:
+		return "embedding+extraction"
+	case d.Kind == "":
+		return string(ai.KindToolUse)
+	}
+	return string(d.Kind)
+}
+
+// doccCheckDefMatchesSpec fails t unless d matches its spec/ai/features.json entry (the spec
+// sync check for this id), a feature Set takes it once and its run scope is its gate kinds.
+// embedded says the Def's extraction call follows an embedding rank.
+func doccCheckDefMatchesSpec(t *testing.T, d feature.Def, embedded bool) {
+	t.Helper()
+	sf := doccSpec(t, d.ID)
+	sorted := func(s []string) string { s = slices.Clone(s); slices.Sort(s); return strings.Join(s, ",") }
+	tests := []struct {
+		field     string
+		got, want string
+	}{
+		{"name", d.Name, sf.Name},
+		{"area", d.Area, "documents"},
+		{"source", string(d.Source), sf.Source},
+		{"trigger", d.Trigger, sf.Trigger},
+		{"on request", sorted(d.Actions), sorted(sf.OnRequest)},
+		{"tools", sorted(d.Tools), sorted(sf.Tools)},
+		{"gate kinds", sorted(d.GateKinds), sorted(sf.Gate.Kind)},
+		{"model call", doccModelCall(d, embedded), sf.ModelCall},
+		{"fixture", d.Fixture, sf.Fixture},
+	}
+	for _, tt := range tests {
+		t.Run(tt.field, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Fatalf("%s = %q, spec %q", tt.field, tt.got, tt.want)
+			}
+		})
+	}
+	s := feature.NewSet()
+	if err := s.Add(d); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	if err := s.Add(d); !errors.Is(err, feature.ErrBadDef) {
+		t.Fatalf("second Add = %v, want ErrBadDef", err)
+	}
+	rs, err := d.Spec()
+	if err != nil {
+		t.Fatalf("Spec: %v", err)
+	}
+	// rule: AI-R-003
+	// The run scope lets the run open only the Def's gate kinds.
+	if !slices.Equal(rs.GateKinds, d.GateKinds) {
+		t.Fatalf("run gate kinds = %v, want %v", rs.GateKinds, d.GateKinds)
+	}
+}
+
+// doccCheckPrompt fails t unless d's prompt passes lint, starts with the feature preamble and
+// the shared rules, and names the task and the expected output from features.json.
+func doccCheckPrompt(t *testing.T, d feature.Def) {
+	t.Helper()
+	sf := doccSpec(t, d.ID)
+	names, err := feature.FixtureNames(os.DirFS("../../.."), "testdata/ai")
+	if err != nil {
+		t.Fatalf("FixtureNames: %v", err)
+	}
+	if err := feature.LintPrompt(d, names); err != nil {
+		t.Fatalf("LintPrompt: %v", err)
+	}
+	spec, err := d.Spec()
+	if err != nil {
+		t.Fatalf("Spec: %v", err)
+	}
+	if !strings.HasPrefix(spec.System, feature.Preamble(d.ID)+feature.Rules()) {
+		t.Fatalf("system prompt does not start with the preamble and the shared rules")
+	}
+	for _, w := range []string{"shared rules", sf.Name, sf.Outputs} {
+		if !strings.Contains(spec.System, w) {
+			t.Errorf("system prompt lacks %q", w)
+		}
+	}
+}
+
+// doccPlan is a report_plan call over steps.
+func doccPlan(steps ...string) doccCall {
+	var s []map[string]any
+	for _, st := range steps {
+		s = append(s, map[string]any{"step_id": st, "title": "Step " + st})
+	}
+	return doccCall{agenttools.ToolReportPlan, map[string]any{"steps": s}}
+}

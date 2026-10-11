@@ -55,5 +55,6 @@ func appDefs() []feature.Def {
 		conflict.ClearanceMemoDef(),
 		// documents
 		legaldocs.TemplateCurrencyDef(),
+		legaldocs.PrecedentCandidatesDef(),
 	}
 }

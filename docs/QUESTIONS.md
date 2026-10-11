@@ -2395,3 +2395,11 @@ Done in PORT-18:
   keep compiling with a fixed acting user. Boot wiring and a readiness HTTP surface are not
   built yet: boot calls `WithDesignated(agent.NewPGDesignatedLawyers(pool))` when it builds
   the Bindings, and surfaces `Readiness` on the setup checks.
+
+## Q-FEAT-DOC-08 F-DOC-07 precedent-candidates: base and helpers
+
+- Builds on task/FEAT-DOC-06 (the `prompts` embed and `GatePrecedent`) and task/JOB-ACTOR
+  (the monthly run binds with `trigger.BindDesignated`); both are merged into this branch.
+- The end-to-end tests use `app/legal/docs/ai_docc_helpers_test.go` (prefix `docc`), shared
+  byte-for-byte with FEAT-DOC-07 and FEAT-DOC-09. The featureset files and the generated
+  skill get one line or file for F-DOC-07.
