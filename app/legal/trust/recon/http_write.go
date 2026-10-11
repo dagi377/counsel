@@ -39,6 +39,7 @@ const (
 	CodePeriodLocked          = "period_locked"
 	CodeUnexplainedDifference = "unexplained_difference"
 	CodeUnparseableStatement  = "unparseable_statement"
+	CodeBankBalanceMismatch   = "bank_balance_mismatch"
 	CodeUnverified            = "trust_rules_unverified"
 )
 
@@ -60,6 +61,14 @@ type Versions interface {
 	Version(ctx context.Context, id string) (int64, error)
 }
 
+// Statements reads an imported statement's closing balance. Service is frozen and has no
+// statement read, so the prepare route uses this port.
+type Statements interface {
+	// Closing returns the closing balance of the account's imported statement for p, or
+	// ErrNotFound when none is imported.
+	Closing(ctx context.Context, accountID string, p Period) (int64, error)
+}
+
 // Gates is the part of gate.Engine the submit route uses.
 type Gates interface {
 	Open(ctx context.Context, tx pgx.Tx, kind string, subject gate.Subject, payload json.RawMessage, preparer gate.Principal) (gate.GateID, error)
@@ -76,14 +85,15 @@ type TxRunner interface {
 // journal entry; submit opens the sign-off gate and never approves. Every dependency is
 // required; a route answers 503 and calls nothing while one is missing.
 type WriteHTTP struct {
-	Recons   Service
-	Parser   Parser
-	Versions Versions
-	Gates    Gates
-	DB       TxRunner
-	Access   Access
-	Idem     idem.Store
-	Problems server.ProblemWriter
+	Recons     Service
+	Parser     Parser
+	Statements Statements
+	Versions   Versions
+	Gates      Gates
+	DB         TxRunner
+	Access     Access
+	Idem       idem.Store
+	Problems   server.ProblemWriter
 	// Principal returns who the request acts as; false means unauthenticated.
 	Principal func(r *http.Request) (registry.Principal, bool)
 	// MinApprovers is the sign-off gate's approver count for the Gate body; 0 means 1.
@@ -104,7 +114,7 @@ var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]
 var monthPattern = regexp.MustCompile(`^([0-9]{4})-(0[1-9]|1[0-2])$`)
 
 func (h *WriteHTTP) ready() bool {
-	return h.Recons != nil && h.Parser != nil && h.Versions != nil && h.Gates != nil && h.DB != nil &&
+	return h.Recons != nil && h.Parser != nil && h.Statements != nil && h.Versions != nil && h.Gates != nil && h.DB != nil &&
 		h.Access != nil && h.Idem != nil && h.Problems != nil && h.Principal != nil
 }
 
@@ -263,7 +273,17 @@ func (h *WriteHTTP) prepare(w http.ResponseWriter, r *http.Request, p registry.P
 		return
 	}
 	// rule: BIL-I-009
-	// The bank balance is the imported statement's closing balance; the service reads it.
+	// The imported statement's closing balance is the bank balance. A different
+	// bank_balance_cents is refused before anything is prepared, never silently ignored.
+	closing, err := h.Statements.Closing(ctx, in.AccountID, period)
+	if err != nil {
+		h.writeErr(w, r, err)
+		return
+	}
+	if *in.BankBalanceCents != closing {
+		h.fail(w, r, http.StatusUnprocessableEntity, CodeBankBalanceMismatch, "bank_balance_cents does not match the imported statement's closing balance")
+		return
+	}
 	rec, err := h.Recons.Prepare(ctx, in.AccountID, period, nil, preparerOf(p))
 	if err != nil {
 		h.writeErr(w, r, err)

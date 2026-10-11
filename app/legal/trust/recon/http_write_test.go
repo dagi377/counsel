@@ -228,7 +228,7 @@ func wrNewRig(t *testing.T) rig {
 		t.Fatal(err)
 	}
 	g := &countingGates{Fake: eng}
-	h := &recon.WriteHTTP{Recons: s, Parser: parser{}, Versions: versions{}, Gates: g, DB: txStub{}, Access: testAccess,
+	h := &recon.WriteHTTP{Recons: s, Parser: parser{}, Statements: f, Versions: versions{}, Gates: g, DB: txStub{}, Access: testAccess,
 		Idem: idemfake.New(), Problems: &server.Problems{}, Principal: testPrincipal}
 	m := server.New(nil)
 	if err := m.Mount(h.Routes); err != nil {
@@ -437,6 +437,41 @@ func TestReconPrepare(t *testing.T) {
 		t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
 	}
 	wrValidate(t, "#/components/schemas/Reconciliation", rec.Body.Bytes())
+}
+
+func TestBIL_I_009_PrepareBankBalanceMatchesStatement(t *testing.T) {
+	tests := []struct {
+		name    string
+		key     string
+		month   string
+		balance string
+		status  int
+		code    string
+	}{
+		{"matches the statement's closing balance", "601", "2026-06", "0", http.StatusCreated, ""},
+		// rule: BIL-I-009
+		// The imported statement's closing balance is authoritative; a different figure is refused.
+		{"differs from the closing balance", "602", "2026-06", "5", http.StatusUnprocessableEntity, recon.CodeBankBalanceMismatch},
+		{"negative and different", "603", "2026-06", "-1", http.StatusUnprocessableEntity, recon.CodeBankBalanceMismatch},
+		{"no statement imported", "604", "2026-01", "0", http.StatusNotFound, recon.CodeNotFound},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRig(t)
+			body := `{"account_id":"` + acctA + `","month":"` + tc.month + `","bank_balance_cents":` + tc.balance + `}`
+			rec := do(r.h, preparePath, "alice", jsonType, body, key(tc.key))
+			if tc.code == "" {
+				if rec.Code != tc.status {
+					t.Fatalf("status = %d, want %d (%s)", rec.Code, tc.status, rec.Body)
+				}
+				return
+			}
+			checkProblem(t, rec, tc.status, tc.code)
+			if r.svc.calls["Prepare"] != 0 {
+				t.Errorf("Prepare called %d times on a refused balance", r.svc.calls["Prepare"])
+			}
+		})
+	}
 }
 
 // rule: ARC-I-012
