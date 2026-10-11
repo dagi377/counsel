@@ -121,5 +121,8 @@ func appDefs() []feature.Def {
 		access.AnomalyWatchDef(),
 		access.ExplainRoleDef(),
 		access.ExplainAccessDef(),
+		access.ExplainPatternDef(),
+		access.ExplainChangeDef(),
+		access.SummarizeSessionDef(),
 	}
 }

@@ -3758,3 +3758,37 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   is in `trigger`, so `Def.Actions` holds it (as Q-FEAT-CON-10). roles-list (admin.roles) and
   user-detail (admin.users) are firm-level screens. The AI-019 and AI-020 tests run the
   fixtures through FromFeature, and the screen actions through the production route.
+
+## Q-FEAT-ACC-10 Explain pattern, Explain change: answers from search_matters alone
+
+- Status: closed by SEARCH-CITE (Q-FEAT-ACC-07): `feature.Def.AnswerMayBeUncited` is removed;
+  F-ACC-11, F-ACC-12 and F-ACC-13 cite the matters search_matters returned (`matter:<id>`).
+
+- The spec gives F-ACC-11 and F-ACC-12 one tool, search_matters, which returns no document
+  source. run.CheckAnswer refuses an answer with no citation unless the run Spec sets
+  `AnswerMayBeUncited`, and `feature.Def.Spec` never set it, so the screen-action route could
+  never return these answers. Outside the task's files, additive: `feature.Def` gains
+  `AnswerMayBeUncited bool`, copied into the run Spec (default false, so every other feature
+  still must cite). A citation the answer does carry is still checked against the run.
+- Tool gap: no read tool returns audit events, the draft sign-in policy or its reach, so the
+  answers cover only the matters search_matters lets the acting user see; the prompts say so
+  and forbid guessing. Read tools for audit events and sign-in policy would make them exact.
+- Outside the task's files: boot `actionScreens` lists access-audit (admin.audit_log) and
+  sign-in-settings (admin.security) as firm screens (boot.FirmSubject); featureset.App() holds
+  both Defs. Chat features export no plugin skill.
+- AI-022 and AI-023 (ai_f_acc_11_test.go, ai_f_acc_12_test.go) now run through
+  agenttest.FromFeature with no stand-ins; the fixtures use the a2 search_matters input, answer
+  as {answer, citations}, the injection variant makes no extra tool call, and ok pins
+  match.prompt_hash. The route test posts through trigger.Actions over a real run.Loop.
+
+## Q-FEAT-ACC-11 Summarize session: answers from search_matters alone
+
+- Built on task/FEAT-ACC-10 for `feature.Def.AnswerMayBeUncited` and the shared accd test
+  helpers (Q-FEAT-ACC-10). F-ACC-13 has the same tool gap: no read tool returns a support
+  session's actions, so the answer covers only the matters search_matters lets the acting user
+  see, and the prompt forbids guessing.
+- Outside the task's files: boot `actionScreens` lists support-access (admin.support_access) as
+  a firm screen; featureset.App() holds the Def.
+- AI-024 (ai_f_acc_13_test.go) now runs through agenttest.FromFeature with no stand-ins; the
+  fixtures use the a2 search_matters input, the injection variant makes no extra tool call,
+  and ok pins match.prompt_hash.
