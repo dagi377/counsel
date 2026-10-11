@@ -734,3 +734,40 @@ s.33 as amended and either the rules or the decision change.
   ultimate periods and ignores suspensions.
 - No Assessor or production wiring exists yet, so nothing used the fake outside tests. The
   BOOT task set should construct `limitation.NewStatute(schedule)` as the Calculator.
+
+
+## T-009.4: concrete server, two-way OpenAPI check, unserved list (owner decision)
+
+The owner unblocked T-009.4 before every openapi path has a handler. Files outside the task:
+
+- `api/unserved.txt`: the openapi operations no handler serves yet. The owner asked for
+  `kernel/contract/unserved.txt`, but its lines are openapi paths with legal terms and the
+  kernel term lint (TestKernelHasNoLegalTerms) scans every file under kernel/; the allow list
+  only shrinks, so the file sits next to `api/openapi.yaml` instead. It only shrinks; the conformance tests fail when a listed operation is mounted, when it leaves
+  openapi.yaml, and when an operation is neither mounted nor listed.
+- `app/legal/conformance_test.go`: the full two-way check has to see app routes, and kernel
+  code cannot import app/. It mounts every handler on main (kernel inbound hooks, trust
+  withdrawal execution) plus every `Registry.Routes` call `legal.Register` makes.
+  `kernel/server/conformance_test.go` checks the kernel routes one way.
+
+Decision taken: `server.New` mounts module routes under `server.BasePath` ("/v1", the openapi
+server URL path), and `Routes()` reports the full served pattern. Modules keep mounting
+openapi-relative paths, as `kernel/inbound` and `withdraw.Execution` already do.
+
+Left open: the second accept line (refuse a route that sets state owned by a gate effect
+unless it is the gate decision endpoint) needs a per-route "gate-owned state" marker that no
+contract declares yet. Not built.
+
+## BOOT-09: Run wiring gaps
+
+- Additive `Config` fields beyond `Zone`: `DirectDatabaseURL` (db.Open validates both DSNs and
+  the worker needs the direct one, ARC-U-011) and `MaxWorkers` (default 10). Server and worker
+  need `DatabaseURL`, `DirectDatabaseURL` and `Zone`. `Kernel` and `Deps` gain `Notify`.
+- `gate.PG` does not implement `gate.Engine` yet (no Get, Withdraw, RunDue), so the production
+  server and worker roles stop with `ErrNotImplemented` at the gate engine until it does.
+- Registry schemas load from `spec/kernel` relative to the working directory; the images
+  must ship it, or the schemas get embedded.
+- Reports use a deny-all authorizer and an audit log with no Verify querier until identity
+  is wired at boot. No kernel module owns a River job yet, so `addKernelJobs` adds none.
+- `TestRunFlags` now runs the import role and declares its flag in `Define`: Run builds
+  through BuildWith, which turns flags on before Register (ARC-I-040).
