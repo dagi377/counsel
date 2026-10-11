@@ -298,3 +298,14 @@ Template:
   cannot import app/legal (it imports them), so each keeps one exported mirror per package;
   the private copies in clio and billing/assessment were folded into it, and
   `TestFlagMirrorsMatchCanonicalNames` checks every mirror against app/legal.
+
+## Q-T035.4 PortalPage.Capability is registered but not enforced
+
+- Task: T-035.4 (kernel/portal page registration)
+- Source: `PortalPage.Capability` says "capability the guest's grant must carry", but
+  `portal.Guest` (frozen contract) has only `Grants []string` (subject ids), so the shell
+  has nothing to check the capability against.
+- Done: `RegisterPage` requires a module-prefixed capability (portalpage schema); `Load`
+  enforces the session and the subject grant only.
+- Question: add `Guest.Capabilities []string` (additive) so `Load` refuses a page whose
+  capability the guest does not carry, failing closed when the list is empty?
