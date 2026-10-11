@@ -4623,3 +4623,33 @@ and has a one-outbox-event test.
 - FEAT-ACC-06 did not carry ACC-04 and ACC-05 (each branch was one commit on main), so pass 18
   merged task/FEAT-ACC-04 (F-ACC-06) and task/FEAT-ACC-05 (F-ACC-07) after it. Their accb
   helpers were identical to the copy ACC-06 brought, so `ai_acc_helpers_test.go` keeps one copy.
+
+## Q-EVENTS-9 Publishers for every bound feature event
+
+Done. `TestARC_I_030_EveryBoundEventHasPublisher` (app/legal/boot) now fails when a job
+feature binds an event that no non-test code publishes: it parses app/, kernel/ and cmd/,
+treats a function that calls Emit, an emit or publish helper, or a module helper taking a
+`typ string` that publishes, as a publisher of every string constant it names.
+
+- 42 bound events had no publisher on main (the guard's list; matter.call_transcript_filed,
+  `gate.decided`, `document.uploaded`, `trust.balance_changed`,
+  `timekeeping.wip_changed`, `intake.lead_ready_to_open`, `receptionist_conversation.started`
+  among them). `conflict.hits_disposed` was already published (`conflict.Check`);
+  `bill.delivered` is not an event on main (only the `bill.delivered_at` state key).
+- All 42 got a minimal publisher, `Publish<Body>(ctx, em, tx, body)`, in
+  `app/legal/<pkg>/event_publishers.go` of the package that declares the binding constant
+  (access, billing, conflict, deadlines, docs, intake, matter, party, trust, work), with a
+  one-outbox-event test each. No natural write point exists on main for any of them in this
+  pass: the owning write path (docs upload, gate decide, trust posting, time entry, matter
+  close, ...) calls the publisher in its transaction when it is wired. Boot wires none yet.
+- New constants: `deadlines.EventDeadlineMet`, `docs.EventDocumentReleased`,
+  `matter.EventClosed`, `matter.EventTeamChanged`, `matter.EventUpdated`,
+  `party.EventContactCreated`. Body types `intake.LeadDeclinedEvent` and
+  `intake.LeadReferredEvent` avoid the existing `LeadDeclined`/`LeadReferred` constants.
+- Bodies add `user_id` (the acting user, trigger.PayloadActor) to the a2 payload of the 14
+  events already catalogued; the other 28 are appended to `spec/eng/a2-interfaces.json`
+  (additive). `trust.balance_changed`, `timekeeping.wip_changed` and
+  `trust.ledger_below_floor` carry no amount (client data rule); the feature reads it.
+- Not on main, so not covered: `agent.goal_accepted` (task/FEAT-PLT-14),
+  `email.sync_scope_changed`, `readiness.questionnaire_received`, `research.memo_drafted`.
+  When those branches merge, the guard fails until each adds a publisher and an a2 entry.

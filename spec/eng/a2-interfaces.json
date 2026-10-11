@@ -991,6 +991,337 @@
     "posted_on"
    ],
    "note": "Additive (docs/QUESTIONS.md Q-EVENTS-7): one operating bank-feed line imported; starts F-BIL-04. Never payee text or memo. Minimal publisher."
+  },
+  {
+   "type": "break_glass.ended",
+   "version": 1,
+   "module": "core",
+   "subject_type": "break_glass",
+   "payload": [
+    "grant_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a break-glass grant ended; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "user.invite_list_uploaded",
+   "version": 1,
+   "module": "core",
+   "subject_type": "invite_list",
+   "payload": [
+    "upload_id",
+    "row_count",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): an administrator uploaded an invite list; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "user.invited",
+   "version": 1,
+   "module": "core",
+   "subject_type": "invite",
+   "payload": [
+    "invite_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): an administrator invited a user; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "user.offboard_started",
+   "version": 1,
+   "module": "core",
+   "subject_type": "user",
+   "payload": [
+    "offboarded_user_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): an administrator started offboarding a user; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "calendar.event_cancelled",
+   "version": 1,
+   "module": "cal",
+   "subject_type": "calendar_event",
+   "payload": [
+    "calendar_event_id",
+    "matter_id?",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a calendar event was cancelled; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "calendar.event_ended",
+   "version": 1,
+   "module": "cal",
+   "subject_type": "calendar_event",
+   "payload": [
+    "calendar_event_id",
+    "matter_id?",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a calendar event ended; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "calendar.event_moved",
+   "version": 1,
+   "module": "cal",
+   "subject_type": "calendar_event",
+   "payload": [
+    "calendar_event_id",
+    "matter_id?",
+    "from_day",
+    "to_day",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a calendar event moved to another day; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "work.absence_approved",
+   "version": 1,
+   "module": "work",
+   "subject_type": "absence",
+   "payload": [
+    "absence_id",
+    "absent_user_id",
+    "from",
+    "to",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): an absence was approved; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "conflict.clearance_subject_to_consent",
+   "version": 1,
+   "module": "conflict",
+   "subject_type": "conflict_check",
+   "payload": [
+    "check_id",
+    "gate_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a conflict clearance needs client consent; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "trust.funds_expected",
+   "version": 1,
+   "module": "trust",
+   "subject_type": "trust_request",
+   "payload": [
+    "request_id",
+    "matter_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): trust funds are expected on a matter; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "trust.request_drafted",
+   "version": 1,
+   "module": "trust",
+   "subject_type": "trust_request",
+   "payload": [
+    "request_id",
+    "matter_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a trust funds request was drafted; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "consultation.dictation_uploaded",
+   "version": 1,
+   "module": "intake",
+   "subject_type": "consultation",
+   "payload": [
+    "consultation_id",
+    "document_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a consultation dictation was uploaded; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "consultation.ended",
+   "version": 1,
+   "module": "intake",
+   "subject_type": "consultation",
+   "payload": [
+    "consultation_id",
+    "lead_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a consultation ended; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "consultation.retained",
+   "version": 1,
+   "module": "intake",
+   "subject_type": "consultation",
+   "payload": [
+    "consultation_id",
+    "lead_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a consultation ended with the client retaining the firm; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "lead.declined",
+   "version": 1,
+   "module": "intake",
+   "subject_type": "lead",
+   "payload": [
+    "lead_id",
+    "reason_code",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a lead was declined; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "lead.referred",
+   "version": 1,
+   "module": "intake",
+   "subject_type": "lead",
+   "payload": [
+    "lead_id",
+    "reason_code",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a lead was referred out; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "receptionist_conversation.started",
+   "version": 1,
+   "module": "intake",
+   "subject_type": "receptionist_conversation",
+   "payload": [
+    "conversation_id",
+    "channel",
+    "lead_id?",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): an inbound receptionist conversation started; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "intake.lead_ready_to_open",
+   "version": 1,
+   "module": "intake",
+   "subject_type": "lead",
+   "payload": [
+    "lead_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a lead is cleared and retained, ready to open as a matter; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "matter.call_transcript_filed",
+   "version": 1,
+   "module": "matter",
+   "subject_type": "matter",
+   "payload": [
+    "matter_id",
+    "document_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a call transcript was filed to a matter; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "timekeeping.wip_changed",
+   "version": 1,
+   "module": "timekeeping",
+   "subject_type": "matter",
+   "payload": [
+    "matter_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a matter's unbilled work in progress changed (no amount); starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "trust.balance_changed",
+   "version": 1,
+   "module": "trust",
+   "subject_type": "matter",
+   "payload": [
+    "matter_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a matter's trust balance changed (no amount); starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "trust.ledger_below_floor",
+   "version": 1,
+   "module": "trust",
+   "subject_type": "matter",
+   "payload": [
+    "matter_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a matter's trust ledger fell below its retainer floor (no amount); starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "trust.statement_received",
+   "version": 1,
+   "module": "trust",
+   "subject_type": "trust_statement",
+   "payload": [
+    "statement_id",
+    "account_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a trust bank statement was received; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "matter.key_date_changed",
+   "version": 1,
+   "module": "work",
+   "subject_type": "matter",
+   "payload": [
+    "matter_id",
+    "key_date_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a matter key date changed; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "matter.template_applied",
+   "version": 1,
+   "module": "work",
+   "subject_type": "matter",
+   "payload": [
+    "matter_id",
+    "template_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a matter template was applied; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "work.item_agent_ready",
+   "version": 1,
+   "module": "work",
+   "subject_type": "work_item",
+   "payload": [
+    "work_item_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a work item became ready for the agent; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "work.item_assigned_to_agent",
+   "version": 1,
+   "module": "work",
+   "subject_type": "work_item",
+   "payload": [
+    "work_item_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a work item was assigned to the agent; starts an agent feature. Minimal publisher."
+  },
+  {
+   "type": "work.workflow_draft_saved",
+   "version": 1,
+   "module": "work",
+   "subject_type": "workflow",
+   "payload": [
+    "workflow_id",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-9): a workflow draft was saved; starts an agent feature. Minimal publisher."
   }
  ],
  "tools": [
