@@ -47,5 +47,6 @@ func appDefs() []feature.Def {
 		docs.AnswerWithCitationsDef(),
 		docs.AnalyzeDef(),
 		docs.FollowUpQuestionDef(),
+		docs.SuggestOrderAndTabsDef(),
 	}
 }
