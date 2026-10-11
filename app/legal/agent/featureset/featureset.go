@@ -75,5 +75,8 @@ func appDefs() []feature.Def {
 		legaldocs.PrecheckOutgoingDef(),
 		legaldocs.PrecedentCandidatesDef(),
 		legaldocs.EmailFilerDef(),
+		legaldocs.CourtFormCurrencyDef(),
+		legaldocs.AssemblyOnStageDef(),
+		legaldocs.TrackedRevisionDef(),
 	}
 }

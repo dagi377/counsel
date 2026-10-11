@@ -2592,3 +2592,21 @@ Done in PORT-18:
 - The end-to-end tests use `app/legal/docs/ai_docc_helpers_test.go` (prefix `docc`), shared
   byte-for-byte with FEAT-DOC-07 and FEAT-DOC-08. F-DOC-08 is an extraction Def, so it gets
   no plugin skill.
+
+## Q-FEAT-DOC-10 Document features on real reads (F-DOC-09, F-DOC-10, F-DOC-11)
+
+- The branch merges `task/AGENTTEST-FIX` for its envelope-aware `agenttest.QuotedOnly`: the feature tests
+  run read_document's real handler over `Seed.Document` (with its version_id), whose result is
+  `{"untrusted": true, "pages": ...}`, not an `agenttools.Quoted`.
+- The shared test helpers carry the `docd` prefix (`ai_f_doc_09_feature_test.go`); FEAT-DOC-11 and
+  FEAT-DOC-12 stack on this branch and reuse them.
+- Gate kind constants are per feature (`GateCourtFormRepublish`, ...) because other unmerged DOC
+  branches declare `GateTemplatePublish` and `GateOutgoing`; the integrator may fold them into those.
+- F-DOC-09 is scheduled (daily): `CourtFormCurrencyBinding(actingFor)` takes the designated lawyer, as
+  `deadlines.RuleWatchBinding` does; it can move to `trigger.BindDesignated` once JOB-ACTOR merges.
+- None of these Defs' write tools is a sourced write (draft_document carries no amount or date
+  pointers), so `agenttools.ErrUnsourcedValue` cannot arise in their runs; no test asserts it.
+- F-DOC-10 binds `matter.opened` and `matter.stage_changed`; the matter module does not publish either
+  yet (add them to EVENTS-WIRE).
+- F-DOC-11 binds `document.revision_requested`; no module publishes it yet (add it to EVENTS-WIRE with the
+  revise request route).
