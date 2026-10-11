@@ -1665,3 +1665,20 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## HTTP-23: work-item routes (approved scope; files outside the task)
+
+- The routes serve over the existing kernel `work.Service` port (Create, Get, List, Move,
+  SetApprover) and its `workfake`. There is no Postgres work.Service yet: boot must wire one
+  (PORT follow-up); until then the routes answer 503.
+- Additive contract change: `kernel/work.Filter.After` (page cursor, id order), implemented in
+  workfake, so GET /work-items can page with the opaque cursor.
+- New package `app/legal/work`: one line in `app/legal/modules.go` and the module count in
+  `app/legal/register_test.go` (36 -> 37).
+- PATCH changes `status_id` (a workflow move) and/or `approver_id`; other fields are not
+  editable until the service has an update method. If-Match is checked against the item's
+  version; Move runs before SetApprover (which bumps the version). The approver is never the
+  assignee or an agent (422 self_approval); a missing transition is 409 transition_not_allowed.
+- A matter-scoped item uses subject kind "matter" (as the 6100 backfill and agent tools do);
+  wall checks use the matter registry subject (matter.matter) and answer 404.
+- openapi has no body or response schema for these operations; the views are documented here.

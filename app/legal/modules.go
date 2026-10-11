@@ -37,6 +37,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/trust/recon"
 	"github.com/dagi377/counsel/app/legal/trust/signatory"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
+	"github.com/dagi377/counsel/app/legal/work"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -64,6 +65,7 @@ var modules = []module{
 	{"trust/signatory", signatory.Register},
 	{"trust/withdraw", withdraw.Register},
 	{"trust/recon", recon.Register},
+	{"work", work.Register},
 	{"billing/draft", draft.Register},
 	{"billing/split", split.Register},
 	{"billing/tax", tax.Register},
