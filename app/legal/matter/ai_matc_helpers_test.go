@@ -127,6 +127,7 @@ type matcWorld struct {
 	fd      *agenttest.FeatureDriver
 	drafts  *matcDrafts
 	matter  string
+	client  string // the matter's client contact
 	doc     string
 	version kdocs.VersionID
 }
@@ -140,7 +141,7 @@ func matcFeature(t *testing.T, def feature.Def, lines []string, extra ...any) ma
 	matcApprovableGates(fd)
 	m := fd.Seed.Matter("2026-0301", "Synth v Example")
 	doc, ver := fd.Seed.Document(string(m.ID), lines)
-	return matcWorld{fd: fd, drafts: env.drafts, matter: string(m.ID), doc: doc, version: ver}
+	return matcWorld{fd: fd, drafts: env.drafts, matter: string(m.ID), client: string(m.ClientID), doc: doc, version: ver}
 }
 
 // matcApprovableGates gives the Seed a gate store in which the acting user and matcOtherLawyer
