@@ -44,6 +44,7 @@ func appDefs() []feature.Def {
 		conflict.SearchRankingDef(),
 		conflict.ClearanceMemoDef(),
 		// matters
+		matter.BriefRefreshDef(),
 		matter.CallSummaryDef(),
 		matter.ChronologyDef(),
 	}

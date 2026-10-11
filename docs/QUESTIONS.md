@@ -1890,3 +1890,16 @@ Done in PORT-18:
 - search_matters and get_matter return matter short names unquoted (not as
   agenttools.Quoted), so an instruction in a matter name reaches the model outside quoted
   data (ARC-I-038). That is a handler follow-up.
+
+## Q-FEAT-MAT-01 Brief refresh events; shared matter AI helpers
+
+- a2 names only `document.uploaded` of F-MAT-01's trigger ("document, email, note or event
+  added to a matter"). The Def also binds `email.filed`, `matter.note_added` and
+  `calendar_event.added` (app/legal/matter/ai_f_mat_01.go), which the owning modules do not
+  publish yet.
+- No F-MAT-01 write carries an amount or a date field, so ErrUnsourcedValue has no case. The
+  feature test covers the draft tool's source check instead: a key-fact draft citing a
+  version the run did not read is refused with agent.ErrUncitedSource.
+- FEAT-MAT-06, -10 and -01 share one test helper file, app/legal/matter/ai_mat_helpers_test.go
+  (mat prefix), so task/FEAT-MAT-10 is based on task/FEAT-MAT-06 and task/FEAT-MAT-01 on
+  task/FEAT-MAT-10.
