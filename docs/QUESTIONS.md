@@ -932,3 +932,16 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   cases for both points, and rule ids outrank the code. Changing the behaviour would mean
   changing a frozen rule against the statute, so the code and tests are left as they are.
   (verify against the current s.23 text and GST/HST Memorandum 4.5.3.)
+
+## PORT-01 (kernel/gate: *PG implements gate.Engine)
+
+- Branch is cut from origin/main with origin/task/BOOT-09 merged in, because the run.go
+  ErrNotImplemented assert this task removes exists only on that branch.
+- `kernel/gate/open.go` (outside the task's file list) gains one field on `PG`: `db TxRunner`,
+  set with `SetDB`. `Engine.Get` takes no tx, so the engine needs its own read handle; the
+  field is additive. Boot's `pgGates` now takes the pool and wires it.
+- Withdraw sets `counsel.gate_tx` itself (there is no `gate.withdraw()` SQL function in
+  0001); `counsel_app` holds UPDATE on gate.approval_request. A SECURITY DEFINER
+  `gate.withdraw(uuid, uuid)` in a later additive migration would be tighter.
+- RunDue skips a gate whose effect failed (recorded as failed), whose kind is unknown or whose
+  stored payload fails its hash, logging a warning, so one bad gate does not block the rest.

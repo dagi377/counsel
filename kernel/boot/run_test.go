@@ -44,7 +44,7 @@ func (r *runRig) env(t *testing.T) env {
 			return dbfake.New(), nil
 		},
 		registry: func() (registry.Booter, error) { return registry.NewBoot(schemas), nil },
-		gates:    func() (gate.Engine, error) { return gatefake.New(time.Now, nil), nil },
+		gates:    func(db.DB) (gate.Engine, error) { return gatefake.New(time.Now, nil), nil },
 		server: func(_ context.Context, _ Config, k *Kernel) error {
 			r.steps = append(r.steps, "role:server")
 			return nil
@@ -182,5 +182,32 @@ func TestRunBadZone(t *testing.T) {
 	err := run(context.Background(), cfg, rig.env(t), routeApp(rig, nil))
 	if err == nil || slices.Contains(rig.steps, "register") {
 		t.Fatalf("run() = %v, steps %v; want an error before any register", err, rig.steps)
+	}
+}
+
+func TestPGGatesIsTheEngine(t *testing.T) {
+	tests := []struct {
+		name    string
+		pool    db.DB
+		wantErr error
+	}{
+		{"database wired", dbfake.New(), nil},
+		{"no database", nil, ErrConfig},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			eng, err := pgGates(tt.pool)
+			if !errors.Is(err, tt.wantErr) || (tt.wantErr == nil && err != nil) {
+				t.Fatalf("pgGates = %v, want %v", err, tt.wantErr)
+			}
+			if errors.Is(err, ErrNotImplemented) {
+				t.Fatal("pgGates still returns ErrNotImplemented")
+			}
+			if tt.wantErr == nil {
+				if _, ok := eng.(*gate.PG); !ok {
+					t.Fatalf("pgGates = %T, want *gate.PG", eng)
+				}
+			}
+		})
 	}
 }

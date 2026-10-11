@@ -19,6 +19,8 @@ type PG struct {
 	// decide holds the app's Decide inputs (SetDecideHooks), guarded by mu. Each engine
 	// owns its hooks; there is no package-level state.
 	decide DecideHooks
+	// db runs Get's read transaction (SetDB), guarded by mu. Nil until boot wires it.
+	db TxRunner
 }
 
 // NewPG returns an engine whose kinds are checked against modules (see NewKinds).

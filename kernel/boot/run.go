@@ -28,8 +28,8 @@ type env struct {
 	open func(ctx context.Context, cfg db.Config) (db.DB, error)
 	// registry returns the empty registry that apps record into and the kernel seals.
 	registry func() (registry.Booter, error)
-	// gates returns the gate engine.
-	gates func() (gate.Engine, error)
+	// gates returns the gate engine, reading from pool.
+	gates func(pool db.DB) (gate.Engine, error)
 	// server runs the server role.
 	server func(ctx context.Context, cfg Config, k *Kernel) error
 	// worker runs the worker role.
@@ -87,7 +87,7 @@ func run(ctx context.Context, cfg Config, e env, apps ...App) error {
 	if err != nil {
 		return fmt.Errorf("run %s: registry: %w", cfg.Role, err)
 	}
-	gates, err := e.gates()
+	gates, err := e.gates(pool)
 	if err != nil {
 		return fmt.Errorf("run %s: %w", cfg.Role, err)
 	}
@@ -147,14 +147,12 @@ type denyAll struct{}
 
 func (denyAll) Can(context.Context, string, string) (bool, error) { return false, nil }
 
-// pgGates returns the Postgres gate engine. gate.PG does not implement all of gate.Engine on
-// main yet (Get, Withdraw and RunDue are pending), so until it does the server and worker
-// roles stop here with ErrNotImplemented instead of booting without a gate engine.
-func pgGates() (gate.Engine, error) {
-	var pg any = gate.NewPG()
-	eng, ok := pg.(gate.Engine)
-	if !ok {
-		return nil, fmt.Errorf("gate engine: %T does not implement gate.Engine yet: %w", pg, ErrNotImplemented)
+// pgGates returns the Postgres gate engine, reading gates from pool.
+func pgGates(pool db.DB) (gate.Engine, error) {
+	if pool == nil {
+		return nil, fmt.Errorf("gate engine: no database: %w", ErrConfig)
 	}
-	return eng, nil
+	g := gate.NewPG()
+	g.SetDB(pool)
+	return g, nil
 }
