@@ -1703,6 +1703,7 @@ Done in PORT-18:
 - 6200_agent_flag.sql (FEAT-CORE-13) gained the MIG-061 `SET lock_timeout` / `statement_timeout`.
 - Not done here: the FEAT-TOOL-16 `Item.Description` additive field (follow-up).
 
+
 ## Q-PORT-11: signatory change log, migration number and files outside the list
 
 - Task: PORT-11. The task names `migrations/6210_signatory_change.sql`, but 6200-6299 is the
@@ -2095,3 +2096,32 @@ Done in PORT-18:
   whose quoted text sits under `pages[].lines[]`, not in a top-level `agenttools.Quoted`.
 - Defs set `Grant` to the capabilities of their tools: an empty grant refuses every call.
 - The event type `calendar.event_ended` is named here; no calendar module publishes it yet.
+
+## FEAT-TOOL-05 list_deadlines
+
+- Additive contract change (named in the task's accept text): `kernel/deadline` gains
+  `Filter` and a separate `Lister` interface (`List(ctx, Filter)`), so `Engine` and its
+  implementations are unchanged. deadlinefake implements it; the Postgres store has no List
+  yet and must implement `Lister` before boot wires list_deadlines.
+- Visibility: a named walled matter is refused with ErrNotVisible (404). Without a matter id,
+  deadlines of walled matters are omitted, and deadlines on a subject that is not a matter
+  are omitted too (walls cannot be checked on them: fail closed).
+- The result carries ids, rule references and dates only, no document or client text, so it
+  has no quoted envelope. Due dates are YYYY-MM-DD strings, which Provenance.ReadTool records.
+- Registered through `ListDeadlinesHandler()` for the boot HandlerSet, not init().
+
+## FEAT-DL-11 F-DL-05 daily digest (also FEAT-DL-12, FEAT-DL-13)
+
+- appDefs (FEAT-CORE-17) lives in `app/legal/agent/feature`, and every feature Def imports
+  that package, so `feature.appDefs()` cannot list `deadlines.DigestDef()` without an import
+  cycle. The Defs are not in appDefs yet; the list has to move to a package that imports the
+  modules (app/legal/boot) or take the Defs as a parameter. Decision needed before the skill
+  export covers deadline features.
+- agenttest `Seed.Deadline` files deadlines on subject kind `"matter"`, but list_deadlines
+  (FEAT-TOOL-05) keeps only `roles.SubjectMatter` (`"matter.matter"`), so a seeded deadline
+  never lists. The F-DL feature tests save their deadline on `roles.SubjectMatter` directly;
+  Seed.Deadline should use `roles.SubjectMatter`.
+- get_matter, read_document and compute_deadline are not in `agent.Handlers()`. The tests run
+  list_deadlines as its real handler and read_document as a quoting handler over the seed's
+  document text (so CheckAnswer has real citations); get_matter and compute_deadline run as
+  stand-ins.
