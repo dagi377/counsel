@@ -139,6 +139,11 @@ func (f *Fake) Transition(_ context.Context, _ pgx.Tx, id tk.EntryID, to tk.Stat
 	case to == tk.StateOnDraftBill && len(e.Flags) > 0:
 		return fmt.Errorf("bill %s: %w", id, tk.ErrOutOfScope)
 	}
+	// A release (on_draft_bill or billed back to approved) takes the entry off its bill,
+	// so it can be billed again.
+	if to == tk.StateApproved && (e.State == tk.StateOnDraftBill || e.State == tk.StateBilled) {
+		e.BillID = ""
+	}
 	e.State = to
 	f.entries[id] = e
 	return nil

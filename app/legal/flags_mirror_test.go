@@ -44,6 +44,7 @@ func TestFlagMirrorsMatchCanonicalNames(t *testing.T) {
 		{"conflict", conflict.FlagIDVerification, FlagIDVerification},
 		{"export", export.FlagPostCancelWindow, FlagExportPostCancelWindow},
 		{"interest", interest.FlagSolicitorsActVerified, FlagSolicitorsActVerified},
+		{"interest cja default rate", interest.FlagCJADefaultRate, FlagInterestCJADefaultRate},
 		{"payment receipts journal", payment.FlagReceiptsJournalVerified, FlagReceiptsJournalVerified},
 		{"bill fees book", bill.FlagBillingRecordsVerified, FlagBillingRecordsVerified},
 		{"trust recon", recon.FlagBylaw9Verified, FlagTrustBylaw9Verified},
