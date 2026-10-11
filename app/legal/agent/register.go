@@ -24,3 +24,13 @@ func Register(r registry.Registry) error {
 	}
 	return nil
 }
+
+func init() { add(registerRunRoutes) }
+
+// registerRunRoutes mounts POST /agent/runs and GET /agent/runs/{run_id} through
+// Registry.Routes. Boot wiring supplies the run port and access; until it does, the routes
+// answer 503.
+func registerRunRoutes(r registry.Registry) error {
+	r.Routes((&RunHTTP{}).Routes)
+	return nil
+}

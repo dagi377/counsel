@@ -1851,3 +1851,17 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## HTTP-25: agent runs, start and get (approved scope)
+
+- agent.Service has no start or run query, so http.go adds the narrow `RunService` port
+  (SkillGrant, Start, Run) with `ErrUnknownSkill` (422 unknown_skill) and `ErrRunNotFound`.
+  Boot must wire the Paploo starter and a run store over agent.agent_run; until then the
+  routes answer 503.
+- POST /agent/runs takes `{skill_id, inputs?: object, matter_id?}`. The route mints the run id,
+  asks `Access.AgentPrincipal(run, caller, skill grant)` (ARC-I-036 intersection) and hands
+  that principal to Start; it answers 202 with the run view. A walled matter answers 404.
+- GET /agent/runs/{run_id} answers 404 for a run another member started or one on a walled
+  matter. Neither op lists, so the cursor and limit accept lines do not apply.
+- A reused Idempotency-Key with a different body answers 422 (kernel/idem, ARC-I-008).
+- openapi has no body schemas for these operations; the views are documented here.
