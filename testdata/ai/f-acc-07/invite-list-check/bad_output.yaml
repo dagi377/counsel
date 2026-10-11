@@ -1,0 +1,8 @@
+synthetic: true
+feature: F-ACC-07
+match:
+  last_user_regex: '\[bad_output\]'
+turns:
+  - reply:
+      json: {rows: "not a list"}
+      stop_reason: end_turn
