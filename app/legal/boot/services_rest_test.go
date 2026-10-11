@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/dagi377/counsel/app/legal/billing/payment"
+	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/kernel/audit"
@@ -47,8 +48,19 @@ func (fakeRefunds) Funds(context.Context, pgx.Tx, string, string) (withdraw.Fund
 }
 func (fakeRefunds) Request(context.Context, pgx.Tx, withdraw.Request) (string, error) { return "", nil }
 
+type fakeLeadStores struct{}
+
+func (fakeLeadStores) Form(context.Context, string) (intake.Form, error) { return intake.Form{}, nil }
+func (fakeLeadStores) ByIdempotencyKey(context.Context, string, string) (intake.Lead, error) {
+	return intake.Lead{}, intake.ErrNotFound
+}
+func (fakeLeadStores) Insert(_ context.Context, l intake.Lead, _ string) (intake.Lead, error) {
+	return l, nil
+}
+
 func testRestPorts() *RestPorts {
 	return &RestPorts{
+		Leads:    &LeadPorts{Forms: fakeLeadStores{}, Leads: fakeLeadStores{}},
 		Receipts: &ReceiptPorts{Poster: fakePoster{}},
 		Refunds: &RefundPorts{Store: fakeRefunds{}, Trust: fakeRefunds{},
 			Ledger: ledgerfake.New(clock.Date{Year: 2026, Month: 10, Day: 11})},
@@ -83,6 +95,7 @@ func TestRegisterRestWiresEveryPiece(t *testing.T) {
 		{"deadline book emits", s.Book != nil && s.Book.Events != nil},
 		{"filing store emits", s.Filings != nil && s.Filings.Events != nil},
 		{"sole sync job", len(k.Jobs.Periodic()) == 1},
+		{"intake leads publish", s.Leads != nil && s.Leads.Events != nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

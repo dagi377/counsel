@@ -31,6 +31,9 @@ const (
 // TriggerChanger changes a stored deadline's trigger date in tx; *deadline.PGBook
 // implements it and publishes deadline.trigger_date_changed.
 type TriggerChanger interface {
+	// Get returns the stored deadline; its subject is the matter whose wall and capability
+	// the route checks.
+	Get(ctx context.Context, id deadline.DeadlineID) (deadline.Deadline, error)
 	ChangeTrigger(ctx context.Context, tx pgx.Tx, id deadline.DeadlineID, trigger deadline.Date) error
 }
 
@@ -125,11 +128,39 @@ func (h *TriggerHTTP) change(w http.ResponseWriter, r *http.Request) {
 	}
 	// rule: ARC-I-008
 	idem.New(h.Idem, func(*http.Request) string { return user }, idem.DefaultTTL)(
-		http.HandlerFunc(h.apply),
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { h.apply(w, r, p) }),
 	).ServeHTTP(w, r)
 }
 
-func (h *TriggerHTTP) apply(w http.ResponseWriter, r *http.Request) {
+// canOnSubject checks CapEdit on the deadline's subject (its matter) and writes the problem
+// when it fails: a walled matter answers 404, a missing capability 403.
+func (h *TriggerHTTP) canOnSubject(w http.ResponseWriter, r *http.Request, p registry.Principal, id deadline.DeadlineID) bool {
+	d, err := h.Book.Get(r.Context(), id)
+	switch {
+	case errors.Is(err, deadline.ErrNotFound), errors.Is(err, identity.ErrNotVisible):
+		h.fail(w, r, http.StatusNotFound, CodeNotFound, "No such deadline")
+		return false
+	case err != nil:
+		h.fail(w, r, http.StatusInternalServerError, server.CodeInternal, "Internal error")
+		return false
+	}
+	// rule: ARC-I-051
+	// rule: ARC-I-042
+	allowed, err := h.Access.Can(r.Context(), p, CapEdit, d.Proposed.Subject)
+	switch {
+	case errors.Is(err, identity.ErrNotVisible):
+		h.fail(w, r, http.StatusNotFound, CodeNotFound, "No such deadline")
+	case err != nil:
+		h.fail(w, r, http.StatusInternalServerError, server.CodeInternal, "Internal error")
+	case !allowed:
+		h.fail(w, r, http.StatusForbidden, CodeMissingCapability, "Missing capability")
+	default:
+		return true
+	}
+	return false
+}
+
+func (h *TriggerHTTP) apply(w http.ResponseWriter, r *http.Request, p registry.Principal) {
 	var b triggerBody
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
@@ -143,6 +174,9 @@ func (h *TriggerHTTP) apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := deadline.DeadlineID(chi.URLParam(r, "deadline_id"))
+	if !h.canOnSubject(w, r, p, id) {
+		return
+	}
 	err = h.DB.InTx(r.Context(), func(ctx context.Context, tx pgx.Tx) error {
 		return h.Book.ChangeTrigger(ctx, tx, id, on)
 	})

@@ -10,6 +10,7 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/comms"
+	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter/matterkind"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/roles"
@@ -49,6 +50,17 @@ type RestPorts struct {
 	Receipts *ReceiptPorts
 	// Refunds, when set, wires the billing.refund effect (REFUND-EFFECT).
 	Refunds *RefundPorts
+	// Leads, when set, builds intake.Leads publishing identity.portal_submission
+	// (EVENTS-WIRE-3).
+	Leads *LeadPorts
+}
+
+// LeadPorts are intake.Leads' stores. No Postgres FormStore or LeadStore exists yet
+// (intake.lead has no idempotency key column; Q-EVENTS-WIRE-3), so the composition root
+// takes them from its caller. Contacts come from the event-emitting party store.
+type LeadPorts struct {
+	Forms intake.FormStore
+	Leads intake.LeadStore
 }
 
 // ReceiptPorts are the receipt classification effect's dependencies.
@@ -83,6 +95,9 @@ type RestServices struct {
 	Contacts   *party.Store
 	Walls      *roles.WallResolver
 	LeadEvents outbox.Emitter
+	// Leads creates leads from portal submissions and publishes identity.portal_submission
+	// through LeadEvents; nil while RestPorts.Leads is unset (EVENTS-WIRE-3).
+	Leads *intake.Leads
 }
 
 // AuditMasker is the audit masker the legal app stores detail through. It keeps only ids,
@@ -180,6 +195,7 @@ func (w *wiring) registerRest(_ context.Context, k *kboot.Kernel) error {
 	if err != nil {
 		return err
 	}
+	s.Leads = buildLeads(k, s, w.opts.Rest.Leads)
 	w.rest = &s
 	if w.opts.Rest.Renew != nil {
 		if err := addRenewJobs(k, *w.opts.Rest.Renew); err != nil {
@@ -187,6 +203,17 @@ func (w *wiring) registerRest(_ context.Context, k *kboot.Kernel) error {
 		}
 	}
 	return addSoleSyncJob(k, k.DB)
+}
+
+// buildLeads builds intake.Leads on p's stores and s's contact store, publishing through
+// s.LeadEvents. It returns nil when p or one of its stores is missing.
+func buildLeads(k *kboot.Kernel, s RestServices, p *LeadPorts) *intake.Leads {
+	if p == nil || p.Forms == nil || p.Leads == nil || s.Contacts == nil {
+		return nil
+	}
+	l := intake.NewLeads(p.Forms, p.Leads, s.Contacts, k.Clock.Now)
+	l.Events = s.LeadEvents
+	return l
 }
 
 // Wired returns the rest services the app built at Register, or nil before it ran.

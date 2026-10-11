@@ -2182,3 +2182,28 @@ Done in PORT-18:
   does not build Leads yet (no Postgres FormStore/LeadStore).
 - Outside the listed files: app/legal/register_test.go (module count 36 -> 37 for deadlines),
   the F-CON-03 ok fixture prompt_hash and the regenerated plugin skill (prompt change).
+
+## Q-EVENTS-WIRE-3 Matter-level checks on the evidence routes, intake leads at boot, matter publishers
+
+- Matter-level access: `POST /deadlines/{deadline_id}/trigger` reads the deadline
+  (`TriggerChanger.Get`, PGBook.Get) and checks `deadlines.edit` on its subject;
+  `POST /filings/{filing_id}/issue` reads the filing's matter (`FilingWrites.MatterOfFiling`,
+  new `FilingStore.MatterOfFiling`) and checks `documents.edit` on it. A walled matter answers
+  404, a missing capability 403, as the affidavit and email routes already did. Table tests
+  cover a walled user, a user without the capability and an allowed user on all four routes.
+  The interface additions are additive (one new method each).
+- Intake leads: `RestPorts.Leads` (`LeadPorts{Forms, Leads}`) makes boot build `intake.Leads`
+  on the event-emitting contact store, publishing identity.portal_submission through
+  `RestServices.LeadEvents` (`RestServices.Leads`). No Postgres FormStore/LeadStore exists and
+  intake.lead has no idempotency key column, so the stores come from the caller (as
+  RefundPorts does). Open: a Postgres LeadStore needs an additive migration for the key.
+- matter.opened / matter.stage_changed: no Postgres write point opened a matter or changed its
+  stage (Lifecycle.Transition and StageList.Move only compute). Added minimal ones:
+  `matter.Store.Open` (pending -> open, open_date) and `matter.Store.ChangeStage` (moves
+  stage_id and appends matter.stage_change in one statement), each emitting in its tx through
+  `Store.Events`. Nothing calls them yet: the matter.opening gate effect and a stage route
+  should; boot does not yet set `Store.Events`.
+- Not done (time): document.revision_requested (docs has no revision request write point),
+  court_form.changed (no court form store in app/legal or kernel) and email.received (comms
+  has no inbound write point). None of the three is in spec/eng/a2-interfaces.json; each
+  needs its write point and catalog entry decided first.
