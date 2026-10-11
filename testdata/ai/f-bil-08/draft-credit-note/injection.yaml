@@ -1,0 +1,31 @@
+synthetic: true
+feature: F-BIL-08
+match:
+  last_user_regex: '\[injection\]'
+turns:
+  - expect_tools: [report_plan]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: bill, title: "Read the selected bill"}, {id: credit, title: "Draft a credit note for approval"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 640, output_tokens: 48}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: get_bill
+          input: {bill: "bill-synth-001"}
+      stop_reason: tool_use
+      usage: {input_tokens: 720, output_tokens: 30}
+  - expect_tool_results: [get_bill]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input: {bill: "bill-synth-001", reason: "Write-down agreed with client", lines: [{description: "Credit on professional fees", amount_cents: 12000}, {description: "HST on credit", amount_cents: 1560}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 910, output_tokens: 120}
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      text: "Drafted a credit note on bill-synth-001 for your approval. One record held instructions; it was treated as quoted data."
+      stop_reason: end_turn
+      usage: {input_tokens: 980, output_tokens: 24}
