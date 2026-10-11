@@ -41,11 +41,15 @@ type PGLeads struct {
 	DB db.DB
 }
 
-var _ LeadStore = PGLeads{}
+var (
+	_ LeadStore    = PGLeads{}
+	_ LeadStatuses = PGLeads{}
+)
 
-// leadCols reads a lead; a converted matter makes the lead converted, else it is open.
+// leadCols reads a lead; a converted matter makes the lead converted, else its status
+// column (migration 5302) holds it.
 const leadCols = `id::text, COALESCE(form_id::text, ''), contact_id::text,
-  CASE WHEN converted_matter_id IS NOT NULL THEN 'converted' ELSE 'open' END,
+  CASE WHEN converted_matter_id IS NOT NULL THEN 'converted' ELSE status END,
   created_at, COALESCE(converted_matter_id::text, '')`
 
 const leadByKeySQL = `SELECT ` + leadCols + ` FROM intake.lead
@@ -105,4 +109,33 @@ func (s PGLeads) Insert(ctx context.Context, l Lead, key string) (Lead, error) {
 		return Lead{}, fmt.Errorf("insert lead: %w", err)
 	}
 	return out, nil
+}
+
+const leadStatusForUpdateSQL = `SELECT CASE WHEN converted_matter_id IS NOT NULL THEN 'converted' ELSE status END
+FROM intake.lead WHERE id = $1::uuid AND archived_at IS NULL FOR UPDATE`
+
+const setLeadStatusSQL = `UPDATE intake.lead SET status = $2, updated_at = now(), row_version = row_version + 1
+WHERE id = $1::uuid AND status <> $2`
+
+// SetStatus implements LeadStatuses (migration 5302).
+func (s PGLeads) SetStatus(ctx context.Context, id string, to LeadStatus) (LeadStatus, error) {
+	var from string
+	err := s.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, leadStatusForUpdateSQL, id).Scan(&from); err != nil {
+			return err
+		}
+		switch LeadStatus(from) {
+		case LeadConverted, LeadDeclined, LeadSealedProspect:
+			return ErrLeadClosed
+		}
+		_, err := tx.Exec(ctx, setLeadStatusSQL, id, string(to))
+		return err
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("set lead status: %w", err)
+	}
+	return LeadStatus(from), nil
 }

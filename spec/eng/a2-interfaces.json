@@ -162,6 +162,16 @@
    "note": ""
   },
   {
+   "type": "intake.lead_awaiting_info",
+   "version": 1,
+   "module": "intake",
+   "subject_type": "lead",
+   "payload": [
+    "lead_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-EVENTS-WIRE-6): a lead moved into awaiting info; starts the missing-info chaser."
+  },
+  {
    "type": "lead.converted",
    "version": 1,
    "module": "intake",
@@ -262,9 +272,10 @@
    "payload": [
     "comm_item_id",
     "connector_id?",
-    "occurred_at"
+    "occurred_at",
+    "to"
    ],
-   "note": "Q-EVENTS-WIRE-4; ids only, never the subject, body or addresses"
+   "note": "Q-EVENTS-WIRE-4; ids, the time and the recipient addresses (to, additive Q-EVENTS-WIRE-6) only, never the subject, body or sender"
   },
   {
    "type": "deadline.proposed",

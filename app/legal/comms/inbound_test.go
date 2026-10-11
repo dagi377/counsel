@@ -3,6 +3,7 @@ package comms
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -76,6 +77,49 @@ func TestInboundEmailPublishesOneEvent(t *testing.T) {
 			}
 			if tt.want == 1 && (msgs[0].Type != EventEmailReceived || msgs[0].Subject.ID != "ci1") {
 				t.Fatalf("event = %s %+v", msgs[0].Type, msgs[0].Subject)
+			}
+		})
+	}
+}
+
+// rule: ARC-I-030
+// email.received carries the to, cc and bcc addresses (lower-cased, de-duplicated) in its
+// additive "to" field so F-INT-02 can ignore mail not sent to the intake address; one event.
+func TestInboundEmailReceivedTo(t *testing.T) {
+	at := time.Date(2026, 10, 11, 14, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name         string
+		participants string
+		want         []string
+	}{
+		{"to and cc", `[{"role":"from","address":"p@x.test"},{"role":"to","address":"Intake@Firm.test"},{"role":"cc","email":"b@firm.test"}]`,
+			[]string{"intake@firm.test", "b@firm.test"}},
+		{"duplicate and bcc", `[{"role":"to","address":"a@firm.test"},{"role":"bcc","address":"A@firm.test"}]`,
+			[]string{"a@firm.test"}},
+		{"no recipients", `[{"role":"from","address":"p@x.test"}]`, []string{}},
+		{"empty", `[]`, []string{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			em := outboxfake.New()
+			s := &Inbound{DB: wireDB{tx: &wireTx{row: wireRow{vals: []string{"ci1"}}}}, Events: em}
+			mail := InboundEmail{ConnectorID: "c1", ExternalID: "x1", Participants: json.RawMessage(tt.participants),
+				BodyRef: "obj/1", OccurredAt: at}
+			if _, err := s.Receive(context.Background(), mail); err != nil {
+				t.Fatalf("Receive: %v", err)
+			}
+			msgs := em.Messages()
+			if len(msgs) != 1 || msgs[0].Type != EventEmailReceived {
+				t.Fatalf("events = %d, want one %s", len(msgs), EventEmailReceived)
+			}
+			var body struct {
+				To []string `json:"to"`
+			}
+			if err := json.Unmarshal(msgs[0].Payload, &body); err != nil {
+				t.Fatal(err)
+			}
+			if body.To == nil || strings.Join(body.To, ",") != strings.Join(tt.want, ",") {
+				t.Fatalf("to = %#v, want %#v", body.To, tt.want)
 			}
 		})
 	}

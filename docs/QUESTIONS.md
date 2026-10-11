@@ -3098,3 +3098,23 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-EVENTS-WIRE-6 lead.created, intake.lead_awaiting_info and email.received recipients
+
+- **lead.created:** `intake.Leads.Submit` now publishes `lead.created` (`lead_id`) for every new
+  lead, next to `identity.portal_submission`, so F-INT-01, F-CON-01 and F-DL-02 start. A repeat
+  with the same idempotency key publishes nothing. Portal submission is the only lead-creating
+  path today; any new one must call the same publisher.
+- **intake.lead_awaiting_info (additive to spec/eng/a2-interfaces.json):** intake.json lists
+  "awaiting info" as a lead state and the missing-info chaser triggers on it, but no event or
+  status existed. Added `intake.LeadAwaitingInfo` (contract.go, additive constant), the
+  `LeadStatuses` port with `PGLeads.SetStatus`, `Leads.SetStatus` and migration
+  `5302_lead_status.sql` (additive `intake.lead.status`, default `open`). Moving into
+  `awaiting_info` from another status publishes one `intake.lead_awaiting_info` (`lead_id`);
+  staying there publishes nothing. Open: no HTTP route sets the status yet (a contract change
+  to api/openapi.yaml); the emitter opens its own tx, as identity.portal_submission does.
+- **email.received `to` (additive payload field):** the payload carries `to`, the
+  lower-cased, de-duplicated to/cc/bcc addresses read from the participants array (entries with
+  `role` to, cc or bcc and an `address` or `email`), never nil. This relaxes the earlier
+  "never addresses" note for recipients only (the firm's own mailboxes in practice), so F-INT-02
+  can ignore mail not sent to the intake address. The sender, subject and body stay out.

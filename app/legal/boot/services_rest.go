@@ -243,6 +243,8 @@ func buildLeads(k *kboot.Kernel, s RestServices, p *LeadPorts) *intake.Leads {
 	}
 	l := intake.NewLeads(forms, leads, s.Contacts, k.Clock.Now)
 	l.Events = s.LeadEvents
+	// The lead store also moves statuses when it can (Q-EVENTS-WIRE-6).
+	l.Statuses, _ = leads.(intake.LeadStatuses)
 	return l
 }
 
