@@ -123,6 +123,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /v1/models", s.listModels)
 	mux.HandleFunc("POST /v1/messages", s.messages)
 	mux.HandleFunc("POST /v1/messages/count_tokens", s.countTokens)
+	mux.HandleFunc("POST /v1/embeddings", s.embeddings)
 	return mux
 }
 
