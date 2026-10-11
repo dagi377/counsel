@@ -56,5 +56,6 @@ func appDefs() []feature.Def {
 		// documents
 		docs.CourtFormCurrencyDef(),
 		docs.AssemblyOnStageDef(),
+		docs.TrackedRevisionDef(),
 	}
 }

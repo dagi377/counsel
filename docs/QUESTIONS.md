@@ -2393,3 +2393,5 @@ Done in PORT-18:
   pointers), so `agenttools.ErrUnsourcedValue` cannot arise in their runs; no test asserts it.
 - F-DOC-10 binds `matter.opened` and `matter.stage_changed`; the matter module does not publish either
   yet (add them to EVENTS-WIRE).
+- F-DOC-11 binds `document.revision_requested`; no module publishes it yet (add it to EVENTS-WIRE with the
+  revise request route).
