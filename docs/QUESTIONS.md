@@ -2454,9 +2454,11 @@ Done in PORT-18:
 - BOOT-WIRE-A was cut before pass 14 landed F-CON-01..03 and F-DL-05, 07..13. Integration
   pass 15a binds every new job feature through its own package Binding func and drops
   BOOT-WIRE-A's local copies of the deadline event names (deadlines already exports them).
-- Scheduled runs (F-DL-06 rule watch, F-DL-05 digest, F-DL-09 daily coverage) all act for
-  AgentWiring.RuleAdmin. Open: should the digest and coverage check act for a separate
-  configured user?
+- Scheduled runs F-DL-05 (digest) and F-DL-09 (daily coverage) act for
+  AgentWiring.RuleAdmin. F-DL-06 acts for its designated lawyer (JOB-ACTOR,
+  trigger.BindDesignated). Open: move F-DL-05 and F-DL-09 to BindDesignated too, and have
+  boot call Bindings.WithDesignated with agent's Postgres designated-lawyer reader; boot does
+  not do that yet, so the rule watch stays unready until it does.
 - AgentPorts gains UnbilledWIP, Matters (matter.Query), DocLookup and WriteTools, the
   handler deps pass 14 added (draft_bill, get_matter/search_matters, read_document,
   prepare_trust_withdrawal).

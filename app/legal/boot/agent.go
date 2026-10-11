@@ -253,9 +253,9 @@ func gateKindCodes() ([]string, error) {
 }
 
 // JobBindings binds every job feature of s to the events and schedule that start it.
-// ruleAdmin is the user the scheduled runs act for (F-DL-06 rule watch, F-DL-05 digest,
-// F-DL-09 daily coverage check; Q-INTEG-15A-SCHEDULED); empty fails with
-// trigger.ErrBadBinding. A job feature with no binding
+// ruleAdmin is the user the F-DL-05 digest and the F-DL-09 daily coverage check act for
+// (Q-INTEG-15A-SCHEDULED); empty fails with trigger.ErrBadBinding. The F-DL-06 rule watch
+// acts for its designated lawyer in firm settings instead (JOB-ACTOR). A job feature with no binding
 // listed here fails, so a new job feature cannot ship unbound.
 func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 	scheduled := func(bind func(string) (trigger.Binding, error)) func() (trigger.Binding, error) {
@@ -270,7 +270,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		deadlines.FeatureLimitationAssessment:       deadlines.LimitationAssessmentBinding,
 		deadlines.RecomputeDependantsDef().ID:       deadlines.RecomputeDependantsBinding,
 		deadlines.ComplianceEvidenceMatcherDef().ID: deadlines.ComplianceEvidenceMatcherBinding,
-		deadlines.RuleWatchDef().ID:                 scheduled(deadlines.RuleWatchBinding),
+		deadlines.RuleWatchDef().ID:                 deadlines.RuleWatchBinding,
 		deadlines.DigestDef().ID:                    scheduled(deadlines.DigestBinding),
 		deadlines.PostEventFollowUpDef().ID:         deadlines.PostEventFollowUpBinding,
 		deadlines.AdjournmentWatcherDef().ID:        deadlines.AdjournmentWatcherBinding,
@@ -389,7 +389,7 @@ func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Pr
 // AgentWiring is what the agent layer needs at boot beyond its ports.
 type AgentWiring struct {
 	Ports AgentPorts
-	// RuleAdmin is the user scheduled rule-watch runs act for.
+	// RuleAdmin is the user the scheduled digest and coverage-check runs act for.
 	RuleAdmin string
 	// Bindings receives the job-feature bindings; nil skips triggers and the tick job.
 	Bindings *trigger.Bindings
