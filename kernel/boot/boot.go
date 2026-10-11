@@ -6,12 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/flags"
 	"github.com/dagi377/counsel/kernel/gate"
+	"github.com/dagi377/counsel/kernel/notify"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/kernel/report"
 	"github.com/dagi377/counsel/kernel/server"
@@ -50,17 +50,32 @@ var (
 // Config is everything a binary passes to Run.
 type Config struct {
 	Role        Role
-	Addr        string      // listen address (server)
-	DatabaseURL string      // Postgres DSN; never logged
-	Flags       []string    // flag names to turn on; each must be defined by an app
-	MigrateMode MigrateMode // migrate only
-	ImportFrom  string      // import only: source export path
+	Addr        string // listen address (server)
+	DatabaseURL string // Postgres DSN through the pooler; never logged
+	// DirectDatabaseURL is the Postgres DSN that bypasses the pooler, for the job queue and
+	// migrations (ARC-U-011). Never logged.
+	DirectDatabaseURL string
+	Zone              string      // IANA business time zone; the binary passes it, the kernel names none
+	MaxWorkers        int         // worker only: concurrent jobs on the default queue; 0 means 10
+	Flags             []string    // flag names to turn on; each must be defined by an app
+	MigrateMode       MigrateMode // migrate only
+	ImportFrom        string      // import only: source export path
 }
 
 // Validate checks the fields the role needs.
 func (c Config) Validate() error {
 	switch c.Role {
-	case RoleServer, RoleWorker, RoleImport:
+	case RoleServer, RoleWorker:
+		if c.DatabaseURL == "" {
+			return fmt.Errorf("role %s: database url is empty: %w", c.Role, ErrConfig)
+		}
+		if c.DirectDatabaseURL == "" {
+			return fmt.Errorf("role %s: direct database url is empty: %w", c.Role, ErrConfig)
+		}
+		if c.Zone == "" {
+			return fmt.Errorf("role %s: zone is empty: %w", c.Role, ErrConfig)
+		}
+	case RoleImport:
 	case RoleMigrate:
 		switch c.MigrateMode {
 		case MigrateExpand, MigrateContract:
@@ -83,6 +98,7 @@ type Kernel struct {
 	Reports  report.Engine
 	Server   server.Server
 	Events   *webhook.Types
+	Notify   *notify.Service
 	Jobs     *Jobs // River workers and periodic jobs apps add at Register
 
 	sealed bool // Registry.Seal passed; apply runs only then
@@ -109,6 +125,7 @@ type Deps struct {
 	Reports  report.Engine
 	Server   server.Server
 	Events   *webhook.Types
+	Notify   *notify.Service
 }
 
 // Build creates the kernel and calls every app's Register in order.
@@ -123,7 +140,8 @@ func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kerne
 	k := &Kernel{
 		Flags: flags.New(), Registry: deps.Registry, DB: deps.DB, Clock: deps.Clock,
 		Gates: deps.Gates, Reports: deps.Reports, Server: deps.Server, Events: deps.Events,
-		Jobs: NewJobs(),
+		Notify: deps.Notify,
+		Jobs:   NewJobs(),
 	}
 	for _, a := range apps {
 		if a.Register == nil {
@@ -158,23 +176,4 @@ func BuildWith(ctx context.Context, deps Deps, on []string, apps ...App) (*Kerne
 		k.sealed = true
 	}
 	return k, nil
-}
-
-// Run validates cfg, builds the kernel, turns on the requested flags and runs cfg.Role.
-func Run(ctx context.Context, cfg Config, apps ...App) error {
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
-	k, err := Build(ctx, apps...)
-	if err != nil {
-		return err
-	}
-	for _, name := range cfg.Flags {
-		if err := k.Flags.Set(name, true); err != nil {
-			return fmt.Errorf("turn on flag: %w", err)
-		}
-	}
-	ctx = flags.WithSet(ctx, k.Flags)
-	slog.InfoContext(ctx, "kernel built", "role", string(cfg.Role), "apps", len(apps), "flags_on", len(cfg.Flags))
-	return fmt.Errorf("run %s: %w", cfg.Role, ErrNotImplemented)
 }

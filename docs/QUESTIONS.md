@@ -647,3 +647,17 @@ openapi-relative paths, as `kernel/inbound` and `withdraw.Execution` already do.
 Left open: the second accept line (refuse a route that sets state owned by a gate effect
 unless it is the gate decision endpoint) needs a per-route "gate-owned state" marker that no
 contract declares yet. Not built.
+
+## BOOT-09: Run wiring gaps
+
+- Additive `Config` fields beyond `Zone`: `DirectDatabaseURL` (db.Open validates both DSNs and
+  the worker needs the direct one, ARC-U-011) and `MaxWorkers` (default 10). Server and worker
+  need `DatabaseURL`, `DirectDatabaseURL` and `Zone`. `Kernel` and `Deps` gain `Notify`.
+- `gate.PG` does not implement `gate.Engine` yet (no Get, Withdraw, RunDue), so the production
+  server and worker roles stop with `ErrNotImplemented` at the gate engine until it does.
+- Registry schemas load from `spec/kernel` relative to the working directory; the images
+  must ship it, or the schemas get embedded.
+- Reports use a deny-all authorizer and an audit log with no Verify querier until identity
+  is wired at boot. No kernel module owns a River job yet, so `addKernelJobs` adds none.
+- `TestRunFlags` now runs the import role and declares its flag in `Define`: Run builds
+  through BuildWith, which turns flags on before Register (ARC-I-040).
