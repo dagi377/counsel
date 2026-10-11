@@ -12,8 +12,11 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/agenttest"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/billing/bill"
+	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
+	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
 	"github.com/dagi377/counsel/kernel/deadline"
 	"github.com/dagi377/counsel/kernel/work"
@@ -175,6 +178,8 @@ func TestSeedCreatesSyntheticRecords(t *testing.T) {
 	te := s.UnbilledTime(mid, 90, "Drafted the defence")
 	s.Bill(bill.ID("bill-synth-1"), mid, 150_000)
 	s.TrustBalance(mid, 250_000)
+	s.Pack(deadline.Pack{ID: "syn-civil", Version: "2026.1", Rules: []deadline.Rule{{ID: "defence", Mode: deadline.Calendar, Days: 20}}})
+	check := s.ConflictCheck(mid)
 
 	checks := []struct {
 		name string
@@ -198,7 +203,41 @@ func TestSeedCreatesSyntheticRecords(t *testing.T) {
 		}},
 		{"deadline", func() (bool, error) {
 			d, err := s.Deadlines.Get(ctx, dl)
-			return d.Proposed.Subject.ID == mid, err
+			// The subject kind is the one list_deadlines and the walls filter on.
+			return d.Proposed.Subject == deadline.Subject{Kind: roles.SubjectMatter, ID: mid}, err
+		}},
+		{"published pack", func() (bool, error) {
+			packs, err := s.Store.PublishedPacks(ctx)
+			return len(packs) == 1 && packs[0].ID == "syn-civil", err
+		}},
+		{"pack loaded in the engine", func() (bool, error) {
+			got, err := s.Deadlines.Compute(ctx, "syn-civil", "defence", deadline.Date{Year: 2026, Month: 3, Day: 2}, deadline.Subject{Kind: roles.SubjectMatter, ID: mid})
+			return len(got) == 1, err
+		}},
+		{"conflict check", func() (bool, error) {
+			got, err := s.Store.CheckMatter(ctx, check)
+			return got == mid, err
+		}},
+		{"proposed parties", func() (bool, error) {
+			terms, err := s.Store.ProposeParties(ctx, check, []agent.ProposedParty{{Name: "Avery Synth", Role: "adverse"}}, s.ActingFor)
+			return slices.Equal(terms, []string{"Avery Synth"}), err
+		}},
+		{"matter subject", func() (bool, error) {
+			got, err := s.Store.SubjectMatter(ctx, roles.SubjectMatter, mid)
+			return got == mid, err
+		}},
+		{"deps carry every port", func() (bool, error) {
+			d := s.Deps(nil, nil)
+			for _, err := range []error{
+				dep[agent.DocumentLookup](d), dep[agent.SubjectMatters](d), dep[agent.ConflictCheckParties](d),
+				dep[conflict.Checker](d), dep[agent.PublishedPacks](d), dep[agent.DeadlineCompute](d),
+				dep[agent.DeadlineSaver](d), dep[*agenttools.Provenance](d),
+			} {
+				if err != nil {
+					return false, err
+				}
+			}
+			return true, nil
 		}},
 		{"work item", func() (bool, error) {
 			it, err := s.Work.Get(ctx, wi)
@@ -225,4 +264,10 @@ func TestSeedCreatesSyntheticRecords(t *testing.T) {
 			}
 		})
 	}
+}
+
+// dep reports whether d holds a value of type T.
+func dep[T any](d agent.Deps) error {
+	_, err := agent.DepOf[T](d)
+	return err
 }

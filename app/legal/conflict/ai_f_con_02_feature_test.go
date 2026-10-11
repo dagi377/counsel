@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"slices"
@@ -380,39 +379,6 @@ func conGateDecisions(t *testing.T, w *conWorld, matterID string) conflict.Run {
 	return r
 }
 
-// conQuotedOnly reports an error unless text reached the model only inside a tool_result
-// that marks its content untrusted (read_document's {"untrusted": true}, or a quoted
-// envelope), no tool call carries it and the final answer does not repeat it (ARC-I-038).
-func conQuotedOnly(run agenttest.FeatureRun, text string) error {
-	if err := agenttest.QuotedOnly(run.Run, text); err == nil {
-		return nil
-	}
-	seen := false
-	for _, req := range run.Requests {
-		for _, m := range req.Messages {
-			for _, b := range m.Content {
-				if !strings.Contains(b.Text, text) && !strings.Contains(string(b.Input), text) {
-					continue
-				}
-				var env struct {
-					Untrusted bool `json:"untrusted"`
-				}
-				if b.Type != "tool_result" || b.ToolName != agent.ToolReadDocument || json.Unmarshal([]byte(b.Text), &env) != nil || !env.Untrusted {
-					return fmt.Errorf("injected text sent outside quoted data: %s block of %s", b.Type, b.ToolName)
-				}
-				seen = true
-			}
-		}
-	}
-	if !seen {
-		return errors.New("injected text never reached the model")
-	}
-	if strings.Contains(run.Text, text) {
-		return errors.New("final answer repeats the injected text")
-	}
-	return nil
-}
-
 // conRun drives def once over a seeded matter with an intake document and checks the run:
 // no stand-ins, report_plan first, propose_conflict_parties the first write and no extra call,
 // G2 pending with the acting user as preparer and refused to the agent and the acting user,
@@ -463,7 +429,7 @@ func conRun(t *testing.T, def feature.Def, inject bool) {
 		return
 	}
 	// rule: ARC-I-038
-	if err := conQuotedOnly(run, conInjected); err != nil {
+	if err := agenttest.QuotedOnly(run.Run, conInjected); err != nil {
 		t.Fatal(err)
 	}
 	for _, v := range w.proposedNames() {
