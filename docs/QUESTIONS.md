@@ -984,3 +984,35 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   CheckCitations validates it; quotes[i] is the name of contacts[i].
 - `app/legal/agent/handlerset.go` is byte-identical to the file on task/FEAT-TOOL-03 (see
   Q-FEAT-TOOL agent handler set), so the branches merge cleanly.
+
+## Q-PORT-18 conflict run model does not map onto conflict.check_run / conflict.hit (blocked, stopped)
+
+PORT-18 asks for `PGRuns` over `conflict.check_run` / `conflict.hit` behind an additive
+`RunStore`. The 0001 tables need values the conflict domain never has, so a store would have
+to invent regulator-facing conflict records:
+
+- `check_run` hangs off `conflict.conflict_check` (`check_id` NOT NULL, which itself needs
+  `trigger`, `settings_version` -> `conflict_settings` and `requested_by`), plus
+  `index_version` and `complete` NOT NULL. `Request`/`Run` carry only a matter id, terms and
+  the preparer: no check id, no version, no index version.
+- `conflict.hit` needs `check_party_id` NOT NULL (a `check_party` row with `kind`
+  person/organization and `role`), `matched_kind`, `matched_id`, `match_type` and `score_ppm`.
+  `Hit` is `{Term, PartyID, MatterID, Role}`: the term is not a check party, and the match
+  kind, match type and score are not known. `Hit.MatterID`/`Role` have no column.
+- G2 decisions and hit dispositions live on `conflict.clearance` (approval_id, signed_by) and
+  on `hit.disposition*`, which is UPDATEd in place; the in-memory `Checks` keeps both as
+  append-only logs. Replacing only the run slice leaves `Dispose`/`decide` needing a run
+  lookup by id, which `RunStore{Append, Runs}` does not offer.
+
+Proposal (needs approval; additive):
+A. `RunStore` = `Append(ctx, Run) (Run, error)`, `Runs(ctx, matterID)`, `Run(ctx, id)`; memory
+   default keeps `NewChecks` as is; `NewChecksWith(s, store, now)`.
+B. Additive fields: `Request.CheckID`, `Run.CheckID`, `Run.Version`, `Run.IndexVersion`,
+   `Run.Complete`; `Hit.CheckPartyID`, `Hit.MatchedKind`, `Hit.MatchType`, `Hit.ScorePPM`,
+   filled by the Searcher (the party index knows them). `PGRuns.Append` refuses
+   (ErrInvalid) a run or hit missing any of them, never defaults them; version is
+   `max(version)+1` under `SELECT ... FOR UPDATE` on the conflict_check row, and a 23505 on
+   UNIQUE(check_id, version) maps to a new `ErrRunExists`.
+C. Dispositions and G2 decisions stay in memory in this task; a follow-up maps them onto
+   `conflict.hit` dispositions and `conflict.clearance` (or an additive append-only
+   disposition table, since `hit.disposition` is updated in place).
