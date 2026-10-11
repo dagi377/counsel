@@ -3747,3 +3747,33 @@ served and readiness no longer reports their features `tool_unwired`. Additive c
   hold should be passed to `PGDrafts.Create` as a line action instead.
 - Open: `PGBatch` names the preparer from the agent run in ctx (`agent.run_record.acting_for`);
   a scheduled batch run with no recorded run has no preparer and fails closed.
+
+## AGENT-PROD-3: hold, matter rate table, document text, recorded runs
+
+Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
+
+- `draft.Line.Held` and `billing.bill_line.on_hold` (5643). draft_bill's `hold` is a status
+  change: the line stays on the draft, held, and `PGStore.SaveLines` saves it (and can release
+  it); a held line counts toward no total, tax or journal line (`PGDrafts.compute`,
+  `bill.PGStore.JournalLines`). Open: the held time entry stays linked to this draft (the
+  0001 `bill_line_time_once` index), so it reaches a later bill only after this draft is
+  voided. `bill.PGService` still lists held lines without a held flag.
+- `matter.Matter.RateTableID` (matter.rate_table_id through matter.Query). Boot sets
+  `PGEntries.RateTable` from it: the matter's table prices accepted time, the default table
+  only when the matter has none. Rates live on the time entry; `draft.Calculator` carries no
+  rate table, so the draft takes the rate the entry was priced at.
+- `kernel/docs`: `StoreText` (the upload text step), `NativeText`, `Extractor`,
+  `ModelExtractor` (kernel `ai.ModelClient`, extraction call, the file as quoted tool_result
+  data), `ErrTextUnavailable` (wraps ErrNotFound) and `PGText.MarkUnavailable` over the new
+  `docs.version_text.unavailable_reason` (0901). Text and Markdown are stored as they are;
+  other formats go through the extractor; no text is recorded as text-unavailable, never as
+  empty text. Open: production has no `DocumentStore.Upload` (POST /documents is served only
+  with a fake), so no production path calls `StoreText` yet; the upload, email filing and
+  import paths must call it in the transaction that stores the version. The model sees the
+  file only as base64 text; a vision/document-block path in `ai.Request` would be needed for
+  scans.
+- `boot.RecordFirstRunner`: the screen-action runner and every `AgentWiring.Runners` entry
+  record the run in agent.run_record (queued, ids and grant only) before it runs, unless it
+  is already recorded, so draft_bill's preparer lookup finds the run. No store or a failed
+  write runs nothing. RunStarter already records first. The manual (user) draft_bill path
+  still has no run and fails closed in production.

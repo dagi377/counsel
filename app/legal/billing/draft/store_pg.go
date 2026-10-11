@@ -24,13 +24,13 @@ const (
 SELECT id::text, ordinal, source_type, coalesce(time_entry_id::text, ''), narrative,
        amount_cents + reduction_cents + line_discount_cents, tax_code, reduction_cents,
        coalesce(reduction_reason, ''), coalesce(reduction_text, ''), reduction_shown,
-       markup_cents, line_discount_cents, discount_share_cents
+       markup_cents, line_discount_cents, discount_share_cents, on_hold
   FROM billing.bill_line WHERE bill_id = $1::uuid ORDER BY ordinal`
 	storeLineUpdateSQL = `
 UPDATE billing.bill_line
    SET narrative = coalesce(nullif($3, ''), narrative), amount_cents = $4, reduction_cents = $5,
        reduction_reason = nullif($6, ''), reduction_text = nullif($7, ''), reduction_shown = $8,
-       markup_cents = $9, line_discount_cents = $10, discount_share_cents = $11
+       markup_cents = $9, line_discount_cents = $10, discount_share_cents = $11, on_hold = $12
  WHERE bill_id = $1::uuid AND id = $2::uuid`
 	batchKeySQL    = `SELECT id::text FROM billing.bill WHERE idempotency_key = $1`
 	batchKeySetSQL = `UPDATE billing.bill SET idempotency_key = $2 WHERE id = $1::uuid`
@@ -85,7 +85,7 @@ func readLines(ctx context.Context, tx pgx.Tx, billID string) ([]storedLine, err
 			sourceEntry, descr string
 		)
 		err := r.Scan(&l.ID, &l.SortOrder, &s.source, &sourceEntry, &descr, &l.AmountCents, &taxCode,
-			&reductionCents, &reason, &reasonText, &shown, &markup, &lineDisc, &share)
+			&reductionCents, &reason, &reasonText, &shown, &markup, &lineDisc, &share, &l.Held)
 		l.Kind = lineKind(s.source, taxCode)
 		l.Description = descr
 		l.SourceTimeEntryID = sourceEntry
@@ -132,8 +132,9 @@ func (s PGStore) Lines(ctx context.Context, billID string) ([]Line, error) {
 // SaveLines implements Store. Each line is matched by id to a stored line of the draft; its
 // description, write-down, markup and discounts are saved and the bill's totals recomputed.
 // A bill past draft is ErrNotDraft. The gross amount comes from the billed work and is not
-// changed here, and bill lines are never deleted: an item comes off a draft only by voiding
-// it, so a stored line missing from lines, an unknown line or a changed gross is
+// changed here, and bill lines are never deleted: a line is held by saving it with Held set
+// (a status change; it then counts toward no total), and an item comes off a draft only by
+// voiding it, so a stored line missing from lines, an unknown line or a changed gross is
 // bill.ErrInvalid.
 func (s PGStore) SaveLines(ctx context.Context, billID string, lines []Line) error {
 	if s.DB == nil {
@@ -178,7 +179,7 @@ func (s PGStore) SaveLines(ctx context.Context, billID string, lines []Line) err
 			net := l.AmountCents - red.Cents - l.LineDiscountCents
 			if _, err := tx.Exec(ctx, storeLineUpdateSQL, billID, l.ID, l.Description, net, red.Cents,
 				string(red.Reason), red.ReasonText, red.ShowOnBill, l.MarkupCents, l.LineDiscountCents,
-				l.DiscountShareCents); err != nil {
+				l.DiscountShareCents, l.Held); err != nil {
 				return fmt.Errorf("line %s: %w", l.ID, err)
 			}
 		}

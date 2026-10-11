@@ -323,7 +323,7 @@ func (p Production) agentPorts(k *kboot.Kernel, opts *Options, w *AgentWiring) e
 		ports.Text = kdocs.PGText{DB: k.DB}
 	}
 	if ports.Entries == nil {
-		ports.Entries = tk.PGEntries{DB: k.DB}
+		ports.Entries = tk.PGEntries{DB: k.DB, RateTable: matterRateTable(matters)}
 	}
 	if ports.DraftCalc == nil {
 		ports.DraftCalc = draft.Calculator{}
@@ -474,6 +474,19 @@ func runActingFor(pool kdb.DB) func(ctx context.Context, t batch.Target) (string
 			return "", fmt.Errorf("draft of %s: run %s: %w", t.MatterID, s.RunID, err)
 		}
 		return user, nil
+	}
+}
+
+// matterRateTable names a matter's own rate table through matter.Query (ARC-I-041: the
+// matter module's port, never its table). A matter without one gives "", so the entry is
+// priced from the default rate table; an unknown matter is an error and prices nothing.
+func matterRateTable(q matter.Query) func(ctx context.Context, matterID string) (string, error) {
+	return func(ctx context.Context, matterID string) (string, error) {
+		m, err := q.Get(ctx, matter.ID(matterID))
+		if err != nil {
+			return "", fmt.Errorf("matter %s: %w", matterID, err)
+		}
+		return m.RateTableID, nil
 	}
 }
 

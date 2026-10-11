@@ -490,6 +490,14 @@ func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Pr
 	return r.Runner.Run(ctx, spec, p, prompt, triggers...)
 }
 
+// recordFirst wraps r in RecordFirst when there is a run record store.
+func recordFirst(records RunRecords, r agentrun.Runner) agentrun.Runner {
+	if records == nil {
+		return r
+	}
+	return RecordFirst(records, r)
+}
+
 // AgentWiring is what the agent layer needs at boot beyond its ports.
 type AgentWiring struct {
 	Ports AgentPorts
@@ -516,6 +524,9 @@ type AgentWiring struct {
 	// Unready, when set, serves a tool whose port has no implementation in this process as not
 	// served and reports its features not ready, instead of failing boot (Production).
 	Unready *AgentReadiness
+	// Records is where Actions.Runner and Runners record a run before it starts (AGENT-PROD-3).
+	// Nil uses agent.run_record on the kernel DB; with no DB the runners are not wrapped.
+	Records RunRecords
 }
 
 // registerAgent registers the agent tools and features: every handler tool, the job
@@ -532,6 +543,12 @@ func registerAgent(w *AgentWiring) hook {
 		features, err := Features()
 		if err != nil {
 			return err
+		}
+		// rule: AI-R-005
+		// Every runner boot hands out records its run before the run calls a tool, so a
+		// batch draft finds the run's preparer instead of failing closed.
+		if w.Records == nil && k.DB != nil {
+			w.Records = agentrun.PGRecords{DB: k.DB}
 		}
 		// One Provenance for every tool, write dep and runner: a run's values are recorded,
 		// checked and forgotten in the same place.
@@ -579,12 +596,12 @@ func registerAgent(w *AgentWiring) hook {
 			if w.Queue != nil {
 				w.Actions.Queue = w.Queue
 			}
-			w.Actions.Runner = ForgetOnEnd(w.Ports.Provenance, w.Actions.Runner)
+			w.Actions.Runner = recordFirst(w.Records, ForgetOnEnd(w.Ports.Provenance, w.Actions.Runner))
 			k.Registry.Routes(w.Actions.Routes)
 		}
 		for _, r := range w.Runners {
 			if r != nil {
-				*r = ForgetOnEnd(w.Ports.Provenance, *r)
+				*r = recordFirst(w.Records, ForgetOnEnd(w.Ports.Provenance, *r))
 			}
 		}
 		if w.Flags != nil {

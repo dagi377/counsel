@@ -13,10 +13,26 @@ import (
 
 // SQL PGText runs.
 const (
-	versionTextSQL    = `SELECT body FROM docs.version_text WHERE version_id = $1::uuid`
+	versionTextSQL    = `SELECT body, coalesce(unavailable_reason, '') FROM docs.version_text WHERE version_id = $1::uuid`
 	versionTextPutSQL = `INSERT INTO docs.version_text (version_id, body) VALUES ($1::uuid, $2)
   ON CONFLICT (version_id) DO NOTHING`
+	versionTextUnavailableSQL = `INSERT INTO docs.version_text (version_id, body, unavailable_reason) VALUES ($1::uuid, '', $2)
+  ON CONFLICT (version_id) DO NOTHING`
 )
+
+var _ TextWriter = PGText{}
+
+// MarkUnavailable records in tx that v has no obtainable text, with the reason. A version
+// that already has text keeps it.
+func (p PGText) MarkUnavailable(ctx context.Context, tx pgx.Tx, v VersionID, reason string) error {
+	if reason == "" {
+		reason = UnavailableNoText
+	}
+	if _, err := tx.Exec(ctx, versionTextUnavailableSQL, string(v), reason); err != nil {
+		return fmt.Errorf("mark text unavailable %s: %w", v, err)
+	}
+	return nil
+}
 
 // PGText reads the citable text of a stored version from docs.version_text. A version's text
 // is stored once and never changes, so a citation keeps verifying against what it quoted.
@@ -37,9 +53,9 @@ func (p PGText) text(ctx context.Context, v VersionID) (Text, error) {
 	if p.DB == nil {
 		return Text{}, fmt.Errorf("version %s: no database: %w", v, ErrNotFound)
 	}
-	var body string
+	var body, unavailable string
 	err := p.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		return tx.QueryRow(ctx, versionTextSQL, string(v)).Scan(&body)
+		return tx.QueryRow(ctx, versionTextSQL, string(v)).Scan(&body, &unavailable)
 	})
 	var pg *pgconn.PgError
 	switch {
@@ -47,6 +63,8 @@ func (p PGText) text(ctx context.Context, v VersionID) (Text, error) {
 		return Text{}, fmt.Errorf("version %s: %w", v, ErrNotFound)
 	case err != nil:
 		return Text{}, fmt.Errorf("version %s: %w", v, err)
+	case unavailable != "":
+		return Text{}, fmt.Errorf("version %s: %w", v, ErrTextUnavailable)
 	}
 	return ParseText(v, []byte(body)), nil
 }

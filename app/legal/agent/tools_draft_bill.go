@@ -256,8 +256,9 @@ func (t draftBill) applyActions(ctx context.Context, billID string, actions map[
 		seen[l.SourceTimeEntryID] = true
 		switch a.Action {
 		case lineHold:
-			// Held time stays unbilled WIP for a later bill.
-			continue
+			// A hold is a status change: the line stays on the draft, held, and counts toward
+			// no total. Bill lines are never deleted.
+			l.Held = true
 		case lineWriteDown:
 			l, err = t.calc.ApplyReduction(l, draft.Reduction{Cents: a.WriteDownCents, Reason: draft.ReasonOther, ReasonText: a.Narrative, ShowOnBill: true})
 		case lineNoCharge:
@@ -266,6 +267,7 @@ func (t draftBill) applyActions(ctx context.Context, billID string, actions map[
 			base.Reduction = nil
 			l, err = t.calc.ApplyReduction(l, draft.Reduction{Cents: t.calc.Net(base), Reason: draft.ReasonCourtesy, ShowOnBill: true})
 		case lineBill:
+			l.Held = false
 			if a.Narrative != "" {
 				l.Description = a.Narrative
 			}

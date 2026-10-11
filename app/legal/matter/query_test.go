@@ -55,18 +55,22 @@ func (d *existsDB) InTx(ctx context.Context, fn func(context.Context, pgx.Tx) er
 func TestARC_I_041_Get(t *testing.T) {
 	ctx := context.Background()
 	created := time.Date(2026, 10, 11, 9, 0, 0, 0, time.UTC)
-	okRow := stubRow{vals: []any{"m1", "2026-0001", "x", "c1", "pa", "u1", "pending", "firm_open", nil, DefaultRetentionClass, created, 1, "", ""}}
+	okRow := stubRow{vals: []any{"m1", "2026-0001", "x", "c1", "pa", "u1", "pending", "firm_open", nil, DefaultRetentionClass, created, 1, "", "", ""}}
 	// Q-TAX-FIELDS: the place-of-supply provinces come back through Query.
-	taxRow := stubRow{vals: []any{"m1", "2026-0001", "x", "c1", "pa", "u1", "pending", "firm_open", nil, DefaultRetentionClass, created, 1, "NS", "BC"}}
+	taxRow := stubRow{vals: []any{"m1", "2026-0001", "x", "c1", "pa", "u1", "pending", "firm_open", nil, DefaultRetentionClass, created, 1, "NS", "BC", ""}}
+	// AGENT-PROD-3: the matter's own rate table comes back through Query.
+	rateRow := stubRow{vals: []any{"m1", "2026-0001", "x", "c1", "pa", "u1", "pending", "firm_open", nil, DefaultRetentionClass, created, 1, "", "", "rt-1"}}
 	tests := []struct {
 		name            string
 		id              ID
 		row             stubRow
 		err             error
 		court, property string
+		rateTable       string
 	}{
 		{name: "found", id: "m1", row: okRow},
 		{name: "found with court and property provinces", id: "m1", row: taxRow, court: "NS", property: "BC"},
+		{name: "found with its own rate table", id: "m1", row: rateRow, rateTable: "rt-1"},
 		{name: "not found", id: "m2", row: stubRow{err: pgx.ErrNoRows}, err: ErrNotFound},
 		{name: "empty id", id: "", err: ErrInvalid},
 	}
@@ -82,7 +86,7 @@ func TestARC_I_041_Get(t *testing.T) {
 			}
 			want := Matter{ID: "m1", Number: "2026-0001", ShortName: "x", ClientID: "c1", PracticeAreaID: "pa",
 				ResponsibleLawyerID: "u1", Status: Pending, Visibility: FirmOpen, RetentionClass: DefaultRetentionClass,
-				CreatedAt: created, RowVersion: 1, CourtProvince: tt.court, PropertyProvince: tt.property}
+				CreatedAt: created, RowVersion: 1, CourtProvince: tt.court, PropertyProvince: tt.property, RateTableID: tt.rateTable}
 			if !reflect.DeepEqual(got, want) {
 				t.Fatalf("matter = %+v, want %+v", got, want)
 			}

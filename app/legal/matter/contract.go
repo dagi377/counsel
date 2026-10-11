@@ -83,6 +83,10 @@ type Matter struct {
 	// PropertyProvince is where the real property the matter relates to is (BIL-T-011).
 	CourtProvince    string
 	PropertyProvince string
+
+	// RateTableID (additive, AGENT-PROD-3) is the matter's own rate table
+	// (matter.rate_table_id); empty means the firm's default table applies.
+	RateTableID string
 }
 
 // NewMember adds a user to a matter team. GrantedBy never equals UserID.
