@@ -1,0 +1,44 @@
+synthetic: true
+feature: F-CON-05
+match:
+  last_user_regex: '\[error_429\]|^Quill Throttle Partners LLP$'
+fault: rate_limit
+clusters:
+  quill: ["Quill Synthetic Partners LLP", "Quill Synthetic Partners"]
+  riverbend: ["Riverbend Bakery Co-op"]
+  maple: ["Maple Synth Logistics Inc."]
+  avery: ["Avery Synth"]
+turns:
+  - expect_tools: [report_plan]
+    reply:
+      tool_calls:
+        - name: report_plan
+          input: {steps: [{id: search, title: "Search existing matter parties"}, {id: compare, title: "Compare new parties with existing parties"}, {id: alert, title: "Raise alerts and request re-checks"}]}
+      stop_reason: tool_use
+      usage: {input_tokens: 580, output_tokens: 50}
+  - expect_tool_results: [report_plan]
+    reply:
+      tool_calls:
+        - name: search_matters
+          input: {query: "Quill Synthetic Partners LLP", status: open, limit: 50}
+        - name: search_contacts
+          input: {query: "Quill Synthetic Partners LLP", limit: 50}
+      stop_reason: tool_use
+      usage: {input_tokens: 690, output_tokens: 38}
+  - expect_tool_results: [search_matters, search_contacts]
+    reply:
+      tool_calls:
+        - name: submit_for_approval
+          input:
+            kind: conflict.clearance
+            matter: "M-2024-0311"
+            alerts:
+              - {new_party: "Quill Synthetic Partners LLP", existing_party: "Quill Synthetic Partners", matter: "M-2024-0311", reason: "new party matches an existing matter party"}
+            recheck: {matter: "M-2024-0311", reason: "new party on M-2026-0090 sits near an existing party"}
+      stop_reason: tool_use
+      usage: {input_tokens: 870, output_tokens: 110}
+  - expect_tool_results: [submit_for_approval]
+    reply:
+      text: "Swept existing matters for the new party Quill Synthetic Partners LLP: one alert on M-2024-0311, re-check requested through G2."
+      stop_reason: end_turn
+      usage: {input_tokens: 920, output_tokens: 30}
