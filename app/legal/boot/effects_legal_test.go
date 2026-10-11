@@ -12,16 +12,16 @@ import (
 )
 
 func TestLegalEffects(t *testing.T) {
-	fx := legalEffects()
-	if len(fx) != 19 {
-		t.Fatalf("legalEffects() has %d kinds, want 19", len(fx))
+	fx := legalEffects(nil)
+	if len(fx) != 26 {
+		t.Fatalf("legalEffects() has %d kinds, want 26", len(fx))
 	}
 	for k, f := range fx {
 		if f == nil {
 			t.Errorf("%s: nil effect", k)
 		}
 	}
-	if _, err := withLegalEffects(map[string]registry.EffectFunc{"conflict.wall": ApprovalEffect}); !errors.Is(err, ErrDuplicateEffect) {
+	if _, err := withLegalEffects(nil, map[string]registry.EffectFunc{"conflict.wall": ApprovalEffect}); !errors.Is(err, ErrDuplicateEffect) {
 		t.Fatalf("duplicate kind: err = %v, want ErrDuplicateEffect", err)
 	}
 }

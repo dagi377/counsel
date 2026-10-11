@@ -9,6 +9,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/credit"
 	"github.com/dagi377/counsel/app/legal/conflict"
+	"github.com/dagi377/counsel/app/legal/deadlines"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/trust/signatory"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
@@ -213,7 +214,11 @@ func (w *wiring) registerGates(_ context.Context, k *kboot.Kernel) error {
 	if err != nil {
 		return fmt.Errorf("gate effects: %w", err)
 	}
-	if fx, err = withLegalEffects(fx); err != nil {
+	var open deadlines.ChangeOpener
+	if k.Gates != nil {
+		open = k.Gates
+	}
+	if fx, err = withLegalEffects(open, fx); err != nil {
 		return fmt.Errorf("gate effects: %w", err)
 	}
 	// GATE-EFFECTS: every remaining app kind gets the approval effect, so no spec or feature

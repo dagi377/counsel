@@ -4313,3 +4313,24 @@ of FEAT-TIM-01 above.
   refuses a second change of one deadline approved by the same person. Should the index allow it?
 - cal.rule_pack activates the approved version and retires the previous one; deadlines stay
   pinned to the version they were computed with (no recompute is triggered).
+
+## Q-GE3-LEGAL owner decisions on the Q-GE2-LEGAL kinds, applied
+
+- Real effects added (registered in app/legal/boot/effects_legal.go): conflict.id_destruction,
+  matter.contact_merge, matter.practice_config, matter.bulk_change, matter.renumber,
+  matter.widen_access, matter.apply_template. Builders: matter.Build* in matter/gate_effects.go
+  (PAYLOAD-BUILDERS was not on origin; it should call these).
+- conflict.id_destruction redacts the ID artefacts (id_document number, place, expiry, file_ref,
+  vendor ref; identity_record.source_of_funds) and stamps destroyed_at (migration 5000). The
+  identity_record row is never deleted. Two distinct approvers. The stored file behind file_ref
+  (object storage) is not purged by the effect: that needs a blob-delete port.
+- cal.rule_pack re-computes the deadlines of the pack (kernel columns pack_code, rule_key,
+  trigger_on) and opens one cal.change proposal per moved deadline through the kernel gate
+  engine; it never moves a date. App deadlines pinned only by rule_pack_id are not re-computed.
+- cal.change is unique per gate (5910-5912 replace deadline_confirmation_once).
+- Additive shapes in spec/gates.json. matter.widen_access: `required` is now [matter_id] plus
+  anyOf(visibility | grant_user_ids | restricted | team), so the PATCH route's payload validates.
+  That relaxes a `required` list; review at the next contract pass.
+- Open: cal.deadline_confirmation.gate_decision_id references gate.gate_decision(id), but the
+  deadline effects (GE2) write the approval_request id (registry.Approved.GateID). Confirm which
+  id the column holds before production, or the insert fails the FK.
