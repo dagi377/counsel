@@ -69,7 +69,7 @@ Max width 301.
 | [x] | AI-001 | AI-001 | kernel | kernel/ai: ModelClient contract, request/response types, usage accounting |  | `kernel/ai/client.go`<br>`kernel/ai/types.go`<br>`kernel/ai/usage.go` |  |
 | [x] | AI-002 | AI-002 | kernel | kernel/ai/aifake: deterministic in-process ModelClient for unit tests |  | `kernel/ai/aifake/fake.go`<br>`kernel/ai/aifake/fake_test.go` |  |
 | [x] | AI-003 | AI-003 | kernel | Fixture format, loader, prompt hash and fixture lint |  | `kernel/ai/fixture`<br>`testdata/ai/README.md`<br>`tools/ai_fixture_lint.py` |  |
-| [ ] | AI-004 | AI-004 | kernel | test/fakes/llm: Messages-protocol fake server (non-stream, stream, tools) |  | `test/fakes/llm/main.go`<br>`test/fakes/llm/messages.go`<br>`test/fakes/llm/Dockerfile` |  |
+| [x] | AI-004 | AI-004 | kernel | test/fakes/llm: Messages-protocol fake server (non-stream, stream, tools) |  | `test/fakes/llm/main.go`<br>`test/fakes/llm/messages.go`<br>`test/fakes/llm/Dockerfile` |  |
 | [x] | T-001.1 | T-001 | kernel | go.mod with allowed deps and cmd main stubs |  | `go.mod`<br>`go.sum`<br>`cmd/counseld/main.go`<br>`cmd/counsel-worker/main.go`<br>+2 more |  |
 | [x] | T-001.2 | T-001 | kernel | Makefile check, rule coverage and layering test |  | `Makefile`<br>`tools/rule_coverage.py`<br>`tools/layering_test.go` |  |
 | [x] | T-001.3 | T-001 | kernel | CI workflow and e2e runner with suite auto-discovery |  | `.github/workflows/ci.yaml`<br>`test/e2e/run.sh`<br>`test/e2e/lib.sh` |  |
