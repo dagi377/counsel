@@ -62,5 +62,8 @@ func appDefs() []feature.Def {
 		conflict.LateralCheckDef(),
 		conflict.AuditAnomalyDigestDef(),
 		conflict.DuplicateFinderDef(),
+		conflict.DetermineObligationDef(),
+		conflict.KYCSummaryDef(),
+		conflict.EstimateImpactDef(),
 	}
 }
