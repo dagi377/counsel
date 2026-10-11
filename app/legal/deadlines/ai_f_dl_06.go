@@ -33,7 +33,8 @@ func RuleWatchDef() feature.Def {
 }
 
 // RuleWatchBinding binds F-DL-06 to its weekly schedule. A scheduled run has no event user,
-// so boot names the user it acts for (the rule-pack administrator); empty is ErrBadBinding.
-func RuleWatchBinding(actingFor string) (trigger.Binding, error) {
-	return trigger.Bind(RuleWatchDef(), actingFor)
+// so it acts for the feature's designated lawyer in firm settings; with none named the run
+// does not start and the readiness check reports it.
+func RuleWatchBinding() (trigger.Binding, error) {
+	return trigger.BindDesignated(RuleWatchDef())
 }

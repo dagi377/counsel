@@ -129,28 +129,13 @@ func TestFDL06_Prompt(t *testing.T) {
 	}
 }
 
-// F-DL-06 runs weekly for the user boot names; with no acting user the binding is refused.
+// F-DL-06 runs weekly for its designated lawyer, read from firm settings at each tick.
 func TestFDL06_TriggerBinding(t *testing.T) {
-	tests := []struct {
-		name      string
-		actingFor string
-		wantErr   error
-	}{
-		{"weekly for the rule-pack admin", "u-rulepack-admin", nil},
-		{"no acting user", "", trigger.ErrBadBinding},
+	b, err := RuleWatchBinding()
+	if err != nil {
+		t.Fatalf("Binding: %v", err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b, err := RuleWatchBinding(tt.actingFor)
-			if !errors.Is(err, tt.wantErr) {
-				t.Fatalf("Binding err = %v, want %v", err, tt.wantErr)
-			}
-			if tt.wantErr != nil {
-				return
-			}
-			if b.FeatureID != "F-DL-06" || b.Cadence != trigger.CadenceWeekly || len(b.Events) != 0 || b.ActingFor != tt.actingFor {
-				t.Fatalf("binding = %+v, want F-DL-06 weekly for %s with no events", b, tt.actingFor)
-			}
-		})
+	if b.FeatureID != "F-DL-06" || b.Cadence != trigger.CadenceWeekly || len(b.Events) != 0 || !b.Designated || b.ActingFor != "" {
+		t.Fatalf("binding = %+v, want F-DL-06 weekly for its designated lawyer with no events", b)
 	}
 }
