@@ -2415,3 +2415,19 @@ Done in PORT-18:
   firm-calendar and rule-trigger-wizard as matter subjects needing deadlines.view. Open: a
   conflict check before matter opening has no matter yet; confirm whether those screens
   should select a conflict_check subject kind instead.
+## BOOT-PORTS-A billing and trust agent ports
+
+- The base (BOOT-WIRE-A) has no `agent.UnbilledWIP`, `WriteDeps.FirmAccount` or `WriteDeps.Bills`;
+  they come from FEAT-FIX-A/B. This branch merges origin/task/FEAT-FIX-B (conflicts in
+  tools_draft_bill_test.go, renamed to the draftBill* names, and in this file).
+- Outside the new boot file: `AgentPorts.UnbilledWIP` (agent.go, one field and one ports() row)
+  and its test stub, so draft_bill builds. New Postgres readers: `bill.PGBalances`
+  (BalanceCents, FeeBill over billing.bill_balance), `trust.PGMatterAccounts` (open accounts
+  with a client ledger for the matter), `timekeeping.PGWIP` (MatterTime from the stored
+  rate/amount; UnbilledEntryIDs = approved, billable, no bill, work_date <= period end).
+- Fail closed: a void bill owes 0 and reads as undelivered; FeeBill balance due is net of
+  reserved fee transfers and floored at 0 (no fee on an overpaid bill); a bill on another
+  matter is ErrNotFound. The firm general account payee id is config
+  (`BillingAgentSources.FirmAccount`); empty fails boot. No table holds it yet (verify).
+- Boot calls `WireBillingAgentPorts(NewBillingAgentSources(pool, firmPayee), &ports, &writeDeps)`.
+  WriteDeps.TrustAccount and Contacts are left to BOOT-PORTS-B.
