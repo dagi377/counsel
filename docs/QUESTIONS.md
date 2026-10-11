@@ -3001,3 +3001,18 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
 
 - "user instruction or task from the matter plan": the task half binds `work_item.created`;
   a user's instruction reaches F-DOC-03 through the ai-draft-workspace > Draft action.
+
+## Q-PARTY-ADDED matter.party_added (additive a2 event)
+
+- Counsel decision: a party added to a matter gets its own event, `matter.party_added`; it is
+  not mapped onto `matter.updated`. Additive to `spec/eng/a2-interfaces.json` (module matter,
+  subject matter, payload `matter_id`, `conflict_check_id`, `check_party_ids[]`, `added_by`;
+  ids only, never a party's name). Constant `matter.EventPartyAdded`.
+- Published where parties are added on main: `boot.PGConflictParties.ProposeParties`, when the
+  conflict check belongs to a matter, once per call in the same transaction as the
+  `conflict.check_party` rows (ARC-I-030). A check on a lead only publishes nothing. With no
+  emitter a matter's check is refused (ErrMissingDep), like the other publishers.
+- No other Go write path adds a `matter.party_role` row yet; when the matter module gains one,
+  it publishes the same event.
+- BOOT-24: call `boot.SetMatterPortEvents(&ports, k.Emitter)` after `WireMatterPorts`. F-MAT-10
+  ("event: party added or matter opened") should bind `matter.party_added` and `matter.opened`.

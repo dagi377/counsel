@@ -66,6 +66,19 @@
    "note": ""
   },
   {
+   "type": "matter.party_added",
+   "version": 1,
+   "module": "matter",
+   "subject_type": "matter",
+   "payload": [
+    "matter_id",
+    "conflict_check_id",
+    "check_party_ids[]",
+    "added_by"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-PARTY-ADDED): parties added to a matter's conflict check; ids only, never party names."
+  },
+  {
    "type": "contact.created",
    "version": 1,
    "module": "matter",

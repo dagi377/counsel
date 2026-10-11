@@ -31,6 +31,18 @@ func newEventStores(pool db.DB, em outbox.Emitter) EventStores {
 	return EventStores{Book: book, Filings: filings, Emails: comms.NewEmailFilingStore(pool, em)}
 }
 
+// SetMatterPortEvents makes the matter-side agent ports that publish emit through em:
+// PGConflictParties publishes matter.party_added. Call it after WireMatterPorts.
+func SetMatterPortEvents(p *AgentPorts, em outbox.Emitter) {
+	if p == nil {
+		return
+	}
+	if cp, ok := p.ConflictParties.(PGConflictParties); ok {
+		cp.Events = em
+		p.ConflictParties = cp
+	}
+}
+
 // setCheckEvents makes checks publish conflict.hits_disposed through em (CON-03-MEMO).
 func setCheckEvents(checks *conflict.Checks, em outbox.Emitter) {
 	if checks != nil {

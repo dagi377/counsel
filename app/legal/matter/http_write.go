@@ -22,6 +22,9 @@ import (
 
 // Gate kinds the matter write routes open. Their effects, not the routes, write the matter.
 const (
+	// EventPartyAdded (a2): parties were added to a matter's conflict check. The payload holds
+	// ids only, never a party's name.
+	EventPartyAdded = "matter.party_added"
 	GateOpening     = "matter.opening"
 	GateWidenAccess = "matter.widen_access"
 	GateClosing     = "platform.closing"
