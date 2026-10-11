@@ -1615,3 +1615,14 @@ Done in PORT-18:
   `conflict.Checker.Check` over every party name on the check.
 - The result is outcome `proposal` with the run id as ref, not `gate`: G2 is decided on the run
   through `conflict.Clearer`, not a kernel gate the runner could park on. The run stays open.
+## FEAT-TOOL-21 prepare_trust_withdrawal amount provenance
+
+- `WriteDeps.Provenance` is checked only when set. `agenttest.New` (not this task's file) builds
+  WriteTools without one, and its read stand-ins return quoted text with no numbers to observe,
+  so a fail-closed nil would break the F-TRU/F-BIL/F-ACC feature tests. Boot wiring
+  (BOOT-FEAT-WIRE) must pass the run's Provenance, and agenttest should wrap its read stand-ins
+  with `Provenance.ReadTool`; after that, nil can fail closed.
+- `WriteDeps.Withdrawals` is now the narrow `agent.Withdrawals` interface (Request, Available).
+  `withdraw.Service` and `withdrawfake.Fake` satisfy it, so callers are unchanged.
+- The title says "payee from matter contacts", but the accept list does not cover it and there
+  is no matter-contact dependency in WriteDeps. Payee is still free text. Open question.
