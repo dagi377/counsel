@@ -1,0 +1,17 @@
+synthetic: true
+feature: F-ACC-13
+match:
+  last_user_regex: '\[error_429\]'
+fault: rate_limit
+turns:
+  - reply:
+      tool_calls:
+        - name: search_matters
+          input: {screen: support-access, selected: ["sup-synth-session-01"]}
+      stop_reason: tool_use
+      usage: {input_tokens: 520, output_tokens: 30}
+  - expect_tool_results: [search_matters]
+    reply:
+      text: "Support viewed: the users list and the sign-in settings. Support changed: reset the second factor for 1 user."
+      stop_reason: end_turn
+      usage: {input_tokens: 690, output_tokens: 44}
