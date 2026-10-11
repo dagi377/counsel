@@ -316,6 +316,10 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 			// (Q-INTEG-16-SCREENS); the screen action covers on-request runs.
 			return trigger.Bind(matter.ChronologyDef(), "", matter.EventDocumentUploaded, matter.EventEmailFiled)
 		},
+		// F-TIM-01 runs at the end of each business day. One binding acts for one user, so
+		// it takes the rule admin until a per-user schedule exists (FEAT-TIM-01 in
+		// docs/QUESTIONS.md); the screen actions cover each user's on-request runs.
+		tk.RebuildDayDef().ID: scheduled(tk.RebuildDayBinding),
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -398,6 +402,10 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// Time screens act on the matters the acting user records time on (FEAT-TIM-01).
+	"my-time":           {SubjectKind: "matter", Capability: "time.record"},
+	"suggested-entries": {SubjectKind: "matter", Capability: "time.record"},
+	"activity-ledger":   {SubjectKind: "matter", Capability: "time.record"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

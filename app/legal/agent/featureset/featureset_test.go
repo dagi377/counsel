@@ -48,6 +48,7 @@ func TestAppHoldsEveryListedDef(t *testing.T) {
 		{"F-CON-16", true},
 		{"F-DOC-02", true},
 		{"F-DOC-03", true},
+		{"F-TIM-01", true},
 		{"F-DOC-04", true},
 		{"F-DOC-07", true},
 		{"F-DOC-08", false},

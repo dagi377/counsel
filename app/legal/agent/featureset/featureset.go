@@ -18,6 +18,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/matter"
+	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 )
 
 // App returns the set of the app's feature definitions. Each feature task adds its Def to
@@ -105,5 +106,7 @@ func appDefs() []feature.Def {
 		matter.RerunConflictDef(),
 		matter.ProposeRelationshipDef(),
 		matter.RequestIDDef(),
+		// time
+		tk.RebuildDayDef(),
 	}
 }

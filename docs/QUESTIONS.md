@@ -3210,3 +3210,17 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   court_form.changed), F-DOC-07, F-MAT-05, F-MAT-09 and F-MAT-14. F-DOC-09 still takes the
   rule admin; open: switch CourtFormCurrencyBinding to BindDesignated. F-MAT-12 had no
   binding; boot binds it to document.uploaded and email.filed for the event's user.
+
+## FEAT-TIM-01 Rebuild day: per-user end-of-day run and sourced time entries
+
+- F-TIM-01 runs "end of day per user", but a `trigger.Binding` acts for one user. Boot binds
+  the end-of-day run to the rule admin (`scheduled(tk.RebuildDayBinding)`) and the my-time,
+  suggested-entries and activity-ledger actions (matter subject, `time.record`) cover each
+  user's own runs. Open: a per-user schedule (one slot per timekeeper) in agent/trigger.
+- `propose_time_entries` is not a `Provenance.SourcedWrite` in production, so an invented
+  work date or minute count is not refused at boot. The F-TIM-01 feature test wraps it with
+  `SourcedWrite("/entries/*/work_date", "/entries/*/minutes")` and checks ErrUnsourcedValue.
+  Proposed (FEAT-TOOL-14 owner): declare those pointers in `buildProposeTimeEntries`; F-MAT-07
+  reads its minutes from quoted transcript text, so it would need a structured source first.
+- `app/legal/agent` imports `app/legal/timekeeping`, so the Def spells out its tool names and
+  the gate kind (`agent.GateTimeAccept`) as strings.
