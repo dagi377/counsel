@@ -43,7 +43,8 @@ func CreateTaskHandler() Handler {
 	return Handler{Name: ToolCreateTask, Build: buildCreateTask}
 }
 
-// buildCreateTask reads Deps: CapabilityCheck, roles.Walls, TaskCreator and ProposedTasks.
+// buildCreateTask reads Deps: CapabilityCheck, roles.Walls, TaskCreator, ProposedTasks and the
+// run's *agenttools.Provenance.
 func buildCreateTask(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)
 	if err != nil {
@@ -61,6 +62,10 @@ func buildCreateTask(d Deps) (registry.Tool, error) {
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
 	}
+	pv, err := DepOf[*agenttools.Provenance](d)
+	if err != nil || pv == nil {
+		return registry.Tool{}, fmt.Errorf("%s: provenance: %w", ToolCreateTask, ErrMissingDep)
+	}
 	loc, err := time.LoadLocation("America/Toronto")
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: zone: %w", ToolCreateTask, err)
@@ -76,6 +81,13 @@ func buildCreateTask(d Deps) (registry.Tool, error) {
 	tool, err := agenttools.WriteTool(registry.Tool{
 		Name: s.Name, Kind: registry.ToolWrite, Capability: s.Capability, Input: s.InputSchema, Handle: t.handle,
 	})
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
+	}
+	// rule: ARC-U-027
+	// The due date must be a date the run read: a date a read tool returned, or a
+	// shift_date result computed from one.
+	tool, err = pv.SourcedWrite(tool, "/due_on")
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolCreateTask, err)
 	}

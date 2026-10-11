@@ -26,6 +26,7 @@ const (
 	taskRun      = "run-task"
 	taskNoPlan   = "run-task-noplan"
 	taskCap      = "work.edit"
+	taskDue      = "2026-10-20"
 )
 
 type proposedTasks struct{}
@@ -37,6 +38,7 @@ func (proposedTasks) ProposedTaskStatus(context.Context) (string, string, error)
 type taskWorld struct {
 	reg   *agenttools.Registry
 	items *workfake.Fake
+	pv    *agenttools.Provenance
 }
 
 // newTaskWorld registers the real create_task on a Registry over module fakes. taskRun has a
@@ -51,8 +53,11 @@ func newTaskWorld(t *testing.T, actorCaps map[string]bool) taskWorld {
 	can := agent.CapabilityCheck(func(_ context.Context, user, capability string) (bool, error) {
 		return user == clerk && actorCaps[capability], nil
 	})
-	w := taskWorld{items: workfake.New()}
-	tool, err := agent.CreateTaskHandler().Build(agent.NewDeps(can, walls, w.items, proposedTasks{}))
+	w := taskWorld{items: workfake.New(), pv: agenttools.NewProvenance()}
+	// rule: ARC-U-027
+	// taskRun read taskDue, so its agent writes may carry it as a due date.
+	w.pv.Observe(taskRun, json.RawMessage(`{"due_date":"`+taskDue+`"}`))
+	tool, err := agent.CreateTaskHandler().Build(agent.NewDeps(can, walls, w.items, proposedTasks{}, w.pv))
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -82,7 +87,7 @@ func TestARC_I_035_CreateTask(t *testing.T) {
 		return registry.Principal{Kind: registry.PrincipalAgent, RunID: run, ActingFor: clerk, Grant: g}
 	}
 	user := registry.Principal{Kind: registry.PrincipalUser, UserID: clerk}
-	onMatter := taskInput(map[string]string{"title": "Call opposing counsel", "matter_id": taskMatter, "assignee_id": taskAssignee, "due_on": "2026-10-20"})
+	onMatter := taskInput(map[string]string{"title": "Call opposing counsel", "matter_id": taskMatter, "assignee_id": taskAssignee, "due_on": taskDue})
 	cases := []struct {
 		name        string
 		p           registry.Principal

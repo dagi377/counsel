@@ -12,6 +12,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/agenttest"
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
+	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
 	"github.com/dagi377/counsel/kernel/deadline"
@@ -84,7 +85,7 @@ func fdl09Run(t *testing.T, def feature.Def, readText, gateKind string) (*agentt
 	if _, err := env.deadlines.Save(context.Background(), nil, deadline.Proposed{
 		PackID: syntheticPack, PackVersion: "1", RuleID: followUpRule,
 		Trigger: deadline.Date{Year: 2026, Month: 10, Day: 5}, Due: deadline.Date{Year: 2026, Month: 10, Day: 19},
-		Subject: deadline.Subject{Kind: "matter", ID: mid},
+		Subject: deadline.Subject{Kind: roles.SubjectMatter, ID: mid},
 	}); err != nil {
 		t.Fatal(err)
 	}

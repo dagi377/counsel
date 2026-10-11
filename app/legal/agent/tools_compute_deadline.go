@@ -36,7 +36,8 @@ func ComputeDeadlineHandler() Handler {
 	return Handler{Name: ToolComputeDeadline, Build: buildComputeDeadline}
 }
 
-// buildComputeDeadline reads Deps: CapabilityCheck, PublishedPacks, DeadlineCompute.
+// buildComputeDeadline reads Deps: CapabilityCheck, PublishedPacks, DeadlineCompute and
+// the run's *agenttools.Provenance.
 func buildComputeDeadline(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)
 	if err != nil {
@@ -51,7 +52,13 @@ func buildComputeDeadline(d Deps) (registry.Tool, error) {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolComputeDeadline, err)
 	}
 	c := computeDeadline{packs: packs, engine: engine}
-	return handlerTool(ToolComputeDeadline, Read, can, c.handle)
+	t, err := handlerTool(ToolComputeDeadline, Read, can, c.handle)
+	if err != nil {
+		return registry.Tool{}, err
+	}
+	// rule: ARC-U-027
+	// The dates this tool returns are values a later write in the run may carry.
+	return sourcedRead(d, t)
 }
 
 type computeDeadline struct {

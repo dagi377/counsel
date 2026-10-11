@@ -42,7 +42,8 @@ func ListUnbilledHandler() Handler {
 	return Handler{Name: ToolListUnbilled, Build: buildListUnbilled}
 }
 
-// buildListUnbilled reads Deps: CapabilityCheck, roles.Walls, MatterTime.
+// buildListUnbilled reads Deps: CapabilityCheck, roles.Walls, MatterTime and the run's
+// *agenttools.Provenance.
 func buildListUnbilled(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)
 	if err != nil {
@@ -61,7 +62,13 @@ func buildListUnbilled(d Deps) (registry.Tool, error) {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolListUnbilled, err)
 	}
 	l := listUnbilled{walls: walls, entries: mt, loc: loc}
-	return handlerTool(ToolListUnbilled, Read, can, l.handle)
+	t, err := handlerTool(ToolListUnbilled, Read, can, l.handle)
+	if err != nil {
+		return registry.Tool{}, err
+	}
+	// rule: ARC-U-027
+	// The dates this tool returns are values a later write in the run may carry.
+	return sourcedRead(d, t)
 }
 
 type listUnbilled struct {

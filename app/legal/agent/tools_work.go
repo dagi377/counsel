@@ -9,6 +9,7 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/roles"
 	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/kernel/work"
 )
@@ -27,7 +28,8 @@ type WorkList interface {
 	List(ctx context.Context, f work.Filter) ([]work.Item, error)
 }
 
-// buildListWorkItems reads Deps: CapabilityCheck, roles.Walls, WorkList.
+// buildListWorkItems reads Deps: CapabilityCheck, roles.Walls, WorkList and the run's
+// *agenttools.Provenance.
 func buildListWorkItems(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)
 	if err != nil {
@@ -41,13 +43,24 @@ func buildListWorkItems(d Deps) (registry.Tool, error) {
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolListWorkItems, err)
 	}
-	l := listWorkItems{walls: walls, items: items}
-	return handlerTool(ToolListWorkItems, Read, can, l.handle)
+	loc, err := time.LoadLocation(clock.DefaultZone)
+	if err != nil {
+		return registry.Tool{}, fmt.Errorf("%s: zone: %w", ToolListWorkItems, err)
+	}
+	l := listWorkItems{walls: walls, items: items, loc: loc}
+	t, err := handlerTool(ToolListWorkItems, Read, can, l.handle)
+	if err != nil {
+		return registry.Tool{}, err
+	}
+	// rule: ARC-U-027
+	// The dates this tool returns are values a later write in the run may carry.
+	return sourcedRead(d, t)
 }
 
 type listWorkItems struct {
 	walls roles.Walls
 	items WorkList
+	loc   *time.Location
 }
 
 // workItemOut is one listed item. The title is user-written text, so it travels as quoted
@@ -62,6 +75,9 @@ type workItemOut struct {
 	AssigneeID string            `json:"assignee_id,omitempty"`
 	Priority   int               `json:"priority"`
 	DueAt      string            `json:"due_at,omitempty"`
+	// DueOn is the due day in the business zone (YYYY-MM-DD): an agent run's provenance
+	// records it, so a later write in the run may carry it. DueAt is an instant and is not.
+	DueOn string `json:"due_on,omitempty"`
 }
 
 type listWorkItemsOut struct {
@@ -110,7 +126,7 @@ func (l listWorkItems) handle(ctx context.Context, user string, raw json.RawMess
 				return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolListWorkItems, err)
 			}
 		}
-		match = append(match, toWorkItemOut(it, matterID))
+		match = append(match, toWorkItemOut(it, matterID, l.loc))
 	}
 	out := listWorkItemsOut{Items: []workItemOut{}, NextCursor: nextCursor(offset, n, len(match))}
 	if offset < len(match) {
@@ -123,7 +139,7 @@ func (l listWorkItems) handle(ctx context.Context, user string, raw json.RawMess
 	return registry.ToolResult{Output: b}, nil
 }
 
-func toWorkItemOut(it work.Item, matterID string) workItemOut {
+func toWorkItemOut(it work.Item, matterID string, loc *time.Location) workItemOut {
 	o := workItemOut{
 		ItemID: string(it.ID), Key: it.Key, Type: it.Type, StatusID: it.StatusID,
 		MatterID: matterID, AssigneeID: it.AssigneeUserID, Priority: it.Priority,
@@ -135,6 +151,8 @@ func toWorkItemOut(it work.Item, matterID string) workItemOut {
 	}
 	if it.DueAt != nil {
 		o.DueAt = it.DueAt.Format(time.RFC3339)
+		// rule: ARC-U-027
+		o.DueOn = clock.DateOf(*it.DueAt, loc).String()
 	}
 	return o
 }

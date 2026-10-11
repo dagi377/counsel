@@ -95,7 +95,7 @@ func unbilledWorld(t *testing.T, actorCaps map[string]bool) (*agenttools.Registr
 	can := agent.CapabilityCheck(func(_ context.Context, user, capability string) (bool, error) {
 		return user == clerk && actorCaps[capability], nil
 	})
-	tool, err := agent.ListUnbilledHandler().Build(agent.NewDeps(can, walls, priced))
+	tool, err := agent.ListUnbilledHandler().Build(agent.NewDeps(can, walls, priced, agenttools.NewProvenance()))
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}

@@ -3106,6 +3106,95 @@
    "creates": "gates",
    "gate_kind": null,
    "manifest_scope": "data.write:gates"
+  },
+  {
+   "name": "shift_date",
+   "kind": "read",
+   "capability": "deadlines.view",
+   "description": "Add or subtract calendar or business days (America/Toronto, Ontario holidays) from a date the run read; pure function, no write. The result is a date the run read.",
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+     "citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "doc_id",
+       "version_id",
+       "page",
+       "line_start",
+       "line_end",
+       "quote_hash"
+      ],
+      "properties": {
+       "doc_id": {
+        "type": "string",
+        "format": "uuid"
+       },
+       "version_id": {
+        "type": "string",
+        "format": "uuid"
+       },
+       "page": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "line_start": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "line_end": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "quote_hash": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+       }
+      }
+     },
+     "cents": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100000000000
+     },
+     "uuid": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "date": {
+      "type": "string",
+      "format": "date"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "date",
+     "days",
+     "unit"
+    ],
+    "properties": {
+     "date": {
+      "$ref": "#/$defs/date"
+     },
+     "days": {
+      "type": "integer",
+      "minimum": -3660,
+      "maximum": 3660
+     },
+     "unit": {
+      "type": "string",
+      "enum": [
+       "calendar",
+       "business"
+      ]
+     }
+    }
+   },
+   "creates": null,
+   "gate_kind": null,
+   "manifest_scope": "data.read"
   }
  ],
  "rules": [
