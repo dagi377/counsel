@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/dagi377/counsel/kernel/deadline"
+	"github.com/dagi377/counsel/kernel/outbox/outboxfake"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/migrations"
 )
@@ -92,6 +93,7 @@ func TestPGBookOnPostgres(t *testing.T) {
 	pool, user := deadlineDB(t)
 	ctx := context.Background()
 	b := deadline.NewPGBook(poolRunner{pool})
+	b.Events = outboxfake.New()
 	v1 := deadline.Pack{ID: "helpdesk_sla", Version: "1", Rules: []deadline.Rule{
 		{ID: "auto_close", Mode: deadline.Calendar, Days: 14},
 		{ID: "first_response", Mode: deadline.Business, Days: 1, Roll: deadline.RollForward},

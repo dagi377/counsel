@@ -78,6 +78,8 @@ func TestRecordFilingRejectsBeforeTouchingTheDatabase(t *testing.T) {
 	}{
 		{name: "no court", in: Filing{MatterID: "m1"}},
 		{name: "filed without date", in: Filing{MatterID: "m1", Court: "Superior Court", Status: FilingFiled, FiledBy: "u1"}},
+		{name: "filed with no event emitter", in: Filing{MatterID: "m1", Court: "Superior Court", Status: FilingFiled, FiledBy: "u1",
+			FiledOn: time.Date(2026, 3, 2, 15, 0, 0, 0, time.UTC)}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -226,6 +228,32 @@ func TestNextVersion(t *testing.T) {
 			v, w := nextVersion(tc.found, tc.latest, tc.latestRef, tc.ref)
 			if v != tc.wantVersion || w != tc.wantWrite {
 				t.Errorf("nextVersion = (%d, %v), want (%d, %v)", v, w, tc.wantVersion, tc.wantWrite)
+			}
+		})
+	}
+}
+
+// A filed filing is the e-filing receipt F-DL-04 matches; drafts and rejections are not.
+func TestFilingEvent(t *testing.T) {
+	day := clock.Date{Year: 2026, Month: time.March, Day: 2}
+	tests := []struct {
+		name    string
+		f       Filing
+		filedOn *clock.Date
+		want    FilingReceipt
+		wantOK  bool
+	}{
+		{name: "filed", f: Filing{ID: "f1", MatterID: "m1", DocumentID: "d1", Status: FilingFiled}, filedOn: &day,
+			want: FilingReceipt{FilingID: "f1", MatterID: "m1", DocumentID: "d1", FiledOn: "2026-03-02"}, wantOK: true},
+		{name: "draft", f: Filing{ID: "f2", MatterID: "m1", Status: FilingDraft}},
+		{name: "rejected", f: Filing{ID: "f3", MatterID: "m1", Status: FilingRejected}, filedOn: &day},
+		{name: "filed without a date", f: Filing{ID: "f4", MatterID: "m1", Status: FilingFiled}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := filingEvent(tt.f, tt.filedOn)
+			if ok != tt.wantOK || got != tt.want {
+				t.Fatalf("filingEvent = %+v, %v; want %+v, %v", got, ok, tt.want, tt.wantOK)
 			}
 		})
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -30,6 +31,23 @@ type PGBook struct {
 	db    TxRunner
 	mu    sync.Mutex
 	packs map[string]Pack
+	// Events receives the rule-pack event Repack emits in its tx. Boot sets it; while nil,
+	// Repack refuses to write (a pack change nobody hears about would leave dependants stale).
+	Events outbox.Emitter
+}
+
+// EventPackPublished is the outbox event type Repack emits when a new pack version is
+// applied. Subject is SubjectRulePack with the pack id.
+const EventPackPublished = "rulepack.published"
+
+// SubjectRulePack is the outbox subject kind of a rule pack.
+const SubjectRulePack = "cal.rule_pack"
+
+// PackPublished is the body of EventPackPublished: ids and counts only.
+type PackPublished struct {
+	PackID     string `json:"pack_id"`
+	Version    string `json:"version"`
+	Recomputed int    `json:"recomputed"`
 }
 
 // NewPGBook returns a store that runs Get through db.
@@ -234,10 +252,14 @@ const repackUpdateSQL = `UPDATE cal.deadline
 // deadlines are re-computed from p and take its version; confirmed deadlines are never
 // touched (the update itself is guarded by status). It returns the ids it re-computed,
 // sorted. Every due date is computed before any row changes, so if one deadline cannot be
-// re-computed nothing is written and the error is returned.
+// re-computed nothing is written and the error is returned. It emits EventPackPublished in
+// tx; without Events it writes nothing.
 func (b *PGBook) Repack(ctx context.Context, tx pgx.Tx, p Pack) ([]DeadlineID, error) {
 	if p.ID == "" || p.Version == "" {
 		return nil, fmt.Errorf("repack: %w", ErrInvalidPack)
+	}
+	if b.Events == nil {
+		return nil, fmt.Errorf("repack %s: no event emitter: %w", p.ID, ErrInvalidPack)
 	}
 	rows, err := tx.Query(ctx, repackSelectSQL, p.ID, p.Version)
 	if err != nil {
@@ -277,6 +299,12 @@ func (b *PGBook) Repack(ctx context.Context, tx pgx.Tx, p Pack) ([]DeadlineID, e
 		}
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	// The event commits with the re-computed rows, so the recompute feature hears of every
+	// published pack version and of nothing that rolled back.
+	ev := PackPublished{PackID: p.ID, Version: p.Version, Recomputed: len(ids)}
+	if err := b.Events.Emit(ctx, tx, outbox.Subject{Kind: SubjectRulePack, ID: p.ID}, EventPackPublished, ev); err != nil {
+		return nil, fmt.Errorf("repack %s: emit: %w", p.ID, err)
+	}
 	return ids, nil
 }
 
