@@ -221,3 +221,20 @@ func (f *Fake) Deliver(_ context.Context, _ pgx.Tx, id bill.ID, ev bill.Delivery
 	f.bills[id] = b
 	return clone(b), nil
 }
+
+// Submit moves a draft to pending_approval.
+func (f *Fake) Submit(_ context.Context, _ pgx.Tx, id bill.ID) (bill.Bill, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	b, ok := f.bills[id]
+	if !ok {
+		return bill.Bill{}, fmt.Errorf("submit %s: %w", id, bill.ErrNotFound)
+	}
+	if b.Status != bill.StatusDraft {
+		return bill.Bill{}, fmt.Errorf("submit %s: %w", id, bill.ErrNotSubmittable)
+	}
+	b.Status = bill.StatusPendingApproval
+	b.Version++
+	f.bills[id] = b
+	return clone(b), nil
+}

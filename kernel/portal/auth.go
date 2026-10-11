@@ -31,16 +31,11 @@ type OIDCVerifier interface {
 // GuestLookup maps a verified OIDC identity to a guest and its current grants.
 type GuestLookup func(ctx context.Context, issuer, subject string) (Guest, error)
 
-type pending struct {
-	guest   Guest
-	expires time.Time
-}
-
 // Shell is the portal shell. This file holds guest identity, sign-in and sessions; page
 // registration and Load live in pages.go.
 //
-// Tokens and session ids are 32 random bytes. Only their SHA-256 hashes are kept, so a
-// memory dump of the shell holds no usable credential.
+// Tokens and session ids are 32 random bytes. Only their SHA-256 hashes reach the
+// SessionStore, so neither a memory dump nor the database holds a usable credential.
 type Shell struct {
 	// Now is the clock; time.Now when nil.
 	Now func() time.Time
@@ -50,17 +45,19 @@ type Shell struct {
 	Verifier OIDCVerifier
 	Lookup   GuestLookup
 
-	mu       sync.Mutex
-	tokens   map[string]pending // by token hash
-	sessions map[string]Session // by session-id hash; Session.ID holds the raw id
-	pages    map[string]PortalPage
-	pageIDs  map[string]bool
+	// Store keeps sign-in tokens and sessions by hash; NewShell sets an in-memory store.
+	// PGSessions keeps them in Postgres.
+	Store SessionStore
+
+	mu      sync.Mutex
+	pages   map[string]PortalPage
+	pageIDs map[string]bool
 }
 
-// NewShell returns an empty Shell.
+// NewShell returns an empty Shell with an in-memory SessionStore.
 func NewShell() *Shell {
 	return &Shell{
-		tokens: map[string]pending{}, sessions: map[string]Session{},
+		Store: newMemSessions(),
 		pages: map[string]PortalPage{}, pageIDs: map[string]bool{},
 	}
 }
@@ -95,9 +92,9 @@ func (s *Shell) IssueToken(ctx context.Context, g Guest, ttl time.Duration) (str
 	if err != nil {
 		return "", fmt.Errorf("issue token: %w", err)
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.tokens[hash(tok)] = pending{guest: cloneGuest(g), expires: s.now().Add(ttl)}
+	if err := s.Store.PutToken(ctx, hash(tok), cloneGuest(g), s.now().Add(ttl)); err != nil {
+		return "", fmt.Errorf("issue token: %w", err)
+	}
 	return tok, nil
 }
 
@@ -106,15 +103,11 @@ func (s *Shell) SignIn(ctx context.Context, token string) (Session, error) {
 	if err := ctx.Err(); err != nil {
 		return Session{}, err
 	}
-	h := hash(token)
-	s.mu.Lock()
-	p, ok := s.tokens[h]
-	delete(s.tokens, h)
-	s.mu.Unlock()
-	if !ok || !s.now().Before(p.expires) {
-		return Session{}, ErrBadToken
+	g, err := s.Store.TakeToken(ctx, hash(token), s.now())
+	if err != nil {
+		return Session{}, fmt.Errorf("sign-in: %w", err)
 	}
-	return s.newSession(p.guest)
+	return s.newSession(ctx, g)
 }
 
 // SignInOIDC exchanges a verified OIDC ID token for a session. The guest and its grants
@@ -134,7 +127,7 @@ func (s *Shell) SignInOIDC(ctx context.Context, rawIDToken string) (Session, err
 	if g.ID == "" {
 		return Session{}, fmt.Errorf("oidc sign-in: %w", ErrNoGuest)
 	}
-	return s.newSession(cloneGuest(g))
+	return s.newSession(ctx, cloneGuest(g))
 }
 
 // Session returns the live session with this id.
@@ -142,19 +135,11 @@ func (s *Shell) Session(ctx context.Context, sessionID string) (Session, error) 
 	if err := ctx.Err(); err != nil {
 		return Session{}, err
 	}
-	h := hash(sessionID)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	sess, ok := s.sessions[h]
-	if !ok {
-		return Session{}, ErrNoSession
+	g, exp, err := s.Store.Session(ctx, hash(sessionID), s.now())
+	if err != nil {
+		return Session{}, fmt.Errorf("session: %w", err)
 	}
-	if !s.now().Before(sess.ExpiresAt) {
-		delete(s.sessions, h)
-		return Session{}, ErrNoSession
-	}
-	sess.Guest = cloneGuest(sess.Guest)
-	return sess, nil
+	return Session{ID: sessionID, Guest: cloneGuest(g), ExpiresAt: exp}, nil
 }
 
 // SignOut ends a session. Ending an unknown session is not an error.
@@ -162,9 +147,9 @@ func (s *Shell) SignOut(ctx context.Context, sessionID string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.sessions, hash(sessionID))
+	if err := s.Store.EndSession(ctx, hash(sessionID), s.now()); err != nil {
+		return fmt.Errorf("sign out: %w", err)
+	}
 	return nil
 }
 
@@ -181,17 +166,16 @@ func (s *Shell) Authorize(ctx context.Context, sessionID, subject string) (Guest
 	return sess.Guest, nil
 }
 
-func (s *Shell) newSession(g Guest) (Session, error) {
+func (s *Shell) newSession(ctx context.Context, g Guest) (Session, error) {
 	id, err := randomID()
 	if err != nil {
 		return Session{}, fmt.Errorf("new session: %w", err)
 	}
-	sess := Session{ID: id, Guest: g, ExpiresAt: s.now().Add(s.sessionTTL())}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.sessions[hash(id)] = sess
-	sess.Guest = cloneGuest(g)
-	return sess, nil
+	exp := s.now().Add(s.sessionTTL())
+	if err := s.Store.PutSession(ctx, hash(id), cloneGuest(g), exp); err != nil {
+		return Session{}, fmt.Errorf("new session: %w", err)
+	}
+	return Session{ID: id, Guest: cloneGuest(g), ExpiresAt: exp}, nil
 }
 
 func randomID() (string, error) {

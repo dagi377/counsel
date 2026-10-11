@@ -186,6 +186,18 @@ paths:
       parameters:
       - {$ref: '#/components/parameters/IfMatch'}
       - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                delivery_method:
+                  type: string
+                  enum: [email, portal, mail]
+                  default: email
       responses:
         '202':
           description: Gate opened

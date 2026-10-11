@@ -58,3 +58,13 @@ func (x *Execution) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	x.handle(w, r)
 }
+
+func init() { add(registerReadRoutes) }
+
+// registerReadRoutes mounts GET /trust/withdrawals and GET /trust/withdrawals/{withdrawal_id}
+// through Registry.Routes. Boot wiring supplies the dependencies; until it does, the routes
+// answer 503.
+func registerReadRoutes(r registry.Registry) error {
+	r.Routes((&Reads{}).Routes)
+	return nil
+}

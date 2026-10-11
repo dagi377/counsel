@@ -1687,3 +1687,167 @@ Done in PORT-18:
   (`parseCivilDate`, `draftBill*`).
 - 6200_agent_flag.sql (FEAT-CORE-13) gained the MIG-061 `SET lock_timeout` / `statement_timeout`.
 - Not done here: the FEAT-TOOL-16 `Item.Description` additive field (follow-up).
+
+## Q-PORT-11: signatory change log, migration number and files outside the list
+
+- Task: PORT-11. The task names `migrations/6210_signatory_change.sql`, but 6200-6299 is the
+  app/legal/agent block in `tools/migration_blocks.txt`; trust owns 5500-5599. The file is
+  `migrations/5510_signatory_change.sql` (additive: one new table).
+- `PGService` satisfying `Service` needs the PORT-10 `Propose`/`Approve` stubs (and their
+  `ErrNotImplemented` test) removed from `service_pg.go` and `service_pg_test.go`. Branch is
+  based on `task/PORT-10`, so PORT-10 must merge first.
+- `signatory.Effects` calls `Service` without a tx. `TxEffects(*PGService)` runs the same
+  effect on the gate tx (`PGService.OnTx`) and records the gate id as
+  `trust.signatory.approval_id`; boot should register `TxEffects`, not `Effects`. Outside a
+  gate, `Approve` records the change id as the approval.
+- One change adds or removes exactly one user (the GA6 payload is one user); a bonded
+  non-licensee grant stores bond_cents 0 with no expiry and keeps the evidence on the change
+  (verify: the real bond amount and expiry need their own input).
+
+## Q-PORT-12: shared signatory validity helper
+
+- Task: PORT-12. "Shared helper in signatory" needs one file outside the task list:
+  `app/legal/trust/signatory/validity.go` adds `CanSignTx(ctx, tx, account, user)`, which runs
+  PGService.CanSign's query and validity rule in the caller's tx. `withdraw.PGSigners` calls
+  it, so the withdrawal gate and the signatory list use one rule. Branch is based on
+  `task/PORT-10`, so PORT-10 must merge first. Boot wires `withdraw.PGSigners{}` into
+  `TrustPorts.Signers` with no new SQL.
+- Q-PORT-22 (open): the Clio client (app/legal/clio) has no webhook-subscription renew call,
+  so nothing implements sync.SubscriptionRenewer yet. PORT-22 ships only OutboxNotifier.
+  Needed: a `Renew(ctx, remoteID) (time.Time, error)` PATCH on the Clio webhook endpoint in
+  app/legal/clio/client.go (with cliofake support). Until then BOOT-19 wires the renewal job
+  only behind its flag, which is off by default.
+
+## Q-PORT-24-SOLE: sole practitioner signs their own trust reconciliation
+
+- Task: PORT-24-SOLE, answering Q-PORT-24 (decided as counsel): By-law 9 needs a licensee to
+  sign the monthly reconciliation and a sole practitioner has no second person.
+  `recon.PGSignOff.Sign` lets the preparer sign only when the firm has exactly one active
+  licensee (core.app_user, same definition as the signatory directory) and the preparer is
+  that licensee. It records audit action `sign_off.sole_practitioner` in the sign-off tx
+  through `PGSignOff.WithAudit`; without an audit log the preparer is refused. Every other
+  preparer is refused (ErrSelfApproval) and an agent never signs (ErrAgentApproval). Tagged
+  `rule: ARC-I-021`.
+- The database keeps its own guard: `core.check_sod` (0001) also needs
+  `core.firm.sole_practitioner` true and writes its `sod_solo_exception` row, so boot must keep
+  that setting in step with the licensee count. Showing the exception in the UI is a separate
+  web task.
+- PORT-26 (logged, autopilot): `kernel/identity/breakglass.go` is edited outside the task's file
+  list, because `NewBreakGlassWith` and the `GrantStore` field must live on `BreakGlass`. The
+  in-memory store is the default. `audit.break_glass` (frozen) has no expiry column, so
+  `PGGrants` treats a grant as expired once its `core.break_glass_expire` audit event with
+  detail `grant_id` exists. The boot audit masker must allow `grant_id` as `audit.KindID`;
+  otherwise ExpireDue audits the same grant again on every run. The other option is an
+  additive `expired_at` column in the kernel/audit block (needs approval). The table holds
+  one subject kind in an app-named column, so boot sets `PGGrants.SubjectKind` and
+  `SubjectColumn` (the kernel names no legal term); other kinds are refused.
+- PORT-26 expired_at (approved by the owner): additive migration
+  `0200_break_glass_expired_at.sql` (kernel/identity block) adds nullable
+  `audit.break_glass.expired_at`. `PGGrants` now reads expiry from that column and
+  `ExpireDue` sets it, in the caller's transaction, after each grant's expiry audit event; a
+  grant it cannot mark fails the run (`ErrGrantNotMarked`) so the audit event rolls back too.
+  Expiry no longer depends on `audit.audit_event`, so the boot audit masker need not keep
+  `grant_id` for ExpireDue to stay idempotent. Grants expired before this migration have no
+  `expired_at` and are audited once more on the first run after it.
+- PORT-27 (logged, autopilot): `kernel/portal/auth.go` is edited outside the task's file list,
+  because Shell has to use the new `SessionStore` (field `Shell.Store`; NewShell sets an
+  in-memory store). The migration is `1500_portal_token.sql` in the kernel/portal block, not
+  `6240` (an app block). `core.user_session` has no hash or expiry column, so
+  `platform.portal_token` holds the SHA-256 keys of sign-in tokens and session handles, the
+  grants and the expiry, and links each session to its `core.user_session` row
+  (platform 'portal'). Ending that row (logout or revocation) ends the portal session. Guest
+  ids must be `core.app_user` ids.
+
+## HTTP-PAGE list routes return the openapi page shape
+
+- Decided (autopilot counsel): openapi declares every list page as `{data, next_cursor}`
+  (next_cursor string or null); `api.Page` encoded `{items, next}`. kernel/api/contract.go
+  `Page` keeps its Go fields (Items, Next) so callers compile unchanged, but its JSON tags are
+  now `data`/`next_cursor` and a `MarshalJSON` method writes `data: []` for no items and
+  `next_cursor: null` on the last page. This is a wire change, not additive; it fixes
+  GET /matters, /contacts, /time-entries, /expenses, /credit-notes (and the trust lists on the
+  HTTP-10/10b/11 branches, whose tests still decode `items`/`next` and must switch to
+  `data`/`next_cursor` when merged). GET /bills (HTTP-06) already used this shape.
+- openapi gives no 200 schema for GET /matters, /contacts, /time-entries, /expenses; their
+  tests check the whole body against the openapi list page envelope. Declaring those 200
+  schemas is an open additive openapi change.
+
+## HTTP-10b trust ledger overdraft fields
+
+- Trust ledger overdraft is never hidden (By-law 9; BIL-I-010, ARC-I-025). GET /trust/ledgers
+  always sends `overdrawn` (bool) and `shortfall_cents` (>= 0) on each ledger. openapi `Cents`
+  is non-negative, so a negative posted or available balance is reported as 0 with
+  `overdrawn: true` and `shortfall_cents` = the amount below zero of the lower of the two; the
+  true signed figure is that amount minus shortfall_cents. The web must show `overdrawn` as an
+  error state. spec/legal names the By-law 9 no-overdraft rule only in prose (billing.json
+  "reg"); the code cites BIL-I-010 from spec/eng/b3.
+- Open (needs owner): the two fields are not yet declared on openapi `TrustLedger`. The
+  additive change needs a line in kernel/contract/additive.txt, and any pointer under
+  `/components/schemas/TrustLedger` puts the legal term "trust" in kernel/, which
+  TestKernelHasNoLegalTerms rejects; tools/kernel_allow.txt is a ratchet that may not grow
+  (TestKernelRatchet). `TrustLedger` has no `additionalProperties: false`, so the bodies still
+  validate. Proposed: exempt kernel/contract/additive.txt (openapi pointers, not kernel code)
+  from the term scan, then add `overdrawn: {type: boolean}` and
+  `shortfall_cents: {$ref: Cents}` to TrustLedger under this entry.
+
+## HTTP-12: gate inbox and detail routes
+
+- kernel/gate.Engine has no List; the routes take a `gates.Lister` (ListFilter: after, limit,
+  states, kinds, not-prepared-by). Boot wires a lister over core.gate under the caller's RLS.
+- Reading gates needs at least one kind's approver capability ("any"); GET /gates/{gate_id}
+  then needs that kind's approver capability ("the") or to be the gate's preparer. A walled
+  subject is 404. The kind check runs after the gate is loaded (one Get call).
+- Inbox default (decidable_by_me=true): pending gates of held kinds, minus the caller's own
+  (an agent counts as its acting-for user). A malformed gate_id answers 404.
+- Each detail view appends one `gate.viewed` audit event in its own transaction.
+- `decisions` is always empty: the engine does not expose per-decision records yet.
+
+## HTTP-13: gate decision and withdraw routes
+
+- Decisions need a human principal (agent -> 403 agent_cannot_decide), at least one approver
+  capability (403 before any engine call), then the kind's approver capability on the
+  subject (re-checked at decision time; walled -> 404). Body `version` and If-Match both
+  must equal the gate version (412). The preparer -> 403 self_approval unless approving
+  with a sole_practitioner_declaration, which the engine's self-approval policy then decides.
+- Step-up comes from `DecideHTTP.StepUp` (when the session last passed MFA). Missing, or
+  older than 15 min for high/irreversible kinds -> 403 step_up_required (accept line);
+  kernel/gate's own problem table says 401 for ErrMFARequired. Please confirm 403.
+- Approval runs the effect inside Engine.Decide in the route's transaction; the PG engine
+  wraps it in gate.WithEffect. gatefake does not set WithEffect, so the test asserts the
+  effect ran once per approval, not the context mark.
+- Withdraw by anyone but the preparer (or an agent acting for them) -> 403 not_preparer
+  (proposed code). Problem codes self_approval, cooling_off, gate_not_open,
+  payload_changed, already_decided, not_preparer are proposed. trust.ErrInsufficientFunds
+  from an effect maps to 409 insufficient_trust_funds.
+
+## HTTP-14: payment list, record and get routes (files outside the task)
+
+- `payment.Service` gains `List(ctx, ListFilter)` and `ListFilter` in contract.go (additive,
+  as the accept line asks); `paymentfake` gains `List` and an optional `NewID` so tests get
+  uuid payment ids. Pages run by id.
+- A body with a `trust_ledger` allocation, or a service ErrRetainerToOperating /
+  ErrTrustReceipt, answers 422 `use_trust_receipts` (proposed code) with detail and instance
+  pointing at /v1/trust/receipts; PaymentCreate has no account field, so "trust-account
+  payment body" is read as a trust_ledger target.
+- POST /payments captures to at most one bill; more than one bill allocation answers 422
+  validation_failed pointing at POST /payments/{payment_id}/allocations.
+- Payment has no row version or allocation ids yet: `version` is 1, ETag "1", and each
+  allocation id is a stable uuid derived from (payment id, index). received_at echoes the
+  business date (midnight America/Toronto), since Capture keeps only ReceivedOn.
+  processor_fee_cents is accepted and not stored (Capture has no field for it).
+- A reused Idempotency-Key with a different body answers 422 (ARC-I-008, kernel/idem).
+
+## Q-HTTP-08b Submit moves the bill and adds delivery_method to the submit body
+
+- `bill.Service` gains `Submit(ctx, tx, id)` and `bill.ErrNotSubmittable` (contract.go,
+  additive); billfake implements it. Submit moves a draft to pending_approval and bumps its
+  version. POST /bills/{bill_id}/submit now calls it in the same transaction as the
+  billing.bill_approval gate open: a failed open rolls the move back, and a bill that left
+  draft between the read and the tx answers 409 bill_not_submittable with no gate.
+- api/openapi.yaml: POST /bills/{bill_id}/submit gains an optional request body
+  `{"delivery_method": "email" | "portal" | "mail"}` (default email, no other fields), the
+  value the bill approval payload needs. Optional request bodies are additive under
+  ARC-I-001; listed in kernel/contract/additive.txt as
+  `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
+- Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
+  implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.

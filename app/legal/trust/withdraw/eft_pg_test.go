@@ -136,3 +136,66 @@ func TestPGEFTRecordsEFTAuthorization(t *testing.T) {
 		})
 	}
 }
+
+// eftScriptTx is a fake DB keyed by Form 9A document id: each record has its bound
+// withdrawals and its signature row. An id with no entry has no binding and no signature.
+type eftScriptTx struct {
+	pgx.Tx
+	recs map[string]eftScriptRec
+}
+
+type eftScriptRec struct {
+	bindings []eftBinding
+	sig      eftDocRow
+}
+
+func (t eftScriptTx) Query(_ context.Context, _ string, args ...any) (pgx.Rows, error) {
+	return &eftRows{vals: t.recs[args[0].(string)].bindings}, nil
+}
+
+func (t eftScriptTx) QueryRow(_ context.Context, _ string, args ...any) pgx.Row {
+	if r, ok := t.recs[args[0].(string)]; ok {
+		return r.sig
+	}
+	return eftDocRow{err: pgx.ErrNoRows}
+}
+
+// CheckEFT over PGEFTRecords with scripted rows: a signed record bound to the withdrawal lets
+// it run; a missing record, or a record bound to another withdrawal, is refused.
+func TestCheckEFTWithPGEFTRecords(t *testing.T) {
+	at := time.Date(2026, 3, 16, 10, 0, 0, 0, time.UTC)
+	signed := eftDocRow{by: "lawyer1", at: at.Add(-time.Hour)}
+	tx := eftScriptTx{recs: map[string]eftScriptRec{
+		"9a-w1": {bindings: []eftBinding{{"w1", 4000}}, sig: signed},
+		"9a-w2": {bindings: []eftBinding{{"w2", 4000}}, sig: signed},
+	}}
+	held := func(rec string) Held {
+		return Held{Withdrawal: Withdrawal{ID: "w1", AuthorizedBy: "lawyer1",
+			Request: Request{AmountCents: 4000, Method: MethodEFT, EFTAuthorizationID: rec}}}
+	}
+	tests := []struct {
+		name      string
+		rec       string
+		want      error
+		wantFetch string // withdrawal the reader returns for rec; "" when it returns none
+	}{
+		{"record found", "9a-w1", nil, "w1"},
+		{"no record: refused", "9a-none", ErrNoEFTAuthorization, ""},
+		{"record for another withdrawal: refused", "9a-w2", ErrNoEFTAuthorization, "w2"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			a, err := PGEFTRecords{}.EFTAuthorization(ctx, tx, tt.rec)
+			if tt.wantFetch == "" && !errors.Is(err, ErrNotFound) {
+				t.Fatalf("EFTAuthorization(%s) = %+v, %v; want ErrNotFound", tt.rec, a, err)
+			}
+			if tt.wantFetch != "" && (err != nil || a.WithdrawalID != tt.wantFetch || a.ID != tt.rec) {
+				t.Fatalf("EFTAuthorization(%s) = %+v, %v; want record of %s", tt.rec, a, err, tt.wantFetch)
+			}
+			if err := CheckEFT(ctx, tx, PGEFTRecords{}, held(tt.rec), at); !errors.Is(err, tt.want) {
+				t.Fatalf("CheckEFT = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}
