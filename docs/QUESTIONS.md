@@ -412,3 +412,17 @@ Template:
   intended before the deliver route is wired, or turn the flag on once BIL-T-061 is verified.
 - BIL-I-008 has its text in spec/eng/b3-billing-engine.json; `CheckNumbering` implements it.
   It also lets a void bill have no number (voided before approval), as the 0001 CHECK does.
+
+## T-020.1c: bill void effect
+
+- Approval entry: the billing.bill_approval effect posts no BIL-J-003 journal entry yet, and
+  kernel/ledger has no lookup by source. `VoidEffect` finds the entry to reverse through the
+  `ApprovalEntries` port, which has no Postgres implementation. Options: (a) the approval
+  effect posts BIL-J-003 and stores its entry id on the bill (additive column), or (b) an
+  additive `ledger.FindBySource(ctx, tx, kind, id)` over the existing source index. The
+  integration test posts the approval entry itself.
+- Extra file: `void_effect_test.go` holds the unit tests and the route-table guard
+  (TestBIL_C_084_OnlyGateVoids), so they run in `make check`; the listed
+  `void_integration_test.go` is integration-only.
+- Integrator: pass `bill.VoidEffects(*VoidEffect)` into the gates.RegisterKinds effects map
+  at boot, as for `bill.Effects`.
