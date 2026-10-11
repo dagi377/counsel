@@ -20,7 +20,7 @@ const draftTransferTrigger = "on request: trust-transfers > Draft transfer"
 
 // DraftTransferDef is F-TRU-08: from the trust-transfers screen (a matter split, or money
 // moving to an interest-bearing account) the agent reads the matters, their trust balances
-// and any bill, and prepares the transfer with prepare_trust_withdrawal. The run may open
+// and any bill, and prepares the transfer with prepare_trust_transfer. The run may open
 // trust.transfer (G11t) only; a lawyer other than the preparer authorizes it. The agent never
 // authorizes, posts or executes a transfer.
 func DraftTransferDef() feature.Def {
@@ -35,13 +35,13 @@ func DraftTransferDef() feature.Def {
 		Kind:    ai.KindToolUse,
 		Tools: []string{
 			"get_matter", "get_trust_balance", "get_bill",
-			"prepare_trust_withdrawal", "report_plan", "report_step", "submit_for_approval",
+			"prepare_trust_transfer", "prepare_trust_withdrawal", "report_plan", "report_step", "submit_for_approval",
 		},
 		// rule: ARC-I-035
-		// The run scope holds trust.transfer only. prepare_trust_withdrawal opens
-		// trust.withdrawal, so in this run it is refused before the trust module records
-		// anything: a transfer is never filed as a withdrawal (docs/QUESTIONS.md
-		// Q-FEAT-TRU-08).
+		// The run scope holds trust.transfer only: prepare_trust_transfer opens it.
+		// prepare_trust_withdrawal opens trust.withdrawal, so in this run it is refused before
+		// the trust module records anything: a transfer is never filed as a withdrawal
+		// (docs/QUESTIONS.md Q-FEAT-TRU-08, Q-TRU-FIX).
 		GateKinds: []string{GateTrustTransfer},
 		// The run's agent principal holds the capabilities of its tools and no other: it may
 		// request trust money movement, never authorize it.

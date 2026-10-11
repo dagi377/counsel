@@ -16,7 +16,7 @@ import (
 
 // EventBankLinesImported is the event a bank statement import publishes (POST
 // /trust/bank-lines/imports). It starts F-TRU-01 next to its daily schedule.
-const EventBankLinesImported = "bank_line.imported"
+const EventBankLinesImported = "bank_feed.line_imported"
 
 // Tool names the F-TRU-01 write path calls. They are the a2 tools of the Def; package trust
 // cannot import package agent, so they are named here.

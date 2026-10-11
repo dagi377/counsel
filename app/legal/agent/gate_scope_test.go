@@ -15,6 +15,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/matter/matterkind"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/agenttools/agenttoolsfake"
 	"github.com/dagi377/counsel/kernel/gate"
@@ -107,6 +108,26 @@ func TestARC_I_035_GateOpeningToolsScoped(t *testing.T) {
 				gates = 1
 			}
 			return gateCall{err, gates, wd.requests}
+		}},
+		// rule: ARC-I-035
+		// With a bill_id the trust module opens billing.trust_fee_withdrawal, so the scope
+		// check covers that kind (withdraw.RequestGateKind), not trust.withdrawal.
+		{agent.ToolPrepareTrustWithdrawal, withdraw.GateFeeKind, func(t *testing.T, kinds []string) gateCall {
+			reg, wd := newTrustWithdrawalRegistry(t)
+			in := map[string]any{"matter_id": matterA, "amount_cents": 5_000, "purpose_category": "fees", "payee": firmPayee, "bill_id": billDelivered}
+			b, _ := json.Marshal(in)
+			res, err := reg.Call(scope("run-1", kinds), agentP("run-1", agent.CapTrustRequest), agent.ToolPrepareTrustWithdrawal, json.RawMessage(b))
+			gates := 0
+			if res.GateID != "" {
+				gates = 1
+			}
+			return gateCall{err, gates, wd.requests}
+		}},
+		{agent.ToolPrepareTrustTransfer, agent.GateTrustTransfer, func(t *testing.T, kinds []string) gateCall {
+			w := newXferWorld(t, map[string]bool{agent.CapTrustRequest: true})
+			s := agenttools.NewScope(xferRun, kinds)
+			_, err := w.reg.Call(agenttools.WithScope(context.Background(), s), xferPrincipal(), agent.ToolPrepareTrustTransfer, json.RawMessage(xferInput(xferFrom, xferTo, 20_000)))
+			return gateCall{err, gatesOpened(w.gates), 0}
 		}},
 		{agent.ToolProposeConflictParties, conflict.GateClearance, func(t *testing.T, kinds []string) gateCall {
 			w := newConflictWorld(t, map[string]bool{cpCap: true})
@@ -204,9 +225,10 @@ func TestARC_I_035_NoUnscopedGateOpener(t *testing.T) {
 		}
 	}
 	// draft_note, draft_email, draft_bill, propose_time_entries, propose_deadline,
-	// propose_payment_allocation and submit_for_approval read a GateOpener.
-	if sites < 7 {
-		t.Fatalf("found %d GateOpener reads, want at least 7: the guard no longer sees the tools", sites)
+	// propose_payment_allocation, prepare_trust_transfer and submit_for_approval read a
+	// GateOpener.
+	if sites < 8 {
+		t.Fatalf("found %d GateOpener reads, want at least 8: the guard no longer sees the tools", sites)
 	}
 }
 

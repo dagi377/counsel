@@ -11,7 +11,9 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/agent"
 	"github.com/dagi377/counsel/app/legal/agent/agenttest"
+	"github.com/dagi377/counsel/app/legal/agent/feature"
 	"github.com/dagi377/counsel/app/legal/agent/trigger"
+	"github.com/dagi377/counsel/app/legal/billing"
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/gates/gatesfake"
@@ -124,7 +126,11 @@ func TestFTRU02_FromFeature(t *testing.T) {
 		{name: "overdraft refused", trust: 100_000, status: bill.StatusDelivered, narrative: truc02Narrative,
 			prepare: truc02Prepare(truc02Bill, "client_payment", agenttest.PayeeContact, ""), wantErr: withdraw.ErrTrustOverdraw},
 		{name: "fees to the firm without a bill", trust: truc02Trust, status: bill.StatusDelivered, narrative: truc02Narrative,
-			prepare: truc02Prepare(truc02Bill, "fees", agenttest.FirmPayee, ""), wantErr: agent.ErrFirmPayeeNeedsBill},
+			prepare: truc02Prepare(truc02Bill, "fees", agenttest.FirmPayee, ""), wantErr: agent.ErrFeesNeedBill},
+		// rule: BIL-L-035
+		// Fees with no bill are refused at the tool whoever the payee (TRU-FIX).
+		{name: "fees to a contact without a bill", trust: truc02Trust, status: bill.StatusDelivered, narrative: truc02Narrative,
+			prepare: truc02Prepare(truc02Bill, "fees", agenttest.PayeeContact, ""), wantErr: agent.ErrFeesNeedBill},
 		{name: "firm payee for a non-fee purpose", trust: truc02Trust, status: bill.StatusDelivered, narrative: truc02Narrative,
 			prepare: truc02Prepare(truc02Bill, "disbursement", agenttest.FirmPayee, trucBill), wantErr: agent.ErrFirmPayeeNeedsBill},
 		// The trust module finds no delivered fee bill for the firm, so the transfer fails closed.
@@ -241,4 +247,68 @@ func TestFTRU02_FromFeature(t *testing.T) {
 func TestFTRU02_PrepareOnly(t *testing.T) {
 	trucCheckNoEffectCalls(t, "ai_f_tru_02.go")
 	trucCheckAgentNeverDecides(t, agent.GateTrustWithdrawal)
+}
+
+// A fee transfer to the firm's general account on a delivered bill, through the production
+// prepare_trust_withdrawal handler (trudFeature) reading the bill from Seed.FeeBills. With a
+// bill_id the trust module opens billing.trust_fee_withdrawal (withdraw.RequestGateKind), so
+// the handler checks the run scope for that kind: a run that declares it (F-BIL-03,
+// trust-to-fees) gets one pending fee gate prepared by the acting user; F-TRU-02, which
+// declares trust.withdrawal only, is refused before the trust module records anything.
+//
+// rule: ARC-I-035
+// rule: ARC-I-039
+// rule: BIL-L-035
+// rule: BIL-L-037
+func TestFTRU02_FirmFeeTransferOnDeliveredBill(t *testing.T) {
+	tests := []struct {
+		name    string
+		def     feature.Def
+		wantErr error // nil: one pending billing.trust_fee_withdrawal gate
+	}{
+		{"fee gate declared passes", billing.TrustApplicationDef(), nil},
+		{"withdrawal scope only is refused", trust.WithdrawalDrafterDef(), agenttools.ErrGateKindNotAllowed},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// The script never calls list_unbilled, whose time port trudFeature lacks; the
+			// run scope (GateKinds) is the Def's own.
+			tt.def.Tools = slices.DeleteFunc(slices.Clone(tt.def.Tools), func(n string) bool { return n == agent.ToolListUnbilled })
+			fd := trudFeature(t, tt.def, "Fees for the synthetic closing", trudTrust)
+			write := truCall{agent.ToolPrepareTrustWithdrawal, map[string]any{
+				"matter_id": agenttest.TrustMatter, "amount_cents": trudTrust, "purpose_category": "fees",
+				"payee": agenttest.FirmPayee, "bill_id": trudBill,
+			}}
+			calls := trudCalls(write)
+			run := fd.Fire(context.Background(), truScript(t, tt.def.ID, calls, "Prepared the fee transfer for authorization."),
+				"run-ftru02-fee-"+strings.ReplaceAll(tt.name, " ", "-"), "Bill "+trudBill+" delivered")
+			if run.Err != nil || len(run.StandIns) != 0 {
+				t.Fatalf("run err = %v, stand-ins = %v", run.Err, run.StandIns)
+			}
+			if want := truToolNames(calls); !slices.Equal(run.Tools, want) {
+				t.Fatalf("tools = %v, want %v", run.Tools, want)
+			}
+			if tt.wantErr != nil {
+				if r, ok := truRefused(run, agent.ToolPrepareTrustWithdrawal); !ok || len(run.Refused) != 1 || !errors.Is(r.Err, tt.wantErr) {
+					t.Fatalf("refused = %+v, want only %s refused with %v", run.Refused, agent.ToolPrepareTrustWithdrawal, tt.wantErr)
+				}
+				trudNoWrite(t, fd, run.Run, trudTrust)
+				return
+			}
+			if len(run.Refused) != 0 || len(run.GateIDs) != 1 {
+				t.Fatalf("refused = %+v, gates = %v; want one gate", run.Refused, run.GateIDs)
+			}
+			wd := trudWithdrawal(t, fd, run.Run)
+			// rule: ARC-I-039
+			// The trust module holds a requested withdrawal on the fee gate, prepared by the
+			// acting user: nothing authorized or moved.
+			if withdraw.RequestGateKind(wd.Request) != withdraw.GateFeeKind || wd.GateID != run.GateIDs[0] ||
+				wd.Status != withdraw.StatusRequested || wd.Request.PreparedBy != agenttest.FeatureActingFor {
+				t.Fatalf("withdrawal = %+v, want requested on %s, prepared by the acting user", wd, withdraw.GateFeeKind)
+			}
+			if wd.Request.Payee != agenttest.FirmPayee || wd.Request.BillID != trudBill || wd.Request.AmountCents != trudTrust {
+				t.Fatalf("withdrawal = %+v, want %d cents to the firm for %s", wd.Request, int64(trudTrust), trudBill)
+			}
+		})
+	}
 }

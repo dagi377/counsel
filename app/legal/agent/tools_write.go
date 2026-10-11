@@ -40,6 +40,10 @@ var ErrFirmPayeeNeedsBill = fmt.Errorf("agent: firm payee needs fees and a bill:
 // account, never a matter contact (422; By-Law 9 s.9(1)).
 var ErrFeesNeedFirmPayee = fmt.Errorf("agent: a fee transfer pays the firm's general account: %w", ErrInvalidInput)
 
+// ErrFeesNeedBill: a fee withdrawal out of trust names no bill (422). Fees are paid from
+// trust only for a delivered bill (By-Law 9 s.9(1)).
+var ErrFeesNeedBill = fmt.Errorf("agent: a fee withdrawal names its bill: %w", ErrInvalidInput)
+
 // purposeFees is the purpose_category of a fee transfer to the firm.
 const purposeFees = "fees"
 
@@ -195,6 +199,12 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 	// up; an unsourced amount is refused before any withdrawal row exists.
 	if err := t.deps.Provenance.Check(c.RunID, []string{"/amount_cents"}, c.Input); err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
+	}
+	// rule: BIL-L-035
+	// Fees come out of trust only against a delivered bill (By-Law 9 s.9(1)): a fee
+	// withdrawal with no bill is refused here, before the trust module is reached.
+	if in.Purpose == purposeFees && in.BillID == "" {
+		return Result{}, fmt.Errorf("call %s: %w", c.Tool, ErrFeesNeedBill)
 	}
 	if err := t.checkPayee(ctx, in.MatterID, in.Payee, in.Purpose, in.BillID, in.AmountCents); err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)

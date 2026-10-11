@@ -20,6 +20,7 @@ Call only these Counsel tools, through the Counsel app-API connection:
 - `get_matter` (read)
 - `get_trust_balance` (read)
 - `get_bill` (read)
+- `prepare_trust_transfer` (write)
 - `prepare_trust_withdrawal` (write)
 - `report_plan` (report)
 - `report_step` (report)
@@ -58,8 +59,9 @@ plan with report_plan before any write.
 
 - Read each matter with get_matter and its trust money with get_trust_balance. Read with
   get_bill any bill the transfer relates to.
-- Prepare the transfer with prepare_trust_withdrawal. Its gate must be trust.transfer, the
-  only kind this run may open. If the tool is refused, stop and report the refusal in plain
+- Prepare the transfer with prepare_trust_transfer: the source matter, the destination
+  matter, the amount and the reason. Its gate is trust.transfer, the only kind this run may
+  open. Never use prepare_trust_withdrawal for a transfer: it is refused in this run. If the tool is refused, stop and report the refusal in plain
   words; never try another tool, payee or gate kind to move the money.
 - Every amount is in integer cents, exactly as a read returned it ("56500"). Never add,
   round, convert, split or estimate an amount, and never write a date no read returned.

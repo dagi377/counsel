@@ -4528,3 +4528,31 @@ of FEAT-TIM-01 above.
   boot onRequest list for a JobBindings binding.
 - Package trust cannot import app/legal/agent, so the tool names the sink calls are repeated
   as unexported constants.
+
+## Q-TRU-FIX prepare_trust_transfer, fee-gate scope, events and the F-TRU-01 job
+
+- New agent write tool `prepare_trust_transfer` (approved as in-spec scope, Q-FEAT-TRU-08),
+  added to the a2 tools additively (spec/eng/a2-interfaces.json, schemas/tools.json; Count
+  26 -> 27) and to F-TRU-08's tools in spec/ai/features.json, registered through
+  agent.Handlers(). Input: from_matter_id, to_matter_id, amount_cents (sourced, integer
+  cents), reason. It opens trust.transfer (G11t) only, through the run's scoped opener, with
+  the acting user as preparer. Both matters must be visible to the acting user and share one
+  trust account (else ErrTransferAccounts); an amount above the source ledger's available
+  balance is refused (withdraw.ErrTrustOverdraw, By-Law 9). Nothing is posted or held.
+- Open: the gate payload is withdraw.TransferPayload without a transfer_id. No transfer
+  request store writes a trust.trust_transfer row yet, so approving the gate fails closed at
+  the TransferEffect (LockTransfer finds no row) and moves no money. Proposed: a withdraw
+  transfer request (row in pending_authorization, held funds) whose id the payload carries.
+- prepare_trust_withdrawal's handler checks the run scope for withdraw.RequestGateKind of the
+  request (billing.trust_fee_withdrawal with a bill_id), not trust.withdrawal (ARC-I-035,
+  Q-FEAT-TRU-10 gap). F-TRU-02 and F-TRU-10 declare trust.withdrawal only, so a fee transfer
+  with a bill is refused in their runs; F-BIL-03 declares the fee kind and passes (positive
+  test over Seed.FeeBills in ai_f_tru_02_feature_test.go).
+- prepare_trust_withdrawal refuses purpose=fees with no bill_id at the tool
+  (agent.ErrFeesNeedBill), whoever the payee.
+- Events: trust.EventBankLinesImported is now `bank_feed.line_imported`, the one name
+  EVENTS-7 adds to the a2 events (not duplicated here; the a2 entry lands with EVENTS-7).
+  `trust.receiving_account_changed` is added to the a2 events.
+- Boot: boot.BankFeedSyncJob runs the F-TRU-01 pipeline with trust.ReceiptGates as its sink
+  in the run's scope. Open: nothing works the `agent_feature_run` River job yet, so no worker
+  calls it; the job-run worker should dispatch F-TRU-01 to it.

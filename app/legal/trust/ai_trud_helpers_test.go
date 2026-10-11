@@ -117,7 +117,7 @@ func trudFeature(t *testing.T, def feature.Def, narrative string, balance int64)
 		if err != nil {
 			t.Fatalf("build %s: %v", name, err)
 		}
-		if name == agent.ToolPrepareTrustWithdrawal {
+		if name == agent.ToolPrepareTrustWithdrawal || name == agent.ToolPrepareTrustTransfer {
 			// rule: ARC-U-027
 			// Every amount the write states is a figure this run read, in integer cents.
 			if tool, err = trust.SourcedCents(fd.Provenance, tool); err != nil {
@@ -147,6 +147,17 @@ func trudFeature(t *testing.T, def feature.Def, narrative string, balance int64)
 func trudWithdraw(cents int64, purpose, payee string) truCall {
 	return truCall{agent.ToolPrepareTrustWithdrawal, map[string]any{
 		"matter_id": agenttest.TrustMatter, "amount_cents": cents, "purpose_category": purpose, "payee": payee,
+	}}
+}
+
+// trudSplitMatter is a second, visible synthetic matter in agenttest.TrustAccount: the
+// destination of a transfer out of agenttest.TrustMatter.
+const trudSplitMatter = "00000000-0000-4000-8000-0000000000a8"
+
+// trudTransfer is a prepare_trust_transfer call from agenttest.TrustMatter to to.
+func trudTransfer(cents int64, to string) truCall {
+	return truCall{agent.ToolPrepareTrustTransfer, map[string]any{
+		"from_matter_id": agenttest.TrustMatter, "to_matter_id": to, "amount_cents": cents, "reason": "matter split",
 	}}
 }
 
