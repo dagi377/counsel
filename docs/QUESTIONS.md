@@ -1851,3 +1851,13 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## PORT-16b: written-off interest to OP-1110
+
+- Additive in `app/legal/billing/credit/contract.go`: `WriteOff.InterestCents`, read by
+  `PGWriteOffs.Lock` from the draft's `interest_cents` bucket. `BadDebtEntry` now follows
+  BIL-J-009 in full: Cr OP-1100 the amount less interest, Cr OP-1110 the interest; Dr OP-6100
+  still takes the pre-tax amount plus interest. Tax plus interest above the amount fails.
+- Open: `ApproveWriteOff` computes the tax adjustment on the whole amount, interest included
+  (`BadDebtTax(amount, billTax, billTotal)`). Interest carries no HST, so the relief should
+  probably be on the amount less interest, or simply the draft's tax bucket. Not changed here.

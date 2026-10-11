@@ -31,7 +31,8 @@ var _ BadDebtPoster = GLBadDebt{}
 //
 //	Dr OP-6100 bad debt expense   written-off amount less the tax adjustment
 //	Dr OP-2100 GST/HST payable    the tax adjustment, when there is one
-//	Cr OP-1100 AR                 written-off amount
+//	Cr OP-1100 AR                 written-off amount less its interest
+//	Cr OP-1110 AR interest        the written-off interest, when there is some
 //
 // The entry's source is write_off/<id>, so posting the same write-off again returns the
 // first entry and posts nothing.
@@ -66,7 +67,7 @@ func BadDebtEntry(w WriteOff, adj BadDebtAdjustment) (ledger.Entry, error) {
 	switch {
 	case w.ID == "" || w.Status != StatusApproved || adj.BillID != w.BillID || adj.On.IsZero():
 		return ledger.Entry{}, fmt.Errorf("bad debt entry %s: %w", w.ID, ErrInvalidState)
-	case w.AmountCents <= 0 || adj.TaxCents < 0 || adj.TaxCents > w.AmountCents:
+	case w.AmountCents <= 0 || adj.TaxCents < 0 || w.InterestCents < 0 || adj.TaxCents > w.AmountCents-w.InterestCents:
 		return ledger.Entry{}, fmt.Errorf("bad debt entry %s: %w", w.ID, ErrInvalidAmount)
 	}
 	// rule: BIL-C-205
@@ -81,6 +82,14 @@ func BadDebtEntry(w WriteOff, adj BadDebtAdjustment) (ledger.Entry, error) {
 	if adj.TaxCents > 0 {
 		e.Lines = append(e.Lines, ledger.Line{Account: books.AcctSalesTaxPayable, Side: ledger.Debit, Amount: ledger.Cents(adj.TaxCents)})
 	}
-	e.Lines = append(e.Lines, ledger.Line{Account: books.AcctARFees, Side: ledger.Credit, Amount: ledger.Cents(w.AmountCents)})
+	// rule: BIL-C-205
+	// Written-off interest comes off interest receivable (OP-1110), the rest off fees AR
+	// (BIL-J-009); interest carries no tax adjustment.
+	if fees := w.AmountCents - w.InterestCents; fees > 0 {
+		e.Lines = append(e.Lines, ledger.Line{Account: books.AcctARFees, Side: ledger.Credit, Amount: ledger.Cents(fees)})
+	}
+	if w.InterestCents > 0 {
+		e.Lines = append(e.Lines, ledger.Line{Account: books.AcctARInterest, Side: ledger.Credit, Amount: ledger.Cents(w.InterestCents)})
+	}
 	return e, nil
 }

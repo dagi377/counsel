@@ -87,10 +87,10 @@ func notFound(err error) bool {
 }
 
 const writeOffLockSQL = `SELECT id::text, bill_id::text, amount_cents, reason, status, prepared_by::text,
-  coalesce(approved_by::text, ''), approved_at
+  coalesce(approved_by::text, ''), approved_at, interest_cents
   FROM billing.write_off_draft WHERE id = $1::uuid FOR UPDATE`
 
-// Lock implements WriteOffStore: it reads draft id FOR UPDATE.
+// Lock implements WriteOffStore: it reads draft id FOR UPDATE, with its interest bucket.
 func (PGWriteOffs) Lock(ctx context.Context, tx pgx.Tx, id string) (WriteOff, error) {
 	if id == "" {
 		return WriteOff{}, fmt.Errorf("lock write-off: %w", ErrNotFound)
@@ -101,7 +101,7 @@ func (PGWriteOffs) Lock(ctx context.Context, tx pgx.Tx, id string) (WriteOff, er
 		at     *time.Time
 	)
 	err := tx.QueryRow(ctx, writeOffLockSQL, id).Scan(&w.ID, &w.BillID, &w.AmountCents, &w.Reason, &status,
-		&w.PreparedBy, &w.ApprovedBy, &at)
+		&w.PreparedBy, &w.ApprovedBy, &at, &w.InterestCents)
 	if notFound(err) {
 		return WriteOff{}, fmt.Errorf("lock write-off %s: %w", id, ErrNotFound)
 	}

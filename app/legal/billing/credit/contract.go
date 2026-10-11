@@ -75,6 +75,9 @@ type WriteOff struct {
 	PreparedBy  string
 	ApprovedBy  string
 	ApprovedAt  *time.Time
+	// InterestCents is the part of AmountCents that is posted interest (the draft's interest
+	// bucket). Additive (PORT-16b): the bad-debt entry credits it to OP-1110.
+	InterestCents int64
 }
 
 // Approver is who approves a credit note or write-off.
