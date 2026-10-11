@@ -77,6 +77,8 @@ type view struct {
 	RetentionClass      string `json:"retention_class,omitempty"`
 	CreatedAt           string `json:"created_at,omitempty"`
 	Version             int    `json:"version,omitempty"`
+	CourtProvince       string `json:"court_province,omitempty"`
+	PropertyProvince    string `json:"property_province,omitempty"`
 }
 
 func viewOf(m Matter, full bool) view {
@@ -97,6 +99,8 @@ func viewOf(m Matter, full bool) view {
 		v.CreatedAt = m.CreatedAt.UTC().Format(time.RFC3339)
 	}
 	v.Version = m.RowVersion
+	v.CourtProvince = m.CourtProvince
+	v.PropertyProvince = m.PropertyProvince
 	return v
 }
 

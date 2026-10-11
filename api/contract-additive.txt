@@ -13,3 +13,7 @@
 /components/schemas/TrustLedger/properties/shortfall_cents Q-HTTP-10c
 /paths/~1agent~1actions~1{feature_id} Q-FEAT-CORE-12
 /paths/~1credit-notes~1{credit_note_id}~1withdraw Q-BOOT-REST-2a
+/paths/~1firm~1tax-registrations Q-TAX-API
+/components/schemas/ProvinceCode Q-TAX-API
+/components/schemas/PlaceOfSupplyPatch Q-TAX-API
+/components/schemas/FirmTaxRegistrations Q-TAX-API
