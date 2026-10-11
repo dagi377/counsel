@@ -59,5 +59,6 @@ func appDefs() []feature.Def {
 		conflict.WallMonitorDef(),
 		conflict.ExpiryRetentionDef(),
 		conflict.ProposeWallDef(),
+		conflict.LateralCheckDef(),
 	}
 }
