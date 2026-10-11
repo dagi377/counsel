@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/dagi377/counsel/app/legal/matter"
 	"slices"
 	"testing"
 
@@ -41,6 +42,9 @@ type (
 	stubTrust        struct{ agent.TrustAvailable }
 	stubTrustAccts   struct{ agent.MatterTrustAccounts }
 	stubEntries      struct{ tk.Entries }
+	stubMatterQuery  struct{ matter.Query }
+	stubDocLookup    struct{ agent.DocumentLookup }
+	stubWIP          struct{ agent.UnbilledWIP }
 	stubMatterTime   struct{ mt agent.MatterTime }
 	stubCalc         struct{ draft.Calc }
 	stubDraftStore   struct{ draft.Store }
@@ -79,6 +83,10 @@ func fullPorts() AgentPorts {
 		Trust:           stubTrust{},
 		TrustAccounts:   stubTrustAccts{},
 		Entries:         stubEntries{},
+		Matters:         stubMatterQuery{},
+		DocLookup:       stubDocLookup{},
+		UnbilledWIP:     stubWIP{},
+		WriteTools:      mustWriteTools(),
 		MatterTime:      stubMatterTime{},
 		DraftCalc:       stubCalc{},
 		DraftStore:      stubDraftStore{},
@@ -260,4 +268,12 @@ func (s stubMatterTime) MatterTime(ctx context.Context, m string) ([]agent.Price
 
 func (s stubPacks) PublishedPacks(ctx context.Context) ([]deadline.Pack, error) {
 	return s.packs.PublishedPacks(ctx)
+}
+
+func mustWriteTools() *agent.WriteTools {
+	w, err := agent.NewWriteTools(agent.WriteDeps{})
+	if err != nil {
+		panic(err)
+	}
+	return w
 }

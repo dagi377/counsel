@@ -18,6 +18,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/kernel/agenttools"
@@ -53,12 +54,16 @@ type AgentPorts struct {
 
 	Contacts      agent.ContactSearch
 	ClientMatters agent.ClientMatters
+	Matters       matter.Query
+	DocLookup     agent.DocumentLookup
 	Work          agent.WorkList
 	Text          agent.DocumentText
 	Documents     agent.MatterDocuments
 	Folders       agent.MatterFolders
 
 	Bills          agent.BillReader
+	UnbilledWIP    agent.UnbilledWIP
+	WriteTools     *agent.WriteTools
 	BillBalances   agent.BillBalances
 	Trust          agent.TrustAvailable
 	TrustAccounts  agent.MatterTrustAccounts
@@ -104,11 +109,15 @@ func (p AgentPorts) ports() []port {
 		{"Provenance", p.Provenance, p.Provenance != nil},
 		{"Contacts", p.Contacts, p.Contacts != nil},
 		{"ClientMatters", p.ClientMatters, p.ClientMatters != nil},
+		{"Matters", p.Matters, p.Matters != nil},
+		{"DocLookup", p.DocLookup, p.DocLookup != nil},
 		{"Work", p.Work, p.Work != nil},
 		{"Text", p.Text, p.Text != nil},
 		{"Documents", p.Documents, p.Documents != nil},
 		{"Folders", p.Folders, p.Folders != nil},
 		{"Bills", p.Bills, p.Bills != nil},
+		{"UnbilledWIP", p.UnbilledWIP, p.UnbilledWIP != nil},
+		{"WriteTools", p.WriteTools, p.WriteTools != nil},
 		{"BillBalances", p.BillBalances, p.BillBalances != nil},
 		{"Trust", p.Trust, p.Trust != nil},
 		{"TrustAccounts", p.TrustAccounts, p.TrustAccounts != nil},
@@ -270,6 +279,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings, ruleAdmin string) error {
 		deadlines.RuleWatchDef().ID: func() (trigger.Binding, error) {
 			return deadlines.RuleWatchBinding(ruleAdmin)
 		},
+		conflict.SearchRankingDef().ID: conflict.SearchRankingBinding,
+		conflict.ClearanceMemoDef().ID: conflict.ClearanceMemoBinding,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -305,6 +316,8 @@ func AddTickJob(j *kboot.Jobs, b *trigger.Bindings) error {
 var actionScreens = map[string]trigger.Screen{
 	"matter-deadlines":      {SubjectKind: "matter", Capability: "deadlines.view"},
 	"limitation-assessment": {SubjectKind: "matter", Capability: "deadlines.view"},
+	"conflict-results":      {SubjectKind: conflict.SubjectRun, Capability: "conflicts.run"},
+	"conflict-clearance":    {SubjectKind: conflict.SubjectRun, Capability: "conflicts.run"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

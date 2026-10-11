@@ -2134,3 +2134,24 @@ Done in PORT-18:
   exist); WO-FIX Close on G-B5 rejection needs a kernel gate-rejection hook (registry.GateKind
   has none) and a credit preparer-withdraw route; the portal Shell is not built at boot yet, so
   PGSessions is exposed through `wiring.Wired()` only.
+
+## EVENTS-WIRE: event emitters at boot, walled-matter publisher (partial)
+
+- Merges DL-EVENTS, EVENTS-2, DRAFT-FIX, CON-03-MEMO and BOOT-REST. Integration fix in
+  app/legal/boot/agent.go (outside the listed files): FEAT-CORE-15's handlers read
+  `matter.Query`, `agent.DocumentLookup`, `agent.UnbilledWIP` and `*agent.WriteTools`, so
+  AgentPorts gains Matters, DocLookup, UnbilledWIP and WriteTools; JobBindings binds F-CON-02
+  and F-CON-03; the action route maps the conflict-results and conflict-clearance screens to
+  subject `conflict.run` with `conflicts.run`.
+- New app/legal/boot/events.go: `newEventStores` builds PGBook, FilingStore and
+  EmailFilingStore on the kernel emitter (RestServices gains Emails); `setCheckEvents` sets
+  `conflict.Checks.Events` in buildClearance.
+- `roles.walled_matter_accessed`: `WallResolver.WithEvents(em)` publishes once per wall check
+  of a walled matter (allowed or refused, body ids plus `allowed`), outside a tx. It needs the
+  wall store to implement `roles.WalledStore` (Walled(matterID)); the matter wall store does
+  not yet, and boot does not build a WallResolver, so nothing calls WithEvents yet.
+- Left (not done in this pass): HTTP routes calling PGBook.ChangeTrigger, IssueClaim,
+  RecordAffidavitOfService and FileEmail (plus openapi entries); publishers for
+  `identity.portal_submission` (no portal identity-evidence write point exists) and
+  `party.organization_client_created` (no write point turns an organization into a client;
+  `party.ClientOfLead` only reads); draft_document `subject_ref`.
