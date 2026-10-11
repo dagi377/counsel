@@ -84,7 +84,7 @@ func TestFCON07_FromFeature(t *testing.T) {
 // conflict.client_id is a tool-gap kind: draft_document then submit_for_approval opens it, and
 // submit_for_approval may open no kind outside the Def.
 func TestFCON07_GateKindNotAllowed(t *testing.T) {
-	for _, kind := range []string{conflict.GateClearance, conflict.GateConsentText, "conflict.wall", "trust.withdrawal"} {
+	for _, kind := range []string{conflict.GateClearance, conflict.GateConsentText, conflict.GateWall, "trust.withdrawal"} {
 		t.Run(kind, func(t *testing.T) {
 			_, drafts, run := con07Run(t, con07Evidence, kind)
 			if len(run.Refused) != 1 || run.Refused[0].Tool != agent.ToolSubmitForApproval || !errors.Is(run.Refused[0].Err, agenttools.ErrGateKindNotAllowed) {

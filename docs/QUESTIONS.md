@@ -1904,4 +1904,7 @@ Done in PORT-18:
 - F-CON-07's model call is extraction (spec): its Def sets `Kind: ai.KindExtraction`, so it
   exports no plugin skill.
 - Event types with no publisher yet: `identity.portal_submission` (F-CON-07),
-  `party.organization_client_created` (F-CON-08).
+  `party.organization_client_created` (F-CON-08), `roles.walled_matter_accessed` (F-CON-09).
+- F-CON-09's "schedule: review dates" is a per-wall date, so its binding checks daily
+  (`trigger.ParseCadence`) and needs the acting user boot names, like F-CON-05. The F-CON-07
+  and F-CON-08 gate-kind tests now use `conflict.GateWall` for the out-of-Def kind.
