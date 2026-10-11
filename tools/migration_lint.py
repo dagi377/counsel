@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Migration lint: expand-contract (MIG-060, ARC-U-017) and lock-safe DDL (MIG-061).
 
-Run from the repo root: python3 -I tools/migration_lint.py FILE_OR_DIR...
+Run from the repo root: python3 -I tools/migration_lint.py [--baseline FILE] FILE_OR_DIR...
 
-A directory is linted file by file (*.sql, sorted). Prints one line per problem,
+A directory is linted file by file (numbered NNNN_*.sql, sorted). Prints one line per problem,
 "<file>:<line>: <rule>: <message>", and exits 1 when there is any problem.
+
+--baseline FILE names known problems, one problem line per line (lines starting with '#' are comments). A
+listed problem is not reported; a listed problem the lint no longer finds is reported as stale,
+so the baseline can only shrink. It exists for the frozen contract file 0001_init.sql, which
+cannot be edited.
 
 Expand migrations (the default) may only add. These are destructive and are allowed only in a
 file marked with a full-line comment "-- contract: <release>" (the release that stopped using
@@ -293,18 +298,36 @@ class Linter:
                     self.destructive(s, f"ADD COLUMN NOT NULL without a constant DEFAULT on {table}")
 
 
+NUMBERED = re.compile(r"^\d{4}_[a-z0-9_]+\.sql$")
+
+
 def sql_files(args):
     for a in args:
         p = pathlib.Path(a)
         if p.is_dir():
-            yield from sorted(p.glob("*.sql"))
+            yield from sorted(f for f in p.glob("*.sql") if NUMBERED.match(f.name))
         else:
             yield p
 
 
+def read_baseline(path):
+    out = []
+    for line in pathlib.Path(path).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            out.append(line)
+    return out
+
+
 def main(argv):
+    baseline = None
+    if argv[:1] == ["--baseline"]:
+        if len(argv) < 2:
+            print("usage: migration_lint.py [--baseline FILE] FILE_OR_DIR...", file=sys.stderr)
+            return 2
+        baseline, argv = argv[1], argv[2:]
     if not argv:
-        print("usage: migration_lint.py FILE_OR_DIR...", file=sys.stderr)
+        print("usage: migration_lint.py [--baseline FILE] FILE_OR_DIR...", file=sys.stderr)
         return 2
     problems = []
     for f in sql_files(argv):
@@ -314,6 +337,11 @@ def main(argv):
             problems.append(f"{f}:0: read: {e}")
             continue
         problems.extend(Linter(str(f), src).lint())
+    if baseline is not None:
+        known = read_baseline(baseline)
+        stale = [k for k in known if k not in problems]
+        problems = [p for p in problems if p not in known]
+        problems.extend(f"{baseline}:0: baseline: stale entry, the lint no longer reports {k!r}" for k in stale)
     for p in problems:
         print(p)
     return 1 if problems else 0

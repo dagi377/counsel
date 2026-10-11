@@ -3,6 +3,8 @@
 -- BIL-C-065: a reversal of a trust deposit (NSF, chargeback, failed PAD) always opens a trust
 -- exception, in the same transaction as the reversal. The row stays open until a lawyer records
 -- how it was resolved (for example the client repaid the firm's replenishment).
+SET lock_timeout = '2s';
+SET statement_timeout = '5min';
 
 -- @module trust @retention RC-FIN @class amounts:P1
 CREATE TABLE trust.exception (
@@ -29,3 +31,6 @@ CREATE TRIGGER exception_no_delete BEFORE DELETE ON trust.exception FOR EACH ROW
 
 GRANT SELECT, INSERT, UPDATE ON trust.exception TO counsel_app, counsel_jobs;
 GRANT SELECT ON trust.exception TO counsel_integrity;
+
+RESET lock_timeout;
+RESET statement_timeout;

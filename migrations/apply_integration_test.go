@@ -287,3 +287,30 @@ func TestWorkItemSubjectBackfill(t *testing.T) {
 }
 
 func ptr(s string) *string { return &s }
+
+// Apply records every file, a second Apply applies nothing, and Wait sees the newest version.
+func TestApplyRecordsSchemaVersion(t *testing.T) {
+	conn := freshDB(t, "")
+	ctx := context.Background()
+	var n int
+	if err := conn.QueryRow(ctx, "SELECT count(*) FROM "+versionTable).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != len(Names()) {
+		t.Fatalf("recorded %d migrations, want %d", n, len(Names()))
+	}
+	if err := Apply(ctx, conn, ""); err != nil {
+		t.Fatalf("second Apply: %v", err)
+	}
+	wctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := Wait(wctx, conn, Latest(), 10*time.Millisecond); err != nil {
+		t.Fatalf("Wait(%s): %v", Latest(), err)
+	}
+	var valid bool
+	if err := conn.QueryRow(ctx, `SELECT bool_and(indisvalid) FROM pg_index WHERE indexrelid::regclass::text IN
+		('gl.journal_entry_book_date_idx','platform.outbox_subject_seq_uq','work.work_item_subject_idx',
+		 'platform.webhook_delivery_pending_idx','platform.webhook_delivery_attempt_uq')`).Scan(&valid); err != nil || !valid {
+		t.Fatalf("concurrent indexes valid = %v, err %v", valid, err)
+	}
+}

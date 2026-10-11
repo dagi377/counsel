@@ -4,6 +4,8 @@
 -- app/legal. Batches of at most 10000 rows. Runs as the migration role, which must bypass
 -- RLS (work.work_item has FORCE ROW LEVEL SECURITY with policies for counsel_app only).
 -- Only rows whose pair is still empty are touched, so a rerun changes nothing.
+SET lock_timeout = '2s';
+SET statement_timeout = '5min';
 
 DO $$
 DECLARE n integer;
@@ -18,3 +20,6 @@ BEGIN
     EXIT WHEN n = 0;
   END LOOP;
 END $$;
+
+RESET lock_timeout;
+RESET statement_timeout;

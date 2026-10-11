@@ -1,6 +1,8 @@
 -- module: app/legal/comms
 -- Court filings (docs/QUESTIONS.md T-035L.2). Additive only: a new schema and table.
 -- comms.comm_filing stays "file this message to a matter"; a court filing is its own record.
+SET lock_timeout = '2s';
+SET statement_timeout = '5min';
 
 CREATE SCHEMA IF NOT EXISTS legal;
 
@@ -34,3 +36,6 @@ CREATE POLICY court_filing_visible ON legal.court_filing FOR ALL TO counsel_app 
 GRANT USAGE ON SCHEMA legal TO counsel_app, counsel_jobs, counsel_integrity;
 GRANT SELECT, INSERT, UPDATE ON legal.court_filing TO counsel_app, counsel_jobs;
 GRANT SELECT ON legal.court_filing TO counsel_integrity;
+
+RESET lock_timeout;
+RESET statement_timeout;
