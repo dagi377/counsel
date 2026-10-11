@@ -1851,3 +1851,17 @@ Done in PORT-18:
   `/paths/~1bills~1{bill_id}~1submit/post/requestBody`.
 - Only billfake implements bill.Service today; the PG bill service (boot follow-up) must
   implement Submit with `UPDATE ... SET status='pending_approval' WHERE status='draft'`.
+
+## PORT-WORK: Postgres kernel work.Service
+
+- `work.PG` (kernel/work/pg.go) implements `work.Service` over work.work_item, work.status and
+  work.transition. Boot must wire it (with the app's `SubjectKinds`) for the HTTP-23 routes.
+- Shared contract tests live in `kernel/work/worktest`; workfake runs them in unit tests and
+  work.PG runs them in `pg_integration_test.go` (vet-only for now).
+- Carries the HTTP-23 additive `work.Filter.After` cursor (same hunk as task/HTTP-23, so the
+  merge is clean). PG pages in id order (uuidv7, creation order).
+- Keys: an empty Item.Key becomes `W-` plus the random 12-hex tail of the uuidv7 id; rank
+  starts as the id. A readable per-firm series (kernel/numseq) is a later choice.
+- The `description` column already exists in 0001; once TOOL16-DESC adds `Item.Description`,
+  add it to the insert and `itemColumns` in pg.go (no migration needed).
+- Automations (work.Automations) have no Postgres implementation yet.

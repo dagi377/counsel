@@ -5,7 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/dagi377/counsel/kernel/work"
+	"github.com/dagi377/counsel/kernel/work/worktest"
 )
 
 func valid() work.Item {
@@ -129,4 +132,24 @@ func TestAutomations(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestContract runs the shared kernel/work Service contract (also run by work.PG).
+func TestContract(t *testing.T) {
+	worktest.Run(t, func(t *testing.T) worktest.Env {
+		f := New()
+		f.AddTransition(work.Transition{WorkflowID: "wf", From: "todo", To: "doing"})
+		return worktest.Env{
+			Svc:         f,
+			InTx:        func(_ context.Context, fn func(pgx.Tx) error) error { return fn(nil) },
+			WorkflowID:  "wf",
+			Todo:        "todo",
+			Doing:       "doing",
+			Done:        "done",
+			Users:       [3]string{"u1", "u2", "u3"},
+			SubjectKind: "case",
+			SubjectIDs:  [2]string{"s1", "s2"},
+			MissingID:   "item-missing",
+		}
+	})
 }
