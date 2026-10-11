@@ -3211,3 +3211,9 @@ Done in MATTER-TAX-API (decision Q-PG-BILL-FIX, TAX-FIELDS follow-up). Additive 
   court_form.changed), F-DOC-07, F-MAT-05, F-MAT-09 and F-MAT-14. F-DOC-09 still takes the
   rule admin; open: switch CourtFormCurrencyBinding to BindDesignated. F-MAT-12 binds to
   document.uploaded for the event's user (ChronologyBinding).
+- Later pass 16 merges (F-MAT-02, 10, 11, 13, 15, 17 to 23): firm-home, matter-access,
+  matter-access-report, matter-ask, global-search, matter-list, matter-templates and
+  firm-feed select a matter (matters.view); contact-import and contact-field-settings select a
+  party.contact (contacts.view). Open: firm-home, firm-feed, global-search and the settings
+  screens have no single matter record. F-MAT-13 is on request only, so JobBindings lists it
+  as served by its screen actions instead of binding it.

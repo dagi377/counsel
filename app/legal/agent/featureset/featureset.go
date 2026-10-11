@@ -111,5 +111,9 @@ func appDefs() []feature.Def {
 		matter.AccessHygieneDef(),
 		matter.MatterQuestionAnsweringDef(),
 		matter.AutoMapColumnsDef(),
+		matter.ProposeNextActionsDef(),
+		matter.SuggestFromPastMattersDef(),
+		matter.SuggestCleanupDef(),
+		matter.SummarizeThisWeekDef(),
 	}
 }
