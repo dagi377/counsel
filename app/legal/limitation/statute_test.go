@@ -286,7 +286,7 @@ func TestLegislationActS88RollsPastHolidays(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			s := newStatute(t, nil).WithHolidays(tc.holidays)
+			s := newStatute(t, nil).WithHolidays(tc.holidays, 2000, 2100)
 			ps, err := s.Compute(ctx, tc.a)
 			if err != nil {
 				t.Fatalf("Compute: %v", err)
@@ -299,6 +299,36 @@ func TestLegislationActS88RollsPastHolidays(t *testing.T) {
 				if g[k] != v {
 					t.Errorf("%s = %s, want %s (all %v)", k, g[k], v, g)
 				}
+			}
+		})
+	}
+}
+
+// A dated holiday in a year the attached calendar does not cover does not move the last day
+// (the earlier date stands, fail closed); a Sunday still rolls.
+// rule: Legislation Act, 2006 s.87, s.88 (verify)
+func TestLegislationActRollOutsideCalendarYears(t *testing.T) {
+	ctx := legalflagstest.Context(t, legalflags.DeadlineOntarioPack, true)
+	canadaDay := clock.Date{Year: 2037, Month: time.July, Day: 1} // a Wednesday
+	tests := []struct {
+		name     string
+		from, to int
+		act      string
+		basic    string
+	}{
+		{"covered year rolls", 2030, 2040, "2035-07-01", "2037-07-02"},
+		{"uncovered year stands", 2025, 2036, "2035-07-01", "2037-07-01"},
+		{"uncovered sunday still rolls to monday", 2025, 2036, "2039-03-03", "2041-03-04"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newStatute(t, nil).WithHolidays([]clock.Date{canadaDay}, tc.from, tc.to)
+			ps, err := s.Compute(ctx, limitation.Assessment{MatterID: "m", ActDate: d(tc.act), DiscoveryPresumed: true})
+			if err != nil {
+				t.Fatalf("Compute: %v", err)
+			}
+			if g := got(ps); g["basic"] != tc.basic {
+				t.Fatalf("basic = %s, want %s (all %v)", g["basic"], tc.basic, g)
 			}
 		})
 	}

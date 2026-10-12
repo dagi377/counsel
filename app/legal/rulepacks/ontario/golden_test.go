@@ -35,6 +35,11 @@ func loadCivilProcedure(t *testing.T) deadline.Pack {
 	if err != nil {
 		t.Fatalf("parse %s: %v", civilProcedureFile, err)
 	}
+	if len(p.Holidays) != 0 {
+		t.Fatalf("%s lists %d dated holidays; they come from CourtCalendar", civilProcedureFile, len(p.Holidays))
+	}
+	// rule: Rules of Civil Procedure r. 1.03(1) "holiday" (verify)
+	p.Holidays = CourtCalendar().Holidays(2025, 2030)
 	return p
 }
 
@@ -77,6 +82,11 @@ func TestCivilProcedureGoldenDates(t *testing.T) {
 		{"7 days counts easter", "period_7_days", d(2026, time.April, 1), d(2026, time.April, 8)},
 		{"7 days counts victoria day", "period_7_days", d(2026, time.May, 14), d(2026, time.May, 21)},
 		{"7 days lands victoria day rolls", "period_7_days", d(2026, time.May, 11), d(2026, time.May, 19)},
+		// r. 1.03(1): the Monday after a Saturday New Year's Day or Canada Day is a court
+		// holiday, so a court deadline on it rolls (a limitation date does not; review B3).
+		{"defence lands monday after saturday new year 2028", "statement_of_defence", d(2027, time.December, 14), d(2028, time.January, 4)},
+		{"defence lands monday after saturday canada day 2028", "statement_of_defence", d(2028, time.June, 13), d(2028, time.July, 4)},
+		{"defence beyond the old 2028 list lands christmas 2029", "statement_of_defence", d(2029, time.December, 5), d(2029, time.December, 27)},
 	}
 	covered := map[string]bool{}
 	for _, tc := range tests {
@@ -94,19 +104,6 @@ func TestCivilProcedureGoldenDates(t *testing.T) {
 	for _, r := range p.Rules {
 		if !covered[r.ID] {
 			t.Errorf("rule %s has no golden date", r.ID)
-		}
-	}
-}
-
-// TestCivilProcedureHolidaysMatchCalendar keeps the pack's holidays equal to holidays.yaml.
-func TestCivilProcedureHolidaysMatchCalendar(t *testing.T) {
-	cp, cal := loadCivilProcedure(t), loadHolidays(t)
-	if len(cp.Holidays) != len(cal.Holidays) {
-		t.Fatalf("civil procedure has %d holidays, calendar has %d", len(cp.Holidays), len(cal.Holidays))
-	}
-	for i := range cal.Holidays {
-		if cp.Holidays[i] != cal.Holidays[i] {
-			t.Errorf("holiday %d = %s, calendar has %s", i, cp.Holidays[i], cal.Holidays[i])
 		}
 	}
 }

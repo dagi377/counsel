@@ -10,19 +10,22 @@ import (
 	"github.com/dagi377/counsel/kernel/identity"
 )
 
-// LimitationStatute builds the Limitations Act calculator with the Ontario holiday calendar
-// attached, so the Legislation Act, 2006 s.88 roll applies: a period that ends on a holiday
-// or a weekend runs to the next business day. schedule may be nil.
+// LimitationStatute builds the Limitations Act calculator with the Legislation Act, 2006
+// s.87 holiday calendar attached, so the s.88 roll applies: a period that ends on a holiday
+// (a Sunday or a dated s.87 holiday) runs to the next day that is not a holiday. Saturday is
+// not a holiday, so a Saturday last day stands. The r. 1.03 court calendar is not used: its
+// Saturday-substitute Mondays would make limitation dates one day late. schedule may be nil.
 func LimitationStatute(schedule limitation.Schedule) (*limitation.Statute, error) {
 	s, err := limitation.NewStatute(schedule)
 	if err != nil {
 		return nil, fmt.Errorf("limitation statute: %w", err)
 	}
-	holidays, err := ontario.Holidays()
+	// rule: Legislation Act, 2006 s.87, s.88 (verify)
+	holidays, from, to, err := ontario.LegislationActHolidays()
 	if err != nil {
 		return nil, fmt.Errorf("limitation statute: %w", err)
 	}
-	return s.WithHolidays(holidays), nil
+	return s.WithHolidays(holidays, from, to), nil
 }
 
 // LimitationAssessor builds the limitation Assessor on the LimitationStatute calculator, so
