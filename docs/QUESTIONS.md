@@ -5074,3 +5074,20 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   `$COUNSEL_DOCS_BUCKET_REGION`, `$COUNSEL_DOCS_KMS_KEY_ID` and the AWS credential variables in
   `app/legal/boot/services_docs.go`; without them the document routes keep answering 503.
   Question: should these move to `cmd/counseld` flags once production.go is free to edit?
+## LAW-P2 Conflict record persistence and consent (Q-LAW-P2)
+- Additive migration 5204 (conflict block): append-only `conflict.hit_disposition`,
+  `conflict.hit_consent` and `conflict.run_decision` (core.forbid_mutation, RC-CONFLICT). The
+  latest disposition is also written to `conflict.hit`'s own disposition columns.
+- The contract tables `conflict.clearance` and `conflict.consent` are not written:
+  `clearance.approval_id` is a NOT NULL FK to `gate.approval_request`, and G2 is decided through
+  `gates.CheckDecision` with no approval request row; `consent.clearance_id` is NOT NULL, but a
+  consent must exist before G2 clears. Question: write `conflict.clearance` (memo, outcome,
+  conditions) and link consents once G2 runs through the kernel gate engine?
+- Boot builds one Postgres `conflict.Checks` (`conflictChecks`) and shares it between
+  Clearance, matter opening (`HTTPPorts.Conflicts`, an additive field in routes.go) and the
+  agent ports (production_agent.go). Those two files are outside the P2 list.
+- Lawyer (verify): a hit disposed `needs_consent` or `needs_wall` needs a signed consent with a
+  document before G2 clears (RPC 3.4-2, r.1.1 "consent"). Open: does a consent withdrawn after
+  clearance make the clearance stale? Should `needs_wall` also need an active wall record?
+- Not done here (P1): the preparer refusal in `approverErr` still has no sole-practitioner
+  exception; P2 does not touch the P1 SoD helper.

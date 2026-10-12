@@ -174,26 +174,39 @@ func TestG2ClearNeedsEveryHitDisposed(t *testing.T) {
 		d    Disposition
 		note string
 	}
+	signed := func(hit int) Consent {
+		return Consent{Hit: hit, Type: ConsentJointRetainer, Status: ConsentSigned, DisclosureSummary: "acts for both",
+			DocumentID: "doc-77", SignedAt: time.Date(2026, 3, 2, 9, 0, 0, 0, time.UTC)}
+	}
+	requested := Consent{Hit: 0, Type: ConsentOther, Status: ConsentRequested, DisclosureSummary: "acts for both"}
+	withdrawn := Consent{Hit: 0, Type: ConsentOther, Status: ConsentWithdrawn, DisclosureSummary: "acts for both"}
 	tests := []struct {
 		name       string
 		terms      []string
 		disps      []disp
+		consents   []Consent
 		approve    bool
 		reason     string
 		wantErr    error
 		wantStatus Status
 	}{
-		{"no hits clears without dispositions", []string{"other"}, nil, true, "", nil, StatusCleared},
-		{"undisposed hit blocks clearance", []string{"acme", "beta"}, []disp{{0, DispositionNotAConflict, "different party"}}, true, "ok", ErrUndisposedHits, StatusOpen},
-		{"no dispositions blocks clearance", []string{"acme"}, nil, true, "ok", ErrUndisposedHits, StatusOpen},
-		{"cleared with reason", []string{"acme"}, []disp{{0, DispositionNotAConflict, "different party"}}, true, "ok", nil, StatusCleared},
-		{"waived by consent", []string{"acme"}, []disp{{0, DispositionNeedsConsent, "written consent doc-77"}}, true, "ok", nil, StatusCleared},
-		{"walled off with consent", []string{"acme"}, []disp{{0, DispositionNeedsWall, "wall w-3 and consent doc-78"}}, true, "ok", nil, StatusCleared},
-		{"every hit disposed", []string{"acme", "beta"}, []disp{{0, DispositionNeedsConsent, "consent doc-77"}, {1, DispositionNeedsWall, "wall w-3"}}, true, "ok", nil, StatusCleared},
-		{"real conflict cannot clear", []string{"acme"}, []disp{{0, DispositionConflict, "acts against client"}}, true, "ok", ErrUndisposedHits, StatusOpen},
-		{"latest disposition counts", []string{"acme"}, []disp{{0, DispositionNotAConflict, "first look"}, {0, DispositionConflict, "second look"}}, true, "ok", ErrUndisposedHits, StatusOpen},
-		{"clearing hits needs a reason", []string{"acme"}, []disp{{0, DispositionNotAConflict, "different party"}}, true, "  ", ErrDispositionNote, StatusOpen},
-		{"reject needs no dispositions", []string{"acme"}, nil, false, "", nil, StatusRejected},
+		{"no hits clears without dispositions", []string{"other"}, nil, nil, true, "", nil, StatusCleared},
+		{"undisposed hit blocks clearance", []string{"acme", "beta"}, []disp{{0, DispositionNotAConflict, "different party"}}, nil, true, "ok", ErrUndisposedHits, StatusOpen},
+		{"no dispositions blocks clearance", []string{"acme"}, nil, nil, true, "ok", ErrUndisposedHits, StatusOpen},
+		{"cleared with reason", []string{"acme"}, []disp{{0, DispositionNotAConflict, "different party"}}, nil, true, "ok", nil, StatusCleared},
+		// LSO RPC 3.4-2 and r.1.1 "consent": written consent (verify).
+		{"waived by consent", []string{"acme"}, []disp{{0, DispositionNeedsConsent, "written consent doc-77"}}, []Consent{signed(0)}, true, "ok", nil, StatusCleared},
+		{"walled off with consent", []string{"acme"}, []disp{{0, DispositionNeedsWall, "wall w-3 and consent doc-78"}}, []Consent{signed(0)}, true, "ok", nil, StatusCleared},
+		{"every hit disposed", []string{"acme", "beta"}, []disp{{0, DispositionNeedsConsent, "consent doc-77"}, {1, DispositionNeedsWall, "wall w-3"}}, []Consent{signed(0), signed(1)}, true, "ok", nil, StatusCleared},
+		{"consent as a note only cannot clear", []string{"acme"}, []disp{{0, DispositionNeedsConsent, "client said yes"}}, nil, true, "ok", ErrConsentMissing, StatusOpen},
+		{"wall without signed consent cannot clear", []string{"acme"}, []disp{{0, DispositionNeedsWall, "wall w-3"}}, nil, true, "ok", ErrConsentMissing, StatusOpen},
+		{"requested consent cannot clear", []string{"acme"}, []disp{{0, DispositionNeedsConsent, "asked"}}, []Consent{requested}, true, "ok", ErrConsentMissing, StatusOpen},
+		{"withdrawn consent cannot clear", []string{"acme"}, []disp{{0, DispositionNeedsConsent, "asked"}}, []Consent{signed(0), withdrawn}, true, "ok", ErrConsentMissing, StatusOpen},
+		{"one hit missing consent blocks", []string{"acme", "beta"}, []disp{{0, DispositionNeedsConsent, "c"}, {1, DispositionNeedsWall, "w"}}, []Consent{signed(0)}, true, "ok", ErrConsentMissing, StatusOpen},
+		{"real conflict cannot clear", []string{"acme"}, []disp{{0, DispositionConflict, "acts against client"}}, nil, true, "ok", ErrUndisposedHits, StatusOpen},
+		{"latest disposition counts", []string{"acme"}, []disp{{0, DispositionNotAConflict, "first look"}, {0, DispositionConflict, "second look"}}, nil, true, "ok", ErrUndisposedHits, StatusOpen},
+		{"clearing hits needs a reason", []string{"acme"}, []disp{{0, DispositionNotAConflict, "different party"}}, nil, true, "  ", ErrDispositionNote, StatusOpen},
+		{"reject needs no dispositions", []string{"acme"}, nil, nil, false, "", nil, StatusRejected},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -210,6 +223,11 @@ func TestG2ClearNeedsEveryHitDisposed(t *testing.T) {
 			for _, d := range tt.disps {
 				if err := c.Dispose(ctx, r.ID, d.hit, law3, d.d, d.note); err != nil {
 					t.Fatalf("Dispose: %v", err)
+				}
+			}
+			for _, k := range tt.consents {
+				if err := c.RecordConsent(ctx, r.ID, k.Hit, law3, k); err != nil {
+					t.Fatalf("RecordConsent: %v", err)
 				}
 			}
 			got, err := c.decide(ctx, r.ID, lawyer, tt.approve, tt.reason)

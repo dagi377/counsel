@@ -18,7 +18,6 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/batch"
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/draft"
-	"github.com/dagi377/counsel/app/legal/conflict"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
@@ -404,7 +403,12 @@ func (p Production) agentPorts(k *kboot.Kernel, opts *Options, w *AgentWiring) e
 		ports.DeadlineGetter = book
 	}
 	if ports.Conflicts == nil {
-		ports.Conflicts = conflict.NewChecksWith(conflict.NewPGSearcher(k.DB), conflict.NewPGRuns(k.DB), k.Clock.Now)
+		// The agent runs checks on the Checks Clearance decides, never a copy of its own.
+		if opts.Clearance != nil && opts.Clearance.Checks != nil {
+			ports.Conflicts = opts.Clearance.Checks
+		} else {
+			ports.Conflicts = conflictChecks(k)
+		}
 	}
 	if ports.OpenGate == nil && k.Gates != nil {
 		ports.OpenGate = gateOpener(k)

@@ -19,6 +19,10 @@ var _ conflict.Capabilities = identity.CapabilityLookup{}
 type ClearancePorts struct {
 	// Search finds the parties and matters a conflict check term matches.
 	Search conflict.Searcher
+	// Checks is the shared conflict Checks Clearance decides on. Production sets it to the
+	// Postgres Checks matter opening also reads; nil builds an in-memory Checks over Search,
+	// for tests only.
+	Checks *conflict.Checks
 	// Roles holds the roles and capabilities registered at boot.
 	Roles *identity.Roles
 	// Assignments says which roles each user holds.
@@ -46,7 +50,10 @@ func newClearance(k *kboot.Kernel, cat *gates.Catalog, p ClearancePorts) (*confl
 		}
 	}
 	caps := identity.CapabilityLookup{Roles: p.Roles, Assignments: p.Assignments}
-	checks := conflict.NewChecks(p.Search, k.Clock.Now)
+	checks := p.Checks
+	if checks == nil {
+		checks = conflict.NewChecks(p.Search, k.Clock.Now)
+	}
 	return checks, conflict.NewClearance(checks, cat, caps, k.Clock.Now), nil
 }
 

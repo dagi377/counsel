@@ -3,6 +3,7 @@ package boot
 import (
 	"context"
 	"fmt"
+	"github.com/dagi377/counsel/app/legal/conflict"
 	"net/http"
 	"slices"
 	"strings"
@@ -60,6 +61,10 @@ type HTTPPorts struct {
 	Gates  GateOpener
 	Audit  audit.Log
 	Outbox bill.Emitter
+	// Conflicts is the one conflict Checks the app shares: matter opening reads the G2
+	// clearance Clearance recorded on it (LAW-P2). Nil builds the Postgres Checks on the
+	// kernel DB (conflictChecks).
+	Conflicts *conflict.Checks
 
 	// Bills serves GET /bills*; with Drafts it also serves POST/PATCH /bills, and with
 	// Outbox and Gates the submit, void and deliver actions.
