@@ -128,3 +128,48 @@ func TestTransferEffectPostsThroughTransfers(t *testing.T) {
 		})
 	}
 }
+
+// A transfer this gate already posted is a no-op on a repeat; the agent and the preparer are
+// refused before the repeat check.
+func TestTransferEffectRepeatIsNoOp(t *testing.T) {
+	amount := int64(2500)
+	payload, _ := json.Marshal(TransferPayload{TransferID: "x1", FromMatterID: "M2", ToMatterID: "M1", AmountCents: &amount, Reason: "r"})
+	row := HeldTransfer{ID: "x1", FromLedger: "led-b", ToLedger: "led-a", AccountID: "acct-1", AmountCents: 2500,
+		FromMatterID: "M2", ToMatterID: "M1", ApprovalID: "gate-t"}
+	lawyer := registry.Principal{Kind: registry.PrincipalUser, UserID: "lawyer1"}
+	clerk := registry.Principal{Kind: registry.PrincipalUser, UserID: "clerk1"}
+	agent := registry.Principal{Kind: registry.PrincipalAgent, RunID: "run-1", ActingFor: "clerk1"}
+	tests := []struct {
+		name     string
+		gateID   string
+		approver registry.Principal
+		want     error
+	}{
+		{"same gate repeat is a no-op", "gate-t", lawyer, nil},
+		{"another gate on a posted transfer fails closed", "gate-u", lawyer, ErrNotAuthorized},
+		// rule: ARC-I-019
+		{"agent refused on a repeat", "gate-t", agent, ErrNotAuthorized},
+		// rule: ARC-I-027
+		{"preparer refused on a repeat", "gate-t", clerk, ErrPreparerApproves},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			st := &memTransfers{status: map[string]string{"x1": "posted"}}
+			gl := &glLog{}
+			e := &TransferEffect{
+				Store:     memTransferGate{m: st, rows: map[string]HeldTransfer{"x1": row}},
+				Transfers: &Transfers{Store: st, GL: gl, Loc: time.UTC},
+				Signers:   sigs{"lawyer1": true},
+				Now:       func() time.Time { return execDay },
+			}
+			err := e.Apply(verifiedCtx(t), nil, registry.Approved{GateID: tt.gateID, Kind: TransferGateKind, Payload: payload,
+				Preparer: clerk, Approvers: []registry.Principal{tt.approver}})
+			if !errors.Is(err, tt.want) {
+				t.Fatalf("apply = %v, want %v", err, tt.want)
+			}
+			if len(st.legs) != 0 || len(gl.entries) != 0 {
+				t.Fatal("repeat posted again")
+			}
+		})
+	}
+}

@@ -52,6 +52,8 @@ type HeldTransfer struct {
 	FromMatterID string
 	ToMatterID   string
 	Status       string // database status
+	// ApprovalID is the trust.transfer gate the transfer was authorised under, "" before.
+	ApprovalID string
 }
 
 // TransferGateStore keeps transfer state for the gate effect. Every method runs in the caller's tx.
@@ -100,6 +102,12 @@ func (e *TransferEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approv
 	if err != nil {
 		return fmt.Errorf("transfer effect: %w", err)
 	}
+	// rule: ARC-I-012
+	// Idempotent per gate: a transfer this gate already authorised and posted is not posted
+	// again.
+	if h.Status == "posted" && h.ApprovalID != "" && h.ApprovalID == g.GateID {
+		return nil
+	}
 	if h.Status != "pending_authorization" {
 		return failed(CodeNotAuthorized, fmt.Errorf("transfer status %s: %w", h.Status, ErrNotAuthorized))
 	}
@@ -138,7 +146,7 @@ func (e *TransferEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approv
 }
 
 const lockTransferSQL = `SELECT x.id::text, x.from_ledger_id::text, x.to_ledger_id::text, l.account_id::text,
-  x.amount_cents, x.status, l.matter_id::text, d.matter_id::text
+  x.amount_cents, x.status, l.matter_id::text, d.matter_id::text, coalesce(x.approval_id::text, '')
 FROM trust.trust_transfer x JOIN trust.client_ledger l ON l.id = x.from_ledger_id
   JOIN trust.client_ledger d ON d.id = x.to_ledger_id
 WHERE x.id = $1::uuid FOR UPDATE OF x`
@@ -148,7 +156,7 @@ func (PGTransferStore) LockTransfer(ctx context.Context, tx pgx.Tx, id string) (
 	var h HeldTransfer
 	var from, to, acct string
 	err := tx.QueryRow(ctx, lockTransferSQL, id).Scan(&h.ID, &from, &to, &acct, &h.AmountCents, &h.Status,
-		&h.FromMatterID, &h.ToMatterID)
+		&h.FromMatterID, &h.ToMatterID, &h.ApprovalID)
 	if err != nil {
 		var pg *pgconn.PgError
 		if errors.Is(err, pgx.ErrNoRows) || (errors.As(err, &pg) && pg.Code == "22P02") {
