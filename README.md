@@ -17,6 +17,7 @@ It is built as a reusable app kernel with the legal app on top.
 
 Before writing code, read `AGENTS.md`. Open owner decisions: `docs/DECISIONS-NEEDED.md`.
 Tasks: `docs/TASKS.md`. Implementer questions: `docs/QUESTIONS.md`.
+Open work, with entry points: `docs/HANDOVER.md`.
 
 ## Layout
 
