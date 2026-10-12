@@ -9,6 +9,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/schemas"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/roles"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/registry"
 )
@@ -119,9 +120,16 @@ func buildPrepareTrustWithdrawal(d Deps) (registry.Tool, error) {
 		Name: s.Name, Kind: registry.ToolWrite, Capability: s.Capability, Input: s.InputSchema,
 		Handle: func(ctx context.Context, p registry.Principal, in json.RawMessage) (registry.ToolResult, error) {
 			// rule: ARC-I-035
-			// The trust module opens trust.withdrawal: refuse a run whose feature does not
-			// declare it before the trust module is reached, so nothing is recorded.
-			if err := agenttools.CheckGateKind(ctx, p, GateTrustWithdrawal); err != nil {
+			// The trust module opens trust.withdrawal, or billing.trust_fee_withdrawal when the
+			// request names a bill (withdraw.RequestGateKind): refuse a run whose feature does
+			// not declare the kind this request opens before the trust module is reached, so
+			// nothing is recorded. Input that does not decode is checked as a plain withdrawal
+			// and then refused by WriteTools' schema check.
+			var req struct {
+				BillID string `json:"bill_id"`
+			}
+			_ = json.Unmarshal(in, &req)
+			if err := agenttools.CheckGateKind(ctx, p, withdraw.RequestGateKind(withdraw.Request{BillID: req.BillID})); err != nil {
 				return registry.ToolResult{}, fmt.Errorf("%s: %w", ToolPrepareTrustWithdrawal, err)
 			}
 			// The acting user is the preparer; WriteTools checks that user's capability.

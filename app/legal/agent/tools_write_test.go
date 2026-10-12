@@ -134,7 +134,7 @@ func withdrawalCall(run, matterID string, cents int64, method string) agent.Call
 }
 
 func payeeCall(run, matterID string, cents int64, method, payee string) agent.Call {
-	in := map[string]any{"matter_id": matterID, "amount_cents": cents, "purpose_category": "fees", "payee": payee}
+	in := map[string]any{"matter_id": matterID, "amount_cents": cents, "purpose_category": "client_payment", "payee": payee}
 	if method != "" {
 		in["method"] = method
 	}
@@ -371,7 +371,10 @@ func TestBIL_L_037_FirmPayeeOnlyForDeliveredBillFees(t *testing.T) {
 		{"fees with a delivered bill allowed", feeCall("fees", firmPayee, billDelivered, 300_000), nil, nil},
 		{"fees over the bill balance refused", feeCall("fees", firmPayee, billDelivered, 300_001), nil, withdraw.ErrExceedsBillBalance},
 		{"fees with an undelivered bill refused", feeCall("fees", firmPayee, billDraft, 300_000), nil, withdraw.ErrBillNotDelivered},
-		{"fees with no bill refused", feeCall("fees", firmPayee, "", 300_000), nil, agent.ErrFirmPayeeNeedsBill},
+		// rule: BIL-L-035
+		// A fee withdrawal names its bill: refused at the tool, whoever the payee.
+		{"fees with no bill refused", feeCall("fees", firmPayee, "", 300_000), nil, agent.ErrFeesNeedBill},
+		{"fees to a contact with no bill refused", feeCall("fees", payeeA, "", 300_000), nil, agent.ErrFeesNeedBill},
 		{"fees with another matter's bill refused", feeCall("fees", firmPayee, "00000000-0000-0000-0000-0000000000b9", 300_000), nil, errBillNotOnMatter},
 		{"disbursement to the firm refused", feeCall("disbursement", firmPayee, billDelivered, 300_000), nil, agent.ErrFirmPayeeNeedsBill},
 		{"refund to the firm refused", feeCall("refund", firmPayee, "", 300_000), nil, agent.ErrFirmPayeeNeedsBill},

@@ -225,19 +225,25 @@ func (p HTTPPorts) withPostgresBilling(k *kboot.Kernel) HTTPPorts {
 	}
 	if p.Drafts == nil {
 		matters := matter.NewStore(k.DB, party.NewStore(k.DB))
-		p.Drafts = draft.PGDrafts{
-			WIP:     draftWIP{},
-			Payers:  MatterPayers{Matters: matters},
-			Places:  ClientPlaces{Matters: matters},
-			Decider: tax.NewPlaceOfSupply(),
-			Calc:    tax.NewCalculator(tax.NewRateTable(tax.Seed())),
-			Now:     k.Clock.Now,
-		}
+		p.Drafts = postgresDrafts(k, matters)
 	}
 	if p.Outbox == nil && k.Emitter != nil {
 		p.Outbox = k.Emitter
 	}
 	return p
+}
+
+// postgresDrafts is draft.PGDrafts over timekeeping's WIP and the matter's client: the
+// bill drafts the HTTP routes and the agent draft ports build.
+func postgresDrafts(k *kboot.Kernel, matters MatterReader) draft.PGDrafts {
+	return draft.PGDrafts{
+		WIP:     draftWIP{},
+		Payers:  MatterPayers{Matters: matters},
+		Places:  ClientPlaces{Matters: matters},
+		Decider: tax.NewPlaceOfSupply(),
+		Calc:    tax.NewCalculator(tax.NewRateTable(tax.Seed())),
+		Now:     k.Clock.Now,
+	}
 }
 
 // addBillDelivery adds the bill delivery outbox consumer: the kernel's outbox.relay River

@@ -688,6 +688,19 @@
    "note": ""
   },
   {
+   "type": "trust.receiving_account_changed",
+   "version": 1,
+   "module": "trust",
+   "subject_type": "trust_payee",
+   "payload": [
+    "payee_id",
+    "matter_id",
+    "changed_at",
+    "user_id"
+   ],
+   "note": "Additive (docs/QUESTIONS.md Q-TRU-FIX): a withdrawal payee's EFT receiving account was added or changed; starts F-TRU-03. Never account numbers."
+  },
+  {
    "type": "gate.opened",
    "version": 1,
    "module": "gate",
@@ -829,6 +842,119 @@
     "gate_id?"
    ],
    "note": ""
+  },
+  {
+   "type": "user.invited",
+   "version": 1,
+   "module": "core",
+   "subject_type": "user",
+   "payload": [
+    "user_id",
+    "invited_by",
+    "role_id?"
+   ],
+   "note": "EVENTS-8"
+  },
+  {
+   "type": "user.invite_list_uploaded",
+   "version": 1,
+   "module": "core",
+   "subject_type": "invite_list",
+   "payload": [
+    "list_id",
+    "uploaded_by",
+    "rows"
+   ],
+   "note": "EVENTS-8"
+  },
+  {
+   "type": "user.offboard_started",
+   "version": 1,
+   "module": "core",
+   "subject_type": "user",
+   "payload": [
+    "user_id",
+    "started_by",
+    "last_day",
+    "gate_id?"
+   ],
+   "note": "EVENTS-8"
+  },
+  {
+   "type": "break_glass.ended",
+   "version": 1,
+   "module": "core",
+   "subject_type": "break_glass_grant",
+   "payload": [
+    "grant_id",
+    "user_id",
+    "subject_kind",
+    "subject_id",
+    "ended_at"
+   ],
+   "note": "EVENTS-8"
+  },
+  {
+   "type": "email.needs_reply",
+   "version": 1,
+   "module": "comms",
+   "subject_type": "comm_item",
+   "payload": [
+    "comm_item_id",
+    "matter_id?",
+    "occurred_at"
+   ],
+   "note": "EVENTS-8"
+  },
+  {
+   "type": "text.received",
+   "version": 1,
+   "module": "comms",
+   "subject_type": "comm_item",
+   "payload": [
+    "comm_item_id",
+    "matter_id?",
+    "occurred_at"
+   ],
+   "note": "EVENTS-8"
+  },
+  {
+   "type": "comms.portal_message_received",
+   "version": 1,
+   "module": "comms",
+   "subject_type": "comm_item",
+   "payload": [
+    "comm_item_id",
+    "matter_id?",
+    "occurred_at"
+   ],
+   "note": "EVENTS-8"
+  },
+  {
+   "type": "trust.statement_received",
+   "version": 1,
+   "module": "trust",
+   "subject_type": "bank_statement",
+   "payload": [
+    "statement_id",
+    "account_id",
+    "period_start",
+    "period_end"
+   ],
+   "note": "EVENTS-8"
+  },
+  {
+   "type": "trust.ledger_below_floor",
+   "version": 1,
+   "module": "trust",
+   "subject_type": "trust_ledger",
+   "payload": [
+    "ledger_id",
+    "matter_id",
+    "balance_cents",
+    "floor_cents"
+   ],
+   "note": "EVENTS-8"
   },
   {
    "type": "export.released",
@@ -3130,6 +3256,95 @@
    },
    "creates": "withdrawal_requests(draft)",
    "gate_kind": "trust.withdrawal",
+   "manifest_scope": "data.write:drafts"
+  },
+  {
+   "name": "prepare_trust_transfer",
+   "kind": "write",
+   "capability": "trust.request",
+   "description": "Prepare a matter-to-matter trust transfer (By-Law 9). Additive (docs/QUESTIONS.md Q-TRU-FIX). Authorization is human-only (gate trust.transfer).",
+   "input_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+     "citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+       "doc_id",
+       "version_id",
+       "page",
+       "line_start",
+       "line_end",
+       "quote_hash"
+      ],
+      "properties": {
+       "doc_id": {
+        "type": "string",
+        "format": "uuid"
+       },
+       "version_id": {
+        "type": "string",
+        "format": "uuid"
+       },
+       "page": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "line_start": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "line_end": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "quote_hash": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+       }
+      }
+     },
+     "cents": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100000000000
+     },
+     "uuid": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "date": {
+      "type": "string",
+      "format": "date"
+     }
+    },
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "from_matter_id",
+     "to_matter_id",
+     "amount_cents",
+     "reason"
+    ],
+    "properties": {
+     "from_matter_id": {
+      "$ref": "#/$defs/uuid"
+     },
+     "to_matter_id": {
+      "$ref": "#/$defs/uuid"
+     },
+     "amount_cents": {
+      "$ref": "#/$defs/cents"
+     },
+     "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+     }
+    }
+   },
+   "creates": "trust_transfers(draft)",
+   "gate_kind": "trust.transfer",
    "manifest_scope": "data.write:drafts"
   },
   {

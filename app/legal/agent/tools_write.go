@@ -36,6 +36,14 @@ var ErrPayeeNotContact = fmt.Errorf("agent: payee is not a matter contact: %w", 
 // for a bill on the matter (422). Fees out of trust need a delivered bill (By-Law 9 s.9(1)).
 var ErrFirmPayeeNeedsBill = fmt.Errorf("agent: firm payee needs fees and a bill: %w", ErrInvalidInput)
 
+// ErrFeesNeedFirmPayee: a fee transfer out of trust for a bill pays the firm's general
+// account, never a matter contact (422; By-Law 9 s.9(1)).
+var ErrFeesNeedFirmPayee = fmt.Errorf("agent: a fee transfer pays the firm's general account: %w", ErrInvalidInput)
+
+// ErrFeesNeedBill: a fee withdrawal out of trust names no bill (422). Fees are paid from
+// trust only for a delivered bill (By-Law 9 s.9(1)).
+var ErrFeesNeedBill = fmt.Errorf("agent: a fee withdrawal names its bill: %w", ErrInvalidInput)
+
 // purposeFees is the purpose_category of a fee transfer to the firm.
 const purposeFees = "fees"
 
@@ -192,6 +200,12 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 	if err := t.deps.Provenance.Check(c.RunID, []string{"/amount_cents"}, c.Input); err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}
+	// rule: BIL-L-035
+	// Fees come out of trust only against a delivered bill (By-Law 9 s.9(1)): a fee
+	// withdrawal with no bill is refused here, before the trust module is reached.
+	if in.Purpose == purposeFees && in.BillID == "" {
+		return Result{}, fmt.Errorf("call %s: %w", c.Tool, ErrFeesNeedBill)
+	}
 	if err := t.checkPayee(ctx, in.MatterID, in.Payee, in.Purpose, in.BillID, in.AmountCents); err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}
@@ -277,6 +291,12 @@ func (t *WriteTools) checkPayee(ctx context.Context, matterID, payee, purpose, b
 			return fmt.Errorf("bill: %w", withdraw.ErrExceedsBillBalance)
 		}
 		return nil
+	}
+	// rule: BIL-L-037
+	// A fee transfer for a bill pays the firm's general account, never a contact (By-Law 9
+	// s.9(1)).
+	if purpose == purposeFees && billID != "" {
+		return fmt.Errorf("payee: %w", ErrFeesNeedFirmPayee)
 	}
 	// rule: BIL-L-037
 	// Any other payee is one of the matter's contacts by id, never free text the model wrote

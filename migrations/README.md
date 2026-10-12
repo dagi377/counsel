@@ -46,3 +46,7 @@ for `counsel-migrate` and for integration tests that need the current schema. It
 applied file in `schema_meta.applied` (created by Apply, readable by every role) and skips files
 already recorded. `counsel-migrate -mode=wait-version` waits until the newest file built into
 the binary is recorded; app pods run it as an init container.
+
+After the numbered files, `counsel-migrate -mode=expand` also runs River's own migrations
+(`rivermigrate up`, tracked in River's `river_migration` table) and grants River's tables to
+`counsel_app` and `counsel_jobs` (kernel/boot `migrateRiver`).
