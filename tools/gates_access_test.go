@@ -240,7 +240,8 @@ func TestGateKindSchemaDualAndSoleOwnerFields(t *testing.T) {
 }
 
 // TestGatesApplyDualAndSoleOwnerDecision pins owner decision Q-002 (2026-10-11): a2 dual-mode
-// gates carry dual_when, and GA9 and GA11 need two approvers or a sole owner after 24h.
+// gates carry dual_when, and GA9 and GA11 need two approvers or a sole owner after 24h; every
+// other two-approver kind takes a sole owner's second confirmation after 1h.
 func TestGatesApplyDualAndSoleOwnerDecision(t *testing.T) {
 	raw, err := os.ReadFile(interfacesFile)
 	if err != nil {
@@ -278,6 +279,13 @@ func TestGatesApplyDualAndSoleOwnerDecision(t *testing.T) {
 			if soleOwner[g.SpecID] {
 				if g.MinApprovers != 2 || g.SoleOwnerDelay != "24h" {
 					t.Errorf("min_approvers %d sole_owner_delay %q, want 2 and 24h", g.MinApprovers, g.SoleOwnerDelay)
+				}
+			} else if g.MinApprovers >= 2 {
+				// rule: ARC-I-021
+				// LAWYER AUDIT (2026-10-11): every other two-approver kind lets a sole
+				// licensee confirm a second time after at least 1h.
+				if g.SoleOwnerDelay != "1h" {
+					t.Errorf("sole_owner_delay %q, want 1h on a two-approver kind", g.SoleOwnerDelay)
 				}
 			} else if g.SoleOwnerDelay != "" {
 				t.Errorf("unexpected sole_owner_delay %q", g.SoleOwnerDelay)

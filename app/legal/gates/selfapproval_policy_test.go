@@ -75,10 +75,13 @@ func TestARC_I_021_SelfApprovalPolicySharedByFake(t *testing.T) {
 		{"GA11 at 24h self-approves", in(gate("core.mfa_reset", owner), owner), 24 * time.Hour, true, true, nil},
 		{"GA11 other sole approver also waits", in(gate("core.mfa_reset", owner), other), time.Hour, false, false, nil},
 		{"GA9 with no open time waits", in(gates.Gate{ID: "g", Code: "core.bulk_export", Preparer: owner}, owner), 48 * time.Hour, false, false, nil},
-		{"irreversible never self-approved", in(gate("matter.renumber", owner), owner), 0, false, false, nil},
-		{"irreversible never self-approved later", in(gate("matter.renumber", owner), owner), 30 * 24 * time.Hour, false, false, nil},
-		{"irreversible agent-prepared never self-approved", in(gate("matter.renumber", agentFor), owner), 0, false, false, nil},
-		{"irreversible other decider", in(gate("matter.renumber", owner), other), 0, true, false, nil},
+		{"irreversible sole waits the delay", in(gate("matter.renumber", owner), owner), 0, false, false, nil},
+		{"irreversible sole at 59m waits", in(gate("matter.renumber", owner), owner), time.Hour - time.Minute, false, false, nil},
+		{"irreversible sole second confirmation at 1h", in(gate("matter.renumber", owner), owner), time.Hour, true, true, nil},
+		{"irreversible agent-prepared waits", in(gate("matter.renumber", agentFor), owner), 0, false, false, nil},
+		{"irreversible agent-prepared at 1h", in(gate("matter.renumber", agentFor), owner), time.Hour, true, true, nil},
+		{"irreversible other sole approver waits", in(gate("matter.renumber", owner), other), 0, false, false, nil},
+		{"irreversible other sole approver at 1h", in(gate("matter.renumber", owner), other), time.Hour, true, false, nil},
 		{"unknown kind", in(gate("trust.nope", owner), owner), 0, false, false, gates.ErrUnknownKind},
 	}
 	for impl, g := range selfApprovers(t) {

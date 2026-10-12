@@ -81,8 +81,9 @@ func NewSpec(kinds ...gates.SpecKind) (*Fake, error) {
 
 // SelfApproval allows a human with the approver capability when there is exactly one
 // active licensee and the setting is on. Exception is true only when the decider prepared
-// the gate (or an agent prepared it for them). An irreversible kind is never self-approved
-// and a kind with a sole-owner delay waits for it, timed by the clock in ctx.
+// the gate (or an agent prepared it for them). A kind with a sole-owner delay waits for it,
+// and a two-approver or irreversible kind waits at least gates.SoleSecondConfirmDelay, timed
+// by the clock in ctx.
 func (f *Fake) SelfApproval(ctx context.Context, in gates.SelfApprovalInput) (gates.SelfApprovalResult, error) {
 	k, err := f.Kind(ctx, in.Gate.Code)
 	if err != nil {
@@ -105,15 +106,16 @@ func (f *Fake) SelfApproval(ctx context.Context, in gates.SelfApprovalInput) (ga
 	}
 	p := in.Gate.Preparer
 	self := in.By.UserID == p.UserID || (p.Agent && in.By.UserID == p.ActingFor)
-	if self && spec.Risk == registry.RiskIrreversible {
-		return gates.SelfApprovalResult{Reason: "irreversible"}, nil
+	delay := spec.SoleOwnerDelay
+	if spec.MinApprovers >= 2 || (self && spec.Risk == registry.RiskIrreversible) {
+		delay = max(delay, gates.SoleSecondConfirmDelay)
 	}
-	if spec.SoleOwnerDelay > 0 {
+	if delay > 0 {
 		clk, err := clock.From(ctx)
 		if err != nil {
 			return gates.SelfApprovalResult{}, fmt.Errorf("gatesfake: %w", err)
 		}
-		if in.Gate.OpenedAt.IsZero() || clk.Now().Before(in.Gate.OpenedAt.Add(spec.SoleOwnerDelay)) {
+		if in.Gate.OpenedAt.IsZero() || clk.Now().Before(in.Gate.OpenedAt.Add(delay)) {
 			return gates.SelfApprovalResult{Reason: "sole-owner delay"}, nil
 		}
 	}

@@ -20,7 +20,7 @@ func approvalAt(at time.Time) Approval {
 
 func TestApplyApproval(t *testing.T) {
 	at := time.Date(2026, 6, 1, 15, 0, 0, 0, time.UTC)
-	approved, err := applyApproval(pendingBill(), approvalAt(at), "INV-2026-0147")
+	approved, err := applyApproval(pendingBill(), approvalAt(at), "INV-2026-0147", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestApplyApproval(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := applyApproval(tc.bill, tc.a, tc.number)
+			got, err := applyApproval(tc.bill, tc.a, tc.number, false)
 			if !errors.Is(err, tc.err) {
 				t.Fatalf("err = %v, want %v", err, tc.err)
 			}
@@ -86,7 +86,7 @@ func TestBIL_C_121_BillDateIsApprovalDate(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			b, err := applyApproval(pendingBill(), approvalAt(tc.approvedAt), tc.number)
+			b, err := applyApproval(pendingBill(), approvalAt(tc.approvedAt), tc.number, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -99,7 +99,7 @@ func TestBIL_C_121_BillDateIsApprovalDate(t *testing.T) {
 		})
 	}
 	// Delivered 2026-10-01 does not move the bill date (and so the HST period) to October.
-	b, err := applyApproval(pendingBill(), approvalAt(time.Date(2026, 10, 1, 3, 30, 0, 0, time.UTC)), "INV-2026-0147")
+	b, err := applyApproval(pendingBill(), approvalAt(time.Date(2026, 10, 1, 3, 30, 0, 0, time.UTC)), "INV-2026-0147", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +175,7 @@ func TestBIL_L_003_DeliverySeparateFromApproval(t *testing.T) {
 			}
 		})
 	}
-	b, err := applyApproval(pendingBill(), approvalAt(at), "INV-2026-0001")
+	b, err := applyApproval(pendingBill(), approvalAt(at), "INV-2026-0001", false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/kernel/ledger"
 	"github.com/dagi377/counsel/kernel/registry"
 )
@@ -54,6 +55,9 @@ type VoidEffect struct {
 	Ledger  Reverser
 	Sink    VoidedSink       // optional
 	Now     func() time.Time // the void instant; its Toronto date is the void date
+	// SoD applies the sole-practitioner exception; while nil, the requester and the bill's
+	// preparer are always refused.
+	SoD *gates.SoDGuard
 }
 
 // VoidEffects returns the effect handler for gates.RegisterKinds.
@@ -81,12 +85,28 @@ func (e *VoidEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approved) 
 	}
 	// rule: BIL-C-084
 	// G-B2: whoever asked for the void does not decide it.
+	// rule: ARC-I-021
+	duty := gates.Duty{What: GateBillVoid, ObjectID: p.BillID, Preparer: requester, Approver: by.UserID, ApproverIsAgent: by.IsAgent}
 	if !by.IsAgent && by.UserID == requester {
-		return fmt.Errorf("bill void gate %s: %w", g.GateID, ErrPreparerApproves)
+		sod, err := e.SoD.Approve(ctx, tx, g.GateID, duty)
+		if err != nil {
+			return fmt.Errorf("bill void gate %s: %w: %w", g.GateID, ErrPreparerApproves, err)
+		}
+		by.SoleCleared = sod.Sole
 	}
 	b, err := e.Store.Lock(ctx, tx, ID(p.BillID))
 	if err != nil {
 		return fmt.Errorf("bill void gate %s: %w", g.GateID, err)
+	}
+	// rule: ARC-I-021
+	// The bill's preparer deciding its void is cleared the same way.
+	if !by.IsAgent && !by.SoleCleared && by.UserID == b.PreparedBy {
+		duty.Preparer = b.PreparedBy
+		sod, err := e.SoD.Approve(ctx, tx, g.GateID, duty)
+		if err != nil {
+			return fmt.Errorf("bill void gate %s: %w: %w", g.GateID, ErrPreparerApproves, err)
+		}
+		by.SoleCleared = sod.Sole
 	}
 	plan, err := planVoid(b, by, businessDate(e.Now()))
 	if err != nil {

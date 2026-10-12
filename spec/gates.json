@@ -626,6 +626,7 @@
     "risk": "high",
     "min_approvers": 2,
     "ttl": "72h",
+    "sole_owner_delay": "1h",
     "dual_when": "signatories>=2",
     "payload_schema": {
       "type": "object",
@@ -1154,6 +1155,7 @@
     "risk": "irreversible",
     "min_approvers": 2,
     "ttl": "336h",
+    "sole_owner_delay": "1h",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -1356,6 +1358,7 @@
     "risk": "irreversible",
     "min_approvers": 2,
     "ttl": "168h",
+    "sole_owner_delay": "1h",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -1851,6 +1854,7 @@
     "risk": "irreversible",
     "min_approvers": 2,
     "ttl": "72h",
+    "sole_owner_delay": "1h",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -2049,6 +2053,7 @@
     "risk": "high",
     "min_approvers": 2,
     "ttl": "168h",
+    "sole_owner_delay": "1h",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -2270,6 +2275,7 @@
     "risk": "irreversible",
     "min_approvers": 2,
     "ttl": "168h",
+    "sole_owner_delay": "1h",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -2597,6 +2603,7 @@
     "risk": "high",
     "min_approvers": 2,
     "ttl": "72h",
+    "sole_owner_delay": "1h",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -2748,6 +2755,7 @@
     "risk": "high",
     "min_approvers": 2,
     "ttl": "168h",
+    "sole_owner_delay": "1h",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -2896,6 +2904,7 @@
     "risk": "irreversible",
     "min_approvers": 2,
     "ttl": "72h",
+    "sole_owner_delay": "1h",
     "payload_schema": {
       "type": "object",
       "required": [
@@ -2921,6 +2930,7 @@
     "risk": "irreversible",
     "min_approvers": 2,
     "ttl": "168h",
+    "sole_owner_delay": "1h",
     "amount_path": "total_cents",
     "payload_schema": {
       "type": "object",
@@ -2952,6 +2962,7 @@
     "risk": "irreversible",
     "min_approvers": 2,
     "ttl": "336h",
+    "sole_owner_delay": "1h",
     "payload_schema": {
       "type": "object",
       "required": [

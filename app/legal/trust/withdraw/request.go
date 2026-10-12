@@ -86,6 +86,9 @@ func CheckFeeBill(r Request, b FeeBill, on time.Time) error {
 type Signer struct {
 	UserID       string
 	TrustSigning bool // licensee or approved bonded non-licensee with trust signing authority
+	// SoleCleared is true when gates.CheckSoD allowed the preparer to authorise as the firm's
+	// sole practitioner (step-up, stated reason, audited).
+	SoleCleared bool
 }
 
 // Validate checks a withdrawal request against the ledger's funds before it is recorded.
@@ -150,7 +153,8 @@ func ValidateAuthorizer(ctx context.Context, w Withdrawal, s Signer, f Funds) er
 		return ErrUnverified
 	}
 	// rule: ARC-I-019
-	if s.UserID == "" || s.UserID == w.Request.PreparedBy {
+	// rule: ARC-I-021
+	if s.UserID == "" || (s.UserID == w.Request.PreparedBy && !s.SoleCleared) {
 		return fmt.Errorf("validate authorizer: %w", ErrPreparerApproves)
 	}
 	// rule: BIL-L-038 (verify)

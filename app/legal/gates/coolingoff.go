@@ -2,6 +2,8 @@ package gates
 
 import (
 	"fmt"
+
+	kaudit "github.com/dagi377/counsel/kernel/audit"
 	"slices"
 	"time"
 )
@@ -51,4 +53,34 @@ func CheckCoolingOff(k Kind, g Gate, now time.Time) error {
 		return fmt.Errorf("gate %s (%s) until %s: %w", g.ID, k.Code, end.Format(time.RFC3339), ErrCoolingOff)
 	}
 	return nil
+}
+
+// CheckCoolingOffOr is CheckCoolingOff with an optional override. A nil override, or one
+// CheckCoolingOffOverride refuses, leaves the cooling-off period in force. An allowed override
+// returns its result; the caller records AuditCoolingOffOverride (and AuditSolePractitioner
+// when Sole) in the decision transaction.
+//
+// rule: ARC-I-021
+func CheckCoolingOffOr(k Kind, g Gate, now time.Time, o *Override) (SoDResult, error) {
+	err := CheckCoolingOff(k, g, now)
+	if err == nil || o == nil {
+		return SoDResult{}, err
+	}
+	o.Gate, o.Now = g, now
+	res, oerr := CheckCoolingOffOverride(*o)
+	if oerr != nil {
+		return SoDResult{}, fmt.Errorf("%w: override refused: %w", err, oerr)
+	}
+	return res, nil
+}
+
+// OverrideAuditEvent is the AuditCoolingOffOverride event for an allowed override of g.
+func OverrideAuditEvent(g Gate, o Override) kaudit.Event {
+	return kaudit.Event{
+		ActorKind: "user",
+		ActorID:   o.By.UserID,
+		Action:    AuditCoolingOffOverride,
+		Subject:   kaudit.Subject{Kind: g.Code, ID: g.ID},
+		Detail:    map[string]string{"approval_id": g.ID, "reason": o.Reason},
+	}
 }

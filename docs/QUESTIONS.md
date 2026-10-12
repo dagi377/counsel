@@ -6341,3 +6341,18 @@ human approves.
   answers 409 reconciliation_exists. Row status 'ready'; gate payload {account_id, period_end,
   bank_balance_cents, book_balance_cents}.
 Owner to confirm the preparer capabilities (billing.payments, trust.record, trust.reconcile).
+
+## LAW-P1
+- `app/legal/gates/sod.go` is the one separation-of-duties policy (`CheckSoD`, `SoDGuard`,
+  `CheckCoolingOffOverride`). The withdrawal, transfer, bill approval, bill void and refund
+  effects call `SoDGuard.Approve`; a nil guard keeps the old strict refusal. Boot is outside
+  this package's files, so production still needs
+  `SoD: &gates.SoDGuard{Evidence: gates.PGSoDEvidence{}, Audit: <audit log>}` on each effect
+  and a kernel self-approval policy built on `Catalog.SelfApproval`.
+- The conflict clearance (`conflict/check.go` `approverErr`) belongs to LAW-P2; it takes the
+  policy through the `gates.SoDApprover` interface.
+- The cooling-off override is a policy (`CheckCoolingOffOr`, audited as
+  `cooling_off_override`); the kernel engine runs cooling-off effects itself, so a route that
+  ends the wait early needs a kernel hook. Question: kernel task or app route?
+- spec/gates.json: every two-approver kind without one now has `sole_owner_delay: 1h`, the
+  minimum delay for a sole licensee's second confirmation.
