@@ -2,6 +2,7 @@ package billing_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"slices"
 	"strings"
@@ -55,10 +56,16 @@ func TestFBIL01_TriggerBinding(t *testing.T) {
 	}
 }
 
+// bil01Trigger is the billing-day event's payload (timekeeping.EventBillDraftRequested). The
+// trigger records it in the run's provenance, so draft_bill may state its period end; the
+// period start is left out because no read returns one (BILL-PERIOD: an invented date is
+// refused).
+const bil01Trigger = `{"matter_id":"` + bilMatter + `","period_to":"2026-09-30","user_id":"` + agenttest.FeatureActingFor + `"}`
+
 // bil01Calls is the F-BIL-01 script: plan, read the unbilled work and the trust balance,
 // then draft the pre-bill, writing entry A down by writeDown cents (0: no line action).
 func bil01Calls(writeDown int64) []bilCall {
-	in := map[string]any{"matter_id": bilMatter, "period_from": "2026-09-01", "period_to": "2026-09-30"}
+	in := map[string]any{"matter_id": bilMatter, "period_to": "2026-09-30"}
 	if writeDown > 0 {
 		in["line_actions"] = []map[string]any{{"source_id": bilEntryA, "action": "write_down", "write_down_cents": writeDown, "narrative": "Courtesy reduction"}}
 	}
@@ -75,6 +82,7 @@ func bil01Run(t *testing.T, narrativeA string, writeDown int64) (bilWorld, agent
 	t.Helper()
 	w := bilFeature(t, billing.BillingCycleDraftsDef(), narrativeA)
 	model := bilScript(t, billing.FeatureBillingCycleDrafts, bil01Calls(writeDown), "Drafted the pre-bill for review.")
+	w.fd.Seed.Provenance.Observe("run-fbil01", json.RawMessage(bil01Trigger))
 	return w, w.fd.Fire(context.Background(), model, "run-fbil01", "Billing day: draft the pre-bill for the matter, period ending 2026-09-30.")
 }
 

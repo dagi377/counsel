@@ -14,6 +14,8 @@ import (
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/matter/matterfake"
 	"github.com/dagi377/counsel/app/legal/roles/rolesfake"
+	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/agenttools/agenttoolsfake"
 	kdocs "github.com/dagi377/counsel/kernel/docs"
 	"github.com/dagi377/counsel/kernel/docs/docsfake"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -38,6 +40,8 @@ type readFixture struct {
 	version  kdocs.VersionID
 	wallDoc  kdocs.VersionID
 	cannotDo map[string]bool
+	matters  *matterfake.Fake
+	walls    *rolesfake.Fake
 }
 
 func newReadFixture(t *testing.T) *readFixture {
@@ -54,6 +58,7 @@ func newReadFixture(t *testing.T) *readFixture {
 	fx := &readFixture{open: mk("2026-0001", "Smith lease"), walled: mk("2026-0002", "Smith estate"), cannotDo: map[string]bool{}}
 	rf := rolesfake.New()
 	rf.Wall(clerk, string(fx.walled.ID))
+	fx.matters, fx.walls = mf, rf
 	text := docsfake.New()
 	if err := text.RegisterKind(kdocs.Kind{ID: "legal.memo"}); err != nil {
 		t.Fatal(err)
@@ -123,6 +128,87 @@ func TestSearchMattersOmitsWalledMatters(t *testing.T) {
 			}
 			if fmt.Sprint(got) != fmt.Sprint(tc.want) {
 				t.Fatalf("numbers = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// rule: ARC-I-038
+// search_matters gives each matter it returns a citation id (matter:<id>), and the Registry
+// records it in the run scope: a later answer or draft may cite that matter and no other. A
+// walled matter is omitted, so it has no citation either.
+func TestARC_I_038_SearchMattersCitesEachMatter(t *testing.T) {
+	cases := []struct {
+		name      string
+		query     string
+		wantCites []string // matter ids search_matters returned
+		notCited  []string // matter ids the run never got
+	}{
+		{"visible matter cited", "2026-0001", []string{"open"}, []string{"walled", "never"}},
+		{"walled matter not cited", "2026-0002", nil, []string{"open", "walled", "never"}},
+		{"name search cites the visible one", "smith", []string{"open"}, []string{"walled", "never"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fx := newReadFixture(t)
+			ids := map[string]string{"open": string(fx.open.ID), "walled": string(fx.walled.ID), "never": "matter-99"}
+			can := agent.CapabilityCheck(func(_ context.Context, user, capability string) (bool, error) {
+				return user == clerk, nil
+			})
+			tool, err := agent.SearchMattersHandler().Build(agent.NewDeps(can, fx.walls, matter.Query(fx.matters)))
+			if err != nil {
+				t.Fatalf("build: %v", err)
+			}
+			reg := agenttools.NewRegistry(agenttoolsfake.New())
+			if err := reg.Register(tool); err != nil {
+				t.Fatalf("register: %v", err)
+			}
+			scope := agenttools.NewScope("run-search", nil)
+			ctx := agenttools.WithScope(context.Background(), scope)
+			p := registry.Principal{Kind: registry.PrincipalAgent, RunID: "run-search", ActingFor: clerk, Grant: []string{agent.CapMattersView}}
+			in, _ := json.Marshal(map[string]string{"query": tc.query})
+			res, err := reg.Call(ctx, p, agent.ToolSearchMatters, in)
+			if err != nil {
+				t.Fatalf("Call: %v", err)
+			}
+			var out struct {
+				Matters []struct {
+					MatterID   string `json:"matter_id"`
+					CitationID string `json:"citation_id"`
+					Citation   struct {
+						VersionID string `json:"version_id"`
+						Page      int    `json:"page"`
+						FromLine  int    `json:"from_line"`
+						ToLine    int    `json:"to_line"`
+					} `json:"citation"`
+				} `json:"matters"`
+			}
+			if err := json.Unmarshal(res.Output, &out); err != nil {
+				t.Fatal(err)
+			}
+			if len(out.Matters) != len(tc.wantCites) || len(res.Citations) != len(tc.wantCites) {
+				t.Fatalf("matters %d citations %d, want %d", len(out.Matters), len(res.Citations), len(tc.wantCites))
+			}
+			for i, key := range tc.wantCites {
+				want := agent.MatterCitation(matter.ID(ids[key]))
+				m := out.Matters[i]
+				if m.MatterID != ids[key] || m.CitationID != agent.MatterCitationPrefix+ids[key] || m.Citation.VersionID != want.VersionID ||
+					m.Citation.Page != want.Page || m.Citation.FromLine != want.FromLine || m.Citation.ToLine != want.ToLine {
+					t.Fatalf("matter %d = %+v, want citation %+v", i, m, want)
+				}
+				c := agenttools.Citation{VersionID: want.VersionID, Page: want.Page, FromLine: want.FromLine, ToLine: want.ToLine}
+				if err := agenttools.ValidCitation(c); err != nil {
+					t.Fatalf("citation shape: %v", err)
+				}
+				if !scope.Cites(c) {
+					t.Fatalf("run scope does not record %s", c.VersionID)
+				}
+			}
+			for _, key := range tc.notCited {
+				c := agent.MatterCitation(matter.ID(ids[key]))
+				if scope.Cites(agenttools.Citation{VersionID: c.VersionID, Page: c.Page, FromLine: c.FromLine, ToLine: c.ToLine}) {
+					t.Fatalf("run scope cites %s, which search_matters never returned", c.VersionID)
+				}
 			}
 		})
 	}
@@ -198,6 +284,111 @@ func TestReadDocumentQuotesCarryCitations(t *testing.T) {
 					c.FromLine != p.Lines[0].No || c.ToLine != p.Lines[len(p.Lines)-1].No {
 					t.Fatalf("page %d citation %+v does not cover the quoted lines", p.Page, c)
 				}
+			}
+		})
+	}
+}
+
+// rule: ARC-I-036
+// A scheduled sweep lists every matter its acting user can see with an empty query, a page at
+// a time; walled matters never appear on any page, and each listed matter is quoted and cited.
+func TestSearchMattersSweepPages(t *testing.T) {
+	cases := []struct {
+		name      string
+		limit     int
+		wantPages [][]string
+	}{
+		{"one page", 20, [][]string{{"2026-0001", "2026-0003", "2026-0005"}}},
+		{"pages of two", 2, [][]string{{"2026-0001", "2026-0003"}, {"2026-0005"}}},
+		{"pages of one", 1, [][]string{{"2026-0001"}, {"2026-0003"}, {"2026-0005"}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			mf := matterfake.New(func() time.Time { return time.Date(2026, 1, 5, 9, 0, 0, 0, time.UTC) }, nil)
+			rf := rolesfake.New()
+			walled := map[string]bool{}
+			for i := 1; i <= 6; i++ {
+				m, err := mf.Create(ctx, matter.NewMatter{Number: fmt.Sprintf("2026-%04d", i), ShortName: "Matter " + fmt.Sprint(i), ClientID: "c1", PracticeAreaID: "pa", ResponsibleLawyerID: "lawyer", CreatedBy: "lawyer"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if i%2 == 0 {
+					rf.Wall(clerk, string(m.ID))
+					walled[m.Number] = true
+				}
+			}
+			tools, err := agent.NewReadTools(agent.ReadDeps{
+				Can:     func(context.Context, string, string) (bool, error) { return true, nil },
+				Matters: mf, Walls: rf, Documents: docIndex{}, Text: docsfake.New(),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got [][]string
+			cursor := ""
+			for page := 0; page < 10; page++ {
+				in, _ := json.Marshal(map[string]any{"query": "", "limit": tc.limit, "cursor": cursor})
+				res, err := tools.Call(ctx, call(agent.ToolSearchMatters, string(in)))
+				if err != nil {
+					t.Fatalf("Call: %v", err)
+				}
+				var out struct {
+					Matters []struct {
+						MatterID  string `json:"matter_id"`
+						Number    string `json:"number"`
+						ShortName struct {
+							Untrusted bool `json:"untrusted"`
+							Source    struct {
+								VersionID string
+							} `json:"source"`
+						} `json:"short_name"`
+					} `json:"matters"`
+					NextCursor string `json:"next_cursor"`
+				}
+				if err := json.Unmarshal(res.Output, &out); err != nil {
+					t.Fatal(err)
+				}
+				if len(res.Citations) != len(out.Matters) {
+					t.Fatalf("citations = %d, matters = %d", len(res.Citations), len(out.Matters))
+				}
+				var nums []string
+				for i, m := range out.Matters {
+					if walled[m.Number] {
+						t.Fatalf("walled matter %s listed", m.Number)
+					}
+					// rule: ARC-I-038
+					want := string(agent.MatterCitation(matter.ID(m.MatterID)).VersionID)
+					if !m.ShortName.Untrusted || m.ShortName.Source.VersionID != want || res.Citations[i].VersionID != want {
+						t.Fatalf("matter %s not quoted and cited: %+v %+v", m.Number, m.ShortName, res.Citations[i])
+					}
+					nums = append(nums, m.Number)
+				}
+				got = append(got, nums)
+				if out.NextCursor == "" {
+					break
+				}
+				cursor = out.NextCursor
+			}
+			if fmt.Sprint(got) != fmt.Sprint(tc.wantPages) {
+				t.Fatalf("pages = %v, want %v", got, tc.wantPages)
+			}
+		})
+	}
+}
+
+func TestSearchMattersBadCursor(t *testing.T) {
+	cases := []struct{ name, cursor string }{
+		{"not a number", "abc"},
+		{"negative", "-1"},
+		{"padded", "01"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fx := newReadFixture(t)
+			in, _ := json.Marshal(map[string]any{"query": "", "cursor": tc.cursor})
+			if _, err := fx.tools.Call(context.Background(), call(agent.ToolSearchMatters, string(in))); !errors.Is(err, agent.ErrInvalidInput) {
+				t.Fatalf("err = %v, want ErrInvalidInput", err)
 			}
 		})
 	}

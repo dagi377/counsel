@@ -118,7 +118,7 @@ func newDraftBillWorld(t *testing.T, actorCaps map[string]bool) draftBillWorld {
 		return w.gates.Open(ctx, nil, kind, s, payload, by)
 	})
 	pv := agenttools.NewProvenance()
-	pv.Observe(draftBillRun, json.RawMessage(`{"unbilled_cents":5000}`))
+	pv.Observe(draftBillRun, json.RawMessage(`{"unbilled_cents":5000,"period_from":"2026-09-01","period_to":"2026-09-30"}`))
 	var drafts batch.Drafts = w.drafts
 	var wip agent.UnbilledWIP = w.drafts
 	var lines draft.Store = store
@@ -178,10 +178,10 @@ func TestARC_I_035_DraftBill(t *testing.T) {
 		actorCaps map[string]bool
 		in        string
 		wantErr   error
-		wantNets  map[string]int64 // source entry -> net cents on the draft
+		wantNets  map[string]int64 // source entry -> net cents on the draft, held lines "held:<id>"
 	}{
 		{"agent assembles the pre-bill", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter), nil, map[string]int64{billEntryA: 50000, billEntryB: 20000}},
-		{"sourced write-down and a hold", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, writeDown(5000), hold), nil, map[string]int64{billEntryA: 45000}},
+		{"sourced write-down and a hold", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, writeDown(5000), hold), nil, map[string]int64{billEntryA: 45000, "held:" + billEntryB: 20000}},
 		{"no charge", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, `{"source_id":"`+billEntryB+`","action":"no_charge"}`), nil, map[string]int64{billEntryA: 50000, billEntryB: 0}},
 		{"manual path", context.Background(), user, caps, billInput(draftBillMatter), nil, map[string]int64{billEntryA: 50000, billEntryB: 20000}},
 		{"walled matter", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillWalled), agent.ErrNotVisible, nil},
@@ -191,6 +191,8 @@ func TestARC_I_035_DraftBill(t *testing.T) {
 		{"no report_plan in the run", billScope(billNoPlan, agent.GatePrebillReview), agentP(billNoPlan, grant), caps, billInput(draftBillMatter), agenttools.ErrPlanRequired, nil},
 		{"gate kind outside the run scope", billScope(draftBillRun, "billing.payment_allocation"), agentP(draftBillRun, grant), caps, billInput(draftBillMatter), agenttools.ErrGateKindNotAllowed, nil},
 		{"invented write-down amount", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, writeDown(4999)), agenttools.ErrUnsourcedValue, nil},
+		{"invented period end", inScope, agentP(draftBillRun, grant), caps, `{"matter_id":"` + draftBillMatter + `","period_from":"2026-09-01","period_to":"2026-10-31"}`, agenttools.ErrUnsourcedValue, nil},
+		{"invented period start", inScope, agentP(draftBillRun, grant), caps, `{"matter_id":"` + draftBillMatter + `","period_from":"2026-08-01","period_to":"2026-09-30"}`, agenttools.ErrUnsourcedValue, nil},
 		{"write-down without amount", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, `{"source_id":"`+billEntryA+`","action":"write_down"}`), agent.ErrInvalidInput, nil},
 		{"source not on the draft", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, `{"source_id":"`+billEntryX+`","action":"hold"}`), agent.ErrInvalidInput, nil},
 		{"one bad source among good ones", inScope, agentP(draftBillRun, grant), caps, billInput(draftBillMatter, hold, `{"source_id":"`+billEntryX+`","action":"no_charge"}`), agent.ErrInvalidInput, nil},
@@ -247,7 +249,12 @@ func TestARC_I_035_DraftBill(t *testing.T) {
 			}
 			got := map[string]int64{}
 			for _, l := range lines {
-				got[l.SourceTimeEntryID] = w.store.Net(l)
+				// A hold is a status change: the held line stays on the draft, never deleted.
+				key := l.SourceTimeEntryID
+				if l.Held {
+					key = "held:" + key
+				}
+				got[key] = w.store.Net(l)
 			}
 			if fmt.Sprint(got) != fmt.Sprint(tc.wantNets) {
 				t.Fatalf("nets = %v, want %v", got, tc.wantNets)

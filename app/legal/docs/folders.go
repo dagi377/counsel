@@ -255,3 +255,40 @@ func (s *FolderStore) Document(ctx context.Context, id string) (Document, error)
 	}
 	return d, nil
 }
+
+// FiledDocument is one filed document of a matter with its current stored version.
+type FiledDocument struct {
+	Document  Document
+	VersionID string // docs.document.current_version_id
+}
+
+// filedSQL lists a matter's live documents that have a stored version, in filing order.
+const filedSQL = `SELECT id::text, coalesce(matter_id::text, ''), doc_type, coalesce(folder_id::text, ''),
+  current_version_id::text
+  FROM docs.document
+  WHERE matter_id = $1::uuid AND archived_at IS NULL AND current_version_id IS NOT NULL
+  ORDER BY created_at, id`
+
+// Filed lists the filed documents of matterID, oldest first: live documents with a stored
+// version. A matter with none has none.
+func (s *FolderStore) Filed(ctx context.Context, matterID string) ([]FiledDocument, error) {
+	var out []FiledDocument
+	err := s.db.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, filedSQL, matterID)
+		if err != nil {
+			return err
+		}
+		out, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (FiledDocument, error) {
+			var f FiledDocument
+			var folder string
+			err := r.Scan(&f.Document.ID, &f.Document.MatterID, &f.Document.Kind, &folder, &f.VersionID)
+			f.Document.FolderID = FolderID(folder)
+			return f, err
+		})
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("filed documents of %s: %w", matterID, err)
+	}
+	return out, nil
+}

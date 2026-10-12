@@ -158,12 +158,23 @@ type matterOut struct {
 	Status    string            `json:"status"`
 }
 
+// MatterCitation cites a matter record. A matter has no document version, so the record id
+// stands in for the version, at page 1, line 1.
+func MatterCitation(id matter.ID) agenttools.Citation {
+	return agenttools.Citation{VersionID: MatterCitationPrefix + string(id), Page: 1, FromLine: 1, ToLine: 1}
+}
+
 func toMatterOut(m matter.Matter) matterOut {
 	return matterOut{
 		MatterID: string(m.ID), Number: m.Number, Status: string(m.Status),
 		// rule: ARC-I-038
-		ShortName: agenttools.Quoted{Untrusted: true, Text: m.ShortName},
+		ShortName: agenttools.Quote(MatterCitation(m.ID), m.ShortName),
 	}
+}
+
+func matterCite(id matter.ID) Citation {
+	c := MatterCitation(id)
+	return Citation{VersionID: c.VersionID, Page: c.Page, FromLine: c.FromLine, ToLine: c.ToLine}
 }
 
 func (t *ReadTools) visible(ctx context.Context, userID, matterID string) error {
@@ -177,45 +188,85 @@ func (t *ReadTools) visible(ctx context.Context, userID, matterID string) error 
 	return nil
 }
 
+// MatterCitationPrefix starts the citation id of a matter search_matters returned.
+const MatterCitationPrefix = "matter:"
+
+// citationOut is a citation as a tool result shows it to the model, in the answer's shape.
+type citationOut struct {
+	VersionID string `json:"version_id"`
+	Page      int    `json:"page"`
+	FromLine  int    `json:"from_line"`
+	ToLine    int    `json:"to_line"`
+}
+
+// matterHit is one search_matters result: the matter and the citation an answer about it
+// copies.
+type matterHit struct {
+	matterOut
+	CitationID string      `json:"citation_id"`
+	Citation   citationOut `json:"citation"`
+}
+
+// searchMattersOut is one page of search_matters. NextCursor is empty on the last page.
+type searchMattersOut struct {
+	Matters    []matterHit `json:"matters"`
+	NextCursor string      `json:"next_cursor,omitempty"`
+}
+
+// searchMatters finds the matters the acting user can see. An empty query lists them all, a
+// page at a time, so a scheduled sweep can walk every visible matter by following next_cursor.
 func (t *ReadTools) searchMatters(ctx context.Context, c Call) (Result, error) {
 	var in struct {
 		Query  string `json:"query"`
 		Status string `json:"status"`
+		Cursor string `json:"cursor"`
 		Limit  int    `json:"limit"`
 	}
 	if err := json.Unmarshal(c.Input, &in); err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, ErrInvalidInput)
 	}
-	if in.Limit == 0 {
-		in.Limit = 20
+	offset, n, err := pageWindow(in.Cursor, in.Limit)
+	if err != nil {
+		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}
 	all, err := t.deps.Matters.List(ctx, matter.Filter{Status: matter.Status(in.Status)})
 	if err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}
 	q := strings.ToLower(strings.TrimSpace(in.Query))
-	out := []matterOut{}
+	var match []matter.Matter
 	for _, m := range all {
-		if len(out) == in.Limit {
-			break
-		}
 		if q != "" && !strings.Contains(strings.ToLower(m.Number), q) && !strings.Contains(strings.ToLower(m.ShortName), q) {
 			continue
 		}
-		// A walled matter is omitted, not reported as hidden.
+		// rule: ARC-I-036
+		// A walled matter is omitted, not reported as hidden, and never counts toward a page.
 		if err := t.visible(ctx, c.ActingFor, string(m.ID)); err != nil {
 			if errors.Is(err, ErrNotVisible) {
 				continue
 			}
 			return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 		}
-		out = append(out, toMatterOut(m))
+		match = append(match, m)
 	}
-	b, err := json.Marshal(map[string]any{"matters": out})
+	out := searchMattersOut{Matters: []matterHit{}, NextCursor: nextCursor(offset, n, len(match))}
+	var cites []Citation
+	for i := offset; i < min(offset+n, len(match)); i++ {
+		// rule: ARC-I-038
+		// Each result carries its citation id, and the run records it, so an answer may cite
+		// a matter this search returned and no other.
+		mc := matterCite(match[i].ID)
+		cites = append(cites, mc)
+		out.Matters = append(out.Matters, matterHit{
+			matterOut: toMatterOut(match[i]), CitationID: mc.VersionID,
+			Citation: citationOut{VersionID: mc.VersionID, Page: mc.Page, FromLine: mc.FromLine, ToLine: mc.ToLine},
+		})
+	}
+	b, err := json.Marshal(out)
 	if err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}
-	return Result{Output: b}, nil
+	return Result{Output: b, Citations: cites}, nil
 }
 
 func (t *ReadTools) getMatter(ctx context.Context, c Call) (Result, error) {
@@ -239,7 +290,7 @@ func (t *ReadTools) getMatter(ctx context.Context, c Call) (Result, error) {
 	if err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}
-	return Result{Output: b}, nil
+	return Result{Output: b, Citations: []Citation{matterCite(m.ID)}}, nil
 }
 
 type lineOut struct {

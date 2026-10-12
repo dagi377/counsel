@@ -18,7 +18,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/dagi377/counsel/app/legal/trust"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/db/dbfake"
 	"github.com/dagi377/counsel/kernel/gate/gatefake"
@@ -123,9 +122,9 @@ func TestComposeOverFakes(t *testing.T) {
 				}
 				wired++
 			}
-			// The nine effects testGatePorts and the rest step build (BOOT-16): signatory,
-			// withdrawal, bill approval and void, the write-off pair, matter.opening
-			// (EVENTS-WIRE) and matter.stage_move (STAGE-EFFECT).
+			// The ten effects testGatePorts and the rest step build (BOOT-16): signatory,
+			// withdrawal, trust transfer, bill approval and void, the write-off pair,
+			// matter.opening (EVENTS-WIRE) and matter.stage_move (STAGE-EFFECT).
 			if wired != wantWiredGates {
 				t.Fatalf("wired %d gate kinds, want %d", wired, wantWiredGates)
 			}
@@ -148,8 +147,8 @@ func TestComposeOverFakes(t *testing.T) {
 // lists the groups no Postgres implementation exists for yet, and no other may answer 503.
 func TestProductionRoutesHaveTheirPorts(t *testing.T) {
 	// The gate effects run on the Postgres GatePorts (gatePortsPG), not on fakes.
-	key := trust.SealKey{ID: 1, Key: make([]byte, 32)}
-	c := compose(t, legalFlagNames(t), Options{Production: &Production{SealKey: &key}})
+	// The agent runs on the mock model (AGENT-PROD).
+	c := compose(t, legalFlagNames(t), Options{Production: mockProduction(nil), Agent: noLawyerWiring()})
 	var wired int
 	for _, call := range c.boot.Method(registry.MethodGateKind) {
 		if call.Args[0].(registry.GateKind).Effect == nil {
@@ -179,7 +178,7 @@ func TestProductionRoutesHaveTheirPorts(t *testing.T) {
 	// rule: ARC-I-040
 	// The routes this task wires must be served.
 	for _, must := range []string{"GET /matters", "GET /contacts", "GET /firm/tax-registrations", "GET /bills",
-		"POST /matters", "PATCH /matters/{matter_id}"} {
+		"POST /matters", "PATCH /matters/{matter_id}", "POST /agent/runs", "GET /agent/runs/{run_id}", "POST /agent/actions/{feature_id}"} {
 		if slices.Contains(unserved, must) {
 			t.Errorf("%s answers 503", must)
 		}

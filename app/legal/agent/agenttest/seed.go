@@ -24,6 +24,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/roles/rolesfake"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/timekeeping/timekeepingfake"
+	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw/withdrawfake"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/deadline"
@@ -122,6 +123,32 @@ func (s *Seed) Deps(can agent.CapabilityCheck, plans agenttools.Plans) agent.Dep
 		agent.ConflictCheckParties(s.Store), conflict.Checker(seedChecker{s}), agent.PublishedPacks(s.Store),
 		s.Deadlines, s.Provenance, s.Store,
 	)
+}
+
+// FeeBills returns the fee-bills port over Bills that the real prepare_trust_withdrawal reads
+// for a fee transfer to the firm (agenttest.FirmPayee): a bill on the request's matter, with
+// its delivery date and unpaid balance. A bill that is not delivered (draft, approved, void)
+// reads with a zero DeliveredAt, so no fee can be paid on it (By-Law 9 s.9(1)).
+func (s *Seed) FeeBills() agent.FeeBills { return seedFeeBills{s.Bills} }
+
+// seedFeeBills is agent.FeeBills over the Seed's bill fake.
+type seedFeeBills struct{ bills *billfake.Fake }
+
+// FeeBill implements agent.FeeBills.
+func (f seedFeeBills) FeeBill(ctx context.Context, matterID, billID string) (withdraw.FeeBill, error) {
+	b, err := f.bills.Get(ctx, bill.ID(billID))
+	if err != nil {
+		return withdraw.FeeBill{}, fmt.Errorf("seed fee bill %s: %w", billID, err)
+	}
+	if b.MatterID != matterID {
+		return withdraw.FeeBill{}, fmt.Errorf("seed fee bill %s: %w", billID, withdraw.ErrBillMatter)
+	}
+	out := withdraw.FeeBill{BalanceDueCents: max(b.BalanceCents, 0), MatterID: b.MatterID}
+	switch b.Status {
+	case bill.StatusDelivered, bill.StatusPaid, bill.StatusCredited:
+		out.DeliveredAt = b.DeliveredAt
+	}
+	return out, nil
 }
 
 // GateKind registers a gate kind in Gates so the run's write tools can open it.

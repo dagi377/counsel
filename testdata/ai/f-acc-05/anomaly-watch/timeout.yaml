@@ -1,4 +1,5 @@
 synthetic: true
 feature: F-ACC-05
-match: {last_user_regex: "access events batch"}
+match:
+  last_user_regex: '\[timeout\]'
 fault: timeout

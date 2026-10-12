@@ -99,8 +99,9 @@ func buildDraftBill(d Deps) (registry.Tool, error) {
 		return wrap(err)
 	}
 	// rule: ARC-U-027
-	// A write-down amount must be a figure the run read; the model never invents money.
-	tool, err = pv.SourcedWrite(tool, "/line_actions/*/write_down_cents")
+	// A write-down amount and the billing period's dates must be figures the run read; the
+	// model never invents money or a date, so the pre-bill gate shows sourced values.
+	tool, err = pv.SourcedWrite(tool, "/line_actions/*/write_down_cents", "/period_from", "/period_to")
 	if err != nil {
 		return wrap(err)
 	}
@@ -256,8 +257,9 @@ func (t draftBill) applyActions(ctx context.Context, billID string, actions map[
 		seen[l.SourceTimeEntryID] = true
 		switch a.Action {
 		case lineHold:
-			// Held time stays unbilled WIP for a later bill.
-			continue
+			// A hold is a status change: the line stays on the draft, held, and counts toward
+			// no total. Bill lines are never deleted.
+			l.Held = true
 		case lineWriteDown:
 			l, err = t.calc.ApplyReduction(l, draft.Reduction{Cents: a.WriteDownCents, Reason: draft.ReasonOther, ReasonText: a.Narrative, ShowOnBill: true})
 		case lineNoCharge:
@@ -266,6 +268,7 @@ func (t draftBill) applyActions(ctx context.Context, billID string, actions map[
 			base.Reduction = nil
 			l, err = t.calc.ApplyReduction(l, draft.Reduction{Cents: t.calc.Net(base), Reason: draft.ReasonCourtesy, ShowOnBill: true})
 		case lineBill:
+			l.Held = false
 			if a.Narrative != "" {
 				l.Description = a.Narrative
 			}

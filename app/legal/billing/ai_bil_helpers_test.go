@@ -628,6 +628,9 @@ type bilLanded struct {
 	calls    []string
 	gateKind string
 	extra    func() []any // more ports per run, e.g. a payment service
+	// observed is the trigger payload recorded in the run's provenance before it starts, as
+	// the trigger records its event's values (dates the run may then write); nil records none.
+	observed json.RawMessage
 	// check checks the opened gate's payload.
 	check func(t *testing.T, payload json.RawMessage)
 }
@@ -664,6 +667,9 @@ func (l bilLanded) run(t *testing.T) {
 			model := agenttest.Model(t, l.dir, tc.variant)
 			runID := "run-" + strings.ToLower(l.def.ID) + "-" + tc.variant
 			prompt := l.trigger + " [" + tc.variant + "]"
+			if l.observed != nil {
+				w.fd.Seed.Provenance.Observe(runID, l.observed)
+			}
 			run := w.fd.Fire(ctx, model, runID, prompt)
 			if !errors.Is(run.Err, tc.wantErr) || run.RetryQueued != tc.wantRetry {
 				t.Fatalf("err = %v queued %v, want %v queued %v", run.Err, run.RetryQueued, tc.wantErr, tc.wantRetry)

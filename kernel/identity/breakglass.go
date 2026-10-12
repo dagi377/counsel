@@ -12,6 +12,7 @@ import (
 
 	"github.com/dagi377/counsel/kernel/audit"
 	"github.com/dagi377/counsel/kernel/clock"
+	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -62,6 +63,7 @@ type BreakGlass struct {
 	clock  clock.Clock
 	log    audit.Log
 	grants GrantStore
+	events outbox.Emitter // publishes break_glass.ended on expiry, when set (EVENTS-8)
 }
 
 // NewBreakGlass returns a BreakGlass that reads time from c, audits to log and keeps grants
@@ -131,7 +133,7 @@ func (b *BreakGlass) Expire(ctx context.Context, tx pgx.Tx) (int, error) {
 		if err := b.log.Append(ctx, tx, b.event(ActionBreakGlassExpire, g)); err != nil {
 			return fmt.Errorf("audit expire %s: %w", g.ID, err)
 		}
-		return nil
+		return b.publishEnded(ctx, tx, g)
 	})
 	if err != nil {
 		return n, fmt.Errorf("break glass: %w", err)

@@ -126,6 +126,20 @@ func TestAppHoldsEveryListedDef(t *testing.T) {
 		{"F-RDY-01", true},
 		{"F-RDY-04", true},
 		{"F-RDY-05", true},
+		{"F-ACC-01", false},
+		{"F-ACC-05", false},
+		{"F-ACC-08", false},
+		{"F-ACC-09", false},
+		{"F-ACC-11", false},
+		{"F-ACC-12", false},
+		{"F-ACC-13", false},
+		{"F-TRU-08", true},
+		{"F-TRU-10", true},
+		{"F-TRU-03", false},
+		{"F-TRU-02", true},
+		{"F-BIL-03", true},
+		{"F-BIL-08", true},
+		{"F-BIL-07", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.id, func(t *testing.T) {
@@ -161,5 +175,24 @@ func TestExportSkillsCheckedIn(t *testing.T) {
 	}
 	if err := feature.CheckSkills(s, os.DirFS(repoSkills)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// rule: AI-R-005
+// run.Spec.AnswerMayBeUncited stays in the frozen run contract (SEARCH-CITE), but no feature
+// may set it: every answer cites a tool result of its own run.
+func TestNoFeatureAnswersUncited(t *testing.T) {
+	defs := appDefs()
+	if len(defs) == 0 {
+		t.Fatal("app has no feature definitions")
+	}
+	for _, d := range defs {
+		spec, err := d.Spec()
+		if err != nil {
+			t.Fatalf("%s: spec: %v", d.ID, err)
+		}
+		if spec.AnswerMayBeUncited {
+			t.Errorf("%s: AnswerMayBeUncited is set; an answer must cite its run's tool results", d.ID)
+		}
 	}
 }

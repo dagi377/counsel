@@ -4,15 +4,14 @@ match:
   last_user_regex: '\[error_429\]'
 fault: rate_limit
 turns:
-  - expect_tools: [search_matters]
-    reply:
+  - reply:
       tool_calls:
         - name: search_matters
-          input: {role: "rol-synth-clerk"}
+          input: {query: "2026-04", limit: 20}
       stop_reason: tool_use
       usage: {input_tokens: 520, output_tokens: 22}
   - expect_tool_results: [search_matters]
     reply:
-      text: "Clerk can read matters and record time. Clerk cannot approve bills or move trust money."
+      json: {answer: "Role rol-synth-clerk can read matters and record time, as on 2026-0412 and 2026-0413. It cannot approve bills, move trust money or decide gates.", citations: [{version_id: "matter:matter-1", page: 1, from_line: 1, to_line: 1}, {version_id: "matter:matter-2", page: 1, from_line: 1, to_line: 1}]}
       stop_reason: end_turn
       usage: {input_tokens: 640, output_tokens: 60}

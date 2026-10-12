@@ -5617,6 +5617,7 @@
     "get_matter",
     "get_trust_balance",
     "get_bill",
+    "prepare_trust_transfer",
     "prepare_trust_withdrawal",
     "report_plan",
     "report_step",

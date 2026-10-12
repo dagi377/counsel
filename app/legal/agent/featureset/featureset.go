@@ -183,6 +183,9 @@ func appDefs() []feature.Def {
 		billing.PaymentMatchingDef(),
 		billing.EvergreenWatchDef(),
 		billing.AgingCollectionsDef(),
+		billing.TrustApplicationDef(),
+		billing.DraftCreditNoteDef(),
+		billing.MonthlyDigestDef(),
 		// trust
 		trust.AnnualReportPrepDef(),
 		trust.RetainerCoverageScanDef(),
@@ -190,6 +193,10 @@ func appDefs() []feature.Def {
 		trust.BankFeedSyncDef(),
 		trust.MonthEndReconciliationDef(),
 		trust.RetainerReplenishmentDef(),
+		trust.DraftTransferDef(),
+		trust.ProposeDispositionDef(),
+		trust.PayeeFraudCheckDef(),
+		trust.WithdrawalDrafterDef(),
 		// access
 		access.LicenceCheckDef(),
 		access.AccessReviewPreFillDef(),
@@ -204,5 +211,12 @@ func appDefs() []feature.Def {
 		readiness.QuestionnaireFillerDef(),
 		readiness.InsurerAnswersDef(),
 		readiness.ServiceCreditDef(),
+		access.DutyScanDef(),
+		access.AnomalyWatchDef(),
+		access.ExplainRoleDef(),
+		access.ExplainAccessDef(),
+		access.ExplainPatternDef(),
+		access.ExplainChangeDef(),
+		access.SummarizeSessionDef(),
 	}
 }

@@ -41,14 +41,7 @@ func (p HTTPPorts) withWrites(k *kboot.Kernel) HTTPPorts {
 		p.WithdrawGates = g
 	}
 	if p.Payments == nil {
-		// rule: BIL-L-039 (verify)
-		// Operating cash shares the trust ledger's per-matter cash limit; without a clock cash fails closed.
-		// Billing names the payer only through the party module, never its tables (ARC-I-041).
-		svc := payment.PGService{DB: k.DB, Payers: PartyPayers{Contacts: party.NewStore(k.DB)}}
-		if k.Clock != nil {
-			svc.Cash = trust.NewLedgerStore(k.DB, nil, nil, k.Clock)
-		}
-		p.Payments = svc
+		p.Payments = pgPayments(k)
 	}
 	if p.PaymentProposals == nil {
 		p.PaymentProposals = payment.PGProposals{}
@@ -77,4 +70,17 @@ func (p PartyPayers) PayerName(ctx context.Context, clientID string) (string, er
 		return "", fmt.Errorf("payer %s: %w", clientID, err)
 	}
 	return c.LegalName, nil
+}
+
+// pgPayments is the Postgres payment service on k. The HTTP routes and the agent's
+// propose_payment_allocation port share it.
+func pgPayments(k *kboot.Kernel) payment.PGService {
+	// rule: BIL-L-039 (verify)
+	// Operating cash shares the trust ledger's per-matter cash limit; without a clock cash fails closed.
+	// Billing names the payer only through the party module, never its tables (ARC-I-041).
+	svc := payment.PGService{DB: k.DB, Payers: PartyPayers{Contacts: party.NewStore(k.DB)}}
+	if k.Clock != nil {
+		svc.Cash = trust.NewLedgerStore(k.DB, nil, nil, k.Clock)
+	}
+	return svc
 }

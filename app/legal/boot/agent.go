@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -33,11 +34,14 @@ import (
 	"github.com/dagi377/counsel/app/legal/work"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
+	"github.com/dagi377/counsel/kernel/ai"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/db"
 	"github.com/dagi377/counsel/kernel/deadline"
 	"github.com/dagi377/counsel/kernel/notify"
+	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
+	"github.com/jackc/pgx/v5"
 )
 
 // AgentPorts are the module query APIs the agent tool handlers read through, one field per
@@ -63,12 +67,15 @@ type AgentPorts struct {
 	Documents     agent.MatterDocuments
 	Folders       agent.MatterFolders
 
-	Bills          agent.BillReader
-	UnbilledWIP    agent.UnbilledWIP
-	WriteTools     *agent.WriteTools
-	BillBalances   agent.BillBalances
-	Trust          agent.TrustAvailable
-	TrustAccounts  agent.MatterTrustAccounts
+	Bills         agent.BillReader
+	UnbilledWIP   agent.UnbilledWIP
+	WriteTools    *agent.WriteTools
+	BillBalances  agent.BillBalances
+	Trust         agent.TrustAvailable
+	TrustAccounts agent.MatterTrustAccounts
+	// TrustTransfers records a transfer row and opens its trust.transfer gate in one tx
+	// (withdraw.TransferRequests over withdraw.PGTransferStore and the gate engine).
+	TrustTransfers agent.TrustTransfers
 	Entries        tk.Entries
 	MatterTime     agent.MatterTime
 	DraftCalc      draft.Calc
@@ -124,6 +131,7 @@ func (p AgentPorts) ports() []port {
 		{"BillBalances", p.BillBalances, p.BillBalances != nil},
 		{"Trust", p.Trust, p.Trust != nil},
 		{"TrustAccounts", p.TrustAccounts, p.TrustAccounts != nil},
+		{"TrustTransfers", p.TrustTransfers, p.TrustTransfers != nil},
 		{"Entries", p.Entries, p.Entries != nil},
 		{"MatterTime", p.MatterTime, p.MatterTime != nil},
 		{"DraftCalc", p.DraftCalc, p.DraftCalc != nil},
@@ -174,10 +182,14 @@ func (p AgentPorts) Deps() agent.Deps {
 var draftTools = []string{agent.ToolDraftDocument, agent.ToolDraftEmail}
 
 // AgentHandlers is the production handler set: agent.Handlers() with every read tool
-// recording its results in the run's Provenance (recordReads), and, for every trust feature
-// in trust.SourcedFeatures(), draft_document and draft_email wrapped with
-// trust.SourcedCents. The wraps are listed here, not registered from init(); the set
-// resolves them per (feature, tool), so a non-trust feature's draft runs the default handler.
+// recording what it returns into the run's Provenance, and these per-feature wraps:
+//   - for every trust feature in trust.SourcedFeatures(), draft_document and draft_email
+//     wrapped with trust.SourcedCents;
+//   - for F-BIL-08, draft_document wrapped with billing.CheckCreditNote, since a credit note
+//     changes what a client owes.
+//
+// The wraps are listed here, not registered from init(); the set resolves them per
+// (feature, tool), so another feature's draft runs the default handler.
 func AgentHandlers() (agent.HandlerSet, error) {
 	set, err := recordReads(agent.Handlers())
 	if err != nil {
@@ -192,6 +204,11 @@ func AgentHandlers() (agent.HandlerSet, error) {
 				return agent.HandlerSet{}, fmt.Errorf("trust draft wrap: %w", err)
 			}
 		}
+	}
+	// rule: ARC-U-027
+	// A credit note changes what a client owes: every amount in it must be one the run read.
+	if set, err = set.WithFeatureWrap(billing.FeatureDraftCreditNote, agent.ToolDraftDocument, billing.CreditNoteWrap); err != nil {
+		return agent.HandlerSet{}, fmt.Errorf("credit note wrap: %w", err)
 	}
 	return set, nil
 }
@@ -233,7 +250,8 @@ func sourcedTrustDraft(d agent.Deps, t registry.Tool) (registry.Tool, error) {
 	return trust.SourcedCents(pv, t)
 }
 
-// AgentTools builds every tool in AgentHandlers() over p. A port the set needs and p lacks
+// AgentTools builds every tool in AgentHandlers() over p; every read tool records into
+// p.Provenance (a fresh one when p has none). A port the set needs and p lacks
 // fails with agent.ErrMissingDep naming the tool; nothing is half-built.
 func AgentTools(p AgentPorts) ([]registry.Tool, error) {
 	if p.Provenance == nil {
@@ -438,14 +456,18 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		platform.StaleMatterSweepDef().ID:     platform.StaleMatterSweepBinding,
 		platform.CitationCheckerDef().ID:      platform.CitationCheckerBinding,
 		readiness.QuestionnaireFillerDef().ID: readiness.QuestionnaireFillerBinding,
+		billing.FeatureTrustApplication:       billing.TrustApplicationBinding,
+		billing.FeatureMonthlyDigest:          billing.MonthlyDigestBinding,
+		trust.FeaturePayeeFraudCheck:          trust.PayeeFraudCheckBinding,
+		trust.FeatureBankFeedSync:             trust.BankFeedSyncBinding,
+		trust.FeatureWithdrawalDrafter:        trust.WithdrawalDrafterBinding,
+		access.DutyScanDef().ID:               access.DutyScanBinding,
+		access.AnomalyWatchDef().ID:           access.AnomalyWatchBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
 	onRequest := map[string]bool{
 		matter.FeatureMatterQuestionAnswering: true,
-		// F-TRU-01's schedule binds with its write path (FEAT-TRU-02); until then its screen
-		// actions start it.
-		trust.FeatureBankFeedSync: true,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -470,6 +492,26 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		}
 	}
 	return nil
+}
+
+// ConsumerTrigger is the outbox consumer that starts event-bound job features.
+const ConsumerTrigger = "agent.feature_trigger"
+
+// TriggerConsumer hands each outbox event to b, which enqueues one agent_feature_run per
+// feature bound to its type. An event no binding listens to is a no-op. A bound event that
+// names no acting user starts no run (fail closed) and is not retried.
+func TriggerConsumer(b *trigger.Bindings) outbox.Consumer {
+	return outbox.Consumer{Name: ConsumerTrigger, Handle: func(ctx context.Context, _ pgx.Tx, m outbox.Message) error {
+		// rule: AI-R-005
+		// The job carries the event's ids only; the run is unique by feature and event id, so
+		// a redelivered event inserts no second run.
+		_, err := b.OnEvent(ctx, m)
+		if errors.Is(err, trigger.ErrNoActingFor) {
+			slog.WarnContext(ctx, "agent feature not started: event names no acting user", "event", m.ID, "type", m.Type)
+			return nil
+		}
+		return err
+	}}
 }
 
 // AddTickJob adds the TickWorker and its periodic job, which enqueue the scheduled runs.
@@ -511,6 +553,10 @@ var actionScreens = map[string]trigger.Screen{
 	// Firm-level screens act on the firm, not on a matter.
 	"conflict-search-settings": {SubjectKind: FirmSubject, Capability: "conflicts.run"},
 	"compliance-audit-log":     {SubjectKind: FirmSubject, Capability: "admin.audit_log"},
+	// Access screens act on the firm: the audit log and the sign-in policy are firm records.
+	"access-audit":     {SubjectKind: FirmSubject, Capability: "admin.audit_log"},
+	"sign-in-settings": {SubjectKind: FirmSubject, Capability: "admin.security"},
+	"support-access":   {SubjectKind: FirmSubject, Capability: "admin.support_access"},
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
@@ -549,6 +595,18 @@ var actionScreens = map[string]trigger.Screen{
 	"signature-request":        {SubjectKind: "matter", Capability: "documents.edit"},
 	"matter-documents":         {SubjectKind: "matter", Capability: "documents.view"},
 	"document-search":          {SubjectKind: "matter", Capability: "documents.view"},
+	// A transfer moves money between client ledgers, so the screen selects the matters
+	// (docs/QUESTIONS.md Q-FEAT-TRU-08).
+	"trust-transfers": {SubjectKind: "matter", Capability: "trust.request"},
+	// The clearance screen lists matters that still hold trust money; it selects the matter
+	// (docs/QUESTIONS.md Q-FEAT-TRU-10).
+	"trust-balance-clearance": {SubjectKind: "matter", Capability: "trust.request"},
+	// A withdrawal request is one matter's (Q-FEAT-TRU-03).
+	"withdrawal-request": {SubjectKind: "matter", Capability: "trust.request"},
+	// Billing: a trust-to-fees transfer is requested on the matter whose trust pays the bill.
+	"trust-to-fees": {SubjectKind: "matter", Capability: "trust.request"},
+	// A credit note is drafted on the matter of the selected bill.
+	"credit-notes": {SubjectKind: "matter", Capability: "documents.edit"},
 	// Intake screens select the lead ("intake.lead", the outbox subject of a lead).
 	"phone-and-email-capture": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 	"lead-detail":             {SubjectKind: "intake.lead", Capability: "intake.leads"},
@@ -645,6 +703,11 @@ var actionScreens = map[string]trigger.Screen{
 	// readiness matter that holds the controls list, so it selects that matter
 	// (Q-FEAT-RDY-04).
 	"trust-center": {SubjectKind: "matter", Capability: "documents.view"},
+	// Access administration screens act on the firm.
+	"role-editor": {SubjectKind: FirmSubject, Capability: "admin.roles"},
+	"duty-rules":  {SubjectKind: FirmSubject, Capability: "admin.roles"},
+	"roles-list":  {SubjectKind: FirmSubject, Capability: "admin.roles"},
+	"user-detail": {SubjectKind: FirmSubject, Capability: "admin.users"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
@@ -678,8 +741,13 @@ func (q RiverActionQueue) EnqueueAction(ctx context.Context, featureID string, s
 	// rule: AI-R-005
 	args := trigger.RunArgs{FeatureID: featureID, Subjects: subjects, ActingFor: actingFor, EventID: runID}
 	opts := args.InsertOpts()
-	if _, err := q.Q.Insert(ctx, args, &opts); err != nil {
+	res, err := q.Q.Insert(ctx, args, &opts)
+	if err != nil {
 		return "", fmt.Errorf("action queue %s: %w", featureID, err)
+	}
+	// The worker records the run under the job's run id, so the caller gets that one.
+	if res != nil && res.Job != nil {
+		return JobRunID(res.Job.ID), nil
 	}
 	return runID, nil
 }
@@ -718,6 +786,14 @@ func (r ForgetRunner) Run(ctx context.Context, spec agentrun.Spec, p agentrun.Pr
 	return r.Runner.Run(ctx, spec, p, prompt, triggers...)
 }
 
+// recordFirst wraps r in RecordFirst when there is a run record store.
+func recordFirst(records RunRecords, r agentrun.Runner) agentrun.Runner {
+	if records == nil {
+		return r
+	}
+	return RecordFirst(records, r)
+}
+
 // AgentWiring is what the agent layer needs at boot beyond its ports.
 type AgentWiring struct {
 	Ports AgentPorts
@@ -745,6 +821,22 @@ type AgentWiring struct {
 	// Runners are every other agent runner boot hands out (the job-run worker's among them).
 	// Boot wraps each in place so it forgets a run's provenance values when the run ends.
 	Runners []*agentrun.Runner
+	// Unready, when set, serves a tool whose port has no implementation in this process as not
+	// served and reports its features not ready, instead of failing boot (Production).
+	Unready *AgentReadiness
+	// Records is where Actions.Runner and Runners record a run before it starts (AGENT-PROD-3).
+	// Nil uses agent.run_record on the kernel DB; with no DB the runners are not wrapped.
+	Records RunRecords
+	// RunModel, RunTools and RunAccess drive the agent_feature_run worker (FeatureRunWorker):
+	// the model, the tool registry the action route uses, and the builder of agent
+	// principals (nil: Actions.Access). With all three set and a job set, boot adds the
+	// worker. RunRecords stores its runs; nil is run.PGRecords on the kernel DB.
+	RunModel   ai.ModelClient
+	RunTools   agenttools.Tools
+	RunAccess  RunPrincipals
+	RunRecords agent.RunRecords
+	// RunWorker is the agent_feature_run worker boot added; nil when it added none.
+	RunWorker *FeatureRunWorker
 }
 
 // timekeepers is the per-user features' user source: the wired one, else the active
@@ -774,6 +866,12 @@ func registerAgent(w *AgentWiring) hook {
 		if err != nil {
 			return err
 		}
+		// rule: AI-R-005
+		// Every runner boot hands out records its run before the run calls a tool, so a
+		// batch draft finds the run's preparer instead of failing closed.
+		if w.Records == nil && k.DB != nil {
+			w.Records = agentrun.PGRecords{DB: k.DB}
+		}
 		// One Provenance for every tool, write dep and runner: a run's values are recorded,
 		// checked and forgotten in the same place.
 		if w.Ports.Provenance == nil {
@@ -792,6 +890,9 @@ func registerAgent(w *AgentWiring) hook {
 			w.Ports.WriteTools = wt
 		}
 		tools, err := AgentTools(w.Ports)
+		if w.Unready != nil {
+			tools, err = servedTools(w.Ports, w.Unready, features)
+		}
 		if err != nil {
 			return err
 		}
@@ -813,6 +914,14 @@ func registerAgent(w *AgentWiring) hook {
 					return err
 				}
 			}
+			if k.Outbox != nil {
+				if err := k.AddConsumer(TriggerConsumer(w.Bindings)); err != nil {
+					return err
+				}
+			}
+		}
+		if err := addFeatureRunWorker(k, w, features); err != nil {
+			return err
 		}
 		if w.Actions != nil {
 			w.Actions.Features = features
@@ -820,12 +929,12 @@ func registerAgent(w *AgentWiring) hook {
 			if w.Queue != nil {
 				w.Actions.Queue = w.Queue
 			}
-			w.Actions.Runner = ForgetOnEnd(w.Ports.Provenance, w.Actions.Runner)
+			w.Actions.Runner = recordFirst(w.Records, ForgetOnEnd(w.Ports.Provenance, w.Actions.Runner))
 			k.Registry.Routes(w.Actions.Routes)
 		}
 		for _, r := range w.Runners {
 			if r != nil {
-				*r = ForgetOnEnd(w.Ports.Provenance, *r)
+				*r = recordFirst(w.Records, ForgetOnEnd(w.Ports.Provenance, *r))
 			}
 		}
 		if w.Flags != nil {
@@ -912,4 +1021,41 @@ func soleTrustAccount(src agent.MatterTrustAccounts) func(ctx context.Context, m
 		}
 		return accts[0], nil
 	}
+}
+
+// registerAgent registers Options.Agent as it stands when the step runs, so the wiring
+// bindProduction built is the one registered.
+func (w *wiring) registerAgent(ctx context.Context, k *kboot.Kernel) error {
+	return registerAgent(w.opts.Agent)(ctx, k)
+}
+
+// addFeatureRunWorker adds the agent_feature_run worker to k's job set when w carries a model,
+// a tool registry and a principal builder. The run records default to agent.run_record on
+// the kernel DB; with neither, the worker is not added and the queued features stay queued.
+func addFeatureRunWorker(k *kboot.Kernel, w *AgentWiring, features *feature.Set) error {
+	if k.Jobs == nil || w.RunModel == nil || w.RunTools == nil {
+		return nil
+	}
+	access := w.RunAccess
+	if access == nil && w.Actions != nil && w.Actions.Access != nil {
+		access = w.Actions.Access
+	}
+	records := w.RunRecords
+	if records == nil && k.DB != nil {
+		records = agentrun.PGRecords{DB: k.DB}
+	}
+	if access == nil || records == nil {
+		slog.Warn("agent feature run worker not added: no principal builder or run store")
+		return nil
+	}
+	wk := &FeatureRunWorker{Features: features, Access: access, Model: w.RunModel, Tools: w.RunTools,
+		Provenance: w.Ports.Provenance, Records: records, Designated: designatedOrPG(k, w.Designated)}
+	if k.Clock != nil {
+		wk.Now = k.Clock.Now
+	}
+	if err := kboot.AddWorker(k.Jobs, wk); err != nil {
+		return fmt.Errorf("agent feature run worker: %w", err)
+	}
+	w.RunWorker = wk
+	return nil
 }

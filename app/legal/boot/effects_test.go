@@ -91,6 +91,7 @@ func TestEffectsTable(t *testing.T) {
 		signatory.KindSigningAuthority,
 		withdraw.GateKind,
 		withdraw.GateFeeKind,
+		withdraw.TransferGateKind,
 	}
 	slices.Sort(want)
 	var got []string
