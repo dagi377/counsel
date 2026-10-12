@@ -246,5 +246,9 @@ func appDefs() []feature.Def {
 		readiness.ServiceCreditDef(),
 		readiness.CitationCheckerDef(),
 		readiness.RulePackImpactDef(),
+		readiness.VoiceNoteToTimeEntryDef(),
+		readiness.ReplyToClientMessageDef(),
+		readiness.DraftReplyDef(),
+		readiness.AskDef(),
 	}
 }

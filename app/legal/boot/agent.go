@@ -632,7 +632,8 @@ var actionScreens = map[string]trigger.Screen{
 	"trust-to-fees": {SubjectKind: "matter", Capability: "trust.request"},
 	// A credit note is drafted on the matter of the selected bill.
 	"credit-notes": {SubjectKind: "matter", Capability: "documents.edit"},
-	// Readiness: the research screen checks the memo filed on its matter.
+	// Readiness: the research screen checks the memo filed on its matter and answers
+	// questions about the selected matter's documents (F-RDY-09).
 	"research": {SubjectKind: "matter", Capability: "documents.view"},
 	// Intake screens select the lead ("intake.lead", the outbox subject of a lead).
 	"phone-and-email-capture": {SubjectKind: "intake.lead", Capability: "intake.leads"},
@@ -764,6 +765,11 @@ var actionScreens = map[string]trigger.Screen{
 	// readiness matter that holds the controls list, so it selects that matter
 	// (Q-FEAT-RDY-04).
 	"trust-center": {SubjectKind: "matter", Capability: "documents.view"},
+	// Readiness. The mobile app acts on the matter a voice note or client message belongs
+	// to; each tool still checks its own capability (time.record, documents.edit).
+	"mobile-app": {SubjectKind: "matter", Capability: "matters.view"},
+	// The mail add-in acts on the matter the selected email is filed on.
+	"mail-add-ins": {SubjectKind: "matter", Capability: "documents.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
