@@ -107,10 +107,6 @@ func checkDeciders(g registry.Approved) error {
 // no posting.
 var ApprovalKinds = []string{
 	"billing.collections_message",
-	"billing.payment_allocation",
-	"billing.payment_plan",
-	"billing.prebill_review",
-	"billing.settings_change",
 	"cal.calendar_delegation",
 	"cal.change",
 	"cal.confirm",
@@ -129,7 +125,6 @@ var ApprovalKinds = []string{
 	"docs.outgoing",
 	"docs.precedent",
 	"docs.template_publish",
-	"gl.operating_reconciliation",
 	"intake.consult_outcome",
 	"intake.fee_waiver",
 	"intake.open_matter",
@@ -166,7 +161,6 @@ var ApprovalKinds = []string{
 	"timekeeping.fee_arrangement",
 	"timekeeping.timesheet",
 	"timekeeping.writedown",
-	"trust.regulatory_release",
 	"work.absence",
 	"work.external_sync",
 	"work.plan",
