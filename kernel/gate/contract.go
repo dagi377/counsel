@@ -127,6 +127,13 @@ type Authorizer interface {
 	Can(ctx context.Context, p Principal, capability string) (bool, error)
 }
 
+// CoreRegistrar is implemented by an engine that accepts kernel-owned core.* kinds. Engine
+// stays unchanged (frozen contract); kernel boot type-asserts it when it registers the core
+// kinds an app supplied effects for (KERNEL-CORE, additive).
+type CoreRegistrar interface {
+	RegisterCore(k GateKind) error
+}
+
 // Engine is the gate engine. Every method that writes takes the caller's tx.
 type Engine interface {
 	// Register adds a gate kind. Duplicate slugs and invalid kinds fail.

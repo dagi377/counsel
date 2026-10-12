@@ -4442,6 +4442,8 @@ of FEAT-TIM-01 above.
 
 ## Q-SHIFT-FLAG shift_date business days behind deadline.ontario_pack
 
+## Q-GATE-EFFECTS approval effect for the 74 formerly unwired app gate kinds
+
 - Answers the open point above: while `deadline.ontario_pack` is off, `shift_date` refuses
   `unit: business` with `ErrHolidayPackUnverified` ("holiday pack not verified"); it fails
   closed rather than counting weekends only. Calendar-day shifts are unaffected.
@@ -5088,6 +5090,8 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 - Their dedicated effects need RestPorts.Receipts (Poster) and RestPorts.Refunds (Ledger), which
   Production leaves nil, so both kinds are unregistered in production. They were never in
   unwired_gates.txt (the list is computed with test ports). Wire them in Production.
+
+## Q-EVENTS-8 Publishers for eleven events, most with no write point yet
 
 ## Q-EVENTS-8 Publishers for eleven events, most with no write point yet
 - Added to spec/eng/a2-interfaces.json (additive, note "EVENTS-8"): user.invited,
@@ -5888,3 +5892,44 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
     recipient).
   - billing.collections_message: already moved by ApprovalEffect (email draft stamped and queued);
     no change.
+
+## Q-KERNEL-CORE kernel path that registers core.* gate kinds (additive kernel change)
+
+- Additive: `gate.ValidateCoreKind`, `gate.CoreRegistrar` (an optional interface beside the
+  frozen `gate.Engine`), `Kinds.RegisterCore`/`PG.RegisterCore`, `gatefake.Fake.RegisterCore`, and
+  `kboot.Kernel.CoreGateKind`/`CoreGateKinds`. An app hands a core.* kind with its effect to
+  `Kernel.CoreGateKind` during Register (the registry still refuses kernel prefixes); kernel boot's
+  `apply` registers them with the gate engine after the registry's calls.
+- Legal boot hands the kernel every core.* spec kind it has an effect for (`gates.CoreKinds`):
+  core.trust_signatory (signatory service, with gate ports), core.offboarding (access) and
+  core.matter_visibility (matter). Q-GATE-EFFECTS-CORE is resolved for these three.
+- Production now sets RestPorts.Receipts (trust.LedgerStore on PGGL) and RestPorts.Refunds (PGGL),
+  so trust.receipt_classification and billing.refund register (Q-GATE-EFFECTS-PORTS resolved).
+  Boot calls BreakGlass.SetEvents(k.Emitter) (EVENTS-8, merged into this branch).
+- Q-GE2-OPS-CORE (owner): core.role_change and core.user_activation have kernel effects but no
+  AdminStore implementation in production, and core.temp_grant, wall_lift, break_glass_review,
+  review_close, bulk_export, sign_in_settings, mfa_reset, vendor_support, authority_limit have no
+  effect anywhere. They stay unregistered; the catalogue test lists them by name.
+
+## Q-GE2-OPS per-kind effects for platform, intake, work and access kinds
+
+- Dedicated effects (boot/effects_ops.go, each after ApprovalEffect releases a drafted subject):
+  intake.lead_decision (lead decision/decided_by), intake.public_wording (form published,
+  approved_by), work.output (item moves along its workflow into the done group), work.automation
+  (rule enabled), platform.closing (matter closed, refused while any trust ledger of the matter is
+  not $0.00 or the payload balance is not 0), core.offboarding (user offboarded, user.deactivated
+  published), core.matter_visibility (matter visibility set).
+- Open (owner): core.offboarding applies at approval, not at `cutoff_at`, and does not apply
+  `handover` (no handover shape is specified); core.matter_visibility refuses `team_user_ids`
+  (no matter team table); intake.public_wording does not check `version` against the form row
+  (unclear whether it is row_version).
+- Left on the record-only ApprovalEffect, each needing an owner decision or a domain table that
+  does not exist: intake.consult_outcome (no consult outcome column; conversion is G-open's),
+  intake.fee_waiver (refund of a collected fee needs a payment/refund path), intake.open_matter
+  (matter creation belongs with matter.opening), work.plan (plan acceptance state undefined),
+  work.workflow_publish (no workflow status column), work.external_sync (no sync table),
+  work.absence (no absence table; subject is a cover task), and every other platform.* kind
+  (portal_message, outgoing_email, summary_accuracy, file_destruction, skill_autonomy,
+  access_change, integration_scope, export, guest_access, research_memo, security_answer,
+  outbound_connector, payment_provider, import_balances, rule_pack, vendor_support,
+  escrow_destination, service_credit, published_price): no domain table or service to apply to.

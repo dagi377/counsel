@@ -56,6 +56,19 @@ func Module(slug string) string {
 
 // ValidateKind checks a kind as module would register it. It does not check duplicates.
 func ValidateKind(module string, k GateKind) error {
+	return validateKind(module, k, false)
+}
+
+// CorePrefix is the prefix of the kernel-owned gate kinds (core.offboarding, ...).
+const CorePrefix = "core."
+
+// ValidateCoreKind checks a kernel-owned core.* kind as the kernel registers it: the same
+// checks as ValidateKind, except that the slug must carry the core prefix (KERNEL-CORE).
+func ValidateCoreKind(k GateKind) error {
+	return validateKind(strings.TrimSuffix(CorePrefix, "."), k, true)
+}
+
+func validateKind(module string, k GateKind, core bool) error {
 	var errs []error
 	bad := func(format string, a ...any) { errs = append(errs, fmt.Errorf(format, a...)) }
 	// rule: ARC-I-013
@@ -64,9 +77,11 @@ func ValidateKind(module string, k GateKind) error {
 	} else if Module(k.Slug) != module {
 		bad("slug %q is not prefixed by registering module %q", k.Slug, module)
 	}
-	for _, p := range registry.KernelPrefixes {
-		if strings.HasPrefix(k.Slug, p) {
-			bad("slug %q uses kernel prefix %q", k.Slug, p)
+	if !core {
+		for _, p := range registry.KernelPrefixes {
+			if strings.HasPrefix(k.Slug, p) {
+				bad("slug %q uses kernel prefix %q", k.Slug, p)
+			}
 		}
 	}
 	if k.Approver == "" {
@@ -131,6 +146,20 @@ func (ks *Kinds) Register(module string, k GateKind) error {
 	if len(ks.modules) > 0 && !slices.Contains(ks.modules, module) {
 		return fmt.Errorf("gate kind %q: module %q is not a known module: %w", k.Slug, module, ErrInvalidKind)
 	}
+	return ks.add(k)
+}
+
+// RegisterCore adds a kernel-owned core.* kind (ValidateCoreKind). Only kernel boot calls
+// it: an app supplies the effect, the kernel registers the kind (KERNEL-CORE).
+func (ks *Kinds) RegisterCore(k GateKind) error {
+	if err := ValidateCoreKind(k); err != nil {
+		return err
+	}
+	return ks.add(k)
+}
+
+// add stores a validated kind and its compiled schema; a duplicate slug fails.
+func (ks *Kinds) add(k GateKind) error {
 	s, err := compileSchema(k.Slug, k.PayloadSchema)
 	if err != nil {
 		return fmt.Errorf("gate kind %q: %w: %w", k.Slug, ErrInvalidKind, err)

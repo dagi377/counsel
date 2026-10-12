@@ -134,14 +134,18 @@ func TestWithApprovalEffectsKeepsDedicated(t *testing.T) {
 	}
 }
 
-// Every app gate kind in spec/gates.json and every kind a feature Def declares resolves in the
-// production gate catalogue. core.* kinds are the kernel's (Q-GATE-EFFECTS-CORE).
+// Every gate kind in spec/gates.json and every kind a feature Def declares resolves in the
+// production gate catalogue: app kinds through the registry, core.* kinds through the kernel
+// (KERNEL-CORE). Only the core kinds no effect exists for yet are left out.
 func TestProductionRegistersEveryDeclaredGateKind(t *testing.T) {
 	key := trust.SealKey{ID: 1, Key: make([]byte, 32)}
 	c := compose(t, legalFlagNames(t), Options{Production: &Production{SealKey: &key}})
 	registered := map[string]bool{}
 	for _, call := range c.boot.Method(registry.MethodGateKind) {
 		registered[call.Args[0].(registry.GateKind).Slug] = true
+	}
+	for _, g := range c.k.CoreGateKinds() {
+		registered[g.Slug] = true
 	}
 	want := map[string]string{}
 	kinds, err := gates.ParseKinds(gates.SpecData())
@@ -160,10 +164,21 @@ func TestProductionRegistersEveryDeclaredGateKind(t *testing.T) {
 			want[k] = d.ID
 		}
 	}
-	// Dedicated effects whose production ports are not wired yet (Q-GATE-EFFECTS-PORTS).
-	portGap := map[string]bool{"trust.receipt_classification": true, "billing.refund": true}
+	// Kernel admin kinds whose effect no app or kernel store supplies yet (Q-GE2-OPS-CORE).
+	noEffect := map[string]bool{
+		"core.role_change": true, "core.user_activation": true, "core.temp_grant": true,
+		"core.wall_lift": true, "core.break_glass_review": true, "core.review_close": true,
+		"core.bulk_export": true, "core.sign_in_settings": true, "core.mfa_reset": true,
+		"core.vendor_support": true, "core.authority_limit": true,
+	}
+	for _, slug := range []string{"core.offboarding", "core.matter_visibility", "core.trust_signatory",
+		"trust.receipt_classification", "billing.refund"} {
+		if !registered[slug] {
+			t.Errorf("gate kind %s is not in the production catalogue", slug)
+		}
+	}
 	for slug, from := range want {
-		if strings.HasPrefix(slug, "core.") || strings.HasPrefix(slug, "kernel.") || portGap[slug] {
+		if noEffect[slug] || strings.HasPrefix(slug, "kernel.") {
 			continue
 		}
 		if !registered[slug] {

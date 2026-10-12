@@ -138,8 +138,11 @@ func restServices(k *kboot.Kernel) (RestServices, error) {
 	log := audit.New(q, AuditMasker(), audit.Options{})
 	grants := identity.PGGrants{DB: k.DB, SubjectKind: matterkind.Subject, SubjectColumn: BreakGlassSubjectColumn}
 	ev := newEventStores(k.DB, k.Emitter)
+	bg := identity.NewBreakGlassWith(k.Clock, log, grants)
+	// An expired grant publishes break_glass.ended in the expiry's tx (EVENTS-8).
+	bg.SetEvents(k.Emitter)
 	return RestServices{
-		BreakGlass: withEndedEvents(identity.NewBreakGlassWith(k.Clock, log, grants), k.Emitter),
+		BreakGlass: bg,
 		SignOff:    recon.NewPGSignOff(q).WithAudit(log),
 		Sessions:   portal.PGSessions{DB: k.DB},
 		Book:       ev.Book,

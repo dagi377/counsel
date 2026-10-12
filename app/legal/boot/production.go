@@ -25,6 +25,7 @@ import (
 	"github.com/dagi377/counsel/kernel/idem"
 	"github.com/dagi377/counsel/kernel/identity"
 	"github.com/dagi377/counsel/kernel/identity/login"
+	"github.com/dagi377/counsel/kernel/ledger"
 	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/kernel/server"
@@ -241,7 +242,7 @@ func (p Production) options(k *kboot.Kernel) (Options, error) {
 			Audit:  auditLog,
 		},
 		Clearance: &ClearancePorts{Search: conflict.NewPGSearcher(k.DB), Roles: roles, Assignments: assign},
-		Rest:      &RestPorts{},
+		Rest:      productionRest(k, conn),
 	}
 	if p.SealKey != nil {
 		g, err := gatePortsPG(k, conn, *p.SealKey, p.BillPrefix, auditLog, access)
@@ -254,6 +255,17 @@ func (p Production) options(k *kboot.Kernel) (Options, error) {
 		o.Webhooks = &WebhookPorts{Secrets: p.WebhookSecrets}
 	}
 	return o, nil
+}
+
+// productionRest are the rest ports Production sets: the receipt classification effect posts
+// to the client ledger and the refund effect to the general ledger, both on the kernel DB, so
+// trust.receipt_classification and billing.refund register in production (KERNEL-CORE).
+func productionRest(k *kboot.Kernel, conn pgConn) *RestPorts {
+	gl := PGGL{Balances: ledger.Balances{Q: conn}}
+	return &RestPorts{
+		Receipts: &ReceiptPorts{Poster: trust.NewLedgerStore(k.DB, nil, gl, k.Clock)},
+		Refunds:  &RefundPorts{Ledger: gl},
+	}
 }
 
 // noStepUp is a request that never passed step-up authentication.

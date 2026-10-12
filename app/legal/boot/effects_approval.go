@@ -102,8 +102,9 @@ func checkDeciders(g registry.Approved) error {
 // ApprovalKinds are the app gate kinds whose effect is ApprovalEffect: every spec kind with no
 // dedicated effect service (GATE-EFFECTS emptied unwired_gates.txt with them). A kind with a
 // dedicated effect (bill approval, write-off, withdrawal, refund, receipt, signatory,
-// matter.opening, matter.stage_move, and the GE2 money kinds in moneyEffects) is not here: without its ports it stays unregistered
-// rather than approving with no posting.
+// matter.opening, matter.stage_move, the GE2 money kinds in moneyEffects and the GE2
+// OpsKinds) is not here: without its ports it stays unregistered rather than approving with
+// no posting.
 var ApprovalKinds = []string{
 	"billing.collections_message",
 	"billing.payment_allocation",
@@ -131,9 +132,7 @@ var ApprovalKinds = []string{
 	"gl.operating_reconciliation",
 	"intake.consult_outcome",
 	"intake.fee_waiver",
-	"intake.lead_decision",
 	"intake.open_matter",
-	"intake.public_wording",
 	"matter.agent_note",
 	"matter.apply_template",
 	"matter.bulk_change",
@@ -144,7 +143,6 @@ var ApprovalKinds = []string{
 	"matter.renumber",
 	"matter.widen_access",
 	"platform.access_change",
-	"platform.closing",
 	"platform.escrow_destination",
 	"platform.export",
 	"platform.file_destruction",
@@ -170,9 +168,7 @@ var ApprovalKinds = []string{
 	"timekeeping.writedown",
 	"trust.regulatory_release",
 	"work.absence",
-	"work.automation",
 	"work.external_sync",
-	"work.output",
 	"work.plan",
 	"work.workflow_publish",
 }

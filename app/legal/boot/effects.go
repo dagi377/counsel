@@ -230,9 +230,17 @@ func (w *wiring) registerGates(_ context.Context, k *kboot.Kernel) error {
 	if fx, err = withMoneyEffects(k, w.opts.Gates, fx); err != nil {
 		return fmt.Errorf("gate effects: %w", err)
 	}
+	// GE2: the platform, intake, work and access kinds with a dedicated effect.
+	if fx, err = withOpsEffects(k, fx); err != nil {
+		return fmt.Errorf("gate effects: %w", err)
+	}
 	// GATE-EFFECTS: every remaining app kind gets the approval effect, so no spec or feature
 	// kind is left unregistered ("unknown kind" in production).
 	if fx, err = withApprovalEffects(fx); err != nil {
+		return fmt.Errorf("gate effects: %w", err)
+	}
+	// KERNEL-CORE: core.* kinds with an effect go to the kernel, which registers them.
+	if err := registerCoreKinds(k, fx); err != nil {
 		return fmt.Errorf("gate effects: %w", err)
 	}
 	var reg registry.Registry = k.Registry
