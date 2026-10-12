@@ -22,14 +22,17 @@ func (c *Catalog) CheckDecision(ctx context.Context, g Gate, by Principal, now t
 	if err != nil {
 		return err
 	}
-	switch {
-	case by.Agent:
-		return fmt.Errorf("gate %s: %w", g.ID, ErrAgentApproves)
-	case by.UserID == "":
+	if by.UserID == "" && !by.Agent {
 		return fmt.Errorf("gate %s: %w", g.ID, errNoDecider)
-	case by.UserID == g.Preparer.UserID || (g.Preparer.Agent && by.UserID == g.Preparer.ActingFor):
-		return fmt.Errorf("gate %s: %w", g.ID, ErrPreparerApproves)
-	case !slices.Contains(by.Capabilities, k.Approver):
+	}
+	// rule: ARC-I-016
+	// The shared separation-of-duties check, with no sole-practitioner evidence: here the
+	// preparer is always refused, and SelfApproval decides the sole exception.
+	if _, err := CheckSoD(Duty{What: g.Code, ObjectID: g.ID, Preparer: preparerUser(g.Preparer),
+		Approver: by.UserID, ApproverIsAgent: by.Agent, Now: now}); err != nil {
+		return fmt.Errorf("gate %s: %w", g.ID, err)
+	}
+	if !slices.Contains(by.Capabilities, k.Approver) {
 		return fmt.Errorf("gate %s needs %s: %w", g.ID, k.Approver, ErrMissingCapability)
 	}
 	if end := g.OpenedAt.Add(k.CoolingOff); now.Before(end) {

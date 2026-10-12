@@ -363,6 +363,9 @@ type Refund struct {
 	ApproverIsLawyer  bool
 	ApproverIsAgent   bool
 	OriginalMethodRef string
+	// SoleCleared is true when gates.CheckSoD allowed the requester to approve as the firm's
+	// sole practitioner (step-up, stated reason, audited).
+	SoleCleared bool
 }
 
 // RefundRoute says how a refund is paid.
@@ -385,7 +388,8 @@ func CheckRefund(r Refund) (RefundRoute, error) {
 	if r.AmountCents > r.CreditCents {
 		return "", fmt.Errorf("refund: %w", ErrRefundExceedsCredit)
 	}
-	if r.ApprovedBy == "" || r.ApprovedBy == r.RequestedBy || r.ApproverIsAgent || !r.ApproverIsLawyer {
+	// rule: ARC-I-021
+	if r.ApprovedBy == "" || (r.ApprovedBy == r.RequestedBy && !r.SoleCleared) || r.ApproverIsAgent || !r.ApproverIsLawyer {
 		return "", fmt.Errorf("refund approval: %w", ErrPreparerApproves)
 	}
 	if r.OriginalMethodRef != "" && r.AmountCents <= r.OriginalCaptured {

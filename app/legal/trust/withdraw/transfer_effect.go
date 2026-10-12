@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -71,6 +72,8 @@ type TransferEffect struct {
 	Transfers *Transfers
 	Signers   SignatoryCheck
 	Now       func() time.Time
+	// SoD applies the sole-practitioner exception; while nil, the preparer is always refused.
+	SoD *gates.SoDGuard
 }
 
 // TransferEffects returns the effect handler for gates.RegisterKinds.
@@ -93,8 +96,14 @@ func (e *TransferEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approv
 	if approver.Kind != registry.PrincipalUser || approver.UserID == "" {
 		return failed(CodeNotAuthorized, ErrNotAuthorized)
 	}
-	if approver.UserID == g.Preparer.UserID || approver.UserID == g.Preparer.ActingFor {
-		return failed(CodeNotAuthorized, ErrPreparerApproves)
+	preparer := g.Preparer.UserID
+	if g.Preparer.Kind == registry.PrincipalAgent {
+		preparer = g.Preparer.ActingFor
+	}
+	// rule: ARC-I-021
+	if _, err := e.SoD.Approve(ctx, tx, g.GateID, gates.Duty{What: TransferGateKind, ObjectID: p.TransferID,
+		Preparer: preparer, Approver: approver.UserID}); err != nil {
+		return failed(CodeNotAuthorized, fmt.Errorf("%w: %w", ErrPreparerApproves, err))
 	}
 	h, err := e.Store.LockTransfer(ctx, tx, p.TransferID)
 	if err != nil {

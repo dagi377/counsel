@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/trust"
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -172,6 +173,9 @@ type Effect struct {
 	// Bills reads the bill a fee withdrawal pays; while nil, every fee withdrawal fails
 	// closed at authorization.
 	Bills FeeBills
+	// SoD applies the sole-practitioner exception when the preparer authorises their own
+	// withdrawal; while nil, the preparer is always refused.
+	SoD *gates.SoDGuard
 }
 
 // Apply is the trust.withdrawal EffectFunc. It runs in the gate's tx: it locks the withdrawal,
@@ -205,8 +209,12 @@ func (e *Effect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approved) erro
 	if approver.Kind != registry.PrincipalUser || approver.UserID == "" {
 		return failed(CodeNotAuthorized, ErrNotAuthorized)
 	}
-	if approver.UserID == h.Request.PreparedBy {
-		return failed(CodeNotAuthorized, ErrPreparerApproves)
+	// rule: ARC-I-021
+	// A sole practitioner may authorise their own withdrawal with step-up and a stated
+	// reason, audited as sole_practitioner.
+	if _, err := e.SoD.Approve(ctx, tx, g.GateID, gates.Duty{What: GateKind, ObjectID: h.ID,
+		Preparer: h.Request.PreparedBy, Approver: approver.UserID}); err != nil {
+		return failed(CodeNotAuthorized, fmt.Errorf("%w: %w", ErrPreparerApproves, err))
 	}
 	ok, err := e.Signers.IsSignatory(ctx, tx, trust.AccountID(h.Request.TrustAccountID), approver.UserID)
 	if err != nil {

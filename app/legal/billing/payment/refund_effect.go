@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/dagi377/counsel/app/legal/books"
+	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/gate"
@@ -97,6 +98,8 @@ type RefundEffect struct {
 	Trust  TrustRefunds
 	Ledger ledger.Ledger
 	Clock  clock.Clock
+	// SoD applies the sole-practitioner exception; while nil, the requester is always refused.
+	SoD *gates.SoDGuard
 }
 
 // Effects returns the billing.refund effect for gates.RegisterWired. Every error wraps
@@ -129,8 +132,13 @@ func (e *RefundEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approved
 		return fmt.Errorf("refund effect %s: no approver: %w", g.GateID, ErrPreparerApproves)
 	}
 	approver := g.Approvers[0]
-	if approver.Kind != registry.PrincipalUser || approver.UserID == "" || approver.UserID == requesterOf(g.Preparer) {
+	if approver.Kind != registry.PrincipalUser || approver.UserID == "" {
 		return fmt.Errorf("refund effect %s: approver: %w", g.GateID, ErrPreparerApproves)
+	}
+	// rule: ARC-I-021
+	if _, err := e.SoD.Approve(ctx, tx, g.GateID, gates.Duty{What: GateKindRefund, ObjectID: p.PaymentID,
+		Preparer: requesterOf(g.Preparer), Approver: approver.UserID}); err != nil {
+		return fmt.Errorf("refund effect %s: approver: %w: %w", g.GateID, ErrPreparerApproves, err)
 	}
 	pay, err := e.Store.LockRefundable(ctx, tx, p.PaymentID)
 	if err != nil {

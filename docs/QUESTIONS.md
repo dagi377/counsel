@@ -5074,3 +5074,17 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   `$COUNSEL_DOCS_BUCKET_REGION`, `$COUNSEL_DOCS_KMS_KEY_ID` and the AWS credential variables in
   `app/legal/boot/services_docs.go`; without them the document routes keep answering 503.
   Question: should these move to `cmd/counseld` flags once production.go is free to edit?
+## LAW-P1
+- `app/legal/gates/sod.go` is the one separation-of-duties policy (`CheckSoD`, `SoDGuard`,
+  `CheckCoolingOffOverride`). The withdrawal, transfer, bill approval, bill void and refund
+  effects call `SoDGuard.Approve`; a nil guard keeps the old strict refusal. Boot is outside
+  this package's files, so production still needs
+  `SoD: &gates.SoDGuard{Evidence: gates.PGSoDEvidence{}, Audit: <audit log>}` on each effect
+  and a kernel self-approval policy built on `Catalog.SelfApproval`.
+- The conflict clearance (`conflict/check.go` `approverErr`) belongs to LAW-P2; it takes the
+  policy through the `gates.SoDApprover` interface.
+- The cooling-off override is a policy (`CheckCoolingOffOr`, audited as
+  `cooling_off_override`); the kernel engine runs cooling-off effects itself, so a route that
+  ends the wait early needs a kernel hook. Question: kernel task or app route?
+- spec/gates.json: every two-approver kind without one now has `sole_owner_delay: 1h`, the
+  minimum delay for a sole licensee's second confirmation.

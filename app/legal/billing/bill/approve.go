@@ -33,7 +33,9 @@ func editable(s Status) bool {
 // applyApproval returns b approved under a with number, which the caller took from
 // NextNumber in the same tx. It has no I/O. Replaying an approval already applied returns
 // b unchanged. Delivery fields are never touched: only Deliver sets them.
-func applyApproval(b Bill, a Approval, number string) (Bill, error) {
+// sole says gates.CheckSoD already allowed the approver to approve their own bill as the
+// firm's sole practitioner (step-up, stated reason, audited).
+func applyApproval(b Bill, a Approval, number string, sole bool) (Bill, error) {
 	if a.BillID != b.ID || a.ApprovalID == "" || a.ApprovedBy == "" || a.ApprovedAt.IsZero() {
 		return Bill{}, fmt.Errorf("approve %s: %w", b.ID, ErrInvalid)
 	}
@@ -44,8 +46,9 @@ func applyApproval(b Bill, a Approval, number string) (Bill, error) {
 	if b.Status != StatusPendingApproval {
 		return Bill{}, fmt.Errorf("approve %s in %s: %w", b.ID, b.Status, ErrNotPending)
 	}
-	// The person who prepares a bill never approves it.
-	if a.ApprovedBy == b.PreparedBy {
+	// rule: ARC-I-021
+	// The person who prepares a bill never approves it, except a sole practitioner.
+	if a.ApprovedBy == b.PreparedBy && !sole {
 		return Bill{}, fmt.Errorf("approve %s: %w", b.ID, ErrPreparerApproves)
 	}
 	// rule: BIL-C-121

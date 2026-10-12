@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -53,6 +54,8 @@ type ApproveEffect struct {
 	Now      func() time.Time // the approval instant
 	// Next issues the number; nil means NextNumber.
 	Next func(ctx context.Context, tx pgx.Tx, prefix string, year int) (string, error)
+	// SoD applies the sole-practitioner exception; while nil, the preparer is always refused.
+	SoD *gates.SoDGuard
 }
 
 // Effects returns the effect handler for gates.RegisterKinds.
@@ -84,8 +87,13 @@ func (e *ApproveEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approve
 	if g.Preparer.Kind == registry.PrincipalAgent {
 		preparer = g.Preparer.ActingFor
 	}
-	if approver.UserID == preparer {
-		return fmt.Errorf("bill approval gate %s: %w", g.GateID, ErrPreparerApproves)
+	// rule: ARC-I-021
+	// A sole practitioner may approve the bill they or their agent prepared, with step-up
+	// and a stated reason, audited as sole_practitioner.
+	duty := gates.Duty{What: GateBillApproval, ObjectID: p.BillID, Preparer: preparer, Approver: approver.UserID}
+	sod, err := e.SoD.Approve(ctx, tx, g.GateID, duty)
+	if err != nil {
+		return fmt.Errorf("bill approval gate %s: %w: %w", g.GateID, ErrPreparerApproves, err)
 	}
 	b, err := e.Store.Lock(ctx, tx, ID(p.BillID))
 	if err != nil {
@@ -97,6 +105,14 @@ func (e *ApproveEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approve
 	// The gate approves the bill it was opened on, at the total it showed.
 	if p.MatterID != b.MatterID || p.TotalCents != b.TotalCents {
 		return fmt.Errorf("bill approval gate %s: payload does not match bill %s: %w", g.GateID, b.ID, ErrInvalid)
+	}
+	// rule: ARC-I-021
+	// The bill's own preparer approving is cleared the same way.
+	if !sod.Sole && approver.UserID == b.PreparedBy {
+		duty.Preparer = b.PreparedBy
+		if sod, err = e.SoD.Approve(ctx, tx, g.GateID, duty); err != nil {
+			return fmt.Errorf("bill approval gate %s: %w: %w", g.GateID, ErrPreparerApproves, err)
+		}
 	}
 	at := e.Now()
 	next := e.Next
@@ -110,7 +126,7 @@ func (e *ApproveEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Approve
 		return fmt.Errorf("bill approval gate %s: %w", g.GateID, err)
 	}
 	approved, err := applyApproval(b, Approval{BillID: b.ID, ApprovalID: g.GateID, ApprovedBy: approver.UserID,
-		ApprovedAt: at, Prefix: e.Prefix}, number)
+		ApprovedAt: at, Prefix: e.Prefix}, number, sod.Sole)
 	if err != nil {
 		return fmt.Errorf("bill approval gate %s: %w", g.GateID, err)
 	}
@@ -226,7 +242,7 @@ func (s *PGService) Approve(ctx context.Context, tx pgx.Tx, a Approval) (Bill, e
 	if err != nil {
 		return Bill{}, fmt.Errorf("approve %s: %w", b.ID, err)
 	}
-	approved, err := applyApproval(b, a, number)
+	approved, err := applyApproval(b, a, number, false)
 	if err != nil {
 		return Bill{}, err
 	}

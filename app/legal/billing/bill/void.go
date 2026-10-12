@@ -25,6 +25,9 @@ const (
 type Voider struct {
 	UserID  string
 	IsAgent bool
+	// SoleCleared is true when gates.CheckSoD allowed the voider to decide their own bill's
+	// void as the firm's sole practitioner (step-up, stated reason, audited).
+	SoleCleared bool
 }
 
 // VoidPlan is what a void does to one bill. A void never creates a credit note.
@@ -63,7 +66,8 @@ func planVoid(b Bill, by Voider, on time.Time) (VoidPlan, error) {
 	}
 	// rule: BIL-C-084
 	// The void is decided under G-B2: never by the preparer, never by an agent.
-	if by.IsAgent || by.UserID == "" || by.UserID == b.PreparedBy {
+	// rule: ARC-I-021
+	if by.IsAgent || by.UserID == "" || (by.UserID == b.PreparedBy && !by.SoleCleared) {
 		return VoidPlan{}, fmt.Errorf("void bill %s: %w", b.ID, ErrPreparerApproves)
 	}
 	if on.IsZero() || (!b.IssueDate.IsZero() && on.Before(b.IssueDate)) {
