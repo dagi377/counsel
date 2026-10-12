@@ -367,6 +367,7 @@ func (h *Writes) gatedUpdate(w http.ResponseWriter, r *http.Request, p registry.
 		change["status"] = string(to)
 	case b.Restricted != nil:
 		change["restricted"] = *b.Restricted
+		change["visibility"] = accessVisibility(b.Restricted, m.Visibility)
 	default:
 		var team any
 		if err := json.Unmarshal(*b.Team, &team); err != nil {
@@ -378,6 +379,7 @@ func (h *Writes) gatedUpdate(w http.ResponseWriter, r *http.Request, p registry.
 			return
 		}
 		change["team"] = team
+		change["visibility"] = accessVisibility(nil, m.Visibility)
 	}
 	payload, err := json.Marshal(change)
 	if err != nil {
@@ -385,6 +387,20 @@ func (h *Writes) gatedUpdate(w http.ResponseWriter, r *http.Request, p registry.
 		return
 	}
 	h.openGate(w, r, p, kind, gate.Subject{Kind: matterkind.Subject, ID: string(m.ID)}, payload)
+}
+
+// accessVisibility is the required matter.widen_access visibility for a PATCH route change,
+// derived server-side: the audience the matter has once the change applies. Restricting
+// keeps it to the team, opening gives it to the firm, and a team change keeps the matter's
+// current audience. The effect applies restricted and team, not this field (WidenAccessPayload).
+func accessVisibility(restricted *bool, current Visibility) string {
+	switch {
+	case restricted != nil && *restricted:
+		return "team"
+	case restricted != nil, current == FirmOpen, current == "":
+		return "firm"
+	}
+	return "team"
 }
 
 func (h *Writes) transitionProblem(w http.ResponseWriter, r *http.Request, err error) {

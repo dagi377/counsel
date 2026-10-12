@@ -53,6 +53,8 @@ func (f *engineTx) QueryRow(_ context.Context, sql string, args ...any) pgx.Row 
 		return engineRow{err: pgx.ErrNoRows}
 	case strings.Contains(sql, "SELECT 1 FROM gate.approval_request"):
 		return engineRow{vals: []any{1}}
+	case strings.Contains(sql, "SELECT id::text FROM gate.gate_decision"):
+		return engineRow{vals: []any{"decision-" + id}}
 	case strings.Contains(sql, "SELECT status, requested_by::text"):
 		return engineRow{vals: []any{string(g.status), g.requester}}
 	case strings.Contains(sql, "r.supersedes_id::text"):
@@ -213,7 +215,11 @@ func TestRunDueRunsEachEffectOnce(t *testing.T) {
 	}{{"desk.refund", 0}, {"desk.payout", 2 * time.Hour}} {
 		kind := validKind(k.slug)
 		kind.CoolingOff = k.cooling
-		kind.Effect = func(_ context.Context, _ pgx.Tx, a Approved) error {
+		kind.Effect = func(ctx context.Context, _ pgx.Tx, a Approved) error {
+			// The effect context carries the approving decision, which is not the gate id.
+			if d, ok := DecisionOf(ctx); !ok || d != "decision-"+a.GateID {
+				t.Errorf("DecisionOf = (%q, %v), want the decision of %s", d, ok, a.GateID)
+			}
 			calls[a.GateID]++
 			return nil
 		}

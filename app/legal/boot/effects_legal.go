@@ -11,15 +11,23 @@ import (
 	"github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/matter/matterkind"
+	kdocs "github.com/dagi377/counsel/kernel/docs"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
 // legalEffects are the dedicated approval effects of the document, matter, conflict,
 // deadline and calendar gate kinds, one line per kind. They replace ApprovalEffect for the
 // kind. open (the kernel gate engine) opens the cal.change proposals of an approved rule
-// pack; while nil, a rule pack approval that moves a deadline fails closed.
+// pack; while nil, a rule pack approval that moves a deadline fails closed. ID destruction
+// purges from the cell bucket (docsBucket); without one, a destruction with a stored copy
+// fails closed.
 func legalEffects(open deadlines.ChangeOpener) map[string]registry.EffectFunc {
-	d, c, dl, m := docs.GateEffects(), conflict.GateEffects(), deadlines.GateEffects(open), matter.GateEffects()
+	// ID destruction purges stored copies through the docs storage port: the cell bucket.
+	var files kdocs.ObjectDeleter
+	if b, ok := docsBucket().(kdocs.ObjectDeleter); ok {
+		files = b
+	}
+	d, c, dl, m := docs.GateEffects(), conflict.GateEffects(files), deadlines.GateEffects(open), matter.GateEffects()
 	return map[string]registry.EffectFunc{
 		docs.GateEngagementLetter:    draftOr(d[docs.GateEngagementLetter]),
 		docs.GateOutgoing:            draftOr(d[docs.GateOutgoing]),

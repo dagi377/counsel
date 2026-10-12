@@ -5361,3 +5361,30 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   `$COUNSEL_DOCS_BUCKET_REGION`, `$COUNSEL_DOCS_KMS_KEY_ID` and the AWS credential variables in
   `app/legal/boot/services_docs.go`; without them the document routes keep answering 503.
   Question: should these move to `cmd/counseld` flags once production.go is free to edit?
+
+## Q-GE4-LEGAL decision ids, widen_access contract, ID file purge, builder dedupe
+
+- Fixed: the deadline effects (cal.confirm, second_check, change, mark_met, release) wrote
+  the approval_request id into cal.deadline_confirmation.gate_decision_id, an FK to
+  gate.gate_decision. The kernel effect runner now puts the approving decision (the last
+  approving gate.gate_decision row) in the effect context (`gate.WithDecision` /
+  `gate.DecisionOf`, additive); `gates.Decision` reads it and fails closed without one. No
+  other effect writes a gate_decision reference; every other gate column is an
+  approval_request FK and keeps the gate id.
+- matter.widen_access: `required` is restored to [matter_id, visibility] and the anyOf is
+  dropped; only the GE3 properties (version, restricted, team) stay, which is additive. The
+  PATCH route derives visibility server-side: restricting is `team`, opening is `firm`, a team
+  change keeps the matter's audience (firm_open -> `firm`, otherwise `team`). In the route
+  form the effect applies restricted/team and ignores visibility, so a team change never
+  loosens a restricted matter to team_only.
+- conflict.id_destruction now deletes the stored copy behind each file_ref from the cell
+  bucket through the docs storage port (`kernel/docs.ObjectDeleter`, `S3Bucket.DeleteObject`,
+  additive) before redacting, and records it in party.id_document.file_purged_at /
+  file_purge_approval_id (migration 5001, additive). A copy already gone is no error; a
+  failed delete, or no bucket configured while a copy is stored, applies nothing. The object
+  delete is outside the database tx: if the deciding tx later rolls back, the copy is
+  already gone and a re-run deletes nothing more.
+- The simple matter.Build* builders (contact_merge, practice_config, bulk_change,
+  widen_access, apply_template) are removed; the agent payload builder registry
+  (agent.PayloadBuilderSet) is the one builder. matter.BuildRenumber stays: it computes the
+  numbers. Their assertions now run against the effect checks plus the spec schema.

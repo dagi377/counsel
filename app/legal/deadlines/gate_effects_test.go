@@ -166,3 +166,53 @@ func TestChangeUniquePerGate(t *testing.T) {
 		})
 	}
 }
+
+// cal.deadline_confirmation.gate_decision_id references gate.gate_decision: every deadline
+// effect stores the approving decision id from the effect context, never the gate
+// (approval_request) id, and fails closed without one.
+func TestDeadlineEffectsStoreDecisionID(t *testing.T) {
+	ok := []registry.Principal{gatesfake.Lawyer}
+	raw := func(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
+	tests := []struct {
+		name    string
+		effect  gates.ExecEffect
+		subject registry.Subject
+		payload json.RawMessage
+	}{
+		{"confirm", applyConfirm, registry.Subject{Kind: subjectDeadline, ID: tDeadline}, json.RawMessage(`{}`)},
+		{"second check", applySecondCheck, registry.Subject{}, raw(secondCheckPayload{DeadlineID: tDeadline, DueOn: "2026-11-02"})},
+		{"change", applyChange, registry.Subject{}, raw(changePayload{DeadlineID: tDeadline, DueOn: "2026-11-09", Reason: "consent"})},
+		{"mark met", applyMarkMet, registry.Subject{}, raw(markMetPayload{DeadlineID: tDeadline, EvidenceDocumentID: tUser})},
+		{"release", applyRelease, registry.Subject{}, raw(releasePayload{DeadlineID: tDeadline, Reason: "settled"})},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := registry.Approved{GateID: gatesfake.GateID, Kind: tt.name, Subject: tt.subject, Payload: tt.payload,
+				Preparer: gatesfake.Preparer, Approvers: ok}
+			x := &gatesfake.Exec{StepRows: 1, ProofRows: 1}
+			if err := tt.effect(gatesfake.DecisionCtx(), x, g); err != nil {
+				t.Fatal(err)
+			}
+			var logged bool
+			for i, q := range x.SQL {
+				if !strings.Contains(q, "gate_decision_id") {
+					continue
+				}
+				logged = logged || strings.Contains(q, "INSERT INTO cal.deadline_confirmation")
+				if slices.Contains(x.Args[i], any(gatesfake.GateID)) {
+					t.Fatalf("statement %d passes the gate id as a decision id: %v", i, x.Args[i])
+				}
+				if !slices.Contains(x.Args[i], any(gatesfake.DecisionID)) {
+					t.Fatalf("statement %d lacks the decision id: %v", i, x.Args[i])
+				}
+			}
+			if !logged {
+				t.Fatal("no cal.deadline_confirmation insert")
+			}
+			x = &gatesfake.Exec{StepRows: 1, ProofRows: 1}
+			if err := tt.effect(context.Background(), x, g); !errors.Is(err, gates.ErrNotApplied) || len(x.SQL) != 0 {
+				t.Fatalf("without a decision: err = %v, %d statements; want ErrNotApplied and none", err, len(x.SQL))
+			}
+		})
+	}
+}

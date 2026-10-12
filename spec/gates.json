@@ -1893,8 +1893,9 @@
     "payload_schema": {
       "type": "object",
       "required": [
-        "matter_id"
-      ],
+          "matter_id",
+          "visibility"
+        ],
       "properties": {
         "matter_id": {
           "type": "string",
@@ -1943,29 +1944,7 @@
             }
           }
         }
-      },
-      "anyOf": [
-        {
-          "required": [
-            "visibility"
-          ]
-        },
-        {
-          "required": [
-            "grant_user_ids"
-          ]
-        },
-        {
-          "required": [
-            "restricted"
-          ]
-        },
-        {
-          "required": [
-            "team"
-          ]
-        }
-      ]
+      }
     }
   },
   {

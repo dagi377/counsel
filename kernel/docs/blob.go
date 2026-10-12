@@ -26,6 +26,12 @@ type Bucket interface {
 	SignGet(ctx context.Context, key string, ttl time.Duration) (string, error)
 }
 
+// ObjectDeleter removes an object from a bucket. Deleting a key that holds no object
+// succeeds, so a purge can be repeated. S3Bucket is one.
+type ObjectDeleter interface {
+	DeleteObject(ctx context.Context, key string) error
+}
+
 // BlobRef is what the database and audit detail hold for stored bytes: a key, a digest
 // and a size. It never carries document text.
 type BlobRef struct {

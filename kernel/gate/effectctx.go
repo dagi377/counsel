@@ -31,3 +31,19 @@ func RequireEffect(ctx context.Context) error {
 	}
 	return nil
 }
+
+type decisionKey struct{}
+
+// WithDecision records in ctx the gate decision that approved the gate whose effect ctx
+// runs: the id of its last approving gate.gate_decision row. Only the effect runner calls
+// it. Effects that store a decision reference (a column that references gate.gate_decision)
+// read it with DecisionOf; the gate id is not a decision id.
+func WithDecision(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, decisionKey{}, id)
+}
+
+// DecisionOf reports the approving decision id recorded by WithDecision, if any.
+func DecisionOf(ctx context.Context) (string, bool) {
+	id, ok := ctx.Value(decisionKey{}).(string)
+	return id, ok && id != ""
+}
