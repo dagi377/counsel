@@ -27,3 +27,6 @@
 /components/schemas/ProvinceCode Q-TAX-API
 /components/schemas/PlaceOfSupplyPatch Q-TAX-API
 /components/schemas/FirmTaxRegistrations Q-TAX-API
+/paths/~1payment-plans Q-CREATE-ROUTES
+/paths/~1trust~1regulatory-reports Q-CREATE-ROUTES
+/paths/~1operating-reconciliations Q-CREATE-ROUTES

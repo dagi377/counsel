@@ -4353,3 +4353,26 @@ unapplied receipts account (no new chart account).
   (ErrNoGL). Boot wires a PGGL-validated ledger.PG posting as the acting user.
 - Payments captured before this change have no receipt entry; owner to decide on a backfill.
   Trust deposits never reach these accounts (BIL-L-034).
+
+## Q-CREATE-ROUTES create routes that open the remaining money gates
+
+Additive openapi paths (api/contract-additive.txt). Each route runs the eventroute flow
+(principal, firm capability, Idempotency-Key, idempotent replay keyed by the acting user), writes
+only its own module's row and opens the gate in the same tx with the acting principal as
+preparer, answering 202 with the Gate. The effects (Q-GE3-MONEY) do the rest after a different
+human approves.
+- POST /payment-plans (billing, cap billing.payments, plus the capability on the matter: a walled
+  matter answers 404): records a proposed billing.payment_plan and opens billing.payment_plan with
+  {plan_id, matter_id, contact_id, amount_cents (sum of instalments), schedule, start_on}.
+  Instalment dates must start on start_on and step by the schedule, amounts positive cents.
+- POST /trust/regulatory-reports (trust, cap trust.record): records a trust.regulatory_report
+  (kind lso_annual_report by default; the table has no draft status, so a prepared report is
+  'ready') and opens trust.regulatory_release with {report_id, recipient}.
+- POST /operating-reconciliations (books, cap trust.reconcile, the G12g approver capability, as
+  the trust reconciliation route uses it for preparing): only the operating bank account
+  (OP-1000) is accepted; the book balance is read from the GL at period_end, never taken from
+  the body; adjusted bank = bank + signed outstanding items and must equal the book balance
+  (422 reconciliation_unbalanced); a second reconciliation for the same account and period end
+  answers 409 reconciliation_exists. Row status 'ready'; gate payload {account_id, period_end,
+  bank_balance_cents, book_balance_cents}.
+Owner to confirm the preparer capabilities (billing.payments, trust.record, trust.reconcile).
