@@ -5837,3 +5837,30 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   credentials stay environment-only and are `Secret`s. An unset URL keeps the env fallback.
 - The agent's Payments port takes the same Postgres payment service the routes build, so
   propose_payment_allocation (F-BIL-04) is served.
+
+## Q-GE2-LEGAL kinds of docs, matter, conflict, deadlines and calendar left on ApprovalEffect
+
+- Real effects (app/legal/{docs,conflict,deadlines,matter}/gate_effects.go, registered per kind in
+  app/legal/boot/effects_legal.go): docs.engagement_letter, docs.outgoing, docs.filing_privilege,
+  docs.template_publish, docs.precedent, conflict.clearance, conflict.consent_text, conflict.wall,
+  conflict.lateral, conflict.client_id, cal.confirm, cal.second_check, cal.change, cal.mark_met,
+  cal.release, cal.rule_pack, cal.calendar_delegation, matter.party_conflict, matter.key_fact.
+  A gate an agent opened on its own draft (tool-gap submit_for_approval) still takes
+  ApprovalEffect, since its payload names the draft rather than the change.
+- Left on ApprovalEffect, owner decision needed:
+  - matter.contact_merge: the payload does not say which contact survives a merge, nor the
+    relationship kind for `relate`.
+  - matter.practice_config, matter.bulk_change: `change` is an untyped object; which fields a
+    change may set is not specified.
+  - matter.renumber: the meaning of `scheme` (format, sequence, legacy_number kept?) is not specified.
+  - matter.widen_access: the HTTP route (matter/http_write.go) opens it with
+    {matter_id, version, restricted|team}, not the spec {matter_id, visibility, grant_user_ids};
+    one payload shape must be chosen first.
+  - matter.apply_template: the shapes of folder_structure, team_roles and the work template a
+    template applies are not specified, so only part of a template could be applied.
+  - conflict.id_destruction: party.identity_record has a no-delete trigger; destruction needs a
+    decided mechanism (crypto-shred of id_document ciphertext, tombstone, or a privileged role).
+- cal.change logs to cal.deadline_confirmation, whose unique (deadline_id, user_id, kind) index
+  refuses a second change of one deadline approved by the same person. Should the index allow it?
+- cal.rule_pack activates the approved version and retires the previous one; deadlines stay
+  pinned to the version they were computed with (no recompute is triggered).

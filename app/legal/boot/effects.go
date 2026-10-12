@@ -224,6 +224,9 @@ func (w *wiring) registerGates(_ context.Context, k *kboot.Kernel) error {
 	if err != nil {
 		return fmt.Errorf("gate effects: %w", err)
 	}
+	if fx, err = withLegalEffects(fx); err != nil {
+		return fmt.Errorf("gate effects: %w", err)
+	}
 	// GATE-EFFECTS: every remaining app kind gets the approval effect, so no spec or feature
 	// kind is left unregistered ("unknown kind" in production).
 	if fx, err = withApprovalEffects(fx); err != nil {
