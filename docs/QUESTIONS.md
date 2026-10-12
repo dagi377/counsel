@@ -5517,6 +5517,7 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 
 ## Q-FEAT-PLT-12 F-PLT-11 stale matter sweep drafts on the matter
 
+## Q-FEAT-PLT-12 F-PLT-11 stale matter sweep drafts on the matter
 - F-PLT-11 drafts each closing checklist (or closing letter) on the matter it read
   (`matter_id`), not on the firm: `platform.closing` (G13, `matter.GateClosing`) is about one
   matter. A weekly sweep that finds several stale matters drafts and submits one per matter.
@@ -5532,6 +5533,7 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 
 ## Q-FEAT-PLT-13 F-PLT-12 citation checker: memo event and G-RES constant
 
+## Q-FEAT-PLT-13 F-PLT-12 citation checker: memo event and G-RES constant
 - a2 names no "memo drafted" event, so F-PLT-12 binds `docs.EventDraftCreated`
   (`document.draft_created`) and the prompt checks only a research memo, drafting nothing for
   any other document. Open: a dedicated research-memo event.
@@ -5546,6 +5548,7 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 
 ## Q-PLT-FIX F-PLT-11 closing checklist carries a sourced trust balance
 
+## Q-PLT-FIX F-PLT-11 closing checklist carries a sourced trust balance
 - `platform.NewClosingChecklist` fills the `platform.closing` payload's `trust_balance_cents`
   from a get_trust_balance read in the same run (provenance-checked, else
   `ErrUnsourcedValue`) and flags `BlockerTrustBalance` for any non-zero balance (By-Law 9).
@@ -5588,7 +5591,6 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   the file is identical on the three branches.
 
 ## Q-FEAT-RDY-01 F-RDY-01 questionnaire filler event, subject and gate
-
 - F-RDY-01 binds a new `readiness.EventQuestionnaireReceived`
   (`readiness.questionnaire_received`), acting for the user who filed the questionnaire (the
   event's `user_id`). No module emits it yet: trust-center has no questionnaire intake on
@@ -5603,12 +5605,10 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 - The feature tests run agent.Handlers() with every read tool wrapped in the run's
   provenance, as boot.AgentTools does (agenttest.FromFeature serves search_documents
   unwrapped).
-- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
   (binding), the generated plugin skill, and the shared test helpers
   `app/legal/readiness/ai_rdy_helpers_test.go`.
 
 ## Q-FEAT-RDY-04 F-RDY-04 insurer questionnaire answers from trust-center
-
 - F-RDY-04 is a screen action, `trust-center > Draft insurer questionnaire answers`, with no
   event or schedule binding. It reuses `readiness.GateSecurityAnswer` from FEAT-RDY-01, so
   the branch is built on task/FEAT-RDY-01.
@@ -5620,12 +5620,10 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 - The spec words a screen action in `trigger` and leaves `on_request` empty, while the Def
   lists the action (as F-MAT-19). The rdyb helper checks the action against the trigger and
   runs the shared spec check on the Def without it.
-- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
   (trust-center screen), the generated plugin skill, and the helper file
   `app/legal/readiness/ai_rdyb_helpers_test.go` (shared with FEAT-RDY-05).
 
 ## Q-FEAT-RDY-05 F-RDY-05 service credit note from trust-center
-
 - F-RDY-05 is a screen action, `trust-center > Draft service credit note`, on the same
   trust-center matter screen as F-RDY-04 (built on task/FEAT-RDY-04). No Go constant named
   `platform.service_credit` (G-SLA, approver `billing.credit`), so
@@ -5670,3 +5668,26 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 - Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (binding), the
   generated plugin skill, and the shared helpers `app/legal/readiness/ai_rdy_helpers_test.go`
   (unchanged).
+
+## Q-PAYLOAD-BUILDERS gate payloads are built from records
+
+- Decision (AUTOPILOT SYSTEMIC): submit_for_approval no longer opens a gate with the subject
+  ids alone. `kernel/agenttools.PayloadBuilders` is a per-kind registry; when it is in the
+  agent Deps, submit_for_approval calls the kind's builder and a kind with no builder, a
+  missing record or a payload that fails its schema opens nothing (ErrNoPayloadBuilder,
+  ErrPayloadSource). Without a registry the old subject-only payload stays (manual path).
+- `app/legal/agent.PayloadBuilderSet` builds one builder for every spec/gates.json kind whose
+  schema requires a field beyond the subject (all 99 today). Each reads the subject's record
+  through the `SubjectRecords` port and checks the payload against the kind's schema. G13
+  reads the signed trust balance through `MatterTrustBalances`.
+- spec/gates.json (and its copy app/legal/gates/kinds.json), additive: G13 `platform.closing`
+  gains optional `overdrawn` (boolean), `shortfall_cents` (integer >= 0) and `blockers`
+  (string array), the Q-HTTP-10c pattern. `trust_balance_cents` keeps `minimum: 0`: an
+  overdrawn matter sends 0 there with `overdrawn: true`, the shortfall and the
+  `trust_overdrawn` (By-law 9) blocker, so its closing gate still opens for review.
+- Trigger values: `Provenance.ObserveTrigger` records a trigger payload's dates and numbers
+  as read; boot's ForgetRunner calls it for each trigger, so F-BIL-01 can take period_to from
+  its event.
+- Open: boot does not yet put a registry in the agent Deps, because production has no
+  Postgres `SubjectRecords`/`MatterTrustBalances` adapters yet (AgentPorts.OpenGate is not
+  wired in production either). The adapters and the wiring are the next task.

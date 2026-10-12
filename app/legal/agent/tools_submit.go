@@ -27,7 +27,8 @@ func SubmitForApprovalHandler() Handler {
 }
 
 // buildSubmitForApproval reads Deps: CapabilityCheck, roles.Walls, SubjectMatters and
-// agenttools.GateOpener.
+// agenttools.GateOpener, and *agenttools.PayloadBuilders when boot wired them (then every
+// gate payload is built from the subject's records and a kind with no builder opens nothing).
 func buildSubmitForApproval(d Deps) (registry.Tool, error) {
 	can, err := DepOf[CapabilityCheck](d)
 	if err != nil {
@@ -48,7 +49,8 @@ func buildSubmitForApproval(d Deps) (registry.Tool, error) {
 	// The kernel tool owns the run-scope checks, the gate payload and the gate outcome; this
 	// handler adds the a2 schema, the acting user's capability and walls.
 	// rule: ARC-I-035
-	kernel, err := agenttools.SubmitForApprovalTool(agenttools.ScopedOpener(open))
+	builders, _ := DepOf[*agenttools.PayloadBuilders](d)
+	kernel, err := agenttools.SubmitForApprovalTool(agenttools.ScopedOpener(open), builders)
 	if err != nil {
 		return registry.Tool{}, fmt.Errorf("%s: %w", ToolSubmitForApproval, err)
 	}

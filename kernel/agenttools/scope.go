@@ -216,12 +216,18 @@ type submitInput struct {
 
 // SubmitForApprovalTool returns the submit_for_approval write tool. For an agent principal
 // the gate kind must be in the run scope (ErrGateKindNotAllowed, 403) and the subject must be
-// a draft this run created (ErrNotFound, 404). The gate payload carries the subject ids only;
-// the model's note is not stored (AI-R-005). The caller is the gate's preparer, so the agent
-// never approves.
-func SubmitForApprovalTool(open GateOpener) (Tool, error) {
+// a draft this run created (ErrNotFound, 404). With a builder registry the gate payload is
+// built by the kind's PayloadBuilder from the subject's records, never from model text, and a
+// kind with no builder opens nothing; with none it carries the subject ids only. The model's
+// note is not stored (AI-R-005). The caller is the gate's preparer, so the agent never
+// approves.
+func SubmitForApprovalTool(open GateOpener, builders ...*PayloadBuilders) (Tool, error) {
 	if open == nil {
 		return Tool{}, fmt.Errorf("write tool %q: opener required: %w", ToolSubmitForApproval, ErrBadTool)
+	}
+	var b *PayloadBuilders
+	if len(builders) > 0 {
+		b = builders[0]
 	}
 	return WriteTool(Tool{
 		Name:       ToolSubmitForApproval,
@@ -244,11 +250,13 @@ func SubmitForApprovalTool(open GateOpener) (Tool, error) {
 			} else if s != nil && !s.HasDraft(in.SubjectID) {
 				return ToolResult{}, fmt.Errorf("submit for approval: draft %s: %w", in.SubjectID, ErrNotFound)
 			}
-			payload, err := json.Marshal(map[string]string{"subject_type": in.SubjectType, "subject_id": in.SubjectID})
+			subject := registry.Subject{Kind: in.SubjectType, ID: in.SubjectID}
+			// rule: AI-R-005
+			// The payload comes from the kind's builder over the subject's records.
+			payload, err := submitPayload(ctx, b, in.GateKind, subject)
 			if err != nil {
 				return ToolResult{}, fmt.Errorf("submit for approval: %w", err)
 			}
-			subject := registry.Subject{Kind: in.SubjectType, ID: in.SubjectID}
 			id, err := open(ctx, in.GateKind, subject, payload, p)
 			if err != nil {
 				return ToolResult{}, fmt.Errorf("submit for approval %q: %w", in.GateKind, err)
