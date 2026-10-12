@@ -5270,3 +5270,65 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 - Outside the listed files: ai_f_plt_02.go (Def), prompts/f-plt-02.md, spec/ai/features.json,
   app/legal/boot/agent.go. The feature test reuses the pltc helpers of FEAT-PLT-02; its own
   names carry the pltj prefix.
+
+## Q-FEAT-PLT-07 F-PLT-06 closing starter: pipeline
+
+- The tool-use pipeline (`ClosingStarterPipeline`) returns at most one draft per gate: the
+  final account (G-B2 `bill.GateBillApproval`), the trust refund (G11
+  `agent.GateTrustWithdrawal`) and the closing checklist (G13 `matter.GateClosing`), each
+  citing a quoted passage or a tool result of the run. A refund needs an amount, and every
+  amount (integer cents) must be one the quoted file or a read of the run stated
+  (`agenttools.Provenance`); anything else writes nothing.
+- The passages' figures are recorded with the kernel's own quoted-text rule
+  (`Provenance.Observe` on an untrusted envelope), so "2026-0306" or "1,800.00" read the same
+  way a read_document line does. (F-PLT-04's `observeStated` marshals `\d+` matches as
+  `json.Number`, so a match with a leading zero, e.g. "0306", fails the marshal and records
+  nothing for that passage; open for that branch.)
+- The Def joins `featureset.App()` in FEAT-PLT-08 together with its trigger binding: boot's
+  JobBindings refuses a job feature with no binding.
+- Outside the listed files: the shared test helpers `app/legal/platform/ai_pltk_helpers_test.go`.
+
+## Q-FEAT-PLT-19 F-PLT-21 prepare trust refund / transfer: real withdrawal in FromFeature
+
+- The run calls the real prepare_trust_withdrawal, which records the withdrawal as requested
+  and opens trust.withdrawal (G11); the agent never authorizes and the trust balance is
+  untouched. By-Law 9 refusals (an amount no read stated, more than the balance, a payee that
+  is not a matter contact, fees to the firm without a delivered bill) are checked through the
+  run and leave no gate and no withdrawal.
+- agenttest changed (outside the listed files) so FromFeature can run that tool on a seeded
+  matter, as boot wires production:
+  - every real read tool is wrapped with the driver's Provenance (`Provenance.ReadTool`, as
+    `boot/agent.go` does), and `Seed.Provenance` is that same set (the line BIL-FIX also
+    adds), so an amount a read_document line stated is sourced;
+  - the write tools' matter contacts fall back to `Seed.Store` for a matter the Seed holds
+    (`contactsPort`), so the payee can be the seeded client.
+  The fixed TrustMatter/WalledMatter contacts are unchanged.
+- The agent-principal 403 check uses `gatesfake.CheckDecision` and the self-approval check
+  `Driver.Decided`, as F-TRU-10 does: the withdrawal's gate lives in the trust module, not in
+  the Seed's kernel gate store.
+- `matter-closing` maps to the matter with capability `matters.view` in boot's action
+  screens, the same line FEAT-PLT-12 (F-PLT-11) adds.
+- Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (screen), the
+  generated plugin skill, agenttest (above), `app/legal/platform/ai_pltk_helpers_test.go`.
+
+## Q-FEAT-PLT-08 F-PLT-06 closing starter: write path, gates and trigger
+
+- F-PLT-06 lists billing.bill_approval (G-B2) and platform.closing (G13) as tool-gap kinds,
+  opened "via draft_document then submit_for_approval", but its spec tool list had no
+  draft_document. As decided for F-INT-06 (Q-FEAT-INT-06), draft_document is added to F-PLT-06
+  in spec/ai/features.json and in `ClosingStarterDef` (Grant `documents.edit`). Both kinds
+  were already in `tool_gaps.kinds`, so the kind count is unchanged.
+- The run requests the trust refund with the real prepare_trust_withdrawal (G11, the first
+  write), drafts the final account and the closing checklist with draft_document and submits
+  each with `ClosingSubmitInput` (G-B2, G13). The FromFeature run uses one closing report
+  document so its 9 tool calls fit the driver's 10-turn bound.
+- Trigger: `ClosingStarterBinding` binds `matter.stage_changed` (`matter.EventStageChanged`),
+  acting for the event's user, as F-DOC-10 does; the prompt drafts nothing unless the matter
+  is at its concluded stage. Open: "N days with no activity" has no kernel event and the
+  trigger text names no schedule, so ParseCadence gives none; F-PLT-11's weekly stale matter
+  sweep (BindDesignated) covers inactive matters. The stage_changed payload has no user_id,
+  so boot's ActorOf must supply the actor (same as F-DOC-10).
+- The Def joins `featureset.App()` here with its binding in boot's JobBindings.
+- Outside the listed files: ai_f_plt_06.go and prompts/f-plt-06.md (draft_document),
+  spec/ai/features.json, featureset.go/featureset_test.go, boot/agent.go (binding), the
+  generated plugin skill, `app/legal/platform/ai_pltk_helpers_test.go`.

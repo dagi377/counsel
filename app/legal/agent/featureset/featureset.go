@@ -221,5 +221,7 @@ func appDefs() []feature.Def {
 		platform.SuggestReplyDef(),
 		platform.ResearchDef(),
 		platform.MailFilingDef(),
+		platform.PrepareTrustRefundDef(),
+		platform.ClosingStarterDef(),
 	}
 }

@@ -462,6 +462,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		platform.GoalRunnerDef().ID:         platform.GoalRunnerBinding,
 		platform.RetainerCoverageDef().ID:   platform.RetainerCoverageBinding,
 		platform.FeatureMailFiling:          platform.MailFilingBinding,
+		platform.ClosingStarterDef().ID:     platform.ClosingStarterBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -709,6 +710,9 @@ var actionScreens = map[string]trigger.Screen{
 	"research-workspace": {SubjectKind: "matter", Capability: "documents.view"},
 	// Platform: the comms log selects the matter the email, reply or call is filed on.
 	"comms-log": {SubjectKind: "matter", Capability: "matters.view"},
+	// Platform. matter-closing is a matter screen (/matters/:id/close) every matter role
+	// views (F-PLT-11).
+	"matter-closing": {SubjectKind: "matter", Capability: "matters.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

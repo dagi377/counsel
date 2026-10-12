@@ -11,6 +11,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/schemas"
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/ai"
+	"github.com/dagi377/counsel/kernel/registry"
 )
 
 // FeatureActingFor is the synthetic user a feature run acts for.
@@ -73,6 +74,8 @@ func FromFeatureWith(t testing.TB, def feature.Def, hs agent.HandlerSet) *Featur
 	fd.Seed.Provenance = d.Provenance
 	// A fee transfer to the firm reads the Seed's bills (By-Law 9 s.9(1)).
 	d.FeeBills(fd.Seed.FeeBills())
+	// The real prepare_trust_withdrawal pays a contact of a matter the Seed holds.
+	d.contacts.seed = fd.Seed.Store
 	for _, k := range def.GateKinds {
 		fd.Seed.GateKind(k)
 	}
@@ -94,6 +97,12 @@ func FromFeatureWith(t testing.TB, def feature.Def, hs agent.HandlerSet) *Featur
 		// schema, plan-before-write and write-result checks apply to both.
 		if h, ok := hs.For(s.Name); ok {
 			tool, err := h.Build(deps)
+			if err == nil && tool.Kind == registry.ToolRead {
+				// rule: ARC-U-027
+				// As boot does, every real read records its dates and numbers, quoted text
+				// included, so a sourced write of the run can carry them.
+				tool, err = d.Provenance.ReadTool(tool)
+			}
 			switch {
 			case err == nil:
 				if err := d.Registry.Register(tool); err != nil {
