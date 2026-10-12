@@ -2,10 +2,10 @@ package gates
 
 import (
 	"fmt"
-
-	kaudit "github.com/dagi377/counsel/kernel/audit"
 	"slices"
 	"time"
+
+	kaudit "github.com/dagi377/counsel/kernel/audit"
 )
 
 // TrustCoolingOff is the cooling-off period of the trust kinds below: a decision on one of

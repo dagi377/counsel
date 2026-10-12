@@ -9,10 +9,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/dagi377/counsel/kernel/registry"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/dagi377/counsel/kernel/registry"
 )
 
 // GateID identifies one gate (one approval request version).
