@@ -25,6 +25,7 @@ type Statute struct {
 	schedule Schedule
 	loc      *time.Location
 	holidays []clock.Date // dated holidays (Legislation Act, 2006 s.87) for the s.88 roll
+	from, to int          // the years the holiday calendar covers
 	roll     bool         // a holiday calendar is attached, so s.88 applies
 }
 
@@ -38,14 +39,18 @@ func NewStatute(schedule Schedule) (*Statute, error) {
 	return &Statute{schedule: schedule, loc: loc}, nil
 }
 
-// WithHolidays returns s using holidays, the dated holiday calendar, for the Legislation
-// Act, 2006 s.88 roll: a period that ends on a holiday runs to the next day that is not a
-// holiday. A holiday is a Sunday or a date in the calendar (s.87); Saturday is not a
-// holiday under s.87, so a period ending on a Saturday is not moved. Boot attaches the
-// Ontario calendar; a Statute without one returns calendar last days.
-func (s *Statute) WithHolidays(holidays []clock.Date) *Statute {
+// WithHolidays returns s using holidays, the Legislation Act, 2006 s.87 dated holidays of
+// the years from to to, for the s.88 roll: a period that ends on a holiday runs to the next
+// day that is not a holiday. A holiday is a Sunday or a date in the calendar; Saturday is
+// not a holiday under s.87, so a period ending on a Saturday is not moved. The court
+// calendar (r. 1.03, with its Saturday substitutes) must not be passed here. Boot attaches
+// the Ontario s.87 calendar; a Statute without one returns calendar last days.
+//
+// A last day outside from to to still rolls past Sundays but not past dated holidays: the
+// calendar does not vouch for those years, so the earlier date stands (fail closed).
+func (s *Statute) WithHolidays(holidays []clock.Date, from, to int) *Statute {
 	c := *s
-	c.holidays, c.roll = slices.Clone(holidays), true
+	c.holidays, c.from, c.to, c.roll = slices.Clone(holidays), from, to, true
 	return &c
 }
 
@@ -302,7 +307,10 @@ func (s *Statute) day(t time.Time) time.Time {
 // at returns the last day of a period ending on calendar date d, as midnight
 // America/Toronto. (verify) Legislation Act, 2006 s.88: when the last day falls on a holiday,
 // the period ends on the next day that is not a holiday. s.87 "holiday" includes Sunday but
-// not Saturday, so a Saturday last day stands (fail closed). Whether a court office closed
+// not Saturday, so an ordinary Saturday last day stands (fail closed); the roll is
+// "holiday", not "holiday or weekend". A named holiday on a Saturday (Canada Day 2028) is
+// still a holiday and rolls past the Sunday. The r. 1.03 court substitutes (the Monday after a Saturday Canada
+// Day, for example) are not s.87 holidays and do not move a limitation date. Whether a court office closed
 // on Saturday extends the time under the Legislation Act's closed-office rule (section to
 // verify) is for the lawyer to confirm; online filing is open on Saturdays.
 func (s *Statute) at(d time.Time) time.Time {
@@ -316,9 +324,13 @@ func (s *Statute) at(d time.Time) time.Time {
 }
 
 // holiday reports whether day is a Legislation Act, 2006 s.87 holiday: a Sunday or a dated
-// holiday in the attached calendar. Saturday is not one.
+// holiday in the attached calendar. Saturday is not one. A day in a year the calendar does
+// not cover counts only if it is a Sunday.
 func (s *Statute) holiday(day clock.Date) bool {
-	return day.Start(time.UTC).Weekday() == time.Sunday || slices.Contains(s.holidays, day)
+	if day.Start(time.UTC).Weekday() == time.Sunday {
+		return true
+	}
+	return day.Year >= s.from && day.Year <= s.to && slices.Contains(s.holidays, day)
 }
 
 // addMonths adds n calendar months to a UTC-midnight date. (verify) Legislation Act, 2006

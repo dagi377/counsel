@@ -6374,3 +6374,39 @@ Owner to confirm the preparer capabilities (billing.payments, trust.record, trus
   clearance make the clearance stale? Should `needs_wall` also need an active wall record?
 - Not done here (P1): the preparer refusal in `approverErr` still has no sole-practitioner
   exception; P2 does not touch the P1 SoD helper.
+
+## LAW-P3 limitation and court holiday calendars (review B3, M8, M7 part)
+- Two rules-based calendars in `app/legal/rulepacks/ontario/holidays.go`, both generated
+  for a rolling window (previous year through ten years ahead) and both behind
+  deadline.ontario_pack. The hand list for 2025-2028 is gone from `holidays.yaml` and
+  `civil-procedure.yaml`; the generated court calendar reproduces it date for date.
+- For the lawyer to verify, rule by rule:
+  - `CourtCalendar`: Rules of Civil Procedure r. 1.03(1) "holiday". Any Saturday or
+    Sunday; New Year's Day, Family Day (3rd Monday of February), Good Friday, Easter Monday,
+    Victoria Day (Monday before May 25), Canada Day, Civic Holiday (1st Monday of August),
+    Labour Day (1st Monday of September), Thanksgiving (2nd Monday of October), Remembrance
+    Day, Christmas Day, Boxing Day; New Year's, Canada Day or Remembrance Day on a Saturday
+    or Sunday gives the following Monday; Christmas on a Saturday or Sunday gives the
+    following Monday and Tuesday; Christmas on a Friday gives the following Monday. Used by
+    r. 3.01 counting, reminders and shift_date.
+  - `LegislationActCalendar`: Legislation Act, 2006 s.87 "holiday", rolled under s.88.
+    Sunday, the same named days (is Civic Holiday in s.87? verify), and only Sunday
+    substitutes: New Year's, Canada Day or Remembrance Day on a Sunday gives the Monday;
+    Christmas on a Sunday gives the Tuesday (Boxing Day is the Monday). No Saturday
+    substitutes and no substitute for Boxing Day on a Sunday (verify both). Used by the
+    Limitations Act Statute only.
+  - Named holidays that fall on a Saturday are themselves s.87 holidays, so a limitation
+    ending on Saturday 2028-07-01 rolls past Sunday to Monday 2028-07-03; one ending ON
+    2028-07-03 stays (the B3 fix). An ordinary Saturday last day still stands.
+  - Not generated: Sep 30 and any day proclaimed a holiday (s.87 and r. 1.03 both include
+    proclaimed days); add by lawyer decision.
+- Departure from the review: outside the window the Statute does not fail with
+  ErrCalendarRange, because a 15-year ultimate period routinely ends beyond ten years.
+  It rolls past Sundays only and ignores dated holidays there, which gives the earlier,
+  safe date. Confirm this is acceptable.
+- 25-day reconciliation: `trust/recon/due.go` adds DueDate (month end + 25, no roll) and
+  OverdueAlerts (unsigned past due, and late sign-offs kept on the list), rule BL9 s.18(8)
+  (verify). Not yet wired into the readiness check or a notification job; that is boot
+  scope for a follow-up task.
+- Left from the P3 package (no new scope taken): r.16.06 deemed service and the
+  Limitations Act s.11 note (m5).
