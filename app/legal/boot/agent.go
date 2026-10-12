@@ -25,6 +25,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
+	"github.com/dagi377/counsel/app/legal/platform"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
@@ -458,6 +459,9 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		access.FeatureInviteListCheck:       access.InviteListCheckBinding,
 		access.DutyScanDef().ID:             access.DutyScanBinding,
 		access.AnomalyWatchDef().ID:         access.AnomalyWatchBinding,
+		platform.GoalRunnerDef().ID:         platform.GoalRunnerBinding,
+		platform.RetainerCoverageDef().ID:   platform.RetainerCoverageBinding,
+		platform.FeatureMailFiling:          platform.MailFilingBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -552,6 +556,9 @@ var actionScreens = map[string]trigger.Screen{
 	"access-audit":     {SubjectKind: FirmSubject, Capability: "admin.audit_log"},
 	"sign-in-settings": {SubjectKind: FirmSubject, Capability: "admin.security"},
 	"support-access":   {SubjectKind: FirmSubject, Capability: "admin.support_access"},
+	// Firm reports: the report builder and firm insights read firm-wide figures.
+	"custom-report-builder": {SubjectKind: FirmSubject, Capability: "reports.firm"},
+	"firm-insights":         {SubjectKind: FirmSubject, Capability: "reports.firm"},
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
@@ -559,6 +566,7 @@ var actionScreens = map[string]trigger.Screen{
 	// documents selects the matter; a library screen selects the documents themselves.
 	"document-assembly":       {SubjectKind: "matter", Capability: "documents.edit"},
 	"client-sharing":          {SubjectKind: "matter", Capability: "documents.edit"},
+	"client-portal":           {SubjectKind: "matter", Capability: "documents.edit"},
 	"email-filing":            {SubjectKind: "matter", Capability: "documents.view"},
 	"bundle-builder":          {SubjectKind: "matter", Capability: "documents.view"},
 	"multi-document-analysis": {SubjectKind: "matter", Capability: "documents.view"},
@@ -579,6 +587,7 @@ var actionScreens = map[string]trigger.Screen{
 	"matter-access":            {SubjectKind: "matter", Capability: "matters.view"},
 	"matter-access-report":     {SubjectKind: "matter", Capability: "matters.view"},
 	"matter-ask":               {SubjectKind: "matter", Capability: "matters.view"},
+	"ask-agent":                {SubjectKind: "matter", Capability: "matters.view"},
 	"global-search":            {SubjectKind: "matter", Capability: "matters.view"},
 	"contact-import":           {SubjectKind: party.SubjectKind, Capability: "contacts.view"},
 	"matter-list":              {SubjectKind: "matter", Capability: "matters.view"},
@@ -693,6 +702,13 @@ var actionScreens = map[string]trigger.Screen{
 	"duty-rules":  {SubjectKind: FirmSubject, Capability: "admin.roles"},
 	"roles-list":  {SubjectKind: FirmSubject, Capability: "admin.roles"},
 	"user-detail": {SubjectKind: FirmSubject, Capability: "admin.users"},
+	// Platform: internal messages, the mail add-in and the research workspace act on the
+	// selected matter and read its documents.
+	"internal-messages":  {SubjectKind: "matter", Capability: "documents.view"},
+	"mail-add-in":        {SubjectKind: "matter", Capability: "documents.view"},
+	"research-workspace": {SubjectKind: "matter", Capability: "documents.view"},
+	// Platform: the comms log selects the matter the email, reply or call is filed on.
+	"comms-log": {SubjectKind: "matter", Capability: "matters.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

@@ -3887,6 +3887,7 @@
     "get_matter",
     "search_documents",
     "read_document",
+    "draft_document",
     "propose_deadline",
     "propose_time_entries",
     "report_plan",

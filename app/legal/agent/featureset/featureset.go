@@ -21,6 +21,7 @@ import (
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/platform"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
@@ -209,5 +210,16 @@ func appDefs() []feature.Def {
 		access.ExplainPatternDef(),
 		access.ExplainChangeDef(),
 		access.SummarizeSessionDef(),
+		// platform
+		platform.GoalRunnerDef(),
+		platform.RetainerCoverageDef(),
+		platform.RequestPortalDocumentsDef(),
+		platform.AnswerWithCitationsDef(),
+		platform.DescribeReportDef(),
+		platform.ExplainChangeDef(),
+		platform.SummarizeThreadDef(),
+		platform.SuggestReplyDef(),
+		platform.ResearchDef(),
+		platform.MailFilingDef(),
 	}
 }

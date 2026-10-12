@@ -4992,6 +4992,7 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   test found propose_payment_allocation unserved: production bound the agent before the HTTP
   write ports filled Payments. `pgPayments(k)` now builds the Postgres payment service for
   both the routes and the agent port, so F-BIL-04 is ready in production.
+
 ## AGENT-PROD / AGENT-PROD-2b: production agent wiring, draft bodies, feature-run worker
 - AGENT-PROD edited files outside the boot module's own list: `cmd/counseld/main.go` gained
   the model flags (`-model-mode`, `-model-base-url`, `-model-protocol`, `-model`,
@@ -5059,6 +5060,7 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   main: its tick reached the Postgres timekeepers over the fake DB. The test now wires one
   timekeeper and checks more, not less: F-TIM-01 must enqueue a run acting for that
   timekeeper, and every other scheduled run still acts for the designated lawyer.
+
 ## Q-GATE-EFFECTS approval effect for the 74 formerly unwired app gate kinds
 - Every kind listed in app/legal/boot/unwired_gates.txt (now empty) gets `boot.ApprovalEffect`
   (app/legal/boot/effects_approval.go, `ApprovalKinds`), registered always, so every spec kind and
@@ -5074,16 +5076,19 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   approval should change domain state beyond that (cal.change, trust.transfer,
   timekeeping.writedown, trust.cash_over_limit, platform.export, conflict.wall, ...) need a
   dedicated effect each; replace ApprovalEffect for the kind when one is built.
+
 ## Q-GATE-EFFECTS-CORE core.offboarding and core.matter_visibility cannot be app-registered
 - Both are core.* kinds (registry.KernelPrefixes). gates.RegisterWired skips core.* and
   kernel/gate.ValidateKind rejects an app kind with a kernel prefix, and the kernel has no path
   that registers a core.* kind passed through identity.WithCoreEffect (core.trust_signatory has
   the same gap). Needs a kernel change: kernel boot registers AdminGates.Effects() kinds itself.
   Left for an owner decision; the production-catalogue test skips core.* kinds.
+
 ## Q-GATE-EFFECTS-PORTS trust.receipt_classification and billing.refund unregistered in production
 - Their dedicated effects need RestPorts.Receipts (Poster) and RestPorts.Refunds (Ledger), which
   Production leaves nil, so both kinds are unregistered in production. They were never in
   unwired_gates.txt (the list is computed with test ports). Wire them in Production.
+
 ## Q-EVENTS-8 Publishers for eleven events, most with no write point yet
 - Added to spec/eng/a2-interfaces.json (additive, note "EVENTS-8"): user.invited,
   user.invite_list_uploaded, user.offboard_started, break_glass.ended, email.needs_reply,
@@ -5132,6 +5137,7 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 - Boot: boot.BankFeedSyncJob runs the F-TRU-01 pipeline with trust.ReceiptGates as its sink
   in the run's scope. Open: nothing works the `agent_feature_run` River job yet, so no worker
   calls it; the job-run worker should dispatch F-TRU-01 to it.
+
 ## Q-TRANSFER-STORE trust transfer row and the trust.transfer effect
 - Closes the Q-TRU-FIX open item. `withdraw.TransferRequests.Request` writes the
   trust.trust_transfer row as `pending_authorization` and opens its trust.transfer gate in
@@ -5171,6 +5177,7 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   PGTransferStore, opening trust.transfer through the kernel gates), so F-TRU-08 is ready;
   with no gate opener the tool is not served. The readiness test also pins Payments and
   TrustTransfers.
+
 ## DOC-UPLOAD
 - Additive migrations 5803/5804: `docs.document.idempotency_key` with a unique index on
   `(created_by, idempotency_key)`, so a retried upload by the same member returns the stored
@@ -5180,3 +5187,86 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   `$COUNSEL_DOCS_BUCKET_REGION`, `$COUNSEL_DOCS_KMS_KEY_ID` and the AWS credential variables in
   `app/legal/boot/services_docs.go`; without them the document routes keep answering 503.
   Question: should these move to `cmd/counseld` flags once production.go is free to edit?
+
+## Q-FEAT-PLT-14 F-PLT-14 goal runner event and gate
+
+- F-PLT-14 binds a new `platform.EventGoalAccepted` (`agent.goal_accepted`), acting for the
+  lawyer who accepted the goal (the event's `user_id`). No module emits it yet: ask-agent has
+  no accept-goal endpoint on main. Open: the ask-agent goal flow should publish it with the
+  goal's matter id.
+- Each regulated step is drafted on the goal's matter with draft_document and opens the
+  tool-gap kind `platform.skill_autonomy` with submit_for_approval (the Q-FEAT-INT-06
+  pattern). No const names this kind in the app (intake also uses the literal).
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (binding), the generated plugin skill, and the shared test helpers
+  `app/legal/platform/ai_pltf_helpers_test.go`.
+
+## Q-FEAT-PLT-15 F-PLT-15 retainer coverage watch
+
+- F-PLT-15 runs daily for the designated lawyer (trigger.BindDesignated). A scheduled run
+  carries no subjects (RunArgs.Subjects is empty on a tick) and its tools hold no matter list
+  (get_matter and search_documents both take a matter_id). Open: a tick payload naming the
+  matters with a retainer on file, or search_matters in the spec's tool list.
+- The request is a draft_email submitted by draft_email itself, which opens
+  `platform.outgoing_email` (G-OUT) through the scoped opener; submit_for_approval with any
+  other kind is refused (ErrGateKindNotAllowed).
+- By-law 9: the prompt forbids moving trust money and says an overdraft is reported to the
+  lawyer with report_step, never drafted around; an unreadable balance drafts nothing. The
+  spec's tool list has no get_trust_balance, so the balance comes from the ledger statement
+  document; every amount and date in the request passes the provenance check.
+- Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (binding), the
+  generated plugin skill, `app/legal/platform/ai_pltf_helpers_test.go`.
+
+## Q-FEAT-PLT-16 F-PLT-16 request documents on the client portal
+
+- The request is drafted with draft_email (no submit) on the selected matter, to its client,
+  and submit_for_approval opens `platform.portal_message` (`legaldocs.GatePortalMessage`) on
+  the email draft, as F-DOC-19 does on client-sharing.
+- `client-portal` maps to the matter with capability `documents.edit` in boot's action
+  screens, like `client-sharing`.
+- Outside the listed files: featureset.go/featureset_test.go, boot/agent.go (screen), the
+  generated plugin skill, `app/legal/platform/ai_pltf_helpers_test.go`.
+
+## FEAT-PLT-26 Action screens of the read-only platform answers
+
+- F-PLT-18 runs from `ask-agent`, which selects a matter (`matters.view`). F-PLT-23 and
+  F-PLT-24 run from `custom-report-builder` and `firm-insights`, firm-level screens, so they
+  use `boot.FirmSubject` with `reports.firm`. Open: their tools (get_matter,
+  search_documents, read_document) take a matter id, so on a firm subject the run reads only
+  the matters the screen context names; a firm-wide read tool is out of this task's scope.
+- The pltj test helpers live in the platform helper file `ai_pltf_helpers_test.go`.
+
+## FEAT-PLT-27 Action screens of F-PLT-25 to F-PLT-27
+
+- `internal-messages`, `mail-add-in` and `research-workspace` select a matter with
+  `documents.view`; `research-workspace` matches the entry on task/FEAT-PLT-13, so the merge
+  keeps one.
+
+## Q-FEAT-PLT-02 F-PLT-02 mail filing: registration, event and shared helpers
+
+- The Def is added to featureset.App() (FEAT-CORE-17), so the boot test needs a job binding
+  and the `comms-log` screen. F-PLT-02 binds to the existing `comms.EventEmailReceived`
+  (`email.received`), acting for the mailbox owner; the binding lives inline in
+  `boot.JobBindings` until FEAT-PLT-03 adds `MailFilingBinding` in its write file. `comms-log`
+  maps to subject `matter`, capability `matters.view` (the access map lets every role view it).
+- Gate kinds reuse `legaldocs.GateFilingPrivilege`, `agent.GateCalConfirm` and
+  `agent.GateTimeAccept`; the auto-file threshold reuses `legaldocs.AutoFileReviewBelowPPM`.
+- The platform test helpers of F-PLT-02, F-PLT-03 and F-PLT-04 share one file,
+  `app/legal/platform/ai_pltc_helpers_test.go` (prefix `pltc`), identical on the three branches.
+
+## Q-FEAT-PLT-03 F-PLT-02 mail filing: write path, gates and trigger
+
+- Base: task/FEAT-PLT-27 (platform chain tip) with origin/task/FEAT-PLT-02 merged in. The
+  merge keeps one `package platform` doc comment (F-PLT-02's).
+- Write path, as decided for F-DOC-01 and F-PLT-04 (Q-FEAT-PLT-06): the accept line opens
+  the tool-gap kind docs.filing_privilege with draft_document then submit_for_approval, so
+  draft_document is added to F-PLT-02 in spec/ai/features.json and in MailFilingDef (Grant
+  `documents.edit`), and the prompt says how a run with tools writes through G7, G9 and G-D1.
+  docs.filing_privilege is already F-PLT-02's tool_gap kind, so the tool_gaps count is
+  unchanged.
+- `platform.EventEmailReceived` ("email.received") mirrors `comms.EventEmailReceived` (a
+  domain module does not import comms; the test pins the two equal). `MailFilingBinding`
+  replaces the inline binding in boot.JobBindings.
+- Outside the listed files: ai_f_plt_02.go (Def), prompts/f-plt-02.md, spec/ai/features.json,
+  app/legal/boot/agent.go. The feature test reuses the pltc helpers of FEAT-PLT-02; its own
+  names carry the pltj prefix.
