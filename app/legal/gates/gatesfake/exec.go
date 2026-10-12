@@ -36,6 +36,7 @@ func (e *Exec) Exec(_ context.Context, sql string, args ...any) (pgconn.CommandT
 var (
 	Lawyer   = registry.Principal{Kind: registry.PrincipalUser, UserID: "00000000-0000-0000-0000-00000000000a"}
 	Preparer = registry.Principal{Kind: registry.PrincipalUser, UserID: "00000000-0000-0000-0000-00000000000b"}
+	Partner  = registry.Principal{Kind: registry.PrincipalUser, UserID: "00000000-0000-0000-0000-00000000000c"}
 	AgentRun = registry.Principal{Kind: registry.PrincipalAgent, RunID: "r-1", ActingFor: Preparer.UserID}
 )
 
@@ -49,6 +50,9 @@ type EffectCase struct {
 	Writes  string
 	// SubjectOnly marks an effect that reads the gate subject, not the payload.
 	SubjectOnly bool
+	// TwoApprovers marks a kind that needs two distinct approvers: approval runs carry
+	// Lawyer and Partner, and a gate with Lawyer alone fails closed.
+	TwoApprovers bool
 }
 
 // effectRun is one run of an effect: the gate, the rows the fake answers, and the outcome.
@@ -75,10 +79,14 @@ func RunEffectCases(t *testing.T, cases []EffectCase) {
 			return registry.Approved{GateID: "00000000-0000-0000-0000-0000000000ff", Kind: c.Kind, Subject: c.Subject,
 				Payload: raw, Preparer: prep, Approvers: approvers}
 		}
+		ok := []registry.Principal{Lawyer}
+		if c.TwoApprovers {
+			ok = append(ok, Partner)
+		}
 		runs := []effectRun{
-			{"approval applies", g(AgentRun, Lawyer), 1, 1, nil, true},
-			{"repeat is a no-op", g(AgentRun, Lawyer), 0, 1, nil, true},
-			{"subject in another state fails closed", g(Preparer, Lawyer), 0, 0, gates.ErrNotApplied, true},
+			{"approval applies", g(AgentRun, ok...), 1, 1, nil, true},
+			{"repeat is a no-op", g(AgentRun, ok...), 0, 1, nil, true},
+			{"subject in another state fails closed", g(Preparer, ok...), 0, 0, gates.ErrNotApplied, true},
 			// rule: ARC-I-019
 			{"agent never approves", g(Preparer, AgentRun), 1, 1, gates.ErrAgentApproves, false},
 			// rule: ARC-I-016
@@ -86,8 +94,12 @@ func RunEffectCases(t *testing.T, cases []EffectCase) {
 			{"run's acting user never approves", g(AgentRun, Preparer), 1, 1, gates.ErrPreparerApproves, false},
 			{"no approver", g(Preparer), 1, 1, gates.ErrNotApplied, false},
 		}
+		if c.TwoApprovers {
+			runs = append(runs, effectRun{"one approver is not enough", g(AgentRun, Lawyer), 1, 1, gates.ErrNotApplied, false},
+				effectRun{"the same approver twice is not enough", g(AgentRun, Lawyer, Lawyer), 1, 1, gates.ErrNotApplied, false})
+		}
 		if !c.SubjectOnly {
-			empty := g(AgentRun, Lawyer)
+			empty := g(AgentRun, ok...)
 			empty.Payload = json.RawMessage(`{}`)
 			runs = append(runs, effectRun{"payload without the change fails closed", empty, 1, 1, gates.ErrNotApplied, false})
 		}

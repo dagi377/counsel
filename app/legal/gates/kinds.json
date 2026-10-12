@@ -1674,6 +1674,26 @@
             "delete",
             "relate"
           ]
+        },
+        "survivor_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "merge: the contact kept; one of contact_ids"
+        },
+        "relationship_kind": {
+          "enum": [
+            "spouse",
+            "parent",
+            "child",
+            "director_of",
+            "officer_of",
+            "shareholder_of",
+            "subsidiary_of",
+            "employee_of",
+            "member_of_firm",
+            "other"
+          ],
+          "description": "relate: party.contact_relationship kind from contact_ids[0] to contact_ids[1]"
         }
       }
     }
@@ -1723,10 +1743,49 @@
       "properties": {
         "practice_area": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "the practice area id"
         },
         "change": {
-          "type": "object"
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "default_billing_method": {
+              "enum": [
+                "hourly",
+                "flat",
+                "contingency",
+                "mixed",
+                "pro_bono",
+                "legal_aid"
+              ]
+            },
+            "default_retention_class": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default_roles": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "default_skills": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "intake_questions": {
+              "type": "array"
+            },
+            "closing_checklist_template": {
+              "type": "array"
+            }
+          }
         }
       }
     }
@@ -1754,7 +1813,33 @@
           "minItems": 1
         },
         "change": {
-          "type": "object"
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "responsible_lawyer_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "responsible_staff_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "retention_class": {
+              "type": "string",
+              "minLength": 1
+            },
+            "billing_method": {
+              "enum": [
+                "hourly",
+                "flat",
+                "contingency",
+                "mixed",
+                "pro_bono",
+                "legal_aid"
+              ]
+            }
+          }
         }
       }
     }
@@ -1783,7 +1868,17 @@
         },
         "scheme": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "number format: {yyyy} is the year, {seq} or {seq:N} the sequence"
+        },
+        "numbers": {
+          "type": "object",
+          "description": "matter id to its new number under scheme; the old number is kept as legacy_number",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minProperties": 1
         }
       }
     }
@@ -1798,8 +1893,7 @@
     "payload_schema": {
       "type": "object",
       "required": [
-        "matter_id",
-        "visibility"
+        "matter_id"
       ],
       "properties": {
         "matter_id": {
@@ -1819,8 +1913,59 @@
             "format": "uuid"
           },
           "minItems": 1
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "matter row_version the PATCH route saw"
+        },
+        "restricted": {
+          "type": "boolean",
+          "description": "PATCH route: true restricts the matter, false opens it to the firm"
+        },
+        "team": {
+          "type": "array",
+          "minItems": 1,
+          "description": "PATCH route: members to add",
+          "items": {
+            "type": "object",
+            "required": [
+              "user_id"
+            ],
+            "properties": {
+              "user_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "role": {
+                "type": "string"
+              }
+            }
+          }
         }
-      }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "visibility"
+          ]
+        },
+        {
+          "required": [
+            "grant_user_ids"
+          ]
+        },
+        {
+          "required": [
+            "restricted"
+          ]
+        },
+        {
+          "required": [
+            "team"
+          ]
+        }
+      ]
     }
   },
   {

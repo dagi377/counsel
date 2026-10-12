@@ -3,6 +3,7 @@ package conflict
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -10,15 +11,14 @@ import (
 
 // GateEffects are the approval effects of the conflict gate kinds. Each runs in the deciding
 // tx, refuses an agent approver or the preparer, and is idempotent per gate.
-// conflict.id_destruction is not here: party.identity_record forbids deletes, so its purge
-// needs an owner decision (Q-GE2-LEGAL).
 func GateEffects() map[string]registry.EffectFunc {
 	return map[string]registry.EffectFunc{
-		GateClearance:   gates.Effect(applyClearance),
-		GateConsentText: gates.Effect(applyConsentText),
-		GateWall:        gates.Effect(applyWall),
-		GateLateral:     gates.Effect(applyLateral),
-		GateClientID:    gates.Effect(applyClientID),
+		GateClearance:     gates.Effect(applyClearance),
+		GateConsentText:   gates.Effect(applyConsentText),
+		GateWall:          gates.Effect(applyWall),
+		GateLateral:       gates.Effect(applyLateral),
+		GateClientID:      gates.Effect(applyClientID),
+		GateIDDestruction: gates.Effect(applyIDDestruction),
 	}
 }
 
@@ -240,4 +240,60 @@ func applyClientID(ctx context.Context, tx gates.Execer, g registry.Approved) er
 		{SQL: clientIDUpdateSQL, Args: args},
 		{SQL: clientIDInsertSQL, Args: args},
 	}, gates.Step{SQL: clientIDProofSQL, Args: []any{p.ContactID, by, p.VerifiedOn}})
+}
+
+// G14: ID verification past its retention is destroyed. The artefacts go: each ID
+// document's number, place, expiry, file copy and vendor reference are redacted, the record's
+// source-of-funds note is cleared, and both are stamped destroyed_at. The identity_record row
+// itself is never deleted, so the conflict-check history (who was identified, when, by whom)
+// remains. Every record must belong to the contact and be past retention_until; one that is
+// not leaves the gate unapplied. Two distinct people approve.
+const (
+	idDocDestroySQL = `UPDATE party.id_document d SET number_ciphertext = '\x'::bytea, number_last4 = NULL,
+  issuer_place = NULL, expires_on = NULL, file_ref = NULL, auth_vendor_ref = NULL, destroyed_at = now()
+  FROM party.identity_record r
+ WHERE d.identity_record_id = r.id AND r.id = ANY($1::text[]::uuid[]) AND r.contact_id = $2::uuid
+   AND r.retention_until < ` + todaySQL + ` AND r.destroyed_at IS NULL AND d.destroyed_at IS NULL`
+	idRecordDestroySQL = `UPDATE party.identity_record SET source_of_funds = NULL, destroyed_at = now(),
+  destroyed_by = $3::uuid, destruction_approval_id = $4::uuid, updated_by = $3::uuid, updated_at = now(),
+  row_version = row_version + 1
+WHERE id = ANY($1::text[]::uuid[]) AND contact_id = $2::uuid AND retention_until < ` + todaySQL + `
+  AND destroyed_at IS NULL`
+	idDestroyProofSQL = `SELECT 1 WHERE (SELECT count(*) FROM party.identity_record r
+ WHERE r.id = ANY($1::text[]::uuid[]) AND r.contact_id = $2::uuid AND r.destroyed_at IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM party.id_document d WHERE d.identity_record_id = r.id AND d.destroyed_at IS NULL)
+) = cardinality($1::text[])`
+)
+
+// todaySQL is today's date in the firm's time zone.
+const todaySQL = `(now() AT TIME ZONE 'America/Toronto')::date`
+
+type idDestructionPayload struct {
+	ContactID string   `json:"contact_id"`
+	RecordIDs []string `json:"record_ids"`
+}
+
+func applyIDDestruction(ctx context.Context, tx gates.Execer, g registry.Approved) error {
+	// rule: ARC-I-019
+	// rule: ARC-I-016
+	// G14 is irreversible: two distinct people approve, neither the preparer nor an agent.
+	by, err := gates.Approvers(g, 2)
+	if err != nil {
+		return err
+	}
+	var p idDestructionPayload
+	if err := gates.Decode(g, &p); err != nil {
+		return err
+	}
+	if err := gates.Need(g, map[string]string{"contact_id": p.ContactID}); err != nil {
+		return err
+	}
+	ids := slices.Compact(slices.Sorted(slices.Values(p.RecordIDs)))
+	if len(ids) == 0 || ids[0] == "" {
+		return fmt.Errorf("%s gate %s payload: no record_ids: %w", g.Kind, g.GateID, gates.ErrNotApplied)
+	}
+	return gates.Apply(ctx, tx, g, []gates.Step{
+		{SQL: idDocDestroySQL, Args: []any{ids, p.ContactID}},
+		{SQL: idRecordDestroySQL, Args: []any{ids, p.ContactID, by, g.GateID}},
+	}, gates.Step{SQL: idDestroyProofSQL, Args: []any{ids, p.ContactID}})
 }

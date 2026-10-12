@@ -101,3 +101,20 @@ type ExecEffect func(ctx context.Context, tx Execer, g registry.Approved) error
 func Effect(f ExecEffect) registry.EffectFunc {
 	return func(ctx context.Context, tx pgx.Tx, g registry.Approved) error { return f(ctx, tx, g) }
 }
+
+// Approvers is Approver for a kind that needs n distinct approving users: it refuses what
+// Approver refuses and a gate with fewer than n distinct approvers.
+func Approvers(g registry.Approved, n int) (string, error) {
+	by, err := Approver(g)
+	if err != nil {
+		return "", err
+	}
+	seen := map[string]bool{}
+	for _, a := range g.Approvers {
+		seen[a.UserID] = true
+	}
+	if len(seen) < n {
+		return "", fmt.Errorf("gate %s: %d distinct approvers, need %d: %w", g.GateID, len(seen), n, ErrNotApplied)
+	}
+	return by, nil
+}

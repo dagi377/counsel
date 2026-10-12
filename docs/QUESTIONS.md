@@ -5933,3 +5933,24 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   access_change, integration_scope, export, guest_access, research_memo, security_answer,
   outbound_connector, payment_provider, import_balances, rule_pack, vendor_support,
   escrow_destination, service_credit, published_price): no domain table or service to apply to.
+
+## Q-GE3-LEGAL owner decisions on the Q-GE2-LEGAL kinds, applied
+
+- Real effects added (registered in app/legal/boot/effects_legal.go): conflict.id_destruction,
+  matter.contact_merge, matter.practice_config, matter.bulk_change, matter.renumber,
+  matter.widen_access, matter.apply_template. Builders: matter.Build* in matter/gate_effects.go
+  (PAYLOAD-BUILDERS was not on origin; it should call these).
+- conflict.id_destruction redacts the ID artefacts (id_document number, place, expiry, file_ref,
+  vendor ref; identity_record.source_of_funds) and stamps destroyed_at (migration 5000). The
+  identity_record row is never deleted. Two distinct approvers. The stored file behind file_ref
+  (object storage) is not purged by the effect: that needs a blob-delete port.
+- cal.rule_pack re-computes the deadlines of the pack (kernel columns pack_code, rule_key,
+  trigger_on) and opens one cal.change proposal per moved deadline through the kernel gate
+  engine; it never moves a date. App deadlines pinned only by rule_pack_id are not re-computed.
+- cal.change is unique per gate (5910-5912 replace deadline_confirmation_once).
+- Additive shapes in spec/gates.json. matter.widen_access: `required` is now [matter_id] plus
+  anyOf(visibility | grant_user_ids | restricted | team), so the PATCH route's payload validates.
+  That relaxes a `required` list; review at the next contract pass.
+- Open: cal.deadline_confirmation.gate_decision_id references gate.gate_decision(id), but the
+  deadline effects (GE2) write the approval_request id (registry.Approved.GateID). Confirm which
+  id the column holds before production, or the insert fails the FK.

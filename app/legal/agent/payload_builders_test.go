@@ -102,6 +102,18 @@ func sample(p map[string]any) any {
 				out[name] = sample(m)
 			}
 		}
+		// A map schema (additionalProperties) with minProperties gets that many entries.
+		if add, ok := p["additionalProperties"].(map[string]any); ok {
+			n := 0
+			if m, ok := p["minProperties"].(json.Number); ok {
+				if i, err := m.Int64(); err == nil {
+					n = int(i)
+				}
+			}
+			for i := len(out); i < n; i++ {
+				out[fmt.Sprintf("0190a5c3-0000-7000-8000-%012d", i)] = sample(add)
+			}
+		}
 		return out
 	}
 	return nil
