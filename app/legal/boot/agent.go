@@ -593,7 +593,8 @@ var actionScreens = map[string]trigger.Screen{
 	"document-assembly": {SubjectKind: "matter", Capability: "documents.edit"},
 	"client-sharing":    {SubjectKind: "matter", Capability: "documents.edit"},
 	// The client portal thread belongs to one matter, so the screen selects it; portal
-	// triage (F-PLT-01) runs there too (docs/QUESTIONS.md Q-FEAT-PLT-01).
+	// triage (F-PLT-01) runs there too (docs/QUESTIONS.md Q-FEAT-PLT-01) and needs
+	// documents.edit, the stricter of documents.edit and matters.view (Q-INTEG-20).
 	"client-portal":           {SubjectKind: "matter", Capability: "documents.edit"},
 	"email-filing":            {SubjectKind: "matter", Capability: "documents.view"},
 	"bundle-builder":          {SubjectKind: "matter", Capability: "documents.view"},
@@ -740,10 +741,11 @@ var actionScreens = map[string]trigger.Screen{
 	"research-workspace": {SubjectKind: "matter", Capability: "documents.view"},
 	// Platform: the comms log selects the matter the email, reply or call is filed on.
 	"comms-log": {SubjectKind: "matter", Capability: "matters.view"},
-	// Platform. matter-closing is a matter screen (/matters/:id/close) every matter role
-	// views (F-PLT-11); F-PLT-20 drafts the closing matter's final bill from it, and its
-	// write tools and gate check the stronger capabilities.
-	"matter-closing": {SubjectKind: "matter", Capability: "matters.view"},
+	// Platform. matter-closing is a matter screen (/matters/:id/close); starting any of its
+	// actions (F-PLT-11 checklist and letter, F-PLT-20 final bill, F-PLT-21 trust refund)
+	// needs matters.close, the capability of closing the matter (Q-INTEG-20). F-PLT-11's
+	// weekly sweep is a job and is not started from the screen.
+	"matter-closing": {SubjectKind: "matter", Capability: "matters.close"},
 	// The esign request selects the document it sends for signature.
 	"esign-request": {SubjectKind: legaldocs.SubjectKind, Capability: "documents.view"},
 	// Platform. archive-retention is firm-level: a destruction batch spans closed matters

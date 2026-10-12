@@ -435,3 +435,26 @@ func (f runnerFunc) Run(ctx context.Context, _ agentrun.Spec, _ agentrun.Princip
 	f(ctx)
 	return agentrun.Outcome{}, nil
 }
+
+// TestStrictScreenCapabilities pins the screens whose capability a merge once loosened
+// (Q-INTEG-20): their actions start money or client-facing work.
+func TestStrictScreenCapabilities(t *testing.T) {
+	tests := []struct {
+		screen, capability string
+	}{
+		{"matter-closing", "matters.close"},
+		{"client-portal", "documents.edit"},
+	}
+	screens := ActionScreens()
+	for _, tt := range tests {
+		t.Run(tt.screen, func(t *testing.T) {
+			got, ok := screens[tt.screen]
+			if !ok {
+				t.Fatalf("screen %q not mapped", tt.screen)
+			}
+			if got.Capability != tt.capability {
+				t.Fatalf("screen %q capability = %q, want %q", tt.screen, got.Capability, tt.capability)
+			}
+		})
+	}
+}
