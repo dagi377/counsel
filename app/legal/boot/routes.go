@@ -3,7 +3,6 @@ package boot
 import (
 	"context"
 	"fmt"
-	kdocs "github.com/dagi377/counsel/kernel/docs"
 	"net/http"
 	"slices"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/books"
 	"github.com/dagi377/counsel/app/legal/comms"
+	"github.com/dagi377/counsel/app/legal/conflict"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
 	"github.com/dagi377/counsel/app/legal/eventroute"
@@ -32,6 +32,7 @@ import (
 	"github.com/dagi377/counsel/kernel/api"
 	"github.com/dagi377/counsel/kernel/audit"
 	kboot "github.com/dagi377/counsel/kernel/boot"
+	kdocs "github.com/dagi377/counsel/kernel/docs"
 	"github.com/dagi377/counsel/kernel/idem"
 	"github.com/dagi377/counsel/kernel/registry"
 	"github.com/dagi377/counsel/kernel/server"
@@ -62,6 +63,10 @@ type HTTPPorts struct {
 	Gates  GateOpener
 	Audit  audit.Log
 	Outbox bill.Emitter
+	// Conflicts is the one conflict Checks the app shares: matter opening reads the G2
+	// clearance Clearance recorded on it (LAW-P2). Nil builds the Postgres Checks on the
+	// kernel DB (conflictChecks).
+	Conflicts *conflict.Checks
 
 	// Bills serves GET /bills*; with Drafts it also serves POST/PATCH /bills, and with
 	// Outbox and Gates the submit, void and deliver actions.

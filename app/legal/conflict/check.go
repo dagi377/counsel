@@ -145,26 +145,6 @@ const (
 	DispositionConflict Disposition = "conflict"
 )
 
-// dispositionOf is one disposition of one hit. Dispositions are appended; the latest per
-// hit counts.
-type dispositionOf struct {
-	runID string
-	hit   int
-	d     Disposition
-	note  string
-	by    string
-	at    time.Time
-}
-
-// decision is one G2 decision on a run. Decisions are appended, never edited.
-type decision struct {
-	runID   string
-	by      string
-	approve bool
-	reason  string
-	at      time.Time
-}
-
 // Checks is deliberately not a Clearer: the only Clearer is Clearance, which goes through
 // gate G2. There is no gate-less clearing path.
 var _ Checker = (*Checks)(nil)
@@ -180,20 +160,27 @@ type Checks struct {
 	// Boot sets it; while nil, no event is published and F-CON-03 does not start.
 	Events outbox.Emitter
 
-	mu           sync.Mutex
-	decisions    []decision
-	dispositions []dispositionOf
+	// records keeps hit dispositions, consents and G2 decisions.
+	records DecisionStore
 }
 
-// NewChecks returns a Checks that searches with s and stamps times from now.
+// NewChecks returns a Checks that searches with s and stamps times from now. Runs,
+// dispositions, consents and decisions stay in this process's memory: for tests only.
 func NewChecks(s Searcher, now func() time.Time) *Checks {
-	return &Checks{search: s, runs: &memRuns{}, now: now}
+	return &Checks{search: s, runs: &memRuns{}, records: newMemDecisions(), now: now}
 }
 
-// NewChecksWith returns a Checks that keeps its runs in store (PGRuns in production). G2
-// decisions and hit dispositions stay in memory (Q-PORT-18 C).
+// NewChecksWith returns a Checks that keeps its runs in store; dispositions, consents and
+// decisions stay in this process's memory. Production uses NewChecksStored.
 func NewChecksWith(s Searcher, store RunStore, now func() time.Time) *Checks {
-	return &Checks{search: s, runs: store, now: now}
+	return &Checks{search: s, runs: store, records: newMemDecisions(), now: now}
+}
+
+// NewChecksStored returns a Checks that keeps its runs in store and the conflict record of
+// each run (dispositions, consents, G2 decisions) in records: PGRuns and PGDecisions in
+// production, so a clearance survives a restart and every instance sees it (RPC 3.4).
+func NewChecksStored(s Searcher, store RunStore, records DecisionStore, now func() time.Time) *Checks {
+	return &Checks{search: s, runs: store, records: records, now: now}
 }
 
 // Check implements Checker.
@@ -241,9 +228,7 @@ func (c *Checks) Check(ctx context.Context, req Request) (Run, error) {
 	if err != nil {
 		return Run{}, fmt.Errorf("conflict check: %w", err)
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.view(run), nil
+	return c.view(ctx, run)
 }
 
 // Runs implements Checker.
@@ -255,11 +240,13 @@ func (c *Checks) Runs(ctx context.Context, matterID string) ([]Run, error) {
 	if err != nil {
 		return nil, fmt.Errorf("conflict runs: %w", err)
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	out := make([]Run, 0, len(runs))
 	for _, r := range runs {
-		out = append(out, c.view(r))
+		v, err := c.view(ctx, r)
+		if err != nil {
+			return nil, fmt.Errorf("conflict runs: %w", err)
+		}
+		out = append(out, v)
 	}
 	if len(out) == 0 {
 		return nil, nil
@@ -274,51 +261,87 @@ func (c *Checks) Dispose(ctx context.Context, runID string, hit int, lawyer Acto
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("conflict dispose: %w", err)
 	}
-	stored, err := c.runs.Get(ctx, runID)
+	run, err := c.get(ctx, runID)
 	if err != nil {
 		return fmt.Errorf("conflict dispose: %w", err)
 	}
-	run, last, err := c.dispose(runID, stored, hit, lawyer, d, note)
-	if err != nil || !last || c.Events == nil {
-		return err
+	if err := approverErr(run, lawyer); err != nil {
+		return fmt.Errorf("conflict dispose %s: %w", runID, err)
 	}
-	// Dispositions are kept in memory (Q-PORT-18 C), so there is no tx to share.
+	switch d {
+	case DispositionNotAConflict, DispositionNeedsConsent, DispositionNeedsWall, DispositionConflict:
+	default:
+		return fmt.Errorf("conflict dispose %s: %w", runID, ErrBadDisposition)
+	}
+	if hit < 0 || hit >= len(run.Hits) {
+		return fmt.Errorf("conflict dispose %s hit %d: %w", runID, hit, ErrBadDisposition)
+	}
+	note = strings.TrimSpace(note)
+	if note == "" {
+		return fmt.Errorf("conflict dispose %s hit %d: %w", runID, hit, ErrDispositionNote)
+	}
+	// rule: ARC-I-041 (LSO RPC 3.4 conflict record)
+	// The disposition is part of the conflict record: it is stored, not kept in memory.
+	before, after, err := c.records.Dispose(ctx, DispositionRecord{RunID: runID, Hit: hit, Disposition: d, Note: note,
+		By: lawyer.UserID, At: c.now()})
+	if err != nil {
+		return fmt.Errorf("conflict dispose %s hit %d: %w", runID, hit, err)
+	}
+	// The hits-disposed event fires once: when this disposition disposed the last hit.
+	if before >= len(run.Hits) || after != len(run.Hits) || c.Events == nil {
+		return nil
+	}
 	if err := c.Events.Emit(ctx, nil, outbox.Subject{Kind: SubjectRun, ID: runID}, EventHitsDisposed, hitsDisposedOf(run)); err != nil {
 		return fmt.Errorf("conflict dispose %s: event: %w", runID, err)
 	}
 	return nil
 }
 
-// dispose checks and appends one disposition. last is true when it disposed the run's last
-// undisposed hit, so the hits-disposed event fires once; re-disposing a hit of a fully
-// disposed run is not last.
-func (c *Checks) dispose(runID string, stored Run, hit int, lawyer Actor, d Disposition, note string) (run Run, last bool, err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	run = c.view(stored)
-	if err := approverErr(run, lawyer); err != nil {
-		return run, false, fmt.Errorf("conflict dispose %s: %w", runID, err)
+// RecordConsent appends a client's consent for one hit of an open run: requested, signed,
+// refused or withdrawn. A signed consent names the signed document. Only a human lawyer
+// records it; the agent never does.
+func (c *Checks) RecordConsent(ctx context.Context, runID string, hit int, lawyer Actor, k Consent) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("conflict consent: %w", err)
 	}
-	switch d {
-	case DispositionNotAConflict, DispositionNeedsConsent, DispositionNeedsWall, DispositionConflict:
-	default:
-		return run, false, fmt.Errorf("conflict dispose %s: %w", runID, ErrBadDisposition)
+	run, err := c.get(ctx, runID)
+	if err != nil {
+		return fmt.Errorf("conflict consent: %w", err)
 	}
-	if hit < 0 || hit >= len(run.Hits) {
-		return run, false, fmt.Errorf("conflict dispose %s hit %d: %w", runID, hit, ErrBadDisposition)
+	switch {
+	case lawyer.IsAgent:
+		return fmt.Errorf("conflict consent %s: %w", runID, ErrAgentApproves)
+	case lawyer.UserID == "" || !lawyer.IsLawyer:
+		return fmt.Errorf("conflict consent %s: %w", runID, ErrNotLawyer)
+	case run.Status != StatusOpen:
+		return fmt.Errorf("conflict consent %s: %w", runID, ErrDecided)
+	case hit < 0 || hit >= len(run.Hits):
+		return fmt.Errorf("conflict consent %s hit %d: %w", runID, hit, ErrBadConsent)
 	}
-	note = strings.TrimSpace(note)
-	if note == "" {
-		return run, false, fmt.Errorf("conflict dispose %s hit %d: %w", runID, hit, ErrDispositionNote)
+	k.RunID, k.Hit, k.RecordedBy, k.RecordedAt = runID, hit, lawyer.UserID, c.now()
+	if err := validConsent(k); err != nil {
+		return fmt.Errorf("conflict consent %s hit %d: %w", runID, hit, err)
 	}
-	before := len(c.latestDispositions(runID))
-	c.dispositions = append(c.dispositions, dispositionOf{runID: runID, hit: hit, d: d, note: note, by: lawyer.UserID, at: c.now()})
-	return run, before < len(run.Hits) && len(c.latestDispositions(runID)) == len(run.Hits), nil
+	if err := c.records.RecordConsent(ctx, k); err != nil {
+		return fmt.Errorf("conflict consent %s hit %d: %w", runID, hit, err)
+	}
+	return nil
 }
 
-// decide records a G2 decision on an open run. Only Clearance calls it, after the gate check. Clearing needs every hit disposed as
-// not a conflict, waived by consent, or walled off with consent, and a reason when the run
-// has any hit. Rejecting needs neither.
+// Consents returns the latest consent per hit of run runID.
+func (c *Checks) Consents(ctx context.Context, runID string) (map[int]Consent, error) {
+	out, err := c.records.Consents(ctx, runID)
+	if err != nil {
+		return nil, fmt.Errorf("conflict consents %s: %w", runID, err)
+	}
+	return out, nil
+}
+
+// decide records a G2 decision on an open run. Only Clearance calls it, after the gate
+// check. Clearing needs every hit disposed as not a conflict, waived by signed consent, or
+// walled off with signed consent, and a reason when the run has any hit. Rejecting needs
+// neither. The rules are checked on the stored records in the transaction that stores the
+// decision.
 func (c *Checks) decide(ctx context.Context, runID string, approver Actor, approve bool, reason string) (Run, error) {
 	if err := ctx.Err(); err != nil {
 		return Run{}, fmt.Errorf("conflict decide: %w", err)
@@ -327,27 +350,29 @@ func (c *Checks) decide(ctx context.Context, runID string, approver Actor, appro
 	if err != nil {
 		return Run{}, fmt.Errorf("conflict decide: %w", err)
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	run := c.view(stored)
+	run, err := c.view(ctx, stored)
+	if err != nil {
+		return Run{}, fmt.Errorf("conflict decide: %w", err)
+	}
 	if err := approverErr(run, approver); err != nil {
 		return run, fmt.Errorf("conflict decide %s: %w", runID, err)
 	}
+	var check ClearCheck
 	if approve && len(run.Hits) > 0 {
-		latest := c.latestDispositions(runID)
-		for h := range run.Hits {
-			switch latest[h] {
-			case DispositionNotAConflict, DispositionNeedsConsent, DispositionNeedsWall:
-			default:
-				return run, fmt.Errorf("conflict decide %s hit %d: %w", runID, h, ErrUndisposedHits)
-			}
-		}
 		if strings.TrimSpace(reason) == "" {
 			return run, fmt.Errorf("conflict decide %s: %w", runID, ErrDispositionNote)
 		}
+		check = clearCheck(runID, len(run.Hits))
 	}
-	c.decisions = append(c.decisions, decision{runID: runID, by: approver.UserID, approve: approve, reason: reason, at: c.now()})
-	return c.view(stored), nil
+	// rule: ARC-I-041 (LSO RPC 3.4 conflict record)
+	if err := c.records.Decide(ctx, DecisionRecord{RunID: runID, By: approver.UserID, Approve: approve, Reason: reason,
+		At: c.now()}, check); err != nil {
+		if errors.Is(err, ErrUndisposedHits) || errors.Is(err, ErrConsentMissing) {
+			return run, err // clearCheck names the run and hit
+		}
+		return run, fmt.Errorf("conflict decide %s: %w", runID, err)
+	}
+	return c.view(ctx, stored)
 }
 
 // get returns the current view of run runID from the store.
@@ -356,9 +381,7 @@ func (c *Checks) get(ctx context.Context, runID string) (Run, error) {
 	if err != nil {
 		return Run{}, err
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.view(r), nil
+	return c.view(ctx, r)
 }
 
 // approverErr checks who may dispose or decide on run: a lawyer, not the agent and not the
@@ -377,33 +400,23 @@ func approverErr(run Run, a Actor) error {
 	return nil
 }
 
-// latestDispositions maps each disposed hit of runID to its latest disposition.
-func (c *Checks) latestDispositions(runID string) map[int]Disposition {
-	out := map[int]Disposition{}
-	for _, d := range c.dispositions {
-		if d.runID == runID {
-			out[d.hit] = d.d
-		}
-	}
-	return out
-}
-
-// view returns a copy of r with its decision applied. Callers cannot reach the stored slices.
-func (c *Checks) view(r Run) Run {
+// view returns a copy of r with its stored decision applied. Callers cannot reach the
+// stored slices.
+func (c *Checks) view(ctx context.Context, r Run) (Run, error) {
 	r.Terms = append([]string(nil), r.Terms...)
 	r.Hits = append([]Hit(nil), r.Hits...)
-	for _, d := range c.decisions {
-		if d.runID != r.ID {
-			continue
-		}
+	d, ok, err := c.records.Decision(ctx, r.ID)
+	if err != nil {
+		return Run{}, fmt.Errorf("decision of run %s: %w", r.ID, err)
+	}
+	if ok {
 		r.Status = StatusRejected
-		if d.approve {
+		if d.Approve {
 			r.Status = StatusCleared
 		}
-		r.DecidedBy, r.Reason, r.DecidedAt = d.by, d.reason, d.at
-		break
+		r.DecidedBy, r.Reason, r.DecidedAt = d.By, d.Reason, d.At
 	}
-	return r
+	return r, nil
 }
 
 // preparerOf is the user who counts as preparer: for an agent, the user it acts for.

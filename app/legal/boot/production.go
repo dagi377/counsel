@@ -229,6 +229,10 @@ func (p Production) options(k *kboot.Kernel) (Options, error) {
 	}
 	access := identity.NewChecker(roles, assign)
 	auditLog := audit.New(conn, AuditMasker(), audit.Options{})
+	// rule: ARC-I-041 (LSO RPC 3.4 conflict record)
+	// One conflict Checks over Postgres, shared by Clearance, matter opening and the agent,
+	// so a G2 clearance is the record matter opening reads.
+	checks := conflictChecks(k)
 	o := Options{
 		HTTP: &HTTPPorts{
 			Access:    access,
@@ -237,11 +241,12 @@ func (p Production) options(k *kboot.Kernel) (Options, error) {
 			Principal: principal,
 			// No sign-in service: no request ever passed step-up, so every gate decision
 			// answers 401 step_up_required (fail closed). bindProduction replaces it.
-			StepUp: noStepUp,
-			Idem:   idem.NewPG(conn),
-			Audit:  auditLog,
+			StepUp:    noStepUp,
+			Idem:      idem.NewPG(conn),
+			Audit:     auditLog,
+			Conflicts: checks,
 		},
-		Clearance: &ClearancePorts{Search: conflict.NewPGSearcher(k.DB), Roles: roles, Assignments: assign},
+		Clearance: &ClearancePorts{Search: conflict.NewPGSearcher(k.DB), Checks: checks, Roles: roles, Assignments: assign},
 		Rest:      productionRest(k, conn),
 	}
 	if p.SealKey != nil {
@@ -353,6 +358,10 @@ func matterWrites(k *kboot.Kernel, p HTTPPorts, reads matter.HTTP, approvers map
 	if p.DB == nil || p.Gates == nil || p.Idem == nil || k.Clock == nil {
 		return nil
 	}
+	checks := p.Conflicts
+	if checks == nil {
+		checks = conflictChecks(k)
+	}
 	return &matter.Writes{
 		HTTP:    reads,
 		DB:      p.DB,
@@ -360,12 +369,20 @@ func matterWrites(k *kboot.Kernel, p HTTPPorts, reads matter.HTTP, approvers map
 		Updates: matter.NewPGUpdater(k.DB),
 		Lifecycle: &matter.Lifecycle{
 			Clock:     k.Clock,
-			Conflicts: conflict.NewChecksWith(conflict.NewPGSearcher(k.DB), conflict.NewPGRuns(k.DB), k.Clock.Now),
+			Conflicts: checks,
 			Walls:     matter.NewPGWalls(k.DB),
 		},
 		Idem:         p.Idem,
 		MinApprovers: approvers,
 	}
+}
+
+// conflictChecks is the conflict Checks over Postgres on k: runs in PGRuns, and dispositions,
+// consents and G2 decisions in PGDecisions, so the conflict record survives a restart and
+// every replica reads the same clearance (RPC 3.4).
+func conflictChecks(k *kboot.Kernel) *conflict.Checks {
+	return conflict.NewChecksStored(conflict.NewPGSearcher(k.DB), conflict.NewPGRuns(k.DB), conflict.NewPGDecisions(k.DB),
+		k.Clock.Now)
 }
 
 // designatedOrPG is d, or the Postgres firm setting on the kernel DB when d is nil.
