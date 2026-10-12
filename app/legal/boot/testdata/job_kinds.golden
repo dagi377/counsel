@@ -1,2 +1,4 @@
 firm.sole_practitioner_sync
+platform.destruction_run
+platform.release_send
 trust.withdrawal_release_expired
