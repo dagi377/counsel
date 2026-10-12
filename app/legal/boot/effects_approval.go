@@ -125,9 +125,6 @@ var ApprovalKinds = []string{
 	"docs.outgoing",
 	"docs.precedent",
 	"docs.template_publish",
-	"intake.consult_outcome",
-	"intake.fee_waiver",
-	"intake.open_matter",
 	"matter.agent_note",
 	"matter.apply_template",
 	"matter.bulk_change",
@@ -142,10 +139,6 @@ var ApprovalKinds = []string{
 	"timekeeping.fee_arrangement",
 	"timekeeping.timesheet",
 	"timekeeping.writedown",
-	"work.absence",
-	"work.external_sync",
-	"work.plan",
-	"work.workflow_publish",
 }
 
 // withApprovalEffects gives each ApprovalKinds kind that fx has no effect for the

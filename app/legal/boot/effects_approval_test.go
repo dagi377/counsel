@@ -122,14 +122,14 @@ func TestApprovalEffectIdempotent(t *testing.T) {
 }
 
 func TestWithApprovalEffectsKeepsDedicated(t *testing.T) {
-	fx, err := withApprovalEffects(map[string]registry.EffectFunc{"intake.consult_outcome": noopEffect})
+	fx, err := withApprovalEffects(map[string]registry.EffectFunc{"matter.agent_note": noopEffect})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(fx) != len(ApprovalKinds) {
 		t.Fatalf("got %d effects, want %d", len(fx), len(ApprovalKinds))
 	}
-	if err := fx["intake.consult_outcome"](context.Background(), nil, registry.Approved{}); err != nil {
+	if err := fx["matter.agent_note"](context.Background(), nil, registry.Approved{}); err != nil {
 		t.Fatalf("dedicated effect replaced: %v", err)
 	}
 }
@@ -167,7 +167,7 @@ func TestProductionRegistersEveryDeclaredGateKind(t *testing.T) {
 	// Kernel admin kinds whose effect no app or kernel store supplies yet (Q-GE2-OPS-CORE).
 	noEffect := map[string]bool{
 		"core.role_change": true, "core.user_activation": true, "core.temp_grant": true,
-		"core.wall_lift": true, "core.break_glass_review": true, "core.review_close": true,
+		"core.break_glass_review": true, "core.review_close": true,
 		"core.bulk_export": true, "core.sign_in_settings": true, "core.mfa_reset": true,
 		"core.vendor_support": true, "core.authority_limit": true,
 	}
