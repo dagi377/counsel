@@ -22,6 +22,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/platform"
+	"github.com/dagi377/counsel/app/legal/readiness"
 	"github.com/dagi377/counsel/app/legal/timekeeping"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
@@ -239,5 +240,9 @@ func appDefs() []feature.Def {
 		platform.CitationCheckerDef(),
 		platform.PortalTriageDef(),
 		platform.ReplyDrafterDef(),
+		// readiness
+		readiness.QuestionnaireFillerDef(),
+		readiness.InsurerAnswersDef(),
+		readiness.ServiceCreditDef(),
 	}
 }

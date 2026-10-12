@@ -26,6 +26,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/party"
 	"github.com/dagi377/counsel/app/legal/platform"
+	"github.com/dagi377/counsel/app/legal/readiness"
 	"github.com/dagi377/counsel/app/legal/roles"
 	tk "github.com/dagi377/counsel/app/legal/timekeeping"
 	"github.com/dagi377/counsel/app/legal/trust"
@@ -474,6 +475,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		platform.CitationCheckerDef().ID:         platform.CitationCheckerBinding,
 		platform.PortalTriageDef().ID:            platform.PortalTriageBinding,
 		platform.ReplyDrafterDef().ID:            platform.ReplyDrafterBinding,
+		readiness.QuestionnaireFillerDef().ID:    readiness.QuestionnaireFillerBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -754,6 +756,10 @@ var actionScreens = map[string]trigger.Screen{
 	// views (F-PLT-11).
 	// research-workspace is a matter screen (/matters/:id/research) over its documents
 	// (F-PLT-12).
+	// Readiness. trust-center is firm-level, but its features search and draft on the
+	// readiness matter that holds the controls list, so it selects that matter
+	// (Q-FEAT-RDY-04).
+	"trust-center": {SubjectKind: "matter", Capability: "documents.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

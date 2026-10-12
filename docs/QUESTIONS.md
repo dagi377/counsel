@@ -5586,3 +5586,54 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   the same `comms-log` entry; a merge keeps one.
 - The tests share `app/legal/platform/ai_pltc_helpers_test.go` with FEAT-PLT-02 and FEAT-PLT-06;
   the file is identical on the three branches.
+
+## Q-FEAT-RDY-01 F-RDY-01 questionnaire filler event, subject and gate
+
+- F-RDY-01 binds a new `readiness.EventQuestionnaireReceived`
+  (`readiness.questionnaire_received`), acting for the user who filed the questionnaire (the
+  event's `user_id`). No module emits it yet: trust-center has no questionnaire intake on
+  main. Open: trust-center should publish it with the matter that holds the questionnaire.
+- trust-center is firm-level and main has `boot.FirmSubject`, but the Def's only read tool,
+  search_documents, takes a matter, and a firm draft needs `intake.forms`
+  (Q-FORM-SUBJECT). So the run searches and drafts on the matter the event names (the firm's
+  readiness matter holding the controls list). Switch to the firm subject once
+  search_documents and draft_document accept it for this feature.
+- The answers are drafted with draft_document and open the tool-gap kind
+  `platform.security_answer` with submit_for_approval (the Q-FEAT-INT-06 pattern).
+- The feature tests run agent.Handlers() with every read tool wrapped in the run's
+  provenance, as boot.AgentTools does (agenttest.FromFeature serves search_documents
+  unwrapped).
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (binding), the generated plugin skill, and the shared test helpers
+  `app/legal/readiness/ai_rdy_helpers_test.go`.
+
+## Q-FEAT-RDY-04 F-RDY-04 insurer questionnaire answers from trust-center
+
+- F-RDY-04 is a screen action, `trust-center > Draft insurer questionnaire answers`, with no
+  event or schedule binding. It reuses `readiness.GateSecurityAnswer` from FEAT-RDY-01, so
+  the branch is built on task/FEAT-RDY-01.
+- trust-center is firm-level and main has `boot.FirmSubject`, but search_documents takes a
+  matter and a firm draft needs `intake.forms` (Q-FORM-SUBJECT, as Q-FEAT-RDY-01). So
+  `trust-center` is listed in boot's actionScreens as a matter screen with `documents.view`:
+  the owner selects the readiness matter that holds the controls list. Switch to FirmSubject
+  once search_documents and draft_document accept the firm.
+- The spec words a screen action in `trigger` and leaves `on_request` empty, while the Def
+  lists the action (as F-MAT-19). The rdyb helper checks the action against the trigger and
+  runs the shared spec check on the Def without it.
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (trust-center screen), the generated plugin skill, and the helper file
+  `app/legal/readiness/ai_rdyb_helpers_test.go` (shared with FEAT-RDY-05).
+
+## Q-FEAT-RDY-05 F-RDY-05 service credit note from trust-center
+
+- F-RDY-05 is a screen action, `trust-center > Draft service credit note`, on the same
+  trust-center matter screen as F-RDY-04 (built on task/FEAT-RDY-04). No Go constant named
+  `platform.service_credit` (G-SLA, approver `billing.credit`), so
+  `readiness.GateServiceCredit` holds it.
+- The G-SLA payload schema names `amount_cents`, but the tool-gap submit_for_approval
+  payload is `{subject_type, subject_id}` (as Q-FEAT-PLT-12 for platform.closing). The credit
+  amount is in the draft body, provenance-checked against the status page record. Open: fill
+  `amount_cents` from a sourced read when a typed service-credit write exists.
+- No uptime read tool exists; the run reads the month's uptime from the status page record
+  filed on the selected matter with search_documents. When uptime meets target it drafts
+  nothing.
