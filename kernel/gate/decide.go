@@ -397,13 +397,17 @@ ON CONFLICT (approval_id) DO NOTHING`, string(g.ID), k.Slug)
 	if err != nil {
 		return err
 	}
+	decisionID, err := approvingDecision(ctx, tx, g.ID)
+	if err != nil {
+		return err
+	}
 	sp, err := tx.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("decide %s: savepoint: %w", g.ID, err)
 	}
 	// rule: ARC-I-012
 	// Only effect handlers run with WithEffect; effect-owned service writes require it.
-	effErr := k.Effect(WithEffect(ctx, g.ID), sp, Approved{
+	effErr := k.Effect(WithDecision(WithEffect(ctx, g.ID), decisionID), sp, Approved{
 		GateID: string(g.ID), Kind: g.Kind, Version: g.Version, Subject: g.Subject,
 		Payload: g.Payload, Preparer: g.Preparer, Approvers: approvers,
 	})
@@ -432,6 +436,18 @@ func nonEmptyCode(s string) any {
 		return nil
 	}
 	return s
+}
+
+// approvingDecision is the id of the last approving gate.gate_decision row of gate id: the
+// decision that completed the approval. Effects that reference a decision store this id.
+func approvingDecision(ctx context.Context, tx pgx.Tx, id GateID) (string, error) {
+	var d string
+	if err := tx.QueryRow(ctx, `
+SELECT id::text FROM gate.gate_decision
+ WHERE approval_id = $1 AND decision = 'approve' ORDER BY decided_at DESC, id DESC LIMIT 1`, string(id)).Scan(&d); err != nil {
+		return "", fmt.Errorf("decide %s: approving decision: %w", id, err)
+	}
+	return d, nil
 }
 
 func approversOf(ctx context.Context, tx pgx.Tx, id GateID) ([]Principal, error) {

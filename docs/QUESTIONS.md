@@ -4440,6 +4440,85 @@ of FEAT-TIM-01 above.
   (sourcedRead) and boot also wraps every read tool (TIME-FIX); recording a value twice is
   harmless, but one of the two can go.
 
+## Q-GATE-EFFECTS approval effect for the 74 formerly unwired app gate kinds
+
+- Every kind listed in app/legal/boot/unwired_gates.txt (now empty) gets `boot.ApprovalEffect`
+  (app/legal/boot/effects_approval.go, `ApprovalKinds`), registered always, so every spec kind and
+  every feature Def kind resolves in the production catalogue. The effect fails closed on an
+  agent approver or the preparer (or the user an agent preparer acted for), then by subject:
+  document_draft -> docs.draft status 'approved' (tool-gap kinds, e.g. intake.consult_outcome,
+  timekeeping.fee_arrangement, platform.summary_accuracy); email_draft -> comm_item stamped with
+  approval_id and queued for delivery (G-B7 billing.collections_message, outgoing email);
+  agent_note -> matter.note confirmed_by the approver. Each statement re-matches a row the same
+  gate already approved, so it is idempotent.
+- Open (owner): for subjects the effect does not move (lead, conflict run, work item, deadline,
+  time entry, bill, ...) the approval is recorded by the gate decision only. Kinds whose
+  approval should change domain state beyond that (cal.change, trust.transfer,
+  timekeeping.writedown, trust.cash_over_limit, platform.export, conflict.wall, ...) need a
+  dedicated effect each; replace ApprovalEffect for the kind when one is built.
+
+## Q-GATE-EFFECTS-CORE core.offboarding and core.matter_visibility cannot be app-registered
+
+- Both are core.* kinds (registry.KernelPrefixes). gates.RegisterWired skips core.* and
+  kernel/gate.ValidateKind rejects an app kind with a kernel prefix, and the kernel has no path
+  that registers a core.* kind passed through identity.WithCoreEffect (core.trust_signatory has
+  the same gap). Needs a kernel change: kernel boot registers AdminGates.Effects() kinds itself.
+  Left for an owner decision; the production-catalogue test skips core.* kinds.
+
+## Q-GATE-EFFECTS-PORTS trust.receipt_classification and billing.refund unregistered in production
+
+- Their dedicated effects need RestPorts.Receipts (Poster) and RestPorts.Refunds (Ledger), which
+  Production leaves nil, so both kinds are unregistered in production. They were never in
+  unwired_gates.txt (the list is computed with test ports). Wire them in Production.
+
+## Q-GE2-LEGAL kinds of docs, matter, conflict, deadlines and calendar left on ApprovalEffect
+
+- Real effects (app/legal/{docs,conflict,deadlines,matter}/gate_effects.go, registered per kind in
+  app/legal/boot/effects_legal.go): docs.engagement_letter, docs.outgoing, docs.filing_privilege,
+  docs.template_publish, docs.precedent, conflict.clearance, conflict.consent_text, conflict.wall,
+  conflict.lateral, conflict.client_id, cal.confirm, cal.second_check, cal.change, cal.mark_met,
+  cal.release, cal.rule_pack, cal.calendar_delegation, matter.party_conflict, matter.key_fact.
+  A gate an agent opened on its own draft (tool-gap submit_for_approval) still takes
+  ApprovalEffect, since its payload names the draft rather than the change.
+- Left on ApprovalEffect, owner decision needed:
+  - matter.contact_merge: the payload does not say which contact survives a merge, nor the
+    relationship kind for `relate`.
+  - matter.practice_config, matter.bulk_change: `change` is an untyped object; which fields a
+    change may set is not specified.
+  - matter.renumber: the meaning of `scheme` (format, sequence, legacy_number kept?) is not specified.
+  - matter.widen_access: the HTTP route (matter/http_write.go) opens it with
+    {matter_id, version, restricted|team}, not the spec {matter_id, visibility, grant_user_ids};
+    one payload shape must be chosen first.
+  - matter.apply_template: the shapes of folder_structure, team_roles and the work template a
+    template applies are not specified, so only part of a template could be applied.
+  - conflict.id_destruction: party.identity_record has a no-delete trigger; destruction needs a
+    decided mechanism (crypto-shred of id_document ciphertext, tombstone, or a privileged role).
+- cal.change logs to cal.deadline_confirmation, whose unique (deadline_id, user_id, kind) index
+  refuses a second change of one deadline approved by the same person. Should the index allow it?
+- cal.rule_pack activates the approved version and retires the previous one; deadlines stay
+  pinned to the version they were computed with (no recompute is triggered).
+
+## Q-GE3-LEGAL owner decisions on the Q-GE2-LEGAL kinds, applied
+
+- Real effects added (registered in app/legal/boot/effects_legal.go): conflict.id_destruction,
+  matter.contact_merge, matter.practice_config, matter.bulk_change, matter.renumber,
+  matter.widen_access, matter.apply_template. Builders: matter.Build* in matter/gate_effects.go
+  (PAYLOAD-BUILDERS was not on origin; it should call these).
+- conflict.id_destruction redacts the ID artefacts (id_document number, place, expiry, file_ref,
+  vendor ref; identity_record.source_of_funds) and stamps destroyed_at (migration 5000). The
+  identity_record row is never deleted. Two distinct approvers. The stored file behind file_ref
+  (object storage) is not purged by the effect: that needs a blob-delete port.
+- cal.rule_pack re-computes the deadlines of the pack (kernel columns pack_code, rule_key,
+  trigger_on) and opens one cal.change proposal per moved deadline through the kernel gate
+  engine; it never moves a date. App deadlines pinned only by rule_pack_id are not re-computed.
+- cal.change is unique per gate (5910-5912 replace deadline_confirmation_once).
+- Additive shapes in spec/gates.json. matter.widen_access: `required` is now [matter_id] plus
+  anyOf(visibility | grant_user_ids | restricted | team), so the PATCH route's payload validates.
+  That relaxes a `required` list; review at the next contract pass.
+- Open: cal.deadline_confirmation.gate_decision_id references gate.gate_decision(id), but the
+  deadline effects (GE2) write the approval_request id (registry.Approved.GateID). Confirm which
+  id the column holds before production, or the insert fails the FK.
+
 ## Q-SHIFT-FLAG shift_date business days behind deadline.ontario_pack
 
 ## Q-GATE-EFFECTS approval effect for the 74 formerly unwired app gate kinds
@@ -4824,6 +4903,115 @@ and has a one-outbox-event test.
 - FEAT-ACC-06 did not carry ACC-04 and ACC-05 (each branch was one commit on main), so pass 18
   merged task/FEAT-ACC-04 (F-ACC-06) and task/FEAT-ACC-05 (F-ACC-07) after it. Their accb
   helpers were identical to the copy ACC-06 brought, so `ai_acc_helpers_test.go` keeps one copy.
+
+## Q-FEAT-PLT-12 F-PLT-11 stale matter sweep drafts on the matter
+- F-PLT-11 drafts each closing checklist (or closing letter) on the matter it read
+  (`matter_id`), not on the firm: `platform.closing` (G13, `matter.GateClosing`) is about one
+  matter. A weekly sweep that finds several stale matters drafts and submits one per matter.
+  The agent never closes a matter; a lawyer with `matters.close` approves.
+- The a2 payload schema of `platform.closing` names `trust_balance_cents`; submit_for_approval
+  opens the gate on the draft and the closing route that fills the payload is not in this
+  task. The tests use the fake gate store.
+- The weekly schedule acts for the designated lawyer (trigger.BindDesignated). The plte test
+  helpers (`ai_plte_helpers_test.go`) are shared with FEAT-PLT-13.
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (binding, and `matter-closing` as a matter screen with `matters.view`), the generated plugin
+  skill.
+
+## Q-FEAT-PLT-13 F-PLT-12 citation checker: memo event and G-RES constant
+- a2 names no "memo drafted" event, so F-PLT-12 binds `docs.EventDraftCreated`
+  (`document.draft_created`) and the prompt checks only a research memo, drafting nothing for
+  any other document. Open: a dedicated research-memo event.
+- No Go constant named `platform.research_memo` (G-RES, approver `documents.release`), so
+  `platform.GateResearchMemo` holds it. It is still in boot's unwired_gates.txt; the report is
+  drafted on the memo's matter and submit_for_approval opens the gate there.
+- F-PLT-12 is an extraction model call with no OutputSchema, like F-DOC-15: the report is the
+  draft_document body, and extraction Defs export no plugin skill.
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (binding, and `research-workspace` as a matter screen with `documents.view`). Built on
+  task/FEAT-PLT-12 for the shared plte test helpers.
+
+## Q-PLT-FIX F-PLT-11 closing checklist carries a sourced trust balance
+- `platform.NewClosingChecklist` fills the `platform.closing` payload's `trust_balance_cents`
+  from a get_trust_balance read in the same run (provenance-checked, else
+  `ErrUnsourcedValue`) and flags `BlockerTrustBalance` for any non-zero balance (By-Law 9).
+  The signed balance is never clamped: an overdrawn ledger stays negative, so the payload then
+  fails the G13 schema (`minimum: 0`) and the gate cannot open. That is fail-closed on purpose.
+- Open: spec/ai/features.json lists no get_trust_balance for F-PLT-11, so the Def's tools are
+  unchanged, and the kernel submit_for_approval payload is `{subject_type, subject_id}` only.
+  Wiring the checklist into the closing submit path (or adding get_trust_balance to the
+  spec's F-PLT-11 tools) needs a spec decision. No closing gate effect exists yet; when one
+  lands it must re-check the ledger at zero (ARC-I-024).
+- No rule id names "close only at $0.00 trust"; the blocker is tagged BIL-L-036.
+
+## Q-FEAT-RDY-01 F-RDY-01 questionnaire filler event, subject and gate
+- F-RDY-01 binds a new `readiness.EventQuestionnaireReceived`
+  (`readiness.questionnaire_received`), acting for the user who filed the questionnaire (the
+  event's `user_id`). No module emits it yet: trust-center has no questionnaire intake on
+  main. Open: trust-center should publish it with the matter that holds the questionnaire.
+- trust-center is firm-level and main has `boot.FirmSubject`, but the Def's only read tool,
+  search_documents, takes a matter, and a firm draft needs `intake.forms`
+  (Q-FORM-SUBJECT). So the run searches and drafts on the matter the event names (the firm's
+  readiness matter holding the controls list). Switch to the firm subject once
+  search_documents and draft_document accept it for this feature.
+- The answers are drafted with draft_document and open the tool-gap kind
+  `platform.security_answer` with submit_for_approval (the Q-FEAT-INT-06 pattern).
+- The feature tests run agent.Handlers() with every read tool wrapped in the run's
+  provenance, as boot.AgentTools does (agenttest.FromFeature serves search_documents
+  unwrapped).
+  (binding), the generated plugin skill, and the shared test helpers
+  `app/legal/readiness/ai_rdy_helpers_test.go`.
+
+## Q-FEAT-RDY-04 F-RDY-04 insurer questionnaire answers from trust-center
+- F-RDY-04 is a screen action, `trust-center > Draft insurer questionnaire answers`, with no
+  event or schedule binding. It reuses `readiness.GateSecurityAnswer` from FEAT-RDY-01, so
+  the branch is built on task/FEAT-RDY-01.
+- trust-center is firm-level and main has `boot.FirmSubject`, but search_documents takes a
+  matter and a firm draft needs `intake.forms` (Q-FORM-SUBJECT, as Q-FEAT-RDY-01). So
+  `trust-center` is listed in boot's actionScreens as a matter screen with `documents.view`:
+  the owner selects the readiness matter that holds the controls list. Switch to FirmSubject
+  once search_documents and draft_document accept the firm.
+- The spec words a screen action in `trigger` and leaves `on_request` empty, while the Def
+  lists the action (as F-MAT-19). The rdyb helper checks the action against the trigger and
+  runs the shared spec check on the Def without it.
+  (trust-center screen), the generated plugin skill, and the helper file
+  `app/legal/readiness/ai_rdyb_helpers_test.go` (shared with FEAT-RDY-05).
+
+## Q-FEAT-RDY-05 F-RDY-05 service credit note from trust-center
+- F-RDY-05 is a screen action, `trust-center > Draft service credit note`, on the same
+  trust-center matter screen as F-RDY-04 (built on task/FEAT-RDY-04). No Go constant named
+  `platform.service_credit` (G-SLA, approver `billing.credit`), so
+  `readiness.GateServiceCredit` holds it.
+- The G-SLA payload schema names `amount_cents`, but the tool-gap submit_for_approval
+  payload is `{subject_type, subject_id}` (as Q-FEAT-PLT-12 for platform.closing). The credit
+  amount is in the draft body, provenance-checked against the status page record. Open: fill
+  `amount_cents` from a sourced read when a typed service-credit write exists.
+- No uptime read tool exists; the run reads the month's uptime from the status page record
+  filed on the selected matter with search_documents. When uptime meets target it drafts
+  nothing.
+
+## Q-PAYLOAD-BUILDERS gate payloads are built from records
+
+- Decision (AUTOPILOT SYSTEMIC): submit_for_approval no longer opens a gate with the subject
+  ids alone. `kernel/agenttools.PayloadBuilders` is a per-kind registry; when it is in the
+  agent Deps, submit_for_approval calls the kind's builder and a kind with no builder, a
+  missing record or a payload that fails its schema opens nothing (ErrNoPayloadBuilder,
+  ErrPayloadSource). Without a registry the old subject-only payload stays (manual path).
+- `app/legal/agent.PayloadBuilderSet` builds one builder for every spec/gates.json kind whose
+  schema requires a field beyond the subject (all 99 today). Each reads the subject's record
+  through the `SubjectRecords` port and checks the payload against the kind's schema. G13
+  reads the signed trust balance through `MatterTrustBalances`.
+- spec/gates.json (and its copy app/legal/gates/kinds.json), additive: G13 `platform.closing`
+  gains optional `overdrawn` (boolean), `shortfall_cents` (integer >= 0) and `blockers`
+  (string array), the Q-HTTP-10c pattern. `trust_balance_cents` keeps `minimum: 0`: an
+  overdrawn matter sends 0 there with `overdrawn: true`, the shortfall and the
+  `trust_overdrawn` (By-law 9) blocker, so its closing gate still opens for review.
+- Trigger values: `Provenance.ObserveTrigger` records a trigger payload's dates and numbers
+  as read; boot's ForgetRunner calls it for each trigger, so F-BIL-01 can take period_to from
+  its event.
+- Open: boot does not yet put a registry in the agent Deps, because production has no
+  Postgres `SubjectRecords`/`MatterTrustBalances` adapters yet (AgentPorts.OpenGate is not
+  wired in production either). The adapters and the wiring are the next task.
 
 ## Q-BILL-PERIOD draft_bill's period dates are a production SourcedWrite
 
@@ -6087,3 +6275,30 @@ scope):
   `revoked_at` at expiry (readers must check `expires_at`).
 - `ApprovalEffect` (boot/effects_approval.go): outbound `comms.comm_item` gets
   `delivery_status = 'queued'`; no delivery job reads it.
+
+## Q-GE4-LEGAL decision ids, widen_access contract, ID file purge, builder dedupe
+
+- Fixed: the deadline effects (cal.confirm, second_check, change, mark_met, release) wrote
+  the approval_request id into cal.deadline_confirmation.gate_decision_id, an FK to
+  gate.gate_decision. The kernel effect runner now puts the approving decision (the last
+  approving gate.gate_decision row) in the effect context (`gate.WithDecision` /
+  `gate.DecisionOf`, additive); `gates.Decision` reads it and fails closed without one. No
+  other effect writes a gate_decision reference; every other gate column is an
+  approval_request FK and keeps the gate id.
+- matter.widen_access: `required` is restored to [matter_id, visibility] and the anyOf is
+  dropped; only the GE3 properties (version, restricted, team) stay, which is additive. The
+  PATCH route derives visibility server-side: restricting is `team`, opening is `firm`, a team
+  change keeps the matter's audience (firm_open -> `firm`, otherwise `team`). In the route
+  form the effect applies restricted/team and ignores visibility, so a team change never
+  loosens a restricted matter to team_only.
+- conflict.id_destruction now deletes the stored copy behind each file_ref from the cell
+  bucket through the docs storage port (`kernel/docs.ObjectDeleter`, `S3Bucket.DeleteObject`,
+  additive) before redacting, and records it in party.id_document.file_purged_at /
+  file_purge_approval_id (migration 5001, additive). A copy already gone is no error; a
+  failed delete, or no bucket configured while a copy is stored, applies nothing. The object
+  delete is outside the database tx: if the deciding tx later rolls back, the copy is
+  already gone and a re-run deletes nothing more.
+- The simple matter.Build* builders (contact_merge, practice_config, bulk_change,
+  widen_access, apply_template) are removed; the agent payload builder registry
+  (agent.PayloadBuilderSet) is the one builder. matter.BuildRenumber stays: it computes the
+  numbers. Their assertions now run against the effect checks plus the spec schema.

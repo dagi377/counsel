@@ -182,15 +182,6 @@ type ContactMergePayload struct {
 	RelationshipKind string `json:"relationship_kind,omitempty"`
 }
 
-// BuildContactMerge fills and checks a matter.contact_merge payload.
-func BuildContactMerge(p ContactMergePayload) (json.RawMessage, error) {
-	g := registry.Approved{Kind: GateContactMerge}
-	if err := p.check(g); err != nil {
-		return nil, err
-	}
-	return json.Marshal(p)
-}
-
 func (p ContactMergePayload) check(g registry.Approved) error {
 	if _, err := ids(g, "contact_ids", p.ContactIDs); err != nil {
 		return err
@@ -270,15 +261,6 @@ type PracticeConfigPayload struct {
 	Change       map[string]json.RawMessage `json:"change"`
 }
 
-// BuildPracticeConfig fills and checks a matter.practice_config payload.
-func BuildPracticeConfig(practiceAreaID string, change map[string]json.RawMessage) (json.RawMessage, error) {
-	p := PracticeConfigPayload{PracticeArea: practiceAreaID, Change: change}
-	if err := p.check(registry.Approved{Kind: GatePracticeConfig}); err != nil {
-		return nil, err
-	}
-	return json.Marshal(p)
-}
-
 func (p PracticeConfigPayload) check(g registry.Approved) error {
 	if p.PracticeArea == "" {
 		return refuse(g, "no practice_area")
@@ -349,15 +331,6 @@ type BulkChange struct {
 type BulkChangePayload struct {
 	MatterIDs []string   `json:"matter_ids"`
 	Change    BulkChange `json:"change"`
-}
-
-// BuildBulkChange fills and checks a matter.bulk_change payload.
-func BuildBulkChange(matterIDs []string, c BulkChange) (json.RawMessage, error) {
-	p := BulkChangePayload{MatterIDs: matterIDs, Change: c}
-	if _, err := p.check(registry.Approved{Kind: GateBulkChange}); err != nil {
-		return nil, err
-	}
-	return json.Marshal(p)
 }
 
 func (p BulkChangePayload) check(g registry.Approved) ([]string, error) {
@@ -514,7 +487,10 @@ type AccessMember struct {
 }
 
 // WidenAccessPayload is the matter.widen_access payload: the route form (version with
-// restricted or team) or the spec form (visibility and grant_user_ids).
+// restricted or team) or the spec form (visibility and grant_user_ids). The schema requires
+// visibility in both; in the route form the route derives it from the change and the matter
+// (accessVisibility) and the effect applies restricted and team instead, so a team change
+// on a restricted matter never loosens it to team_only.
 type WidenAccessPayload struct {
 	MatterID     string         `json:"matter_id"`
 	Version      int            `json:"version,omitempty"`
@@ -522,14 +498,6 @@ type WidenAccessPayload struct {
 	Team         []AccessMember `json:"team,omitempty"`
 	Visibility   string         `json:"visibility,omitempty"`
 	GrantUserIDs []string       `json:"grant_user_ids,omitempty"`
-}
-
-// BuildWidenAccess fills and checks a matter.widen_access payload.
-func BuildWidenAccess(p WidenAccessPayload) (json.RawMessage, error) {
-	if _, _, err := p.plan(registry.Approved{Kind: GateWidenAccess}); err != nil {
-		return nil, err
-	}
-	return json.Marshal(p)
 }
 
 // matterRoles are the matter_member roles a team entry may name; any other is "member".
@@ -546,6 +514,8 @@ func (p WidenAccessPayload) plan(g registry.Approved) (string, string, error) {
 		vis = "restricted"
 	case p.Restricted != nil:
 		vis = "firm_open"
+	case len(p.Team) > 0:
+		// Route team change: visibility only describes the audience it keeps.
 	case p.Visibility == "team":
 		vis = "team_only"
 	case p.Visibility == "firm":
@@ -647,14 +617,6 @@ SELECT $1::uuid, (e->>'user_id')::uuid,
 type ApplyTemplatePayload struct {
 	MatterID   string `json:"matter_id"`
 	TemplateID string `json:"template_id"`
-}
-
-// BuildApplyTemplate fills and checks a matter.apply_template payload.
-func BuildApplyTemplate(matterID, templateID string) (json.RawMessage, error) {
-	if matterID == "" || templateID == "" {
-		return nil, refuse(registry.Approved{Kind: GateApplyTemplate}, "no matter_id or template_id")
-	}
-	return json.Marshal(ApplyTemplatePayload{MatterID: matterID, TemplateID: templateID})
 }
 
 func applyTemplate(ctx context.Context, tx gates.Execer, g registry.Approved) error {

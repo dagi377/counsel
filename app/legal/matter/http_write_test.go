@@ -1,6 +1,7 @@
 package matter
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -13,6 +14,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/santhosh-tekuri/jsonschema/v5"
+
+	"github.com/dagi377/counsel/app/legal/gates"
 
 	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/idem"
@@ -406,5 +410,80 @@ func TestMatterPatchTaxProvinces(t *testing.T) {
 				t.Errorf("gates opened = %v, want none", rig.gates.Opens())
 			}
 		})
+	}
+}
+
+// widenAccessSchema compiles the matter.widen_access payload schema from spec/gates.json.
+func widenAccessSchema(t *testing.T) *jsonschema.Schema {
+	t.Helper()
+	kinds, err := gates.ParseKinds(gates.SpecData())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range kinds {
+		if k.Code != GateWidenAccess {
+			continue
+		}
+		c := jsonschema.NewCompiler()
+		c.AssertFormat = true
+		if err := c.AddResource("mem://widen_access.json", bytes.NewReader(k.PayloadSchema)); err != nil {
+			t.Fatal(err)
+		}
+		s, err := c.Compile("mem://widen_access.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	t.Fatalf("no %s kind in spec/gates.json", GateWidenAccess)
+	return nil
+}
+
+// The PATCH route sends every field the matter.widen_access schema requires (its required
+// list is a contract and is never relaxed): visibility is derived server-side from the
+// change and the matter's current audience, and the payload validates against the schema.
+func TestARC_I_012_WidenAccessRouteSendsRequiredFields(t *testing.T) {
+	schema := widenAccessSchema(t)
+	tests := []struct {
+		name, matter, body, ifMatch, wantVis string
+	}{
+		{"restrict", idA, `{"restricted":true}`, `"3"`, "team"},
+		{"open to the firm", idB, `{"restricted":false}`, `"1"`, "firm"},
+		{"team on a firm-open matter keeps firm", idA, `{"team":[{"user_id":"u2","role":"member"}]}`, `"3"`, "firm"},
+		{"team on a team-only matter keeps team", idB, `{"team":[{"user_id":"u2"}]}`, `"1"`, "team"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rig := newWriteRig(t)
+			rec := do(rig.h, "PATCH", "/v1/matters/"+tc.matter, "editor", []byte(tc.body), map[string]string{"If-Match": tc.ifMatch})
+			if rec.Code != http.StatusAccepted {
+				t.Fatalf("status = %d (%s)", rec.Code, rec.Body)
+			}
+			var payload json.RawMessage
+			for _, g := range rig.gates.gates {
+				payload = g.Payload
+			}
+			dec := json.NewDecoder(bytes.NewReader(payload))
+			dec.UseNumber()
+			var v any
+			if err := dec.Decode(&v); err != nil {
+				t.Fatal(err)
+			}
+			if err := schema.Validate(v); err != nil {
+				t.Fatalf("payload %s fails the schema: %v", payload, err)
+			}
+			if got := v.(map[string]any)["visibility"]; got != tc.wantVis {
+				t.Fatalf("visibility = %v, want %s", got, tc.wantVis)
+			}
+		})
+	}
+	for _, missing := range []string{`{"matter_id":"` + idA + `","restricted":true}`, `{"matter_id":"` + idA + `","team":[{"user_id":"u2"}]}`} {
+		var v any
+		if err := json.Unmarshal([]byte(missing), &v); err != nil {
+			t.Fatal(err)
+		}
+		if schema.Validate(v) == nil {
+			t.Fatalf("payload without visibility %s passes; required must stay", missing)
+		}
 	}
 }

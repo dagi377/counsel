@@ -34,3 +34,25 @@ func TestARC_I_012_EffectContext(t *testing.T) {
 		})
 	}
 }
+
+func TestEffectDecision(t *testing.T) {
+	tests := []struct {
+		name   string
+		ctx    context.Context
+		wantID string
+		wantOK bool
+	}{
+		{"plain context", context.Background(), "", false},
+		{"effect without a decision", WithEffect(context.Background(), "g-1"), "", false},
+		{"decision recorded", WithDecision(WithEffect(context.Background(), "g-1"), "d-1"), "d-1", true},
+		{"empty decision is none", WithDecision(context.Background(), ""), "", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			id, ok := DecisionOf(tc.ctx)
+			if id != tc.wantID || ok != tc.wantOK {
+				t.Errorf("DecisionOf = (%q, %v), want (%q, %v)", id, ok, tc.wantID, tc.wantOK)
+			}
+		})
+	}
+}

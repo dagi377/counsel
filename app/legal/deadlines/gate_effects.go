@@ -31,8 +31,8 @@ const todaySQL = `(now() AT TIME ZONE 'America/Toronto')::date`
 
 // GateEffects are the approval effects of the deadline and calendar gate kinds. Each runs in
 // the deciding tx, refuses an agent approver or the preparer, and is idempotent per gate:
-// every deadline effect writes a cal.deadline_confirmation row carrying the gate id and
-// proves the change by that row. open opens the cal.change proposals of an approved rule pack (RulePackEffect).
+// every deadline effect writes a cal.deadline_confirmation row carrying the approving
+// gate.gate_decision id (gates.Decision, never the gate id) and proves the change by that row. open opens the cal.change proposals of an approved rule pack (RulePackEffect).
 func GateEffects(open ChangeOpener) map[string]registry.EffectFunc {
 	return map[string]registry.EffectFunc{
 		GateCalConfirm:     gates.Effect(applyConfirm),
@@ -66,14 +66,18 @@ func applyConfirm(ctx context.Context, tx gates.Execer, g registry.Approved) err
 	if err != nil {
 		return err
 	}
+	dec, err := gates.Decision(ctx, g)
+	if err != nil {
+		return err
+	}
 	if g.Subject.Kind != subjectDeadline && g.Subject.Kind != subjectDeadlineKind {
 		return fmt.Errorf("%s gate %s: subject %q is not a deadline: %w", g.Kind, g.GateID, g.Subject.Kind, gates.ErrNotApplied)
 	}
 	id := g.Subject.ID
 	return gates.Apply(ctx, tx, g, []gates.Step{
 		{SQL: confirmSQL, Args: []any{id, by}},
-		{SQL: confirmLogSQL, Args: []any{id, by, g.GateID}},
-	}, gates.Step{SQL: proofSQL, Args: []any{id, "confirm", g.GateID}})
+		{SQL: confirmLogSQL, Args: []any{id, by, dec}},
+	}, gates.Step{SQL: proofSQL, Args: []any{id, "confirm", dec}})
 }
 
 // G7b: a second person records an independent due date. The check agrees only when the
@@ -98,6 +102,10 @@ func applySecondCheck(ctx context.Context, tx gates.Execer, g registry.Approved)
 	if err != nil {
 		return err
 	}
+	dec, err := gates.Decision(ctx, g)
+	if err != nil {
+		return err
+	}
 	var p secondCheckPayload
 	if err := gates.Decode(g, &p); err != nil {
 		return err
@@ -106,8 +114,8 @@ func applySecondCheck(ctx context.Context, tx gates.Execer, g registry.Approved)
 		return err
 	}
 	return gates.Apply(ctx, tx, g, []gates.Step{
-		{SQL: secondCheckSQL, Args: []any{p.DeadlineID, by, p.DueOn, g.GateID}},
-	}, gates.Step{SQL: proofSQL, Args: []any{p.DeadlineID, "second_check", g.GateID}})
+		{SQL: secondCheckSQL, Args: []any{p.DeadlineID, by, p.DueOn, dec}},
+	}, gates.Step{SQL: proofSQL, Args: []any{p.DeadlineID, "second_check", dec}})
 }
 
 // G7c: an open deadline moves to the approved due date, with the reason in the trail. The
@@ -137,6 +145,10 @@ func applyChange(ctx context.Context, tx gates.Execer, g registry.Approved) erro
 	if err != nil {
 		return err
 	}
+	dec, err := gates.Decision(ctx, g)
+	if err != nil {
+		return err
+	}
 	var p changePayload
 	if err := gates.Decode(g, &p); err != nil {
 		return err
@@ -145,9 +157,9 @@ func applyChange(ctx context.Context, tx gates.Execer, g registry.Approved) erro
 		return err
 	}
 	return gates.Apply(ctx, tx, g, []gates.Step{
-		{SQL: changeSQL, Args: []any{p.DeadlineID, p.DueOn, by, g.GateID}},
-		{SQL: changeLogSQL, Args: []any{p.DeadlineID, p.DueOn, by, g.GateID, p.Reason}},
-	}, gates.Step{SQL: proofSQL, Args: []any{p.DeadlineID, "change", g.GateID}})
+		{SQL: changeSQL, Args: []any{p.DeadlineID, p.DueOn, by, dec}},
+		{SQL: changeLogSQL, Args: []any{p.DeadlineID, p.DueOn, by, dec, p.Reason}},
+	}, gates.Step{SQL: proofSQL, Args: []any{p.DeadlineID, "change", dec}})
 }
 
 // G7d: a confirmed deadline is marked met on the approved evidence document.
@@ -172,6 +184,10 @@ func applyMarkMet(ctx context.Context, tx gates.Execer, g registry.Approved) err
 	if err != nil {
 		return err
 	}
+	dec, err := gates.Decision(ctx, g)
+	if err != nil {
+		return err
+	}
 	var p markMetPayload
 	if err := gates.Decode(g, &p); err != nil {
 		return err
@@ -181,8 +197,8 @@ func applyMarkMet(ctx context.Context, tx gates.Execer, g registry.Approved) err
 	}
 	return gates.Apply(ctx, tx, g, []gates.Step{
 		{SQL: markMetSQL, Args: []any{p.DeadlineID, p.EvidenceDocumentID, by}},
-		{SQL: markMetLogSQL, Args: []any{p.DeadlineID, p.EvidenceDocumentID, by, g.GateID}},
-	}, gates.Step{SQL: proofSQL, Args: []any{p.DeadlineID, "met", g.GateID}})
+		{SQL: markMetLogSQL, Args: []any{p.DeadlineID, p.EvidenceDocumentID, by, dec}},
+	}, gates.Step{SQL: proofSQL, Args: []any{p.DeadlineID, "met", dec}})
 }
 
 // G7r: an open deadline is released with the approved reason.
@@ -207,6 +223,10 @@ func applyRelease(ctx context.Context, tx gates.Execer, g registry.Approved) err
 	if err != nil {
 		return err
 	}
+	dec, err := gates.Decision(ctx, g)
+	if err != nil {
+		return err
+	}
 	var p releasePayload
 	if err := gates.Decode(g, &p); err != nil {
 		return err
@@ -216,8 +236,8 @@ func applyRelease(ctx context.Context, tx gates.Execer, g registry.Approved) err
 	}
 	return gates.Apply(ctx, tx, g, []gates.Step{
 		{SQL: releaseSQL, Args: []any{p.DeadlineID, p.Reason, by}},
-		{SQL: releaseLogSQL, Args: []any{p.DeadlineID, p.Reason, by, g.GateID}},
-	}, gates.Step{SQL: proofSQL, Args: []any{p.DeadlineID, "release", g.GateID}})
+		{SQL: releaseLogSQL, Args: []any{p.DeadlineID, p.Reason, by, dec}},
+	}, gates.Step{SQL: proofSQL, Args: []any{p.DeadlineID, "release", dec}})
 }
 
 // G7e: the approved rule pack version becomes the active one for its code and the version

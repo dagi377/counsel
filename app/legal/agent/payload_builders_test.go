@@ -114,6 +114,16 @@ func sample(p map[string]any) any {
 				out[fmt.Sprintf("0190a5c3-0000-7000-8000-%012d", i)] = sample(add)
 			}
 		}
+		// A map-shaped object (additionalProperties schema) gets its minProperties entries.
+		if extra, ok := p["additionalProperties"].(map[string]any); ok {
+			n := int64(0)
+			if m, ok := p["minProperties"].(json.Number); ok {
+				n, _ = m.Int64()
+			}
+			for i := int64(len(out)); i < n; i++ {
+				out[fmt.Sprintf("0190a5c3-0000-7000-8000-%012d", i)] = sample(extra)
+			}
+		}
 		return out
 	}
 	return nil

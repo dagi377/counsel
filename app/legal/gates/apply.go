@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -52,6 +53,17 @@ func Approver(g registry.Approved) (string, error) {
 		}
 	}
 	return g.Approvers[0].UserID, nil
+}
+
+// Decision returns the id of the gate.gate_decision row that approved g, which the effect
+// runner puts in ctx. A column that references gate.gate_decision stores this id, never
+// g.GateID (an approval_request id). Without it the effect fails closed.
+func Decision(ctx context.Context, g registry.Approved) (string, error) {
+	id, ok := gate.DecisionOf(ctx)
+	if !ok {
+		return "", fmt.Errorf("%s gate %s: no approving decision in the effect context: %w", g.Kind, g.GateID, ErrNotApplied)
+	}
+	return id, nil
 }
 
 // Decode decodes g's payload into v; a payload that does not decode fails closed.

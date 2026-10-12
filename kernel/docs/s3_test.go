@@ -34,6 +34,9 @@ func TestS3Bucket(t *testing.T) {
 				return
 			}
 			_, _ = w.Write(b)
+		case http.MethodDelete:
+			delete(objects, r.URL.Path)
+			w.WriteHeader(http.StatusNoContent)
 		}
 	}))
 	defer srv.Close()
@@ -75,6 +78,18 @@ func TestS3Bucket(t *testing.T) {
 				t.Fatalf("err = %v, want %v", err, tc.want)
 			}
 		})
+	}
+	// A delete removes the object and a repeated delete succeeds.
+	for i := range 2 {
+		if err := b.DeleteObject(ctx, "docs/sha256/ab"); err != nil {
+			t.Fatalf("delete %d: %v", i+1, err)
+		}
+		if _, ok := objects["/cell-docs/docs/sha256/ab"]; ok || !strings.HasPrefix(headers.Get("Authorization"), "AWS4-HMAC-SHA256") {
+			t.Fatalf("delete %d left the object or was unsigned", i+1)
+		}
+	}
+	if err := (&docs.S3Bucket{}).DeleteObject(ctx, "k"); !errors.Is(err, docs.ErrBucketConfig) {
+		t.Fatalf("unconfigured delete = %v", err)
 	}
 	u, err := b.SignGet(ctx, "docs/sha256/ab", 15*time.Minute)
 	if err != nil || !strings.Contains(u, "X-Amz-Expires=900") || !strings.Contains(u, "X-Amz-Signature=") ||

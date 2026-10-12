@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/kernel/gate"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
@@ -30,6 +31,18 @@ func (e *Exec) Exec(_ context.Context, sql string, args ...any) (pgconn.CommandT
 		return pgconn.NewCommandTag("SELECT " + strconv.FormatInt(e.ProofRows, 10)), nil
 	}
 	return pgconn.NewCommandTag("UPDATE " + strconv.FormatInt(e.StepRows, 10)), nil
+}
+
+// GateID and DecisionID are the gate and its approving gate.gate_decision row in the runs
+// RunEffectCases makes; DecisionCtx is an effect context carrying DecisionID.
+const (
+	GateID     = "00000000-0000-0000-0000-0000000000ff"
+	DecisionID = "00000000-0000-0000-0000-0000000000dd"
+)
+
+// DecisionCtx returns an effect context for GateID approved by DecisionID.
+func DecisionCtx() context.Context {
+	return gate.WithDecision(gate.WithEffect(context.Background(), GateID), DecisionID)
 }
 
 // Principals used by EffectCases.
@@ -76,7 +89,7 @@ func RunEffectCases(t *testing.T, cases []EffectCase) {
 			t.Fatal(err)
 		}
 		g := func(prep registry.Principal, approvers ...registry.Principal) registry.Approved {
-			return registry.Approved{GateID: "00000000-0000-0000-0000-0000000000ff", Kind: c.Kind, Subject: c.Subject,
+			return registry.Approved{GateID: GateID, Kind: c.Kind, Subject: c.Subject,
 				Payload: raw, Preparer: prep, Approvers: approvers}
 		}
 		ok := []registry.Principal{Lawyer}
@@ -106,7 +119,7 @@ func RunEffectCases(t *testing.T, cases []EffectCase) {
 		for _, r := range runs {
 			t.Run(c.Kind+"/"+r.name, func(t *testing.T) {
 				x := &Exec{StepRows: r.step, ProofRows: r.prof}
-				err := c.Effect(context.Background(), x, r.g)
+				err := c.Effect(DecisionCtx(), x, r.g)
 				if !errors.Is(err, r.wantErr) || (r.wantErr == nil) != (err == nil) {
 					t.Fatalf("err = %v, want %v", err, r.wantErr)
 				}

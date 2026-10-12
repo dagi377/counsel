@@ -229,6 +229,32 @@ func (b *S3Bucket) GetObject(ctx context.Context, key string) (io.ReadCloser, er
 	return resp.Body, nil
 }
 
+// DeleteObject removes the object under key. A key with no object is not an error, so a
+// repeated delete succeeds.
+func (b *S3Bucket) DeleteObject(ctx context.Context, key string) error {
+	if err := b.ready(); err != nil {
+		return err
+	}
+	u, err := b.objectURL(key)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, u.String(), nil)
+	if err != nil {
+		return fmt.Errorf("s3 delete %s: %w", key, err)
+	}
+	b.sign(req, sha256Hex(nil))
+	resp, err := b.do(req, "delete", key)
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
+}
+
 // SignGet returns a presigned GET URL for key that expires after ttl.
 func (b *S3Bucket) SignGet(_ context.Context, key string, ttl time.Duration) (string, error) {
 	if err := b.ready(); err != nil {

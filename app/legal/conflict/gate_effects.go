@@ -2,23 +2,29 @@ package conflict
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/dagi377/counsel/app/legal/gates"
+	"github.com/dagi377/counsel/kernel/docs"
 	"github.com/dagi377/counsel/kernel/registry"
 )
 
 // GateEffects are the approval effects of the conflict gate kinds. Each runs in the deciding
-// tx, refuses an agent approver or the preparer, and is idempotent per gate.
-func GateEffects() map[string]registry.EffectFunc {
+// tx, refuses an agent approver or the preparer, and is idempotent per gate. files is the
+// document bucket (the docs storage port) that ID destruction purges stored copies from;
+// while nil, a destruction that has a stored copy to purge fails closed.
+func GateEffects(files docs.ObjectDeleter) map[string]registry.EffectFunc {
 	return map[string]registry.EffectFunc{
 		GateClearance:     gates.Effect(applyClearance),
 		GateConsentText:   gates.Effect(applyConsentText),
 		GateWall:          gates.Effect(applyWall),
 		GateLateral:       gates.Effect(applyLateral),
 		GateClientID:      gates.Effect(applyClientID),
-		GateIDDestruction: gates.Effect(applyIDDestruction),
+		GateIDDestruction: IDDestructionEffect(files),
 	}
 }
 
@@ -242,13 +248,23 @@ func applyClientID(ctx context.Context, tx gates.Execer, g registry.Approved) er
 	}, gates.Step{SQL: clientIDProofSQL, Args: []any{p.ContactID, by, p.VerifiedOn}})
 }
 
-// G14: ID verification past its retention is destroyed. The artefacts go: each ID
-// document's number, place, expiry, file copy and vendor reference are redacted, the record's
-// source-of-funds note is cleared, and both are stamped destroyed_at. The identity_record row
-// itself is never deleted, so the conflict-check history (who was identified, when, by whom)
-// remains. Every record must belong to the contact and be past retention_until; one that is
-// not leaves the gate unapplied. Two distinct people approve.
+// G14: ID verification past its retention is destroyed. The artefacts go: the stored copy
+// behind each ID document's file_ref is deleted from the document bucket (and the purge
+// recorded on the document), then each document's number, place, expiry, file reference and
+// vendor reference are redacted, the record's source-of-funds note is cleared, and both are
+// stamped destroyed_at. The identity_record row itself is never deleted, so the conflict-check
+// history (who was identified, when, by whom) remains. Every record must belong to the
+// contact and be past retention_until; one that is not leaves the gate unapplied. Two
+// distinct people approve.
 const (
+	// idFilesSQL lists the stored copies still to purge, as JSON text.
+	idFilesSQL = `SELECT COALESCE(json_agg(json_build_object('id', d.id, 'file_ref', d.file_ref) ORDER BY d.id), '[]'::json)::text
+  FROM party.id_document d JOIN party.identity_record r ON r.id = d.identity_record_id
+ WHERE r.id = ANY($1::text[]::uuid[]) AND r.contact_id = $2::uuid
+   AND r.retention_until < ` + todaySQL + ` AND r.destroyed_at IS NULL AND d.destroyed_at IS NULL
+   AND d.file_ref IS NOT NULL AND d.file_ref <> ''`
+	idFilePurgedSQL = `UPDATE party.id_document SET file_purged_at = now(), file_purge_approval_id = $2::uuid
+WHERE id = ANY($1::text[]::uuid[]) AND file_purged_at IS NULL AND destroyed_at IS NULL`
 	idDocDestroySQL = `UPDATE party.id_document d SET number_ciphertext = '\x'::bytea, number_last4 = NULL,
   issuer_place = NULL, expires_on = NULL, file_ref = NULL, auth_vendor_ref = NULL, destroyed_at = now()
   FROM party.identity_record r
@@ -261,7 +277,8 @@ WHERE id = ANY($1::text[]::uuid[]) AND contact_id = $2::uuid AND retention_until
   AND destroyed_at IS NULL`
 	idDestroyProofSQL = `SELECT 1 WHERE (SELECT count(*) FROM party.identity_record r
  WHERE r.id = ANY($1::text[]::uuid[]) AND r.contact_id = $2::uuid AND r.destroyed_at IS NOT NULL
-   AND NOT EXISTS (SELECT 1 FROM party.id_document d WHERE d.identity_record_id = r.id AND d.destroyed_at IS NULL)
+   AND NOT EXISTS (SELECT 1 FROM party.id_document d WHERE d.identity_record_id = r.id
+                    AND (d.destroyed_at IS NULL OR d.file_ref IS NOT NULL))
 ) = cardinality($1::text[])`
 )
 
@@ -273,7 +290,27 @@ type idDestructionPayload struct {
 	RecordIDs []string `json:"record_ids"`
 }
 
-func applyIDDestruction(ctx context.Context, tx gates.Execer, g registry.Approved) error {
+// idDestructionTx is the part of pgx.Tx the ID destruction effect uses.
+type idDestructionTx interface {
+	gates.Execer
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// storedFile is an ID document copy still in the document bucket.
+type storedFile struct {
+	ID      string `json:"id"`
+	FileRef string `json:"file_ref"`
+}
+
+// IDDestructionEffect is the conflict.id_destruction approval effect; files is the document
+// bucket it purges the stored copies from.
+func IDDestructionEffect(files docs.ObjectDeleter) registry.EffectFunc {
+	return func(ctx context.Context, tx pgx.Tx, g registry.Approved) error {
+		return applyIDDestruction(ctx, tx, files, g)
+	}
+}
+
+func applyIDDestruction(ctx context.Context, tx idDestructionTx, files docs.ObjectDeleter, g registry.Approved) error {
 	// rule: ARC-I-019
 	// rule: ARC-I-016
 	// G14 is irreversible: two distinct people approve, neither the preparer nor an agent.
@@ -292,8 +329,45 @@ func applyIDDestruction(ctx context.Context, tx gates.Execer, g registry.Approve
 	if len(ids) == 0 || ids[0] == "" {
 		return fmt.Errorf("%s gate %s payload: no record_ids: %w", g.Kind, g.GateID, gates.ErrNotApplied)
 	}
+	if err := purgeIDFiles(ctx, tx, files, g, ids, p.ContactID); err != nil {
+		return err
+	}
 	return gates.Apply(ctx, tx, g, []gates.Step{
 		{SQL: idDocDestroySQL, Args: []any{ids, p.ContactID}},
 		{SQL: idRecordDestroySQL, Args: []any{ids, p.ContactID, by, g.GateID}},
 	}, gates.Step{SQL: idDestroyProofSQL, Args: []any{ids, p.ContactID}})
+}
+
+// purgeIDFiles deletes the stored copy behind every file_ref still held by the records'
+// documents from the document bucket and records each purge on its document. A delete of a
+// copy already gone succeeds, and a re-run after the redaction finds no file_ref, so the purge
+// is idempotent. A failed delete fails the effect, so nothing is redacted while a copy may
+// remain. The key is never put in an error or a log.
+func purgeIDFiles(ctx context.Context, tx idDestructionTx, files docs.ObjectDeleter, g registry.Approved, ids []string, contactID string) error {
+	var raw string
+	if err := tx.QueryRow(ctx, idFilesSQL, ids, contactID).Scan(&raw); err != nil {
+		return fmt.Errorf("%s gate %s stored copies: %w", g.Kind, g.GateID, err)
+	}
+	var stored []storedFile
+	if err := json.Unmarshal([]byte(raw), &stored); err != nil {
+		return fmt.Errorf("%s gate %s stored copies: %w", g.Kind, g.GateID, err)
+	}
+	if len(stored) == 0 {
+		return nil
+	}
+	if files == nil {
+		return fmt.Errorf("%s gate %s: %d stored copies to purge and no document bucket: %w", g.Kind, g.GateID, len(stored), gates.ErrNotApplied)
+	}
+	purged := make([]string, 0, len(stored))
+	for _, f := range stored {
+		if err := files.DeleteObject(ctx, f.FileRef); err != nil {
+			// The bucket error may name the key; only the document id is reported.
+			return fmt.Errorf("%s gate %s: purge stored copy of id document %s failed: %w", g.Kind, g.GateID, f.ID, gates.ErrNotApplied)
+		}
+		purged = append(purged, f.ID)
+	}
+	if _, err := tx.Exec(ctx, idFilePurgedSQL, purged, g.GateID); err != nil {
+		return fmt.Errorf("%s gate %s record purge: %w", g.Kind, g.GateID, err)
+	}
+	return nil
 }
