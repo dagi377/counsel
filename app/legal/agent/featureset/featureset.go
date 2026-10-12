@@ -244,5 +244,7 @@ func appDefs() []feature.Def {
 		readiness.QuestionnaireFillerDef(),
 		readiness.InsurerAnswersDef(),
 		readiness.ServiceCreditDef(),
+		readiness.CitationCheckerDef(),
+		readiness.RulePackImpactDef(),
 	}
 }

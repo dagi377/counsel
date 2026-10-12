@@ -476,6 +476,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		platform.PortalTriageDef().ID:            platform.PortalTriageBinding,
 		platform.ReplyDrafterDef().ID:            platform.ReplyDrafterBinding,
 		readiness.QuestionnaireFillerDef().ID:    readiness.QuestionnaireFillerBinding,
+		readiness.CitationCheckerDef().ID:        readiness.CitationCheckerBinding,
+		readiness.RulePackImpactDef().ID:         readiness.RulePackImpactBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -630,6 +632,8 @@ var actionScreens = map[string]trigger.Screen{
 	"trust-to-fees": {SubjectKind: "matter", Capability: "trust.request"},
 	// A credit note is drafted on the matter of the selected bill.
 	"credit-notes": {SubjectKind: "matter", Capability: "documents.edit"},
+	// Readiness: the research screen checks the memo filed on its matter.
+	"research": {SubjectKind: "matter", Capability: "documents.view"},
 	// Intake screens select the lead ("intake.lead", the outbox subject of a lead).
 	"phone-and-email-capture": {SubjectKind: "intake.lead", Capability: "intake.leads"},
 	"lead-detail":             {SubjectKind: "intake.lead", Capability: "intake.leads"},
