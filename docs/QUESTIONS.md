@@ -5403,3 +5403,69 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   on-request actions (features.json lists it in trigger, not in on_request).
 - Branch base: task/FEAT-PLT-24 (chain FEAT-PLT-05, 06, 24, 25), for the one platform helper
   file. Outside the task's files: featureset, boot actionScreens and the helper file.
+
+## Q-FEAT-PLT-09 F-PLT-07 destruction batch on the firm subject
+
+- The destruction batch spans closed matters and belongs to none, so F-PLT-07 drafts it on
+  the firm subject (`subject_ref` `"firm"`, no `matter_id`) and opens
+  `platform.file_destruction` (`legaldocs.DestructionGate`, G14) on that draft.
+- draft_document gates a firm draft on `intake.forms` (`agent.CapIntakeForms`,
+  Q-FORM-SUBJECT), so F-PLT-07's grant names it and the designated lawyer must hold it. Open:
+  a general firm-draft capability instead of `intake.forms`.
+- `archive-retention` maps to `boot.FirmSubject` with capability `matters.close`:
+  `platform.retention` is a kernel id the app may not register (TestAppIDsAvoidKernelPrefix).
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (binding and screen), the generated plugin skill.
+
+## Q-FEAT-PLT-10 F-PLT-08 access review on the firm subject
+
+- Access is the firm's, so F-PLT-08 drafts its fix proposals on the firm subject and opens
+  `platform.access_change` (G-PERM, `platform.GateAccessChange`, the first const for the kind)
+  on that draft. Its grant names `intake.forms` for the firm draft, as F-PLT-07's does.
+- `users-roles` maps to `boot.FirmSubject` with capability `admin.access_review`.
+- Branch is based on task/FEAT-PLT-09 so the platform package and its one helper file
+  (`ai_pltd_helpers_test.go`) merge cleanly.
+
+## Q-FEAT-PLT-11 F-PLT-10 text triage: inbound text event and screen
+
+- No module publishes an inbound text yet; F-PLT-10 binds `text.received`
+  (`platform.EventTextReceived`, named like `email.received`). Open: the text-messaging
+  module publishes it, with the matter and the sender contact, acting for the matter's
+  responsible lawyer.
+- The reply goes through draft_email with `submit` true on the client's matter, which opens
+  `platform.outgoing_email` (G-OUT); F-PLT-10 has no tool-gap kind.
+- `text-messaging` maps to subject `matter` with capability `documents.edit` (draft_email's).
+- Branch is based on task/FEAT-PLT-10 (one platform helper file).
+
+## Q-FEAT-PLT-21 F-PLT-28 propose template: gate const and screen
+
+- No production constant named `platform.skill_autonomy` (intake writes the literal), so
+  `platform.GateSkillAutonomy` (G-SK) is added in app/legal/platform.
+- email-settings is firm-level: the template is drafted with `subject_ref` "firm" and no
+  matter, and `email-settings` maps to `boot.FirmSubject` with capability `documents.edit`
+  (draft_document's). The run's grant carries `intake.forms` for the firm draft
+  (Q-FORM-SUBJECT), as F-PLT-07 and F-PLT-08 do.
+- The platform helper `pltdCheckDefMatchesSpec` now reads a screen action's button from its
+  trigger when `on_request` is empty (Q-FEAT-CON-10), as the intake helpers do.
+- Branch is based on task/FEAT-PLT-11 (one platform helper file).
+
+## Q-FEAT-PLT-22 F-PLT-05 risk digest: screen and record
+
+- F-PLT-05 is a read-only chat: no write tool, no gate kind. Its scheduled run acts for the
+  designated lawyer (`trigger.BindDesignated`, weekly).
+- `reports` is firm-level and maps to `boot.FirmSubject` with capability `reports.firm`.
+- Open: where the scheduled run's digest is shown. The spec says "Counsel records Internal
+  digest (no gate)"; the answer goes back through the run outcome only and is never stored
+  (AI-R-005), so the reports screen needs a place to show the latest digest.
+- Branch is based on task/FEAT-PLT-21 (one platform helper file).
+
+## Q-FEAT-PLT-23 F-PLT-09 insights note: month-end cadence
+
+- The spec trigger "schedule (month end)" has no cadence word, so `trigger.ParseCadence`
+  reads it as daily. `platform.InsightsNoteBinding` sets `trigger.CadenceMonthly` (the first
+  business day of the month, covering the month just closed) on the designated binding.
+  Open: a month-end cadence in trigger, if the note must run on the last business day.
+- F-PLT-09 is a read-only chat with no screen action, so `firm-insights` needs no action
+  screen. Open, as for F-PLT-05: where the note is shown on firm-insights, since the answer
+  is never stored (AI-R-005).
+- Branch is based on task/FEAT-PLT-22 (one platform helper file).

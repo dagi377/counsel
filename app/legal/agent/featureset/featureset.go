@@ -226,5 +226,11 @@ func appDefs() []feature.Def {
 		platform.CallSummarizerDef(),
 		platform.FilingScopeReevaluationDef(),
 		platform.PrepareSignatureFieldsDef(),
+		platform.DestructionBatchDef(),
+		platform.AccessReviewDef(),
+		platform.TextTriageDef(),
+		platform.ProposeTemplateDef(),
+		platform.RiskDigestDef(),
+		platform.InsightsNoteDef(),
 	}
 }

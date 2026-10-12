@@ -465,6 +465,11 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		platform.ClosingStarterDef().ID:     platform.ClosingStarterBinding,
 		// Platform.
 		platform.FilingScopeReevaluationDef().ID: platform.FilingScopeReevaluationBinding,
+		platform.DestructionBatchDef().ID:        platform.DestructionBatchBinding,
+		platform.AccessReviewDef().ID:            platform.AccessReviewBinding,
+		platform.TextTriageDef().ID:              platform.TextTriageBinding,
+		platform.RiskDigestDef().ID:              platform.RiskDigestBinding,
+		platform.InsightsNoteDef().ID:            platform.InsightsNoteBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -720,6 +725,17 @@ var actionScreens = map[string]trigger.Screen{
 	"matter-closing": {SubjectKind: "matter", Capability: "matters.view"},
 	// The esign request selects the document it sends for signature.
 	"esign-request": {SubjectKind: legaldocs.SubjectKind, Capability: "documents.view"},
+	// Platform. archive-retention is firm-level: a destruction batch spans closed matters
+	// (F-PLT-07). platform.retention is a kernel id, so the screen asks for matters.close.
+	"archive-retention": {SubjectKind: FirmSubject, Capability: "matters.close"},
+	// users-roles is firm-level: an access review covers every matter (F-PLT-08).
+	"users-roles": {SubjectKind: FirmSubject, Capability: "admin.access_review"},
+	// A text thread is on the client's matter; the reply is drafted there (F-PLT-10).
+	"text-messaging": {SubjectKind: "matter", Capability: "documents.edit"},
+	// email-settings is firm-level: a proposed email template is the firm's (F-PLT-28).
+	"email-settings": {SubjectKind: FirmSubject, Capability: "documents.edit"},
+	// reports is firm-level: a risk digest covers every open matter (F-PLT-05).
+	"reports": {SubjectKind: FirmSubject, Capability: "reports.firm"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.
