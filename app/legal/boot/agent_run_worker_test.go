@@ -172,6 +172,25 @@ func (oneMatterSubjects) SubjectMatter(context.Context, string, string) (string,
 	return runMatter, nil
 }
 
+// draftRecord is the drafted subject's record the payload builders read (in production
+// PGSubjectRecords reads it from Postgres): it holds every field the two gate kinds of this
+// test require, and each builder takes only its own kind's fields.
+type draftRecord struct{}
+
+func (draftRecord) SubjectRecord(_ context.Context, _, subjectID string) (map[string]any, error) {
+	if subjectID != runDraft {
+		return nil, nil
+	}
+	return map[string]any{
+		"matter_id": runMatter, "to_stage": "closing",
+		"template_id": "00000000-0000-4000-8000-00000000d001", "version": 1,
+	}, nil
+}
+
+type zeroTrust struct{}
+
+func (zeroTrust) MatterTrustBalance(context.Context, string) (int64, error) { return 0, nil }
+
 type noWalls struct{}
 
 func (noWalls) Visible(context.Context, string, string) (bool, error) { return true, nil }
@@ -185,14 +204,21 @@ func (oneDesignate) DesignatedLawyer(context.Context, string) (string, error) {
 // runWiring is the agent wiring over in-memory stores: the Postgres stores the run touches
 // (drafts, plans, run records) and the identity checks are replaced, every other part is the
 // production graph (model, tool registry, gate opener over the kernel gate engine, worker).
-func runWiring(records *memRecords, drafts *memDrafts) *AgentWiring {
+func runWiring(t *testing.T, records *memRecords, drafts *memDrafts) *AgentWiring {
+	t.Helper()
+	builders, err := agent.SpecPayloadBuilders(draftRecord{}, zeroTrust{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	return &AgentWiring{
 		Ports: AgentPorts{
-			Can:            func(context.Context, string, string) (bool, error) { return true, nil },
-			Walls:          noWalls{},
-			Plans:          agenttoolsfake.New(),
-			DocumentDrafts: drafts,
-			SubjectMatters: oneMatterSubjects{},
+			Can:             func(context.Context, string, string) (bool, error) { return true, nil },
+			Walls:           noWalls{},
+			Plans:           agenttoolsfake.New(),
+			DocumentDrafts:  drafts,
+			SubjectMatters:  oneMatterSubjects{},
+			PayloadBuilders: builders,
+			TrustBalances:   zeroTrust{},
 		},
 		Designated: oneDesignate{},
 		Actions: &trigger.Actions{Access: runAccess{}, Principal: func(r *http.Request) (registry.Principal, bool) {
@@ -252,7 +278,7 @@ func TestFeatureRunEndToEnd(t *testing.T) {
 			model := aifake.New(fstest.MapFS{
 				strings.ToLower(tc.feature) + "/run/ok.yaml": {Data: []byte(runFixture(tc.feature, tc.gateKind))},
 			})
-			wiring := runWiring(records, drafts)
+			wiring := runWiring(t, records, drafts)
 			prod := &Production{SealKey: &key, ModelClient: model, FirmAccount: "firm-general", Jobs: jobs}
 			c := compose(t, legalFlagNames(t), Options{Production: prod, Agent: wiring})
 			if !registeredKind(c, tc.gateKind) {

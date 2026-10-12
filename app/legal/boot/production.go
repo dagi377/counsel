@@ -88,6 +88,9 @@ type Production struct {
 	Jobs trigger.Enqueuer
 	// Readiness, when set, receives every agent feature that cannot run and why.
 	Readiness *AgentReadiness
+	// Docs is the cell document bucket. An unset URL falls back to the bucket environment
+	// variables (services_docs.go); with neither the document routes answer 503.
+	Docs DocsBucketConfig
 }
 
 // ModelConfig is the model section of the deployment config (kernel/ai).
@@ -127,6 +130,11 @@ func (w *wiring) bindProduction(ctx context.Context, k *kboot.Kernel) error {
 	opts, err := p.options(k)
 	if err != nil {
 		return fmt.Errorf("production: %w", err)
+	}
+	if opts.HTTP != nil && opts.HTTP.DocsBucket == nil {
+		if b := p.Docs.Bucket(); b != nil {
+			opts.HTTP.DocsBucket = b
+		}
 	}
 	if opts.HTTP != nil && p.Principal == nil {
 		svc, err := p.login(k, opts.HTTP.Problems)

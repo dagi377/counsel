@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"go/parser"
 	"go/token"
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/dagi377/counsel/kernel/boot"
@@ -75,6 +77,46 @@ func TestParseFlags(t *testing.T) {
 			}
 			if cfg.Role != boot.RoleServer || cfg.Addr != tt.wantAddr || cfg.Zone != tt.wantZone || !slices.Equal(cfg.Flags, tt.wantFlags) {
 				t.Fatalf("cfg = %+v", cfg)
+			}
+		})
+	}
+}
+
+// TestParseFlagsDocsBucket: the bucket location comes from flags with an env fallback; its
+// credentials only from the environment, and they never format into text.
+func TestParseFlagsDocsBucket(t *testing.T) {
+	tests := []struct {
+		name       string
+		envURL     string
+		args       []string
+		wantURL    string
+		wantBucket bool
+	}{
+		{name: "env fallback", envURL: "https://s3.example/env-bucket", wantURL: "https://s3.example/env-bucket", wantBucket: true},
+		{name: "flag wins over env", envURL: "https://s3.example/env-bucket", args: []string{"-docs-bucket-url", "https://s3.example/flag-bucket"}, wantURL: "https://s3.example/flag-bucket", wantBucket: true},
+		{name: "no url: no bucket", wantURL: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("COUNSEL_DOCS_BUCKET_URL", tt.envURL)
+			t.Setenv("COUNSEL_DOCS_BUCKET_REGION", "ca-central-1")
+			t.Setenv("AWS_ACCESS_KEY_ID", "AKIDSECRETVALUE")
+			t.Setenv("AWS_SECRET_ACCESS_KEY", "verysecretkeyvalue")
+			_, prod, err := parseFlags(tt.args)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if prod.Docs.URL != tt.wantURL || prod.Docs.Region != "ca-central-1" {
+				t.Fatalf("docs = %s %s", prod.Docs.URL, prod.Docs.Region)
+			}
+			if got := prod.Docs.Bucket() != nil; got != tt.wantBucket {
+				t.Fatalf("bucket configured = %v, want %v", got, tt.wantBucket)
+			}
+			// rule: ARC-U-040
+			for _, s := range []string{fmt.Sprintf("%v", prod.Docs), fmt.Sprintf("%+v", prod.Docs), fmt.Sprintf("%#v", prod.Docs)} {
+				if strings.Contains(s, "AKIDSECRETVALUE") || strings.Contains(s, "verysecretkeyvalue") {
+					t.Fatalf("credential formatted: %s", s)
+				}
 			}
 		})
 	}

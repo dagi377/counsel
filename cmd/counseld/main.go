@@ -57,6 +57,16 @@ func parseFlags(args []string) (boot.Config, legalboot.Production, error) {
 	fs.StringVar(&model.Protocol, "model-protocol", envOr("COUNSEL_MODEL_PROTOCOL", "messages"), "model provider protocol: messages, chat or responses")
 	modelID := fs.String("model", os.Getenv("COUNSEL_MODEL"), "provider model id the agent runs on (default $COUNSEL_MODEL)")
 	fs.StringVar(&prod.FirmAccount, "firm-account", os.Getenv("COUNSEL_FIRM_ACCOUNT"), "payee id of the firm general account (default $COUNSEL_FIRM_ACCOUNT)")
+	// The document bucket's location comes from flags or the environment; its credentials
+	// only from the environment, as Secrets that are never logged.
+	prod.Docs = legalboot.DocsBucketConfig{
+		AccessKey:    legalboot.Secret(os.Getenv("AWS_ACCESS_KEY_ID")),
+		SecretKey:    legalboot.Secret(os.Getenv("AWS_SECRET_ACCESS_KEY")),
+		SessionToken: legalboot.Secret(os.Getenv("AWS_SESSION_TOKEN")),
+	}
+	fs.StringVar(&prod.Docs.URL, "docs-bucket-url", os.Getenv("COUNSEL_DOCS_BUCKET_URL"), "path-style S3 URL of the cell document bucket (default $COUNSEL_DOCS_BUCKET_URL); credentials are $AWS_ACCESS_KEY_ID, $AWS_SECRET_ACCESS_KEY and $AWS_SESSION_TOKEN")
+	fs.StringVar(&prod.Docs.Region, "docs-bucket-region", os.Getenv("COUNSEL_DOCS_BUCKET_REGION"), "region of the document bucket (default $COUNSEL_DOCS_BUCKET_REGION)")
+	fs.StringVar(&prod.Docs.KMSKeyID, "docs-kms-key-id", os.Getenv("COUNSEL_DOCS_KMS_KEY_ID"), "KMS key that encrypts each document object (default $COUNSEL_DOCS_KMS_KEY_ID)")
 	if err := fs.Parse(args); err != nil {
 		return boot.Config{}, legalboot.Production{}, err
 	}

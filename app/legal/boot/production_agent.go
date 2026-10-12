@@ -258,6 +258,7 @@ func (p Production) bindAgent(ctx context.Context, k *kboot.Kernel, opts *Option
 	}
 	opts.HTTP.AgentModel = model
 	opts.HTTP.AgentTools = tools
+	opts.HTTP.AgentProvenance = w.Ports.Provenance
 	return w, nil
 }
 
@@ -387,8 +388,9 @@ func (p Production) agentPorts(k *kboot.Kernel, opts *Options, w *AgentWiring) e
 		ports.Payments = opts.HTTP.Payments
 	}
 	if ports.Payments == nil {
-		// The HTTP ports fill Payments when the routes mount, after the agent is bound.
-		ports.Payments = pgPayments(k)
+		// The routes fill Payments after the agent is bound; the agent takes the same
+		// Postgres service now, so propose_payment_allocation is served.
+		ports.Payments = opts.HTTP.withWrites(k).Payments
 	}
 	book := deadline.NewPGBook(k.DB)
 	if ports.Deadlines == nil {
@@ -418,6 +420,26 @@ func (p Production) agentPorts(k *kboot.Kernel, opts *Options, w *AgentWiring) e
 	}
 	if k.Emitter != nil {
 		SetMatterPortEvents(ports, k.Emitter)
+	}
+	if ports.TrustTransfers == nil {
+		if g, ok := k.Gates.(withdraw.Gates); ok {
+			// The transfer row and its trust.transfer gate are written in one tx.
+			ports.TrustTransfers = withdraw.TransferRequests{DB: k.DB, Store: withdraw.PGTransferStore{}, Gates: g}
+		}
+	}
+	if ports.TrustBalances == nil {
+		ports.TrustBalances = trust.PGMatterAccounts{DB: k.DB}
+	}
+	if ports.PayloadBuilders == nil {
+		// rule: ARC-I-035
+		// Every gate submit_for_approval opens carries a payload built from the subject's
+		// records and checked against its kind's schema; a kind it cannot fill opens nothing.
+		records := PGSubjectRecords{DB: k.DB, Matters: ports.Matters, Subjects: ports.SubjectMatters}
+		b, err := agent.SpecPayloadBuilders(records, ports.TrustBalances)
+		if err != nil {
+			return fmt.Errorf("payload builders: %w", err)
+		}
+		ports.PayloadBuilders = b
 	}
 	if ports.BillBalances == nil || w.Write.Bills == nil {
 		src, err := NewBillingAgentSources(k.DB, p.FirmAccount)

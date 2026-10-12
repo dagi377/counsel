@@ -48,3 +48,24 @@ func (p PGMatterAccounts) TrustAccountsOf(ctx context.Context, matterID string) 
 	}
 	return out, nil
 }
+
+// matterBalanceSQL is the signed posted balance of every client ledger the matter holds.
+const matterBalanceSQL = `SELECT coalesce(sum(t.amount_cents), 0)::bigint
+  FROM trust.trust_transaction t JOIN trust.client_ledger l ON l.id = t.ledger_id
+  WHERE l.matter_id = $1::uuid`
+
+// MatterTrustBalance is matterID's signed trust balance in cents over all its client
+// ledgers: below zero when the matter is overdrawn. A matter with no ledger holds 0.
+func (p PGMatterAccounts) MatterTrustBalance(ctx context.Context, matterID string) (int64, error) {
+	if p.DB == nil {
+		return 0, fmt.Errorf("trust balance of %s: no database: %w", matterID, ErrNotFound)
+	}
+	var cents int64
+	err := p.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, matterBalanceSQL, matterID).Scan(&cents)
+	})
+	if err != nil {
+		return 0, fmt.Errorf("trust balance of %s: %w", matterID, err)
+	}
+	return cents, nil
+}

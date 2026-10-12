@@ -108,6 +108,8 @@ func fullPorts() AgentPorts {
 		BatchDrafts:     stubBatch{},
 		Payments:        stubPayments{},
 		SubjectMatters:  stubSubjects{},
+		PayloadBuilders: agenttools.NewPayloadBuilders(),
+		TrustBalances:   signedBalance(0),
 		Deadlines:       stubLister{},
 		DeadlineCompute: stubCompute{},
 		DeadlineSaver:   stubSaver{},

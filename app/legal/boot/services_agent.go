@@ -30,6 +30,12 @@ func (p HTTPPorts) withAgentRuns(k *kboot.Kernel) (HTTPPorts, error) {
 	if k.Clock != nil {
 		r.Now = k.Clock.Now
 	}
+	if pv := p.AgentProvenance; pv != nil {
+		// rule: ARC-U-027
+		// A screen-started run's inputs count as read, as the boot runner's triggers do, and
+		// the run's values are dropped when it ends.
+		r.Wrap = func(l agentrun.Runner) agentrun.Runner { return ForgetOnEnd(pv, l) }
+	}
 	p.Runs = r
 	return p, nil
 }

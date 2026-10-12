@@ -5691,3 +5691,149 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 - Open: boot does not yet put a registry in the agent Deps, because production has no
   Postgres `SubjectRecords`/`MatterTrustBalances` adapters yet (AgentPorts.OpenGate is not
   wired in production either). The adapters and the wiring are the next task.
+
+
+
+## AGENT-PROD-2a: Postgres for the six unwired agent tool ports
+
+Production now wires Text, Documents, Entries, DraftCalc, DraftStore and BatchDrafts, so
+search_documents, list_documents, the read tools, propose_time_entries and draft_bill are
+served and readiness no longer reports their features `tool_unwired`. Additive changes:
+
+- `kernel/docs.PGText` over a new append-only `docs.version_text` (0900): one row per stored
+  version holding its text layer (firm document content, never conversation text). Nothing
+  writes it yet except `PGText.Put`; the upload/OCR pipeline must call it, until then a
+  version reads as not found and the tools fail closed.
+- `app/legal/docs.FolderStore.Filed` lists a matter's live documents with a current version.
+- `timekeeping.PGEntries`: a suggestion lives in `time_suggestion` (state suggested) until its
+  owner accepts it; accepting writes the `time_entry` (origin suggestion) at the resolved rate
+  (the default rate table, else the activity rate; none is ErrInvalid). Open: a matter's own
+  rate table is read through the `PGEntries.RateTable` hook, which boot leaves nil because
+  matter.Query does not expose `rate_table_id` (ARC-I-041 forbids reading matter.matter). The
+  `time_entry` subject resolver also reads `time_suggestion`. Transition to on_draft_bill or
+  billed is refused: the draft builder sets the bill.
+- `draft.Calculator` (pure), `draft.PGStore` and `draft.PGBatch`. 5640 adds the write-down,
+  markup and discount columns to `billing.bill_line` (amount_cents stays the net before the
+  bill discount); 5641/5642 add `billing.bill.idempotency_key` for batch.Key (BIL-C-110).
+- Open: bill lines are never deleted, so `PGStore.SaveLines` refuses a line missing from the
+  saved set; draft_bill's `hold` action therefore fails closed in production. Decide whether
+  hold should be passed to `PGDrafts.Create` as a line action instead.
+- Open: `PGBatch` names the preparer from the agent run in ctx (`agent.run_record.acting_for`);
+  a scheduled batch run with no recorded run has no preparer and fails closed.
+
+## AGENT-PROD-3: hold, matter rate table, document text, recorded runs
+
+Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
+
+- `draft.Line.Held` and `billing.bill_line.on_hold` (5643). draft_bill's `hold` is a status
+  change: the line stays on the draft, held, and `PGStore.SaveLines` saves it (and can release
+  it); a held line counts toward no total, tax or journal line (`PGDrafts.compute`,
+  `bill.PGStore.JournalLines`). Open: the held time entry stays linked to this draft (the
+  0001 `bill_line_time_once` index), so it reaches a later bill only after this draft is
+  voided. `bill.PGService` still lists held lines without a held flag.
+- `matter.Matter.RateTableID` (matter.rate_table_id through matter.Query). Boot sets
+  `PGEntries.RateTable` from it: the matter's table prices accepted time, the default table
+  only when the matter has none. Rates live on the time entry; `draft.Calculator` carries no
+  rate table, so the draft takes the rate the entry was priced at.
+- `kernel/docs`: `StoreText` (the upload text step), `NativeText`, `Extractor`,
+  `ModelExtractor` (kernel `ai.ModelClient`, extraction call, the file as quoted tool_result
+  data), `ErrTextUnavailable` (wraps ErrNotFound) and `PGText.MarkUnavailable` over the new
+  `docs.version_text.unavailable_reason` (0901). Text and Markdown are stored as they are;
+  other formats go through the extractor; no text is recorded as text-unavailable, never as
+  empty text. Open: production has no `DocumentStore.Upload` (POST /documents is served only
+  with a fake), so no production path calls `StoreText` yet; the upload, email filing and
+  import paths must call it in the transaction that stores the version. The model sees the
+  file only as base64 text; a vision/document-block path in `ai.Request` would be needed for
+  scans.
+- `boot.RecordFirstRunner`: the screen-action runner and every `AgentWiring.Runners` entry
+  record the run in agent.run_record (queued, ids and grant only) before it runs, unless it
+  is already recorded, so draft_bill's preparer lookup finds the run. No store or a failed
+  write runs nothing. RunStarter already records first. The manual (user) draft_bill path
+  still has no run and fails closed in production.
+
+## DOC-UPLOAD
+
+- Additive migrations 5803/5804: `docs.document.idempotency_key` with a unique index on
+  `(created_by, idempotency_key)`, so a retried upload by the same member returns the stored
+  document even after the shared idempotency record expires.
+- No S3 SDK is an allowed dependency, so `kernel/docs/s3.go` signs S3 requests (SigV4) with the
+  standard library. Production reads the cell bucket from `$COUNSEL_DOCS_BUCKET_URL`,
+  `$COUNSEL_DOCS_BUCKET_REGION`, `$COUNSEL_DOCS_KMS_KEY_ID` and the AWS credential variables in
+  `app/legal/boot/services_docs.go`; without them the document routes keep answering 503.
+  Question: should these move to `cmd/counseld` flags once production.go is free to edit?
+
+- New agent write tool `prepare_trust_transfer` (approved as in-spec scope, Q-FEAT-TRU-08),
+  added to the a2 tools additively (spec/eng/a2-interfaces.json, schemas/tools.json; Count
+  26 -> 27) and to F-TRU-08's tools in spec/ai/features.json, registered through
+  agent.Handlers(). Input: from_matter_id, to_matter_id, amount_cents (sourced, integer
+  cents), reason. It opens trust.transfer (G11t) only, through the run's scoped opener, with
+  the acting user as preparer. Both matters must be visible to the acting user and share one
+  trust account (else ErrTransferAccounts); an amount above the source ledger's available
+  balance is refused (withdraw.ErrTrustOverdraw, By-Law 9). Nothing is posted or held.
+- Open: the gate payload is withdraw.TransferPayload without a transfer_id. No transfer
+  request store writes a trust.trust_transfer row yet, so approving the gate fails closed at
+  the TransferEffect (LockTransfer finds no row) and moves no money. Proposed: a withdraw
+  transfer request (row in pending_authorization, held funds) whose id the payload carries.
+- prepare_trust_withdrawal's handler checks the run scope for withdraw.RequestGateKind of the
+  request (billing.trust_fee_withdrawal with a bill_id), not trust.withdrawal (ARC-I-035,
+  Q-FEAT-TRU-10 gap). F-TRU-02 and F-TRU-10 declare trust.withdrawal only, so a fee transfer
+  with a bill is refused in their runs; F-BIL-03 declares the fee kind and passes (positive
+  test over Seed.FeeBills in ai_f_tru_02_feature_test.go).
+- prepare_trust_withdrawal refuses purpose=fees with no bill_id at the tool
+  (agent.ErrFeesNeedBill), whoever the payee.
+- Events: trust.EventBankLinesImported is now `bank_feed.line_imported`, the one name
+  EVENTS-7 adds to the a2 events (not duplicated here; the a2 entry lands with EVENTS-7).
+  `trust.receiving_account_changed` is added to the a2 events.
+- Boot: boot.BankFeedSyncJob runs the F-TRU-01 pipeline with trust.ReceiptGates as its sink
+  in the run's scope. Open: nothing works the `agent_feature_run` River job yet, so no worker
+  calls it; the job-run worker should dispatch F-TRU-01 to it.
+
+## Q-TRANSFER-STORE trust transfer row and the trust.transfer effect
+
+- Closes the Q-TRU-FIX open item. `withdraw.TransferRequests.Request` writes the
+  trust.trust_transfer row as `pending_authorization` and opens its trust.transfer gate in
+  one tx (a failed open leaves no row). Under both ledger locks it refuses an amount above
+  the source's `trust.available_cents` (By-Law 9). The gate payload now carries
+  `transfer_id`, which `TransferEffect` binds. Recording moves no money, so it is not
+  flag-gated; `Transfers.Post` at authorization still fails closed while
+  `trust.bylaw9_verified` is off.
+- prepare_trust_transfer reads a new agent port, `agent.TrustTransfers` (boot
+  `AgentPorts.TrustTransfers`), instead of a GateOpener. It calls
+  `agenttools.CheckGateKind` before the trust module is reached, as prepare_trust_withdrawal
+  does. The row's `requested_by` is the acting user, and the gate preparer is the agent run
+  acting for them. Open: production fill of `AgentPorts.TrustTransfers`
+  (`withdraw.TransferRequests{DB, Store: withdraw.PGTransferStore{}, Gates: engine}`) lands
+  with the rest of the agent port wiring. `OpenGate` is not filled in production either.
+- Boot registers `withdraw.TransferEffect` for trust.transfer (removed from
+  unwired_gates.txt). Approval by a signatory other than the preparer posts a transfer_out
+  line and a transfer_in line, equal and opposite in integer cents, plus one balanced trust
+  book entry. An overdraw at authorization is refused (insufficient_trust_funds). An agent
+  decision is refused with 403 agent_cannot_decide.
+- Migration 5540_trust_transfer_request.sql (additive) adds the nullable columns
+  `trust_transfer.requested_by` and `trust_transfer.reason`, and freezes both with the other
+  terms once the row leaves draft.
+- Fee kind in F-TRU-02 and F-TRU-10: left as is. spec/ai/features.json gives both
+  `gate.kind = [trust.withdrawal]` and output "draft withdrawal for G11" / "propose
+  disposition"; neither spec makes a fee transfer against a bill. That is F-BIL-03 (G-B4,
+  billing.trust_fee_withdrawal). F-TRU-02's trigger "bill delivered with trust applied" is
+  the event after a fee transfer, not a request for one. So a prepare_trust_withdrawal call
+  with a bill_id stays refused in those runs (ARC-I-035). If product wants F-TRU-02 to
+  draft the fee transfer itself, add billing.trust_fee_withdrawal to its spec gate kinds
+  first.
+
+## Q-PROD-WIRE-2 production wiring of payload builders, trust transfers and the bucket
+
+- Closes the Q-PAYLOAD-BUILDERS and Q-TRANSFER-STORE open items. Boot fills
+  `AgentPorts.PayloadBuilders` with `agent.SpecPayloadBuilders` over `boot.PGSubjectRecords`
+  (the subject's own row, as `PGSubjectMatters` reads it; a matter subject through
+  matter.Query, ARC-I-041) and `AgentPorts.TrustBalances` (`trust.PGMatterAccounts`
+  `MatterTrustBalance`, the signed posted balance). `AgentPorts.TrustTransfers` is
+  `withdraw.TransferRequests` over `PGTransferStore` and the gate engine. OpenGate was already
+  `gateOpener`. A subject kind PGSubjectRecords does not know fails closed (no gate).
+- The HTTP-25 `agent.RunStarter` gains an additive `Wrap` hook; boot sets it to
+  `ForgetOnEnd`, so a screen-started run's inputs count as read like a boot trigger.
+- Answers the DOC-UPLOAD question: `counseld -docs-bucket-url/-docs-bucket-region/
+  -docs-kms-key-id` (env fallback `$COUNSEL_DOCS_BUCKET_*`) fill `Production.Docs`; the AWS
+  credentials stay environment-only and are `Secret`s. An unset URL keeps the env fallback.
+- The agent's Payments port takes the same Postgres payment service the routes build, so
+  propose_payment_allocation (F-BIL-04) is served.

@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/dagi377/counsel/app/legal/agent"
+	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/agenttools/agenttoolsfake"
+	agentrun "github.com/dagi377/counsel/kernel/agenttools/run"
 	"github.com/dagi377/counsel/kernel/ai/aifake"
 	"github.com/dagi377/counsel/kernel/identity"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -135,6 +137,63 @@ func TestAgentRunAndWebhookRoutesServe(t *testing.T) {
 			router.ServeHTTP(w, req)
 			if w.Code != tt.want {
 				t.Fatalf("status = %d, want %d: %s", w.Code, tt.want, w.Body.String())
+			}
+		})
+	}
+}
+
+// triggerSeenRunner checks, while the run is in flight, whether its trigger date counts as read.
+type triggerSeenRunner struct {
+	pv   *agenttools.Provenance
+	seen *bool
+}
+
+func (r triggerSeenRunner) Run(_ context.Context, _ agentrun.Spec, p agentrun.Principal, _ string, _ ...agentrun.Trigger) (agentrun.Outcome, error) {
+	*r.seen = r.pv.Check(p.RunID, []string{"/period_to"}, []byte(`{"period_to":"2026-09-30"}`)) == nil
+	return agentrun.Outcome{}, nil
+}
+
+// TestWithAgentRunsRecordsTriggers: a run the HTTP-25 RunStarter drives records its inputs
+// in the agent provenance, as the boot runner records its triggers, and drops them at the end.
+func TestWithAgentRunsRecordsTriggers(t *testing.T) {
+	tests := []struct {
+		name       string
+		provenance bool
+		wantSeen   bool
+	}{
+		{"provenance wired: inputs count as read", true, true},
+		{"no provenance: no wrap", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := agentPorts()
+			pv := agenttools.NewProvenance()
+			if tt.provenance {
+				p.AgentProvenance = pv
+			}
+			got, err := p.withAgentRuns(pgKernel())
+			if err != nil {
+				t.Fatal(err)
+			}
+			rs := got.Runs.(*agent.RunStarter)
+			if (rs.Wrap != nil) != tt.provenance {
+				t.Fatalf("Wrap set = %v", rs.Wrap != nil)
+			}
+			if rs.Wrap == nil {
+				return
+			}
+			var seen bool
+			// rule: ARC-U-027
+			l := rs.Wrap(triggerSeenRunner{pv: pv, seen: &seen})
+			pr := agentrun.Principal{Kind: registry.PrincipalAgent, RunID: "run-1", ActingFor: "u"}
+			if _, err := l.Run(context.Background(), agentrun.Spec{FeatureID: "F-BIL-01"}, pr, "skill", agentrun.Trigger{Text: `{"period_to":"2026-09-30"}`}); err != nil {
+				t.Fatal(err)
+			}
+			if seen != tt.wantSeen {
+				t.Fatalf("trigger value seen = %v", seen)
+			}
+			if pv.Check("run-1", []string{"/period_to"}, []byte(`{"period_to":"2026-09-30"}`)) == nil {
+				t.Fatal("run values kept after the run ended")
 			}
 		})
 	}
