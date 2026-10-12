@@ -4653,3 +4653,33 @@ treats a function that calls Emit, an emit or publish helper, or a module helper
 - Not on main, so not covered: `agent.goal_accepted` (task/FEAT-PLT-14),
   `email.sync_scope_changed`, `readiness.questionnaire_received`, `research.memo_drafted`.
   When those branches merge, the guard fails until each adds a publisher and an a2 entry.
+
+## Q-EVENTS-CALL Call sites for the bound event publishers
+
+Partly done. `TestARC_I_030_EveryBoundPublisherIsCalled` (app/legal/boot) now builds a call
+graph of app/, kernel/ and cmd/ (AST, non-test files): a bound event passes only when a live
+function publishes it, i.e. a write path, or a Publish helper that a live non-test function
+calls. A publisher only tests call fails. It found 52 bound events with no caller, including
+7 publishers older than EVENTS-9 (`holiday.added`, `bank_feed.line_imported`,
+`billing.cycle_requested`, the timekeeping and work.automation ones).
+
+Wired, each in its write path and with a test of that path that asserts one event:
+- `gate.decided`: kernel/gate `PG.Decide` runs a new `SetDecided` hook in the decision tx after
+  every recorded decision (approve, reject, recommend; `Final` when the gate closed); a hook
+  error rolls the decision back. Boot (`wireGateDecided`, production options) installs
+  `billing.PublishGateDecided` on the kernel emitter.
+- `contact.created`: `party.Store.Create`, in the insert tx, when a user created the contact.
+- `conflict.check_completed`: `conflict.Checks.Check` after the run is stored. The run store has
+  no tx (Q-PORT-18 C), so boot now gives checks an own-tx emitter; the kernel outbox emitter
+  needs a tx, and the existing `conflict.hits_disposed` emit passed nil to it.
+
+Not wired: no write path exists on main, or the one that exists lacks the body's required
+ids. Each is listed in the guard's `awaitingWritePath`; the guard fails when one gains a
+caller (remove it) or loses its line here. The owning task calls the publisher in its tx.
+- `document.uploaded`: `docs.DocumentStore.Upload` has no implementation (no code inserts
+  `docs.document` or a version); POST /documents answers 503. The store that lands calls
+  `docs.PublishDocumentUploaded` in its insert tx. Same for `document.released`,
+  `document.draft_created`.
+- `matter.team_changed`: `matter.Store.AddMember` exists but the body needs the team gate id;
+  no team-change gate exists. `matter.closed`, `matter.updated`: no close or update path.
+- `bank_feed.line_imported`, `bill.draft_requested`, `billing.cycle_requested`, `break_glass.ended`, `calendar.event_cancelled`, `calendar.event_ended`, `calendar.event_moved`, `conflict.clearance_subject_to_consent`, `conflict.cleared`, `consultation.dictation_uploaded`, `consultation.ended`, `consultation.retained`, `deadline.met`, `engagement_letter.signed`, `holiday.added`, `intake.lead_ready_to_open`, `lead.converted`, `lead.declined`, `lead.referred`, `matter.call_transcript_filed`, `matter.key_date_changed`, `matter.template_applied`, `payment.received`, `rate_change.drafted`, `receptionist_conversation.started`, `timekeeping.wip_changed`, `timesheet.week_submitted`, `trust.balance_changed`, `trust.funds_expected`, `trust.ledger_below_floor`, `trust.request_drafted`, `trust.statement_received`, `user.invite_list_uploaded`, `user.invited`, `user.offboard_started`, `work.absence_approved`, `work.absence_requested`, `work.automation_run_failed`, `work.automation_run_skipped`, `work.item_agent_ready`, `work.item_assigned_to_agent`, `work.workflow_draft_saved`, `work_item.created`: no write path on main.

@@ -60,7 +60,10 @@ func (w *wiring) buildClearance(_ context.Context, k *kboot.Kernel) error {
 	if err != nil {
 		return err
 	}
-	setCheckEvents(checks, k.Emitter)
+	// The run store has no tx, so checks emit in a transaction of their own.
+	if k.Emitter != nil {
+		setCheckEvents(checks, ownTxEmitter{db: k.DB, em: k.Emitter})
+	}
 	w.checks, w.clearance = checks, c
 	return nil
 }

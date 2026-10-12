@@ -22,11 +22,23 @@ type OrganizationClientCreated struct {
 	CreatedBy string `json:"created_by,omitempty"`
 }
 
-// publishCreated emits EventOrganizationClientCreated in tx when c is an organization client.
-// A person, or an organization that is not a client, publishes nothing; so does a store with
-// no emitter.
+// publishCreated emits, in tx, EventContactCreated for every contact created by a user and
+// EventOrganizationClientCreated when c is also an organization client. A contact with no
+// creating user starts no run (contact.created acts for that user), so it publishes only the
+// organization event; a store with no emitter publishes nothing.
 func (s *Store) publishCreated(ctx context.Context, tx pgx.Tx, c Contact, createdBy string) error {
-	if s.Events == nil || c.Kind != Organization || !c.IsClient {
+	if s.Events == nil {
+		return nil
+	}
+	if createdBy != "" {
+		// rule: ARC-I-030
+		if err := PublishContactCreated(ctx, s.Events, tx, ContactCreated{
+			ContactID: string(c.ID), Kind: string(c.Kind), UserID: createdBy,
+		}); err != nil {
+			return err
+		}
+	}
+	if c.Kind != Organization || !c.IsClient {
 		return nil
 	}
 	// rule: ARC-I-030

@@ -150,6 +150,30 @@ type funcKey struct{ pkg, name string }
 // module helper that takes the event type as a string parameter named typ and publishes it.
 func publishedEvents(files []srcFile) map[string]bool {
 	vals := stringConsts(files)
+	emits := publishedBy(files)
+	out := map[string]bool{}
+	for _, f := range files {
+		imp := fileImports(f.file)
+		for _, decl := range f.file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || !emits[fn] {
+				continue
+			}
+			ast.Inspect(fn.Body, func(n ast.Node) bool {
+				if e, ok := n.(ast.Expr); ok {
+					if v, ok := exprString(e, f.pkg, imp, vals); ok {
+						out[v] = true
+					}
+				}
+				return true
+			})
+		}
+	}
+	return out
+}
+
+// publishedBy returns the functions that publish (see publishedEvents).
+func publishedBy(files []srcFile) map[*ast.FuncDecl]bool {
 	type fnInfo struct {
 		f       srcFile
 		imp     map[string]string
@@ -180,9 +204,81 @@ func publishedEvents(files []srcFile) map[string]bool {
 			}
 		}
 	}
+	return emits
+}
+
+// publisherName matches a function that only publishes: it is live only through a caller.
+var publisherName = regexp.MustCompile(`^(?i:publish)`)
+
+// calledEvents returns every event that a live publishing function names. A publishing
+// function is live when it is a write path (not named Publish or publish) or when a live
+// non-test function calls it, so a Publish helper that only tests call is dead.
+func calledEvents(files []srcFile) map[string]bool {
+	vals := stringConsts(files)
+	type fnInfo struct {
+		key  funcKey
+		f    srcFile
+		imp  map[string]string
+		decl *ast.FuncDecl
+	}
+	var fns []fnInfo
+	for _, f := range files {
+		imp := fileImports(f.file)
+		for _, decl := range f.file.Decls {
+			if fn, ok := decl.(*ast.FuncDecl); ok && fn.Body != nil {
+				fns = append(fns, fnInfo{key: funcKey{f.pkg, fn.Name.Name}, f: f, imp: imp, decl: fn})
+			}
+		}
+	}
+	callers := map[funcKey][]funcKey{}
+	for _, fn := range fns {
+		ast.Inspect(fn.decl.Body, func(n ast.Node) bool {
+			c, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			key := funcKey{pkg: fn.f.pkg}
+			switch x := c.Fun.(type) {
+			case *ast.Ident:
+				key.name = x.Name
+			case *ast.SelectorExpr:
+				key.name = x.Sel.Name
+				if id, ok := x.X.(*ast.Ident); ok && fn.imp[id.Name] != "" {
+					key.pkg = fn.imp[id.Name]
+				}
+			default:
+				return true
+			}
+			if key != fn.key {
+				callers[key] = append(callers[key], fn.key)
+			}
+			return true
+		})
+	}
+	live := map[funcKey]bool{}
+	for _, fn := range fns {
+		if !publisherName.MatchString(fn.decl.Name.Name) {
+			live[fn.key] = true
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, fn := range fns {
+			if live[fn.key] {
+				continue
+			}
+			for _, c := range callers[fn.key] {
+				if live[c] {
+					live[fn.key], changed = true, true
+					break
+				}
+			}
+		}
+	}
+	emitting := publishedBy(files)
 	out := map[string]bool{}
 	for _, fn := range fns {
-		if !emits[fn.decl] {
+		if !live[fn.key] || !emitting[fn.decl] {
 			continue
 		}
 		ast.Inspect(fn.decl.Body, func(n ast.Node) bool {
@@ -293,6 +389,112 @@ func TestARC_I_030_EveryBoundEventHasPublisher(t *testing.T) {
 			slices.Sort(missing)
 			if len(missing) > 0 {
 				t.Fatalf("events with no publisher: %v", missing)
+			}
+		})
+	}
+}
+
+// awaitingWritePath are bound events whose publisher exists but whose business write path
+// does not exist on main yet, each with its docs/QUESTIONS.md entry (Q-EVENTS-CALL). The
+// guard fails when one gains a caller (drop it here) or loses its QUESTIONS entry.
+var awaitingWritePath = map[string]bool{
+	"bank_feed.line_imported":               true,
+	"bill.draft_requested":                  true,
+	"billing.cycle_requested":               true,
+	"break_glass.ended":                     true,
+	"calendar.event_cancelled":              true,
+	"calendar.event_ended":                  true,
+	"calendar.event_moved":                  true,
+	"conflict.clearance_subject_to_consent": true,
+	"conflict.cleared":                      true,
+	"consultation.dictation_uploaded":       true,
+	"consultation.ended":                    true,
+	"consultation.retained":                 true,
+	"deadline.met":                          true,
+	"document.draft_created":                true,
+	"document.released":                     true,
+	"document.uploaded":                     true,
+	"engagement_letter.signed":              true,
+	"holiday.added":                         true,
+	"intake.lead_ready_to_open":             true,
+	"lead.converted":                        true,
+	"lead.declined":                         true,
+	"lead.referred":                         true,
+	"matter.call_transcript_filed":          true,
+	"matter.closed":                         true,
+	"matter.key_date_changed":               true,
+	"matter.team_changed":                   true,
+	"matter.template_applied":               true,
+	"matter.updated":                        true,
+	"payment.received":                      true,
+	"rate_change.drafted":                   true,
+	"receptionist_conversation.started":     true,
+	"timekeeping.wip_changed":               true,
+	"timesheet.week_submitted":              true,
+	"trust.balance_changed":                 true,
+	"trust.funds_expected":                  true,
+	"trust.ledger_below_floor":              true,
+	"trust.request_drafted":                 true,
+	"trust.statement_received":              true,
+	"user.invite_list_uploaded":             true,
+	"user.invited":                          true,
+	"user.offboard_started":                 true,
+	"work.absence_approved":                 true,
+	"work.absence_requested":                true,
+	"work.automation_run_failed":            true,
+	"work.automation_run_skipped":           true,
+	"work.item_agent_ready":                 true,
+	"work.item_assigned_to_agent":           true,
+	"work.workflow_draft_saved":             true,
+	"work_item.created":                     true,
+}
+
+// TestARC_I_030_EveryBoundPublisherIsCalled guards against a publisher nothing calls: each
+// bound event must be named by a live publishing function, one a non-test write path
+// reaches, unless its missing write path is logged in docs/QUESTIONS.md (EVENTS-CALL).
+func TestARC_I_030_EveryBoundPublisherIsCalled(t *testing.T) {
+	// rule: ARC-I-030
+	root := moduleRoot(t)
+	called := calledEvents(parseSources(t, root, "app", "kernel", "cmd"))
+	questions, err := os.ReadFile(filepath.Join(root, "docs", "QUESTIONS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound := boundEvents(t)
+	tests := []struct {
+		name  string
+		check func(ev string) string
+	}{
+		{"every bound event has a called publisher or a logged gap", func(ev string) string {
+			if called[ev] || awaitingWritePath[ev] {
+				return ""
+			}
+			return "no write path calls its publisher"
+		}},
+		{"a logged gap is still a gap", func(ev string) string {
+			if awaitingWritePath[ev] && called[ev] {
+				return "now called: remove it from awaitingWritePath"
+			}
+			return ""
+		}},
+		{"a logged gap is in QUESTIONS.md", func(ev string) string {
+			if awaitingWritePath[ev] && !strings.Contains(string(questions), "`"+ev+"`") {
+				return "missing from docs/QUESTIONS.md Q-EVENTS-CALL"
+			}
+			return ""
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var bad []string
+			for _, ev := range bound {
+				if msg := tc.check(ev); msg != "" {
+					bad = append(bad, ev+": "+msg)
+				}
+			}
+			slices.Sort(bad)
+			if len(bad) > 0 {
+				t.Fatalf("%d events:\n%s", len(bad), strings.Join(bad, "\n"))
 			}
 		})
 	}

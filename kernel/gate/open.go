@@ -21,6 +21,8 @@ type PG struct {
 	decide DecideHooks
 	// db runs Get's read transaction (SetDB), guarded by mu. Nil until boot wires it.
 	db TxRunner
+	// decided runs in Decide's tx after every recorded decision (SetDecided), guarded by mu.
+	decided DecidedHook
 }
 
 // NewPG returns an engine whose kinds are checked against modules (see NewKinds).

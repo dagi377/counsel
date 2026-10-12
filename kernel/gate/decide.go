@@ -43,6 +43,33 @@ type DecideHooks struct {
 	LimitKinds map[string]string
 }
 
+// Decided is one recorded gate decision, as the app publishes it (gate.decided).
+type Decided struct {
+	GateID    GateID
+	Version   int
+	Decision  string // approve, reject or recommend: the stored gate_decision value
+	DeciderID string
+	// Final is true when the decision closed the gate: approved or rejected.
+	Final bool
+}
+
+// DecidedHook runs in Decide's tx after a decision is recorded. An error rolls the
+// decision back, so the decision and its event commit together.
+type DecidedHook func(ctx context.Context, tx pgx.Tx, d Decided) error
+
+// SetDecided installs the hook Decide runs on every recorded decision.
+func (e *PG) SetDecided(h DecidedHook) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.decided = h
+}
+
+func (e *PG) decidedHook() DecidedHook {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.decided
+}
+
 // SetDecideHooks installs the app's Decide inputs on e.
 func (e *PG) SetDecideHooks(h DecideHooks) {
 	h.LimitKinds = clonedMap(h.LimitKinds)
@@ -293,11 +320,21 @@ VALUES ($1, $2, $3, $4, $5, $6, greatest($7::timestamptz, now()), $8)`,
 	}
 	// rule: ARC-I-020
 	// A recommendation is recorded and the gate stays pending for a decider with a higher limit.
+	if !out.recommend {
+		if err := tx.QueryRow(ctx, `SELECT status FROM gate.approval_request WHERE id = $1`, string(id)).Scan(&status); err != nil {
+			return fmt.Errorf("decide %s: reread: %w", id, err)
+		}
+	}
+	// rule: ARC-I-030
+	// Every recorded decision publishes gate.decided in this tx, through the app's hook.
+	if hook := e.decidedHook(); hook != nil {
+		final := !out.recommend && (Status(status) == StatusApproved || Status(status) == StatusRejected)
+		if err := hook(ctx, tx, Decided{GateID: id, Version: g.Version, Decision: decision, DeciderID: by.UserID, Final: final}); err != nil {
+			return fmt.Errorf("decide %s: decided: %w", id, err)
+		}
+	}
 	if out.recommend {
 		return nil
-	}
-	if err := tx.QueryRow(ctx, `SELECT status FROM gate.approval_request WHERE id = $1`, string(id)).Scan(&status); err != nil {
-		return fmt.Errorf("decide %s: reread: %w", id, err)
 	}
 	// A rejected gate's kind may close its item in the same tx (registry.GateKind.OnReject).
 	if Status(status) == StatusRejected && k.OnReject != nil {

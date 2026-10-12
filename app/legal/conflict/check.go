@@ -241,9 +241,31 @@ func (c *Checks) Check(ctx context.Context, req Request) (Run, error) {
 	if err != nil {
 		return Run{}, fmt.Errorf("conflict check: %w", err)
 	}
+	if err := c.publishCompleted(ctx, run, prep); err != nil {
+		return Run{}, err
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.view(run), nil
+}
+
+// publishCompleted publishes EventCheckCompleted for a stored run, acting for its preparer.
+// The run store has no tx to share (Q-PORT-18 C), so the emitter opens its own.
+func (c *Checks) publishCompleted(ctx context.Context, run Run, prep string) error {
+	if c.Events == nil {
+		return nil
+	}
+	id := run.CheckID
+	if id == "" {
+		id = run.ID
+	}
+	// rule: ARC-I-030
+	if err := PublishCheckCompleted(ctx, c.Events, nil, CheckCompleted{
+		CheckID: id, MatterID: run.MatterID, HitCount: int64(len(run.Hits)), UserID: prep,
+	}); err != nil {
+		return fmt.Errorf("conflict check: event: %w", err)
+	}
+	return nil
 }
 
 // Runs implements Checker.

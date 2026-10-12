@@ -157,6 +157,9 @@ func (p Production) options(k *kboot.Kernel) (Options, error) {
 		// The outbox writer is the kernel emitter: events commit with the tx that caused them.
 		k.Emitter = outbox.NewPG(conn)
 	}
+	// rule: ARC-I-030
+	// Every gate decision publishes gate.decided in its own tx.
+	wireGateDecided(k.Gates, k.Emitter)
 	key := p.CursorKey
 	if len(key) == 0 {
 		key = make([]byte, 32)

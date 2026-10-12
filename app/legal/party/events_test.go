@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/dagi377/counsel/kernel/outbox"
 	"github.com/dagi377/counsel/kernel/outbox/outboxfake"
 )
 
@@ -31,7 +32,12 @@ func TestCreatePublishesOrganizationClientCreated(t *testing.T) {
 			if _, err := s.Create(context.Background(), in); err != nil {
 				t.Fatalf("Create: %v", err)
 			}
-			msgs := em.Messages()
+			var msgs []outbox.Message
+			for _, m := range em.Messages() {
+				if m.Type == EventOrganizationClientCreated {
+					msgs = append(msgs, m)
+				}
+			}
 			if len(msgs) != tt.want {
 				t.Fatalf("events = %d, want %d", len(msgs), tt.want)
 			}
@@ -40,6 +46,45 @@ func TestCreatePublishesOrganizationClientCreated(t *testing.T) {
 			}
 			m := msgs[0]
 			if m.Type != EventOrganizationClientCreated || m.Subject.Kind != SubjectContact || m.Subject.ID != "c1" {
+				t.Fatalf("event = %s %+v", m.Type, m.Subject)
+			}
+		})
+	}
+}
+
+// rule: ARC-I-030
+// Creating any contact as a user publishes exactly one contact.created in the insert tx,
+// acting for that user; a contact with no creating user publishes none.
+func TestARC_I_030_CreatePublishesContactCreated(t *testing.T) {
+	okRow := stubRow{vals: []any{"c1", "proposed", created, 1}}
+	tests := []struct {
+		name string
+		kind Kind
+		by   string
+		want int
+	}{
+		{name: "person by a user", kind: Person, by: "u1", want: 1},
+		{name: "organization by a user", kind: Organization, by: "u1", want: 1},
+		{name: "no creating user", kind: Person},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			em := outboxfake.New()
+			s := NewStore(&stubDB{tx: &stubTx{row: okRow}})
+			s.Events = em
+			in := NewContact{Kind: tt.kind, LegalName: "L", DisplayName: "D", CreatedBy: tt.by}
+			if _, err := s.Create(context.Background(), in); err != nil {
+				t.Fatalf("Create: %v", err)
+			}
+			msgs := em.Messages()
+			if len(msgs) != tt.want {
+				t.Fatalf("events = %d, want %d", len(msgs), tt.want)
+			}
+			if tt.want == 0 {
+				return
+			}
+			m := msgs[0]
+			if m.Type != EventContactCreated || m.Subject.ID != "c1" {
 				t.Fatalf("event = %s %+v", m.Type, m.Subject)
 			}
 		})

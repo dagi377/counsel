@@ -314,6 +314,9 @@ func TestDisposePublishesHitsDisposed(t *testing.T) {
 				t.Fatalf("published after dispositions %v, want %v", at, tt.wantAt)
 			}
 			for _, m := range out.Messages() {
+				if m.Type == EventCheckCompleted {
+					continue // published by Check itself
+				}
 				var body HitsDisposed
 				if err := json.Unmarshal(m.Payload, &body); err != nil {
 					t.Fatal(err)
@@ -322,6 +325,45 @@ func TestDisposePublishesHitsDisposed(t *testing.T) {
 				if m.Type != EventHitsDisposed || m.Subject != (outbox.Subject{Kind: SubjectRun, ID: r.ID}) || body != want {
 					t.Fatalf("event = %s %+v %+v, want %+v", m.Type, m.Subject, body, want)
 				}
+			}
+		})
+	}
+}
+
+// rule: ARC-I-030
+// Every stored check run publishes exactly one conflict check-completed event, acting for
+// the preparer; a check that fails publishes nothing.
+func TestARC_I_030_CheckPublishesCheckCompleted(t *testing.T) {
+	tests := []struct {
+		name    string
+		req     Request
+		want    int
+		wantID  string
+		wantHit int64
+	}{
+		{"check record id", Request{MatterID: "m1", CheckID: "chk-1", Terms: []string{"acme"}, Preparer: preparer}, 1, "chk-1", 1},
+		{"no hits", Request{MatterID: "m1", CheckID: "chk-2", Terms: []string{"zeta"}, Preparer: preparer}, 1, "chk-2", 0},
+		{"failed search", Request{MatterID: "m1", CheckID: "chk-3", Terms: []string{"boom"}, Preparer: preparer}, 0, "", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newChecks()
+			out := outboxfake.New()
+			c.Events = out
+			_, _ = c.Check(context.Background(), tt.req)
+			msgs := out.Messages()
+			if len(msgs) != tt.want {
+				t.Fatalf("events = %d, want %d", len(msgs), tt.want)
+			}
+			if tt.want == 0 {
+				return
+			}
+			var body CheckCompleted
+			if err := json.Unmarshal(msgs[0].Payload, &body); err != nil {
+				t.Fatal(err)
+			}
+			if msgs[0].Type != EventCheckCompleted || body.CheckID != tt.wantID || body.HitCount != tt.wantHit || body.UserID != preparer.UserID {
+				t.Fatalf("event = %s %+v", msgs[0].Type, body)
 			}
 		})
 	}
