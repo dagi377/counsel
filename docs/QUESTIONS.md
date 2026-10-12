@@ -4378,3 +4378,48 @@ migrations/6400_platform_gate_effects.sql (platform block). Owner, please confir
   expired); revoking at expiry is a later job. escrow_destination and published_price upsert
   firm settings; service_credit adds a `platform.readiness_record` (kind `service_credit`,
   `credit_cents`), one per gate.
+
+## Q-JOB-RUNNERS workers for queued gate effects; full G-PERM grant set
+
+Built (counsel-worker, app/legal/boot/jobs_platform.go, app/legal/platform/runners*.go):
+
+- `platform.release_send` (every minute): each queued `platform.release` row is handed to its
+  channel and moved to `sent` in one tx, with audit `platform.release.sent`. The production
+  sender publishes outbox event `platform.release.<kind>` (ids only; the content stays in the
+  gate payload). A failed hand-off moves the row to `failed` (audit `platform.release.failed`).
+  A retry finds nothing queued and does nothing. Not added when the kernel has no emitter.
+- `platform.destruction_run` (hourly): each scheduled `platform.destruction_order` re-checks,
+  under a lock on the matter and its `matter.matter_closing` record: no retention record, any
+  legal hold (matter, retention record or any document of the matter), matter not
+  closed/archived, another matter of the same client not closed, retention class not the
+  approved one, `destroy_after` after today (America/Toronto). Any of these moves the order to
+  `blocked` with audit `platform.destruction.blocked.<reason>`; nothing under a hold is
+  destroyed. Otherwise the `Shredder` port destroys the file contents outside `keep_set`,
+  `matter_closing.destroyed_at` and the certificate ref are stamped, and the order moves to
+  `done` (audit `platform.destruction.done`).
+- Owner, please answer: no crypto-shredder exists for the document object store. Boot takes it
+  as `Options.Platform.Shredder`; while it is nil, eligible orders stay `scheduled` and the
+  pass fails with `ErrNoShredder` (blocked orders are still recorded). Which service owns
+  shredding, and should the run also cover backups (spec: "destruction must cover backups")?
+  NeverPurge classes are not checked here (no retention.Classes on the kernel); the approved
+  class must equal the record's class.
+- `platform.access_change` now applies the full approved set: `change = {"role_id"?: uuid,
+  "grants"?: [{capability_id, level (view|own|all|approve), matter_id?, reason, expires_at}]}`,
+  at least one of the two. Grants go to `core.temp_grant` under `approval_id = gate id` (the
+  only per-user capability table, so every grant has an expiry). `approve` on a
+  `licensee_required_for_approve` capability needs a licensee; an approver never changes their
+  own access; one refused grant fails the whole set. Not enforced yet: "trust signing
+  authority is granted only by a lawyer who holds it" (needs the approver's grants in the
+  effect).
+
+Other effects that only queue something and still have no worker (not built here, no new
+scope):
+
+- `platform.export`: `platform.export_job` status `approved`; no export assembler (spec agent
+  job "Export assembler": build, verify counts and hashes, expiring link).
+- `platform.import_balances`: `platform.import_job` `committed`; posting the opening balance
+  lines stays with trust (MIG-033); no job posts them yet.
+- `platform.vendor_support`: `platform.support_access` until `expires_at`; nothing sets
+  `revoked_at` at expiry (readers must check `expires_at`).
+- `ApprovalEffect` (boot/effects_approval.go): outbound `comms.comm_item` gets
+  `delivery_status = 'queued'`; no delivery job reads it.
