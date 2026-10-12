@@ -237,5 +237,6 @@ func appDefs() []feature.Def {
 		platform.SuggestPracticeAreaDef(),
 		platform.StaleMatterSweepDef(),
 		platform.CitationCheckerDef(),
+		platform.PortalTriageDef(),
 	}
 }

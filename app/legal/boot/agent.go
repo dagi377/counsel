@@ -472,6 +472,7 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		platform.InsightsNoteDef().ID:            platform.InsightsNoteBinding,
 		platform.StaleMatterSweepDef().ID:        platform.StaleMatterSweepBinding,
 		platform.CitationCheckerDef().ID:         platform.CitationCheckerBinding,
+		platform.PortalTriageDef().ID:            platform.PortalTriageBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -577,8 +578,10 @@ var actionScreens = map[string]trigger.Screen{
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
 	// Document and matter features of pass 16 (Q-INTEG-16-SCREENS): a screen on a matter's
 	// documents selects the matter; a library screen selects the documents themselves.
-	"document-assembly":       {SubjectKind: "matter", Capability: "documents.edit"},
-	"client-sharing":          {SubjectKind: "matter", Capability: "documents.edit"},
+	"document-assembly": {SubjectKind: "matter", Capability: "documents.edit"},
+	"client-sharing":    {SubjectKind: "matter", Capability: "documents.edit"},
+	// The client portal thread belongs to one matter, so the screen selects it; portal
+	// triage (F-PLT-01) runs there too (docs/QUESTIONS.md Q-FEAT-PLT-01).
 	"client-portal":           {SubjectKind: "matter", Capability: "documents.edit"},
 	"email-filing":            {SubjectKind: "matter", Capability: "documents.view"},
 	"bundle-builder":          {SubjectKind: "matter", Capability: "documents.view"},

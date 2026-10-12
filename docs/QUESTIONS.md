@@ -5557,3 +5557,20 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   spec's F-PLT-11 tools) needs a spec decision. No closing gate effect exists yet; when one
   lands it must re-check the ledger at zero (ARC-I-024).
 - No rule id names "close only at $0.00 trust"; the blocker is tagged BIL-L-036.
+
+## Q-FEAT-PLT-01 F-PLT-01 portal triage: event, screen and output
+
+- No event for "client portal message" exists on main or a pushed branch. F-PLT-01 binds a new
+  `platform.EventClientPortalMessage` (`comms.portal_message_received`), acting for the
+  event's user (the matter's responsible lawyer). comms does not publish it yet (EVENTS-WIRE
+  follow-up: publish it when a portal guest posts a message on one of their matters).
+- The Def is in featureset.App(); `boot.JobBindings` binds it, and the `client-portal` screen
+  (subject `matter`, capability `matters.view`) is added to `actionScreens`.
+- Output "Sent template reply, or a draft reply for G-PM": the agent never sends. Both screen
+  actions draft the reply with `draft_email` (submit false) and open `platform.portal_message`
+  (G-PM, `legaldocs.GatePortalMessage`) on it with `submit_for_approval`; a template reply
+  is sent only once a person approves. A send-without-review path for routine replies would
+  need its own decision.
+- This branch creates `app/legal/platform` with a package comment in `ai_f_plt_01.go`;
+  FEAT-PLT-02 does the same in `ai_f_plt_02.go`. A merge keeps one. Helpers:
+  `ai_pltb_helpers_test.go` (prefix pltb).
