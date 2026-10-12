@@ -30,9 +30,10 @@ func toolGapKinds(t *testing.T) []string {
 	if err := json.Unmarshal(raw, &f); err != nil {
 		t.Fatalf("parse features: %v", err)
 	}
-	// 38 from the spec, plus intake.consult_outcome (Q-FEAT-INT-06).
-	if len(f.ToolGaps.Kinds) != 39 {
-		t.Fatalf("tool_gap kinds = %d, want 39", len(f.ToolGaps.Kinds))
+	// 38 from the spec, plus intake.consult_outcome (Q-FEAT-INT-06) and
+	// platform.summary_accuracy (Q-FEAT-PLT-06).
+	if len(f.ToolGaps.Kinds) != 40 {
+		t.Fatalf("tool_gap kinds = %d, want 40", len(f.ToolGaps.Kinds))
 	}
 	return f.ToolGaps.Kinds
 }

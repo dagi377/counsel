@@ -40,6 +40,7 @@
    "platform.security_answer",
    "platform.service_credit",
    "platform.skill_autonomy",
+   "platform.summary_accuracy",
    "timekeeping.disbursement",
    "timekeeping.fee_arrangement",
    "timekeeping.timesheet",
@@ -3948,16 +3949,21 @@
    "screens": [
     "comms-log"
    ],
-   "tool_gap": [],
-   "trigger": "event: transcript with recorded consent",
-   "on_request": [],
-   "inputs": "trigger payload (event: transcript with recorded consent) plus tool reads: get_matter, search_documents, read_document",
+   "tool_gap": [
+    "platform.summary_accuracy"
+   ],
+   "trigger": "on request from comms-log",
+   "on_request": [
+    "comms-log > Summarize call"
+   ],
+   "inputs": "screen context of comms-log (the selected call, its transcript filed with recorded consent) plus tool reads: get_matter, search_documents, read_document",
    "outputs": "Summary for G-SUM; tasks; G9 time",
    "tools": [
     "get_matter",
     "search_documents",
     "read_document",
     "draft_note",
+    "draft_document",
     "propose_time_entries",
     "report_plan",
     "report_step",
@@ -3972,7 +3978,7 @@
    },
    "model_call": "tool-use",
    "fixture": "testdata/ai/f-plt-04/call-summarizer",
-   "acceptance": "model.mode=mock, fixture f-plt-04/call-summarizer: trigger fires -> fake LLM returns the scripted tool-use; Counsel records Summary for G-SUM; tasks; G9 time; gate platform.summary_accuracy, timekeeping.accept is pending with the acting user as preparer and report_plan precedes the first write (ARC-I-039); agent principal deciding any gate -> 403; fixture variant error_429 -> no partial write and a retry is queued; variant injection -> quoted data only, no extra tool call (ARC-I-038)"
+   "acceptance": "model.mode=mock, fixture f-plt-04/call-summarizer: screen action fires -> fake LLM returns the scripted tool-use; Counsel records Summary for G-SUM; tasks; G9 time; gate platform.summary_accuracy, timekeeping.accept is pending with the acting user as preparer and report_plan precedes the first write (ARC-I-039); agent principal deciding any gate -> 403; fixture variant error_429 -> no partial write and a retry is queued; variant injection -> quoted data only, no extra tool call (ARC-I-038)"
   },
   {
    "id": "F-PLT-05",

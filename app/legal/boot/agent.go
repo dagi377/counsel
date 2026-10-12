@@ -463,11 +463,16 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		platform.RetainerCoverageDef().ID:   platform.RetainerCoverageBinding,
 		platform.FeatureMailFiling:          platform.MailFilingBinding,
 		platform.ClosingStarterDef().ID:     platform.ClosingStarterBinding,
+		// Platform.
+		platform.FilingScopeReevaluationDef().ID: platform.FilingScopeReevaluationBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
 	onRequest := map[string]bool{
 		matter.FeatureMatterQuestionAnswering: true,
+		// F-MAT-07 owns the consented transcript event; F-PLT-04 summarizes a call only when
+		// a user asks from the comms-log (Q-FEAT-PLT-06).
+		platform.FeatureCallSummarizer: true,
 	}
 	for _, d := range s.All() {
 		if d.Source != feature.SourceJob {
@@ -713,6 +718,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Platform. matter-closing is a matter screen (/matters/:id/close) every matter role
 	// views (F-PLT-11).
 	"matter-closing": {SubjectKind: "matter", Capability: "matters.view"},
+	// The esign request selects the document it sends for signature.
+	"esign-request": {SubjectKind: legaldocs.SubjectKind, Capability: "documents.view"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

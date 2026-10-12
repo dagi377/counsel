@@ -223,5 +223,8 @@ func appDefs() []feature.Def {
 		platform.MailFilingDef(),
 		platform.PrepareTrustRefundDef(),
 		platform.ClosingStarterDef(),
+		platform.CallSummarizerDef(),
+		platform.FilingScopeReevaluationDef(),
+		platform.PrepareSignatureFieldsDef(),
 	}
 }
