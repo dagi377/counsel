@@ -232,5 +232,8 @@ func appDefs() []feature.Def {
 		platform.ProposeTemplateDef(),
 		platform.RiskDigestDef(),
 		platform.InsightsNoteDef(),
+		platform.RecommendSettingsDef(),
+		platform.PrepareFinalBillDef(),
+		platform.SuggestPracticeAreaDef(),
 	}
 }

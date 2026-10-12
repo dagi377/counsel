@@ -7,10 +7,6 @@ import (
 	"github.com/dagi377/counsel/app/legal/agent/feature"
 )
 
-// GateSkillAutonomy is the gate kind of spec gate G-SK: a template or skill the agent proposes
-// takes effect only after a person with platform.agent_settings approves it.
-const GateSkillAutonomy = "platform.skill_autonomy"
-
 // ActionProposeTemplate is the email-settings action that runs F-PLT-28.
 const ActionProposeTemplate = "email-settings > Propose template"
 

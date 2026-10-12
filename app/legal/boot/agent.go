@@ -721,7 +721,8 @@ var actionScreens = map[string]trigger.Screen{
 	// Platform: the comms log selects the matter the email, reply or call is filed on.
 	"comms-log": {SubjectKind: "matter", Capability: "matters.view"},
 	// Platform. matter-closing is a matter screen (/matters/:id/close) every matter role
-	// views (F-PLT-11).
+	// views (F-PLT-11); F-PLT-20 drafts the closing matter's final bill from it, and its
+	// write tools and gate check the stronger capabilities.
 	"matter-closing": {SubjectKind: "matter", Capability: "matters.view"},
 	// The esign request selects the document it sends for signature.
 	"esign-request": {SubjectKind: legaldocs.SubjectKind, Capability: "documents.view"},
@@ -736,6 +737,14 @@ var actionScreens = map[string]trigger.Screen{
 	"email-settings": {SubjectKind: FirmSubject, Capability: "documents.edit"},
 	// reports is firm-level: a risk digest covers every open matter (F-PLT-05).
 	"reports": {SubjectKind: FirmSubject, Capability: "reports.firm"},
+	// Platform. automation-settings is firm-level: the settings F-PLT-19 recommends belong to
+	// the firm. The agent-settings capability is a kernel id the app may not register, so the
+	// screen asks for documents.edit, the run's drafting capability (Q-FEAT-PLT-17).
+	"automation-settings": {SubjectKind: FirmSubject, Capability: "documents.edit"},
+	// firm-profile is firm-level: a practice area F-PLT-22 proposes is the firm's
+	// configuration. platform.firm_profile is a kernel id, so the screen asks for
+	// documents.edit, the run's drafting capability (Q-FEAT-PLT-20).
+	"firm-profile": {SubjectKind: FirmSubject, Capability: "documents.edit"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

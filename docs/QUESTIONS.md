@@ -5469,3 +5469,48 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   screen. Open, as for F-PLT-05: where the note is shown on firm-insights, since the answer
   is never stored (AI-R-005).
 - Branch is based on task/FEAT-PLT-22 (one platform helper file).
+
+## Q-FEAT-PLT-17 F-PLT-19 recommend settings on the firm subject
+
+- Automation settings belong to the firm, so F-PLT-19 drafts its recommendation on the firm
+  subject (`subject_ref` `"firm"`, no `matter_id`) and opens `platform.skill_autonomy` (G-SK,
+  `platform.GateSkillAutonomy`) on that draft with submit_for_approval. The grant names
+  `intake.forms` because draft_document gates firm drafts on it (Q-FORM-SUBJECT). Open: a
+  general firm-draft capability.
+- `automation-settings` maps to `boot.FirmSubject` with capability `documents.edit`: the
+  approver capability `platform.agent_settings` is a kernel id the app may not register
+  (TestAppIDsAvoidKernelPrefix).
+- G-SK's payload schema requires `skill` and `autonomy`; submit_for_approval sends the
+  draft's subject only. Same open point as the intake features that open this kind.
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (screen), the generated plugin skill, ai_pltg_helpers_test.go (shared helpers).
+
+## Q-FEAT-PLT-18 F-PLT-20 prepare final bill
+
+- The spec's output names "Billing area gate G-B2", but its gate kind is
+  `billing.prebill_review`, which gates/kinds.json maps to G-B1. F-PLT-20 opens
+  `billing.prebill_review` (`agent.GatePrebillReview`) through draft_bill, as the spec's gate
+  kind says. Open: whether G-B2 was meant.
+- draft_bill's provenance check covers `write_down_cents` only, not `period_to`. The prompt
+  sends no line actions (write-downs are the reviewer's call) and takes `period_to` from the
+  closing record; the feature test checks that date with the production provenance check.
+  Proposed: draft_bill declares `/period_to` and `/period_from` as sourced fields.
+- The Seed has no billing ports (UnbilledWIP, batch.Drafts, draft.Store, draft.Calc), so the
+  test gives draft_bill's production handler in-memory ones (ai_pltg_helpers_test.go), as
+  FEAT-BIL-01 does.
+- `matter-closing` maps to `matter` with capability `matters.close`.
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (screen), the generated plugin skill, ai_pltg_helpers_test.go (shared helpers).
+
+## Q-FEAT-PLT-20 F-PLT-22 suggest practice area setup on the firm subject
+
+- A practice area is the firm's configuration, so F-PLT-22 drafts its proposal on the firm
+  subject (`subject_ref` `"firm"`, no `matter_id`) and opens `matter.practice_config` (G-CF,
+  `matter.GatePracticeConfig`) on that draft with submit_for_approval. The grant names
+  `intake.forms` because draft_document gates firm drafts on it (Q-FORM-SUBJECT).
+- `firm-profile` maps to `boot.FirmSubject` with capability `documents.edit`: the approver
+  capability `platform.firm_profile` is a kernel id the app may not register.
+- G-CF's payload schema requires `practice_area` and `change`; submit_for_approval sends the
+  draft's subject only (same open point as Q-FEAT-PLT-17).
+- Outside the listed files: featureset.go/featureset_test.go (Def listed), boot/agent.go
+  (screen), the generated plugin skill.
