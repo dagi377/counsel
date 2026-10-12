@@ -1,26 +1,18 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { features } from "./app/features";
+import { App } from "./app/App";
+import { ToastProvider, initTheme } from "./ui";
 
-function App() {
-  return (
-    <nav aria-label="Features">
-      <ul>
-        {features.map((f) => (
-          <li key={f.id}>
-            <a href={f.path}>{f.title}</a>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
-}
+// The stored theme applies before React renders, so the first paint has the right colours.
+initTheme();
 
 const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      <App />
+      <ToastProvider>
+        <App />
+      </ToastProvider>
     </StrictMode>,
   );
 }

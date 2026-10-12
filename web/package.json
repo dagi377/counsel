@@ -8,17 +8,22 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "styleguide:shots": "node tools/styleguide_shots.mjs"
+    "styleguide:shots": "node tools/styleguide_shots.mjs",
+    "lint": "eslint --max-warnings 0 src"
   },
   "dependencies": {
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
   "devDependencies": {
+    "@testing-library/react": "16.3.3",
     "@types/react": "18.3.23",
     "@types/react-dom": "18.3.7",
     "@vitejs/plugin-react": "4.5.2",
+    "eslint": "9.39.4",
+    "jsdom": "25.0.1",
     "typescript": "5.8.3",
+    "typescript-eslint": "8.71.0",
     "vite": "6.3.5",
     "vitest": "3.2.4",
     "yaml": "2.8.1",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Shell } from "./Shell";
-import { buildNav, matchRoute, ShellError, type ScreenProps, type ShellFeature } from "./nav";
+import { buildNav, homePath, matchRoute, ShellError, type ScreenProps, type ShellFeature } from "./nav";
 
 // The helpdesk fixture (test/fixtures/helpdesk) is a tiny non-legal app. Its registered portal
 // pages become the feature list the shell is tested against; no app/legal code is involved.
@@ -53,6 +53,11 @@ describe("buildNav", () => {
   const cases: { name: string; features: ShellFeature[]; want?: string[]; err?: RegExp }[] = [
     { name: "helpdesk: parameter routes get no entry", features: helpdesk, want: ["ticket.my_tickets"] },
     { name: "keeps registration order", features: [f("b", "/b"), f("a", "/a")], want: ["b", "a"] },
+    {
+      name: "order first, then registration order",
+      features: [f("c", "/c"), { ...f("b", "/b"), order: 2 }, f("d", "/d"), { ...f("a", "/a"), order: 1 }],
+      want: ["a", "b", "c", "d"],
+    },
     { name: "empty list", features: [], want: [] },
     { name: "duplicate route", features: [f("a", "/x"), f("b", "/x")], err: /already taken by "a"/ },
     { name: "duplicate route by parameter", features: [f("a", "/t/{id}"), f("b", "/t/{key}")], err: /already taken/ },
@@ -113,14 +118,14 @@ describe("Shell", () => {
       name: "unknown path shows not found with the nav",
       features: helpdesk,
       path: "/nope",
-      has: ['role="alert"', "Page not found", '<a href="/tickets">My tickets</a>'],
+      has: ['role="alert"', "Page not found", "<code>/nope</code>", '<a href="/tickets">Go to home</a>', '<a href="/tickets">My tickets</a>'],
       not: ["ticket list"],
     },
     {
       name: "feature without a component shows its title",
       features: [f("reports", "/reports")],
       path: "/reports",
-      has: ["<h1>Reports</h1>"],
+      has: ["<h1>Reports</h1>", "not part of this release yet"],
       not: ["Page not found"],
     },
     {
@@ -153,7 +158,7 @@ describe("shell imports no app code", () => {
     import: "default",
   });
   it("found the shell sources", () => {
-    expect(Object.keys(sources).sort()).toEqual(["./Shell.tsx", "./nav.ts"]);
+    expect(Object.keys(sources).sort()).toEqual(["./Shell.tsx", "./location.ts", "./nav.ts", "./states.tsx"]);
   });
   for (const [file, src] of Object.entries(sources)) {
     it(file, () => {
@@ -166,3 +171,13 @@ describe("shell imports no app code", () => {
 function f(id: string, path: string): ShellFeature {
   return { id, title: id.charAt(0).toUpperCase() + id.slice(1), path };
 }
+
+describe("homePath", () => {
+  const cases: { name: string; features: ShellFeature[]; want: string | null }[] = [
+    { name: "root feature wins", features: [f("a", "/a"), f("root", "/")], want: "/" },
+    { name: "first nav entry by order", features: [f("a", "/a"), { ...f("b", "/b"), order: 1 }], want: "/b" },
+    { name: "parameter routes are skipped", features: [f("d", "/t/{id}"), f("a", "/a")], want: "/a" },
+    { name: "nothing to show", features: [], want: null },
+  ];
+  for (const c of cases) it(c.name, () => expect(homePath(c.features)).toBe(c.want));
+});

@@ -16,6 +16,9 @@ export interface ShellFeature {
   title: string;
   path: string;
   component?: ComponentType<ScreenProps> | ComponentType;
+  // order places the feature in the nav: lower first. Features without one follow, in
+  // registration order.
+  order?: number;
 }
 
 export interface NavItem {
@@ -50,13 +53,23 @@ export function validateFeatures(features: readonly ShellFeature[]): void {
   }
 }
 
-// buildNav lists the features a user can link to, in registration order. A route with a
-// parameter is reachable only from another screen, so it gets no nav entry.
+// buildNav lists the features a user can link to, by order, then registration order. A
+// route with a parameter is reachable only from another screen, so it gets no nav entry.
 export function buildNav(features: readonly ShellFeature[]): NavItem[] {
   validateFeatures(features);
+  const rank = (f: ShellFeature) => f.order ?? Number.MAX_SAFE_INTEGER;
   return features
-    .filter((f) => !segments(f.path).some((s) => paramName(s) !== null))
-    .map((f) => ({ id: f.id, title: f.title, path: f.path }));
+    .map((f, i) => ({ f, i }))
+    .filter(({ f }) => !segments(f.path).some((s) => paramName(s) !== null))
+    .sort((a, b) => rank(a.f) - rank(b.f) || a.i - b.i)
+    .map(({ f }) => ({ id: f.id, title: f.title, path: f.path }));
+}
+
+// homePath is where "/" leads: the root feature if one is registered, else the first nav
+// entry, else null (nothing to show).
+export function homePath(features: readonly ShellFeature[]): string | null {
+  if (features.some((f) => routeKey(f.path) === "/")) return "/";
+  return buildNav(features)[0]?.path ?? null;
 }
 
 // matchRoute finds the feature whose path matches pathname. A literal segment beats a

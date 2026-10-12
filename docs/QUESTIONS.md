@@ -6410,3 +6410,21 @@ Owner to confirm the preparer capabilities (billing.payments, trust.record, trus
   scope for a follow-up task.
 - Left from the P3 package (no new scope taken): r.16.06 deemed service and the
   Limitations Act s.11 note (m5).
+
+## W2 web foundation: session probe and portal API mount
+
+- **Session probe (choice logged):** the API has no "who am I" endpoint, so the web app learns
+  whether the AUTH-WIRE session cookie is live from `GET /v1/roles` (401 = signed out; 2xx,
+  403, 404 = signed in). Sign-in is a link to `/auth/login?return_to=<path>`, sign-out a POST
+  form to `/auth/logout`. No openapi change was made. Question: add an additive
+  `GET /v1/session` (user id, display name, firm, step-up time) so the top bar can show who is
+  signed in and the probe stops depending on a capability-checked list?
+- **Portal API mount (choice logged):** the guest page stays at `/portal/matters`; its data is
+  fetched from `/api/portal/matters` and `/api/portal/matters/{id}`, and a 2xx answer that is
+  not JSON is an error with its own copy. No server route serves portal pages or guest
+  sessions yet (`kernel/portal` has no HTTP mount), so the web app renders portal features
+  outside the member shell and does not mount `PortalShell`. Question: confirm the
+  `/api/portal` mount when the portal HTTP routes land.
+- **Float ban now runs:** `npm run lint` (in `make web-test`) uses the typescript-eslint
+  parser. It flagged two time divisions in `kernel/access/AccessAdmin.tsx`; they carry an
+  inline disable with the reason (time, not money).

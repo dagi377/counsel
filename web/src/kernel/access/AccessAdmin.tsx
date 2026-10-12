@@ -79,8 +79,10 @@ export function formatExpiry(expiresAt: string, now: Date): string {
     hourCycle: "h23",
     timeZoneName: "short",
   }).format(t);
+  // eslint-disable-next-line no-restricted-syntax -- time arithmetic, not money
   const mins = Math.floor((t.getTime() - now.getTime()) / 60000);
   if (mins <= 0) return `Expired ${when}`;
+  // eslint-disable-next-line no-restricted-syntax -- time arithmetic, not money
   const left = mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
   return `Expires ${when} (${left} left)`;
 }

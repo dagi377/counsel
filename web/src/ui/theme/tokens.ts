@@ -87,35 +87,36 @@ export const themes: Record<ThemeName, ColourTokens> = { light, dark };
 export interface ContrastPair {
   fg: keyof ColourTokens;
   bg: keyof ColourTokens;
-  min: 3 | 4.5;
+  // minTenths is the minimum ratio in tenths (45 is 4.5:1): web/src holds no float literals.
+  minTenths: 30 | 45;
   why: string;
 }
 
 export const contrastPairs: ContrastPair[] = [
-  { fg: "ink", bg: "bg", min: 4.5, why: "body text on the page" },
-  { fg: "ink", bg: "panel", min: 4.5, why: "body text in a card" },
-  { fg: "ink", bg: "soft", min: 4.5, why: "body text on a table header or hover row" },
-  { fg: "muted", bg: "bg", min: 4.5, why: "secondary text on the page" },
-  { fg: "muted", bg: "panel", min: 4.5, why: "labels and table headers" },
-  { fg: "muted", bg: "soft", min: 4.5, why: "labels on a table header" },
-  { fg: "railInk", bg: "rail", min: 4.5, why: "nav labels" },
-  { fg: "railMuted", bg: "rail", min: 4.5, why: "nav secondary text" },
-  { fg: "accent", bg: "panel", min: 4.5, why: "agent text and links" },
-  { fg: "accent", bg: "bg", min: 4.5, why: "links on the page" },
-  { fg: "accent", bg: "accentSoft", min: 4.5, why: "agent pill" },
-  { fg: "gate", bg: "panel", min: 4.5, why: "gate text" },
-  { fg: "gate", bg: "gateSoft", min: 4.5, why: "gate pill" },
-  { fg: "ok", bg: "panel", min: 4.5, why: "ok text" },
-  { fg: "ok", bg: "okSoft", min: 4.5, why: "ok pill" },
-  { fg: "warn", bg: "panel", min: 4.5, why: "warning text" },
-  { fg: "warn", bg: "warnSoft", min: 4.5, why: "warning pill" },
-  { fg: "bad", bg: "panel", min: 4.5, why: "danger text, overdrafts" },
-  { fg: "bad", bg: "bg", min: 4.5, why: "danger text on the page" },
-  { fg: "bad", bg: "badSoft", min: 4.5, why: "danger pill" },
-  { fg: "panel", bg: "ink", min: 4.5, why: "primary button label" },
-  { fg: "panel", bg: "bad", min: 4.5, why: "danger button label" },
-  { fg: "focus", bg: "panel", min: 3, why: "focus ring against a card" },
-  { fg: "focus", bg: "bg", min: 3, why: "focus ring against the page" },
+  { fg: "ink", bg: "bg", minTenths: 45, why: "body text on the page" },
+  { fg: "ink", bg: "panel", minTenths: 45, why: "body text in a card" },
+  { fg: "ink", bg: "soft", minTenths: 45, why: "body text on a table header or hover row" },
+  { fg: "muted", bg: "bg", minTenths: 45, why: "secondary text on the page" },
+  { fg: "muted", bg: "panel", minTenths: 45, why: "labels and table headers" },
+  { fg: "muted", bg: "soft", minTenths: 45, why: "labels on a table header" },
+  { fg: "railInk", bg: "rail", minTenths: 45, why: "nav labels" },
+  { fg: "railMuted", bg: "rail", minTenths: 45, why: "nav secondary text" },
+  { fg: "accent", bg: "panel", minTenths: 45, why: "agent text and links" },
+  { fg: "accent", bg: "bg", minTenths: 45, why: "links on the page" },
+  { fg: "accent", bg: "accentSoft", minTenths: 45, why: "agent pill" },
+  { fg: "gate", bg: "panel", minTenths: 45, why: "gate text" },
+  { fg: "gate", bg: "gateSoft", minTenths: 45, why: "gate pill" },
+  { fg: "ok", bg: "panel", minTenths: 45, why: "ok text" },
+  { fg: "ok", bg: "okSoft", minTenths: 45, why: "ok pill" },
+  { fg: "warn", bg: "panel", minTenths: 45, why: "warning text" },
+  { fg: "warn", bg: "warnSoft", minTenths: 45, why: "warning pill" },
+  { fg: "bad", bg: "panel", minTenths: 45, why: "danger text, overdrafts" },
+  { fg: "bad", bg: "bg", minTenths: 45, why: "danger text on the page" },
+  { fg: "bad", bg: "badSoft", minTenths: 45, why: "danger pill" },
+  { fg: "panel", bg: "ink", minTenths: 45, why: "primary button label" },
+  { fg: "panel", bg: "bad", minTenths: 45, why: "danger button label" },
+  { fg: "focus", bg: "panel", minTenths: 30, why: "focus ring against a card" },
+  { fg: "focus", bg: "bg", minTenths: 30, why: "focus ring against the page" },
 ];
 
 // Type scale: px sizes on a 4px-friendly leading. Body is 13px for density; 14px for prose.

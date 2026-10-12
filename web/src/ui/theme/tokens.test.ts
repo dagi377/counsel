@@ -21,11 +21,11 @@ describe("tokens", () => {
   const cases = (Object.keys(themes) as ThemeName[]).flatMap((theme) =>
     contrastPairs.map((p) => ({ theme, ...p })),
   );
-  it.each(cases)("$theme: $fg on $bg >= $min ($why)", ({ theme, fg, bg, min }) => {
+  it.each(cases)("$theme: $fg on $bg >= $minTenths/10 ($why)", ({ theme, fg, bg, minTenths }) => {
     const t: ColourTokens = themes[theme];
     expect(t[fg]).toMatch(/^#[0-9a-f]{6}$/);
     expect(t[bg]).toMatch(/^#[0-9a-f]{6}$/);
-    expect(contrast(t[fg], t[bg])).toBeGreaterThanOrEqual(min);
+    expect(contrast(t[fg], t[bg])).toBeGreaterThanOrEqual(minTenths / 10);
   });
 
   it("every colour role is defined in both themes", () => {
