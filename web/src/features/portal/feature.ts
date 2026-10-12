@@ -6,6 +6,7 @@ const feature: Feature = {
   title: "Client portal",
   path: "/portal/matters",
   component: PortalMatters,
+  surface: "portal",
 };
 
 export default feature;

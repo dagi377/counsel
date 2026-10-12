@@ -5074,3 +5074,21 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   `$COUNSEL_DOCS_BUCKET_REGION`, `$COUNSEL_DOCS_KMS_KEY_ID` and the AWS credential variables in
   `app/legal/boot/services_docs.go`; without them the document routes keep answering 503.
   Question: should these move to `cmd/counseld` flags once production.go is free to edit?
+
+## W2 web foundation: session probe and portal API mount
+
+- **Session probe (choice logged):** the API has no "who am I" endpoint, so the web app learns
+  whether the AUTH-WIRE session cookie is live from `GET /v1/roles` (401 = signed out; 2xx,
+  403, 404 = signed in). Sign-in is a link to `/auth/login?return_to=<path>`, sign-out a POST
+  form to `/auth/logout`. No openapi change was made. Question: add an additive
+  `GET /v1/session` (user id, display name, firm, step-up time) so the top bar can show who is
+  signed in and the probe stops depending on a capability-checked list?
+- **Portal API mount (choice logged):** the guest page stays at `/portal/matters`; its data is
+  fetched from `/api/portal/matters` and `/api/portal/matters/{id}`, and a 2xx answer that is
+  not JSON is an error with its own copy. No server route serves portal pages or guest
+  sessions yet (`kernel/portal` has no HTTP mount), so the web app renders portal features
+  outside the member shell and does not mount `PortalShell`. Question: confirm the
+  `/api/portal` mount when the portal HTTP routes land.
+- **Float ban now runs:** `npm run lint` (in `make web-test`) uses the typescript-eslint
+  parser. It flagged two time divisions in `kernel/access/AccessAdmin.tsx`; they carry an
+  inline disable with the reason (time, not money).

@@ -86,6 +86,20 @@ export type BillPatch = {
   line_actions?: Array<LineAction>;
 };
 
+/** Canadian province or territory code. */
+export type ProvinceCode = "AB" | "BC" | "MB" | "NB" | "NL" | "NS" | "NT" | "NU" | "ON" | "PE" | "QC" | "SK" | "YT";
+
+/** The place-of-supply fields PATCH /matters/{matter_id} accepts besides short_name and practice_area_id. They are plain fields, written at the If-Match version (200), and cannot be sent with status, restricted or team. */
+export type PlaceOfSupplyPatch = {
+  court_province?: unknown;
+  property_province?: unknown;
+};
+
+export type FirmTaxRegistrations = {
+  provinces: Array<ProvinceCode>;
+  version: number;
+};
+
 export type LineAction = {
   source_id: Id;
   action: "bill" | "hold" | "write_down" | "write_off" | "no_charge";
@@ -196,6 +210,8 @@ export type TrustLedger = {
   protected_cents?: Cents;
   pending_withdrawals_cents?: Cents;
   last_activity_on?: string;
+  overdrawn?: boolean;
+  shortfall_cents?: Cents;
 };
 
 /** One row of a4 trust.trust_transaction. */
@@ -360,6 +376,7 @@ export const operations: Record<string, { method: string; path: string; sites: E
   listCreditNotes: { method: "GET", path: "/credit-notes", sites: [] },
   requestCreditNote: { method: "POST", path: "/credit-notes", sites: [] },
   getCreditNote: { method: "GET", path: "/credit-notes/{credit_note_id}", sites: [] },
+  withdrawWriteOff: { method: "POST", path: "/credit-notes/{credit_note_id}/withdraw", sites: [] },
   listTrustAccounts: { method: "GET", path: "/trust/accounts", sites: [] },
   listTrustLedgers: { method: "GET", path: "/trust/ledgers", sites: [] },
   listTrustLines: { method: "GET", path: "/trust/ledgers/{ledger_id}/lines", sites: [] },
@@ -384,6 +401,8 @@ export const operations: Record<string, { method: string; path: string; sites: E
   requestMatterOpening: { method: "POST", path: "/matters", sites: [] },
   getMatter: { method: "GET", path: "/matters/{matter_id}", sites: [] },
   updateMatter: { method: "PATCH", path: "/matters/{matter_id}", sites: [] },
+  getFirmTaxRegistrations: { method: "GET", path: "/firm/tax-registrations", sites: [] },
+  updateFirmTaxRegistrations: { method: "PATCH", path: "/firm/tax-registrations", sites: [] },
   listContacts: { method: "GET", path: "/contacts", sites: [] },
   createContact: { method: "POST", path: "/contacts", sites: [] },
   getContact: { method: "GET", path: "/contacts/{contact_id}", sites: [] },
@@ -411,6 +430,18 @@ export const operations: Record<string, { method: string; path: string; sites: E
   createWebhookEndpoint: { method: "POST", path: "/webhook-endpoints", sites: [] },
   startAgentRun: { method: "POST", path: "/agent/runs", sites: [] },
   getAgentRun: { method: "GET", path: "/agent/runs/{run_id}", sites: [] },
+  startScreenAction: { method: "POST", path: "/agent/actions/{feature_id}", sites: [] },
+  changeDeadlineTrigger: { method: "POST", path: "/deadlines/{deadline_id}/trigger", sites: [] },
+  issueClaim: { method: "POST", path: "/filings/{filing_id}/issue", sites: [] },
+  recordAffidavitOfService: { method: "POST", path: "/filings/affidavits-of-service", sites: [] },
+  fileEmail: { method: "POST", path: "/emails/{comm_item_id}/filings", sites: [] },
+  changeMatterStage: { method: "POST", path: "/matters/{matter_id}/stage", sites: [] },
+  addMatterNote: { method: "POST", path: "/matters/{matter_id}/notes", sites: [] },
+  requestDocumentRevision: { method: "POST", path: "/documents/{document_id}/revision-requests", sites: [] },
+  recordCourtForm: { method: "POST", path: "/court-forms", sites: [] },
+  receiveInboundEmail: { method: "POST", path: "/emails/inbound", sites: [] },
+  addCalendarEvent: { method: "POST", path: "/calendar-events", sites: [] },
+  setLeadAwaitingInfo: { method: "POST", path: "/leads/{lead_id}/awaiting-info", sites: [] },
   receiveProviderEvent: { method: "POST", path: "/hooks/{provider}", sites: [] },
   renewWebhookEndpoint: { method: "PATCH", path: "/webhook-endpoints/{webhook_id}", sites: [] },
 };
@@ -446,6 +477,7 @@ export interface OperationResponses {
   };
   requestCreditNote: Gate;
   getCreditNote: CreditNote;
+  withdrawWriteOff: void;
   listTrustAccounts: {
     data: Array<TrustAccount>;
     next_cursor: string | null;
@@ -488,6 +520,8 @@ export interface OperationResponses {
   requestMatterOpening: void;
   getMatter: void;
   updateMatter: void;
+  getFirmTaxRegistrations: FirmTaxRegistrations;
+  updateFirmTaxRegistrations: FirmTaxRegistrations;
   listContacts: void;
   createContact: void;
   getContact: void;
@@ -515,6 +549,18 @@ export interface OperationResponses {
   createWebhookEndpoint: void;
   startAgentRun: void;
   getAgentRun: void;
+  startScreenAction: void;
+  changeDeadlineTrigger: void;
+  issueClaim: void;
+  recordAffidavitOfService: void;
+  fileEmail: void;
+  changeMatterStage: void;
+  addMatterNote: void;
+  requestDocumentRevision: void;
+  recordCourtForm: void;
+  receiveInboundEmail: void;
+  addCalendarEvent: void;
+  setLeadAwaitingInfo: void;
   receiveProviderEvent: void;
   renewWebhookEndpoint: void;
 }

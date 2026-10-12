@@ -23,9 +23,9 @@ test:
 
 NPM     ?= npm
 
-# Vitest unit tests for web/ (no network once web/node_modules is installed).
+# Vitest unit tests, ESLint (float ban) and tsc for web/ (no network once web/node_modules is installed).
 web-test:
-	@if [ -d web/node_modules ]; then $(NPM) --prefix web test; \
+	@if [ -d web/node_modules ]; then $(NPM) --prefix web test && $(NPM) --prefix web run lint && $(NPM) --prefix web run typecheck; \
 	else echo "web-test: web/node_modules not present, skipped (run npm --prefix web install)"; fi
 
 spec-lint:

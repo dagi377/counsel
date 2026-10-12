@@ -1,5 +1,6 @@
-import type { ComponentType } from "react";
-import { buildNav, matchRoute, type ScreenProps, type ShellFeature } from "./nav";
+import { useEffect, type ComponentType, type ReactNode } from "react";
+import { buildNav, homePath, matchRoute, type ScreenProps, type ShellFeature } from "./nav";
+import { NotAvailable, NotFound } from "./states";
 
 export interface ShellProps {
   // appName is the product name shown in the header; it comes from the app.
@@ -8,21 +9,32 @@ export interface ShellProps {
   features: readonly ShellFeature[];
   // pathname is the current location path, e.g. window.location.pathname.
   pathname: string;
+  // account is the top bar's right side (signed-in user, sign out); the app supplies it.
+  account?: ReactNode;
 }
 
-// Shell renders the app's navigation and the screen of the feature that matches pathname.
-// It holds no feature of its own and imports no app code.
-export function Shell({ appName, features, pathname }: ShellProps) {
+// Shell renders the app's chrome, its navigation and the screen of the feature that matches
+// pathname. It holds no feature of its own and imports no app code.
+// TODO(ui): adopt the web/src/ui rail, top bar and page header once the design system lands.
+export function Shell({ appName, features, pathname, account }: ShellProps) {
   const nav = buildNav(features);
   const match = matchRoute(features, pathname);
+  const home = homePath(features);
   // Every screen receives params; one declared without props ignores them.
   const Screen = match?.feature.component as ComponentType<ScreenProps> | undefined;
+  const title = match ? `${match.feature.title} · ${appName}` : `Page not found · ${appName}`;
+  useEffect(() => {
+    document.title = title;
+  }, [title]);
   return (
     <div className="shell">
-      <header>
-        <span className="shell-app">{appName}</span>
+      <header className="shell-top">
+        <a className="shell-app" href={home ?? "/"}>
+          {appName}
+        </a>
+        {account ? <div className="shell-account">{account}</div> : null}
       </header>
-      <nav aria-label="Main">
+      <nav aria-label="Main" className="shell-rail">
         <ul>
           {nav.map((n) => (
             <li key={n.id}>
@@ -33,19 +45,8 @@ export function Shell({ appName, features, pathname }: ShellProps) {
           ))}
         </ul>
       </nav>
-      <main>
-        {!match ? (
-          <section role="alert">
-            <h1>Page not found</h1>
-            <p>No screen is registered for this address.</p>
-          </section>
-        ) : Screen ? (
-          <Screen params={match.params} />
-        ) : (
-          <section>
-            <h1>{match.feature.title}</h1>
-          </section>
-        )}
+      <main className="shell-main">
+        {!match ? <NotFound path={pathname} home={home} /> : Screen ? <Screen params={match.params} /> : <NotAvailable title={match.feature.title} />}
       </main>
     </div>
   );

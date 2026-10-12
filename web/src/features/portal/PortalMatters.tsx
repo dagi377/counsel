@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { describeError } from "../../kernel/http/errors";
+import { withRetry, type FetchLike } from "../../kernel/http/retry";
+import { ErrorState, Loading } from "../../kernel/shell/states";
+import { formatDate } from "../../kernel/time";
 
 // The client portal: a guest sees the documents and bills a firm user shared on the guest's
 // own matters, and nothing else. The server loaders (app/legal/comms portal pages) already
@@ -42,24 +46,35 @@ export function visibleItems(data: PortalData): Map<string, PortalItem[]> {
   return out;
 }
 
-// Portal routes, as registered by the comms portal pages under the portal mount.
+// The page lives at /portal/matters; its data comes from a separate API mount, so a dev
+// server or CDN that answers every page path with index.html can never be mistaken for data.
 export const portalBase = "/portal";
-const mattersRoute = `${portalBase}/matters`;
+export const portalApiBase = "/api/portal";
 
-async function getJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error(`portal: GET ${url}: ${res.status}`);
+// NotJSONError is a 2xx answer that is not JSON: the API is not mounted where the page
+// expects it (for example the SPA fallback answered).
+export class NotJSONError extends Error {}
+
+async function getJSON<T>(fetchFn: FetchLike, url: string): Promise<T> {
+  const res = await fetchFn(url, { method: "GET", credentials: "same-origin", headers: { Accept: "application/json" } });
+  if (!res.ok) throw Object.assign(new Error(`portal: GET ${url}: ${res.status}`), { status: res.status, problem: null });
+  const type = res.headers.get("Content-Type") ?? "";
+  if (!/^application\/(problem\+)?json\b/i.test(type)) throw new NotJSONError(`portal: GET ${url}: not JSON (${type || "no content type"})`);
   return (await res.json()) as T;
 }
 
-// loadPortal fetches the guest's matters, then the shared items on each.
-export const loadPortal: PortalLoader = async () => {
-  const matters = (await getJSON<string[] | null>(mattersRoute)) ?? [];
-  const lists = await Promise.all(
-    matters.map((m) => getJSON<PortalItem[] | null>(`${mattersRoute}/${encodeURIComponent(m)}`)),
-  );
-  return { matters, items: lists.flatMap((l) => l ?? []) };
-};
+// portalLoader fetches the guest's matters, then the shared items on each, from apiBase.
+// Transient failures are retried with backoff.
+export function portalLoader(apiBase = portalApiBase, fetchFn: FetchLike = withRetry((i, init) => fetch(i, init))): PortalLoader {
+  const matters = `${apiBase}/matters`;
+  return async () => {
+    const ids = (await getJSON<string[] | null>(fetchFn, matters)) ?? [];
+    const lists = await Promise.all(ids.map((m) => getJSON<PortalItem[] | null>(fetchFn, `${matters}/${encodeURIComponent(m)}`)));
+    return { matters: ids, items: lists.flatMap((l) => l ?? []) };
+  };
+}
+
+export const loadPortal: PortalLoader = portalLoader();
 
 function kindLabel(kind: string): string {
   return kind === "bill" ? "Bill" : "Document";
@@ -89,7 +104,7 @@ export function PortalMattersView({ data }: { data: PortalData }) {
               {items.map((it) => (
                 <li key={it.ID} data-item={it.ID} data-kind={it.Kind}>
                   <span>{kindLabel(it.Kind)}</span> <span>{it.Title}</span>{" "}
-                  <time dateTime={it.SharedAt}>{it.SharedAt.slice(0, 10)}</time>
+                  <time dateTime={it.SharedAt}>{formatDate(it.SharedAt)}</time>
                 </li>
               ))}
             </ul>
@@ -100,22 +115,32 @@ export function PortalMattersView({ data }: { data: PortalData }) {
   );
 }
 
-type State = { status: "loading" } | { status: "error" } | { status: "ready"; data: PortalData };
+type State = { status: "loading" } | { status: "error"; error: unknown } | { status: "ready"; data: PortalData };
 
-// PortalMatters loads the guest's portal data and renders it.
+// PortalMatters loads the guest's portal data and renders it, with a retry on failure.
+// TODO(ui): table per matter, kind chips and skeleton rows once web/src/ui lands.
 export default function PortalMatters({ load = loadPortal }: { load?: PortalLoader }) {
   const [state, setState] = useState<State>({ status: "loading" });
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let live = true;
+    setState({ status: "loading" });
     load().then(
       (data) => live && setState({ status: "ready", data }),
-      () => live && setState({ status: "error" }),
+      (error: unknown) => live && setState({ status: "error", error }),
     );
     return () => {
       live = false;
     };
-  }, [load]);
-  if (state.status === "loading") return <p role="status">Loading your matters...</p>;
-  if (state.status === "error") return <p role="alert">Your matters could not be loaded. Try again later.</p>;
+  }, [load, attempt]);
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  if (state.status === "loading") return <Loading label="Loading your matters" />;
+  if (state.status === "error") {
+    const copy =
+      state.error instanceof NotJSONError
+        ? { title: "The portal is not available", message: "The portal service did not answer. Try again in a moment.", retryable: true }
+        : { ...describeError(state.error), title: "Your matters could not be loaded" };
+    return <ErrorState copy={copy} onRetry={retry} />;
+  }
   return <PortalMattersView data={state.data} />;
 }

@@ -7,7 +7,16 @@ export interface Feature {
   title: string;
   path: string;
   component?: ComponentType;
+  // order places the feature in the member nav: lower first (see kernel/shell/nav.ts).
+  order?: number;
+  // surface is "portal" for a guest page served under /portal; those never appear in the
+  // member app's nav or routes. Default "app".
+  surface?: "app" | "portal";
 }
+
+// appFeatures and portalFeatures split a feature list by surface.
+export const appFeatures = (all: readonly Feature[]): Feature[] => all.filter((f) => (f.surface ?? "app") === "app");
+export const portalFeatures = (all: readonly Feature[]): Feature[] => all.filter((f) => f.surface === "portal");
 
 export type FeatureModules = Record<string, { default?: Feature }>;
 
