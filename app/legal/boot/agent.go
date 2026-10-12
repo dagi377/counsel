@@ -470,6 +470,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		platform.TextTriageDef().ID:              platform.TextTriageBinding,
 		platform.RiskDigestDef().ID:              platform.RiskDigestBinding,
 		platform.InsightsNoteDef().ID:            platform.InsightsNoteBinding,
+		platform.StaleMatterSweepDef().ID:        platform.StaleMatterSweepBinding,
+		platform.CitationCheckerDef().ID:         platform.CitationCheckerBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -745,6 +747,9 @@ var actionScreens = map[string]trigger.Screen{
 	// configuration. platform.firm_profile is a kernel id, so the screen asks for
 	// documents.edit, the run's drafting capability (Q-FEAT-PLT-20).
 	"firm-profile": {SubjectKind: FirmSubject, Capability: "documents.edit"},
+	// views (F-PLT-11).
+	// research-workspace is a matter screen (/matters/:id/research) over its documents
+	// (F-PLT-12).
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

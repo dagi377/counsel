@@ -26,9 +26,9 @@ const FeatureClosingStarter = "F-PLT-06"
 
 // Closing starter item kinds, one per gate the run drafts for.
 const (
-	ClosingFinalBill   = "final_bill"        // the final account, for G-B2 (billing.bill_approval)
-	ClosingTrustRefund = "trust_refund"      // the trust balance back to the client, for G11 (trust.withdrawal)
-	ClosingChecklist   = "closing_checklist" // the closing checklist and letter, for G13 (platform.closing)
+	ClosingFinalBill     = "final_bill"        // the final account, for G-B2 (billing.bill_approval)
+	ClosingTrustRefund   = "trust_refund"      // the trust balance back to the client, for G11 (trust.withdrawal)
+	ClosingChecklistItem = "closing_checklist" // the closing checklist and letter, for G13 (platform.closing)
 )
 
 // ErrClosingRetryQueued means a transient model fault ended the run; a retry is queued and
@@ -111,7 +111,7 @@ func ClosingStarterDef() feature.Def {
 // ClosingItem is one closing draft. Text is model text: it goes to the sink for a person to
 // review and is never logged.
 type ClosingItem struct {
-	Kind        string // ClosingFinalBill, ClosingTrustRefund or ClosingChecklist
+	Kind        string // ClosingFinalBill, ClosingTrustRefund or ClosingChecklistItem
 	Text        string // what the draft says: the account, the refund, the checklist
 	AmountCents int64  // trust_refund always, final_bill when the file states the total
 	Citation    agenttools.Citation
@@ -221,7 +221,7 @@ func decodeClosingItems(out json.RawMessage, sources []agenttools.Citation, pv *
 	items := make([]ClosingItem, 0, len(doc.Items))
 	for i, it := range doc.Items {
 		switch it.Kind {
-		case ClosingFinalBill, ClosingChecklist, ClosingTrustRefund:
+		case ClosingFinalBill, ClosingChecklistItem, ClosingTrustRefund:
 		default:
 			return nil, fmt.Errorf("item %d: kind: %w", i, ErrBadClosingItem)
 		}
@@ -235,7 +235,7 @@ func decodeClosingItems(out json.RawMessage, sources []agenttools.Citation, pv *
 			// rule: ARC-U-027
 			// Fail closed: a refund with no amount moves nothing and drafts nothing.
 			return nil, fmt.Errorf("item %d: refund amount: %w", i, ErrBadClosingItem)
-		case it.Kind == ClosingChecklist && it.AmountCents != 0:
+		case it.Kind == ClosingChecklistItem && it.AmountCents != 0:
 			return nil, fmt.Errorf("item %d: checklist with an amount: %w", i, ErrBadClosingItem)
 		}
 		if it.AmountCents != 0 {

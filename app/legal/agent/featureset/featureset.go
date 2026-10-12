@@ -235,5 +235,7 @@ func appDefs() []feature.Def {
 		platform.RecommendSettingsDef(),
 		platform.PrepareFinalBillDef(),
 		platform.SuggestPracticeAreaDef(),
+		platform.StaleMatterSweepDef(),
+		platform.CitationCheckerDef(),
 	}
 }
