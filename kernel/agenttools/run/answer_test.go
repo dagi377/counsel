@@ -10,6 +10,7 @@ import (
 
 	"github.com/dagi377/counsel/kernel/agenttools"
 	"github.com/dagi377/counsel/kernel/agenttools/run"
+	"github.com/dagi377/counsel/kernel/ai"
 )
 
 // rule: ARC-I-038
@@ -65,6 +66,7 @@ func TestAI_R_005_AnswerUncitedOnlyWhenSpecAllows(t *testing.T) {
 		wantErr error
 	}{
 		{name: "default requires citations", spec: run.Spec{FeatureID: feature}, wantErr: run.ErrUncitedAnswer},
+		{name: "chat spec requires citations", spec: run.Spec{FeatureID: feature, Kind: ai.KindChat, OutputSchema: run.AnswerSchema}, wantErr: run.ErrUncitedAnswer},
 		{name: "spec allows uncited", spec: run.Spec{FeatureID: feature, AnswerMayBeUncited: true}},
 	}
 	for _, tt := range tests {

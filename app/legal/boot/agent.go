@@ -433,6 +433,8 @@ func JobBindings(s *feature.Set, b *trigger.Bindings) error {
 		access.BreakGlassSummaryDef().ID:    access.BreakGlassSummaryBinding,
 		access.FeatureOffboardingPlan:       access.OffboardingPlanBinding,
 		access.FeatureInviteListCheck:       access.InviteListCheckBinding,
+		access.DutyScanDef().ID:             access.DutyScanBinding,
+		access.AnomalyWatchDef().ID:         access.AnomalyWatchBinding,
 	}
 	// onRequest lists the job features that only their screen actions start (trigger.Actions
 	// serves them); they have no event or schedule to bind (Q-INTEG-16-SCREENS).
@@ -506,6 +508,10 @@ var actionScreens = map[string]trigger.Screen{
 	// Firm-level screens act on the firm, not on a matter.
 	"conflict-search-settings": {SubjectKind: FirmSubject, Capability: "conflicts.run"},
 	"compliance-audit-log":     {SubjectKind: FirmSubject, Capability: "admin.audit_log"},
+	// Access screens act on the firm: the audit log and the sign-in policy are firm records.
+	"access-audit":     {SubjectKind: FirmSubject, Capability: "admin.audit_log"},
+	"sign-in-settings": {SubjectKind: FirmSubject, Capability: "admin.security"},
+	"support-access":   {SubjectKind: FirmSubject, Capability: "admin.support_access"},
 	// Documents.
 	"engagement-letter-composer": {SubjectKind: "matter", Capability: "documents.edit"},
 	"ai-draft-workspace":         {SubjectKind: "matter", Capability: "documents.edit"},
@@ -630,6 +636,11 @@ var actionScreens = map[string]trigger.Screen{
 	// Access. main has no firm subject yet, so a firm-level admin screen selects a matter
 	// (Q-FEAT-ACC-05).
 	"user-list": {SubjectKind: "matter", Capability: "admin.users"},
+	// Access administration screens act on the firm.
+	"role-editor": {SubjectKind: FirmSubject, Capability: "admin.roles"},
+	"duty-rules":  {SubjectKind: FirmSubject, Capability: "admin.roles"},
+	"roles-list":  {SubjectKind: FirmSubject, Capability: "admin.roles"},
+	"user-detail": {SubjectKind: FirmSubject, Capability: "admin.users"},
 }
 
 // ActionScreens returns a copy of the screen-to-subject map of the action route.

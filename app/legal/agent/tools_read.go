@@ -161,7 +161,7 @@ type matterOut struct {
 // MatterCitation cites a matter record. A matter has no document version, so the record id
 // stands in for the version, at page 1, line 1.
 func MatterCitation(id matter.ID) agenttools.Citation {
-	return agenttools.Citation{VersionID: "matter:" + string(id), Page: 1, FromLine: 1, ToLine: 1}
+	return agenttools.Citation{VersionID: MatterCitationPrefix + string(id), Page: 1, FromLine: 1, ToLine: 1}
 }
 
 func toMatterOut(m matter.Matter) matterOut {
@@ -188,9 +188,28 @@ func (t *ReadTools) visible(ctx context.Context, userID, matterID string) error 
 	return nil
 }
 
+// MatterCitationPrefix starts the citation id of a matter search_matters returned.
+const MatterCitationPrefix = "matter:"
+
+// citationOut is a citation as a tool result shows it to the model, in the answer's shape.
+type citationOut struct {
+	VersionID string `json:"version_id"`
+	Page      int    `json:"page"`
+	FromLine  int    `json:"from_line"`
+	ToLine    int    `json:"to_line"`
+}
+
+// matterHit is one search_matters result: the matter and the citation an answer about it
+// copies.
+type matterHit struct {
+	matterOut
+	CitationID string      `json:"citation_id"`
+	Citation   citationOut `json:"citation"`
+}
+
 // searchMattersOut is one page of search_matters. NextCursor is empty on the last page.
 type searchMattersOut struct {
-	Matters    []matterOut `json:"matters"`
+	Matters    []matterHit `json:"matters"`
 	NextCursor string      `json:"next_cursor,omitempty"`
 }
 
@@ -230,11 +249,18 @@ func (t *ReadTools) searchMatters(ctx context.Context, c Call) (Result, error) {
 		}
 		match = append(match, m)
 	}
-	out := searchMattersOut{Matters: []matterOut{}, NextCursor: nextCursor(offset, n, len(match))}
+	out := searchMattersOut{Matters: []matterHit{}, NextCursor: nextCursor(offset, n, len(match))}
 	var cites []Citation
 	for i := offset; i < min(offset+n, len(match)); i++ {
-		out.Matters = append(out.Matters, toMatterOut(match[i]))
-		cites = append(cites, matterCite(match[i].ID))
+		// rule: ARC-I-038
+		// Each result carries its citation id, and the run records it, so an answer may cite
+		// a matter this search returned and no other.
+		mc := matterCite(match[i].ID)
+		cites = append(cites, mc)
+		out.Matters = append(out.Matters, matterHit{
+			matterOut: toMatterOut(match[i]), CitationID: mc.VersionID,
+			Citation: citationOut{VersionID: mc.VersionID, Page: mc.Page, FromLine: mc.FromLine, ToLine: mc.ToLine},
+		})
 	}
 	b, err := json.Marshal(out)
 	if err != nil {

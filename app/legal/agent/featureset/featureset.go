@@ -195,5 +195,12 @@ func appDefs() []feature.Def {
 		access.SuggestTeamDef(),
 		access.OffboardingPlanDef(),
 		access.InviteListCheckDef(),
+		access.DutyScanDef(),
+		access.AnomalyWatchDef(),
+		access.ExplainRoleDef(),
+		access.ExplainAccessDef(),
+		access.ExplainPatternDef(),
+		access.ExplainChangeDef(),
+		access.SummarizeSessionDef(),
 	}
 }

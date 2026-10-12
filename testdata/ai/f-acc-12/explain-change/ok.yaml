@@ -1,18 +1,18 @@
 synthetic: true
 feature: F-ACC-12
 match:
+  prompt_hash: "eda3cc3d96dfb45f0c7615945e9b9c961a6951bdb176e7206181cfbe2369a3c5"
   last_user_regex: '\[ok\]'
-latency_ms: 40
-chunk_delay_ms: 5
+latency_ms: 0
 turns:
   - reply:
       tool_calls:
         - name: search_matters
-          input: {screen: sign-in-settings, selected: ["pol-synth-draft"]}
+          input: {query: "synth", limit: 20}
       stop_reason: tool_use
       usage: {input_tokens: 520, output_tokens: 30}
   - expect_tool_results: [search_matters]
     reply:
-      text: "If you apply the draft, 2 users without a passkey would be forced to re-enrol and 1 user with no second factor would be locked out."
+      json: {answer: "The draft reaches the people on 2 matters you can see, 2026-0711 and 2026-0712. The search shows no one who would be locked out or forced to re-enrol.", citations: [{version_id: "matter:matter-1", page: 1, from_line: 1, to_line: 1}, {version_id: "matter:matter-2", page: 1, from_line: 1, to_line: 1}]}
       stop_reason: end_turn
       usage: {input_tokens: 690, output_tokens: 44}

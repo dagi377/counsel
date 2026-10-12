@@ -1,19 +1,18 @@
 synthetic: true
 feature: F-ACC-11
 match:
+  prompt_hash: "4b46f89cf3581ef643d813d5f4de086e437c543ea32a24def64571c86b42a598"
   last_user_regex: '\[ok\]'
-latency_ms: 40
-chunk_delay_ms: 5
+latency_ms: 0
 turns:
-  - expect_tools: [search_matters]
-    reply:
+  - reply:
       tool_calls:
         - name: search_matters
-          input: {audit_events: ["evt-synth-001", "evt-synth-002", "evt-synth-003"]}
+          input: {query: "synth", limit: 20}
       stop_reason: tool_use
-      usage: {input_tokens: 520, output_tokens: 32}
+      usage: {input_tokens: 520, output_tokens: 30}
   - expect_tool_results: [search_matters]
     reply:
-      text: "Unusual: usr-synth-viewer opened 3 matters outside their practice area within 10 minutes after hours."
+      json: {answer: "The selected events touch 2 matters you can see: 2026-0711, opened 2026-10-01, and 2026-0712. Nothing else in them is unusual from what the search returned.", citations: [{version_id: "matter:matter-1", page: 1, from_line: 1, to_line: 1}, {version_id: "matter:matter-2", page: 1, from_line: 1, to_line: 1}]}
       stop_reason: end_turn
-      usage: {input_tokens: 690, output_tokens: 48}
+      usage: {input_tokens: 690, output_tokens: 44}

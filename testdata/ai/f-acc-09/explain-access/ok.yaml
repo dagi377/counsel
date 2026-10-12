@@ -1,19 +1,17 @@
 synthetic: true
 feature: F-ACC-09
 match:
+  prompt_hash: "8732b47b666777e02fab8ca7939a2104eb81251bc9d761718097d8d8ccc746cd"
   last_user_regex: '\[ok\]'
-latency_ms: 40
-chunk_delay_ms: 5
 turns:
-  - expect_tools: [search_matters]
-    reply:
+  - reply:
       tool_calls:
         - name: search_matters
-          input: {user: "usr-synth-viewer", matter: "mat-synth-001"}
+          input: {query: "2026-04", limit: 20}
       stop_reason: tool_use
-      usage: {input_tokens: 520, output_tokens: 32}
+      usage: {input_tokens: 520, output_tokens: 22}
   - expect_tool_results: [search_matters]
     reply:
-      text: "usr-synth-viewer can see mat-synth-001 because they are on the matter team as associate."
+      json: {answer: "usr-synth-viewer can see 2026-0412 because they are on its matter team as associate.", citations: [{version_id: "matter:matter-1", page: 1, from_line: 1, to_line: 1}]}
       stop_reason: end_turn
-      usage: {input_tokens: 690, output_tokens: 48}
+      usage: {input_tokens: 640, output_tokens: 60}

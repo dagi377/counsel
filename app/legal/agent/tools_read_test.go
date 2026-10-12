@@ -14,6 +14,8 @@ import (
 	"github.com/dagi377/counsel/app/legal/matter"
 	"github.com/dagi377/counsel/app/legal/matter/matterfake"
 	"github.com/dagi377/counsel/app/legal/roles/rolesfake"
+	"github.com/dagi377/counsel/kernel/agenttools"
+	"github.com/dagi377/counsel/kernel/agenttools/agenttoolsfake"
 	kdocs "github.com/dagi377/counsel/kernel/docs"
 	"github.com/dagi377/counsel/kernel/docs/docsfake"
 	"github.com/dagi377/counsel/kernel/registry"
@@ -38,6 +40,8 @@ type readFixture struct {
 	version  kdocs.VersionID
 	wallDoc  kdocs.VersionID
 	cannotDo map[string]bool
+	matters  *matterfake.Fake
+	walls    *rolesfake.Fake
 }
 
 func newReadFixture(t *testing.T) *readFixture {
@@ -54,6 +58,7 @@ func newReadFixture(t *testing.T) *readFixture {
 	fx := &readFixture{open: mk("2026-0001", "Smith lease"), walled: mk("2026-0002", "Smith estate"), cannotDo: map[string]bool{}}
 	rf := rolesfake.New()
 	rf.Wall(clerk, string(fx.walled.ID))
+	fx.matters, fx.walls = mf, rf
 	text := docsfake.New()
 	if err := text.RegisterKind(kdocs.Kind{ID: "legal.memo"}); err != nil {
 		t.Fatal(err)
@@ -123,6 +128,87 @@ func TestSearchMattersOmitsWalledMatters(t *testing.T) {
 			}
 			if fmt.Sprint(got) != fmt.Sprint(tc.want) {
 				t.Fatalf("numbers = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// rule: ARC-I-038
+// search_matters gives each matter it returns a citation id (matter:<id>), and the Registry
+// records it in the run scope: a later answer or draft may cite that matter and no other. A
+// walled matter is omitted, so it has no citation either.
+func TestARC_I_038_SearchMattersCitesEachMatter(t *testing.T) {
+	cases := []struct {
+		name      string
+		query     string
+		wantCites []string // matter ids search_matters returned
+		notCited  []string // matter ids the run never got
+	}{
+		{"visible matter cited", "2026-0001", []string{"open"}, []string{"walled", "never"}},
+		{"walled matter not cited", "2026-0002", nil, []string{"open", "walled", "never"}},
+		{"name search cites the visible one", "smith", []string{"open"}, []string{"walled", "never"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fx := newReadFixture(t)
+			ids := map[string]string{"open": string(fx.open.ID), "walled": string(fx.walled.ID), "never": "matter-99"}
+			can := agent.CapabilityCheck(func(_ context.Context, user, capability string) (bool, error) {
+				return user == clerk, nil
+			})
+			tool, err := agent.SearchMattersHandler().Build(agent.NewDeps(can, fx.walls, matter.Query(fx.matters)))
+			if err != nil {
+				t.Fatalf("build: %v", err)
+			}
+			reg := agenttools.NewRegistry(agenttoolsfake.New())
+			if err := reg.Register(tool); err != nil {
+				t.Fatalf("register: %v", err)
+			}
+			scope := agenttools.NewScope("run-search", nil)
+			ctx := agenttools.WithScope(context.Background(), scope)
+			p := registry.Principal{Kind: registry.PrincipalAgent, RunID: "run-search", ActingFor: clerk, Grant: []string{agent.CapMattersView}}
+			in, _ := json.Marshal(map[string]string{"query": tc.query})
+			res, err := reg.Call(ctx, p, agent.ToolSearchMatters, in)
+			if err != nil {
+				t.Fatalf("Call: %v", err)
+			}
+			var out struct {
+				Matters []struct {
+					MatterID   string `json:"matter_id"`
+					CitationID string `json:"citation_id"`
+					Citation   struct {
+						VersionID string `json:"version_id"`
+						Page      int    `json:"page"`
+						FromLine  int    `json:"from_line"`
+						ToLine    int    `json:"to_line"`
+					} `json:"citation"`
+				} `json:"matters"`
+			}
+			if err := json.Unmarshal(res.Output, &out); err != nil {
+				t.Fatal(err)
+			}
+			if len(out.Matters) != len(tc.wantCites) || len(res.Citations) != len(tc.wantCites) {
+				t.Fatalf("matters %d citations %d, want %d", len(out.Matters), len(res.Citations), len(tc.wantCites))
+			}
+			for i, key := range tc.wantCites {
+				want := agent.MatterCitation(matter.ID(ids[key]))
+				m := out.Matters[i]
+				if m.MatterID != ids[key] || m.CitationID != agent.MatterCitationPrefix+ids[key] || m.Citation.VersionID != want.VersionID ||
+					m.Citation.Page != want.Page || m.Citation.FromLine != want.FromLine || m.Citation.ToLine != want.ToLine {
+					t.Fatalf("matter %d = %+v, want citation %+v", i, m, want)
+				}
+				c := agenttools.Citation{VersionID: want.VersionID, Page: want.Page, FromLine: want.FromLine, ToLine: want.ToLine}
+				if err := agenttools.ValidCitation(c); err != nil {
+					t.Fatalf("citation shape: %v", err)
+				}
+				if !scope.Cites(c) {
+					t.Fatalf("run scope does not record %s", c.VersionID)
+				}
+			}
+			for _, key := range tc.notCited {
+				c := agent.MatterCitation(matter.ID(ids[key]))
+				if scope.Cites(agenttools.Citation{VersionID: c.VersionID, Page: c.Page, FromLine: c.FromLine, ToLine: c.ToLine}) {
+					t.Fatalf("run scope cites %s, which search_matters never returned", c.VersionID)
+				}
 			}
 		})
 	}

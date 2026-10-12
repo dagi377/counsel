@@ -1257,7 +1257,8 @@ Changed expectations, each with its citation. Every rule stays (verify) and behi
   wrappers over `Handlers()`, so existing callers keep working. A new tool adds its
   `Handler` to the list in `Handlers()`.
 - Additive to the frozen `kernel/agenttools/run` contract: `Spec.AnswerMayBeUncited bool`
-  (default false, so an answer must cite). `CheckAnswer` reads `{answer, citations[]}` with
+  (default false, so an answer must cite). Removed by SEARCH-CITE (Q-FEAT-ACC-07): every
+  answer cites. `CheckAnswer` reads `{answer, citations[]}` with
   snake_case citation keys (`version_id`, `page`, `from_line`, `to_line`); `AnswerSchema` is the
   matching `Spec.OutputSchema`. A cited range may be a sub-range of a citation a tool result of
   the same run returned (same version and page).
@@ -4644,3 +4645,88 @@ and has a one-outbox-event test.
   (optional; no read states it). The `period_to` payload check is unchanged.
 - Open: production does not yet record the trigger payload, so a production F-BIL-01 run is
   refused at draft_bill until the trigger-provenance step of PAYLOAD-BUILDERS lands.
+
+## Q-FEAT-ACC-07 Read-only access features answer without citations
+
+- Tasks: FEAT-ACC-07 (F-ACC-01), FEAT-ACC-08 (F-ACC-05), FEAT-ACC-09 (F-ACC-08, F-ACC-09).
+- Status: closed by SEARCH-CITE. search_matters now gives each matter it returns a citation id
+  `matter:<id>` (`agent.MatterCitation`: version id `matter:<id>`, page 1, line 1, the kernel
+  citation shape) in `citation_id` and `citation`, and lists it in the result's citations, so
+  the Registry records it in the run scope and the runner in `Outcome.Citations`. These
+  answers cite the matters they rely on and pass `run.CheckAnswer` like every other answer.
+  `feature.Def.Uncited` and `run.Spec.AnswerMayBeUncited` are removed: no answer may be
+  uncited. Removing the Spec field is not additive to the frozen `kernel/agenttools/run`
+  contract; it was unused outside these features, and the owner asked for it so the citation
+  guarantee has no opt-out. An answer citing a matter the run never returned is refused
+  (ErrUncitedAnswer), and so is one with no citation, including when the search finds nothing.
+- Originally: the spec gives these chat features one tool, search_matters, which returned no
+  document, so `run.CheckAnswer` would refuse every answer. The tests also check that every
+  matter number an answer names came from a search_matters result of the run.
+- Each Def joins `featureset.appDefs` and its test; chat Defs export no plugin skill.
+  `app/legal/boot/agent.go` binds the job features and lists their screens as firm-level
+  (`boot.FirmSubject`): role-editor and duty-rules (admin.roles).
+- F-ACC-01 binds the a2 event `user.role_changed` (access.EventUserRoleChanged) and its daily
+  schedule (designated lawyer). a2 has no grant-change event, so "on grant change" is not bound
+  yet. "Blocks GA1 submit on hard conflicts" is the answer's `hard:` lines; the GA1
+  (core.role_change) submit path that reads them is not in this task.
+- The shared test harness is `ai_accc_helpers_test.go` (prefix `accc`); the screen actions are
+  driven through the production `trigger.Actions` route over `run.Loop` and the real
+  search_matters handler.
+- F-ACC-05 "event (access events)" binds the a2 core events `user.role_changed` and
+  `user.deactivated` (access.EventUserDeactivated). a2 names no event for a user opening a
+  matter, so the burst-of-access case is fed by those events' batches until one exists.
+  The AI-016 test (ai_f_acc_05_test.go) now runs the fixtures through FromFeature with no
+  stand-ins; the fixtures use the a2 search_matters input, the injection variant makes no extra
+  call, and ok pins match.prompt_hash.
+- F-ACC-08 and F-ACC-09 are screen actions; their spec `on_request` is empty and the button
+  is in `trigger`, so `Def.Actions` holds it (as Q-FEAT-CON-10). roles-list (admin.roles) and
+  user-detail (admin.users) are firm-level screens. The AI-019 and AI-020 tests run the
+  fixtures through FromFeature, and the screen actions through the production route.
+
+## Q-FEAT-ACC-10 Explain pattern, Explain change: answers from search_matters alone
+
+- Status: closed by SEARCH-CITE (Q-FEAT-ACC-07): `feature.Def.AnswerMayBeUncited` is removed;
+  F-ACC-11, F-ACC-12 and F-ACC-13 cite the matters search_matters returned (`matter:<id>`).
+
+- The spec gives F-ACC-11 and F-ACC-12 one tool, search_matters, which returns no document
+  source. run.CheckAnswer refuses an answer with no citation unless the run Spec sets
+  `AnswerMayBeUncited`, and `feature.Def.Spec` never set it, so the screen-action route could
+  never return these answers. Outside the task's files, additive: `feature.Def` gains
+  `AnswerMayBeUncited bool`, copied into the run Spec (default false, so every other feature
+  still must cite). A citation the answer does carry is still checked against the run.
+- Tool gap: no read tool returns audit events, the draft sign-in policy or its reach, so the
+  answers cover only the matters search_matters lets the acting user see; the prompts say so
+  and forbid guessing. Read tools for audit events and sign-in policy would make them exact.
+- Outside the task's files: boot `actionScreens` lists access-audit (admin.audit_log) and
+  sign-in-settings (admin.security) as firm screens (boot.FirmSubject); featureset.App() holds
+  both Defs. Chat features export no plugin skill.
+- AI-022 and AI-023 (ai_f_acc_11_test.go, ai_f_acc_12_test.go) now run through
+  agenttest.FromFeature with no stand-ins; the fixtures use the a2 search_matters input, answer
+  as {answer, citations}, the injection variant makes no extra tool call, and ok pins
+  match.prompt_hash. The route test posts through trigger.Actions over a real run.Loop.
+
+## Q-FEAT-ACC-11 Summarize session: answers from search_matters alone
+
+- Built on task/FEAT-ACC-10 for `feature.Def.AnswerMayBeUncited` and the shared accd test
+  helpers (Q-FEAT-ACC-10). F-ACC-13 has the same tool gap: no read tool returns a support
+  session's actions, so the answer covers only the matters search_matters lets the acting user
+  see, and the prompt forbids guessing.
+- Outside the task's files: boot `actionScreens` lists support-access (admin.support_access) as
+  a firm screen; featureset.App() holds the Def.
+- AI-024 (ai_f_acc_13_test.go) now runs through agenttest.FromFeature with no stand-ins; the
+  fixtures use the a2 search_matters input, the injection variant makes no extra tool call,
+  and ok pins match.prompt_hash.
+
+## Q-INTEG-19B-CITE pass 19b: run.Spec.AnswerMayBeUncited is kept
+
+- SEARCH-CITE removed `run.Spec.AnswerMayBeUncited`, but the field is on main and
+  `kernel/agenttools/run` is a frozen CONTRACT (changes are additive only). Pass 19b keeps the
+  field, CheckAnswer's handling of it and its kernel test, and adds
+  `featureset.TestNoFeatureAnswersUncited`: no app feature's Spec sets it. SEARCH-CITE's new
+  chat-spec case is added to main's kernel test.
+- `feature.Def.AnswerMayBeUncited` never reached main and stays removed.
+- search_matters keeps SWEEP-LIST's paging and returns SEARCH-CITE's `citation_id` and
+  `citation` per hit; main's `agent.MatterCitation(matter.ID)` is the one definition.
+- The access package's three helper files (main's, SEARCH-CITE's and the accc file) are one
+  `ai_acc_helpers_test.go`; `acccCite` went away because MatterCitation already returns an
+  `agenttools.Citation`.
