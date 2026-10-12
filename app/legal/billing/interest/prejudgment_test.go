@@ -1,6 +1,7 @@
 package interest
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -77,6 +78,29 @@ func TestBIL_L_010_EffectiveRateCJADefault(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Fatalf("rate = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+// rule: BIL-L-010
+// interest.cja_default_rate stays off by default (LAW-P5): with no flag set, a bill with no
+// agreed rate gets no CJA prejudgment rate, and the flag is defined off.
+func TestBIL_L_010_CJADefaultRateOffByDefault(t *testing.T) {
+	delivered := time.Date(2026, 2, 10, 15, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name    string
+		ctx     context.Context
+		wantErr error
+	}{
+		{"no flag set", context.Background(), ErrNoAgreedRate},
+		{"flag explicitly off", legalflagstest.Context(t, FlagCJADefaultRate, false), ErrNoAgreedRate},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := EffectiveRate(tt.ctx, Bill{ID: "b1", DeliveredAt: delivered})
+			if !errors.Is(err, tt.wantErr) || got != 0 {
+				t.Fatalf("rate = %d, err = %v; want 0, %v", got, err, tt.wantErr)
 			}
 		})
 	}

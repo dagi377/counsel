@@ -100,7 +100,9 @@ func buildDraftBill(d Deps) (registry.Tool, error) {
 	}
 	// rule: ARC-U-027
 	// A write-down amount must be a figure the run read; the model never invents money.
-	tool, err = pv.SourcedWrite(tool, "/line_actions/*/write_down_cents")
+	// rule: ARC-U-027
+	// A write-down comes from a structured read, never from quoted text.
+	tool, err = pv.SourcedWriteStrict(tool, "/line_actions/*/write_down_cents")
 	if err != nil {
 		return wrap(err)
 	}

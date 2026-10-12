@@ -32,7 +32,7 @@ func TestBIL_C_085_SecondApprovalAboveThreshold(t *testing.T) {
 // rule: BIL-C-085
 func TestBIL_C_085_CheckSecondApprover(t *testing.T) {
 	managing := SecondApproval{ManagingLawyer: func(id string) bool { return id == "ml" || id == "ml2" || id == "clerk" }}
-	w := WriteOff{ID: "w1", BillID: "b1", AmountCents: 150000, Status: StatusDraft, PreparedBy: "clerk"}
+	w := WriteOff{ID: "w1", BillID: "b1", AmountCents: 150000, Status: StatusDraft, PreparedBy: "clerk", ArmsLength: ArmsLengthYes}
 	lawyer := Approver{UserID: "lawyer"}
 	tests := []struct {
 		name    string

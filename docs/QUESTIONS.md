@@ -5074,3 +5074,23 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   `$COUNSEL_DOCS_BUCKET_REGION`, `$COUNSEL_DOCS_KMS_KEY_ID` and the AWS credential variables in
   `app/legal/boot/services_docs.go`; without them the document routes keep answering 503.
   Question: should these move to `cmd/counseld` flags once production.go is free to edit?
+## LAW-P5
+- Additive contract changes. `tax.Supply` gains `NonResidentAttestedBy`/`NonResidentAttestedAt`
+  and `tax.ErrResidencyUnknown`: a foreign address is zero-rated only with a recorded
+  non-resident determination; otherwise place of supply fails closed (drafts: ErrPlaceUnknown).
+  Boot reads it from `party.contact.custom_fields.tax_residency` (`status` resident |
+  non_resident_attested, `attested_by`, `attested_at` RFC 3339). Question: no screen or API
+  records that determination yet; until one does, every foreign-address client is held.
+- `credit.WriteOff.ArmsLength` (arms_length | not_arms_length), `credit.ErrArmsLengthUnchecked`
+  and `BadDebtAdjustment.NoReliefReason`; migration 5644 adds nullable
+  `billing.write_off_draft.arms_length`. Approval refuses an unchecked write-off; not at arm's
+  length approves with no ETA s.231 relief and the reason recorded. Question: `CreditNoteCreate`
+  (openapi) has no field for it yet, so the HTTP request path can not record it; adding one is
+  an additive contract change for the integrator.
+- Provenance tags each value structured (per read tool) or quoted. Trust drafts accept only
+  values from `get_trust_balance` and `get_bill` (or recorded by code); trust withdrawal,
+  trust transfer, payment allocation and bill write-downs accept structured values only.
+  Lawyer item: confirm bill reads may source figures in trust drafts.
+- F-INT-04 no longer states limitation periods, reasons for declining or third-party names;
+  LintPrompt refuses limitation-period figures in decline and non-engagement prompts.
+  Out of scope here (P5 finding M6, write-off approver deadlock): left open.

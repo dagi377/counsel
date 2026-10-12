@@ -197,7 +197,10 @@ func (t *WriteTools) prepareTrustWithdrawal(ctx context.Context, c Call) (Result
 	// rule: ARC-U-027
 	// The amount is a figure the run read (trust balance or bill), never one the model made
 	// up; an unsourced amount is refused before any withdrawal row exists.
-	if err := t.deps.Provenance.Check(c.RunID, []string{"/amount_cents"}, c.Input); err != nil {
+	// rule: ARC-U-027
+	// A trust withdrawal amount comes from a structured read, never from quoted email or
+	// document text.
+	if err := t.deps.Provenance.CheckStructured(c.RunID, []string{"/amount_cents"}, c.Input); err != nil {
 		return Result{}, fmt.Errorf("call %s: %w", c.Tool, err)
 	}
 	// rule: BIL-L-035

@@ -22,6 +22,9 @@ var (
 	ErrSelfApproval = errors.New("credit: preparer cannot approve")
 	// ErrAgentApproval: an agent principal tried to approve.
 	ErrAgentApproval = errors.New("credit: agent cannot approve")
+	// ErrArmsLengthUnchecked is returned when a write-off reaches approval without a recorded
+	// arm's-length determination (ETA s.231, BIL-T-080). Additive (LAW-P5).
+	ErrArmsLengthUnchecked = errors.New("credit: arm's-length check not recorded")
 	// ErrInvalidState: the record is not in a state that allows this step.
 	ErrInvalidState = errors.New("credit: invalid state")
 )
@@ -82,7 +85,20 @@ type WriteOff struct {
 	// InterestCents is the part of AmountCents that is posted interest (the draft's interest
 	// bucket). Additive (PORT-16b): the bad-debt entry credits it to OP-1110.
 	InterestCents int64
+	// ArmsLength records whether the client deals with the firm at arm's length (ETA s.231
+	// relief is available only then). Additive (LAW-P5). Empty means not checked, and the
+	// write-off cannot be approved.
+	ArmsLength ArmsLength
 }
+
+// ArmsLength is the recorded ETA s.231 arm's-length determination on a write-off.
+type ArmsLength string
+
+// Arm's-length determinations; the empty value means not checked.
+const (
+	ArmsLengthYes ArmsLength = "arms_length"
+	ArmsLengthNo  ArmsLength = "not_arms_length"
+)
 
 // Approver is who approves a credit note or write-off.
 type Approver struct {

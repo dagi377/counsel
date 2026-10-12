@@ -35,6 +35,13 @@ func SourcedFeatures() []string {
 	}
 }
 
+// SourceTools are the read tools whose structured results may source a trust draft's figures:
+// the trust balance read and the bill read (the amounts trust money is held or applied
+// against). A figure from any other read, or stated only in quoted text (an email, a
+// document), is never a trust figure. Values code records itself (Observe, e.g. a computed
+// retainer shortfall) also count.
+func SourceTools() []string { return []string{"get_trust_balance", "get_bill"} }
+
 var (
 	// sourcedCentsText is one amount written as the trust prompts require it: an optional
 	// minus sign, an integer, then "cents" ("125000 cents", "-4200 cents"). Thousands
@@ -123,7 +130,10 @@ func checkSourced(pv *agenttools.Provenance, runID string, in json.RawMessage) e
 	// rule: BIL-L-036
 	// Amounts are signed: an overdrawn ledger read as -5000 cents is never written as 5000,
 	// so a draft cannot hide an overdraft.
-	if err := pv.Check(runID, []string{"/cents/*", "/dates/*"}, b); err != nil {
+	// rule: AI-R-003
+	// Trust figures come from trust reads only: an amount quoted in a client email or a
+	// document is not a sourced trust amount.
+	if err := pv.CheckFrom(runID, []string{"/cents/*", "/dates/*"}, b, SourceTools()...); err != nil {
 		return fmt.Errorf("trust draft: %w", err)
 	}
 	return nil

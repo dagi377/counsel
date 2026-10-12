@@ -82,6 +82,7 @@ func TestBIL_T_010_DraftTaxByPlaceOfSupply(t *testing.T) {
 		"court":   {ClientProvince: "AB", CourtProvince: "NS", RecipientResident: true},
 		"unknown": {},
 		"bad":     {ClientProvince: "XX", CourtProvince: "XX"},
+		"foreign": {ClientProvince: "US"},
 	})
 	lines := []pgLine{
 		{source: bill.SourceTime, amount: 100000},
@@ -103,6 +104,8 @@ func TestBIL_T_010_DraftTaxByPlaceOfSupply(t *testing.T) {
 			[]bill.TaxLine{{TaxCode: "HST-NS", Component: "HST", RatePPM: 140000, BaseCents: 100000, TaxCents: 14000}}},
 		{"no address and not resident is unknown", "unknown", ErrPlaceUnknown, "", "", nil},
 		{"unknown court province is unknown", "bad", ErrPlaceUnknown, "", "", nil},
+		// rule: BIL-T-015
+		{"foreign address without a non-resident determination is unknown", "foreign", ErrPlaceUnknown, "", "", nil},
 		{"matter without supply facts refused", "missing", errNoMatter, "", "", nil},
 	}
 	for _, tt := range tests {
@@ -193,7 +196,7 @@ func TestBIL_C_023_LineActions(t *testing.T) {
 // province column is the ExportProvince marker, never NULL, so approval accepts it.
 func TestBIL_T_015_ZeroRatedDraftIsExport(t *testing.T) {
 	d := taxedDrafts(places{
-		"uk-corp": {ClientProvince: "GB", RecipientBusiness: true},
+		"uk-corp": {ClientProvince: "GB", RecipientBusiness: true, NonResidentAttestedBy: "u-lawyer", NonResidentAttestedAt: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)},
 		"on":      {ClientProvince: "ON", RecipientResident: true},
 	})
 	tests := []struct {

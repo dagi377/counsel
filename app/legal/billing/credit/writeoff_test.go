@@ -13,7 +13,7 @@ func TestBIL_C_205_WriteOffBadDebtAdjustment(t *testing.T) {
 	c := Calc{M: moneyfake.New()}
 	on := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
 	bill := Bill{ID: "b1", Delivered: true, OpenCents: 56500, ResponsibleUser: "lawyer"}
-	draft := WriteOff{ID: "w1", BillID: "b1", AmountCents: 56500, Reason: "uncollectible", Status: StatusDraft, PreparedBy: "clerk"}
+	draft := WriteOff{ID: "w1", BillID: "b1", AmountCents: 56500, Reason: "uncollectible", Status: StatusDraft, PreparedBy: "clerk", ArmsLength: ArmsLengthYes}
 	lawyer := Approver{UserID: "lawyer"}
 	tests := []struct {
 		name    string
@@ -75,13 +75,54 @@ func TestBIL_T_080_BadDebtReliefExcludesInterest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := WriteOff{ID: "w1", BillID: "b1", AmountCents: tt.amount, InterestCents: tt.interest, Reason: "uncollectible", Status: StatusDraft, PreparedBy: "clerk"}
+			w := WriteOff{ID: "w1", BillID: "b1", AmountCents: tt.amount, InterestCents: tt.interest, Reason: "uncollectible", Status: StatusDraft, PreparedBy: "clerk", ArmsLength: ArmsLengthYes}
 			_, adj, err := c.ApproveWriteOff(w, bill, 13000, 113000, lawyer, on)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("err = %v, want %v", err, tt.wantErr)
 			}
 			if tt.wantErr == nil && adj.TaxCents != tt.wantTax {
 				t.Fatalf("tax = %d, want %d", adj.TaxCents, tt.wantTax)
+			}
+		})
+	}
+}
+
+// rule: BIL-T-080
+// ETA s.231 relief needs an arm's-length determination recorded on the write-off. Not
+// checked fails closed; not at arm's length approves with no relief and a recorded reason.
+func TestBIL_T_080_WriteOffArmsLength(t *testing.T) {
+	c := Calc{M: moneyfake.New()}
+	on := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	bill := Bill{ID: "b1", Delivered: true, OpenCents: 56500, ResponsibleUser: "lawyer"}
+	lawyer := Approver{UserID: "lawyer"}
+	tests := []struct {
+		name       string
+		arms       ArmsLength
+		wantTax    int64
+		wantReason string
+		wantErr    error
+	}{
+		{"at arm's length: relief", ArmsLengthYes, 6500, "", nil},
+		{"not at arm's length: no relief, reason recorded", ArmsLengthNo, 0, NoReliefNotArmsLength, nil},
+		{"not checked: refused", "", 0, "", ErrArmsLengthUnchecked},
+		{"unknown value: refused", "maybe", 0, "", ErrArmsLengthUnchecked},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := WriteOff{ID: "w1", BillID: "b1", AmountCents: 56500, Reason: "uncollectible", Status: StatusDraft,
+				PreparedBy: "clerk", ArmsLength: tt.arms}
+			got, adj, err := c.ApproveWriteOff(w, bill, 13000, 113000, lawyer, on)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantErr != nil {
+				return
+			}
+			if adj.TaxCents != tt.wantTax || adj.NoReliefReason != tt.wantReason {
+				t.Fatalf("adj = %+v, want tax %d reason %q", adj, tt.wantTax, tt.wantReason)
+			}
+			if got.ArmsLength != tt.arms || got.Status != StatusApproved {
+				t.Fatalf("write-off = %+v", got)
 			}
 		})
 	}

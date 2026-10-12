@@ -152,7 +152,7 @@ func notFound(err error) bool {
 }
 
 const writeOffLockSQL = `SELECT id::text, bill_id::text, amount_cents, reason, status, prepared_by::text,
-  coalesce(approved_by::text, ''), approved_at, interest_cents
+  coalesce(approved_by::text, ''), approved_at, interest_cents, coalesce(arms_length, '')
   FROM billing.write_off_draft WHERE id = $1::uuid FOR UPDATE`
 
 // Lock implements WriteOffStore: it reads draft id FOR UPDATE, with its interest bucket.
@@ -163,10 +163,11 @@ func (PGWriteOffs) Lock(ctx context.Context, tx pgx.Tx, id string) (WriteOff, er
 	var (
 		w      WriteOff
 		status string
+		arms   string
 		at     *time.Time
 	)
 	err := tx.QueryRow(ctx, writeOffLockSQL, id).Scan(&w.ID, &w.BillID, &w.AmountCents, &w.Reason, &status,
-		&w.PreparedBy, &w.ApprovedBy, &at, &w.InterestCents)
+		&w.PreparedBy, &w.ApprovedBy, &at, &w.InterestCents, &arms)
 	if notFound(err) {
 		return WriteOff{}, fmt.Errorf("lock write-off %s: %w", id, ErrNotFound)
 	}
@@ -174,6 +175,7 @@ func (PGWriteOffs) Lock(ctx context.Context, tx pgx.Tx, id string) (WriteOff, er
 		return WriteOff{}, fmt.Errorf("lock write-off %s: %w", id, err)
 	}
 	w.Status = Status(status)
+	w.ArmsLength = ArmsLength(arms)
 	switch {
 	case (w.Status == StatusDraft || w.Status == StatusRejected || w.Status == StatusWithdrawn) && w.ApprovedBy == "" && at == nil:
 	case w.Status == StatusApproved && w.ApprovedBy != "" && at != nil:
@@ -349,8 +351,8 @@ const writeOffOutstandingSQL = `SELECT
   FOR UPDATE OF b`
 
 const writeOffDraftInsertSQL = `INSERT INTO billing.write_off_draft
-  (bill_id, amount_cents, fee_cents, dtx_cents, dnt_cents, tax_cents, interest_cents, reason, prepared_by)
-  VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9::uuid)
+  (bill_id, amount_cents, fee_cents, dtx_cents, dnt_cents, tax_cents, interest_cents, reason, prepared_by, arms_length)
+  VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9::uuid, NULLIF($10, ''))
   RETURNING id::text`
 
 // Draft stores w as a draft write-off on its bill, prepared by w.PreparedBy. The bucket split
@@ -363,6 +365,11 @@ func (PGWriteOffs) Draft(ctx context.Context, tx pgx.Tx, w WriteOff) (WriteOff, 
 	}
 	if w.AmountCents <= 0 {
 		return WriteOff{}, fmt.Errorf("draft write-off: %w", ErrInvalidAmount)
+	}
+	// rule: BIL-T-080
+	// The arm's-length determination is recorded on the draft; an unknown value is refused.
+	if w.ArmsLength != "" && w.ArmsLength != ArmsLengthYes && w.ArmsLength != ArmsLengthNo {
+		return WriteOff{}, fmt.Errorf("draft write-off: arm's length %q: %w", w.ArmsLength, ErrInvalidState)
 	}
 	var (
 		open, issued      WriteOffBuckets
@@ -386,11 +393,11 @@ func (PGWriteOffs) Draft(ctx context.Context, tx pgx.Tx, w WriteOff) (WriteOff, 
 	}
 	var id string
 	if err := tx.QueryRow(ctx, writeOffDraftInsertSQL, w.BillID, w.AmountCents, split.Fee, split.Dtx, split.Dnt, split.Tax,
-		split.Interest, w.Reason, w.PreparedBy).Scan(&id); err != nil {
+		split.Interest, w.Reason, w.PreparedBy, string(w.ArmsLength)).Scan(&id); err != nil {
 		return WriteOff{}, fmt.Errorf("draft write-off on bill %s: %w", w.BillID, err)
 	}
 	return WriteOff{ID: id, BillID: w.BillID, AmountCents: w.AmountCents, Reason: w.Reason, Status: StatusDraft,
-		PreparedBy: w.PreparedBy}, nil
+		PreparedBy: w.PreparedBy, InterestCents: split.Interest, ArmsLength: w.ArmsLength}, nil
 }
 
 const writeOffSubmitSQL = `UPDATE billing.write_off_draft SET credit_gate_id = $2::uuid

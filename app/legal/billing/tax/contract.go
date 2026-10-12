@@ -24,6 +24,9 @@ var (
 	ErrBadBN = errors.New("tax: invalid business number")
 	// ErrUnverified is returned when a rule that needs V-TAX confirmation is reached while its flag is off.
 	ErrUnverified = errors.New("tax: rule not verified")
+	// ErrResidencyUnknown is returned for a client with a foreign address whose
+	// non-residence has not been determined and recorded by a lawyer (BIL-T-015).
+	ErrResidencyUnknown = errors.New("tax: non-residence not attested")
 )
 
 // Component is one tax component; it mirrors billing.tax_rate.component.
@@ -66,6 +69,11 @@ type Supply struct {
 	CourtProvince string
 	// RecipientResident is true when the client is a Canadian resident (ETA s.132).
 	RecipientResident bool
+	// NonResidentAttestedBy and NonResidentAttestedAt record who determined that the client
+	// is not a Canadian resident, and when (additive, LAW-P5). A foreign address alone never
+	// zero-rates a supply: without this record the decision fails with ErrResidencyUnknown.
+	NonResidentAttestedBy string
+	NonResidentAttestedAt time.Time
 	// RecipientBusiness is true when the client is a corporation, trust or partnership,
 	// false for an individual (ETA Sch. VI Part V s.23(a) covers individuals only).
 	RecipientBusiness bool

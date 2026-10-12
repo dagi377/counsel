@@ -97,34 +97,34 @@ func variants(t *testing.T, r tableRow) ([]supplyVariant, bool) {
 		return []supplyVariant{{"resident", reg(Supply{ClientProvince: loc, RecipientResident: true})}}, true
 	case strings.HasPrefix(svc, "general (advisory") && strings.HasPrefix(loc, "non-resident"):
 		return []supplyVariant{
-			{"individual", reg(Supply{ClientProvince: "US"})},
-			{"business", reg(Supply{ClientProvince: "US", RecipientBusiness: true})},
+			{"individual", reg(Supply{ClientProvince: "US", NonResidentAttestedBy: attester, NonResidentAttestedAt: posDate})},
+			{"business", reg(Supply{ClientProvince: "US", NonResidentAttestedBy: attester, NonResidentAttestedAt: posDate, RecipientBusiness: true})},
 		}, true
 	case strings.HasPrefix(svc, "real property situated in "):
 		p := strings.TrimPrefix(svc, "real property situated in ")
 		return []supplyVariant{
 			{"ON resident", reg(Supply{ClientProvince: "ON", RecipientResident: true, PropertyProvince: p})},
-			{"non-resident individual", reg(Supply{ClientProvince: "US", PropertyProvince: p})},
-			{"non-resident business", reg(Supply{ClientProvince: "US", RecipientBusiness: true, PropertyProvince: p})},
+			{"non-resident individual", reg(Supply{ClientProvince: "US", NonResidentAttestedBy: attester, NonResidentAttestedAt: posDate, PropertyProvince: p})},
+			{"non-resident business", reg(Supply{ClientProvince: "US", NonResidentAttestedBy: attester, NonResidentAttestedAt: posDate, RecipientBusiness: true, PropertyProvince: p})},
 		}, true
 	case strings.HasPrefix(svc, "litigation in a court/tribunal of "):
 		p := strings.TrimSuffix(strings.TrimPrefix(svc, "litigation in a court/tribunal of "), ", after commencement")
 		return []supplyVariant{
 			{"AB resident", reg(Supply{ClientProvince: "AB", RecipientResident: true, CourtProvince: p})},
 			{"ON resident", reg(Supply{ClientProvince: "ON", RecipientResident: true, CourtProvince: p})},
-			{"non-resident individual", reg(Supply{ClientProvince: "GB", CourtProvince: p})},
+			{"non-resident individual", reg(Supply{ClientProvince: "GB", NonResidentAttestedBy: attester, NonResidentAttestedAt: posDate, CourtProvince: p})},
 		}, true
 	case svc == "litigation in Canada after commencement":
 		return []supplyVariant{
-			{"ON court", reg(Supply{ClientProvince: "GB", RecipientBusiness: true, CourtProvince: "ON"})},
-			{"BC court", reg(Supply{ClientProvince: "GB", RecipientBusiness: true, CourtProvince: "BC"})},
+			{"ON court", reg(Supply{ClientProvince: "GB", NonResidentAttestedBy: attester, NonResidentAttestedAt: posDate, RecipientBusiness: true, CourtProvince: "ON"})},
+			{"BC court", reg(Supply{ClientProvince: "GB", NonResidentAttestedBy: attester, NonResidentAttestedAt: posDate, RecipientBusiness: true, CourtProvince: "BC"})},
 		}, true
 	case strings.HasPrefix(svc, "general advice rendered while"):
-		return []supplyVariant{{"met in Toronto", reg(Supply{ClientProvince: "US", MetInCanada: true})}}, true
+		return []supplyVariant{{"met in Toronto", reg(Supply{ClientProvince: "US", NonResidentAttestedBy: attester, NonResidentAttestedAt: posDate, MetInCanada: true})}}, true
 	case strings.HasPrefix(svc, "acting as the client's agent"):
 		return []supplyVariant{
-			{"individual", Supply{ClientProvince: "US", AgentRole: true, Date: posDate}},
-			{"business", Supply{ClientProvince: "US", RecipientBusiness: true, AgentRole: true, Date: posDate}},
+			{"individual", Supply{ClientProvince: "US", NonResidentAttestedBy: attester, NonResidentAttestedAt: posDate, AgentRole: true, Date: posDate}},
+			{"business", Supply{ClientProvince: "US", NonResidentAttestedBy: attester, NonResidentAttestedAt: posDate, RecipientBusiness: true, AgentRole: true, Date: posDate}},
 		}, true
 	case loc == "Canadian resident, no address on file":
 		return []supplyVariant{{"resident", reg(Supply{RecipientResident: true})}}, true

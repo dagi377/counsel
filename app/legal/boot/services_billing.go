@@ -98,7 +98,10 @@ var _ draft.Places = ClientPlaces{}
 const (
 	clientPlaceSQL = `
 SELECT coalesce(upper(btrim(a.addr->>'province')), ''), coalesce(upper(btrim(a.addr->>'country')), ''),
-       c.kind = 'organization'
+       c.kind = 'organization',
+       coalesce(c.custom_fields #>> '{tax_residency,status}', ''),
+       coalesce(c.custom_fields #>> '{tax_residency,attested_by}', ''),
+       coalesce(c.custom_fields #>> '{tax_residency,attested_at}', '')
   FROM party.contact c
   LEFT JOIN LATERAL (
     SELECT e AS addr FROM jsonb_array_elements(CASE jsonb_typeof(c.addresses) WHEN 'array' THEN c.addresses ELSE '[]'::jsonb END)
@@ -124,9 +127,10 @@ func (p ClientPlaces) Supply(ctx context.Context, tx pgx.Tx, matterID string) (t
 	if m.ClientID == "" {
 		return tax.Supply{}, fmt.Errorf("supply of %s: no client: %w", matterID, party.ErrNotFound)
 	}
-	var province, country string
+	var province, country, residency, attestedBy, attestedAt string
 	var business bool
-	err = tx.QueryRow(ctx, clientPlaceSQL, string(m.ClientID)).Scan(&province, &country, &business)
+	err = tx.QueryRow(ctx, clientPlaceSQL, string(m.ClientID)).Scan(&province, &country, &business,
+		&residency, &attestedBy, &attestedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return tax.Supply{}, fmt.Errorf("supply of %s: client %s: %w", matterID, m.ClientID, party.ErrNotFound)
 	}
@@ -152,8 +156,27 @@ func (p ClientPlaces) Supply(ctx context.Context, tx pgx.Tx, matterID string) (t
 	default:
 		s.ClientProvince = country
 	}
+	// rule: BIL-T-015
+	// Residency is three-state: resident, non_resident_attested or unknown (empty). Only a
+	// recorded determination, with who and when, lets a foreign-address client be zero-rated;
+	// unknown leaves the attestation empty and the tax engine fails closed.
+	switch residency {
+	case residencyResident:
+		s.RecipientResident = true
+	case residencyNonResident:
+		at, err := time.Parse(time.RFC3339, attestedAt)
+		if err == nil && attestedBy != "" {
+			s.NonResidentAttestedBy, s.NonResidentAttestedAt = attestedBy, at
+		}
+	}
 	return s, nil
 }
+
+// Tax residency states recorded on party.contact.custom_fields.tax_residency.status.
+const (
+	residencyResident    = "resident"
+	residencyNonResident = "non_resident_attested"
+)
 
 // upper is a province code as the tax engine compares it.
 func upper(code string) string { return strings.ToUpper(strings.TrimSpace(code)) }

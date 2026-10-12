@@ -66,6 +66,14 @@ func TestAI_R_004_LintPrompt(t *testing.T) {
 		{"gate kind not named", "# F-ACC-02\nPropose a downgrade.\n", []string{"core.user_activation"}, false},
 		{"synthetic client name", "# F-ACC-02\nCheck Avery Synth via core.user_activation.\n", []string{"core.user_activation"}, false},
 		{"synthetic name any case", "# F-ACC-02\nCheck synth holdings ltd via core.user_activation.\n", []string{"core.user_activation"}, false},
+		// rule: AI-R-004
+		// Decline and non-engagement prompts never state or ask for a limitation period.
+		{"decline prompt warns of time limits", "# F-ACC-02 Decline letter\nSay time limits may apply; get advice promptly. Give no limitation date. core.user_activation\n", []string{"core.user_activation"}, true},
+		{"decline prompt states a period", "# F-ACC-02 Decline letter\nMention the two-year limitation period. core.user_activation\n", []string{"core.user_activation"}, false},
+		{"decline prompt states a numeric period", "# F-ACC-02 Decline/refer letter\nThe claim has 2 years. core.user_activation\n", []string{"core.user_activation"}, false},
+		{"decline prompt asks to watch a period", "# F-ACC-02 Decline letter\nAdd any limitation period the prospect should watch. core.user_activation\n", []string{"core.user_activation"}, false},
+		{"non-engagement prompt asks to compute a date", "# F-ACC-02 Non-engagement letter\nCompute the limitation date. core.user_activation\n", []string{"core.user_activation"}, false},
+		{"other prompt may state a period", "# F-ACC-02 Deadline calculator\nThe basic period is two years. core.user_activation\n", []string{"core.user_activation"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -20,7 +20,7 @@ func TestBIL_T_020_RegisteredOnly(t *testing.T) {
 		{name: "MB registered: RST as PST", ctx: verifyOn(t), s: Supply{ClientProvince: "MB", RecipientResident: true, RegisteredProvinces: all}, want: withProv("MB", PST, "BIL-T-013")},
 		{name: "SK registered", ctx: verifyOn(t), s: Supply{ClientProvince: "SK", RecipientResident: true, RegisteredProvinces: all}, want: withProv("SK", PST, "BIL-T-013")},
 		{name: "SK court, registered", ctx: verifyOn(t), s: Supply{ClientProvince: "ON", RecipientResident: true, CourtProvince: "SK", RegisteredProvinces: []string{"SK"}}, want: withProv("SK", PST, "BIL-T-012")},
-		{name: "zero-rated: nothing provincial", ctx: verifyOn(t), s: Supply{ClientProvince: "US", RegisteredProvinces: all}, want: zeroPlace()},
+		{name: "zero-rated: nothing provincial", ctx: verifyOn(t), s: Supply{ClientProvince: "US", NonResidentAttestedBy: attester, NonResidentAttestedAt: posDate, RegisteredProvinces: all}, want: zeroPlace()},
 	}
 	// rule: BIL-T-020 (verify)
 	for _, p := range all {

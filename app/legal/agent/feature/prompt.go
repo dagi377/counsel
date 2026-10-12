@@ -33,6 +33,13 @@ func Rules() string {
 var (
 	promptHeading = regexp.MustCompile(`^# (F-[A-Z]+-\d{2})\b`)
 	placeholder   = regexp.MustCompile(`\{\{[^{}]*\}\}`)
+	// declinePrompt is the heading of a decline or non-engagement letter prompt.
+	declinePrompt = regexp.MustCompile(`(?i)\bdeclin|\bnon-engagement\b`)
+	// limitationFigure is a limitation period stated or asked for: a duration ("2 years",
+	// "two-year", "15 years") or an instruction to state the period or its date.
+	limitationFigure = regexp.MustCompile(`(?i)\b(?:\d+|one|two|three|four|five|six|seven|ten|fifteen)[\s-]+(?:years?|months?|weeks?|days?)\b` +
+		`|\blimitation (?:period|date|deadline)s? (?:of|is|ends|expires|runs out|on|the \w+ should watch)\b` +
+		`|\b(?:state|give|include|compute|calculate)s? (?:the |any |a )?limitation (?:period|date|deadline)`)
 	// nameValue is a person or organisation name as fixtures write them: two or more
 	// capitalised words ("Avery Synth", "Synth Holdings Ltd").
 	nameValue = regexp.MustCompile(`^[A-Z][\w'&.-]*( [A-Z&][\w'&.,-]*)+$`)
@@ -67,6 +74,13 @@ func LintPrompt(d Def, names []string) error {
 		if !strings.Contains(text, k) {
 			return fmt.Errorf("feature %s: prompt does not name gate kind %q: %w", d.ID, k, ErrPromptLint)
 		}
+	}
+	// rule: AI-R-004
+	// A decline or non-engagement letter goes to a person the firm does not act for: it may
+	// warn that time limits may apply, but it never states or estimates a limitation period,
+	// which would be advice they could rely on.
+	if title, _, _ := strings.Cut(text, "\n"); declinePrompt.MatchString(title) && limitationFigure.MatchString(text) {
+		return fmt.Errorf("feature %s: decline or non-engagement prompt states a limitation period: %w", d.ID, ErrPromptLint)
 	}
 	// rule: AI-R-004
 	// A client name belongs in a {{placeholder}} the run fills, never in the prompt text, so a

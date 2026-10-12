@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -69,7 +70,9 @@ func TestBIL_T_010_ClientPlacesReadsTaxFields(t *testing.T) {
 		"court":  {ID: "court", ClientID: "c1", CourtProvince: "ns", PropertyProvince: " bc "},
 		"orphan": {ID: "orphan"},
 	}
-	onBilling := placeRow{vals: []any{"ON", "CA", false}}
+	onBilling := placeRow{vals: []any{"ON", "CA", false, "", "", ""}}
+	attestedAt := "2026-10-01T14:00:00Z"
+	at, _ := time.Parse(time.RFC3339, attestedAt)
 	noFirm := placeRow{err: pgx.ErrNoRows}
 	tests := []struct {
 		name, matter string
@@ -83,8 +86,15 @@ func TestBIL_T_010_ClientPlacesReadsTaxFields(t *testing.T) {
 			tax.Supply{ClientProvince: "ON", RecipientResident: true, ServiceType: "general", CourtProvince: "NS", PropertyProvince: "BC"}, nil},
 		{"firm registrations", "plain", onBilling, placeRow{vals: []any{"MB,BC"}},
 			tax.Supply{ClientProvince: "ON", RecipientResident: true, ServiceType: "general", RegisteredProvinces: []string{"MB", "BC"}}, nil},
-		{"foreign organization is a non-resident business", "plain", placeRow{vals: []any{"", "GB", true}}, noFirm,
+		// rule: BIL-T-015
+		{"foreign organization, residency unknown: no attestation", "plain", placeRow{vals: []any{"", "GB", true, "", "", ""}}, noFirm,
 			tax.Supply{ClientProvince: "GB", RecipientBusiness: true, ServiceType: "general"}, nil},
+		{"foreign organization, attested non-resident", "plain", placeRow{vals: []any{"", "GB", true, "non_resident_attested", "u-lawyer", attestedAt}}, noFirm,
+			tax.Supply{ClientProvince: "GB", RecipientBusiness: true, ServiceType: "general", NonResidentAttestedBy: "u-lawyer", NonResidentAttestedAt: at}, nil},
+		{"attestation without a time is not recorded", "plain", placeRow{vals: []any{"", "US", false, "non_resident_attested", "u-lawyer", ""}}, noFirm,
+			tax.Supply{ClientProvince: "US", ServiceType: "general"}, nil},
+		{"foreign address, recorded resident", "plain", placeRow{vals: []any{"", "US", false, "resident", "", ""}}, noFirm,
+			tax.Supply{ClientProvince: "US", RecipientResident: true, ServiceType: "general"}, nil},
 		{"unknown matter fails closed", "missing", onBilling, noFirm, tax.Supply{}, matter.ErrNotFound},
 		{"matter without client fails closed", "orphan", onBilling, noFirm, tax.Supply{}, party.ErrNotFound},
 		{"client row missing fails closed", "plain", placeRow{err: pgx.ErrNoRows}, noFirm, tax.Supply{}, party.ErrNotFound},

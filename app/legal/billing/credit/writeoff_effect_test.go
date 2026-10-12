@@ -114,7 +114,7 @@ func newWriteOffRig(t *testing.T, amount int64, cfg SecondApprovalConfig) writeO
 	r := writeOffRig{
 		store: &memWriteOffs{
 			w: map[string]WriteOff{"w1": {ID: "w1", BillID: "b1", AmountCents: amount, Reason: "uncollectible",
-				Status: StatusDraft, PreparedBy: "clerk"}},
+				Status: StatusDraft, PreparedBy: "clerk", ArmsLength: ArmsLengthYes}},
 			awaiting: map[string]string{},
 		},
 		ledger: &memLedger{},

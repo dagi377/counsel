@@ -89,7 +89,9 @@ func buildPrepareTrustTransfer(d Deps) (registry.Tool, error) {
 	// rule: ARC-U-027
 	// The amount is a figure the run read (a trust balance or a bill), never one the model
 	// made up.
-	tool, err = pv.SourcedWrite(tool, "/amount_cents")
+	// rule: ARC-U-027
+	// A trust transfer amount comes from a structured read, never from quoted text.
+	tool, err = pv.SourcedWriteStrict(tool, "/amount_cents")
 	if err != nil {
 		return wrap(err)
 	}

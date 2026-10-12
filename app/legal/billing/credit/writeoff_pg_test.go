@@ -85,7 +85,7 @@ type draftTx struct {
 func newDraftTx() *draftTx {
 	return &draftTx{
 		drafts: map[string]*pgDraft{"w1": {
-			w:          WriteOff{ID: "w1", BillID: "b1", AmountCents: 59000, Reason: "uncollectible", Status: StatusDraft, PreparedBy: "clerk"},
+			w:          WriteOff{ID: "w1", BillID: "b1", AmountCents: 59000, Reason: "uncollectible", Status: StatusDraft, PreparedBy: "clerk", ArmsLength: ArmsLengthYes},
 			split:      WriteOffBuckets{Fee: 45000, Dtx: 5000, Dnt: 2500, Tax: 6500},
 			creditGate: "gb5",
 		}},
@@ -116,7 +116,7 @@ func (t *draftTx) QueryRow(_ context.Context, sql string, args ...any) pgx.Row {
 		if err != nil {
 			return valsRow{err: err}
 		}
-		return valsRow{vals: []any{d.w.ID, d.w.BillID, d.w.AmountCents, d.w.Reason, string(d.w.Status), d.w.PreparedBy, d.w.ApprovedBy, d.w.ApprovedAt, d.split.Interest}}
+		return valsRow{vals: []any{d.w.ID, d.w.BillID, d.w.AmountCents, d.w.Reason, string(d.w.Status), d.w.PreparedBy, d.w.ApprovedBy, d.w.ApprovedAt, d.split.Interest, string(d.w.ArmsLength)}}
 	case writeOffAwaitingSQL:
 		d, err := t.draft(args[0])
 		if err != nil {
@@ -146,7 +146,7 @@ func (t *draftTx) QueryRow(_ context.Context, sql string, args ...any) pgx.Row {
 		id := fmt.Sprintf("w%d", 100+t.nextID)
 		t.drafts[id] = &pgDraft{
 			w: WriteOff{ID: id, BillID: args[0].(string), AmountCents: args[1].(int64), Reason: args[7].(string),
-				Status: StatusDraft, PreparedBy: args[8].(string)},
+				Status: StatusDraft, PreparedBy: args[8].(string), ArmsLength: ArmsLength(args[9].(string))},
 			split: WriteOffBuckets{Fee: args[2].(int64), Dtx: args[3].(int64), Dnt: args[4].(int64), Tax: args[5].(int64), Interest: args[6].(int64)},
 		}
 		return valsRow{vals: []any{id}}
@@ -294,9 +294,9 @@ func TestPGWriteOffsLock(t *testing.T) {
 		want    WriteOff
 		wantErr error
 	}{
-		{name: "draft", id: "w1", want: WriteOff{ID: "w1", BillID: "b1", AmountCents: 59000, Reason: "uncollectible", Status: StatusDraft, PreparedBy: "clerk"}},
+		{name: "draft", id: "w1", want: WriteOff{ID: "w1", BillID: "b1", AmountCents: 59000, Reason: "uncollectible", Status: StatusDraft, PreparedBy: "clerk", ArmsLength: ArmsLengthYes}},
 		{name: "approved", id: "w1", mutate: func(d *pgDraft) { d.w.Status, d.w.ApprovedBy, d.w.ApprovedAt = StatusApproved, "lawyer", &at },
-			want: WriteOff{ID: "w1", BillID: "b1", AmountCents: 59000, Reason: "uncollectible", Status: StatusApproved, PreparedBy: "clerk", ApprovedBy: "lawyer", ApprovedAt: &at}},
+			want: WriteOff{ID: "w1", BillID: "b1", AmountCents: 59000, Reason: "uncollectible", Status: StatusApproved, PreparedBy: "clerk", ApprovedBy: "lawyer", ApprovedAt: &at, ArmsLength: ArmsLengthYes}},
 		{name: "approved without approver fails closed", id: "w1", mutate: func(d *pgDraft) { d.w.Status = StatusApproved }, wantErr: ErrInvalidState},
 		{name: "unknown status fails closed", id: "w1", mutate: func(d *pgDraft) { d.w.Status = "void" }, wantErr: ErrInvalidState},
 		{name: "missing", id: "w9", wantErr: ErrNotFound},
@@ -477,6 +477,8 @@ func TestPGWriteOffsDraft(t *testing.T) {
 		{name: "no preparer", w: func(w WriteOff) WriteOff { w.PreparedBy = ""; return w }, wantErr: ErrInvalidState},
 		{name: "no reason", w: func(w WriteOff) WriteOff { w.Reason = ""; return w }, wantErr: ErrInvalidState},
 		{name: "zero amount", w: func(w WriteOff) WriteOff { w.AmountCents = 0; return w }, wantErr: ErrInvalidAmount},
+		// rule: BIL-T-080
+		{name: "unknown arm's-length value", w: func(w WriteOff) WriteOff { w.ArmsLength = "maybe"; return w }, wantErr: ErrInvalidState},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

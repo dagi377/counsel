@@ -186,7 +186,10 @@ func (d PGDrafts) place(ctx context.Context, tx pgx.Tx, matterID string) (supply
 	s.Date = on
 	// rule: BIL-T-010
 	p, err := d.Decider.Decide(ctx, s)
-	if errors.Is(err, tax.ErrUnknownProvince) {
+	// rule: BIL-T-015
+	// A foreign client with no recorded non-resident determination is not zero-rated: the
+	// draft is held until a lawyer records residency.
+	if errors.Is(err, tax.ErrUnknownProvince) || errors.Is(err, tax.ErrResidencyUnknown) {
 		return supply{}, fmt.Errorf("place of supply of matter %s: %w: %w", matterID, ErrPlaceUnknown, err)
 	}
 	if err != nil {

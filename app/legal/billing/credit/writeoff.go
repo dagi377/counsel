@@ -17,7 +17,14 @@ type BadDebtAdjustment struct {
 	BillID   string
 	TaxCents int64
 	On       time.Time // business date of the write-off, America/Toronto
+	// NoReliefReason says why TaxCents is zero when relief was refused, e.g. the client
+	// does not deal at arm's length; empty when relief was computed.
+	NoReliefReason string
 }
+
+// NoReliefNotArmsLength is the recorded reason when ETA s.231 relief is refused because the
+// client does not deal with the firm at arm's length.
+const NoReliefNotArmsLength = "ETA s.231: client not at arm's length; no bad-debt relief"
 
 // CheckWriteOffApprover rejects an approval of w on bill b through G-B5 by anyone but the
 // bill's responsible lawyer, by the preparer, or by an agent.
@@ -55,6 +62,12 @@ func (c Calc) ApproveWriteOff(w WriteOff, b Bill, billTax, billTotal int64, by A
 	if w.AmountCents > b.OpenCents {
 		return WriteOff{}, BadDebtAdjustment{}, fmt.Errorf("approve write-off %s: %w", w.ID, ErrExceedsBalance)
 	}
+	// rule: BIL-T-080
+	// ETA s.231 relief needs an arm's-length determination recorded on the write-off.
+	// A write-off with none fails closed rather than claim relief by default.
+	if w.ArmsLength != ArmsLengthYes && w.ArmsLength != ArmsLengthNo {
+		return WriteOff{}, BadDebtAdjustment{}, fmt.Errorf("approve write-off %s: %w", w.ID, ErrArmsLengthUnchecked)
+	}
 	// rule: BIL-C-205
 	// rule: BIL-T-080
 	// The adjustment is the bill's open tax on the written-off consideration,
@@ -62,7 +75,12 @@ func (c Calc) ApproveWriteOff(w WriteOff, b Bill, billTax, billTotal int64, by A
 	// write-off. ETA s.231 relieves only the tax fraction of the consideration for the
 	// taxable supply; interest is not that consideration, so it carries no relief.
 	var tax int64
-	if taxable := w.AmountCents - w.InterestCents; taxable > 0 {
+	var noRelief string
+	if w.ArmsLength == ArmsLengthNo {
+		// rule: BIL-T-080
+		// Not at arm's length: no relief, and the reason is recorded on the adjustment.
+		noRelief = NoReliefNotArmsLength
+	} else if taxable := w.AmountCents - w.InterestCents; taxable > 0 {
 		t, err := c.BadDebtTax(taxable, billTax, billTotal)
 		if err != nil {
 			return WriteOff{}, BadDebtAdjustment{}, fmt.Errorf("approve write-off %s: %w", w.ID, err)
@@ -73,5 +91,5 @@ func (c Calc) ApproveWriteOff(w WriteOff, b Bill, billTax, billTotal int64, by A
 	w.ApprovedBy = by.UserID
 	at := on
 	w.ApprovedAt = &at
-	return w, BadDebtAdjustment{BillID: b.ID, TaxCents: tax, On: on}, nil
+	return w, BadDebtAdjustment{BillID: b.ID, TaxCents: tax, On: on, NoReliefReason: noRelief}, nil
 }

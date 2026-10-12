@@ -37,7 +37,11 @@ func (d *Decider) Decide(ctx context.Context, s Supply) (Place, error) {
 		rules []string
 		err   error
 	)
-	if nonResident(s) {
+	nonRes, err := nonResident(s)
+	if err != nil {
+		return Place{}, err
+	}
+	if nonRes {
 		// rule: BIL-T-015
 		prov, rules, err = nonResidentProvince(ctx, s)
 	} else {
@@ -53,10 +57,19 @@ func (d *Decider) Decide(ctx context.Context, s Supply) (Place, error) {
 }
 
 // nonResident reports whether the supply is to a non-resident: the client is not flagged
-// resident and its address on file is outside Canada (a non-Canadian code). A client that is
-// not flagged resident but has a Canadian address is taxed by that address (fail closed).
-func nonResident(s Supply) bool {
-	return !s.RecipientResident && s.ClientProvince != "" && !provinces[s.ClientProvince]
+// resident, its address on file is outside Canada (a non-Canadian code), and a lawyer has
+// recorded a non-resident determination. A client that is not flagged resident but has a
+// Canadian address is taxed by that address. A foreign address with no recorded
+// determination fails closed with ErrResidencyUnknown: zero-rating needs evidence.
+func nonResident(s Supply) (bool, error) {
+	if s.RecipientResident || s.ClientProvince == "" || provinces[s.ClientProvince] {
+		return false, nil
+	}
+	// rule: BIL-T-015
+	if s.NonResidentAttestedBy == "" || s.NonResidentAttestedAt.IsZero() {
+		return false, fmt.Errorf("decide residency of %q client: %w", s.ClientProvince, ErrResidencyUnknown)
+	}
+	return true, nil
 }
 
 // residentProvince is the province of a supply that is not zero-rated: litigation first,

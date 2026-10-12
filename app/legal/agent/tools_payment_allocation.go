@@ -73,7 +73,9 @@ func buildProposePaymentAllocation(d Deps) (registry.Tool, error) {
 	}
 	// rule: ARC-U-027
 	// Every allocated amount must be a figure the run read; the model never invents money.
-	tool, err = pv.SourcedWrite(tool, "/allocations/*/amount_cents")
+	// rule: ARC-U-027
+	// Payment amounts come from structured reads, never from quoted text.
+	tool, err = pv.SourcedWriteStrict(tool, "/allocations/*/amount_cents")
 	if err != nil {
 		return wrap(err)
 	}
