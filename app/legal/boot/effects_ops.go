@@ -9,9 +9,13 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/dagi377/counsel/app/legal/access"
+	"github.com/dagi377/counsel/app/legal/agent"
+	"github.com/dagi377/counsel/app/legal/comms"
+	"github.com/dagi377/counsel/app/legal/deadlines"
 	"github.com/dagi377/counsel/app/legal/gates"
 	"github.com/dagi377/counsel/app/legal/intake"
 	"github.com/dagi377/counsel/app/legal/matter"
+	"github.com/dagi377/counsel/app/legal/platform"
 	"github.com/dagi377/counsel/app/legal/work"
 	kboot "github.com/dagi377/counsel/kernel/boot"
 	"github.com/dagi377/counsel/kernel/identity"
@@ -19,7 +23,7 @@ import (
 )
 
 // opsEffects are the dedicated effects of the platform, intake, work and access gate kinds
-// (GE2 group c), one line per kind. Each runs after ApprovalEffect, which releases a drafted
+// (GE2 group c) and of every platform.* kind (GE3), one line per kind. Each runs after ApprovalEffect, which releases a drafted
 // subject (the tool-gap kinds' document draft) and is a no-op on any other subject.
 func opsEffects(k *kboot.Kernel) (map[string]registry.EffectFunc, error) {
 	if k == nil {
@@ -41,6 +45,26 @@ func opsEffects(k *kboot.Kernel) (map[string]registry.EffectFunc, error) {
 		matter.GateClosing:          rel(matter.ClosingEffect(now, loc)),
 		access.KindOffboarding:      rel(access.OffboardingEffect(now, users)),
 		matter.KindMatterVisibility: rel(matter.MatterVisibilityEffect(now)),
+
+		platform.GatePortalMessage:     rel(platform.PortalMessageEffect(now)),
+		platform.GateOutgoingEmail:     rel(platform.OutgoingEmailEffect(now)),
+		platform.GateSummaryAccuracy:   rel(platform.SummaryAccuracyEffect(now)),
+		platform.GateFileDestruction:   rel(platform.FileDestructionEffect(now)),
+		agent.GateSkillAutonomy:        rel(agent.SkillAutonomyEffect(now)),
+		access.KindAccessChange:        rel(access.AccessChangeEffect(now)),
+		platform.GateIntegrationScope:  rel(platform.IntegrationScopeEffect(now)),
+		platform.GateExport:            rel(platform.ExportEffect(now)),
+		comms.GateGuestAccess:          rel(comms.GuestAccessEffect(now)),
+		platform.GateResearchMemo:      rel(platform.ResearchMemoEffect(now)),
+		platform.GateSecurityAnswer:    rel(platform.SecurityAnswerEffect(now)),
+		platform.GateOutboundConnector: rel(platform.OutboundConnectorEffect(now)),
+		platform.GatePaymentProvider:   rel(platform.PaymentProviderEffect(now)),
+		platform.GateImportBalances:    rel(platform.ImportBalancesEffect(now)),
+		deadlines.GateRulePack:         rel(deadlines.PlatformRulePackEffect(now)),
+		platform.GateVendorSupport:     rel(platform.VendorSupportEffect(now)),
+		platform.GateEscrowDestination: rel(platform.EscrowDestinationEffect(now)),
+		platform.GateServiceCredit:     rel(platform.ServiceCreditEffect(now)),
+		platform.GatePublishedPrice:    rel(platform.PublishedPriceEffect(now)),
 	}, nil
 }
 
@@ -87,5 +111,12 @@ func OpsKinds() []string {
 	return slices.Sorted(slices.Values([]string{
 		intake.GateLeadDecision, intake.GatePublicWording, work.GateWorkOutput, work.GateAutomation,
 		matter.GateClosing, access.KindOffboarding, matter.KindMatterVisibility,
+		platform.GatePortalMessage, platform.GateOutgoingEmail, platform.GateSummaryAccuracy,
+		platform.GateFileDestruction, agent.GateSkillAutonomy, access.KindAccessChange,
+		platform.GateIntegrationScope, platform.GateExport, comms.GateGuestAccess,
+		platform.GateResearchMemo, platform.GateSecurityAnswer, platform.GateOutboundConnector,
+		platform.GatePaymentProvider, platform.GateImportBalances, deadlines.GateRulePack,
+		platform.GateVendorSupport, platform.GateEscrowDestination, platform.GateServiceCredit,
+		platform.GatePublishedPrice,
 	}))
 }

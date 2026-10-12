@@ -5981,3 +5981,40 @@ through app/legal/gates/decider (no agent, no preparer) and are idempotent per g
 - trust.regulatory_release (trust.ReleaseEffect): trust.regulatory_report (5531) moves ready ->
   released to the approved recipient, audited (trust.regulatory_release) in the gate tx; fails
   closed without an audit log. No route prepares reports or reconciliations yet.
+  work.absence (no absence table; subject is a cover task). The other platform.* kinds have
+  real effects since GE3-ops-a (Q-GE3-OPS-A).
+
+## Q-GE3-OPS-A real effects for the 19 platform.* kinds
+
+spec/gates.json gives each kind's payload but not its effect, so each effect is the obvious one
+(the approved thing happens). All refuse an agent approver and the preparer (ARC-I-019), are
+idempotent by gate id, and run after ApprovalEffect (boot/effects_ops.go). New tables:
+migrations/6400_platform_gate_effects.sql (platform block). Owner, please confirm or correct:
+
+- Outbound sends (portal_message, outgoing_email, research_memo, security_answer) insert a
+  `platform.release` row (status `queued`, keyed by gate id); the content stays in the gate
+  payload. No sender job consumes the queue yet.
+- summary_accuracy upserts `platform.matter_summary`; file_destruction inserts a
+  `platform.destruction_order` (status `scheduled`): the retention job that executes it, and
+  re-checks matter legal hold, is not built.
+- skill_autonomy (agent module) sets `agent.skill.autonomy` on every version of the skill,
+  refused above `autonomy_cap`. rule_pack (deadlines module) activates the verified
+  `cal.rule_pack` version (payload `version` int as text) and retires the pack's other active
+  versions in the province. guest_access (comms module) inserts a `comms.portal_access` guest
+  row unless one is unrevoked. access_change (access module) applies only
+  `change = {"role_id": uuid}` (active role; licensee-only role needs a licensee; never an
+  offboarded user); any other change shape is refused.
+- integration_scope / outbound_connector activate `platform.connector` (scopes / settings
+  `destination`) only when `data_leaves_canada` matches `data_location <> 'canada'` (ARC-U-002).
+  payment_provider activates the `payments` connector whose `credential_ref` equals
+  `account_ref` (assumed meaning of account_ref).
+- export creates an approved `platform.export_job` with id = gate id, requested by the preparer
+  (or the user an agent acted for).
+- import_balances moves `platform.import_job` from `review` to `committed` only when
+  `trust_evidence` has `trust_account_id` and `total_cents` equal to the payload (assumed
+  tie-out shape). Posting the opening balance lines stays with trust (MIG-033); this gate only
+  signs the import off.
+- vendor_support inserts `platform.support_access` until `expires_at` (refused when already
+  expired); revoking at expiry is a later job. escrow_destination and published_price upsert
+  firm settings; service_credit adds a `platform.readiness_record` (kind `service_credit`,
+  `credit_cents`), one per gate.
