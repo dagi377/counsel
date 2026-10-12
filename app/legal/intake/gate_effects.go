@@ -28,7 +28,9 @@ WHERE id = $1::uuid AND archived_at IS NULL
   updated_by = CASE WHEN status = 'draft' THEN $2::uuid ELSE updated_by END,
   updated_at = CASE WHEN status = 'draft' THEN $3 ELSE updated_at END,
   row_version = row_version + CASE WHEN status = 'draft' THEN 1 ELSE 0 END
-WHERE id = $1::uuid AND (status = 'draft' OR (status = 'published' AND approved_by = $2::uuid))`
+WHERE id = $1::uuid AND ((status = 'draft' AND row_version = $4) OR (status = 'published' AND approved_by = $2::uuid))`
+	// A draft at another version than the approved one: the approval is stale.
+	sqlFormStale = `UPDATE intake.intake_form SET status = status WHERE id = $1::uuid AND status = 'draft' AND row_version <> $2`
 )
 
 // leadDecisionPayload is the intake.lead_decision payload (spec/gates.json).
@@ -92,9 +94,22 @@ func publicWording(ctx context.Context, tx gates.Execer, g registry.Approved, no
 	if err := gates.DecodePayload(g, &p); err != nil {
 		return err
 	}
-	if p.FormID == "" {
-		return fmt.Errorf("approve %s (gate %s): no form: %w", g.Kind, g.GateID, gates.ErrNotApprovable)
+	if p.FormID == "" || p.Version < 1 {
+		return fmt.Errorf("approve %s (gate %s): no form or version: %w", g.Kind, g.GateID, gates.ErrNotApprovable)
 	}
 	// rule: ARC-I-012
-	return gates.ExecOne(ctx, tx, g, sqlPublishForm, p.FormID, by, now())
+	ok, err := gates.Matches(ctx, tx, g, sqlPublishForm, p.FormID, by, now(), p.Version)
+	if err != nil || ok {
+		return err
+	}
+	// rule: ARC-I-014
+	// The approved wording is the version the approver saw; a newer draft is a conflict.
+	stale, err := gates.Matches(ctx, tx, g, sqlFormStale, p.FormID, p.Version)
+	if err != nil {
+		return err
+	}
+	if stale {
+		return fmt.Errorf("approve %s (gate %s): form version %d: %w", g.Kind, g.GateID, p.Version, gates.ErrStale)
+	}
+	return gates.Refuse(g, "form not in draft")
 }

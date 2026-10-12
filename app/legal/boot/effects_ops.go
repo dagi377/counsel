@@ -33,13 +33,32 @@ func opsEffects(k *kboot.Kernel) (map[string]registry.EffectFunc, error) {
 	now := func() time.Time { return k.Clock.Now() }
 	users := identity.UserEvents{Emitter: k.Emitter}
 	rel := func(fx registry.EffectFunc) registry.EffectFunc { return withRelease(k, fx) }
+	wallMin, err := specMinApprovers(matter.KindWallLift)
+	if err != nil {
+		return nil, err
+	}
+	// intake.open_matter opens the matter through the matter.opening effect, built when the
+	// effect runs so it sees the kernel's DB, emitter and clock (it fails closed without them).
+	opening := func(ctx context.Context, tx pgx.Tx, g registry.Approved) error {
+		m := matter.NewStore(k.DB, nil)
+		m.Events = k.Emitter
+		return m.OpeningEffect(k.Clock)(ctx, tx, g)
+	}
 	return map[string]registry.EffectFunc{
 		intake.GateLeadDecision:     rel(intake.LeadDecisionEffect(now)),
+		intake.GateConsultOutcome:   rel(intake.ConsultOutcomeEffect(now)),
+		intake.GateFeeWaiver:        rel(intake.FeeWaiverEffect(now)),
+		intake.GateOpenMatter:       rel(intake.OpenMatterEffect(now, opening)),
+		work.GateWorkPlan:           rel(work.PlanEffect(now)),
+		work.GateWorkflowPublish:    rel(work.WorkflowPublishEffect(now)),
+		work.GateExternalSync:       rel(work.ExternalSyncEffect(now)),
+		work.GateAbsence:            rel(work.AbsenceEffect(now)),
+		matter.KindWallLift:         rel(matter.WallLiftEffect(now, wallMin)),
 		intake.GatePublicWording:    rel(intake.PublicWordingEffect(now)),
 		work.GateWorkOutput:         rel(work.OutputEffect(now)),
 		work.GateAutomation:         rel(work.AutomationEffect()),
 		matter.GateClosing:          rel(matter.ClosingEffect(now, loc)),
-		access.KindOffboarding:      rel(access.OffboardingEffect(now, users)),
+		access.KindOffboarding:      rel(access.OffboardingEffect(now, users, offboardingHandover)),
 		matter.KindMatterVisibility: rel(matter.MatterVisibilityEffect(now)),
 	}, nil
 }
@@ -87,5 +106,30 @@ func OpsKinds() []string {
 	return slices.Sorted(slices.Values([]string{
 		intake.GateLeadDecision, intake.GatePublicWording, work.GateWorkOutput, work.GateAutomation,
 		matter.GateClosing, access.KindOffboarding, matter.KindMatterVisibility,
+		intake.GateConsultOutcome, intake.GateFeeWaiver, intake.GateOpenMatter, work.GateWorkPlan,
+		work.GateWorkflowPublish, work.GateExternalSync, work.GateAbsence, matter.KindWallLift,
 	}))
+}
+
+// offboardingHandover moves the leaver's live matters and open work items to the hand-over
+// user; each module writes only its own tables.
+func offboardingHandover(ctx context.Context, tx gates.Execer, from, to string, at time.Time) error {
+	if err := matter.ReassignResponsible(ctx, tx, from, to, at); err != nil {
+		return err
+	}
+	return work.ReassignOpen(ctx, tx, from, to, at)
+}
+
+// specMinApprovers is the spec's min_approvers for kind.
+func specMinApprovers(kind string) (int, error) {
+	kinds, err := gates.ParseKinds(gates.SpecData())
+	if err != nil {
+		return 0, fmt.Errorf("ops effects: %w", err)
+	}
+	for _, g := range kinds {
+		if g.Code == kind {
+			return max(g.MinApprovers, 1), nil
+		}
+	}
+	return 0, fmt.Errorf("ops effects: kind %s not in the spec: %w", kind, ErrMissingDependency)
 }

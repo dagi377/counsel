@@ -4346,3 +4346,27 @@ of FEAT-TIM-01 above.
   access_change, integration_scope, export, guest_access, research_memo, security_answer,
   outbound_connector, payment_provider, import_balances, rule_pack, vendor_support,
   escrow_destination, service_credit, published_price): no domain table or service to apply to.
+
+## Q-GE3-OPS-B per-kind effects for intake, work, offboarding, visibility and wall lift
+
+- Resolved from Q-GE2-OPS: core.offboarding now schedules (core.offboarding_schedule) and applies at
+  `cutoff_at` through job core.offboarding_cutoff (every 5 min), or at once when the cut-off is past;
+  live matters and open work items go to the first `handover` item (a user id, or an object with
+  `user_id`). core.matter_visibility writes `team_user_ids` to matter.matter_team. intake.public_wording
+  compares `version` with intake_form.row_version; a stale version is gates.ErrStale (412).
+- Real effects (boot/effects_ops.go, migrations 5120, 6120, 6310): intake.consult_outcome (consultation outcome and
+  sign-off), intake.fee_waiver (fee waived or marked refunded for exactly amount_cents; the money of a
+  refund moves through billing.refund), intake.open_matter (via the matter.opening effect),
+  work.plan (acceptance creates the template's tasks), work.workflow_publish (stale version is a
+  conflict), work.external_sync (two approvers), work.absence, core.wall_lift (audited lift record,
+  screened approver refused, spec min_approvers).
+- Owner: intake.open_matter needs the new matter's matter_id, number and short_name in its payload
+  (optional practice_area_id, visibility). The payload builder must fill them; spec/gates.json does not
+  list them yet (additive).
+- Owner: work.plan template items are read as {"title", "type"?, "workflow_id"?, "due_days"?}; an item
+  with no workflow uses the latest released workflow that applies to tasks.
+- Left, not started (stopped by the owner's finish-only directive): core.role_change and
+  core.user_activation (no production AdminStore), and core.temp_grant, break_glass_review,
+  review_close, bulk_export, sign_in_settings, mfa_reset, vendor_support, authority_limit (no effect).
+  They stay in the catalogue test's exclusion list. Step-up on decide for the security kinds is the
+  existing ARC-I-017 check (all are risk high); temp_grant expiry is not built.
