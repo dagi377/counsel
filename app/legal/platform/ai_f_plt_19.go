@@ -1,6 +1,3 @@
-// Package platform holds the AI feature definitions of the firm platform screens (automation
-// settings, matter closing, firm profile, archive and retention). Each Def is listed in
-// app/legal/agent/featureset and bound at boot; nothing registers from init().
 package platform
 
 import (

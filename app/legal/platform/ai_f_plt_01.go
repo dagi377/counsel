@@ -1,7 +1,3 @@
-// Package platform holds Counsel's platform AI features (spec/ai/features.json area
-// "platform"): portal triage, mail, replies and the other cross-matter communication
-// features. Each feature file exports its feature.Def; app/legal/agent/featureset adds them
-// to the feature.Set, so nothing registers from init().
 package platform
 
 import (
