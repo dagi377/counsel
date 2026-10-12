@@ -8,7 +8,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/dagi377/counsel/app/legal/books"
 	"github.com/dagi377/counsel/app/legal/gates/decider"
 	"github.com/dagi377/counsel/kernel/clock"
 	"github.com/dagi377/counsel/kernel/ledger"
@@ -82,7 +81,8 @@ type allocationPayload struct {
 
 // AllocationEffect is the billing.payment_allocation EffectFunc: in the gate tx it writes the
 // approved allocation rows on the operating payment, moves each bill's status and posts
-// Dr operating bank / Cr AR fees (or Cr client credit for unapplied money).
+// Dr unapplied / Cr AR fees per bill. The receipt already posted Dr operating bank /
+// Cr unapplied when the payment was captured, so money left unapplied posts nothing.
 type AllocationEffect struct {
 	Store  AllocationStore
 	Ledger ledger.Ledger
@@ -134,22 +134,16 @@ func (e *AllocationEffect) Apply(ctx context.Context, tx pgx.Tx, g registry.Appr
 		if err != nil {
 			return fmt.Errorf("allocation effect %s: %w", g.GateID, err)
 		}
-		credit := books.AcctARFees
 		if a.BillID == "" {
-			credit = books.AcctClientCredit
-		} else if err := e.Store.Settle(ctx, tx, a.BillID); err != nil {
+			// Money left unapplied stays in the unapplied account the receipt credited.
+			continue
+		}
+		if err := e.Store.Settle(ctx, tx, a.BillID); err != nil {
 			return fmt.Errorf("allocation effect %s: %w", g.GateID, err)
 		}
 		// rule: BIL-L-042
-		// One balanced entry per applied row, in integer cents.
-		amt := ledger.Cents(a.Total())
-		subject := ledger.Subject{Kind: SubjectKind, ID: a.PaymentID}
-		entry := ledger.Entry{Book: books.BookOperating, Date: today, SourceKind: AllocationGLSource, SourceID: id,
-			Memo: "payment allocation", Lines: []ledger.Line{
-				{Account: books.AcctOperatingBank, Side: ledger.Debit, Amount: amt, Subject: subject},
-				{Account: credit, Side: ledger.Credit, Amount: amt, Subject: subject},
-			}}
-		if _, err := e.Ledger.Post(ctx, tx, entry); err != nil {
+		// One balanced entry per applied bill row, in integer cents: Dr unapplied / Cr AR.
+		if _, err := e.Ledger.Post(ctx, tx, applyEntry(id, a.PaymentID, a.Total(), today)); err != nil {
 			return fmt.Errorf("allocation effect %s: post: %w", g.GateID, err)
 		}
 	}

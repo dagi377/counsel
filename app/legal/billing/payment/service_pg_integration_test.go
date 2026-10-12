@@ -16,6 +16,9 @@ import (
 
 	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/matter/mattertest"
+	"github.com/dagi377/counsel/kernel/clock/clockfake"
+	"github.com/dagi377/counsel/kernel/ledger"
+	"github.com/dagi377/counsel/kernel/ledger/ledgerfake"
 	"github.com/dagi377/counsel/migrations"
 	"github.com/dagi377/counsel/migrations/migrationstest"
 )
@@ -137,7 +140,7 @@ func TestPGServiceContract(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			env := newPGEnv(t)
-			svc := payment.PGService{DB: poolTx{env.pool}, Payers: namedPayers{}}
+			svc := payment.PGService{DB: poolTx{env.pool}, Payers: namedPayers{}, GL: memGL, Clock: memClock}
 			c := tt.c(env)
 			p, got, err := svc.Capture(ctx, c)
 			if !errors.Is(err, tt.wantErr) {
@@ -181,7 +184,7 @@ func TestPGServiceCaptureDedup(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			env := newPGEnv(t)
-			svc := payment.PGService{DB: poolTx{env.pool}, Payers: namedPayers{}}
+			svc := payment.PGService{DB: poolTx{env.pool}, Payers: namedPayers{}, GL: memGL, Clock: memClock}
 			c := env.capture(1000)
 			tt.edit(&c)
 			a, _, err := svc.Capture(ctx, c)
@@ -199,7 +202,7 @@ func TestPGServiceCaptureDedup(t *testing.T) {
 func TestPGProposalsContract(t *testing.T) {
 	ctx := context.Background()
 	env := newPGEnv(t)
-	svc := payment.PGService{DB: poolTx{env.pool}, Payers: namedPayers{}}
+	svc := payment.PGService{DB: poolTx{env.pool}, Payers: namedPayers{}, GL: memGL, Clock: memClock}
 	p, _, err := svc.Capture(ctx, env.capture(50000))
 	if err != nil {
 		t.Fatal(err)
@@ -220,3 +223,10 @@ func TestPGProposalsContract(t *testing.T) {
 type namedPayers struct{}
 
 func (namedPayers) PayerName(context.Context, string) (string, error) { return "C", nil }
+
+// memGL journals in memory: these tests check the payment rows, not gl.journal_entry.
+var memGLFake = ledgerfake.New(ledger.Date{Year: 2100, Month: 1, Day: 1})
+
+func memGL(string) ledger.Ledger { return memGLFake }
+
+var memClock = clockfake.New(time.Date(2026, 10, 12, 15, 0, 0, 0, time.UTC), time.UTC)

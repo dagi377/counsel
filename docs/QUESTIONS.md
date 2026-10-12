@@ -4337,3 +4337,19 @@ through app/legal/gates/decider (no agent, no preparer) and are idempotent per g
 - trust.regulatory_release (trust.ReleaseEffect): trust.regulatory_report (5531) moves ready ->
   released to the approved recipient, audited (trust.regulatory_release) in the gate tx; fails
   closed without an audit log. No route prepares reports or reconciliations yet.
+
+## Q-GL-FIX payment accounting: receipt to unapplied, allocation to AR
+
+Answers the Q-GE3-MONEY bank-debit question. OP-2200 "Client credit (unapplied)" is the
+unapplied receipts account (no new chart account).
+- Capture (payment.PGService) posts Dr OP-1000 / Cr OP-2200 for the whole payment at receipt,
+  dated received_on, source payment_receipt/<payment id>, posted by the recording user. The part
+  Capture applies to its bill posts Dr OP-2200 / Cr OP-1100, source payment_allocation/<row id>.
+- The approved allocation effect posts Dr OP-2200 / Cr OP-1100 per bill row; an `unapplied` row
+  posts nothing (the money is already in OP-2200).
+- Reverse posts the mirror: Dr OP-1100 / Cr OP-2200 per reversed bill row, then Dr OP-2200 /
+  Cr OP-1000 for the receipt (source payment_receipt_reversal), dated today, by the reverser.
+- PGService gains GL (a per-user ledger) and Clock; without them Capture and Reverse fail closed
+  (ErrNoGL). Boot wires a PGGL-validated ledger.PG posting as the acting user.
+- Payments captured before this change have no receipt entry; owner to decide on a backfill.
+  Trust deposits never reach these accounts (BIL-L-034).

@@ -9,6 +9,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/dagi377/counsel/kernel/clock"
+	"github.com/dagi377/counsel/kernel/ledger"
 	"github.com/dagi377/counsel/kernel/money"
 )
 
@@ -36,6 +38,12 @@ type PGService struct {
 	Cash CashLimit
 	// Payers names the payer of a capture; while nil a capture fails closed.
 	Payers PayerNames
+	// GL returns the operating ledger posting as the given user; the receipt, each applied
+	// bill row and every reversal are journaled in the same tx. While nil a capture or a
+	// reversal fails closed.
+	GL func(postedBy string) ledger.Ledger
+	// Clock dates reversal entries in the business time zone; while nil a reversal fails closed.
+	Clock clock.Clock
 }
 
 var _ Service = PGService{}
@@ -89,11 +97,11 @@ const insertPaymentSQL = `INSERT INTO billing.payment (received_on, payer_contac
 VALUES ($1::date, $2::uuid, $9, $3, $4, 'operating', NULLIF($5, ''), NULLIF($6, ''), $7, $8::uuid) RETURNING id::text`
 
 const insertAllocationSQL = `INSERT INTO billing.payment_allocation (payment_id, target_type, bill_id, amount_cents,
-  fee_cents, tax_cents, allocated_by) VALUES ($1::uuid, 'bill', $2::uuid, $3, $4, $5, $6::uuid)`
+  fee_cents, tax_cents, allocated_by) VALUES ($1::uuid, 'bill', $2::uuid, $3, $4, $5, $6::uuid) RETURNING id::text`
 
 const insertKeySQL = `INSERT INTO billing.payment_capture_key (idempotency_key, payment_id) VALUES ($1, $2::uuid)`
 
-const lockPaymentSQL = `SELECT p.status FROM billing.payment p WHERE p.id = $1::uuid AND ` + operating + ` FOR UPDATE OF p`
+const lockPaymentSQL = `SELECT p.status, p.amount_cents FROM billing.payment p WHERE p.id = $1::uuid AND ` + operating + ` FOR UPDATE OF p`
 
 // reverseAllocationsSQL writes -1 x every applied allocation, bucket for bucket (BIL-I-019),
 // allocated by the user who reverses, never the original allocator.
@@ -103,7 +111,8 @@ SELECT a.payment_id, a.target_type, a.bill_id, a.trust_ledger_id, a.client_id, -
   -a.dtx_cents, -a.dnt_cents, -a.tax_cents, -a.interest_cents, a.id, $2::uuid
 FROM billing.payment_allocation a WHERE a.payment_id = $1::uuid AND a.reverses_id IS NULL
   AND NOT EXISTS (SELECT 1 FROM billing.payment_allocation x WHERE x.reverses_id = a.id)
-ORDER BY a.at, a.id`
+ORDER BY a.at, a.id
+RETURNING id::text, target_type, amount_cents`
 
 const insertReversalSQL = `INSERT INTO billing.payment_reversal (payment_id, reason, reversed_by) VALUES ($1::uuid, $2, $3::uuid)`
 
@@ -134,6 +143,9 @@ func (s PGService) Capture(ctx context.Context, c Capture) (Payment, []Allocatio
 	}
 	if s.Payers == nil {
 		return Payment{}, nil, ErrNoPayerNames
+	}
+	if s.GL == nil {
+		return Payment{}, nil, ErrNoGL
 	}
 	name, err := s.Payers.PayerName(ctx, c.ClientID)
 	if err != nil {
@@ -253,14 +265,26 @@ func (s PGService) capture(ctx context.Context, tx pgx.Tx, c Capture, payer stri
 		c.Provider, c.ProviderEventID, status, c.RecordedBy, payer).Scan(&id); err != nil {
 		return Payment{}, nil, fmt.Errorf("capture: %w", err)
 	}
+	gl := s.GL(c.RecordedBy)
+	on := clock.DateOf(c.ReceivedOn, c.ReceivedOn.Location())
+	// rule: BIL-L-042
+	// At receipt the whole payment is Dr operating bank / Cr unapplied; trust money never
+	// reaches this service (BIL-L-034).
+	if _, err := gl.Post(ctx, tx, receiptEntry(id, c.AmountCents, on)); err != nil {
+		return Payment{}, nil, fmt.Errorf("capture %s: post receipt: %w", id, err)
+	}
 	var as []Allocation
 	if applied > 0 {
 		fee, tax, err := b.split(applied)
 		if err != nil {
 			return Payment{}, nil, err
 		}
-		if _, err := tx.Exec(ctx, insertAllocationSQL, id, c.BillID, applied, fee, tax, c.RecordedBy); err != nil {
+		var allocID string
+		if err := tx.QueryRow(ctx, insertAllocationSQL, id, c.BillID, applied, fee, tax, c.RecordedBy).Scan(&allocID); err != nil {
 			return Payment{}, nil, fmt.Errorf("capture %s: allocate: %w", id, err)
+		}
+		if _, err := gl.Post(ctx, tx, applyEntry(allocID, id, applied, on)); err != nil {
+			return Payment{}, nil, fmt.Errorf("capture %s: post allocation: %w", id, err)
 		}
 		as = append(as, Allocation{PaymentID: id, BillID: c.BillID, FeeCents: fee, TaxCents: tax})
 	}
@@ -352,6 +376,9 @@ func (s PGService) Reverse(ctx context.Context, id string, reason ReversalReason
 	if by.UserID == "" {
 		return Payment{}, fmt.Errorf("reverse %s: no actor: %w", id, ErrInvalid)
 	}
+	if s.GL == nil || s.Clock == nil {
+		return Payment{}, ErrNoGL
+	}
 	var p Payment
 	err := s.DB.InTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		var human bool
@@ -366,7 +393,8 @@ func (s PGService) Reverse(ctx context.Context, id string, reason ReversalReason
 			return ErrAgentReverse
 		}
 		var status string
-		err = tx.QueryRow(ctx, lockPaymentSQL, id).Scan(&status)
+		var amount int64
+		err = tx.QueryRow(ctx, lockPaymentSQL, id).Scan(&status, &amount)
 		if missing(err) {
 			return fmt.Errorf("reverse %s: %w", id, ErrNotFound)
 		}
@@ -380,13 +408,13 @@ func (s PGService) Reverse(ctx context.Context, id string, reason ReversalReason
 			}
 			return ErrReversed
 		}
-		// rule: BIL-I-019
-		// A reversal mirrors each original allocation in every bucket.
+		if err := s.reverseBooks(ctx, tx, id, amount, by.UserID); err != nil {
+			return err
+		}
 		for _, q := range []struct {
 			sql  string
 			args []any
 		}{
-			{reverseAllocationsSQL, []any{id, by.UserID}},
 			{insertReversalSQL, []any{id, string(reason), by.UserID}},
 			{markReversedSQL, []any{id}},
 		} {
@@ -404,6 +432,43 @@ func (s PGService) Reverse(ctx context.Context, id string, reason ReversalReason
 		return Payment{}, err
 	}
 	return p, nil
+}
+
+// reverseRow is one -1 x allocation row reverseAllocationsSQL wrote.
+type reverseRow struct {
+	id, target string
+	cents      int64
+}
+
+// reverseBooks writes the -1 x allocation rows and posts the mirror entries: Dr AR /
+// Cr unapplied per reversed bill row, then Dr unapplied / Cr operating bank for the receipt.
+func (s PGService) reverseBooks(ctx context.Context, tx pgx.Tx, id string, amount int64, by string) error {
+	// rule: BIL-I-019
+	// A reversal mirrors each original allocation in every bucket.
+	rows, err := tx.Query(ctx, reverseAllocationsSQL, id, by)
+	if err != nil {
+		return fmt.Errorf("reverse %s: %w", id, err)
+	}
+	rs, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (reverseRow, error) {
+		var x reverseRow
+		return x, r.Scan(&x.id, &x.target, &x.cents)
+	})
+	if err != nil {
+		return fmt.Errorf("reverse %s: %w", id, err)
+	}
+	gl, today := s.GL(by), s.Clock.Today(ctx)
+	for _, r := range rs {
+		if r.target != "bill" || r.cents == 0 {
+			continue
+		}
+		if _, err := gl.Post(ctx, tx, applyEntry(r.id, id, r.cents, today)); err != nil {
+			return fmt.Errorf("reverse %s: post allocation: %w", id, err)
+		}
+	}
+	if _, err := gl.Post(ctx, tx, receiptReversalEntry(id, amount, today)); err != nil {
+		return fmt.Errorf("reverse %s: post receipt: %w", id, err)
+	}
+	return nil
 }
 
 // Get implements Service.
