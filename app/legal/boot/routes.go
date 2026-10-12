@@ -15,6 +15,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/billing/bill"
 	"github.com/dagi377/counsel/app/legal/billing/credit"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
+	"github.com/dagi377/counsel/app/legal/books"
 	"github.com/dagi377/counsel/app/legal/comms"
 	"github.com/dagi377/counsel/app/legal/deadlines"
 	legaldocs "github.com/dagi377/counsel/app/legal/docs"
@@ -231,6 +232,16 @@ func wiredRoutes(k *kboot.Kernel, p HTTPPorts) ([]mount, error) {
 		(&payment.Gated{HTTP: payment.HTTP{Payments: p.Payments, Access: p.Access, Cursors: p.Cursors, Idem: p.Idem,
 			Problems: p.Problems, Principal: p.Principal}, DB: p.DB, Gates: p.Gates, Proposals: p.PaymentProposals,
 			MinApprovers: approvers}).Routes)
+	// The create routes that open a money gate with the acting user as preparer (Q-CREATE-ROUTES).
+	if p.DB != nil && p.Gates != nil && p.Idem != nil {
+		rt := eventroute.Route{Access: p.Access, Idem: p.Idem, Problems: p.Problems, Principal: p.Principal}
+		add(true, (&payment.PlanHTTP{Route: rt, DB: p.DB, Gates: p.Gates, Plans: payment.PGPlans{},
+			MinApprovers: approvers[payment.KindPaymentPlan]}).Routes)
+		add(true, (&trust.ReportHTTP{Route: rt, DB: p.DB, Gates: p.Gates, Reports: trust.PGReleases{},
+			MinApprovers: approvers[trust.GateRegulatoryRelease]}).Routes)
+		add(true, (&books.OpReconHTTP{Route: rt, DB: p.DB, Gates: p.Gates, Recons: books.PGOpRecon{},
+			MinApprovers: approvers[books.KindOperatingReconciliation]}).Routes)
+	}
 	if m := webhookMount(k, p, approvers[webhook.GateIntegrationScope]); m != nil {
 		add(true, m)
 	}
