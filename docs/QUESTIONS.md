@@ -5574,3 +5574,15 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
 - This branch creates `app/legal/platform` with a package comment in `ai_f_plt_01.go`;
   FEAT-PLT-02 does the same in `ai_f_plt_02.go`. A merge keeps one. Helpers:
   `ai_pltb_helpers_test.go` (prefix pltb).
+
+## Q-FEAT-PLT-04 F-PLT-03 reply drafter: event, screen and shared helpers
+
+- No event for "inbound email needing a response" exists on main or a pushed branch.
+  F-PLT-03 binds a new `platform.EventEmailNeedsReply` (`email.needs_reply`), acting for the
+  mailbox owner. a2 lists no such event and comms does not publish it yet (EVENTS-WIRE
+  follow-up: publish it when an inbound email filed to a matter is marked as needing a reply).
+- The Def is in featureset.App(); `boot.JobBindings` binds it and the `comms-log` screen
+  (subject `matter`, capability `matters.view`) is added to `actionScreens`. FEAT-PLT-02 adds
+  the same `comms-log` entry; a merge keeps one.
+- The tests share `app/legal/platform/ai_pltc_helpers_test.go` with FEAT-PLT-02 and FEAT-PLT-06;
+  the file is identical on the three branches.

@@ -238,5 +238,6 @@ func appDefs() []feature.Def {
 		platform.StaleMatterSweepDef(),
 		platform.CitationCheckerDef(),
 		platform.PortalTriageDef(),
+		platform.ReplyDrafterDef(),
 	}
 }
