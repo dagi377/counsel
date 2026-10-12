@@ -5033,7 +5033,7 @@ and has a one-outbox-event test.
   (optional; no read states it). The `period_to` payload check is unchanged.
 - Open: production does not yet record the trigger payload, so a production F-BIL-01 run is
   refused at draft_bill until the trigger-provenance step of PAYLOAD-BUILDERS lands.
-- Closed in pass 20: PAYLOAD-BUILDERS'  runs for every boot trigger
+- Closed in pass 20: PAYLOAD-BUILDERS' `Provenance.ObserveTrigger` runs for every boot trigger
   (ForgetRunner) and PROD-WIRE-2's screen runs (Q-INTEG-20).
 
 ## Q-FEAT-ACC-07 Read-only access features answer without citations
