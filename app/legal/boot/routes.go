@@ -3,6 +3,7 @@ package boot
 import (
 	"context"
 	"fmt"
+	kdocs "github.com/dagi377/counsel/kernel/docs"
 	"net/http"
 	"slices"
 	"strings"
@@ -107,6 +108,12 @@ type HTTPPorts struct {
 	// AgentModel and AgentTools drive the runs Runs starts (mock model in tests).
 	AgentModel ai.ModelClient
 	AgentTools agenttools.Tools
+	// AgentProvenance is the run values the agent tools check sourced figures against; the
+	// runs Runs starts record their trigger values in it and drop them when they end.
+	AgentProvenance *agenttools.Provenance
+	// DocsBucket is the cell document bucket. Nil falls back to the bucket environment
+	// variables; with neither the document routes answer 503.
+	DocsBucket kdocs.Bucket
 	// WebhookEndpoints serves the /webhook-endpoints reads (HTTP-26). Nil is
 	// webhook.PGEndpointReads on the kernel DB.
 	WebhookEndpoints webhook.EndpointReads

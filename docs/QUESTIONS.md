@@ -5053,3 +5053,20 @@ Additive contract changes, each needed by the follow-ups to AGENT-PROD-2a:
   with a bill_id stays refused in those runs (ARC-I-035). If product wants F-TRU-02 to
   draft the fee transfer itself, add billing.trust_fee_withdrawal to its spec gate kinds
   first.
+
+## Q-PROD-WIRE-2 production wiring of payload builders, trust transfers and the bucket
+
+- Closes the Q-PAYLOAD-BUILDERS and Q-TRANSFER-STORE open items. Boot fills
+  `AgentPorts.PayloadBuilders` with `agent.SpecPayloadBuilders` over `boot.PGSubjectRecords`
+  (the subject's own row, as `PGSubjectMatters` reads it; a matter subject through
+  matter.Query, ARC-I-041) and `AgentPorts.TrustBalances` (`trust.PGMatterAccounts`
+  `MatterTrustBalance`, the signed posted balance). `AgentPorts.TrustTransfers` is
+  `withdraw.TransferRequests` over `PGTransferStore` and the gate engine. OpenGate was already
+  `gateOpener`. A subject kind PGSubjectRecords does not know fails closed (no gate).
+- The HTTP-25 `agent.RunStarter` gains an additive `Wrap` hook; boot sets it to
+  `ForgetOnEnd`, so a screen-started run's inputs count as read like a boot trigger.
+- Answers the DOC-UPLOAD question: `counseld -docs-bucket-url/-docs-bucket-region/
+  -docs-kms-key-id` (env fallback `$COUNSEL_DOCS_BUCKET_*`) fill `Production.Docs`; the AWS
+  credentials stay environment-only and are `Secret`s. An unset URL keeps the env fallback.
+- The agent's Payments port takes the same Postgres payment service the routes build, so
+  propose_payment_allocation (F-BIL-04) is served.

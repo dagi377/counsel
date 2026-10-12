@@ -38,6 +38,9 @@ type RunStarter struct {
 	Now func() time.Time
 	// Go runs a started run; nil means a new goroutine.
 	Go func(func())
+	// Wrap, when set, wraps each run's loop, as boot wraps every runner it drives (the run's
+	// trigger values recorded as read, its provenance dropped at the end, its feature in ctx).
+	Wrap func(run.Runner) run.Runner
 }
 
 var _ RunService = (*RunStarter)(nil)
@@ -127,7 +130,10 @@ func (s *RunStarter) drive(ctx context.Context, rec run.Record, spec run.Spec, p
 		return
 	}
 	sum := &usageSum{}
-	loop := run.New(ai.WithUsage(s.Model, sum), s.Tools)
+	var loop run.Runner = run.New(ai.WithUsage(s.Model, sum), s.Tools)
+	if s.Wrap != nil {
+		loop = s.Wrap(loop)
+	}
 	var triggers []run.Trigger
 	if inputs != "" {
 		// rule: ARC-I-038

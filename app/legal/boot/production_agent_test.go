@@ -189,3 +189,47 @@ func TestProductionAgentToolPortsReady(t *testing.T) {
 		})
 	}
 }
+
+// aLawyer names one designated lawyer for every feature.
+type aLawyer struct{}
+
+func (aLawyer) DesignatedLawyer(context.Context, string) (string, error) {
+	return "0190a5c3-0000-7000-8000-0000000000aa", nil
+}
+
+// TestProductionEveryAgentFeatureReady: with the mock model, a firm account, a job queue,
+// a designated lawyer and a configured document bucket, production reports every agent
+// feature ready: no tool has an unwired port, and the payload builders, the trust transfer
+// port and the gate opener are wired.
+func TestProductionEveryAgentFeatureReady(t *testing.T) {
+	ready := &AgentReadiness{}
+	p := mockProduction(ready)
+	p.Docs = DocsBucketConfig{URL: "https://s3.example/cell-docs", Region: "ca-central-1",
+		AccessKey: "AKIDEXAMPLE", SecretKey: "secret-example"}
+	w := &AgentWiring{Designated: aLawyer{}}
+	c := compose(t, legalFlagNames(t), Options{Production: p, Agent: w})
+	unready, err := ready.Unready(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range unready {
+		t.Errorf("%s not ready: %s", u.FeatureID, u.Reason)
+	}
+	missing := w.Ports.Missing()
+	for _, port := range []string{"PayloadBuilders", "TrustTransfers", "OpenGate", "SubjectMatters"} {
+		t.Run(port, func(t *testing.T) {
+			if slices.Contains(missing, port) {
+				t.Errorf("port %s not wired", port)
+			}
+		})
+	}
+	var upload bool
+	for _, r := range c.server.Routes() {
+		if r.Method == "POST" && r.Pattern == "/documents" {
+			upload = true
+		}
+	}
+	if !upload {
+		t.Error("POST /documents not mounted with a configured bucket")
+	}
+}

@@ -31,6 +31,28 @@ func bucketFromEnv() kdocs.Bucket {
 	return b
 }
 
+// DocsBucketConfig is the cell document bucket of a deployment: a path-style S3 bucket URL,
+// its region, the KMS key that encrypts each object and the credentials that sign requests.
+// The credentials are Secrets, so they never reach a log or an error.
+type DocsBucketConfig struct {
+	URL          string
+	Region       string
+	KMSKeyID     string
+	AccessKey    Secret
+	SecretKey    Secret
+	SessionToken Secret
+}
+
+// Bucket is the configured bucket, or nil when the URL, the region or a credential is
+// missing (then the environment fallback applies).
+func (c DocsBucketConfig) Bucket() kdocs.Bucket {
+	if c.URL == "" || c.Region == "" || c.AccessKey == "" || c.SecretKey == "" {
+		return nil
+	}
+	return &kdocs.S3Bucket{Endpoint: c.URL, Region: c.Region, KMSKeyID: c.KMSKeyID,
+		AccessKey: string(c.AccessKey), SecretKey: string(c.SecretKey), SessionToken: string(c.SessionToken)}
+}
+
 // docsMounts is GET/POST /documents and the page route over Postgres: bytes in the cell
 // bucket, rows and version text in docs, document.uploaded through the kernel outbox, and the
 // text step extracting non-text files through the agent model. Without a bucket, an emitter
@@ -41,7 +63,10 @@ func docsMounts(k *kboot.Kernel, p HTTPPorts) []mount {
 		p.Problems == nil || p.Principal == nil {
 		return nil
 	}
-	bucket := docsBucket()
+	bucket := p.DocsBucket
+	if bucket == nil {
+		bucket = docsBucket()
+	}
 	if bucket == nil {
 		slog.Warn("document upload not served: no cell bucket configured", "env", "COUNSEL_DOCS_BUCKET_URL")
 		return nil

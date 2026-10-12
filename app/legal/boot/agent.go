@@ -79,6 +79,11 @@ type AgentPorts struct {
 	BatchDrafts    batch.Drafts
 	Payments       payment.Service
 	SubjectMatters agent.SubjectMatters
+	// PayloadBuilders builds each gate payload submit_for_approval opens from the subject's
+	// records (agent.SpecPayloadBuilders); nil keeps the subject-only payload.
+	PayloadBuilders *agenttools.PayloadBuilders
+	// TrustBalances is the signed trust balance G13's builder reads (trust.PGMatterAccounts).
+	TrustBalances agent.MatterTrustBalances
 
 	Deadlines       deadline.Lister
 	DeadlineCompute agent.DeadlineCompute
@@ -135,6 +140,8 @@ func (p AgentPorts) ports() []port {
 		{"BatchDrafts", p.BatchDrafts, p.BatchDrafts != nil},
 		{"Payments", p.Payments, p.Payments != nil},
 		{"SubjectMatters", p.SubjectMatters, p.SubjectMatters != nil},
+		{"PayloadBuilders", p.PayloadBuilders, p.PayloadBuilders != nil},
+		{"TrustBalances", p.TrustBalances, p.TrustBalances != nil},
 		{"Deadlines", p.Deadlines, p.Deadlines != nil},
 		{"DeadlineCompute", p.DeadlineCompute, p.DeadlineCompute != nil},
 		{"DeadlineSaver", p.DeadlineSaver, p.DeadlineSaver != nil},
