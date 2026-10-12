@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/dagi377/counsel/app/legal/billing/credit"
 	"github.com/dagi377/counsel/app/legal/billing/payment"
 	"github.com/dagi377/counsel/app/legal/party"
@@ -11,6 +13,7 @@ import (
 	"github.com/dagi377/counsel/app/legal/trust/recon"
 	"github.com/dagi377/counsel/app/legal/trust/withdraw"
 	kboot "github.com/dagi377/counsel/kernel/boot"
+	"github.com/dagi377/counsel/kernel/ledger"
 )
 
 // withWrites fills every nil write port that has a Postgres implementation on the kernel DB:
@@ -78,9 +81,33 @@ func pgPayments(k *kboot.Kernel) payment.PGService {
 	// rule: BIL-L-039 (verify)
 	// Operating cash shares the trust ledger's per-matter cash limit; without a clock cash fails closed.
 	// Billing names the payer only through the party module, never its tables (ARC-I-041).
-	svc := payment.PGService{DB: k.DB, Payers: PartyPayers{Contacts: party.NewStore(k.DB)}}
+	// GL-FIX: receipts post to unapplied cash and allocations to AR on the operating ledger.
+	svc := payment.PGService{DB: k.DB, Payers: PartyPayers{Contacts: party.NewStore(k.DB)}, GL: postedAs}
 	if k.Clock != nil {
 		svc.Cash = trust.NewLedgerStore(k.DB, nil, nil, k.Clock)
+		svc.Clock = k.Clock
 	}
 	return svc
+}
+
+// postedAs is the operating ledger posting as user by: a receipt or reversal is journaled by
+// the user who recorded it. Balance and the rest are PGGL's.
+func postedAs(by string) ledger.Ledger {
+	return userGL{pg: &ledger.PG{PostedBy: func(context.Context) (string, error) { return by, nil }}}
+}
+
+// userGL is PGGL with posted_by fixed to one user.
+type userGL struct {
+	PGGL
+	pg *ledger.PG
+}
+
+// Post implements ledger.Ledger.
+//
+// rule: BIL-I-001
+func (g userGL) Post(ctx context.Context, tx pgx.Tx, e ledger.Entry) (ledger.EntryID, error) {
+	if err := ledger.Validate(e); err != nil {
+		return "", fmt.Errorf("gl post: %w", err)
+	}
+	return g.pg.Post(ctx, tx, e)
 }

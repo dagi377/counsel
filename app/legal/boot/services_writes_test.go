@@ -64,6 +64,10 @@ func TestWithWritesWiresPayerNames(t *testing.T) {
 	if !ok || !is[PartyPayers](svc.Payers) {
 		t.Fatalf("Payments.Payers = %#v, want the party module reader", svc.Payers)
 	}
+	// rule: BIL-L-042
+	if svc.GL == nil || svc.Clock == nil {
+		t.Fatalf("Payments GL/Clock not wired: the receipt journal would fail closed")
+	}
 }
 
 func TestPartyPayersName(t *testing.T) {

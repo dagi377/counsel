@@ -134,9 +134,17 @@ func TestAllocationEffect(t *testing.T) {
 					t.Fatalf("row = %+v settled %v", st.rows[0], st.settled)
 				}
 				// rule: BIL-L-042
-				bank, _ := gl.Balance(ctx, books.AcctOperatingBank, clk.Today(ctx))
-				if int64(bank) != st.pay.AllocatedCents {
-					t.Fatalf("bank = %d, want %d", bank, st.pay.AllocatedCents)
+				// Applied bill rows move unapplied to AR; money left unapplied posts nothing.
+				var billed int64
+				for _, r := range st.rows {
+					if r.BillID != "" {
+						billed += r.Total()
+					}
+				}
+				unapplied, _ := gl.Balance(ctx, payment.AcctUnapplied, clk.Today(ctx))
+				ar, _ := gl.Balance(ctx, books.AcctARFees, clk.Today(ctx))
+				if int64(unapplied) != billed || int64(ar) != -billed {
+					t.Fatalf("unapplied = %d, AR = %d, want %d and %d", unapplied, ar, billed, -billed)
 				}
 			}
 		})

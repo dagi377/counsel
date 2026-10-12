@@ -21,6 +21,9 @@ type scriptTx struct {
 	rows  map[string][][]any // Query answers
 	execs []string
 	args  [][]any
+	// queries and qargs record every Query, in order.
+	queries []string
+	qargs   [][]any
 }
 
 func (t *scriptTx) QueryRow(_ context.Context, sql string, _ ...any) pgx.Row {
@@ -31,7 +34,9 @@ func (t *scriptTx) QueryRow(_ context.Context, sql string, _ ...any) pgx.Row {
 	return scriptRow{vals: v}
 }
 
-func (t *scriptTx) Query(_ context.Context, sql string, _ ...any) (pgx.Rows, error) {
+func (t *scriptTx) Query(_ context.Context, sql string, args ...any) (pgx.Rows, error) {
+	t.queries = append(t.queries, sql)
+	t.qargs = append(t.qargs, args)
 	return &scriptRows{vals: t.rows[sql], i: -1}, nil
 }
 
@@ -115,11 +120,12 @@ func TestPGServiceCapture(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tx := &scriptTx{row: map[string][]any{insertPaymentSQL: {"pay-1"}}}
+			tx := &scriptTx{row: map[string][]any{insertPaymentSQL: {"pay-1"}, insertAllocationSQL: {"alloc-1"}}}
 			if tt.bill != nil {
 				tx.row[lockBillSQL] = tt.bill
 			}
-			_, got, err := PGService{DB: txOnce{tx}, Payers: payers{"c1": "Client One"}}.Capture(context.Background(), tt.c)
+			gl := testGL()
+			_, got, err := PGService{DB: txOnce{tx}, Payers: payers{"c1": "Client One"}, GL: gl.as}.Capture(context.Background(), tt.c)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Capture err = %v, want %v", err, tt.wantErr)
 			}
@@ -134,8 +140,10 @@ func TestPGServiceCapture(t *testing.T) {
 			if err == nil && sum != tt.c.AmountCents {
 				t.Fatalf("sum(allocations) = %d, want %d", sum, tt.c.AmountCents)
 			}
-			if tx.wrote(insertAllocationSQL) != tt.wantWrite {
-				t.Fatalf("allocation written = %v, want %v", !tt.wantWrite, tt.wantWrite)
+			// rule: BIL-L-042
+			// The receipt and the applied bill row are journaled; a refused capture posts nothing.
+			if posted := len(gl.posters) > 0; posted != tt.wantWrite {
+				t.Fatalf("journal posted = %v, want %v", posted, tt.wantWrite)
 			}
 		})
 	}
@@ -160,12 +168,13 @@ func TestPGServiceCaptureDedup(t *testing.T) {
 					c.Provider, c.ProviderEventID, "u1", "posted", "", c.IdempotencyKey, "", "b1"}},
 				rows: map[string][][]any{allocationsSQL: {{"b1", int64(885), int64(115)}}},
 			}
-			p, as, err := PGService{DB: txOnce{tx}, Payers: payers{"c1": "Client One"}}.Capture(context.Background(), c)
+			gl := testGL()
+			p, as, err := PGService{DB: txOnce{tx}, Payers: payers{"c1": "Client One"}, GL: gl.as}.Capture(context.Background(), c)
 			if err != nil || p.ID != "pay-0" || len(as) != 1 || as[0].Total() != 1000 {
 				t.Fatalf("Capture = %+v, %+v, %v; want the first payment", p, as, err)
 			}
-			if len(tx.execs) != 0 {
-				t.Fatalf("replay wrote %d statements, want none", len(tx.execs))
+			if len(tx.execs) != 0 || len(gl.posters) != 0 {
+				t.Fatalf("replay wrote %d statements and %d journals, want none", len(tx.execs), len(gl.posters))
 			}
 		})
 	}
@@ -186,8 +195,8 @@ func TestPGServiceReverse(t *testing.T) {
 		wantErr error
 		writes  int
 	}{
-		{name: "nsf", status: "posted", reason: ReasonNSF, by: Actor{UserID: "u2"}, human: []any{true}, found: true, writes: 3},
-		{name: "chargeback", status: "posted", reason: ReasonChargeback, by: Actor{UserID: "u2"}, human: []any{true}, found: true, writes: 3},
+		{name: "nsf", status: "posted", reason: ReasonNSF, by: Actor{UserID: "u2"}, human: []any{true}, found: true, writes: 2},
+		{name: "chargeback", status: "posted", reason: ReasonChargeback, by: Actor{UserID: "u2"}, human: []any{true}, found: true, writes: 2},
 		{name: "again", status: "reversed", reason: ReasonNSF, by: Actor{UserID: "u2"}, human: []any{true}, found: true, wantErr: ErrReversed},
 		{name: "unknown", reason: ReasonNSF, by: Actor{UserID: "u2"}, human: []any{true}, wantErr: ErrNotFound},
 		{name: "bad reason", reason: "lost", by: Actor{UserID: "u2"}, wantErr: ErrInvalid},
@@ -203,10 +212,11 @@ func TestPGServiceReverse(t *testing.T) {
 				tx.row[humanSQL] = tt.human
 			}
 			if tt.found {
-				tx.row[lockPaymentSQL] = []any{tt.status}
+				tx.row[lockPaymentSQL] = []any{tt.status, int64(50000)}
 				tx.row[getPaymentSQL] = row("reversed", string(tt.reason))
 			}
-			p, err := PGService{DB: txOnce{tx}}.Reverse(context.Background(), "pay-1", tt.reason, tt.by)
+			gl := testGL()
+			p, err := PGService{DB: txOnce{tx}, GL: gl.as, Clock: gl.clk}.Reverse(context.Background(), "pay-1", tt.reason, tt.by)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Reverse err = %v, want %v", err, tt.wantErr)
 			}
@@ -215,15 +225,20 @@ func TestPGServiceReverse(t *testing.T) {
 			}
 			if tt.writes > 0 {
 				// rule: BIL-I-019
-				if tx.execs[0] != reverseAllocationsSQL || p.Status != StatusReversed || p.Reason != tt.reason || p.ReversedBy != tt.by.UserID {
-					t.Fatalf("Reverse = %+v, execs %v", p, tx.execs)
+				if len(tx.queries) == 0 || tx.queries[0] != reverseAllocationsSQL || p.Status != StatusReversed || p.Reason != tt.reason || p.ReversedBy != tt.by.UserID {
+					t.Fatalf("Reverse = %+v, queries %v", p, tx.queries)
 				}
 				// The -1 x rows and the reversal row carry the reversing user, never the allocator.
-				if got := tx.args[0][1]; got != tt.by.UserID {
+				if got := tx.qargs[0][1]; got != tt.by.UserID {
 					t.Fatalf("reversal allocated_by = %v, want %s", got, tt.by.UserID)
 				}
-				if tx.execs[1] != insertReversalSQL || tx.args[1][2] != tt.by.UserID {
-					t.Fatalf("reversal row = %s %v, want reversed_by %s", tx.execs[1], tx.args[1], tt.by.UserID)
+				if tx.execs[0] != insertReversalSQL || tx.args[0][2] != tt.by.UserID {
+					t.Fatalf("reversal row = %s %v, want reversed_by %s", tx.execs[0], tx.args[0], tt.by.UserID)
+				}
+				// rule: BIL-I-019
+				// The receipt's mirror is journaled by the reversing user.
+				if len(gl.posters) != 1 || gl.posters[0] != tt.by.UserID {
+					t.Fatalf("reversal journals posted by %v, want [%s]", gl.posters, tt.by.UserID)
 				}
 			}
 		})
@@ -356,10 +371,11 @@ func TestPGServiceCapturePayerName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tx := &scriptTx{row: map[string][]any{insertPaymentSQL: {"pay-1"}, lockBillSQL: openBillRow("c1", "delivered")}}
+			tx := &scriptTx{row: map[string][]any{insertPaymentSQL: {"pay-1"}, insertAllocationSQL: {"alloc-1"},
+				lockBillSQL: openBillRow("c1", "delivered")}}
 			var inserted []any
 			rec := &recordTx{scriptTx: tx, sql: insertPaymentSQL, args: &inserted}
-			_, _, err := PGService{DB: txOnce{rec}, Payers: tt.payers}.Capture(context.Background(), c)
+			_, _, err := PGService{DB: txOnce{rec}, Payers: tt.payers, GL: testGL().as}.Capture(context.Background(), c)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("Capture err = %v, want %v", err, tt.wantErr)
 			}
